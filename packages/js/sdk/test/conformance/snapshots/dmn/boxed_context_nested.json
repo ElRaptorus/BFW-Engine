@@ -1,0 +1,74 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "contextEntries": [
+          {
+            "expression": {
+              "contextEntries": [
+                {
+                  "expression": {
+                    "expressionLanguage": null,
+                    "id": null,
+                    "text": "10",
+                    "typeRef": null
+                  },
+                  "variable": {
+                    "id": null,
+                    "name": "a",
+                    "typeRef": "number"
+                  }
+                },
+                {
+                  "expression": {
+                    "expressionLanguage": null,
+                    "id": null,
+                    "text": "a + 5",
+                    "typeRef": null
+                  },
+                  "variable": null
+                }
+              ],
+              "id": "ctx_inner"
+            },
+            "variable": {
+              "id": null,
+              "name": "inner",
+              "typeRef": "number"
+            }
+          },
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "inner + 1",
+              "typeRef": null
+            },
+            "variable": null
+          }
+        ],
+        "id": "ctx_outer"
+      },
+      "id": "Decision_nested",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Nested Context Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_nested",
+        "name": "nestedResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_nested_context",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Nested Context Test",
+  "namespace": "https://example.com/dmn/nested-context"
+}

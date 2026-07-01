@@ -1,0 +1,74 @@
+{
+  "definitionsId": "Definitions_NoVersion",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_NoVer",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": null,
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": null
+    }
+  ],
+  "signals": []
+}

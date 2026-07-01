@@ -1,0 +1,14 @@
+name: "C33: Business rule task in DMN mode — UNIQUE hit policy"
+fixture: "business_rule_task_dmn.bpmn"
+dmn_fixtures:
+  - "simple_unique.dmn"
+process_model_id: "BrtDmnProcess"
+tier: auto
+start:
+  payload:
+    age: 25
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

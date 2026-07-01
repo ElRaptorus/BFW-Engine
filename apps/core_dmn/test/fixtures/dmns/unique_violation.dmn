@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_unique_violation" name="Unique Violation"
+  namespace="https://example.com/dmn/unique_violation">
+
+  <decision id="Decision_overlap" name="Overlapping Rules">
+    <decisionTable id="dt_overlap" hitPolicy="UNIQUE">
+      <input id="Input_val" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_result" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_broad">
+        <inputEntry id="IE_broad"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_broad"><text>"match_a"</text></outputEntry>
+      </rule>
+      <rule id="Rule_narrow">
+        <inputEntry id="IE_narrow"><text>&gt; 5</text></inputEntry>
+        <outputEntry id="OE_narrow"><text>"match_b"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

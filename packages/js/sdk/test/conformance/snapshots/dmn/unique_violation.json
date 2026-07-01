@@ -1,0 +1,86 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "dt_overlap",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_val",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_result",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_broad",
+            "inputEntries": [
+              {
+                "id": "IE_broad",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_broad",
+                "text": "\"match_a\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_narrow",
+            "inputEntries": [
+              {
+                "id": "IE_narrow",
+                "text": "> 5"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_narrow",
+                "text": "\"match_b\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_overlap",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Overlapping Rules",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_unique_violation",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Unique Violation",
+  "namespace": "https://example.com/dmn/unique_violation"
+}

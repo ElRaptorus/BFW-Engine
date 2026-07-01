@@ -1,0 +1,28 @@
+---
+id: C70
+name: "PI retry — checkpoint resets Data Object writes"
+tier: interactive
+description: |
+  Linear process with two ScriptTasks that each write to the same DataObject
+  ("counter"), followed by a dead-end task that causes fatal. ScriptTask_A
+  writes {"step": 1, "label": "first"}, ScriptTask_B writes {"step": 2, "label": "second"}.
+  After fatal, retry with resetToFlowNodeInstanceId = ScriptTask_A.
+  Data Object writes from ScriptTask_B and Task_DeadEnd must be rolled back.
+  The "counter" snapshot must reflect ScriptTask_A's value (step 1).
+  After retry, the process re-executes and goes fatal again at the dead end.
+
+bpmn:
+  - retry_checkpoint_data_objects.bpmn
+
+process_id: RetryCheckpointDataObjects
+
+pre_retry_state: fatal
+post_retry_state: fatal
+checkpoint: ScriptTask_A
+
+expectations:
+  data_object_rolled_back: true
+  data_object_id: DO_counter
+  data_object_value_after_rollback:
+    step: 1
+    label: first

@@ -1,0 +1,55 @@
+{
+  "name": "@elraptorus/daemonengine_client",
+  "version": "0.1.0",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElRaptorus/ThomasTheDaemonEngine.git",
+    "directory": "packages/js/client"
+  },
+  "description": "Blood fiend ritualistic murderer client for offering ritual sacrifices to the daemon engine",
+  "main": "dist/index.js",
+  "author": "Khorne",
+  "license": "MIT",
+  "type": "module",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.0.8",
+      "onFail": "download"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run test/unit/",
+    "test:unit": "vitest run test/unit/",
+    "test:integration": "vitest run test/integration/",
+    "lint": "eslint src/",
+    "lint:fix": "eslint --fix src/",
+    "format": "prettier --write --config ../.prettierrc.json src/"
+  },
+  "dependencies": {
+    "@elraptorus/daemonengine_sdk": "workspace:*",
+    "phoenix": "^1.8.6"
+  },
+  "devDependencies": {
+    "@types/phoenix": "^1.6.7",
+    "eslint": "^10.3.0",
+    "jose": "^6.2.3",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3",
+    "vitest": "^4.1.6"
+  }
+}

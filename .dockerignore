@@ -1,0 +1,44 @@
+# Build artifacts
+_build/
+deps/
+cover/
+doc/
+priv/plts/*.plt
+priv/plts/*.plt.hash
+
+# Host-only noise
+.git/
+.github/
+.cursor/
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# JS packages and examples are not part of the Elixir release
+packages/
+examples/
+
+# Local env overrides
+.env
+.env.*
+!.env.example
+
+# Secrets
+*.secret.exs
+
+# Test artefacts
+cover/
+coverage/
+excoveralls.json
+
+# Docs tree is not needed inside the image
+docs/
+README.md
+ImplementationPlan.md
+
+# Docker-compose runtime data
+.docker-compose-data/
+tmp/

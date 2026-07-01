@@ -1,0 +1,10 @@
+name: "C154: Event-Based Gateway — receive task A wins over receive task B"
+fixture: "event_based_gateway_receive_task.bpmn"
+process_model_id: "EbgReceiveTask"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

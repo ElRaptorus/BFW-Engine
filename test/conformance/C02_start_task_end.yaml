@@ -1,0 +1,12 @@
+name: "C02: Start-Task-End with payload"
+fixture: "linear_three_node.bpmn"
+process_model_id: "LinearThreeNode"
+tier: auto
+start:
+  payload:
+    message: "hello"
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

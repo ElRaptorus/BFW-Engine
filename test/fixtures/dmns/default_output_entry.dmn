@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_default_output"
+             name="Default Output Entry Test"
+             namespace="https://evilengine.dev/test/default-output"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_status" name="status">
+    <variable id="var_status" name="status" typeRef="string"/>
+  </inputData>
+
+  <decision id="Decision_default_single" name="Default Single Output">
+    <variable id="var_result" name="result" typeRef="string"/>
+    <informationRequirement id="ir_status">
+      <requiredInput href="#InputData_status"/>
+    </informationRequirement>
+    <decisionTable id="DT_default_single" hitPolicy="UNIQUE">
+      <input id="input_status" label="status">
+        <inputExpression typeRef="string">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="output_category" name="category" typeRef="string">
+        <defaultOutputEntry>
+          <text>"unknown"</text>
+        </defaultOutputEntry>
+      </output>
+      <rule id="rule_active">
+        <inputEntry id="ie_active"><text>"active"</text></inputEntry>
+        <outputEntry id="oe_active"><text>"premium"</text></outputEntry>
+      </rule>
+      <rule id="rule_inactive">
+        <inputEntry id="ie_inactive"><text>"inactive"</text></inputEntry>
+        <outputEntry id="oe_inactive"><text>"basic"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_default_multi" name="Default Multi Output">
+    <variable id="var_result_multi" name="result_multi"/>
+    <informationRequirement id="ir_status_multi">
+      <requiredInput href="#InputData_status"/>
+    </informationRequirement>
+    <decisionTable id="DT_default_multi" hitPolicy="UNIQUE">
+      <input id="input_status_multi" label="status">
+        <inputExpression typeRef="string">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="output_tier" name="tier" typeRef="string">
+        <defaultOutputEntry>
+          <text>"free"</text>
+        </defaultOutputEntry>
+      </output>
+      <output id="output_limit" name="limit" typeRef="number">
+        <defaultOutputEntry>
+          <text>0</text>
+        </defaultOutputEntry>
+      </output>
+      <rule id="rule_gold">
+        <inputEntry id="ie_gold"><text>"gold"</text></inputEntry>
+        <outputEntry id="oe_gold_tier"><text>"premium"</text></outputEntry>
+        <outputEntry id="oe_gold_limit"><text>1000</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_no_default" name="No Default Output">
+    <variable id="var_result_nodefault" name="result_nodefault" typeRef="string"/>
+    <informationRequirement id="ir_status_nodefault">
+      <requiredInput href="#InputData_status"/>
+    </informationRequirement>
+    <decisionTable id="DT_no_default" hitPolicy="UNIQUE">
+      <input id="input_status_nodefault" label="status">
+        <inputExpression typeRef="string">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="output_nodefault" name="category" typeRef="string"/>
+      <rule id="rule_only_active">
+        <inputEntry id="ie_only_active"><text>"active"</text></inputEntry>
+        <outputEntry id="oe_only_active"><text>"premium"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_default_partial" name="Partial Default Output">
+    <variable id="var_result_partial" name="result_partial"/>
+    <informationRequirement id="ir_status_partial">
+      <requiredInput href="#InputData_status"/>
+    </informationRequirement>
+    <decisionTable id="DT_default_partial" hitPolicy="FIRST">
+      <input id="input_status_partial" label="status">
+        <inputExpression typeRef="string">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="output_partial_tier" name="tier" typeRef="string">
+        <defaultOutputEntry>
+          <text>"basic"</text>
+        </defaultOutputEntry>
+      </output>
+      <output id="output_partial_code" name="code" typeRef="number"/>
+      <rule id="rule_partial_vip">
+        <inputEntry id="ie_partial_vip"><text>"vip"</text></inputEntry>
+        <outputEntry id="oe_partial_vip_tier"><text>"platinum"</text></outputEntry>
+        <outputEntry id="oe_partial_vip_code"><text>999</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_default_multi" dmnElementRef="Decision_default_multi">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_default_partial" dmnElementRef="Decision_default_partial">
+        <dc:Bounds x="340" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_default_single" dmnElementRef="Decision_default_single">
+        <dc:Bounds x="580" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_no_default" dmnElementRef="Decision_no_default">
+        <dc:Bounds x="820" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_status" dmnElementRef="InputData_status">
+        <dc:Bounds x="130" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_status" dmnElementRef="ir_status">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="670" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_status_multi" dmnElementRef="ir_status_multi">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="190" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_status_nodefault" dmnElementRef="ir_status_nodefault">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="910" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_status_partial" dmnElementRef="ir_status_partial">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="430" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

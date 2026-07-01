@@ -1,0 +1,113 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Review",
+          "outgoing": [],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": "identity.groups",
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": {
+              "fields": [
+                {
+                  "name": "approved",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "UserTaskSimple",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "User Task Simple",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "UserTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

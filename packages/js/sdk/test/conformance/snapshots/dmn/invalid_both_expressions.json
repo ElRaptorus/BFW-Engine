@@ -1,0 +1,40 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_invalid",
+        "text": "value * 2",
+        "typeRef": "number"
+      },
+      "id": "Decision_invalid_both",
+      "informationRequirements": [
+        {
+          "id": "ir_value",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Invalid Both Table And Literal",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_invalid_both",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_value",
+      "name": "value",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Invalid Both Expressions",
+  "namespace": "https://example.com/dmn/invalid"
+}

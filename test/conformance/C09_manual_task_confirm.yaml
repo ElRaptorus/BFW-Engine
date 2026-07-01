@@ -1,0 +1,11 @@
+name: "C09: Manual task with requireConfirmation"
+fixture: "manual_task_confirm.bpmn"
+process_model_id: "ManualTaskConfirm"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

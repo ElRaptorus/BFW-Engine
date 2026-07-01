@@ -1,0 +1,107 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Wait for Shared Signal",
+          "outgoing": [],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_shared"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "SignalCatchForDual",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Catch_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Signal Catch For Dual",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Catch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_shared",
+      "name": "shared-signal"
+    }
+  ]
+}

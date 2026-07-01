@@ -1,0 +1,10 @@
+name: "C25: XOR split with no matching condition and no default causes fatal"
+fixture: "xor_split_no_match.bpmn"
+process_model_id: "XorSplitNoMatch"
+tier: auto
+start:
+  payload:
+    amount: 1
+expected:
+  final_state: "fatal"
+  final_tokens: null

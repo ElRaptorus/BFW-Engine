@@ -1,0 +1,8 @@
+packages:
+  - "sdk"
+  - "client"
+  - "../../examples/client-js/*"
+  - "../../examples/sdk-js/*"
+  - "../../examples/sidecar-js/*"
+allowBuilds:
+  esbuild: true

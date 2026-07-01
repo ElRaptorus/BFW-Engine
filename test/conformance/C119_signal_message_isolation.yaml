@@ -1,0 +1,10 @@
+name: "C119: Signal + message isolation — signal NEVER triggers message event"
+fixture: "signal_isolation_signal_side.bpmn"
+process_model_id: "SignalIsolationSignalSide"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

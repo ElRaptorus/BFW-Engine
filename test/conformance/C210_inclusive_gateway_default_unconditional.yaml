@@ -1,0 +1,11 @@
+name: "C210: Inclusive Gateway — default with unconditional when zero truthy"
+fixture: "inclusive_gateway_default_unconditional.bpmn"
+process_model_id: "InclusiveGatewayDefaultUnconditional"
+tier: auto
+start:
+  payload:
+    a: false
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Default"

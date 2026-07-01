@@ -1,0 +1,146 @@
+{
+  "definitionsId": "Definitions_CA_Resume_Child_Defective",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Pause Point",
+          "outgoing": [],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": {
+              "fields": [
+                {
+                  "name": "result",
+                  "type": "string"
+                }
+              ]
+            },
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ServiceTask_Bad",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Defective Service Task",
+          "outgoing": [],
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "nonexistent_service_handler",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumableChild",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "UserTask_1", "ServiceTask_Bad", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Resumable Child (Defective)",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "UserTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_1",
+          "targetRef": "ServiceTask_Bad"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_Bad",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "3.0.0"
+    }
+  ],
+  "signals": []
+}

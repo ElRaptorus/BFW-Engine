@@ -1,0 +1,13 @@
+name: "C66: Tree retry from child PI — child retried, parent also restarted"
+fixtures:
+  - "call_activity_failing_child.bpmn"
+  - "retry_parent_with_failing_child.bpmn"
+process_model_id: "RetryParentWithFailingChild"
+tier: interactive
+start:
+  payload: null
+expected:
+  parent_pre_retry_state: "fatal"
+  child_pre_retry_state: "fatal"
+  parent_post_retry_state: "fatal"
+  child_post_retry_state: "fatal"

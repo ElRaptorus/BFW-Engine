@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_nested_context"
+             name="Nested Context Test"
+             namespace="https://example.com/dmn/nested-context"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <decision id="Decision_nested" name="Nested Context Decision">
+    <variable id="var_nested" name="nestedResult" typeRef="number"/>
+    <context id="ctx_outer">
+      <contextEntry>
+        <variable name="inner" typeRef="number"/>
+        <context id="ctx_inner">
+          <contextEntry>
+            <variable name="a" typeRef="number"/>
+            <literalExpression><text>10</text></literalExpression>
+          </contextEntry>
+          <contextEntry>
+            <literalExpression><text>a + 5</text></literalExpression>
+          </contextEntry>
+        </context>
+      </contextEntry>
+      <contextEntry>
+        <literalExpression><text>inner + 1</text></literalExpression>
+      </contextEntry>
+    </context>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_nested" dmnElementRef="Decision_nested">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

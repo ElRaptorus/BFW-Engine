@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_three_level" name="DRG Three Level Chain"
+  namespace="https://example.com/dmn/drg_three_level"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_D" name="Decision D">
+    <variable id="var_d" name="D_result" typeRef="number"/>
+    <informationRequirement id="ir_d_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <literalExpression id="literal_d" typeRef="number">
+      <text>x + 1</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_C" name="Decision C">
+    <variable id="var_c" name="C_result" typeRef="number"/>
+    <informationRequirement id="ir_c_d">
+      <requiredDecision href="#Decision_D"/>
+    </informationRequirement>
+    <literalExpression id="literal_c" typeRef="number">
+      <text>D_result + 1</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_B" name="Decision B">
+    <variable id="var_b" name="B_result" typeRef="number"/>
+    <informationRequirement id="ir_b_c">
+      <requiredDecision href="#Decision_C"/>
+    </informationRequirement>
+    <literalExpression id="literal_b" typeRef="number">
+      <text>C_result + 1</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_A" name="Decision A">
+    <variable id="var_a" name="A_result" typeRef="number"/>
+    <informationRequirement id="ir_a_b">
+      <requiredDecision href="#Decision_B"/>
+    </informationRequirement>
+    <literalExpression id="literal_a" typeRef="number">
+      <text>B_result + 1</text>
+    </literalExpression>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_A" dmnElementRef="Decision_A">
+        <dc:Bounds x="490" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_B" dmnElementRef="Decision_B">
+        <dc:Bounds x="490" y="240" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_C" dmnElementRef="Decision_C">
+        <dc:Bounds x="490" y="380" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_D" dmnElementRef="Decision_D">
+        <dc:Bounds x="490" y="520" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_x" dmnElementRef="InputData_x">
+        <dc:Bounds x="490" y="660" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_d_x" dmnElementRef="ir_d_x">
+        <di:waypoint x="580" y="660"/>
+        <di:waypoint x="580" y="600"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_c_d" dmnElementRef="ir_c_d">
+        <di:waypoint x="580" y="520"/>
+        <di:waypoint x="580" y="460"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_b_c" dmnElementRef="ir_b_c">
+        <di:waypoint x="580" y="380"/>
+        <di:waypoint x="580" y="320"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_a_b" dmnElementRef="ir_a_b">
+        <di:waypoint x="580" y="240"/>
+        <di:waypoint x="580" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

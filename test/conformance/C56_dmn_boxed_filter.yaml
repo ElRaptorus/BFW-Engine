@@ -1,0 +1,11 @@
+name: "C56: DMN Boxed Filter"
+type: dmn
+fixture: boxed_filter_basic.dmn
+decision_definition_id: "definitions_filter"
+evaluate:
+  decision_model_id: "Decision_filter"
+  input: {}
+expected:
+  status: 200
+  hit_policy: "boxed_expression"
+  result: [3, 4, 5]

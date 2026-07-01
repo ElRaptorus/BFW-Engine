@@ -1,0 +1,11 @@
+name: "C98: Uncaught Escalation Intermediate Throw — PI finishes normally (S15c)"
+fixture: "escalation_intermediate_throw_standalone.bpmn"
+process_model_id: "EscalationThrowStandalone"
+tier: auto
+wait_timeout_ms: 3000
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

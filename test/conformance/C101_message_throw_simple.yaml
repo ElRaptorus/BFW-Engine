@@ -1,0 +1,12 @@
+name: "C101: Message intermediate throw — publish and proceed"
+fixture: "message_throw_simple.bpmn"
+process_model_id: "MessageThrowSimple"
+tier: auto
+start:
+  payload:
+    notification: "hello"
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

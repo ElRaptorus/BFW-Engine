@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_XorSplitTwoConditions" name="XOR Split Two Conditions" processRef="XorSplitTwoConditions" />
+  </bpmn:collaboration>
+  <bpmn:process id="XorSplitTwoConditions" name="XOR Split Two Conditions" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>XOR_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_High</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Low</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:exclusiveGateway id="XOR_1" name="Amount Check"/>
+    <bpmn:endEvent id="End_High" name="High"/>
+    <bpmn:endEvent id="End_Low" name="Low"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="XOR_1"/>
+    <bpmn:sequenceFlow id="Flow_High" sourceRef="XOR_1" targetRef="End_High">
+      <bpmn:conditionExpression>token.amount &gt; 100</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Low" sourceRef="XOR_1" targetRef="End_Low">
+      <bpmn:conditionExpression>token.amount &lt;= 100</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_XorSplitTwoConditions" bpmnElement="Participant_XorSplitTwoConditions" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="486" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="456" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_XOR_1" bpmnElement="XOR_1">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_High" bpmnElement="End_High">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Low" bpmnElement="End_Low">
+        <dc:Bounds x="482" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_High" bpmnElement="Flow_High">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Low" bpmnElement="Flow_Low">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="250" />
+        <di:waypoint x="482" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

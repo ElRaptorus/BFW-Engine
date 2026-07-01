@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Start → Fork → [UserTask_A, UserTask_B] → Join → ServiceTask_DeadEnd (no handler → fatal) → End
+
+  Used by 10d: retry at UserTask_A checkpoint should reset both branches.
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="ParallelGatewayRetryBranch" />
+  </bpmn:collaboration>
+  <bpmn:process id="ParallelGatewayRetryBranch" name="Parallel Gateway Retry Branch" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Join_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_DeadEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Fork_1" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A</bpmn:outgoing>
+      <bpmn:outgoing>Flow_B</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="UserTask_A" name="User Task A">
+      <bpmn:extensionElements>
+        <evil:formFields>{"fields":[]}</evil:formFields>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_A</bpmn:incoming>
+      <bpmn:outgoing>Flow_A2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="UserTask_B" name="User Task B">
+      <bpmn:extensionElements>
+        <evil:formFields>{"fields":[]}</evil:formFields>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_B</bpmn:incoming>
+      <bpmn:outgoing>Flow_B2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:parallelGateway id="Join_1" name="Join">
+      <bpmn:incoming>Flow_A2</bpmn:incoming>
+      <bpmn:incoming>Flow_B2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="ServiceTask_DeadEnd" name="Dead End" implementation="nonexistent_handler_xyz">
+      <bpmn:incoming>Flow_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork_1" />
+    <bpmn:sequenceFlow id="Flow_A" sourceRef="Fork_1" targetRef="UserTask_A" />
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="Fork_1" targetRef="UserTask_B" />
+    <bpmn:sequenceFlow id="Flow_A2" sourceRef="UserTask_A" targetRef="Join_1" />
+    <bpmn:sequenceFlow id="Flow_B2" sourceRef="UserTask_B" targetRef="Join_1" />
+    <bpmn:sequenceFlow id="Flow_Join" sourceRef="Join_1" targetRef="ServiceTask_DeadEnd" />
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="ServiceTask_DeadEnd" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="52" width="916" height="286" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="52" width="886" height="286" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork_1" bpmnElement="Fork_1">
+        <dc:Bounds x="265" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_A" bpmnElement="UserTask_A">
+        <dc:Bounds x="400" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_B" bpmnElement="UserTask_B">
+        <dc:Bounds x="400" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Join_1" bpmnElement="Join_1">
+        <dc:Bounds x="565" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_DeadEnd" bpmnElement="ServiceTask_DeadEnd">
+        <dc:Bounds x="700" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="882" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="265" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A" bpmnElement="Flow_A">
+        <di:waypoint x="290" y="175" />
+        <di:waypoint x="290" y="140" />
+        <di:waypoint x="400" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B" bpmnElement="Flow_B">
+        <di:waypoint x="290" y="225" />
+        <di:waypoint x="290" y="270" />
+        <di:waypoint x="400" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A2" bpmnElement="Flow_A2">
+        <di:waypoint x="500" y="140" />
+        <di:waypoint x="590" y="140" />
+        <di:waypoint x="590" y="175" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B2" bpmnElement="Flow_B2">
+        <di:waypoint x="500" y="270" />
+        <di:waypoint x="590" y="270" />
+        <di:waypoint x="590" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Join" bpmnElement="Flow_Join">
+        <di:waypoint x="615" y="200" />
+        <di:waypoint x="700" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_End" bpmnElement="Flow_End">
+        <di:waypoint x="800" y="200" />
+        <di:waypoint x="882" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

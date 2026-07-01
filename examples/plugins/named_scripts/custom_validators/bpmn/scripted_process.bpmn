@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_scripted_validators">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_scripted-validators-demo" name="Scripted Validators Demo" processRef="scripted-validators-demo" />
+  </bpmn:collaboration>
+  <bpmn:process id="scripted-validators-demo" name="Scripted Validators Demo" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_validate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_convert</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_idempotency</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_start_validate</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Task_validate" name="Validate payload">
+      <bpmn:extensionElements>
+        <evil:scriptRef>validate_payload</evil:scriptRef>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_start_validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_validate_convert</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_convert" name="Convert currency">
+      <bpmn:extensionElements>
+        <evil:scriptRef>convert_currency</evil:scriptRef>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_validate_convert</bpmn:incoming>
+      <bpmn:outgoing>Flow_convert_idempotency</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_idempotency" name="Idempotency guard">
+      <bpmn:extensionElements>
+        <evil:scriptRef>idempotency_guard</evil:scriptRef>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_convert_idempotency</bpmn:incoming>
+      <bpmn:outgoing>Flow_idempotency_end</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_idempotency_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_start_validate" sourceRef="Start_1" targetRef="Task_validate" />
+    <bpmn:sequenceFlow id="Flow_validate_convert" sourceRef="Task_validate" targetRef="Task_convert" />
+    <bpmn:sequenceFlow id="Flow_convert_idempotency" sourceRef="Task_convert" targetRef="Task_idempotency" />
+    <bpmn:sequenceFlow id="Flow_idempotency_end" sourceRef="Task_idempotency" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_scripted-validators-demo" bpmnElement="Participant_scripted-validators-demo" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="806" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="776" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_validate" bpmnElement="Task_validate">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_convert" bpmnElement="Task_convert">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_idempotency" bpmnElement="Task_idempotency">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="802" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_start_validate" bpmnElement="Flow_start_validate">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_validate_convert" bpmnElement="Flow_validate_convert">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_convert_idempotency" bpmnElement="Flow_convert_idempotency">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_idempotency_end" bpmnElement="Flow_idempotency_end">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="802" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

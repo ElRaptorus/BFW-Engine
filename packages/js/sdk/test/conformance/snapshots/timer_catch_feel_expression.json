@@ -1,0 +1,98 @@
+{
+  "definitionsId": "Definitions_TimerCatchFeel",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerCatch_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "FEEL Timer",
+          "outgoing": ["Flow_2"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "\"PT\" + string(token.seconds) + \"S\""
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TimerCatchFeelExpression",
+      "isExecutable": true,
+      "lanes": [],
+      "linterScores": [],
+      "name": "Timer Catch FEEL Expression",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "TimerCatch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerCatch_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

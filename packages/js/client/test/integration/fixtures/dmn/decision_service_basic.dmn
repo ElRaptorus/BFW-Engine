@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             id="Definitions_ds_basic"
+             name="Decision Service Basic"
+             namespace="https://evilengine.dev/test/decision-service-basic">
+
+  <inputData id="InputData_age" name="Age" />
+  <inputData id="InputData_income" name="Income" />
+
+  <decision id="Decision_risk" name="Risk Score">
+    <informationRequirement>
+      <requiredInput href="#InputData_age" />
+    </informationRequirement>
+    <literalExpression>
+      <text>if Age &gt; 50 then "high" else "low"</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_eligibility" name="Eligibility">
+    <informationRequirement>
+      <requiredInput href="#InputData_income" />
+    </informationRequirement>
+    <informationRequirement>
+      <requiredDecision href="#Decision_risk" />
+    </informationRequirement>
+    <literalExpression>
+      <text>if Risk Score = "low" and Income &gt; 30000 then "approved" else "denied"</text>
+    </literalExpression>
+  </decision>
+
+  <decisionService id="DS_eligibility" name="Eligibility Service">
+    <outputDecision href="#Decision_eligibility" />
+    <encapsulatedDecision href="#Decision_risk" />
+    <inputData href="#InputData_age" />
+    <inputData href="#InputData_income" />
+  </decisionService>
+
+</definitions>

@@ -1,0 +1,9 @@
+name: "C13: Async service task failed via plugin"
+fixture: "service_task_async_park.bpmn"
+process_model_id: "ServiceTaskAsyncPark"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

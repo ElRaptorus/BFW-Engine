@@ -1,0 +1,91 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "contextEntries": [
+          {
+            "expression": {
+              "elements": [
+                {
+                  "expressionLanguage": null,
+                  "id": null,
+                  "text": "1",
+                  "typeRef": null
+                },
+                {
+                  "expressionLanguage": null,
+                  "id": null,
+                  "text": "2",
+                  "typeRef": null
+                },
+                {
+                  "expressionLanguage": null,
+                  "id": null,
+                  "text": "3",
+                  "typeRef": null
+                },
+                {
+                  "expressionLanguage": null,
+                  "id": null,
+                  "text": "4",
+                  "typeRef": null
+                },
+                {
+                  "expressionLanguage": null,
+                  "id": null,
+                  "text": "5",
+                  "typeRef": null
+                }
+              ],
+              "id": null
+            },
+            "variable": {
+              "id": null,
+              "name": "numbers",
+              "typeRef": null
+            }
+          },
+          {
+            "expression": {
+              "id": "flt_1",
+              "inExpression": {
+                "expressionLanguage": null,
+                "id": null,
+                "text": "numbers",
+                "typeRef": null
+              },
+              "matchExpression": {
+                "expressionLanguage": null,
+                "id": null,
+                "text": "item > 2",
+                "typeRef": null
+              }
+            },
+            "variable": null
+          }
+        ],
+        "id": "ctx_filter"
+      },
+      "id": "Decision_filter",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Filter Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_filter",
+        "name": "filterResult",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_filter",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Filter Test",
+  "namespace": "https://example.com/dmn/filter"
+}

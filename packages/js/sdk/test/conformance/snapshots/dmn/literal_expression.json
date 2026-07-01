@@ -1,0 +1,50 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_sum",
+        "text": "x + y",
+        "typeRef": "number"
+      },
+      "id": "Decision_sum",
+      "informationRequirements": [
+        {
+          "id": "ir_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        },
+        {
+          "id": "ir_y",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_y"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Sum of x and y",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_sum",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": "number"
+    },
+    {
+      "id": "InputData_y",
+      "name": "y",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Sum Expression",
+  "namespace": "https://example.com/dmn/sum"
+}

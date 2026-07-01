@@ -1,0 +1,10 @@
+name: "C153: Event-Based Gateway — three-way race, timer PT0S wins first"
+fixture: "event_based_gateway_three_branches.bpmn"
+process_model_id: "EbgThreeBranches"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

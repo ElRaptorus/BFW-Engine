@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_RetryCheckpointDataObjects"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_RetryCheckpointDataObjects" name="Retry Checkpoint Data Objects" processRef="RetryCheckpointDataObjects" />
+  </bpmn:collaboration>
+  <bpmn:process id="RetryCheckpointDataObjects" name="Retry Checkpoint Data Objects" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DeadEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Unreachable</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:dataObject id="DO_counter" name="counter"/>
+    <bpmn:dataObjectReference id="DOR_counter_A" dataObjectRef="DO_counter"/>
+    <bpmn:dataObjectReference id="DOR_counter_B" dataObjectRef="DO_counter"/>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:scriptTask id="ScriptTask_A" name="Write Counter Step 1" scriptFormat="feel">
+      <bpmn:script>{"step": 1, "label": "first"}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_A">
+        <bpmn:targetRef>DOR_counter_A</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="ScriptTask_B" name="Write Counter Step 2" scriptFormat="feel">
+      <bpmn:script>{"step": 2, "label": "second"}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_B">
+        <bpmn:targetRef>DOR_counter_B</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+    <bpmn:task id="Task_DeadEnd" name="Dead End"/>
+    <bpmn:endEvent id="End_Unreachable" name="Unreachable End"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ScriptTask_A"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_A" targetRef="ScriptTask_B"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="ScriptTask_B" targetRef="Task_DeadEnd"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant" bpmnElement="Participant_RetryCheckpointDataObjects" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="746" height="218" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="716" height="218" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_A" bpmnElement="ScriptTask_A">
+        <dc:Bounds x="250" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_B" bpmnElement="ScriptTask_B">
+        <dc:Bounds x="410" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DeadEnd" bpmnElement="Task_DeadEnd">
+        <dc:Bounds x="570" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Unreachable" bpmnElement="End_Unreachable">
+        <dc:Bounds x="730" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_counter_A" bpmnElement="DOR_counter_A">
+        <dc:Bounds x="282" y="230" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_counter_B" bpmnElement="DOR_counter_B">
+        <dc:Bounds x="442" y="230" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="150" />
+        <di:waypoint x="250" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="350" y="150" />
+        <di:waypoint x="410" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="510" y="150" />
+        <di:waypoint x="570" y="150" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

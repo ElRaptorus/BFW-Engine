@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_sum" name="Sum Expression"
+  namespace="https://example.com/dmn/sum">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_y" name="y">
+    <variable name="y" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_sum" name="Sum of x and y">
+    <informationRequirement id="ir_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <informationRequirement id="ir_y">
+      <requiredInput href="#InputData_y"/>
+    </informationRequirement>
+    <literalExpression id="literal_sum" typeRef="number">
+      <text>x + y</text>
+    </literalExpression>
+  </decision>
+</definitions>

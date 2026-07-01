@@ -1,0 +1,124 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "XOR_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Premium Check",
+          "outgoing": [],
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": "Flow_Default"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Premium",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Premium",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Standard",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Standard",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "XorSplitDefaultFlow",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "XOR_1", "End_Premium", "End_Standard"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "XOR Split Default Flow",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "XOR_1"
+        },
+        {
+          "conditionExpression": "token.amount > 1000",
+          "id": "Flow_Premium",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "XOR_1",
+          "targetRef": "End_Premium"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Default",
+          "isDefault": true,
+          "name": null,
+          "sourceRef": "XOR_1",
+          "targetRef": "End_Standard"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,0 +1,116 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_a",
+          "text": "resultB + 1",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_x_a",
+            "name": "x",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_a",
+        "type": "feel"
+      },
+      "id": "BKM_A",
+      "knowledgeRequirements": [
+        {
+          "id": "kr_a_b",
+          "requiredKnowledgeId": "BKM_B"
+        }
+      ],
+      "name": "BKM A",
+      "variable": {
+        "id": "var_bkm_a",
+        "name": "resultA",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_b",
+          "text": "resultA + 2",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_x_b",
+            "name": "x",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_b",
+        "type": "feel"
+      },
+      "id": "BKM_B",
+      "knowledgeRequirements": [
+        {
+          "id": "kr_b_a",
+          "requiredKnowledgeId": "BKM_A"
+        }
+      ],
+      "name": "BKM B",
+      "variable": {
+        "id": "var_bkm_b",
+        "name": "resultB",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_decision",
+        "text": "resultA + x",
+        "typeRef": "number"
+      },
+      "id": "Decision_cycle",
+      "informationRequirements": [
+        {
+          "id": "ir_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_a",
+          "requiredKnowledgeId": "BKM_A"
+        }
+      ],
+      "name": "Cycle Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_decision",
+        "name": "cycleResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_bkm_cycle",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM Cycle",
+  "namespace": "https://example.com/dmn/bkm-cycle"
+}

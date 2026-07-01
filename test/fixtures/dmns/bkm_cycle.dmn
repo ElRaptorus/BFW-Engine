@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="definitions_bkm_cycle" name="BKM Cycle" namespace="https://example.com/dmn/bkm-cycle">
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number" />
+  </inputData>
+  <businessKnowledgeModel id="BKM_A" name="BKM A">
+    <variable id="var_bkm_a" name="resultA" typeRef="number" />
+    <encapsulatedLogic id="EL_a">
+      <formalParameter id="FP_x_a" name="x" typeRef="number" />
+      <literalExpression id="LE_a" typeRef="number">
+        <text>resultB + 1</text>
+      </literalExpression>
+    </encapsulatedLogic>
+    <knowledgeRequirement id="kr_a_b">
+      <requiredKnowledge href="#BKM_B" />
+    </knowledgeRequirement>
+  </businessKnowledgeModel>
+  <businessKnowledgeModel id="BKM_B" name="BKM B">
+    <variable id="var_bkm_b" name="resultB" typeRef="number" />
+    <encapsulatedLogic id="EL_b">
+      <formalParameter id="FP_x_b" name="x" typeRef="number" />
+      <literalExpression id="LE_b" typeRef="number">
+        <text>resultA + 2</text>
+      </literalExpression>
+    </encapsulatedLogic>
+    <knowledgeRequirement id="kr_b_a">
+      <requiredKnowledge href="#BKM_A" />
+    </knowledgeRequirement>
+  </businessKnowledgeModel>
+  <decision id="Decision_cycle" name="Cycle Decision">
+    <variable id="var_decision" name="cycleResult" typeRef="number" />
+    <informationRequirement id="ir_x">
+      <requiredInput href="#InputData_x" />
+    </informationRequirement>
+    <knowledgeRequirement id="kr_a">
+      <requiredKnowledge href="#BKM_A" />
+    </knowledgeRequirement>
+    <literalExpression id="LE_decision" typeRef="number">
+      <text>resultA + x</text>
+    </literalExpression>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_BKM_A" dmnElementRef="BKM_A">
+        <dc:Bounds height="80" width="180" x="220" y="-110" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_BKM_B" dmnElementRef="BKM_B">
+        <dc:Bounds height="80" width="180" x="90" y="90" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_cycle" dmnElementRef="Decision_cycle">
+        <dc:Bounds height="80" width="180" x="420" y="100" />
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_x" dmnElementRef="InputData_x">
+        <dc:Bounds height="45" width="180" x="430" y="277" />
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_kr_a_b" dmnElementRef="kr_a_b">
+        <di:waypoint x="180" y="90" />
+        <di:waypoint x="240" y="-30" />
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_kr_b_a" dmnElementRef="kr_b_a">
+        <di:waypoint x="273" y="-30" />
+        <di:waypoint x="217" y="90" />
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_x" dmnElementRef="ir_x">
+        <di:waypoint x="520" y="277" />
+        <di:waypoint x="510" y="200" />
+        <di:waypoint x="510" y="180" />
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_kr_a" dmnElementRef="kr_a">
+        <di:waypoint x="365" y="-30" />
+        <di:waypoint x="455" y="100" />
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

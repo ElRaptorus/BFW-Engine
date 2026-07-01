@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_context"
+             name="Boxed Context Test"
+             namespace="https://example.com/dmn/boxed-context">
+  <decision id="Decision_context" name="Context Decision">
+    <variable id="var_ctx" name="contextResult" typeRef="number"/>
+    <context id="ctx_1">
+      <contextEntry>
+        <variable name="x" typeRef="number"/>
+        <literalExpression id="le_x"><text>2 + 3</text></literalExpression>
+      </contextEntry>
+      <contextEntry>
+        <variable name="y" typeRef="number"/>
+        <literalExpression id="le_y"><text>x * 2</text></literalExpression>
+      </contextEntry>
+      <contextEntry>
+        <literalExpression id="le_result"><text>y + 1</text></literalExpression>
+      </contextEntry>
+    </context>
+  </decision>
+</definitions>

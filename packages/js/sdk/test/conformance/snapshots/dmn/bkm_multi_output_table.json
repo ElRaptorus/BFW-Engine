@@ -1,0 +1,174 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "aggregation": null,
+          "hitPolicy": "first",
+          "id": "dt_bkm_grading",
+          "inputs": [
+            {
+              "compiledInputValuesRef": null,
+              "id": "Input_bkm_score",
+              "inputExpression": "score",
+              "inputValues": null,
+              "label": "Score",
+              "typeRef": "number"
+            }
+          ],
+          "outputs": [
+            {
+              "compiledDefaultRef": null,
+              "defaultOutputValue": null,
+              "id": "Output_grade",
+              "label": "Grade",
+              "name": "grade",
+              "outputValues": null,
+              "typeRef": "string"
+            },
+            {
+              "compiledDefaultRef": null,
+              "defaultOutputValue": null,
+              "id": "Output_passed",
+              "label": "Passed",
+              "name": "passed",
+              "outputValues": null,
+              "typeRef": "boolean"
+            }
+          ],
+          "preferredOrientation": "Rule-as-Row",
+          "ruleIndex": null,
+          "rules": [
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_excellent",
+              "inputEntries": [
+                {
+                  "id": "IE_excellent",
+                  "text": ">= 90"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_excellent_grade",
+                  "text": "\"A\""
+                },
+                {
+                  "id": "OE_excellent_passed",
+                  "text": "true"
+                }
+              ]
+            },
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_good",
+              "inputEntries": [
+                {
+                  "id": "IE_good",
+                  "text": ">= 70"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_good_grade",
+                  "text": "\"B\""
+                },
+                {
+                  "id": "OE_good_passed",
+                  "text": "true"
+                }
+              ]
+            },
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_fail",
+              "inputEntries": [
+                {
+                  "id": "IE_fail",
+                  "text": "-"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_fail_grade",
+                  "text": "\"F\""
+                },
+                {
+                  "id": "OE_fail_passed",
+                  "text": "false"
+                }
+              ]
+            }
+          ]
+        },
+        "formalParameters": [
+          {
+            "id": "FP_score",
+            "name": "score",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_grading",
+        "type": "feel"
+      },
+      "id": "BKM_grading",
+      "knowledgeRequirements": [],
+      "name": "Grading Logic",
+      "variable": {
+        "id": "var_bkm_grading",
+        "name": "gradingResult",
+        "typeRef": "Any"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_final",
+        "text": "gradingResult",
+        "typeRef": "Any"
+      },
+      "id": "Decision_final",
+      "informationRequirements": [
+        {
+          "id": "ir_score",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_score"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_grading",
+          "requiredKnowledgeId": "BKM_grading"
+        }
+      ],
+      "name": "Final Grade",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_decision",
+        "name": "finalGrade",
+        "typeRef": "Any"
+      }
+    }
+  ],
+  "id": "definitions_bkm_multi_output",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_score",
+      "name": "score",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM Multi-Output Table",
+  "namespace": "https://example.com/dmn/bkm-multi-output"
+}

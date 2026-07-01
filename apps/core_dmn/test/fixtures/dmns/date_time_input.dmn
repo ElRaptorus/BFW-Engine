@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_date_time" name="Date Time Input Coercion"
+  namespace="https://example.com/dmn/date-time">
+
+  <itemDefinition id="ItemDef_date" name="DateType">
+    <typeRef>date</typeRef>
+  </itemDefinition>
+
+  <inputData id="InputData_birthDate" name="birthDate">
+    <variable name="birthDate" typeRef="DateType"/>
+  </inputData>
+
+  <decision id="Decision_date_check" name="Date Check">
+    <informationRequirement id="ir_birthDate">
+      <requiredInput href="#InputData_birthDate"/>
+    </informationRequirement>
+    <decisionTable id="dt_date" hitPolicy="FIRST">
+      <input id="Input_birthDate" label="Birth Date">
+        <inputExpression typeRef="date">birthDate</inputExpression>
+      </input>
+      <output id="Output_category" label="Category" name="category" typeRef="string"/>
+      <rule id="Rule_before_2000">
+        <inputEntry id="IE_before_2000"><text>&lt; @"2000-01-01"</text></inputEntry>
+        <outputEntry id="OE_before_2000"><text>"born_before_2000"</text></outputEntry>
+      </rule>
+      <rule id="Rule_after_2000">
+        <inputEntry id="IE_after_2000"><text>>= @"2000-01-01"</text></inputEntry>
+        <outputEntry id="OE_after_2000"><text>"born_2000_or_later"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

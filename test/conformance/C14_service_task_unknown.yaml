@@ -1,0 +1,9 @@
+name: "C14: Unknown service task type key causes fatal"
+fixture: "service_task_unknown_type.bpmn"
+process_model_id: "ServiceTaskUnknownType"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

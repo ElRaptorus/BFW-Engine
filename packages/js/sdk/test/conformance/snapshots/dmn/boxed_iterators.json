@@ -1,0 +1,124 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "id": "for_1",
+        "inExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "numbers",
+          "typeRef": null
+        },
+        "iteratorVariable": "x",
+        "returnExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "x * 2",
+          "typeRef": null
+        }
+      },
+      "id": "Decision_for",
+      "informationRequirements": [
+        {
+          "id": "ir_for",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_numbers"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "For Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_for",
+        "name": "forResult",
+        "typeRef": null
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "id": "every_1",
+        "inExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "numbers",
+          "typeRef": null
+        },
+        "iteratorVariable": "n",
+        "satisfiesExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "n > 0",
+          "typeRef": null
+        }
+      },
+      "id": "Decision_every",
+      "informationRequirements": [
+        {
+          "id": "ir_every",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_numbers"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Every Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_every",
+        "name": "everyResult",
+        "typeRef": null
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "id": "some_1",
+        "inExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "numbers",
+          "typeRef": null
+        },
+        "iteratorVariable": "n",
+        "satisfiesExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "n > 10",
+          "typeRef": null
+        }
+      },
+      "id": "Decision_some",
+      "informationRequirements": [
+        {
+          "id": "ir_some",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_numbers"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Some Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_some",
+        "name": "someResult",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_iterators",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_numbers",
+      "name": "numbers",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Iterator Tests",
+  "namespace": "https://example.com/dmn/iterators"
+}

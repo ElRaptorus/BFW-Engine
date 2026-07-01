@@ -1,0 +1,112 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "dt_mixed",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_1",
+            "inputExpression": "x",
+            "inputValues": null,
+            "label": "X",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_1",
+            "label": "Y",
+            "name": "y",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_1",
+            "inputEntries": [
+              {
+                "id": "IE_1",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_1",
+                "text": "1"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_table",
+      "informationRequirements": [
+        {
+          "id": "ir_table_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Table Decision",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "le_1",
+        "text": "x + y",
+        "typeRef": "number"
+      },
+      "id": "Decision_literal",
+      "informationRequirements": [
+        {
+          "id": "ir_literal_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        },
+        {
+          "id": "ir_literal_y",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_y"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Literal Decision",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_mixed",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": null
+    },
+    {
+      "id": "InputData_y",
+      "name": "y",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Mixed Decisions",
+  "namespace": "https://example.com/dmn/mixed"
+}

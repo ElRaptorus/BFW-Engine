@@ -1,0 +1,10 @@
+name: "C160: Parallel Gateway fork-join — two branches happy path"
+fixture: "parallel_gateway_two_branches.bpmn"
+process_model_id: "ParallelGatewayTwoBranches"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

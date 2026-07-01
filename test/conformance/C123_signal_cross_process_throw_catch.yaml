@@ -1,0 +1,9 @@
+name: "Signal cross-process throw→catch via BPMN intermediateThrowEvent"
+fixture: signal_cross_process_catch.bpmn
+process_model_id: SignalCrossProcessCatch
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: finished
+  fni_count: 3

@@ -1,0 +1,11 @@
+name: "C110: Signal catch — simple cross-process broadcast"
+fixture: "signal_catch_simple.bpmn"
+process_model_id: "SignalCatchSimple"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

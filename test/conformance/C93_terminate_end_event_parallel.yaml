@@ -1,0 +1,10 @@
+name: "C93: Terminate End Event — parallel split terminates sibling"
+fixture: "terminate_end_event_parallel.bpmn"
+process_model_id: "TerminateParallel"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Terminate"

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_RetryBoundaryGuard"
+                  targetNamespace="https://evilengine.dev/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_RetryBoundaryGuard" name="Retry Boundary Guard" processRef="RetryBoundaryGuard" />
+  </bpmn:collaboration>
+  <bpmn:process id="RetryBoundaryGuard" name="Retry Boundary Guard" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DeadEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Happy</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Boundary</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_1" name="Complete Me">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDeadEnd</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="BE_Timer" name="Timer Boundary" attachedToRef="UserTask_1" cancelActivity="true">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>Flow_ToBoundaryEnd</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+    <bpmn:task id="Task_DeadEnd" name="Dead End">
+      <bpmn:incoming>Flow_ToDeadEnd</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Happy" name="Happy End">
+      <bpmn:incoming>Flow_Unreachable</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Boundary" name="Boundary End">
+      <bpmn:incoming>Flow_ToBoundaryEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="UserTask_1" />
+    <bpmn:sequenceFlow id="Flow_ToDeadEnd" sourceRef="UserTask_1" targetRef="Task_DeadEnd" />
+    <bpmn:sequenceFlow id="Flow_ToBoundaryEnd" sourceRef="BE_Timer" targetRef="End_Boundary" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant" bpmnElement="Participant_RetryBoundaryGuard" isHorizontal="true">
+        <dc:Bounds x="82" y="40" width="518" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="40" width="488" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_1" bpmnElement="UserTask_1">
+        <dc:Bounds x="260" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Timer" bpmnElement="BE_Timer">
+        <dc:Bounds x="302" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DeadEnd" bpmnElement="Task_DeadEnd">
+        <dc:Bounds x="420" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Happy" bpmnElement="End_Happy">
+        <dc:Bounds x="552" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Boundary" bpmnElement="End_Boundary">
+        <dc:Bounds x="420" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="150" />
+        <di:waypoint x="260" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDeadEnd" bpmnElement="Flow_ToDeadEnd">
+        <di:waypoint x="360" y="150" />
+        <di:waypoint x="420" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToBoundaryEnd" bpmnElement="Flow_ToBoundaryEnd">
+        <di:waypoint x="320" y="208" />
+        <di:waypoint x="320" y="280" />
+        <di:waypoint x="420" y="280" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

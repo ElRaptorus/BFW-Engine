@@ -1,0 +1,93 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_tax",
+          "text": "income * taxRate",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_income",
+            "name": "income",
+            "typeRef": "number"
+          },
+          {
+            "id": "FP_rate",
+            "name": "taxRate",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_tax",
+        "type": "feel"
+      },
+      "id": "BKM_tax",
+      "knowledgeRequirements": [],
+      "name": "Tax Calculation",
+      "variable": {
+        "id": "var_bkm_tax",
+        "name": "taxAmount",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_decision",
+        "text": "taxAmount + 100",
+        "typeRef": "number"
+      },
+      "id": "Decision_tax",
+      "informationRequirements": [
+        {
+          "id": "ir_income",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_income"
+        },
+        {
+          "id": "ir_rate",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_rate"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_tax",
+          "requiredKnowledgeId": "BKM_tax"
+        }
+      ],
+      "name": "Tax Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_tax",
+        "name": "totalWithTax",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_bkm_invoke_le",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_income",
+      "name": "income",
+      "typeRef": "number"
+    },
+    {
+      "id": "InputData_rate",
+      "name": "taxRate",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM Invocation Literal",
+  "namespace": "https://example.com/dmn/bkm-invoke-le"
+}

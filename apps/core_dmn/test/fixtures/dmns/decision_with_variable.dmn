@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_var" name="Decision Variable Test"
+  targetNamespace="https://example.com/dmn/var">
+
+  <inputData id="InputData_income" name="annualIncome">
+    <variable name="annualIncome" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_tax" name="Tax Rate" outputLabel="Legacy Label">
+    <variable id="var_tax" name="taxRate" typeRef="number"/>
+    <informationRequirement id="ir_income">
+      <requiredInput href="#InputData_income"/>
+    </informationRequirement>
+    <decisionTable id="dt_tax" hitPolicy="FIRST">
+      <input id="Input_income" label="Annual Income">
+        <inputExpression typeRef="number">annualIncome</inputExpression>
+      </input>
+      <output id="Output_rate" label="Tax Rate" name="taxRate" typeRef="number"/>
+      <rule id="Rule_1">
+        <inputEntry id="IE_1"><text>&lt;= 30000</text></inputEntry>
+        <outputEntry id="OE_1"><text>0.15</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="IE_2"><text>&gt; 30000</text></inputEntry>
+        <outputEntry id="OE_2"><text>0.25</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

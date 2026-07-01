@@ -1,0 +1,77 @@
+---
+description: MANDATORY compile, lint, test, and coverage after EVERY code change
+alwaysApply: true
+---
+
+# MANDATORY: Verify the Codebase After Every Change
+
+This rule is **non-negotiable**. After **every** code change — no matter how small — you MUST run the verification steps below **before** presenting the result to the user. Do NOT batch these to "later" or "the end"; run them after each logical edit.
+
+## After any change to `.ex` or `.exs` files
+
+Run these commands **in this order** from the project root:
+
+1. `mix compile --warnings-as-errors` — Catches compilation errors, unused variables, and type warnings.
+2. `mix credo --strict` — Static style and consistency analysis. **Fix all issues immediately.** Do not proceed until Credo is clean.
+3. `mix dialyzer` — Static type analysis. Catches type mismatches, unreachable code, bad specs, and logic bugs. **Fix all errors immediately.**
+4. `mix sobelow` — Phoenix security scanner. Checks for SQL injection, XSS, directory traversal, insecure config, hardcoded secrets. **Fix all findings immediately.** The alias runs with `--root apps/api_web` and `--threshold medium` automatically.
+5. `mix docs --warnings-as-errors` — Generates documentation and fails on broken references or invalid cross-links. **Fix all warnings immediately.**
+6. `mix test` — Runs the full unit/domain test suite across all umbrella apps.
+7. `MIX_ENV=test mix run test/integration_runner.exs` — Runs full-stack integration tests at the project root.
+
+For single-app tests: `mix test apps/<app_name>/test` (substitute the app name).
+
+## Quality gate alias
+
+The root `mix.exs` defines `mix quality` which runs the full verification pipeline (compile, credo, dialyzer, sobelow, docs, unit tests with coverage, integration tests, conformance tests) in one command. Use it when you want to run everything:
+
+```bash
+mix quality
+```
+
+### Database prerequisite
+
+`mix quality`, `mix test.integration`, `mix test.full`, and any test that touches PostgreSQL require a running test database container. **Before running these commands**, follow the `ensure-test-db` skill to verify that `evil-engine-postgres-test` is up and accepting connections. If it is not running, start it — do NOT skip tests or report "DB unavailable" as an acceptable outcome.
+
+## Test coverage requirements
+
+When adding new features, tests MUST cover:
+
+- **Happy paths**: Normal operation with valid data
+- **Bad paths / error paths**: Malformed, out-of-range, wrong-typed, and gibberish data
+- **Sanity checks**: Verify invariants hold (e.g. idempotency, ordering)
+- **Security checks**: Auth rejection, expired tokens, wrong-secret tokens, missing headers
+
+For each new public endpoint or GenServer API:
+
+1. Test with valid input (happy path)
+2. Test with `nil`, empty strings, oversize payloads
+3. Test authentication and authorization (reject unauthenticated, reject wrong role)
+4. Test crash isolation (one component crashing must not break others)
+
+## Available test aliases
+
+| Alias | Description |
+|-------|-------------|
+| `mix test.unit` | All unit tests (excludes `@tag :integration`) |
+| `mix test.integration` | Full-stack integration tests at project root |
+| `mix test.conformance` | YAML-driven conformance specs |
+| `mix test.load` | Resume + execution load benchmarks (opt-in, not in quality gate) |
+| `mix test.full` | Compile + credo + dialyzer + sobelow + unit tests + integration + conformance |
+| `mix quality` | Same as `test.full` but with docs generation and coverage via excoveralls |
+
+## Rules
+
+- DO run `mix compile --warnings-as-errors` after every change — this is not optional
+- DO run `mix credo --strict` after every change — this is not optional
+- DO run `mix dialyzer` after every change — this is not optional
+- DO run `mix sobelow` after changes to `apps/api_web/` — this is not optional
+- DO fix all compile warnings, Credo issues, Dialyzer errors, and Sobelow findings before moving to the next task
+- DO ensure newly added features have tests covering happy paths and error paths
+- DO NOT skip verification steps to save time
+- DO NOT present work to the user without clean compile + Credo + Sobelow output
+- DO NOT batch verification to "later" — verify after each file or logical change
+
+## Git commits
+
+**Never** create git commits automatically. The user always creates commits manually after reviewing changes. Do not offer to commit, do not stage and commit after completing work, and do not ask whether to commit. Just leave the changes in the working tree.

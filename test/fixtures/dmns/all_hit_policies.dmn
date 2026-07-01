@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_hit_policies" name="All Hit Policies"
+  namespace="https://example.com/dmn/hit-policies"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_value" name="value">
+    <variable name="value" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_unique" name="Unique Policy">
+    <informationRequirement id="ir_unique">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_unique" hitPolicy="UNIQUE">
+      <input id="Input_unique" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_unique" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_unique_1">
+        <inputEntry id="IE_unique_1"><text>&lt; 10</text></inputEntry>
+        <outputEntry id="OE_unique_1"><text>"low"</text></outputEntry>
+      </rule>
+      <rule id="Rule_unique_2">
+        <inputEntry id="IE_unique_2"><text>[10..50]</text></inputEntry>
+        <outputEntry id="OE_unique_2"><text>"medium"</text></outputEntry>
+      </rule>
+      <rule id="Rule_unique_3">
+        <inputEntry id="IE_unique_3"><text>&gt; 50</text></inputEntry>
+        <outputEntry id="OE_unique_3"><text>"high"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_first" name="First Policy">
+    <informationRequirement id="ir_first">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_first" hitPolicy="FIRST">
+      <input id="Input_first" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_first" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_first_1">
+        <inputEntry id="IE_first_1"><text>&lt; 100</text></inputEntry>
+        <outputEntry id="OE_first_1"><text>"first_match"</text></outputEntry>
+      </rule>
+      <rule id="Rule_first_2">
+        <inputEntry id="IE_first_2"><text>&lt; 100</text></inputEntry>
+        <outputEntry id="OE_first_2"><text>"second_match"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_any" name="Any Policy">
+    <informationRequirement id="ir_any">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_any" hitPolicy="ANY">
+      <input id="Input_any" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_any" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_any_1">
+        <inputEntry id="IE_any_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_any_1"><text>"positive"</text></outputEntry>
+      </rule>
+      <rule id="Rule_any_2">
+        <inputEntry id="IE_any_2"><text>&gt; 5</text></inputEntry>
+        <outputEntry id="OE_any_2"><text>"also_positive"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_collect" name="Collect Policy">
+    <informationRequirement id="ir_collect">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_collect" hitPolicy="COLLECT">
+      <input id="Input_collect" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_collect" label="Result" name="result" typeRef="number"/>
+      <rule id="Rule_collect_1">
+        <inputEntry id="IE_collect_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_collect_1"><text>1</text></outputEntry>
+      </rule>
+      <rule id="Rule_collect_2">
+        <inputEntry id="IE_collect_2"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_collect_2"><text>2</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_rule_order" name="Rule Order Policy">
+    <informationRequirement id="ir_rule_order">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_rule_order" hitPolicy="RULE ORDER">
+      <input id="Input_rule_order" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_rule_order" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_rule_order_1">
+        <inputEntry id="IE_rule_order_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_rule_order_1"><text>"rule_a"</text></outputEntry>
+      </rule>
+      <rule id="Rule_rule_order_2">
+        <inputEntry id="IE_rule_order_2"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_rule_order_2"><text>"rule_b"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_output_order" name="Output Order Policy">
+    <informationRequirement id="ir_output_order">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_output_order" hitPolicy="OUTPUT ORDER">
+      <input id="Input_output_order" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_output_order" label="Grade" name="grade" typeRef="string">
+        <outputValues>"A", "B", "C"</outputValues>
+      </output>
+      <rule id="Rule_output_order_1">
+        <inputEntry id="IE_output_order_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_output_order_1"><text>"B"</text></outputEntry>
+      </rule>
+      <rule id="Rule_output_order_2">
+        <inputEntry id="IE_output_order_2"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_output_order_2"><text>"A"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_priority" name="Priority Policy">
+    <informationRequirement id="ir_priority">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_priority" hitPolicy="PRIORITY">
+      <input id="Input_priority" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_priority" label="Severity" name="severity" typeRef="string">
+        <outputValues>"critical", "warning", "info"</outputValues>
+      </output>
+      <rule id="Rule_priority_1">
+        <inputEntry id="IE_priority_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_priority_1"><text>"info"</text></outputEntry>
+      </rule>
+      <rule id="Rule_priority_2">
+        <inputEntry id="IE_priority_2"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_priority_2"><text>"critical"</text></outputEntry>
+      </rule>
+      <rule id="Rule_priority_3">
+        <inputEntry id="IE_priority_3"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_priority_3"><text>"warning"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_any" dmnElementRef="Decision_any">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_collect" dmnElementRef="Decision_collect">
+        <dc:Bounds x="340" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_first" dmnElementRef="Decision_first">
+        <dc:Bounds x="580" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_output_order" dmnElementRef="Decision_output_order">
+        <dc:Bounds x="820" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_priority" dmnElementRef="Decision_priority">
+        <dc:Bounds x="1060" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_rule_order" dmnElementRef="Decision_rule_order">
+        <dc:Bounds x="1300" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_unique" dmnElementRef="Decision_unique">
+        <dc:Bounds x="1540" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_value" dmnElementRef="InputData_value">
+        <dc:Bounds x="130" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_unique" dmnElementRef="ir_unique">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="1630" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_first" dmnElementRef="ir_first">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="670" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_any" dmnElementRef="ir_any">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="190" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_collect" dmnElementRef="ir_collect">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="430" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_rule_order" dmnElementRef="ir_rule_order">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="1390" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_output_order" dmnElementRef="ir_output_order">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="910" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_priority" dmnElementRef="ir_priority">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="1150" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

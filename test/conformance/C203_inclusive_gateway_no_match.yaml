@@ -1,0 +1,10 @@
+name: "C203: Inclusive Gateway split — zero truthy, no default → fatal"
+fixture: "inclusive_gateway_no_match.bpmn"
+process_model_id: "InclusiveGatewayNoMatch"
+tier: auto
+start:
+  payload:
+    amount: 1
+expected:
+  final_state: "fatal"
+  final_tokens: null

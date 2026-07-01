@@ -1,0 +1,12 @@
+name: "C32: Two independent Link Throw/Catch pairs"
+fixture: "link_events_multi_pair.bpmn"
+process_model_id: "LinkEventsMultiPairProcess"
+tier: auto
+start:
+  payload:
+    order: "LNK-002"
+expected:
+  final_state: "finished"
+  fni_count: 9
+  final_tokens:
+    - endEventId: "End_1"

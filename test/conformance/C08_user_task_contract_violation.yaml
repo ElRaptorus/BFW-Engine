@@ -1,0 +1,9 @@
+name: "C08: User task contract violation rejected (PI stays running)"
+fixture: "user_task_with_contract.bpmn"
+process_model_id: "UserTaskWithContract"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "running"
+  final_tokens: null

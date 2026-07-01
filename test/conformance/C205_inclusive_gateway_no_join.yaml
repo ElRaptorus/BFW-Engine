@@ -1,0 +1,12 @@
+name: "C205: Inclusive Gateway split — fork to separate end events (no join)"
+fixture: "inclusive_gateway_no_join.bpmn"
+process_model_id: "InclusiveGatewayNoJoin"
+tier: auto
+start:
+  payload:
+    x: true
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_A"
+    - endEventId: "End_B"

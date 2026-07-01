@@ -1,0 +1,10 @@
+name: "C16: Multi-start without startEventId causes error"
+fixture: "multi_start_events.bpmn"
+process_model_id: "MultiStartEvents"
+tier: error
+start:
+  payload: null
+  start_event_id: null
+expected:
+  start_error: true
+  start_status: 422

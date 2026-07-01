@@ -1,0 +1,14 @@
+name: "C36: Business rule task in DMN mode — UNIQUE, no matching rules"
+fixture: "business_rule_task_dmn_no_match.bpmn"
+dmn_fixtures:
+  - "simple_unique.dmn"
+process_model_id: "BrtDmnNoMatchProcess"
+tier: auto
+start:
+  payload:
+    age: -999
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

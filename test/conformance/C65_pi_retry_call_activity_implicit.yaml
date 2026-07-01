@@ -1,0 +1,13 @@
+name: "C65: Call Activity implicit retry — child aborted, retry parent, child resumes"
+fixtures:
+  - "retry_user_task.bpmn"
+  - "retry_parent_with_user_task_child.bpmn"
+process_model_id: "RetryParentWithUserTaskChild"
+tier: interactive
+start:
+  payload: null
+expected:
+  parent_pre_retry_state: "aborted"
+  child_pre_retry_state: "aborted"
+  parent_post_retry_state: "finished"
+  child_post_retry_state: "finished"

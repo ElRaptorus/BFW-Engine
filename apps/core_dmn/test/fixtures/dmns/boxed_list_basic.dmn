@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_list"
+             name="Boxed List Test"
+             namespace="https://example.com/dmn/boxed-list">
+  <decision id="Decision_list" name="List Decision">
+    <variable id="var_list" name="listResult"/>
+    <list id="list_1">
+      <literalExpression><text>10</text></literalExpression>
+      <literalExpression><text>20</text></literalExpression>
+      <literalExpression><text>30</text></literalExpression>
+    </list>
+  </decision>
+</definitions>

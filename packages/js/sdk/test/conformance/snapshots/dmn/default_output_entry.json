@@ -1,0 +1,326 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_default_single",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_status",
+            "inputExpression": "status",
+            "inputValues": null,
+            "label": "status",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": "\"unknown\"",
+            "id": "output_category",
+            "label": null,
+            "name": "category",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_active",
+            "inputEntries": [
+              {
+                "id": "ie_active",
+                "text": "\"active\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_active",
+                "text": "\"premium\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_inactive",
+            "inputEntries": [
+              {
+                "id": "ie_inactive",
+                "text": "\"inactive\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_inactive",
+                "text": "\"basic\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_default_single",
+      "informationRequirements": [
+        {
+          "id": "ir_status",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_status"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Default Single Output",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result",
+        "name": "result",
+        "typeRef": "string"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_default_multi",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_status_multi",
+            "inputExpression": "status",
+            "inputValues": null,
+            "label": "status",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": "\"free\"",
+            "id": "output_tier",
+            "label": null,
+            "name": "tier",
+            "outputValues": null,
+            "typeRef": "string"
+          },
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": "0",
+            "id": "output_limit",
+            "label": null,
+            "name": "limit",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_gold",
+            "inputEntries": [
+              {
+                "id": "ie_gold",
+                "text": "\"gold\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_gold_tier",
+                "text": "\"premium\""
+              },
+              {
+                "id": "oe_gold_limit",
+                "text": "1000"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_default_multi",
+      "informationRequirements": [
+        {
+          "id": "ir_status_multi",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_status"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Default Multi Output",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result_multi",
+        "name": "result_multi",
+        "typeRef": null
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_no_default",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_status_nodefault",
+            "inputExpression": "status",
+            "inputValues": null,
+            "label": "status",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "output_nodefault",
+            "label": null,
+            "name": "category",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_only_active",
+            "inputEntries": [
+              {
+                "id": "ie_only_active",
+                "text": "\"active\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_only_active",
+                "text": "\"premium\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_no_default",
+      "informationRequirements": [
+        {
+          "id": "ir_status_nodefault",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_status"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "No Default Output",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result_nodefault",
+        "name": "result_nodefault",
+        "typeRef": "string"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "DT_default_partial",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_status_partial",
+            "inputExpression": "status",
+            "inputValues": null,
+            "label": "status",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": "\"basic\"",
+            "id": "output_partial_tier",
+            "label": null,
+            "name": "tier",
+            "outputValues": null,
+            "typeRef": "string"
+          },
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "output_partial_code",
+            "label": null,
+            "name": "code",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_partial_vip",
+            "inputEntries": [
+              {
+                "id": "ie_partial_vip",
+                "text": "\"vip\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_partial_vip_tier",
+                "text": "\"platinum\""
+              },
+              {
+                "id": "oe_partial_vip_code",
+                "text": "999"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_default_partial",
+      "informationRequirements": [
+        {
+          "id": "ir_status_partial",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_status"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Partial Default Output",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result_partial",
+        "name": "result_partial",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "Definitions_default_output",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_status",
+      "name": "status",
+      "typeRef": "string"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Default Output Entry Test",
+  "namespace": "https://evilengine.dev/test/default-output"
+}

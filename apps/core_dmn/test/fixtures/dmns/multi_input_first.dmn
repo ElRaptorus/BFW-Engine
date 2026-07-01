@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_risk" name="Risk Assessment"
+  namespace="https://example.com/dmn/risk">
+
+  <inputData id="InputData_income" name="income">
+    <variable name="income" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_creditScore" name="creditScore">
+    <variable name="creditScore" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_yearsEmployed" name="yearsEmployed">
+    <variable name="yearsEmployed" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_risk" name="Risk Category">
+    <informationRequirement id="ir_income">
+      <requiredInput href="#InputData_income"/>
+    </informationRequirement>
+    <informationRequirement id="ir_credit">
+      <requiredInput href="#InputData_creditScore"/>
+    </informationRequirement>
+    <informationRequirement id="ir_years">
+      <requiredInput href="#InputData_yearsEmployed"/>
+    </informationRequirement>
+    <decisionTable id="dt_risk" hitPolicy="FIRST">
+      <input id="Input_income" label="Annual Income">
+        <inputExpression typeRef="number">income</inputExpression>
+      </input>
+      <input id="Input_credit" label="Credit Score">
+        <inputExpression typeRef="number">creditScore</inputExpression>
+      </input>
+      <input id="Input_years" label="Years Employed">
+        <inputExpression typeRef="number">yearsEmployed</inputExpression>
+      </input>
+      <output id="Output_risk" label="Risk Category" name="riskCategory" typeRef="string"/>
+      <rule id="Rule_high_risk" description="Low income with poor credit">
+        <inputEntry id="IE_income_1"><text>&lt; 30000</text></inputEntry>
+        <inputEntry id="IE_credit_1"><text>&lt; 600</text></inputEntry>
+        <inputEntry id="IE_years_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_high"><text>"high"</text></outputEntry>
+      </rule>
+      <rule id="Rule_medium_risk" description="Moderate income or moderate credit">
+        <inputEntry id="IE_income_2"><text>[30000..75000]</text></inputEntry>
+        <inputEntry id="IE_credit_2"><text>&lt; 700</text></inputEntry>
+        <inputEntry id="IE_years_2"><text>&lt; 2</text></inputEntry>
+        <outputEntry id="OE_medium"><text>"medium"</text></outputEntry>
+      </rule>
+      <rule id="Rule_low_income_good_credit" description="Low income but good credit score">
+        <inputEntry id="IE_income_3"><text>&lt; 50000</text></inputEntry>
+        <inputEntry id="IE_credit_3"><text>&gt;= 700</text></inputEntry>
+        <inputEntry id="IE_years_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_medium_2"><text>"medium"</text></outputEntry>
+      </rule>
+      <rule id="Rule_low_risk" description="High income with strong credit">
+        <inputEntry id="IE_income_4"><text>&gt;= 75000</text></inputEntry>
+        <inputEntry id="IE_credit_4"><text>&gt;= 700</text></inputEntry>
+        <inputEntry id="IE_years_4"><text>&gt;= 2</text></inputEntry>
+        <outputEntry id="OE_low"><text>"low"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

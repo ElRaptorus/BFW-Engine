@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_Esc_Code_Match">
+  <bpmn:escalation id="Esc_Specific" name="Specific Escalation" escalationCode="ESC_42" />
+  <bpmn:escalation id="Esc_Catchall" name="Catch-all Escalation" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Escalation Code Matching" processRef="EscalationCodeMatching" />
+  </bpmn:collaboration>
+  <bpmn:process id="EscalationCodeMatching" name="Escalation Code Matching" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Specific</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Catchall</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Specific</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Catchall</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_1" name="Sub Process">
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="Sub_End_Escalation" name="Throw ESC_42">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:escalationEventDefinition escalationRef="Esc_Specific" />
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_End_Escalation" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="BE_Specific" attachedToRef="SubProcess_1" cancelActivity="true">
+      <bpmn:outgoing>Flow_Specific</bpmn:outgoing>
+      <bpmn:escalationEventDefinition escalationRef="Esc_Specific" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="BE_Catchall" attachedToRef="SubProcess_1" cancelActivity="true">
+      <bpmn:outgoing>Flow_Catchall</bpmn:outgoing>
+      <bpmn:escalationEventDefinition />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_Normal</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Specific" name="Specific Caught">
+      <bpmn:incoming>Flow_Specific</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Catchall" name="Catch-all Caught">
+      <bpmn:incoming>Flow_Catchall</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_Normal" sourceRef="SubProcess_1" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Specific" sourceRef="BE_Specific" targetRef="End_Specific" />
+    <bpmn:sequenceFlow id="Flow_Catchall" sourceRef="BE_Catchall" targetRef="End_Catchall" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="826" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="796" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="290" y="180" width="280" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
+        <dc:Bounds x="320" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End_Escalation" bpmnElement="Sub_End_Escalation">
+        <dc:Bounds x="480" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Specific" bpmnElement="BE_Specific">
+        <dc:Bounds x="390" y="302" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Catchall" bpmnElement="BE_Catchall">
+        <dc:Bounds x="450" y="302" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="680" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Specific" bpmnElement="End_Specific">
+        <dc:Bounds x="680" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Catchall" bpmnElement="End_Catchall">
+        <dc:Bounds x="680" y="360" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="250" />
+        <di:waypoint x="290" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Normal" bpmnElement="Flow_Normal">
+        <di:waypoint x="570" y="250" />
+        <di:waypoint x="625" y="250" />
+        <di:waypoint x="625" y="300" />
+        <di:waypoint x="680" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Specific" bpmnElement="Flow_Specific">
+        <di:waypoint x="408" y="338" />
+        <di:waypoint x="408" y="390" />
+        <di:waypoint x="625" y="390" />
+        <di:waypoint x="625" y="200" />
+        <di:waypoint x="680" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Catchall" bpmnElement="Flow_Catchall">
+        <di:waypoint x="468" y="338" />
+        <di:waypoint x="468" y="378" />
+        <di:waypoint x="680" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="356" y="250" />
+        <di:waypoint x="480" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

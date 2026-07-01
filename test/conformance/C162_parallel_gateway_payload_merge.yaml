@@ -1,0 +1,13 @@
+name: "C162: Parallel Gateway fork-join — payload merge verified"
+fixture: "parallel_gateway_payload_merge.bpmn"
+process_model_id: "ParallelGatewayPayloadMerge"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"
+      payload:
+        key_a: "value_a"
+        key_b: "value_b"

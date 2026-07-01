@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  id="credit-underwriting" name="Credit Underwriting"
+  namespace="https://example.com/dmn/credit">
+
+  <extensionElements>
+    <evil:version>1.0.0</evil:version>
+  </extensionElements>
+
+  <inputData id="InputData_applicant_age" name="applicantAge">
+    <variable name="applicantAge" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_annual_income" name="annualIncome">
+    <variable name="annualIncome" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_credit_history" name="creditHistory">
+    <variable name="creditHistory" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_existing_debt" name="existingDebt">
+    <variable name="existingDebt" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_requested_amount" name="requestedAmount">
+    <variable name="requestedAmount" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_employment_status" name="employmentStatus">
+    <variable name="employmentStatus" typeRef="string"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_credit_score_calculator" name="Credit Score Calculator">
+    <variable id="var_bkm_credit_score" name="creditScore" typeRef="number"/>
+    <encapsulatedLogic id="EL_credit_score_calculator" kind="FEEL">
+      <formalParameter id="FP_credit_history" name="creditHistory" typeRef="string"/>
+      <formalParameter id="FP_annual_income" name="annualIncome" typeRef="number"/>
+      <formalParameter id="FP_existing_debt" name="existingDebt" typeRef="number"/>
+      <decisionTable id="dt_credit_score" hitPolicy="UNIQUE">
+        <input id="Input_credit_history" label="Credit History">
+          <inputExpression typeRef="string">creditHistory</inputExpression>
+        </input>
+        <input id="Input_annual_income" label="Annual Income">
+          <inputExpression typeRef="number">annualIncome</inputExpression>
+        </input>
+        <input id="Input_existing_debt" label="Existing Debt">
+          <inputExpression typeRef="number">existingDebt</inputExpression>
+        </input>
+        <output id="Output_credit_score" label="Credit Score" name="creditScore" typeRef="number"/>
+        <rule id="Rule_excellent_high_income_low_debt">
+          <inputEntry id="IE_history_excellent_1"><text>"excellent"</text></inputEntry>
+          <inputEntry id="IE_income_excellent_1"><text>&gt;= 80000</text></inputEntry>
+          <inputEntry id="IE_debt_excellent_1"><text>&lt; 10000</text></inputEntry>
+          <outputEntry id="OE_score_excellent_1"><text>850</text></outputEntry>
+        </rule>
+        <rule id="Rule_excellent_mid_income">
+          <inputEntry id="IE_history_excellent_2"><text>"excellent"</text></inputEntry>
+          <inputEntry id="IE_income_excellent_2"><text>&gt;= 40000</text></inputEntry>
+          <inputEntry id="IE_debt_excellent_2"><text>&gt;= 10000</text></inputEntry>
+          <outputEntry id="OE_score_excellent_2"><text>780</text></outputEntry>
+        </rule>
+        <rule id="Rule_good_high_income">
+          <inputEntry id="IE_history_good_1"><text>"good"</text></inputEntry>
+          <inputEntry id="IE_income_good_1"><text>&gt;= 60000</text></inputEntry>
+          <inputEntry id="IE_debt_good_1"><text>&lt; 20000</text></inputEntry>
+          <outputEntry id="OE_score_good_1"><text>720</text></outputEntry>
+        </rule>
+        <rule id="Rule_good_mid_income">
+          <inputEntry id="IE_history_good_2"><text>"good"</text></inputEntry>
+          <inputEntry id="IE_income_good_2"><text>[30000..60000)</text></inputEntry>
+          <inputEntry id="IE_debt_good_2"><text>-</text></inputEntry>
+          <outputEntry id="OE_score_good_2"><text>660</text></outputEntry>
+        </rule>
+        <rule id="Rule_good_high_debt">
+          <inputEntry id="IE_history_good_3"><text>"good"</text></inputEntry>
+          <inputEntry id="IE_income_good_3"><text>&gt;= 60000</text></inputEntry>
+          <inputEntry id="IE_debt_good_3"><text>&gt;= 20000</text></inputEntry>
+          <outputEntry id="OE_score_good_3"><text>660</text></outputEntry>
+        </rule>
+        <rule id="Rule_fair_high_income">
+          <inputEntry id="IE_history_fair_1"><text>"fair"</text></inputEntry>
+          <inputEntry id="IE_income_fair_1"><text>&gt;= 40000</text></inputEntry>
+          <inputEntry id="IE_debt_fair_1"><text>&lt; 15000</text></inputEntry>
+          <outputEntry id="OE_score_fair_1"><text>600</text></outputEntry>
+        </rule>
+        <rule id="Rule_fair_default">
+          <inputEntry id="IE_history_fair_2"><text>"fair"</text></inputEntry>
+          <inputEntry id="IE_income_fair_2"><text>-</text></inputEntry>
+          <inputEntry id="IE_debt_fair_2"><text>-</text></inputEntry>
+          <outputEntry id="OE_score_fair_2"><text>550</text></outputEntry>
+        </rule>
+        <rule id="Rule_poor_default">
+          <inputEntry id="IE_history_poor"><text>"poor"</text></inputEntry>
+          <inputEntry id="IE_income_poor"><text>-</text></inputEntry>
+          <inputEntry id="IE_debt_poor"><text>-</text></inputEntry>
+          <outputEntry id="OE_score_poor"><text>450</text></outputEntry>
+        </rule>
+      </decisionTable>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_applicant_credit_score" name="Applicant Credit Score">
+    <variable id="var_applicant_credit_score" name="creditScore" typeRef="number"/>
+    <informationRequirement id="ir_applicant_age">
+      <requiredInput href="#InputData_applicant_age"/>
+    </informationRequirement>
+    <informationRequirement id="ir_credit_history_for_score">
+      <requiredInput href="#InputData_credit_history"/>
+    </informationRequirement>
+    <informationRequirement id="ir_annual_income_for_score">
+      <requiredInput href="#InputData_annual_income"/>
+    </informationRequirement>
+    <informationRequirement id="ir_existing_debt_for_score">
+      <requiredInput href="#InputData_existing_debt"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_credit_score_calculator">
+      <requiredKnowledge href="#BKM_credit_score_calculator"/>
+    </knowledgeRequirement>
+    <invocation id="Inv_applicant_credit_score">
+      <literalExpression id="LE_called_bkm">
+        <text>Credit Score Calculator</text>
+      </literalExpression>
+      <binding>
+        <parameter id="BP_credit_history" name="creditHistory"/>
+        <literalExpression id="LE_bind_credit_history">
+          <text>creditHistory</text>
+        </literalExpression>
+      </binding>
+      <binding>
+        <parameter id="BP_annual_income" name="annualIncome"/>
+        <literalExpression id="LE_bind_annual_income">
+          <text>annualIncome</text>
+        </literalExpression>
+      </binding>
+      <binding>
+        <parameter id="BP_existing_debt" name="existingDebt"/>
+        <literalExpression id="LE_bind_existing_debt">
+          <text>existingDebt</text>
+        </literalExpression>
+      </binding>
+    </invocation>
+  </decision>
+
+  <decision id="Decision_debt_to_income_ratio" name="Debt-to-Income Ratio">
+    <variable id="var_debt_to_income_ratio" name="debtToIncomeRatio" typeRef="number"/>
+    <informationRequirement id="ir_existing_debt_for_dti">
+      <requiredInput href="#InputData_existing_debt"/>
+    </informationRequirement>
+    <informationRequirement id="ir_annual_income_for_dti">
+      <requiredInput href="#InputData_annual_income"/>
+    </informationRequirement>
+    <literalExpression id="LE_debt_to_income_ratio" typeRef="number">
+      <text>existingDebt / annualIncome</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_risk_assessment" name="Risk Assessment">
+    <variable id="var_risk_assessment" name="riskAssessment" typeRef="Any"/>
+    <informationRequirement id="ir_credit_score_for_risk">
+      <requiredDecision href="#Decision_applicant_credit_score"/>
+    </informationRequirement>
+    <informationRequirement id="ir_dti_for_risk">
+      <requiredDecision href="#Decision_debt_to_income_ratio"/>
+    </informationRequirement>
+    <decisionTable id="dt_risk_assessment" hitPolicy="FIRST">
+      <input id="Input_credit_score" label="Credit Score">
+        <inputExpression typeRef="number">creditScore</inputExpression>
+      </input>
+      <input id="Input_debt_to_income_ratio" label="Debt-to-Income Ratio">
+        <inputExpression typeRef="number">debtToIncomeRatio</inputExpression>
+      </input>
+      <output id="Output_risk_level" label="Risk Level" name="riskLevel" typeRef="string"/>
+      <output id="Output_max_approval_percent" label="Max Approval Percent" name="maxApprovalPercent" typeRef="number"/>
+      <rule id="Rule_risk_low">
+        <inputEntry id="IE_score_low"><text>&gt;= 750</text></inputEntry>
+        <inputEntry id="IE_dti_low"><text>&lt; 0.3</text></inputEntry>
+        <outputEntry id="OE_risk_low"><text>"low"</text></outputEntry>
+        <outputEntry id="OE_pct_low"><text>1.0</text></outputEntry>
+      </rule>
+      <rule id="Rule_risk_moderate_low">
+        <inputEntry id="IE_score_moderate_low"><text>&gt;= 700</text></inputEntry>
+        <inputEntry id="IE_dti_moderate_low"><text>&lt; 0.4</text></inputEntry>
+        <outputEntry id="OE_risk_moderate_low"><text>"moderate_low"</text></outputEntry>
+        <outputEntry id="OE_pct_moderate_low"><text>0.85</text></outputEntry>
+      </rule>
+      <rule id="Rule_risk_moderate">
+        <inputEntry id="IE_score_moderate"><text>&gt;= 650</text></inputEntry>
+        <inputEntry id="IE_dti_moderate"><text>&lt; 0.5</text></inputEntry>
+        <outputEntry id="OE_risk_moderate"><text>"moderate"</text></outputEntry>
+        <outputEntry id="OE_pct_moderate"><text>0.70</text></outputEntry>
+      </rule>
+      <rule id="Rule_risk_moderate_high">
+        <inputEntry id="IE_score_moderate_high"><text>&gt;= 550</text></inputEntry>
+        <inputEntry id="IE_dti_moderate_high"><text>-</text></inputEntry>
+        <outputEntry id="OE_risk_moderate_high"><text>"moderate_high"</text></outputEntry>
+        <outputEntry id="OE_pct_moderate_high"><text>0.50</text></outputEntry>
+      </rule>
+      <rule id="Rule_risk_high">
+        <inputEntry id="IE_score_high"><text>&lt; 550</text></inputEntry>
+        <inputEntry id="IE_dti_high"><text>-</text></inputEntry>
+        <outputEntry id="OE_risk_high"><text>"high"</text></outputEntry>
+        <outputEntry id="OE_pct_high"><text>0.0</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_underwriting_decision" name="Underwriting Decision">
+    <variable id="var_underwriting_decision" name="underwritingDecision" typeRef="Any"/>
+    <informationRequirement id="ir_risk_assessment">
+      <requiredDecision href="#Decision_risk_assessment"/>
+    </informationRequirement>
+    <informationRequirement id="ir_requested_amount">
+      <requiredInput href="#InputData_requested_amount"/>
+    </informationRequirement>
+    <informationRequirement id="ir_annual_income_for_underwriting">
+      <requiredInput href="#InputData_annual_income"/>
+    </informationRequirement>
+    <decisionTable id="dt_underwriting_decision" hitPolicy="UNIQUE">
+      <input id="Input_risk_level" label="Risk Level">
+        <inputExpression typeRef="string">riskAssessment.riskLevel</inputExpression>
+      </input>
+      <input id="Input_max_approval_percent" label="Max Approval Percent">
+        <inputExpression typeRef="number">riskAssessment.maxApprovalPercent</inputExpression>
+      </input>
+      <input id="Input_amount_to_income_ratio" label="Amount to Income Ratio">
+        <inputExpression typeRef="number">requestedAmount / annualIncome</inputExpression>
+      </input>
+      <output id="Output_approved" label="Approved" name="approved" typeRef="boolean"/>
+      <output id="Output_approved_amount" label="Approved Amount" name="approvedAmount" typeRef="number"/>
+      <output id="Output_conditions" label="Conditions" name="conditions" typeRef="string"/>
+      <rule id="Rule_underwriting_low">
+        <inputEntry id="IE_underwriting_low_risk"><text>"low"</text></inputEntry>
+        <inputEntry id="IE_underwriting_low_pct"><text>-</text></inputEntry>
+        <inputEntry id="IE_underwriting_low_ratio"><text>&lt;= 5</text></inputEntry>
+        <outputEntry id="OE_underwriting_low_approved"><text>true</text></outputEntry>
+        <outputEntry id="OE_underwriting_low_amount"><text>requestedAmount</text></outputEntry>
+        <outputEntry id="OE_underwriting_low_conditions"><text>"none"</text></outputEntry>
+      </rule>
+      <rule id="Rule_underwriting_moderate_low">
+        <inputEntry id="IE_underwriting_moderate_low_risk"><text>"moderate_low"</text></inputEntry>
+        <inputEntry id="IE_underwriting_moderate_low_pct"><text>-</text></inputEntry>
+        <inputEntry id="IE_underwriting_moderate_low_ratio"><text>&lt;= 4</text></inputEntry>
+        <outputEntry id="OE_underwriting_moderate_low_approved"><text>true</text></outputEntry>
+        <outputEntry id="OE_underwriting_moderate_low_amount"><text>annualIncome * 4</text></outputEntry>
+        <outputEntry id="OE_underwriting_moderate_low_conditions"><text>"income_verification"</text></outputEntry>
+      </rule>
+      <rule id="Rule_underwriting_moderate">
+        <inputEntry id="IE_underwriting_moderate_risk"><text>"moderate"</text></inputEntry>
+        <inputEntry id="IE_underwriting_moderate_pct"><text>-</text></inputEntry>
+        <inputEntry id="IE_underwriting_moderate_ratio"><text>&lt;= 3</text></inputEntry>
+        <outputEntry id="OE_underwriting_moderate_approved"><text>true</text></outputEntry>
+        <outputEntry id="OE_underwriting_moderate_amount"><text>annualIncome * 3</text></outputEntry>
+        <outputEntry id="OE_underwriting_moderate_conditions"><text>"collateral_required"</text></outputEntry>
+      </rule>
+      <rule id="Rule_underwriting_moderate_high">
+        <inputEntry id="IE_underwriting_moderate_high_risk"><text>"moderate_high"</text></inputEntry>
+        <inputEntry id="IE_underwriting_moderate_high_pct"><text>-</text></inputEntry>
+        <inputEntry id="IE_underwriting_moderate_high_ratio"><text>&lt;= 2</text></inputEntry>
+        <outputEntry id="OE_underwriting_moderate_high_approved"><text>true</text></outputEntry>
+        <outputEntry id="OE_underwriting_moderate_high_amount"><text>annualIncome * 2</text></outputEntry>
+        <outputEntry id="OE_underwriting_moderate_high_conditions"><text>"co_signer_required"</text></outputEntry>
+      </rule>
+      <rule id="Rule_underwriting_high">
+        <inputEntry id="IE_underwriting_high_risk"><text>"high"</text></inputEntry>
+        <inputEntry id="IE_underwriting_high_pct"><text>-</text></inputEntry>
+        <inputEntry id="IE_underwriting_high_ratio"><text>-</text></inputEntry>
+        <outputEntry id="OE_underwriting_high_approved"><text>false</text></outputEntry>
+        <outputEntry id="OE_underwriting_high_amount"><text>0</text></outputEntry>
+        <outputEntry id="OE_underwriting_high_conditions"><text>"declined"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

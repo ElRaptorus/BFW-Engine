@@ -1,0 +1,39 @@
+defmodule EvilEngine.Plugin do
+  @moduledoc """
+  Public namespace for every plugin-author behaviour.
+
+  ## Available behaviours
+
+  | Category | Module | Conflict rule |
+  |----------|--------|---------------|
+  | Event sink | `EvilEngine.Plugin.EventSink` | Many allowed |
+  | Service Task handler | `EvilEngine.Plugin.ServiceTaskHandler` | Unique by `implementation` |
+  | Persistence adapter | `EvilEngine.Plugin.PersistenceAdapter` | Unique; chain or last-wins |
+  | REST API extension | `EvilEngine.Plugin.RestApiExtension` | Mounted under prefix |
+  | Monitoring panel | `EvilEngine.Plugin.MonitoringPanel` | Many allowed |
+  | Timer source | `EvilEngine.Plugin.TimerSource` | Unique per type |
+  | DataStore adapter | `EvilEngine.Plugin.DataStoreAdapter` | Unique per store-id |
+  | Named script | `EvilEngine.Plugin.NamedScript` | Unique by script-key |
+  | Auth provider | `EvilEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins) |
+
+  ## Umbrella plugin lifecycle
+
+  Plugins implementing `@behaviour EvilEngine.Plugin` receive two
+  engine-driven callbacks: `on_load/1` and `on_ready/1`. See the
+  `EvilEngine.Plugin` behaviour definition for details.
+  """
+
+  @doc """
+  Called after core_execution reports steady state, before the API tier
+  exposes its sockets. Register handlers, subscribe to events, read
+  engine info. Failures quarantine the plugin (§9.3).
+  """
+  @callback on_load(engine_facade :: struct()) :: :ok | {:error, term()}
+
+  @doc """
+  Called after every plugin's `on_load` has returned and the API tier
+  has bound its listening sockets. Perform work that requires the engine
+  to be reachable end-to-end.
+  """
+  @callback on_ready(engine_facade :: struct()) :: :ok | {:error, term()}
+end

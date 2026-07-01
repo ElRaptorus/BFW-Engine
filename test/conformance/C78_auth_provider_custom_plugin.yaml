@@ -1,0 +1,11 @@
+name: "C78: Custom Auth Provider plugin handles authentication"
+fixture: "linear_start_end.bpmn"
+process_model_id: "LinearStartEnd"
+tier: interactive
+description: |
+  Register a custom AuthProvider plugin that accepts tokens prefixed with
+  "valid-custom-". Deploy a simple BPMN, then start a PI using the custom
+  token. Verify the PI finishes, proving the custom provider authenticated
+  the request end-to-end.
+expected:
+  final_state: "finished"

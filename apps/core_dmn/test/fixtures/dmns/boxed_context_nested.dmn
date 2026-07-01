@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_nested_context"
+             name="Nested Context Test"
+             namespace="https://example.com/dmn/nested-context">
+  <decision id="Decision_nested" name="Nested Context Decision">
+    <variable id="var_nested" name="nestedResult" typeRef="number"/>
+    <context id="ctx_outer">
+      <contextEntry>
+        <variable name="inner" typeRef="number"/>
+        <context id="ctx_inner">
+          <contextEntry>
+            <variable name="a" typeRef="number"/>
+            <literalExpression><text>10</text></literalExpression>
+          </contextEntry>
+          <contextEntry>
+            <literalExpression><text>a + 5</text></literalExpression>
+          </contextEntry>
+        </context>
+      </contextEntry>
+      <contextEntry>
+        <literalExpression><text>inner + 1</text></literalExpression>
+      </contextEntry>
+    </context>
+  </decision>
+</definitions>

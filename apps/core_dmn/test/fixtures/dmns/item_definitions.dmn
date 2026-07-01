@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_itemdef" name="Item Definitions Test"
+  targetNamespace="https://example.com/dmn/itemdef">
+
+  <itemDefinition id="ItemDef_Age" name="tAge">
+    <typeRef>number</typeRef>
+    <allowedValues>[0..150]</allowedValues>
+  </itemDefinition>
+
+  <itemDefinition id="ItemDef_Address" name="tAddress">
+    <itemComponent id="ItemComp_Street" name="street">
+      <typeRef>string</typeRef>
+    </itemComponent>
+    <itemComponent id="ItemComp_City" name="city">
+      <typeRef>string</typeRef>
+    </itemComponent>
+    <itemComponent id="ItemComp_Zip" name="zipCode">
+      <typeRef>string</typeRef>
+    </itemComponent>
+  </itemDefinition>
+
+  <itemDefinition id="ItemDef_Tags" name="tTagList" isCollection="true">
+    <typeRef>string</typeRef>
+  </itemDefinition>
+
+  <inputData id="InputData_age" name="customerAge">
+    <variable name="customerAge" typeRef="tAge"/>
+  </inputData>
+
+  <decision id="Decision_greeting" name="Greeting">
+    <informationRequirement id="ir_age">
+      <requiredInput href="#InputData_age"/>
+    </informationRequirement>
+    <literalExpression id="LE_greeting">
+      <text>"Hello, customer aged " + string(customerAge)</text>
+    </literalExpression>
+  </decision>
+</definitions>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_invalid_none" name="Invalid No Expression"
+  namespace="https://example.com/dmn/invalid">
+
+  <inputData id="InputData_value" name="value">
+    <variable name="value" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_invalid_none" name="Invalid No Table Or Literal">
+    <informationRequirement id="ir_value">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+  </decision>
+</definitions>

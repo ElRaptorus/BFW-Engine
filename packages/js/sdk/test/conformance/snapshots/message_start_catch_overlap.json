@@ -1,0 +1,158 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [
+    {
+      "id": "Msg_shared",
+      "name": "shared-msg"
+    }
+  ],
+  "processes": [
+    {
+      "correlationKey": "token.correlationId",
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_regular",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Regular Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_message",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Message Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "eventMapping": null,
+              "messageRef": "Msg_shared",
+              "payloadExpression": null
+            },
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Wait for Shared Message",
+          "outgoing": [],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "eventMapping": null,
+              "messageRef": "Msg_shared",
+              "payloadExpression": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_catch_path",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End Catch Path",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_message_start",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End Message Start",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "MessageStartCatchOverlap",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_regular", "Start_message", "Catch_1", "End_catch_path", "End_message_start"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Message Start Catch Overlap",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_regular_to_catch",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_regular",
+          "targetRef": "Catch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_catch_to_end",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_1",
+          "targetRef": "End_catch_path"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_message_start_to_end",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_message",
+          "targetRef": "End_message_start"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,0 +1,85 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_increment_body",
+          "text": "value + 1",
+          "typeRef": null
+        },
+        "formalParameters": [
+          {
+            "id": "FP_value",
+            "name": "value",
+            "typeRef": "number"
+          }
+        ],
+        "id": "FD_increment",
+        "type": "feel"
+      },
+      "id": "Decision_function",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Function Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_function",
+        "name": "functionResult",
+        "typeRef": null
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "contextEntries": [
+          {
+            "expression": {
+              "body": {
+                "expressionLanguage": null,
+                "id": "LE_context_body",
+                "text": "value + 1",
+                "typeRef": null
+              },
+              "formalParameters": [
+                {
+                  "id": "FP_context_value",
+                  "name": "value",
+                  "typeRef": "number"
+                }
+              ],
+              "id": "FD_context_increment",
+              "type": "feel"
+            },
+            "variable": {
+              "id": null,
+              "name": "increment",
+              "typeRef": "Any"
+            }
+          }
+        ],
+        "id": "ctx_function"
+      },
+      "id": "Decision_context_function",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Context With Function",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_context_function",
+        "name": "contextFunctionResult",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_function_value",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Function Definition As Value",
+  "namespace": "https://example.com/dmn/function-value"
+}

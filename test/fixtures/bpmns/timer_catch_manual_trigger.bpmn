@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_TimerCatchManualTrigger"
+                  targetNamespace="https://evilengine.dev/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_TimerCatchManualTrigger" name="Timer Catch Manual Trigger" processRef="TimerCatchManualTrigger" />
+    <bpmn:participant id="Participant_TimerBoundaryManualTrigger" name="Timer Boundary Manual Trigger" processRef="TimerBoundaryManualTrigger" />
+  </bpmn:collaboration>
+  <bpmn:process id="TimerCatchManualTrigger" name="Timer Catch Manual Trigger" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_TimerCatchManualTrigger">
+      <bpmn:lane id="Lane_default_catch" name="default">
+        <bpmn:flowNodeRef>Start_Catch</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>TimerCatch_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Catch</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Catch" name="Start">
+      <bpmn:outgoing>Flow_Catch_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="TimerCatch_1" name="Wait One Hour">
+      <bpmn:incoming>Flow_Catch_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Catch_2</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End_Catch" name="End">
+      <bpmn:incoming>Flow_Catch_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Catch_1" sourceRef="Start_Catch" targetRef="TimerCatch_1" />
+    <bpmn:sequenceFlow id="Flow_Catch_2" sourceRef="TimerCatch_1" targetRef="End_Catch" />
+  </bpmn:process>
+  <bpmn:process id="TimerBoundaryManualTrigger" name="Timer Boundary Manual Trigger" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_TimerBoundaryManualTrigger">
+      <bpmn:lane id="Lane_default_boundary" name="default">
+        <bpmn:flowNodeRef>Start_Boundary</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Boundary</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>TimerBE_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Timeout</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Boundary" name="Start">
+      <bpmn:outgoing>Flow_Boundary_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_1" name="Do Work">
+      <bpmn:extensionElements>
+        <evil:assignees>identity.groups</evil:assignees>
+        <evil:formFields>{"fields":[{"name":"done","type":"boolean"}]}</evil:formFields>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Boundary_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Boundary_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="TimerBE_1" attachedToRef="UserTask_1" cancelActivity="false">
+      <bpmn:outgoing>Flow_Boundary_BE</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Boundary" name="Normal End">
+      <bpmn:incoming>Flow_Boundary_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Timeout" name="Timeout End">
+      <bpmn:incoming>Flow_Boundary_BE</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Boundary_1" sourceRef="Start_Boundary" targetRef="UserTask_1" />
+    <bpmn:sequenceFlow id="Flow_Boundary_2" sourceRef="UserTask_1" targetRef="End_Boundary" />
+    <bpmn:sequenceFlow id="Flow_Boundary_BE" sourceRef="TimerBE_1" targetRef="End_Timeout" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_TimerCatchManualTrigger" bpmnElement="Participant_TimerCatchManualTrigger" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="486" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_catch" bpmnElement="Lane_default_catch" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="456" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Catch" bpmnElement="Start_Catch">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TimerCatch_1" bpmnElement="TimerCatch_1">
+        <dc:Bounds x="322" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Catch" bpmnElement="End_Catch">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Participant_TimerBoundaryManualTrigger" bpmnElement="Participant_TimerBoundaryManualTrigger" isHorizontal="true">
+        <dc:Bounds x="82" y="320" width="486" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_boundary" bpmnElement="Lane_default_boundary" isHorizontal="true">
+        <dc:Bounds x="112" y="320" width="456" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Boundary" bpmnElement="Start_Boundary">
+        <dc:Bounds x="162" y="392" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_1" bpmnElement="UserTask_1">
+        <dc:Bounds x="290" y="370" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TimerBE_1" bpmnElement="TimerBE_1">
+        <dc:Bounds x="322" y="432" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Boundary" bpmnElement="End_Boundary">
+        <dc:Bounds x="482" y="362" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Timeout" bpmnElement="End_Timeout">
+        <dc:Bounds x="482" y="462" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Catch_1" bpmnElement="Flow_Catch_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="322" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Catch_2" bpmnElement="Flow_Catch_2">
+        <di:waypoint x="358" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Boundary_1" bpmnElement="Flow_Boundary_1">
+        <di:waypoint x="198" y="410" />
+        <di:waypoint x="290" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Boundary_2" bpmnElement="Flow_Boundary_2">
+        <di:waypoint x="390" y="410" />
+        <di:waypoint x="436" y="410" />
+        <di:waypoint x="436" y="380" />
+        <di:waypoint x="482" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Boundary_BE" bpmnElement="Flow_Boundary_BE">
+        <di:waypoint x="340" y="468" />
+        <di:waypoint x="482" y="480" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

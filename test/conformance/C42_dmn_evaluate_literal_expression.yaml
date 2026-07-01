@@ -1,0 +1,12 @@
+name: "C42: DMN Deploy + Evaluate Literal Expression"
+type: dmn
+fixture: "literal_expression.dmn"
+decision_definition_id: "definitions_sum"
+evaluate:
+  input:
+    x: 3
+    y: 7
+expected:
+  status: 200
+  hit_policy: "literal"
+  result_value: 10

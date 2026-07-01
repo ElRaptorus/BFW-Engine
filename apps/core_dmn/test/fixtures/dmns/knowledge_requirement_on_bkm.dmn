@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_kr_bkm" name="KR on BKM Test"
+  targetNamespace="https://example.com/dmn/kr-bkm">
+
+  <businessKnowledgeModel id="BKM_base" name="Base Logic">
+    <encapsulatedLogic id="EL_base">
+      <formalParameter id="FP_n" name="n" typeRef="number"/>
+      <literalExpression id="LE_base">
+        <text>n + 10</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <businessKnowledgeModel id="BKM_derived" name="Derived Logic">
+    <knowledgeRequirement id="kr_base">
+      <requiredKnowledge href="#BKM_base"/>
+    </knowledgeRequirement>
+    <encapsulatedLogic id="EL_derived">
+      <formalParameter id="FP_m" name="m" typeRef="number"/>
+      <literalExpression id="LE_derived">
+        <text>BKM_base(m) * 3</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+</definitions>

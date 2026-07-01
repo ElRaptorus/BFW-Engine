@@ -1,0 +1,10 @@
+name: "C90: Timer Boundary Event — past date fires immediately, interrupts host"
+fixture: "timer_boundary_delta_zero.bpmn"
+process_model_id: "TimerBoundaryDeltaZero"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Timeout"

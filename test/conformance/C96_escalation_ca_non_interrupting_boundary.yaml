@@ -1,0 +1,14 @@
+name: "C96: Escalation End Event caught by non-interrupting CA boundary (S15a)"
+fixture: "escalation_end_event_ca_non_interrupting_boundary.bpmn"
+child_fixtures:
+  - "escalation_end_child.bpmn"
+process_model_id: "EscalationCANonInterrupting"
+tier: auto
+wait_timeout_ms: 5000
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Normal"
+    - endEventId: "End_Parallel"

@@ -1,0 +1,71 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "columns": [
+          {
+            "id": "col_name",
+            "name": "Name",
+            "typeRef": "string"
+          },
+          {
+            "id": "col_age",
+            "name": "Age",
+            "typeRef": "number"
+          }
+        ],
+        "id": "rel_1",
+        "rows": [
+          [
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "\"Alice\"",
+              "typeRef": null
+            },
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "30",
+              "typeRef": null
+            }
+          ],
+          [
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "\"Bob\"",
+              "typeRef": null
+            },
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "25",
+              "typeRef": null
+            }
+          ]
+        ]
+      },
+      "id": "Decision_relation",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Relation Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_rel",
+        "name": "relationResult",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_relation",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Relation Test",
+  "namespace": "https://example.com/dmn/relation"
+}

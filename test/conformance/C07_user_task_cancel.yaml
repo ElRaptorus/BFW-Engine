@@ -1,0 +1,10 @@
+name: "C07: User task cancelled"
+fixture: "user_task_simple.bpmn"
+process_model_id: "UserTaskSimple"
+tier: interactive
+start:
+  payload:
+    task: "review"
+expected:
+  final_state: "aborted"
+  final_tokens: null

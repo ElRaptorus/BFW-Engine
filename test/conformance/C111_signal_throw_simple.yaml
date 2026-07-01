@@ -1,0 +1,11 @@
+name: "C111: Signal throw — intermediate throw proceeds without waiting"
+fixture: "signal_throw_simple.bpmn"
+process_model_id: "SignalThrowSimple"
+tier: auto
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

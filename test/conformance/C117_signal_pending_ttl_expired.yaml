@@ -1,0 +1,8 @@
+name: "C117: Pending signal TTL — expired signal not delivered"
+fixture: "signal_catch_simple.bpmn"
+process_model_id: "SignalCatchSimple"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "waiting"

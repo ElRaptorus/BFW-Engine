@@ -1,0 +1,52 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_main",
+        "text": "x + 1",
+        "typeRef": null
+      },
+      "id": "Decision_main",
+      "informationRequirements": [
+        {
+          "id": "ir_main_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        },
+        {
+          "id": "ir_main_imported",
+          "requiredDecisionId": "https://example.com/dmn/nonexistent#Decision_remote",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Main",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_importing_missing",
+  "imports": [
+    {
+      "id": "Import_nonexistent",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://example.com/dmn/nonexistent"
+    }
+  ],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Importing Missing Model",
+  "namespace": "https://example.com/dmn/importing-missing"
+}

@@ -1,0 +1,11 @@
+name: "C03: Start-Task-End without payload"
+fixture: "linear_three_node.bpmn"
+process_model_id: "LinearThreeNode"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

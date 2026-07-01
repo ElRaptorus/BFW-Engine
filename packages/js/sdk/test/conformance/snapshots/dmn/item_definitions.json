@@ -1,0 +1,90 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_greeting",
+        "text": "\"Hello, customer aged \" + string(customerAge)",
+        "typeRef": null
+      },
+      "id": "Decision_greeting",
+      "informationRequirements": [
+        {
+          "id": "ir_age",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_age"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Greeting",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_itemdef",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_age",
+      "name": "customerAge",
+      "typeRef": "tAge"
+    }
+  ],
+  "itemDefinitions": [
+    {
+      "allowedValues": "[0..150]",
+      "id": "ItemDef_Age",
+      "isCollection": false,
+      "itemComponents": [],
+      "name": "tAge",
+      "typeRef": "number"
+    },
+    {
+      "allowedValues": null,
+      "id": "ItemDef_Address",
+      "isCollection": false,
+      "itemComponents": [
+        {
+          "allowedValues": null,
+          "id": "ItemComp_Street",
+          "isCollection": false,
+          "itemComponents": [],
+          "name": "street",
+          "typeRef": "string"
+        },
+        {
+          "allowedValues": null,
+          "id": "ItemComp_City",
+          "isCollection": false,
+          "itemComponents": [],
+          "name": "city",
+          "typeRef": "string"
+        },
+        {
+          "allowedValues": null,
+          "id": "ItemComp_Zip",
+          "isCollection": false,
+          "itemComponents": [],
+          "name": "zipCode",
+          "typeRef": "string"
+        }
+      ],
+      "name": "tAddress",
+      "typeRef": null
+    },
+    {
+      "allowedValues": null,
+      "id": "ItemDef_Tags",
+      "isCollection": true,
+      "itemComponents": [],
+      "name": "tTagList",
+      "typeRef": "string"
+    }
+  ],
+  "knowledgeSources": [],
+  "name": "Item Definitions Test",
+  "namespace": "https://example.com/dmn/itemdef"
+}

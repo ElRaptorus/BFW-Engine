@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bkm_le" name="BKM with Literal Expression"
+  targetNamespace="https://example.com/dmn/bkm-le">
+
+  <businessKnowledgeModel id="BKM_tax" name="Tax Calculation">
+    <variable id="var_bkm_tax" name="taxAmount" typeRef="number"/>
+    <encapsulatedLogic id="EL_tax">
+      <formalParameter id="FP_income" name="income" typeRef="number"/>
+      <formalParameter id="FP_rate" name="taxRate" typeRef="number"/>
+      <literalExpression id="LE_tax" typeRef="number">
+        <text>income * taxRate</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+</definitions>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EmbeddedSubprocessNested" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EmbeddedSubprocessNested" name="Embedded Subprocess Nested" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>OuterSubProcess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start" />
+    <bpmn:subProcess id="OuterSubProcess" name="Outer Sub Process">
+      <bpmn:startEvent id="Outer_Start" name="Outer Start" />
+      <bpmn:subProcess id="InnerSubProcess" name="Inner Sub Process">
+        <bpmn:startEvent id="Inner_Start" name="Inner Start" />
+        <bpmn:task id="Inner_Task" name="Inner Task" />
+        <bpmn:endEvent id="Inner_End" name="Inner End" />
+        <bpmn:sequenceFlow id="Inner_Flow_1" sourceRef="Inner_Start" targetRef="Inner_Task" />
+        <bpmn:sequenceFlow id="Inner_Flow_2" sourceRef="Inner_Task" targetRef="Inner_End" />
+      </bpmn:subProcess>
+      <bpmn:endEvent id="Outer_End" name="Outer End" />
+      <bpmn:sequenceFlow id="Outer_Flow_1" sourceRef="Outer_Start" targetRef="InnerSubProcess" />
+      <bpmn:sequenceFlow id="Outer_Flow_2" sourceRef="InnerSubProcess" targetRef="Outer_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_1" name="End" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="OuterSubProcess" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="OuterSubProcess" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="82" width="886" height="256" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="82" width="856" height="256" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_OuterSubProcess" bpmnElement="OuterSubProcess" isExpanded="true">
+        <dc:Bounds x="250" y="100" width="560" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Outer_Start" bpmnElement="Outer_Start">
+        <dc:Bounds x="270" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_InnerSubProcess" bpmnElement="InnerSubProcess" isExpanded="true">
+        <dc:Bounds x="340" y="120" width="340" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Inner_Start" bpmnElement="Inner_Start">
+        <dc:Bounds x="360" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Inner_Task" bpmnElement="Inner_Task">
+        <dc:Bounds x="440" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Inner_End" bpmnElement="Inner_End">
+        <dc:Bounds x="580" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Outer_End" bpmnElement="Outer_End">
+        <dc:Bounds x="730" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="870" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="210" />
+        <di:waypoint x="250" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="810" y="210" />
+        <di:waypoint x="870" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Outer_Flow_1" bpmnElement="Outer_Flow_1">
+        <di:waypoint x="306" y="210" />
+        <di:waypoint x="340" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Outer_Flow_2" bpmnElement="Outer_Flow_2">
+        <di:waypoint x="680" y="210" />
+        <di:waypoint x="730" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Inner_Flow_1" bpmnElement="Inner_Flow_1">
+        <di:waypoint x="396" y="210" />
+        <di:waypoint x="440" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Inner_Flow_2" bpmnElement="Inner_Flow_2">
+        <di:waypoint x="540" y="210" />
+        <di:waypoint x="580" y="210" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

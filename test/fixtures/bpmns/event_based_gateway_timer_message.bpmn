@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:message id="Message_1" name="ebg-test-message" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EbgTimerMessage" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EbgTimerMessage" name="EBG Timer vs Message" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EBG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>TimerCatch_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>MessageCatch_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:eventBasedGateway id="EBG_1" name="Wait for Event">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Message</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:intermediateCatchEvent id="TimerCatch_1" name="Timer Catch">
+      <bpmn:incoming>Flow_Timer</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timer_End</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT0S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateCatchEvent id="MessageCatch_1" name="Message Catch">
+      <bpmn:incoming>Flow_Message</bpmn:incoming>
+      <bpmn:outgoing>Flow_Message_End</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_1" />
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_Timer_End</bpmn:incoming>
+      <bpmn:incoming>Flow_Message_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="EBG_1" />
+    <bpmn:sequenceFlow id="Flow_Timer" sourceRef="EBG_1" targetRef="TimerCatch_1" />
+    <bpmn:sequenceFlow id="Flow_Message" sourceRef="EBG_1" targetRef="MessageCatch_1" />
+    <bpmn:sequenceFlow id="Flow_Timer_End" sourceRef="TimerCatch_1" targetRef="End_1" />
+    <bpmn:sequenceFlow id="Flow_Message_End" sourceRef="MessageCatch_1" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="EbgTimerMessage">
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EBG_1" bpmnElement="EBG_1">
+        <dc:Bounds x="300" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TimerCatch_1" bpmnElement="TimerCatch_1">
+        <dc:Bounds x="452" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_MessageCatch_1" bpmnElement="MessageCatch_1">
+        <dc:Bounds x="452" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="612" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="300" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer" bpmnElement="Flow_Timer">
+        <di:waypoint x="325" y="175" />
+        <di:waypoint x="325" y="130" />
+        <di:waypoint x="452" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Message" bpmnElement="Flow_Message">
+        <di:waypoint x="325" y="225" />
+        <di:waypoint x="325" y="270" />
+        <di:waypoint x="452" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer_End" bpmnElement="Flow_Timer_End">
+        <di:waypoint x="488" y="130" />
+        <di:waypoint x="630" y="130" />
+        <di:waypoint x="630" y="182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Message_End" bpmnElement="Flow_Message_End">
+        <di:waypoint x="488" y="270" />
+        <di:waypoint x="630" y="270" />
+        <di:waypoint x="630" y="218" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,11 @@
+name: "C145: Terminate End Event with parallel branches inside subprocess — scoped kill"
+fixture: "embedded_subprocess_terminate_with_parallel.bpmn"
+process_model_id: "EmbeddedSubprocessTerminateParallel"
+tier: auto
+wait_timeout_ms: 10000
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

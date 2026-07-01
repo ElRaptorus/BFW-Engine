@@ -1,0 +1,44 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_double",
+        "text": "base * 2",
+        "typeRef": null
+      },
+      "id": "Decision_double",
+      "informationRequirements": [
+        {
+          "id": "ir_double_base",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_base"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Double",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_double",
+        "name": "Double",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_helper",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_base",
+      "name": "base",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Helper Model",
+  "namespace": "https://example.com/dmn/helpers"
+}

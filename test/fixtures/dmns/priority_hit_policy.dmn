@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_priority" name="Priority Policy"
+  namespace="https://example.com/dmn/priority"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <decision id="Decision_priority" name="Risk Level">
+    <decisionTable id="dt_priority" hitPolicy="PRIORITY">
+      <input id="Input_score" label="Score">
+        <inputExpression typeRef="number">score</inputExpression>
+      </input>
+      <output id="Output_level" label="Level" name="level" typeRef="string">
+        <outputValues><text>"critical", "high", "medium", "low"</text></outputValues>
+      </output>
+      <rule id="Rule_1">
+        <inputEntry id="IE_1"><text>&gt; 90</text></inputEntry>
+        <outputEntry id="OE_1"><text>"critical"</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="IE_2"><text>&gt; 70</text></inputEntry>
+        <outputEntry id="OE_2"><text>"high"</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <inputEntry id="IE_3"><text>&gt; 50</text></inputEntry>
+        <outputEntry id="OE_3"><text>"medium"</text></outputEntry>
+      </rule>
+      <rule id="Rule_4">
+        <inputEntry id="IE_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_4"><text>"low"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_priority" dmnElementRef="Decision_priority">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

@@ -1,0 +1,20 @@
+{
+  "name": "@daemonengine/example-decision-audit-reporter-sidecar",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@elraptorus/daemonengine_sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

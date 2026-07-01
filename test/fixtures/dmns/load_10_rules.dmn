@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_load_10"
+  name="Load 10 Rules"
+  namespace="https://evilengine.dev/dmn/load/10"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <inputData id="InputData_age" name="age" />
+  <inputData id="InputData_status" name="status" />
+  <decision id="Decision_load_10" name="Load 10 Rules">
+    <variable id="Variable_discount" name="discount" typeRef="number" />
+    <informationRequirement id="IR_age">
+      <requiredInput href="#InputData_age" />
+    </informationRequirement>
+    <informationRequirement id="IR_status">
+      <requiredInput href="#InputData_status" />
+    </informationRequirement>
+    <decisionTable id="DecisionTable_1" hitPolicy="UNIQUE">
+      <input id="Input_age" label="age">
+        <inputExpression id="InputExpression_age" typeRef="number">
+          <text>age</text>
+        </inputExpression>
+      </input>
+      <input id="Input_status" label="status">
+        <inputExpression id="InputExpression_status" typeRef="string">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="Output_discount" label="discount" name="discount" typeRef="number" />
+      <rule id="Rule_1">
+        <inputEntry id="IE_1_1"><text>18</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>"standard"</text></inputEntry>
+        <outputEntry id="OE_1"><text>0.01</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="IE_2_1"><text>26</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>"premium"</text></inputEntry>
+        <outputEntry id="OE_2"><text>0.02</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <inputEntry id="IE_3_1"><text>34</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>"vip"</text></inputEntry>
+        <outputEntry id="OE_3"><text>0.03</text></outputEntry>
+      </rule>
+      <rule id="Rule_4">
+        <inputEntry id="IE_4_1"><text>42</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>"gold"</text></inputEntry>
+        <outputEntry id="OE_4"><text>0.04</text></outputEntry>
+      </rule>
+      <rule id="Rule_5">
+        <inputEntry id="IE_5_1"><text>50</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>"silver"</text></inputEntry>
+        <outputEntry id="OE_5"><text>0.05</text></outputEntry>
+      </rule>
+      <rule id="Rule_6">
+        <inputEntry id="IE_6_1"><text>58</text></inputEntry>
+        <inputEntry id="IE_6_2"><text>"bronze"</text></inputEntry>
+        <outputEntry id="OE_6"><text>0.06</text></outputEntry>
+      </rule>
+      <rule id="Rule_7">
+        <inputEntry id="IE_7_1"><text>66</text></inputEntry>
+        <inputEntry id="IE_7_2"><text>"platinum"</text></inputEntry>
+        <outputEntry id="OE_7"><text>0.07</text></outputEntry>
+      </rule>
+      <rule id="Rule_8">
+        <inputEntry id="IE_8_1"><text>74</text></inputEntry>
+        <inputEntry id="IE_8_2"><text>"elite"</text></inputEntry>
+        <outputEntry id="OE_8"><text>0.08</text></outputEntry>
+      </rule>
+      <rule id="Rule_9">
+        <inputEntry id="IE_9_1"><text>82</text></inputEntry>
+        <inputEntry id="IE_9_2"><text>"basic"</text></inputEntry>
+        <outputEntry id="OE_9"><text>0.09</text></outputEntry>
+      </rule>
+      <rule id="Rule_10">
+        <inputEntry id="IE_10_1"><text>90</text></inputEntry>
+        <inputEntry id="IE_10_2"><text>"trial"</text></inputEntry>
+        <outputEntry id="OE_10"><text>0.10</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_load_10" dmnElementRef="Decision_load_10">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_age" dmnElementRef="InputData_age">
+        <dc:Bounds x="100" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_status" dmnElementRef="InputData_status">
+        <dc:Bounds x="340" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_IR_age" dmnElementRef="IR_age">
+        <di:waypoint x="190" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_IR_status" dmnElementRef="IR_status">
+        <di:waypoint x="430" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

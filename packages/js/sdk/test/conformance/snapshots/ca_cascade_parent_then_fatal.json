@@ -1,0 +1,131 @@
+{
+  "definitionsId": "Definitions_CaCascadeParentThenFatal",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Call Fast Child",
+          "outgoing": [],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CaCascadeFastChild",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ScriptTask_Broken",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Broken Script",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "if then else",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CaCascadeParentThenFatal",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "CA_1", "ScriptTask_Broken", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Cascade Parent Then Fatal",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "CA_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_1",
+          "targetRef": "ScriptTask_Broken"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_Broken",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

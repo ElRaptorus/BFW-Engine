@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_InclusiveGatewayInSubprocess" name="Inclusive Gateway In Subprocess" processRef="InclusiveGatewayInSubprocess" />
+  </bpmn:collaboration>
+  <bpmn:process id="InclusiveGatewayInSubprocess" name="Inclusive Gateway In Subprocess" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_1" name="Sub Process">
+      <bpmn:startEvent id="SubStart_1" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:inclusiveGateway id="IncSplit" name="Split">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_A</bpmn:outgoing>
+        <bpmn:outgoing>Sub_Flow_B</bpmn:outgoing>
+      </bpmn:inclusiveGateway>
+      <bpmn:task id="Task_A" name="Task A">
+        <bpmn:incoming>Sub_Flow_A</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_A2</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="Task_B" name="Task B">
+        <bpmn:incoming>Sub_Flow_B</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_B2</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:inclusiveGateway id="IncJoin" name="Join">
+        <bpmn:incoming>Sub_Flow_A2</bpmn:incoming>
+        <bpmn:incoming>Sub_Flow_B2</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_Join</bpmn:outgoing>
+      </bpmn:inclusiveGateway>
+      <bpmn:endEvent id="SubEnd_1" name="Sub End">
+        <bpmn:incoming>Sub_Flow_Join</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="SubStart_1" targetRef="IncSplit" />
+      <bpmn:sequenceFlow id="Sub_Flow_A" sourceRef="IncSplit" targetRef="Task_A">
+        <bpmn:conditionExpression>token.a = true</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Sub_Flow_B" sourceRef="IncSplit" targetRef="Task_B">
+        <bpmn:conditionExpression>token.b = true</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Sub_Flow_A2" sourceRef="Task_A" targetRef="IncJoin" />
+      <bpmn:sequenceFlow id="Sub_Flow_B2" sourceRef="Task_B" targetRef="IncJoin" />
+      <bpmn:sequenceFlow id="Sub_Flow_Join" sourceRef="IncJoin" targetRef="SubEnd_1" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_1" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_InclusiveGatewayInSubprocess" bpmnElement="Participant_InclusiveGatewayInSubprocess" isHorizontal="true">
+        <dc:Bounds x="82" y="82" width="886" height="336" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="82" width="856" height="336" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="250" y="100" width="560" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubStart_1" bpmnElement="SubStart_1">
+        <dc:Bounds x="270" y="212" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IncSplit" bpmnElement="IncSplit">
+        <dc:Bounds x="350" y="205" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_A" bpmnElement="Task_A">
+        <dc:Bounds x="450" y="132" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B" bpmnElement="Task_B">
+        <dc:Bounds x="450" y="252" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_IncJoin" bpmnElement="IncJoin">
+        <dc:Bounds x="590" y="205" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubEnd_1" bpmnElement="SubEnd_1">
+        <dc:Bounds x="690" y="212" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="862" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="250" />
+        <di:waypoint x="250" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="810" y="250" />
+        <di:waypoint x="862" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="306" y="230" />
+        <di:waypoint x="350" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_A" bpmnElement="Sub_Flow_A">
+        <di:waypoint x="375" y="205" />
+        <di:waypoint x="375" y="172" />
+        <di:waypoint x="450" y="172" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_B" bpmnElement="Sub_Flow_B">
+        <di:waypoint x="375" y="255" />
+        <di:waypoint x="375" y="292" />
+        <di:waypoint x="450" y="292" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_A2" bpmnElement="Sub_Flow_A2">
+        <di:waypoint x="550" y="172" />
+        <di:waypoint x="615" y="172" />
+        <di:waypoint x="615" y="205" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_B2" bpmnElement="Sub_Flow_B2">
+        <di:waypoint x="550" y="292" />
+        <di:waypoint x="615" y="292" />
+        <di:waypoint x="615" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_Join" bpmnElement="Sub_Flow_Join">
+        <di:waypoint x="640" y="230" />
+        <di:waypoint x="690" y="230" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,13 @@
+name: "C48: DMN Cross-Model Import Resolution"
+type: dmn
+fixtures:
+  - imported_helper.dmn
+  - importing_model.dmn
+decision_definition_id: "definitions_importing"
+evaluate:
+  decision_model_id: "Decision_final"
+  input:
+    base: 5
+expected:
+  status: 200
+  result: 20

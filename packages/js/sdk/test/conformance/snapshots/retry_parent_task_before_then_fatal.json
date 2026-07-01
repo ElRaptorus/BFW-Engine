@@ -1,0 +1,137 @@
+{
+  "definitionsId": "Definitions_RetryParentTaskBeforeThenFatal",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Before",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Before Call",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Call Child",
+          "outgoing": [],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "ChildProcess",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_DeadEnd",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Dead End",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Unreachable",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Unreachable End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryParentTaskBeforeThenFatal",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Task_Before", "CA_1", "Task_DeadEnd", "End_Unreachable"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Retry Parent Task Before Then Fatal",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_Before"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Before",
+          "targetRef": "CA_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_1",
+          "targetRef": "Task_DeadEnd"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

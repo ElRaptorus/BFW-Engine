@@ -1,0 +1,11 @@
+name: "C15: Multi-start with explicit startEventId"
+fixture: "multi_start_events.bpmn"
+process_model_id: "MultiStartEvents"
+tier: auto
+start:
+  payload: null
+  start_event_id: "Start_A"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_A"

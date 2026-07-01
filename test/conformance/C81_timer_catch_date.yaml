@@ -1,0 +1,10 @@
+name: "C81: Timer Catch Event — past date fires immediately"
+fixture: "timer_catch_date.bpmn"
+process_model_id: "TimerCatchDate"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

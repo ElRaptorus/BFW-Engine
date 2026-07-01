@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             id="definitions_dmndi"
+             name="DMNDI Test"
+             namespace="https://example.com/dmn/dmndi">
+  <inputData id="InputData_x" name="x"/>
+  <decision id="Decision_result" name="Result">
+    <variable id="var_result" name="result" typeRef="number"/>
+    <informationRequirement id="ir_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <literalExpression id="le_result"><text>x + 1</text></literalExpression>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="Diagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision" dmnElementRef="Decision_result">
+        <dc:Bounds x="200" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Input" dmnElementRef="InputData_x">
+        <dc:Bounds x="200" y="300" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir" dmnElementRef="ir_x">
+        <di:waypoint x="290" y="300"/>
+        <di:waypoint x="290" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

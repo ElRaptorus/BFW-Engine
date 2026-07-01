@@ -1,0 +1,9 @@
+name: "C75: Data Object value contract violation causes fatal"
+fixture: "data_object_value_contract_violation.bpmn"
+process_model_id: "DataObjectContractViolation"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

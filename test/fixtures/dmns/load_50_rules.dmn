@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_load_50"
+  name="Load 50 Rules"
+  namespace="https://evilengine.dev/dmn/load/50"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <inputData id="InputData_age" name="age" />
+  <inputData id="InputData_status" name="status" />
+  <decision id="Decision_load_50" name="Load 50 Rules">
+    <variable id="Variable_discount" name="discount" typeRef="number" />
+    <informationRequirement id="IR_age">
+      <requiredInput href="#InputData_age" />
+    </informationRequirement>
+    <informationRequirement id="IR_status">
+      <requiredInput href="#InputData_status" />
+    </informationRequirement>
+    <decisionTable id="DecisionTable_1" hitPolicy="UNIQUE">
+      <input id="Input_age" label="age">
+        <inputExpression id="InputExpression_age" typeRef="number">
+          <text>age</text>
+        </inputExpression>
+      </input>
+      <input id="Input_status" label="status">
+        <inputExpression id="InputExpression_status" typeRef="string">
+          <text>status</text>
+        </inputExpression>
+      </input>
+      <output id="Output_discount" label="discount" name="discount" typeRef="number" />
+      <rule id="Rule_1">
+        <inputEntry id="IE_1_1"><text>18</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>"elite"</text></inputEntry>
+        <outputEntry id="OE_1"><text>0.01</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="IE_2_1"><text>22</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>"affiliate"</text></inputEntry>
+        <outputEntry id="OE_2"><text>0.02</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <inputEntry id="IE_3_1"><text>27</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>"alpha"</text></inputEntry>
+        <outputEntry id="OE_3"><text>0.03</text></outputEntry>
+      </rule>
+      <rule id="Rule_4">
+        <inputEntry id="IE_4_1"><text>33</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>"pioneer"</text></inputEntry>
+        <outputEntry id="OE_4"><text>0.04</text></outputEntry>
+      </rule>
+      <rule id="Rule_5">
+        <inputEntry id="IE_5_1"><text>40</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>"dynasty"</text></inputEntry>
+        <outputEntry id="OE_5"><text>0.05</text></outputEntry>
+      </rule>
+      <rule id="Rule_6">
+        <inputEntry id="IE_6_1"><text>48</text></inputEntry>
+        <inputEntry id="IE_6_2"><text>"max"</text></inputEntry>
+        <outputEntry id="OE_6"><text>0.06</text></outputEntry>
+      </rule>
+      <rule id="Rule_7">
+        <inputEntry id="IE_7_1"><text>57</text></inputEntry>
+        <inputEntry id="IE_7_2"><text>"orbit"</text></inputEntry>
+        <outputEntry id="OE_7"><text>0.07</text></outputEntry>
+      </rule>
+      <rule id="Rule_8">
+        <inputEntry id="IE_8_1"><text>67</text></inputEntry>
+        <inputEntry id="IE_8_2"><text>"gold"</text></inputEntry>
+        <outputEntry id="OE_8"><text>0.08</text></outputEntry>
+      </rule>
+      <rule id="Rule_9">
+        <inputEntry id="IE_9_1"><text>78</text></inputEntry>
+        <inputEntry id="IE_9_2"><text>"pro"</text></inputEntry>
+        <outputEntry id="OE_9"><text>0.09</text></outputEntry>
+      </rule>
+      <rule id="Rule_10">
+        <inputEntry id="IE_10_1"><text>90</text></inputEntry>
+        <inputEntry id="IE_10_2"><text>"employee"</text></inputEntry>
+        <outputEntry id="OE_10"><text>0.10</text></outputEntry>
+      </rule>
+      <rule id="Rule_11">
+        <inputEntry id="IE_11_1"><text>28</text></inputEntry>
+        <inputEntry id="IE_11_2"><text>"associate"</text></inputEntry>
+        <outputEntry id="OE_11"><text>0.11</text></outputEntry>
+      </rule>
+      <rule id="Rule_12">
+        <inputEntry id="IE_12_1"><text>31</text></inputEntry>
+        <inputEntry id="IE_12_2"><text>"sentinel"</text></inputEntry>
+        <outputEntry id="OE_12"><text>0.12</text></outputEntry>
+      </rule>
+      <rule id="Rule_13">
+        <inputEntry id="IE_13_1"><text>35</text></inputEntry>
+        <inputEntry id="IE_13_2"><text>"apex"</text></inputEntry>
+        <outputEntry id="OE_13"><text>0.13</text></outputEntry>
+      </rule>
+      <rule id="Rule_14">
+        <inputEntry id="IE_14_1"><text>41</text></inputEntry>
+        <inputEntry id="IE_14_2"><text>"spark"</text></inputEntry>
+        <outputEntry id="OE_14"><text>0.14</text></outputEntry>
+      </rule>
+      <rule id="Rule_15">
+        <inputEntry id="IE_15_1"><text>48</text></inputEntry>
+        <inputEntry id="IE_15_2"><text>"standard"</text></inputEntry>
+        <outputEntry id="OE_15"><text>0.15</text></outputEntry>
+      </rule>
+      <rule id="Rule_16">
+        <inputEntry id="IE_16_1"><text>56</text></inputEntry>
+        <inputEntry id="IE_16_2"><text>"elite"</text></inputEntry>
+        <outputEntry id="OE_16"><text>0.16</text></outputEntry>
+      </rule>
+      <rule id="Rule_17">
+        <inputEntry id="IE_17_1"><text>65</text></inputEntry>
+        <inputEntry id="IE_17_2"><text>"affiliate"</text></inputEntry>
+        <outputEntry id="OE_17"><text>0.17</text></outputEntry>
+      </rule>
+      <rule id="Rule_18">
+        <inputEntry id="IE_18_1"><text>75</text></inputEntry>
+        <inputEntry id="IE_18_2"><text>"alpha"</text></inputEntry>
+        <outputEntry id="OE_18"><text>0.18</text></outputEntry>
+      </rule>
+      <rule id="Rule_19">
+        <inputEntry id="IE_19_1"><text>86</text></inputEntry>
+        <inputEntry id="IE_19_2"><text>"pioneer"</text></inputEntry>
+        <outputEntry id="OE_19"><text>0.19</text></outputEntry>
+      </rule>
+      <rule id="Rule_20">
+        <inputEntry id="IE_20_1"><text>20</text></inputEntry>
+        <inputEntry id="IE_20_2"><text>"dynasty"</text></inputEntry>
+        <outputEntry id="OE_20"><text>0.20</text></outputEntry>
+      </rule>
+      <rule id="Rule_21">
+        <inputEntry id="IE_21_1"><text>33</text></inputEntry>
+        <inputEntry id="IE_21_2"><text>"max"</text></inputEntry>
+        <outputEntry id="OE_21"><text>0.21</text></outputEntry>
+      </rule>
+      <rule id="Rule_22">
+        <inputEntry id="IE_22_1"><text>47</text></inputEntry>
+        <inputEntry id="IE_22_2"><text>"orbit"</text></inputEntry>
+        <outputEntry id="OE_22"><text>0.22</text></outputEntry>
+      </rule>
+      <rule id="Rule_23">
+        <inputEntry id="IE_23_1"><text>51</text></inputEntry>
+        <inputEntry id="IE_23_2"><text>"gold"</text></inputEntry>
+        <outputEntry id="OE_23"><text>0.23</text></outputEntry>
+      </rule>
+      <rule id="Rule_24">
+        <inputEntry id="IE_24_1"><text>56</text></inputEntry>
+        <inputEntry id="IE_24_2"><text>"pro"</text></inputEntry>
+        <outputEntry id="OE_24"><text>0.24</text></outputEntry>
+      </rule>
+      <rule id="Rule_25">
+        <inputEntry id="IE_25_1"><text>62</text></inputEntry>
+        <inputEntry id="IE_25_2"><text>"employee"</text></inputEntry>
+        <outputEntry id="OE_25"><text>0.25</text></outputEntry>
+      </rule>
+      <rule id="Rule_26">
+        <inputEntry id="IE_26_1"><text>69</text></inputEntry>
+        <inputEntry id="IE_26_2"><text>"associate"</text></inputEntry>
+        <outputEntry id="OE_26"><text>0.26</text></outputEntry>
+      </rule>
+      <rule id="Rule_27">
+        <inputEntry id="IE_27_1"><text>78</text></inputEntry>
+        <inputEntry id="IE_27_2"><text>"sentinel"</text></inputEntry>
+        <outputEntry id="OE_27"><text>0.27</text></outputEntry>
+      </rule>
+      <rule id="Rule_28">
+        <inputEntry id="IE_28_1"><text>88</text></inputEntry>
+        <inputEntry id="IE_28_2"><text>"apex"</text></inputEntry>
+        <outputEntry id="OE_28"><text>0.28</text></outputEntry>
+      </rule>
+      <rule id="Rule_29">
+        <inputEntry id="IE_29_1"><text>29</text></inputEntry>
+        <inputEntry id="IE_29_2"><text>"spark"</text></inputEntry>
+        <outputEntry id="OE_29"><text>0.29</text></outputEntry>
+      </rule>
+      <rule id="Rule_30">
+        <inputEntry id="IE_30_1"><text>41</text></inputEntry>
+        <inputEntry id="IE_30_2"><text>"standard"</text></inputEntry>
+        <outputEntry id="OE_30"><text>0.30</text></outputEntry>
+      </rule>
+      <rule id="Rule_31">
+        <inputEntry id="IE_31_1"><text>54</text></inputEntry>
+        <inputEntry id="IE_31_2"><text>"elite"</text></inputEntry>
+        <outputEntry id="OE_31"><text>0.31</text></outputEntry>
+      </rule>
+      <rule id="Rule_32">
+        <inputEntry id="IE_32_1"><text>68</text></inputEntry>
+        <inputEntry id="IE_32_2"><text>"affiliate"</text></inputEntry>
+        <outputEntry id="OE_32"><text>0.32</text></outputEntry>
+      </rule>
+      <rule id="Rule_33">
+        <inputEntry id="IE_33_1"><text>83</text></inputEntry>
+        <inputEntry id="IE_33_2"><text>"alpha"</text></inputEntry>
+        <outputEntry id="OE_33"><text>0.33</text></outputEntry>
+      </rule>
+      <rule id="Rule_34">
+        <inputEntry id="IE_34_1"><text>88</text></inputEntry>
+        <inputEntry id="IE_34_2"><text>"pioneer"</text></inputEntry>
+        <outputEntry id="OE_34"><text>0.34</text></outputEntry>
+      </rule>
+      <rule id="Rule_35">
+        <inputEntry id="IE_35_1"><text>18</text></inputEntry>
+        <inputEntry id="IE_35_2"><text>"dynasty"</text></inputEntry>
+        <outputEntry id="OE_35"><text>0.35</text></outputEntry>
+      </rule>
+      <rule id="Rule_36">
+        <inputEntry id="IE_36_1"><text>25</text></inputEntry>
+        <inputEntry id="IE_36_2"><text>"max"</text></inputEntry>
+        <outputEntry id="OE_36"><text>0.36</text></outputEntry>
+      </rule>
+      <rule id="Rule_37">
+        <inputEntry id="IE_37_1"><text>33</text></inputEntry>
+        <inputEntry id="IE_37_2"><text>"orbit"</text></inputEntry>
+        <outputEntry id="OE_37"><text>0.37</text></outputEntry>
+      </rule>
+      <rule id="Rule_38">
+        <inputEntry id="IE_38_1"><text>42</text></inputEntry>
+        <inputEntry id="IE_38_2"><text>"gold"</text></inputEntry>
+        <outputEntry id="OE_38"><text>0.38</text></outputEntry>
+      </rule>
+      <rule id="Rule_39">
+        <inputEntry id="IE_39_1"><text>52</text></inputEntry>
+        <inputEntry id="IE_39_2"><text>"pro"</text></inputEntry>
+        <outputEntry id="OE_39"><text>0.39</text></outputEntry>
+      </rule>
+      <rule id="Rule_40">
+        <inputEntry id="IE_40_1"><text>64</text></inputEntry>
+        <inputEntry id="IE_40_2"><text>"employee"</text></inputEntry>
+        <outputEntry id="OE_40"><text>0.40</text></outputEntry>
+      </rule>
+      <rule id="Rule_41">
+        <inputEntry id="IE_41_1"><text>77</text></inputEntry>
+        <inputEntry id="IE_41_2"><text>"associate"</text></inputEntry>
+        <outputEntry id="OE_41"><text>0.41</text></outputEntry>
+      </rule>
+      <rule id="Rule_42">
+        <inputEntry id="IE_42_1"><text>25</text></inputEntry>
+        <inputEntry id="IE_42_2"><text>"sentinel"</text></inputEntry>
+        <outputEntry id="OE_42"><text>0.42</text></outputEntry>
+      </rule>
+      <rule id="Rule_43">
+        <inputEntry id="IE_43_1"><text>40</text></inputEntry>
+        <inputEntry id="IE_43_2"><text>"apex"</text></inputEntry>
+        <outputEntry id="OE_43"><text>0.43</text></outputEntry>
+      </rule>
+      <rule id="Rule_44">
+        <inputEntry id="IE_44_1"><text>56</text></inputEntry>
+        <inputEntry id="IE_44_2"><text>"spark"</text></inputEntry>
+        <outputEntry id="OE_44"><text>0.44</text></outputEntry>
+      </rule>
+      <rule id="Rule_45">
+        <inputEntry id="IE_45_1"><text>62</text></inputEntry>
+        <inputEntry id="IE_45_2"><text>"standard"</text></inputEntry>
+        <outputEntry id="OE_45"><text>0.45</text></outputEntry>
+      </rule>
+      <rule id="Rule_46">
+        <inputEntry id="IE_46_1"><text>69</text></inputEntry>
+        <inputEntry id="IE_46_2"><text>"elite"</text></inputEntry>
+        <outputEntry id="OE_46"><text>0.46</text></outputEntry>
+      </rule>
+      <rule id="Rule_47">
+        <inputEntry id="IE_47_1"><text>77</text></inputEntry>
+        <inputEntry id="IE_47_2"><text>"affiliate"</text></inputEntry>
+        <outputEntry id="OE_47"><text>0.47</text></outputEntry>
+      </rule>
+      <rule id="Rule_48">
+        <inputEntry id="IE_48_1"><text>86</text></inputEntry>
+        <inputEntry id="IE_48_2"><text>"alpha"</text></inputEntry>
+        <outputEntry id="OE_48"><text>0.48</text></outputEntry>
+      </rule>
+      <rule id="Rule_49">
+        <inputEntry id="IE_49_1"><text>32</text></inputEntry>
+        <inputEntry id="IE_49_2"><text>"pioneer"</text></inputEntry>
+        <outputEntry id="OE_49"><text>0.49</text></outputEntry>
+      </rule>
+      <rule id="Rule_50">
+        <inputEntry id="IE_50_1"><text>43</text></inputEntry>
+        <inputEntry id="IE_50_2"><text>"dynasty"</text></inputEntry>
+        <outputEntry id="OE_50"><text>0.50</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_load_50" dmnElementRef="Decision_load_50">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_age" dmnElementRef="InputData_age">
+        <dc:Bounds x="100" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_status" dmnElementRef="InputData_status">
+        <dc:Bounds x="340" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_IR_age" dmnElementRef="IR_age">
+        <di:waypoint x="190" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_IR_status" dmnElementRef="IR_status">
+        <di:waypoint x="430" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

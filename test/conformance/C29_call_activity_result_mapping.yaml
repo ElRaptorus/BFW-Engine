@@ -1,0 +1,12 @@
+name: "C29: Call Activity with out_mappings FEEL expression"
+fixture: "call_activity_result_mapping.bpmn"
+child_fixture: "call_activity_child.bpmn"
+process_model_id: "CallActivityResultMapping"
+tier: call_activity
+start:
+  payload:
+    input: "hello"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

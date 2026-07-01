@@ -1,0 +1,11 @@
+name: "C58: defaultOutputEntry — fallback when no rules match"
+type: dmn
+fixture: "default_output_entry.dmn"
+decision_definition_id: "Definitions_default_output"
+evaluate:
+  decision_model_id: "Decision_default_single"
+  input:
+    status: "nonexistent"
+expected:
+  status: 200
+  result: "unknown"

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_DataObjectSharedRef" name="Data Object Shared Reference" processRef="DataObjectSharedRef" />
+  </bpmn:collaboration>
+  <bpmn:process id="DataObjectSharedRef" name="Data Object Shared Reference" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="DO_1" name="SharedData"/>
+    <bpmn:dataObjectReference id="DOR_A" dataObjectRef="DO_1"/>
+    <bpmn:dataObjectReference id="DOR_B" dataObjectRef="DO_1"/>
+
+    <bpmn:startEvent id="Start_1" name="Start"/>
+
+    <!-- Write via DOR_A -->
+    <bpmn:scriptTask id="ScriptTask_1" name="Write via A" scriptFormat="feel">
+      <bpmn:script>{"source": "A", "value": token.amount}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_1">
+        <bpmn:targetRef>DOR_A</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <!-- Write via DOR_B -->
+    <bpmn:scriptTask id="ScriptTask_2" name="Write via B" scriptFormat="feel">
+      <bpmn:script>{"source": "B", "value": token.value * 2}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_2">
+        <bpmn:targetRef>DOR_B</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <!-- Write via DOR_A again -->
+    <bpmn:scriptTask id="ScriptTask_3" name="Write via A again" scriptFormat="feel">
+      <bpmn:script>{"source": "A_final", "value": 999}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_3">
+        <bpmn:targetRef>DOR_A</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="End"/>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ScriptTask_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_1" targetRef="ScriptTask_2"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="ScriptTask_2" targetRef="ScriptTask_3"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="ScriptTask_3" targetRef="End_1"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_DataObjectSharedRef" bpmnElement="Participant_DataObjectSharedRef" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="806" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="776" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_1" bpmnElement="ScriptTask_1">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_2" bpmnElement="ScriptTask_2">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_3" bpmnElement="ScriptTask_3">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="802" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_A" bpmnElement="DOR_A">
+        <dc:Bounds x="162" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_B" bpmnElement="DOR_B">
+        <dc:Bounds x="282" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="802" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,15 @@
+name: "C37: Business rule task in DMN mode — multi-output RULE ORDER"
+fixture: "business_rule_task_dmn_multi_output.bpmn"
+dmn_fixtures:
+  - "multi_output_rule_order.dmn"
+process_model_id: "BrtDmnMultiOutputProcess"
+tier: auto
+start:
+  payload:
+    orderType: "express"
+    orderValue: 500
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

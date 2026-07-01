@@ -1,0 +1,14 @@
+name: "C51: DMN Decision Service evaluation"
+type: dmn
+fixture: "decision_service_basic.dmn"
+decision_definition_id: "Definitions_ds_basic"
+evaluate_service:
+  service_id: "DS_eligibility"
+  input:
+    Age: 30
+    Income: 50000
+expected:
+  status: 200
+  service_id: "DS_eligibility"
+  outputs:
+    Eligibility: "approved"

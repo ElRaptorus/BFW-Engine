@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="order-risk-rules" name="Order Risk Rules"
+  namespace="https://example.com/dmn/risk">
+
+  <inputData id="InputData_orderTotal" name="orderTotal">
+    <variable name="orderTotal" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_customerAge" name="customerAge">
+    <variable name="customerAge" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_paymentMethod" name="paymentMethod">
+    <variable name="paymentMethod" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_shippingCountry" name="shippingCountry">
+    <variable name="shippingCountry" typeRef="string"/>
+  </inputData>
+
+  <decision id="Decision_Risk_Score" name="Risk Score">
+    <variable id="var_risk_score" name="riskScore" typeRef="number"/>
+    <informationRequirement id="ir_order_total">
+      <requiredInput href="#InputData_orderTotal"/>
+    </informationRequirement>
+    <informationRequirement id="ir_customer_age">
+      <requiredInput href="#InputData_customerAge"/>
+    </informationRequirement>
+    <informationRequirement id="ir_payment_method">
+      <requiredInput href="#InputData_paymentMethod"/>
+    </informationRequirement>
+    <informationRequirement id="ir_shipping_country">
+      <requiredInput href="#InputData_shippingCountry"/>
+    </informationRequirement>
+    <decisionTable id="dt_risk_score" hitPolicy="COLLECT" aggregation="SUM">
+      <input id="Input_order_total" label="Order Total">
+        <inputExpression typeRef="number">orderTotal</inputExpression>
+      </input>
+      <input id="Input_customer_age" label="Customer Age">
+        <inputExpression typeRef="number">customerAge</inputExpression>
+      </input>
+      <input id="Input_payment_method" label="Payment Method">
+        <inputExpression typeRef="string">paymentMethod</inputExpression>
+      </input>
+      <input id="Input_shipping_country" label="Shipping Country">
+        <inputExpression typeRef="string">shippingCountry</inputExpression>
+      </input>
+      <output id="Output_risk_points" label="Risk Points" name="riskPoints" typeRef="number"/>
+      <rule id="Rule_order_total_1000">
+        <inputEntry id="IE_ot_1"><text>&gt; 1000</text></inputEntry>
+        <inputEntry id="IE_ca_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_sc_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_1"><text>20</text></outputEntry>
+      </rule>
+      <rule id="Rule_order_total_5000">
+        <inputEntry id="IE_ot_2"><text>&gt; 5000</text></inputEntry>
+        <inputEntry id="IE_ca_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_sc_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_2"><text>30</text></outputEntry>
+      </rule>
+      <rule id="Rule_customer_age_30">
+        <inputEntry id="IE_ot_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ca_3"><text>&lt; 30</text></inputEntry>
+        <inputEntry id="IE_pm_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_sc_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_3"><text>5</text></outputEntry>
+      </rule>
+      <rule id="Rule_customer_age_18">
+        <inputEntry id="IE_ot_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ca_4"><text>&lt; 18</text></inputEntry>
+        <inputEntry id="IE_pm_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_sc_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_4"><text>50</text></outputEntry>
+      </rule>
+      <rule id="Rule_cryptocurrency">
+        <inputEntry id="IE_ot_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_ca_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_5"><text>"cryptocurrency"</text></inputEntry>
+        <inputEntry id="IE_sc_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_5"><text>25</text></outputEntry>
+      </rule>
+      <rule id="Rule_prepaid_card">
+        <inputEntry id="IE_ot_6"><text>-</text></inputEntry>
+        <inputEntry id="IE_ca_6"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_6"><text>"prepaid_card"</text></inputEntry>
+        <inputEntry id="IE_sc_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_6"><text>15</text></outputEntry>
+      </rule>
+      <rule id="Rule_high_risk_country">
+        <inputEntry id="IE_ot_7"><text>-</text></inputEntry>
+        <inputEntry id="IE_ca_7"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_7"><text>-</text></inputEntry>
+        <inputEntry id="IE_sc_7"><text>"high_risk_country"</text></inputEntry>
+        <outputEntry id="OE_rp_7"><text>30</text></outputEntry>
+      </rule>
+      <rule id="Rule_order_crypto_combo">
+        <inputEntry id="IE_ot_8"><text>&gt; 2000</text></inputEntry>
+        <inputEntry id="IE_ca_8"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_8"><text>"cryptocurrency"</text></inputEntry>
+        <inputEntry id="IE_sc_8"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_8"><text>20</text></outputEntry>
+      </rule>
+      <rule id="Rule_young_moderate_order">
+        <inputEntry id="IE_ot_9"><text>&gt; 500</text></inputEntry>
+        <inputEntry id="IE_ca_9"><text>&lt; 25</text></inputEntry>
+        <inputEntry id="IE_pm_9"><text>-</text></inputEntry>
+        <inputEntry id="IE_sc_9"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_9"><text>10</text></outputEntry>
+      </rule>
+      <rule id="Rule_credit_card_safe">
+        <inputEntry id="IE_ot_10"><text>-</text></inputEntry>
+        <inputEntry id="IE_ca_10"><text>-</text></inputEntry>
+        <inputEntry id="IE_pm_10"><text>"credit_card"</text></inputEntry>
+        <inputEntry id="IE_sc_10"><text>-</text></inputEntry>
+        <outputEntry id="OE_rp_10"><text>0</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_Risk_Level" name="Risk Level">
+    <variable id="var_risk_level" name="level" typeRef="string"/>
+    <informationRequirement id="ir_risk_score">
+      <requiredDecision href="#Decision_Risk_Score"/>
+    </informationRequirement>
+    <decisionTable id="dt_risk_level" hitPolicy="UNIQUE">
+      <input id="Input_risk_score" label="Risk Score">
+        <inputExpression typeRef="number">riskScore</inputExpression>
+      </input>
+      <output id="Output_level" label="Level" name="level" typeRef="string"/>
+      <output id="Output_action" label="Action" name="action" typeRef="string"/>
+      <rule id="Rule_low_risk">
+        <inputEntry id="IE_rs_1"><text>&lt; 20</text></inputEntry>
+        <outputEntry id="OE_level_1"><text>"low"</text></outputEntry>
+        <outputEntry id="OE_action_1"><text>"auto_approve"</text></outputEntry>
+      </rule>
+      <rule id="Rule_medium_risk">
+        <inputEntry id="IE_rs_2"><text>&lt; 50</text></inputEntry>
+        <outputEntry id="OE_level_2"><text>"medium"</text></outputEntry>
+        <outputEntry id="OE_action_2"><text>"manual_review"</text></outputEntry>
+      </rule>
+      <rule id="Rule_high_risk">
+        <inputEntry id="IE_rs_3"><text>&gt;= 50</text></inputEntry>
+        <outputEntry id="OE_level_3"><text>"high"</text></outputEntry>
+        <outputEntry id="OE_action_3"><text>"reject"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

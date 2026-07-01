@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bonus" name="Category Bonus Rules"
+  namespace="https://example.com/dmn/bonus">
+
+  <inputData id="InputData_category" name="category">
+    <variable name="category" typeRef="string"/>
+  </inputData>
+
+  <decision id="Decision_bonus" name="Total Bonus">
+    <informationRequirement id="ir_category">
+      <requiredInput href="#InputData_category"/>
+    </informationRequirement>
+    <decisionTable id="dt_bonus" hitPolicy="COLLECT" aggregation="SUM">
+      <input id="Input_category" label="Product Category">
+        <inputExpression typeRef="string">category</inputExpression>
+      </input>
+      <output id="Output_bonus" label="Bonus" name="bonus" typeRef="number"/>
+      <rule id="Rule_electronics_base">
+        <inputEntry id="IE_electronics"><text>"electronics"</text></inputEntry>
+        <outputEntry id="OE_electronics_base"><text>10</text></outputEntry>
+      </rule>
+      <rule id="Rule_electronics_extra">
+        <inputEntry id="IE_electronics_2"><text>"electronics"</text></inputEntry>
+        <outputEntry id="OE_electronics_extra"><text>5</text></outputEntry>
+      </rule>
+      <rule id="Rule_clothing">
+        <inputEntry id="IE_clothing"><text>"clothing"</text></inputEntry>
+        <outputEntry id="OE_clothing"><text>3</text></outputEntry>
+      </rule>
+      <rule id="Rule_food">
+        <inputEntry id="IE_food"><text>"food"</text></inputEntry>
+        <outputEntry id="OE_food"><text>1</text></outputEntry>
+      </rule>
+      <rule id="Rule_premium">
+        <inputEntry id="IE_premium"><text>"premium"</text></inputEntry>
+        <outputEntry id="OE_premium"><text>25</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

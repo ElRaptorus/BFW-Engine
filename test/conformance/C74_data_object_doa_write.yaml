@@ -1,0 +1,13 @@
+name: "C74: Data Object written via DOA projection"
+fixture: "data_object_simple_write.bpmn"
+process_model_id: "DataObjectSimpleWrite"
+tier: auto
+start:
+  payload:
+    orderId: "ORD-001"
+    amount: 42
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

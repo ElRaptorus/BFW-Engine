@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:evil="https://evilengine.dev/schema/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_UT_Pipeline" exporter="Bifrost Forge World" exporterVersion="1.0.0">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_UserTaskFullPipeline" name="User Task Full Pipeline" processRef="UserTaskFullPipeline" />
+  </bpmn:collaboration>
+  <bpmn:process id="UserTaskFullPipeline" name="User Task Full Pipeline" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start" />
+    <bpmn:userTask id="UserTask_1" name="Review With Full Pipeline">
+      <bpmn:extensionElements>
+        <evil:inputMapping source="token.raw_name" target="name" />
+        <evil:payloadContract>{"type":"object","required":["name"],"properties":{"name":{"type":"string"}}}</evil:payloadContract>
+        <evil:outputMapping source="token.user_approved" target="approved" />
+        <evil:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</evil:resultContract>
+        <evil:formFields>[{"id":"field_text_1780760567547_1","type":"text","label":"Hamlo","required":false,"placeholder":"asdfasdfsda","defaultValue":"asdfasfdfsdf","hint":"fuck you"},{"id":"field_number_1780760990626_2","type":"number","label":"Number","required":false},{"id":"field_date_1780760990997_3","type":"date","label":"Date","required":false},{"id":"field_header_1780760992806_4","type":"header","label":"Section Header","required":false},{"id":"field_boolean_1780760993101_5","type":"boolean","label":"Toggle","required":false},{"id":"field_file_1780760993417_6","type":"file","label":"File Upload","required":false},{"id":"field_textarea_1780760993686_7","type":"textarea","label":"Multi-line","required":false},{"id":"field_textarea_1780760993959_8","type":"textarea","label":"Multi-line","required":false},{"id":"field_radio_1780760994283_9","type":"radio","label":"Radio Group","required":false},{"id":"field_select_1780760994561_10","type":"select","label":"Dropdown","required":false},{"id":"field_checkbox_1780760994805_11","type":"checkbox","label":"Checkbox","required":false}]</evil:formFields>
+        <evil:formActions>[{"id":"action_confirm_1780760572357_1","label":"Confirm","preset":"confirm","submitsForm":true,"isDefault":true},{"id":"action_cancel_1780760572617_2","label":"Cancel","preset":"cancel","submitsForm":false,"isDefault":false},{"id":"action_custom_1780761002981_3","label":"DIE!","preset":"custom","submitsForm":true,"isDefault":false,"isDanger":true}]</evil:formActions>
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_1" name="Done" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="UserTask_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_1" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_UserTaskFullPipeline" bpmnElement="Participant_UserTaskFullPipeline" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="468" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="438" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_1" bpmnElement="UserTask_1">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

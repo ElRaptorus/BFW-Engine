@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  id="tax-rates" name="Tax Rates"
+  namespace="https://example.com/dmn/tax-rates">
+
+  <extensionElements>
+    <evil:version>2.0.0</evil:version>
+  </extensionElements>
+
+  <inputData id="InputData_annual_income" name="annualIncome">
+    <variable name="annualIncome" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_filing_status" name="filingStatus">
+    <variable name="filingStatus" typeRef="string"/>
+  </inputData>
+
+  <decision id="Decision_tax_calculation" name="Tax Calculation">
+    <informationRequirement id="ir_annual_income">
+      <requiredInput href="#InputData_annual_income"/>
+    </informationRequirement>
+    <informationRequirement id="ir_filing_status">
+      <requiredInput href="#InputData_filing_status"/>
+    </informationRequirement>
+    <decisionTable id="dt_tax_calculation" hitPolicy="FIRST">
+      <input id="Input_annual_income" label="Annual Income">
+        <inputExpression typeRef="number">annualIncome</inputExpression>
+      </input>
+      <input id="Input_filing_status" label="Filing Status">
+        <inputExpression typeRef="string">filingStatus</inputExpression>
+      </input>
+      <output id="Output_tax_rate" label="Tax Rate" name="taxRate" typeRef="number"/>
+      <output id="Output_bracket" label="Bracket" name="bracket" typeRef="string"/>
+      <output id="Output_estimated_tax" label="Estimated Tax" name="estimatedTax" typeRef="number"/>
+      <rule id="Rule_single_exempt">
+        <inputEntry id="IE_income_single_exempt"><text>&lt;= 20000</text></inputEntry>
+        <inputEntry id="IE_status_single_exempt"><text>"single"</text></inputEntry>
+        <outputEntry id="OE_rate_single_exempt"><text>0.00</text></outputEntry>
+        <outputEntry id="OE_bracket_single_exempt"><text>"exempt"</text></outputEntry>
+        <outputEntry id="OE_tax_single_exempt"><text>0</text></outputEntry>
+      </rule>
+      <rule id="Rule_single_low">
+        <inputEntry id="IE_income_single_low"><text>&lt;= 45000</text></inputEntry>
+        <inputEntry id="IE_status_single_low"><text>"single"</text></inputEntry>
+        <outputEntry id="OE_rate_single_low"><text>0.12</text></outputEntry>
+        <outputEntry id="OE_bracket_single_low"><text>"low"</text></outputEntry>
+        <outputEntry id="OE_tax_single_low"><text>annualIncome * 0.12</text></outputEntry>
+      </rule>
+      <rule id="Rule_single_middle">
+        <inputEntry id="IE_income_single_middle"><text>&lt;= 90000</text></inputEntry>
+        <inputEntry id="IE_status_single_middle"><text>"single"</text></inputEntry>
+        <outputEntry id="OE_rate_single_middle"><text>0.22</text></outputEntry>
+        <outputEntry id="OE_bracket_single_middle"><text>"middle"</text></outputEntry>
+        <outputEntry id="OE_tax_single_middle"><text>annualIncome * 0.22</text></outputEntry>
+      </rule>
+      <rule id="Rule_single_upper_middle">
+        <inputEntry id="IE_income_single_upper_middle"><text>&lt;= 200000</text></inputEntry>
+        <inputEntry id="IE_status_single_upper_middle"><text>"single"</text></inputEntry>
+        <outputEntry id="OE_rate_single_upper_middle"><text>0.32</text></outputEntry>
+        <outputEntry id="OE_bracket_single_upper_middle"><text>"upper_middle"</text></outputEntry>
+        <outputEntry id="OE_tax_single_upper_middle"><text>annualIncome * 0.32</text></outputEntry>
+      </rule>
+      <rule id="Rule_single_high">
+        <inputEntry id="IE_income_single_high"><text>&gt; 200000</text></inputEntry>
+        <inputEntry id="IE_status_single_high"><text>"single"</text></inputEntry>
+        <outputEntry id="OE_rate_single_high"><text>0.37</text></outputEntry>
+        <outputEntry id="OE_bracket_single_high"><text>"high"</text></outputEntry>
+        <outputEntry id="OE_tax_single_high"><text>annualIncome * 0.37</text></outputEntry>
+      </rule>
+      <rule id="Rule_joint_exempt">
+        <inputEntry id="IE_income_joint_exempt"><text>&lt;= 35000</text></inputEntry>
+        <inputEntry id="IE_status_joint_exempt"><text>"joint"</text></inputEntry>
+        <outputEntry id="OE_rate_joint_exempt"><text>0.00</text></outputEntry>
+        <outputEntry id="OE_bracket_joint_exempt"><text>"exempt"</text></outputEntry>
+        <outputEntry id="OE_tax_joint_exempt"><text>0</text></outputEntry>
+      </rule>
+      <rule id="Rule_joint_low">
+        <inputEntry id="IE_income_joint_low"><text>&lt;= 90000</text></inputEntry>
+        <inputEntry id="IE_status_joint_low"><text>"joint"</text></inputEntry>
+        <outputEntry id="OE_rate_joint_low"><text>0.12</text></outputEntry>
+        <outputEntry id="OE_bracket_joint_low"><text>"low"</text></outputEntry>
+        <outputEntry id="OE_tax_joint_low"><text>annualIncome * 0.12</text></outputEntry>
+      </rule>
+      <rule id="Rule_joint_middle">
+        <inputEntry id="IE_income_joint_middle"><text>&lt;= 180000</text></inputEntry>
+        <inputEntry id="IE_status_joint_middle"><text>"joint"</text></inputEntry>
+        <outputEntry id="OE_rate_joint_middle"><text>0.22</text></outputEntry>
+        <outputEntry id="OE_bracket_joint_middle"><text>"middle"</text></outputEntry>
+        <outputEntry id="OE_tax_joint_middle"><text>annualIncome * 0.22</text></outputEntry>
+      </rule>
+      <rule id="Rule_joint_upper_middle">
+        <inputEntry id="IE_income_joint_upper_middle"><text>&lt;= 350000</text></inputEntry>
+        <inputEntry id="IE_status_joint_upper_middle"><text>"joint"</text></inputEntry>
+        <outputEntry id="OE_rate_joint_upper_middle"><text>0.32</text></outputEntry>
+        <outputEntry id="OE_bracket_joint_upper_middle"><text>"upper_middle"</text></outputEntry>
+        <outputEntry id="OE_tax_joint_upper_middle"><text>annualIncome * 0.32</text></outputEntry>
+      </rule>
+      <rule id="Rule_joint_high">
+        <inputEntry id="IE_income_joint_high"><text>&gt; 350000</text></inputEntry>
+        <inputEntry id="IE_status_joint_high"><text>"joint"</text></inputEntry>
+        <outputEntry id="OE_rate_joint_high"><text>0.37</text></outputEntry>
+        <outputEntry id="OE_bracket_joint_high"><text>"high"</text></outputEntry>
+        <outputEntry id="OE_tax_joint_high"><text>annualIncome * 0.37</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

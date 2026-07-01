@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_collect_min" name="Collect Min Aggregation"
+  namespace="https://example.com/dmn/collect-min">
+
+  <inputData id="InputData_category" name="category">
+    <variable name="category" typeRef="string"/>
+  </inputData>
+
+  <decision id="Decision_min" name="Minimum Score">
+    <informationRequirement id="ir_category">
+      <requiredInput href="#InputData_category"/>
+    </informationRequirement>
+    <decisionTable id="dt_min" hitPolicy="COLLECT" aggregation="MIN">
+      <input id="Input_category" label="Product Category">
+        <inputExpression typeRef="string">category</inputExpression>
+      </input>
+      <output id="Output_score" label="Score" name="score" typeRef="number"/>
+      <rule id="Rule_electronics_1">
+        <inputEntry id="IE_e1"><text>"electronics"</text></inputEntry>
+        <outputEntry id="OE_e1"><text>30</text></outputEntry>
+      </rule>
+      <rule id="Rule_electronics_2">
+        <inputEntry id="IE_e2"><text>"electronics"</text></inputEntry>
+        <outputEntry id="OE_e2"><text>10</text></outputEntry>
+      </rule>
+      <rule id="Rule_electronics_3">
+        <inputEntry id="IE_e3"><text>"electronics"</text></inputEntry>
+        <outputEntry id="OE_e3"><text>50</text></outputEntry>
+      </rule>
+      <rule id="Rule_clothing">
+        <inputEntry id="IE_c"><text>"clothing"</text></inputEntry>
+        <outputEntry id="OE_c"><text>20</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

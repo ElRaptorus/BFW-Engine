@@ -1,0 +1,48 @@
+---
+description: Ensure test coverage stays above per-app and global thresholds when adding or modifying modules
+globs: "apps/**/lib/**/*.ex"
+alwaysApply: false
+---
+
+# Maintain Test Coverage
+
+Coverage is enforced at **two levels** (see `docs/ImplementationPhases.md` § Test Coverage Milestones):
+
+1. **Per-app thresholds** — Mix `test_coverage.threshold` in each app's `mix.exs`. Apps with functional code have non-zero thresholds; skeleton/struct-only apps use 0.
+2. **Global aggregate** — ExCoveralls `minimum_coverage` in `coveralls.json` (enforced on the umbrella-wide aggregate).
+
+When you add a new module or significantly change an existing one:
+
+1. **Run coverage** after your changes:
+   ```bash
+   mix coveralls.html --umbrella
+   ```
+   Both levels are checked in a single run. The command will fail if any per-app threshold or the global aggregate threshold is missed.
+
+2. **Check for zero-coverage modules** — every newly created module must be exercised by at least one test. Inspect the terminal summary table to confirm no new module shows 0 %.
+
+3. **Investigate uncovered lines** — when the terminal summary reveals a module with low coverage, drill into the exact uncovered code paths:
+   ```bash
+   MIX_ENV=test mix coveralls.detail --filter path/to/module.ex
+   ```
+   This prints the full source with ANSI-colored lines: green = covered, red = uncovered. Use this to identify which branches, clauses, and error paths need tests.
+
+4. **Cover all paths** — tests should exercise:
+   - Happy path (expected inputs → expected outputs)
+   - Error / bad path (malformed inputs, boundary conditions, missing data)
+   - Security-relevant paths (authorization, payload caps, input validation)
+   - Sanity (module loads, public API matches spec)
+
+5. **Do not game coverage** — avoid trivial assertions that inflate numbers without testing real behaviour. Each test should verify meaningful post-conditions.
+
+6. **Ratchet after each phase** — when a phase completes, raise per-app `threshold` values in each app's `mix.exs` and the global `minimum_coverage` in `coveralls.json` to match the targets in `ImplementationPhases.md`.
+
+7. **Exclusions** — migrations, resource snapshots, test support, and fixture files are excluded in `coveralls.json`. Do not add production code to the skip list without explicit approval.
+
+## Coverage report formats
+
+| Format | Command | Best for |
+|--------|---------|----------|
+| **HTML** | `mix coveralls.html --umbrella` | Human review — `cover/excoveralls.html` with navigable, color-coded, line-by-line source |
+| **Terminal detail** | `MIX_ENV=test mix coveralls.detail --filter <path>` | Agent investigation — prints uncovered lines (red) in terminal, scoped to a file/path |
+| **Terminal summary** | (printed by both commands above) | Quick triage — per-file COV / LINES / RELEVANT / MISSED table |

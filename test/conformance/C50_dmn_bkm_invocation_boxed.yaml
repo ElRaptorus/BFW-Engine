@@ -1,0 +1,11 @@
+name: "C50: DMN BKM Invocation via boxed invocation"
+type: dmn
+fixture: "boxed_invocation_basic.dmn"
+decision_definition_id: "Definitions_invocation"
+evaluate:
+  decision_model_id: "Decision_apply_tax"
+  input: {}
+expected:
+  status: 200
+  hit_policy: "boxed_expression"
+  result: 10000

@@ -1,0 +1,13 @@
+name: "C61: Imported BKM auto-invocation via knowledgeRequirement"
+type: dmn
+fixture_multi:
+  - "bkm_helper_model.dmn"
+  - "imported_bkm_consumer.dmn"
+decision_definition_id: "Definitions_bkm_consumer"
+evaluate:
+  decision_model_id: "Decision_total_tax"
+  input:
+    amount: 100
+expected:
+  status: 200
+  result: 10

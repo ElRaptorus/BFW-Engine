@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_any_same" name="Any Same Output"
+  namespace="https://example.com/dmn/any_same_output"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <decision id="Decision_any_same" name="Same Output Rules">
+    <decisionTable id="dt_any_same" hitPolicy="ANY">
+      <input id="Input_val" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_result" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_broad">
+        <inputEntry id="IE_broad"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_broad"><text>"positive"</text></outputEntry>
+      </rule>
+      <rule id="Rule_narrow">
+        <inputEntry id="IE_narrow"><text>&gt; 5</text></inputEntry>
+        <outputEntry id="OE_narrow"><text>"positive"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_any_same" dmnElementRef="Decision_any_same">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

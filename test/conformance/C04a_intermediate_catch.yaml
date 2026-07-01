@@ -1,0 +1,11 @@
+name: "C04a: Start-IntermediateCatch-End linear"
+fixture: "intermediate_catch.bpmn"
+process_model_id: "IntermediateCatchProcess"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"
+  fni_count: 3

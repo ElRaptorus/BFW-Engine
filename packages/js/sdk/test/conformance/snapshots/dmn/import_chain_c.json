@@ -1,0 +1,44 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_triple",
+        "text": "x * 3",
+        "typeRef": null
+      },
+      "id": "Decision_triple",
+      "informationRequirements": [
+        {
+          "id": "ir_triple_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Triple",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_triple",
+        "name": "Triple",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_chain_c",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Chain Model C (leaf)",
+  "namespace": "https://example.com/dmn/chain-c"
+}

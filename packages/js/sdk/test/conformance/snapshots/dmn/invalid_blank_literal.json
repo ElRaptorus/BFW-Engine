@@ -1,0 +1,40 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_blank",
+        "text": "",
+        "typeRef": "number"
+      },
+      "id": "Decision_invalid_blank",
+      "informationRequirements": [
+        {
+          "id": "ir_value",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Invalid Blank Literal Expression",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_invalid_blank",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_value",
+      "name": "value",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Invalid Blank Literal",
+  "namespace": "https://example.com/dmn/invalid"
+}

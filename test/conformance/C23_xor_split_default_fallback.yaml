@@ -1,0 +1,12 @@
+name: "C23: XOR split falls back to default flow"
+fixture: "xor_split_default_flow.bpmn"
+process_model_id: "XorSplitDefaultFlow"
+tier: auto
+start:
+  payload:
+    amount: 5
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_Standard"

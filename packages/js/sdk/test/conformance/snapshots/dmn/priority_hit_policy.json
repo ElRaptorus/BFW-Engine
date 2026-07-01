@@ -1,0 +1,120 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "priority",
+        "id": "dt_priority",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_score",
+            "inputExpression": "score",
+            "inputValues": null,
+            "label": "Score",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_level",
+            "label": "Level",
+            "name": "level",
+            "outputValues": "\"critical\", \"high\", \"medium\", \"low\"",
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_1",
+            "inputEntries": [
+              {
+                "id": "IE_1",
+                "text": "> 90"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_1",
+                "text": "\"critical\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_2",
+            "inputEntries": [
+              {
+                "id": "IE_2",
+                "text": "> 70"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_2",
+                "text": "\"high\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_3",
+            "inputEntries": [
+              {
+                "id": "IE_3",
+                "text": "> 50"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_3",
+                "text": "\"medium\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_4",
+            "inputEntries": [
+              {
+                "id": "IE_4",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_4",
+                "text": "\"low\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_priority",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Risk Level",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_priority",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Priority Policy",
+  "namespace": "https://example.com/dmn/priority"
+}

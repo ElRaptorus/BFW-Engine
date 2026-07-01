@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_conditional"
+             name="Conditional Test"
+             namespace="https://example.com/dmn/conditional">
+  <inputData id="InputData_score" name="score"/>
+  <decision id="Decision_conditional" name="Conditional Decision">
+    <variable id="var_cond" name="conditionalResult" typeRef="string"/>
+    <informationRequirement id="ir_score">
+      <requiredInput href="#InputData_score"/>
+    </informationRequirement>
+    <conditional id="cond_1">
+      <if>
+        <literalExpression><text>score > 100</text></literalExpression>
+      </if>
+      <then>
+        <literalExpression><text>"high"</text></literalExpression>
+      </then>
+      <else>
+        <literalExpression><text>"low"</text></literalExpression>
+      </else>
+    </conditional>
+  </decision>
+</definitions>

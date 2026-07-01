@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_multi_output" name="Multi Output Rule Order"
+  namespace="https://example.com/dmn/multi_output"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <decision id="Decision_routing" name="Order Routing">
+    <decisionTable id="dt_routing" hitPolicy="RULE ORDER">
+      <input id="Input_amount" label="Amount">
+        <inputExpression typeRef="number">amount</inputExpression>
+      </input>
+      <input id="Input_region" label="Region">
+        <inputExpression typeRef="string">region</inputExpression>
+      </input>
+      <output id="Output_warehouse" label="Warehouse" name="warehouse" typeRef="string"/>
+      <output id="Output_priority" label="Priority" name="priority" typeRef="string"/>
+      <output id="Output_fee" label="Fee" name="fee" typeRef="number"/>
+      <rule id="Rule_1">
+        <inputEntry id="IE_1"><text>&gt; 1000</text></inputEntry>
+        <inputEntry id="IE_2"><text>"EU"</text></inputEntry>
+        <outputEntry id="OE_1"><text>"Berlin"</text></outputEntry>
+        <outputEntry id="OE_2"><text>"high"</text></outputEntry>
+        <outputEntry id="OE_3"><text>15</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="IE_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_4"><text>"US"</text></inputEntry>
+        <outputEntry id="OE_4"><text>"Chicago"</text></outputEntry>
+        <outputEntry id="OE_5"><text>"normal"</text></outputEntry>
+        <outputEntry id="OE_6"><text>10</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_routing" dmnElementRef="Decision_routing">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

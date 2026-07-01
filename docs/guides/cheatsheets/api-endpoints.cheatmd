@@ -1,0 +1,66 @@
+# API Endpoints
+
+## Public (No Auth)
+
+```
+GET  /health          Liveness/readiness
+GET  /metrics          Prometheus metrics
+GET  /info            Engine identity + flags
+```
+
+## Devtools (disabled in prod by default — EVIL_DEVTOOLS_ENABLED)
+
+```
+GET  /                Swagger UI
+GET  /api/openapi     OpenAPI 3.x spec (also via EVIL_EXPOSE_OPENAPI_SPEC)
+GET  /admin/graphiql  Playground with example tabs
+```
+
+## Authenticated (JWT Bearer)
+
+### Process Catalog
+
+```
+GET    /processes                         List deployed processes
+GET    /processes/{model_id}                   Process metadata (?includeXml)
+GET    /processes/{model_id}/versions          Version history (?includeXml)
+POST   /processes                         Deploy BPMN (JSON: {"sources": [...]})
+POST   /processes/{model_id}/start             Start new PI
+PUT    /processes/{model_id}/enable            Enable process (204)
+PUT    /processes/{model_id}/disable           Disable process (204)
+DELETE /processes/{model_id}                   Undeploy process (204)
+DELETE /processes/{model_id}/versions/{ver}    Delete version (204)
+```
+
+### User Tasks
+
+```
+PUT    /user-tasks/{fniId}/finish         Complete with result (204)
+PUT    /user-tasks/{fniId}/cancel         Cancel + abort PI (204)
+```
+
+### Process Instances
+
+```
+PUT    /process-instances/{id}/abort      Abort running PI (204)
+DELETE /process-instances/{id}            Delete terminal PI (204)
+```
+
+### Observability
+
+```
+GET    /stats                             Engine snapshot
+```
+
+## GraphQL
+
+```
+POST   /api/v1/graphql                    Queries (Ash-generated)
+```
+
+## WebSocket
+
+```
+ws://host:port/socket                    Phoenix Channels
+Topics: engine:events | pi:<id>
+```

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EmbeddedSubprocessWipNeverReached" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EmbeddedSubprocessWipNeverReached" name="Embedded Subprocess WIP Never Reached" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ExclusiveGateway_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Safe</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_OK</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Fail</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start" />
+    <bpmn:exclusiveGateway id="ExclusiveGateway_1" name="Branch" default="Flow_Left" />
+    <bpmn:task id="Task_Safe" name="Safe Task" />
+    <bpmn:subProcess id="SubProcess_1" name="Invalid Sub Process">
+      <bpmn:task id="Sub_Task" name="Sub Task" />
+      <bpmn:endEvent id="Sub_End" name="Sub End" />
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Task" targetRef="Sub_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_OK" name="Success" />
+    <bpmn:endEvent id="End_Fail" name="Failure" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ExclusiveGateway_1" />
+    <bpmn:sequenceFlow id="Flow_Left" sourceRef="ExclusiveGateway_1" targetRef="Task_Safe" />
+    <bpmn:sequenceFlow id="Flow_Right" sourceRef="ExclusiveGateway_1" targetRef="SubProcess_1">
+      <bpmn:conditionExpression>token.go_right = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToEndOK" sourceRef="Task_Safe" targetRef="End_OK" />
+    <bpmn:sequenceFlow id="Flow_ToEndFail" sourceRef="SubProcess_1" targetRef="End_Fail" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="82" width="966" height="336" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="82" width="936" height="336" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ExclusiveGateway_1" bpmnElement="ExclusiveGateway_1">
+        <dc:Bounds x="262" y="225" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Safe" bpmnElement="Task_Safe">
+        <dc:Bounds x="382" y="132" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="382" y="250" width="300" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Task" bpmnElement="Sub_Task">
+        <dc:Bounds x="410" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End" bpmnElement="Sub_End">
+        <dc:Bounds x="560" y="302" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_OK" bpmnElement="End_OK">
+        <dc:Bounds x="562" y="154" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Fail" bpmnElement="End_Fail">
+        <dc:Bounds x="762" y="302" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="250" />
+        <di:waypoint x="262" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Left" bpmnElement="Flow_Left">
+        <di:waypoint x="287" y="225" />
+        <di:waypoint x="287" y="172" />
+        <di:waypoint x="382" y="172" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Right" bpmnElement="Flow_Right">
+        <di:waypoint x="287" y="275" />
+        <di:waypoint x="287" y="320" />
+        <di:waypoint x="382" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEndOK" bpmnElement="Flow_ToEndOK">
+        <di:waypoint x="482" y="172" />
+        <di:waypoint x="562" y="172" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEndFail" bpmnElement="Flow_ToEndFail">
+        <di:waypoint x="682" y="320" />
+        <di:waypoint x="762" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="510" y="320" />
+        <di:waypoint x="560" y="320" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_importing_missing" name="Importing Missing Model"
+  targetNamespace="https://example.com/dmn/importing-missing">
+
+  <import id="Import_nonexistent"
+    namespace="https://example.com/dmn/nonexistent"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <inputData id="InputData_x" name="x" />
+
+  <decision id="Decision_main" name="Main">
+    <informationRequirement id="ir_main_x">
+      <requiredInput href="#InputData_x" />
+    </informationRequirement>
+    <informationRequirement id="ir_main_imported">
+      <requiredDecision href="https://example.com/dmn/nonexistent#Decision_remote" />
+    </informationRequirement>
+    <literalExpression id="LE_main">
+      <text>x + 1</text>
+    </literalExpression>
+  </decision>
+</definitions>

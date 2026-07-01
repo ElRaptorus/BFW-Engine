@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL"
+  id="definitions_discount" name="Discount Rules"
+  namespace="https://example.com/dmn/discount">
+  <decision id="Decision_discount" name="Discount Percentage">
+    <decisionTable id="dt_discount" hitPolicy="UNIQUE">
+      <input id="input_customerType" label="Customer Type">
+        <inputExpression typeRef="string"><text>customerType</text></inputExpression>
+      </input>
+      <input id="input_orderTotal" label="Order Total">
+        <inputExpression typeRef="number"><text>orderTotal</text></inputExpression>
+      </input>
+      <output id="output_discount" label="Discount" name="discount" typeRef="number" />
+      <rule id="rule_gold_high">
+        <inputEntry id="ie_1"><text>"gold"</text></inputEntry>
+        <inputEntry id="ie_2"><text>&gt;= 100</text></inputEntry>
+        <outputEntry id="oe_1"><text>0.20</text></outputEntry>
+      </rule>
+      <rule id="rule_gold_low">
+        <inputEntry id="ie_3"><text>"gold"</text></inputEntry>
+        <inputEntry id="ie_4"><text>&lt; 100</text></inputEntry>
+        <outputEntry id="oe_2"><text>0.15</text></outputEntry>
+      </rule>
+      <rule id="rule_silver">
+        <inputEntry id="ie_5"><text>"silver"</text></inputEntry>
+        <inputEntry id="ie_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_3"><text>0.10</text></outputEntry>
+      </rule>
+      <rule id="rule_default">
+        <inputEntry id="ie_7"><text>-</text></inputEntry>
+        <inputEntry id="ie_8"><text>-</text></inputEntry>
+        <outputEntry id="oe_4"><text>0.05</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

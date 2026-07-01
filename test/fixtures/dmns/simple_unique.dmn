@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_discount" name="Discount Rules"
+  namespace="https://example.com/dmn/discount"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_age" name="age">
+    <variable name="age" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_discount" name="Discount Percentage">
+    <informationRequirement id="ir_age">
+      <requiredInput href="#InputData_age"/>
+    </informationRequirement>
+    <decisionTable id="dt_discount" hitPolicy="UNIQUE">
+      <input id="Input_1" label="Customer Age">
+        <inputExpression typeRef="number">age</inputExpression>
+      </input>
+      <output id="Output_1" label="Discount" name="discount" typeRef="number"/>
+      <rule id="Rule_1">
+        <inputEntry id="IE_1"><text>&lt; 18</text></inputEntry>
+        <outputEntry id="OE_1"><text>10</text></outputEntry>
+      </rule>
+      <rule id="Rule_2">
+        <inputEntry id="IE_2"><text>[18..65]</text></inputEntry>
+        <outputEntry id="OE_2"><text>5</text></outputEntry>
+      </rule>
+      <rule id="Rule_3">
+        <inputEntry id="IE_3"><text>&gt; 65</text></inputEntry>
+        <outputEntry id="OE_3"><text>15</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_discount" dmnElementRef="Decision_discount">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_age" dmnElementRef="InputData_age">
+        <dc:Bounds x="130" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_age" dmnElementRef="ir_age">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

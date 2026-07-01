@@ -1,0 +1,56 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_final",
+        "text": "Double + 10",
+        "typeRef": null
+      },
+      "id": "Decision_final",
+      "informationRequirements": [
+        {
+          "id": "ir_final_base",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_base"
+        },
+        {
+          "id": "ir_final_double",
+          "requiredDecisionId": "https://example.com/dmn/helpers#Decision_double",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Final",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_final",
+        "name": "Final",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_importing",
+  "imports": [
+    {
+      "id": "Import_helpers",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://example.com/dmn/helpers"
+    }
+  ],
+  "inputData": [
+    {
+      "id": "InputData_base",
+      "name": "base",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Importing Model",
+  "namespace": "https://example.com/dmn/importing"
+}

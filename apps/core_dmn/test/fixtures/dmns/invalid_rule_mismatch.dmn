@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_mismatch" name="Rule Mismatch"
+  namespace="https://example.com/dmn/mismatch">
+  <decision id="Decision_mismatch" name="Mismatched Rules">
+    <decisionTable id="dt_mismatch" hitPolicy="UNIQUE">
+      <input id="Input_1" label="Age">
+        <inputExpression typeRef="number">age</inputExpression>
+      </input>
+      <input id="Input_2" label="Score">
+        <inputExpression typeRef="number">score</inputExpression>
+      </input>
+      <output id="Output_1" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_1">
+        <inputEntry id="IE_1"><text>&gt; 18</text></inputEntry>
+        <outputEntry id="OE_1"><text>"eligible"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

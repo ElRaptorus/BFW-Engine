@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_chain_b" name="Chain Model B (middle)"
+  targetNamespace="https://example.com/dmn/chain-b">
+
+  <import id="Import_c"
+    namespace="https://example.com/dmn/chain-c"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <inputData id="InputData_x" name="x" />
+
+  <decision id="Decision_add_triple" name="AddTriple">
+    <variable id="Var_add_triple" name="AddTriple" />
+    <informationRequirement id="ir_b_x">
+      <requiredInput href="#InputData_x" />
+    </informationRequirement>
+    <informationRequirement id="ir_b_triple">
+      <requiredDecision href="https://example.com/dmn/chain-c#Decision_triple" />
+    </informationRequirement>
+    <literalExpression id="LE_add_triple">
+      <text>Triple + 100</text>
+    </literalExpression>
+  </decision>
+</definitions>

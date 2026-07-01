@@ -1,0 +1,11 @@
+name: "C105: Message boundary (non-interrupting) — parallel branch"
+fixture: "message_boundary_non_interrupting.bpmn"
+process_model_id: "MessageBoundaryNonInterrupting"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_normal"
+    - endEventId: "End_notified"

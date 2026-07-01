@@ -1,0 +1,11 @@
+name: "C112: Signal end event — publishes signal on process end"
+fixture: "signal_end_event.bpmn"
+process_model_id: "SignalEndEvent"
+tier: auto
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  fni_count: 2
+  final_tokens:
+    - endEventId: "End_1"

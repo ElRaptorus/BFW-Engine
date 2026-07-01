@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_input_values"
+             name="Input Values Constraint Test"
+             namespace="https://evilengine.dev/test/input-values"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_grade" name="grade">
+    <variable id="var_grade" name="grade" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_score" name="score">
+    <variable id="var_score" name="score" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_constrained" name="Constrained Inputs">
+    <variable id="var_result" name="result" typeRef="string"/>
+    <informationRequirement id="ir_grade">
+      <requiredInput href="#InputData_grade"/>
+    </informationRequirement>
+    <decisionTable id="DT_constrained" hitPolicy="UNIQUE">
+      <input id="input_grade" label="grade">
+        <inputExpression typeRef="string">
+          <text>grade</text>
+        </inputExpression>
+        <inputValues>
+          <text>"A", "B", "C", "D", "F"</text>
+        </inputValues>
+      </input>
+      <output id="output_pass" name="pass" typeRef="string"/>
+      <rule id="rule_a">
+        <inputEntry id="ie_a"><text>"A"</text></inputEntry>
+        <outputEntry id="oe_a"><text>"excellent"</text></outputEntry>
+      </rule>
+      <rule id="rule_b">
+        <inputEntry id="ie_b"><text>"B"</text></inputEntry>
+        <outputEntry id="oe_b"><text>"good"</text></outputEntry>
+      </rule>
+      <rule id="rule_f">
+        <inputEntry id="ie_f"><text>"F"</text></inputEntry>
+        <outputEntry id="oe_f"><text>"fail"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_unconstrained" name="Unconstrained Inputs">
+    <variable id="var_result_uncon" name="result_uncon" typeRef="string"/>
+    <informationRequirement id="ir_grade_uncon">
+      <requiredInput href="#InputData_grade"/>
+    </informationRequirement>
+    <decisionTable id="DT_unconstrained" hitPolicy="UNIQUE">
+      <input id="input_grade_uncon" label="grade">
+        <inputExpression typeRef="string">
+          <text>grade</text>
+        </inputExpression>
+      </input>
+      <output id="output_pass_uncon" name="pass" typeRef="string"/>
+      <rule id="rule_a_uncon">
+        <inputEntry id="ie_a_uncon"><text>"A"</text></inputEntry>
+        <outputEntry id="oe_a_uncon"><text>"excellent"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_range_constrained" name="Range Constrained">
+    <variable id="var_result_range" name="result_range" typeRef="string"/>
+    <informationRequirement id="ir_score">
+      <requiredInput href="#InputData_score"/>
+    </informationRequirement>
+    <decisionTable id="DT_range" hitPolicy="UNIQUE">
+      <input id="input_score" label="score">
+        <inputExpression typeRef="number">
+          <text>score</text>
+        </inputExpression>
+        <inputValues>
+          <text>[0..100]</text>
+        </inputValues>
+      </input>
+      <output id="output_level" name="level" typeRef="string"/>
+      <rule id="rule_high">
+        <inputEntry id="ie_high"><text><![CDATA[>= 70]]></text></inputEntry>
+        <outputEntry id="oe_high"><text>"pass"</text></outputEntry>
+      </rule>
+      <rule id="rule_low">
+        <inputEntry id="ie_low"><text><![CDATA[< 70]]></text></inputEntry>
+        <outputEntry id="oe_low"><text>"fail"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_constrained" dmnElementRef="Decision_constrained">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_range_constrained" dmnElementRef="Decision_range_constrained">
+        <dc:Bounds x="340" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_unconstrained" dmnElementRef="Decision_unconstrained">
+        <dc:Bounds x="580" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_grade" dmnElementRef="InputData_grade">
+        <dc:Bounds x="100" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_score" dmnElementRef="InputData_score">
+        <dc:Bounds x="340" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_grade" dmnElementRef="ir_grade">
+        <di:waypoint x="190" y="240"/>
+        <di:waypoint x="190" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_grade_uncon" dmnElementRef="ir_grade_uncon">
+        <di:waypoint x="190" y="240"/>
+        <di:waypoint x="670" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_score" dmnElementRef="ir_score">
+        <di:waypoint x="430" y="240"/>
+        <di:waypoint x="430" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

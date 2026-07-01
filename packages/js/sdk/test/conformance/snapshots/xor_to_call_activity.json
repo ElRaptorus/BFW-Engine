@@ -1,0 +1,223 @@
+{
+  "definitionsId": "Definitions_XOR_CA",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "XOR_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Check Amount",
+          "outgoing": [],
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_1"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Call Child",
+          "outgoing": [],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "ChildProcess",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "CA_1",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Direct",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Direct Path",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_CA",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "CA Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Direct",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Direct Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Error Handled",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "XorToCallActivity",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "XOR_1", "CA_1", "BE_1", "Task_Direct", "End_CA", "End_Direct", "End_Error"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "XOR to Call Activity",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "XOR_1"
+        },
+        {
+          "conditionExpression": "token.route = \"call\"",
+          "id": "Flow_CA",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "XOR_1",
+          "targetRef": "CA_1"
+        },
+        {
+          "conditionExpression": "token.route = \"direct\"",
+          "id": "Flow_Direct",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "XOR_1",
+          "targetRef": "Task_Direct"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_1",
+          "targetRef": "End_CA"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Direct",
+          "targetRef": "End_Direct"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_1",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

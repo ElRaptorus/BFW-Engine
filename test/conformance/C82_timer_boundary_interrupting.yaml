@@ -1,0 +1,10 @@
+name: "C82: Timer Boundary Event — interrupting PT0S interrupts user task"
+fixture: "timer_boundary_interrupting.bpmn"
+process_model_id: "TimerBoundaryInterrupting"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Timeout"

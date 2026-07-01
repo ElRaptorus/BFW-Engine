@@ -1,0 +1,200 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_risk",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_income",
+            "inputExpression": "income",
+            "inputValues": null,
+            "label": "Annual Income",
+            "typeRef": "number"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_credit",
+            "inputExpression": "creditScore",
+            "inputValues": null,
+            "label": "Credit Score",
+            "typeRef": "number"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_years",
+            "inputExpression": "yearsEmployed",
+            "inputValues": null,
+            "label": "Years Employed",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_risk",
+            "label": "Risk Category",
+            "name": "riskCategory",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": "Low income with poor credit",
+            "id": "Rule_high_risk",
+            "inputEntries": [
+              {
+                "id": "IE_income_1",
+                "text": "< 30000"
+              },
+              {
+                "id": "IE_credit_1",
+                "text": "< 600"
+              },
+              {
+                "id": "IE_years_1",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_high",
+                "text": "\"high\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": "Moderate income or moderate credit",
+            "id": "Rule_medium_risk",
+            "inputEntries": [
+              {
+                "id": "IE_income_2",
+                "text": "[30000..75000]"
+              },
+              {
+                "id": "IE_credit_2",
+                "text": "< 700"
+              },
+              {
+                "id": "IE_years_2",
+                "text": "< 2"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_medium",
+                "text": "\"medium\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": "Low income but good credit score",
+            "id": "Rule_low_income_good_credit",
+            "inputEntries": [
+              {
+                "id": "IE_income_3",
+                "text": "< 50000"
+              },
+              {
+                "id": "IE_credit_3",
+                "text": ">= 700"
+              },
+              {
+                "id": "IE_years_3",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_medium_2",
+                "text": "\"medium\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": "High income with strong credit",
+            "id": "Rule_low_risk",
+            "inputEntries": [
+              {
+                "id": "IE_income_4",
+                "text": ">= 75000"
+              },
+              {
+                "id": "IE_credit_4",
+                "text": ">= 700"
+              },
+              {
+                "id": "IE_years_4",
+                "text": ">= 2"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_low",
+                "text": "\"low\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_risk",
+      "informationRequirements": [
+        {
+          "id": "ir_income",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_income"
+        },
+        {
+          "id": "ir_credit",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_creditScore"
+        },
+        {
+          "id": "ir_years",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_yearsEmployed"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Risk Category",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_risk",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_income",
+      "name": "income",
+      "typeRef": "number"
+    },
+    {
+      "id": "InputData_creditScore",
+      "name": "creditScore",
+      "typeRef": "number"
+    },
+    {
+      "id": "InputData_yearsEmployed",
+      "name": "yearsEmployed",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Risk Assessment",
+  "namespace": "https://example.com/dmn/risk"
+}

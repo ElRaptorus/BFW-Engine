@@ -1,0 +1,106 @@
+{
+  "definitionsId": "Definitions_Dangling",
+  "errors": [],
+  "escalations": [],
+  "messages": [
+    {
+      "id": "Msg_1",
+      "name": "RealMsg"
+    }
+  ],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DO_NonExistent",
+          "dataState": null,
+          "id": "DOR_1",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DO_1",
+          "itemSubjectRef": null,
+          "name": "MyData",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "eventMapping": null,
+              "messageRef": "Msg_NonExistent",
+              "payloadExpression": null
+            },
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_Dangling",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": null,
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Bad",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "NonExistent_Node"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

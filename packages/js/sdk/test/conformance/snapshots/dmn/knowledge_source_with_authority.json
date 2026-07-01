@@ -1,0 +1,74 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_decision_ks",
+          "requiredAuthorityId": "KS_actuary",
+          "requiredDecisionId": null,
+          "requiredInputId": null
+        }
+      ],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_claim",
+        "text": "if claimAmount > 1000 then \"review\" else \"approve\"",
+        "typeRef": null
+      },
+      "id": "Decision_claim",
+      "informationRequirements": [
+        {
+          "id": "ir_amount",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_amount"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Claim Decision",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_ks",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_amount",
+      "name": "claimAmount",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_input",
+          "requiredAuthorityId": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_amount"
+        }
+      ],
+      "id": "KS_regulation",
+      "name": "Insurance Regulation",
+      "type": "Policy Document"
+    },
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_authority",
+          "requiredAuthorityId": "KS_regulation",
+          "requiredDecisionId": null,
+          "requiredInputId": null
+        }
+      ],
+      "id": "KS_actuary",
+      "name": "Actuarial Standards",
+      "type": "External Authority"
+    }
+  ],
+  "name": "Knowledge Source Test",
+  "namespace": "https://example.com/dmn/ks"
+}

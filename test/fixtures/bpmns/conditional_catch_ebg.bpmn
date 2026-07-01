@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_ConditionalCatchEbg">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_ConditionalCatchEbg" name="Conditional Catch EBG" processRef="ConditionalCatchEbg" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ConditionalCatchEbg" name="Conditional Catch EBG" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EBG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ConditionalCatch_DataReady</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>TimerCatch_Timeout</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="Result" name="Result" />
+    <bpmn:dataObjectReference id="ResultRef" dataObjectRef="Result" />
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:eventBasedGateway id="EBG_1" name="Wait for Event">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Conditional</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Timer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:intermediateCatchEvent id="ConditionalCatch_DataReady" name="Wait for Data Ready">
+      <bpmn:incoming>Flow_Conditional</bpmn:incoming>
+      <bpmn:outgoing>Flow_Conditional_End</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition>
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">context.ready = true</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateCatchEvent id="TimerCatch_Timeout" name="Timeout">
+      <bpmn:incoming>Flow_Timer</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timer_End</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_Conditional_End</bpmn:incoming>
+      <bpmn:incoming>Flow_Timer_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="EBG_1" />
+    <bpmn:sequenceFlow id="Flow_Conditional" sourceRef="EBG_1" targetRef="ConditionalCatch_DataReady" />
+    <bpmn:sequenceFlow id="Flow_Timer" sourceRef="EBG_1" targetRef="TimerCatch_Timeout" />
+    <bpmn:sequenceFlow id="Flow_Conditional_End" sourceRef="ConditionalCatch_DataReady" targetRef="End_1" />
+    <bpmn:sequenceFlow id="Flow_Timer_End" sourceRef="TimerCatch_Timeout" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_ConditionalCatchEbg" bpmnElement="Participant_ConditionalCatchEbg" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="646" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="616" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EBG_1" bpmnElement="EBG_1">
+        <dc:Bounds x="300" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ConditionalCatch_DataReady" bpmnElement="ConditionalCatch_DataReady">
+        <dc:Bounds x="452" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TimerCatch_Timeout" bpmnElement="TimerCatch_Timeout">
+        <dc:Bounds x="452" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="612" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ResultRef" bpmnElement="ResultRef">
+        <dc:Bounds x="452" y="330" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="300" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Conditional" bpmnElement="Flow_Conditional">
+        <di:waypoint x="325" y="175" />
+        <di:waypoint x="325" y="130" />
+        <di:waypoint x="452" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer" bpmnElement="Flow_Timer">
+        <di:waypoint x="325" y="225" />
+        <di:waypoint x="325" y="270" />
+        <di:waypoint x="452" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Conditional_End" bpmnElement="Flow_Conditional_End">
+        <di:waypoint x="488" y="130" />
+        <di:waypoint x="630" y="130" />
+        <di:waypoint x="630" y="182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer_End" bpmnElement="Flow_Timer_End">
+        <di:waypoint x="488" y="270" />
+        <di:waypoint x="630" y="270" />
+        <di:waypoint x="630" y="218" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

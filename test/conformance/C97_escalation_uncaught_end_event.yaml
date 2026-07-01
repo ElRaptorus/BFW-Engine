@@ -1,0 +1,12 @@
+name: "C97: Uncaught Escalation End Event propagates through three-level CA chain (S15b)"
+fixture: "escalation_multilevel_uncaught.bpmn"
+child_fixtures:
+  - "escalation_multilevel_grandchild.bpmn"
+  - "escalation_multilevel_child.bpmn"
+process_model_id: "EscalationMultilevelUncaught"
+tier: auto
+wait_timeout_ms: 10000
+start:
+  payload: null
+expected:
+  final_state: "escalated"

@@ -1,0 +1,56 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_total_tax",
+        "text": "amount * Tax Rate Calculator",
+        "typeRef": null
+      },
+      "id": "Decision_total_tax",
+      "informationRequirements": [
+        {
+          "id": "ir_amount",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_amount"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_tax_rate",
+          "requiredKnowledgeId": "https://evilengine.dev/test/bkm-helper#BKM_tax_rate"
+        }
+      ],
+      "name": "Total Tax",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_total_tax",
+        "name": "Total Tax",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "Definitions_bkm_consumer",
+  "imports": [
+    {
+      "id": "Import_helper",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://evilengine.dev/test/bkm-helper"
+    }
+  ],
+  "inputData": [
+    {
+      "id": "InputData_amount",
+      "name": "amount",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Imported BKM Consumer",
+  "namespace": "https://evilengine.dev/test/bkm-consumer"
+}

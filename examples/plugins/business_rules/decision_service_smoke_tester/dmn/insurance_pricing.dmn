@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="insurance-pricing" name="Insurance Pricing"
+  namespace="https://example.com/dmn/insurance">
+
+  <inputData id="InputData_age" name="age">
+    <variable name="age" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_smoker" name="smoker">
+    <variable name="smoker" typeRef="boolean"/>
+  </inputData>
+
+  <inputData id="InputData_coverage" name="coverage">
+    <variable name="coverage" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_pre_existing_conditions" name="preExistingConditions">
+    <variable name="preExistingConditions" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_base_premium" name="Base Premium">
+    <informationRequirement id="ir_age">
+      <requiredInput href="#InputData_age"/>
+    </informationRequirement>
+    <informationRequirement id="ir_coverage">
+      <requiredInput href="#InputData_coverage"/>
+    </informationRequirement>
+    <decisionTable id="dt_base_premium" hitPolicy="UNIQUE">
+      <input id="Input_age" label="Age">
+        <inputExpression typeRef="number">age</inputExpression>
+      </input>
+      <input id="Input_coverage" label="Coverage">
+        <inputExpression typeRef="string">coverage</inputExpression>
+      </input>
+      <output id="Output_base_premium" label="Base Premium" name="basePremium" typeRef="number"/>
+      <rule id="Rule_young_basic">
+        <inputEntry id="IE_age_young_basic"><text>&lt; 30</text></inputEntry>
+        <inputEntry id="IE_coverage_young_basic"><text>"basic"</text></inputEntry>
+        <outputEntry id="OE_young_basic"><text>150</text></outputEntry>
+      </rule>
+      <rule id="Rule_young_standard">
+        <inputEntry id="IE_age_young_standard"><text>&lt; 30</text></inputEntry>
+        <inputEntry id="IE_coverage_young_standard"><text>"standard"</text></inputEntry>
+        <outputEntry id="OE_young_standard"><text>300</text></outputEntry>
+      </rule>
+      <rule id="Rule_young_premium">
+        <inputEntry id="IE_age_young_premium"><text>&lt; 30</text></inputEntry>
+        <inputEntry id="IE_coverage_young_premium"><text>"premium"</text></inputEntry>
+        <outputEntry id="OE_young_premium"><text>500</text></outputEntry>
+      </rule>
+      <rule id="Rule_mature_basic">
+        <inputEntry id="IE_age_mature_basic"><text>&gt;= 30</text></inputEntry>
+        <inputEntry id="IE_coverage_mature_basic"><text>"basic"</text></inputEntry>
+        <outputEntry id="OE_mature_basic"><text>250</text></outputEntry>
+      </rule>
+      <rule id="Rule_mature_standard">
+        <inputEntry id="IE_age_mature_standard"><text>&gt;= 30</text></inputEntry>
+        <inputEntry id="IE_coverage_mature_standard"><text>"standard"</text></inputEntry>
+        <outputEntry id="OE_mature_standard"><text>450</text></outputEntry>
+      </rule>
+      <rule id="Rule_mature_premium">
+        <inputEntry id="IE_age_mature_premium"><text>&gt;= 30</text></inputEntry>
+        <inputEntry id="IE_coverage_mature_premium"><text>"premium"</text></inputEntry>
+        <outputEntry id="OE_mature_premium"><text>750</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_risk_multiplier" name="Risk Multiplier">
+    <informationRequirement id="ir_smoker">
+      <requiredInput href="#InputData_smoker"/>
+    </informationRequirement>
+    <informationRequirement id="ir_pre_existing">
+      <requiredInput href="#InputData_pre_existing_conditions"/>
+    </informationRequirement>
+    <decisionTable id="dt_risk_multiplier" hitPolicy="FIRST">
+      <input id="Input_smoker" label="Smoker">
+        <inputExpression typeRef="boolean">smoker</inputExpression>
+      </input>
+      <input id="Input_pre_existing" label="Pre-existing Conditions">
+        <inputExpression typeRef="number">preExistingConditions</inputExpression>
+      </input>
+      <output id="Output_multiplier" label="Multiplier" name="multiplier" typeRef="number"/>
+      <rule id="Rule_smoker_high_risk">
+        <inputEntry id="IE_smoker_true_high"><text>true</text></inputEntry>
+        <inputEntry id="IE_pre_existing_high"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OE_smoker_high"><text>2.5</text></outputEntry>
+      </rule>
+      <rule id="Rule_smoker_moderate">
+        <inputEntry id="IE_smoker_true_moderate"><text>true</text></inputEntry>
+        <inputEntry id="IE_pre_existing_moderate"><text>&lt;= 2</text></inputEntry>
+        <outputEntry id="OE_smoker_moderate"><text>1.8</text></outputEntry>
+      </rule>
+      <rule id="Rule_non_smoker_high">
+        <inputEntry id="IE_smoker_false_high"><text>false</text></inputEntry>
+        <inputEntry id="IE_pre_existing_non_smoker_high"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OE_non_smoker_high"><text>1.5</text></outputEntry>
+      </rule>
+      <rule id="Rule_non_smoker_standard">
+        <inputEntry id="IE_smoker_false_standard"><text>false</text></inputEntry>
+        <inputEntry id="IE_pre_existing_standard"><text>&lt;= 2</text></inputEntry>
+        <outputEntry id="OE_non_smoker_standard"><text>1.0</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_final_premium" name="Final Premium">
+    <informationRequirement id="ir_base_premium">
+      <requiredDecision href="#Decision_base_premium"/>
+    </informationRequirement>
+    <informationRequirement id="ir_risk_multiplier">
+      <requiredDecision href="#Decision_risk_multiplier"/>
+    </informationRequirement>
+    <literalExpression id="LE_final_premium" typeRef="number">
+      <text>basePremium * multiplier</text>
+    </literalExpression>
+  </decision>
+
+  <decisionService id="PricingService" name="Pricing Service">
+    <outputDecision href="#Decision_final_premium"/>
+    <encapsulatedDecision href="#Decision_base_premium"/>
+    <encapsulatedDecision href="#Decision_risk_multiplier"/>
+    <inputData href="#InputData_age"/>
+    <inputData href="#InputData_smoker"/>
+    <inputData href="#InputData_coverage"/>
+    <inputData href="#InputData_pre_existing_conditions"/>
+  </decisionService>
+
+</definitions>

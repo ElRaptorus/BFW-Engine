@@ -1,0 +1,11 @@
+name: "C10: Manual task without confirmation passes through"
+fixture: "manual_task_passthrough.bpmn"
+process_model_id: "ManualTaskPassthrough"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

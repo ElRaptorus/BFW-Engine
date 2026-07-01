@@ -1,0 +1,273 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_constrained",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_grade",
+            "inputExpression": "grade",
+            "inputValues": "\"A\", \"B\", \"C\", \"D\", \"F\"",
+            "label": "grade",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "output_pass",
+            "label": null,
+            "name": "pass",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_a",
+            "inputEntries": [
+              {
+                "id": "ie_a",
+                "text": "\"A\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_a",
+                "text": "\"excellent\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_b",
+            "inputEntries": [
+              {
+                "id": "ie_b",
+                "text": "\"B\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_b",
+                "text": "\"good\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_f",
+            "inputEntries": [
+              {
+                "id": "ie_f",
+                "text": "\"F\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_f",
+                "text": "\"fail\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_constrained",
+      "informationRequirements": [
+        {
+          "id": "ir_grade",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_grade"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Constrained Inputs",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result",
+        "name": "result",
+        "typeRef": "string"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_unconstrained",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_grade_uncon",
+            "inputExpression": "grade",
+            "inputValues": null,
+            "label": "grade",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "output_pass_uncon",
+            "label": null,
+            "name": "pass",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_a_uncon",
+            "inputEntries": [
+              {
+                "id": "ie_a_uncon",
+                "text": "\"A\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_a_uncon",
+                "text": "\"excellent\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_unconstrained",
+      "informationRequirements": [
+        {
+          "id": "ir_grade_uncon",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_grade"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Unconstrained Inputs",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result_uncon",
+        "name": "result_uncon",
+        "typeRef": "string"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_range",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "input_score",
+            "inputExpression": "score",
+            "inputValues": "[0..100]",
+            "label": "score",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "output_level",
+            "label": null,
+            "name": "level",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_high",
+            "inputEntries": [
+              {
+                "id": "ie_high",
+                "text": ">= 70"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_high",
+                "text": "\"pass\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "rule_low",
+            "inputEntries": [
+              {
+                "id": "ie_low",
+                "text": "< 70"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "oe_low",
+                "text": "\"fail\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_range_constrained",
+      "informationRequirements": [
+        {
+          "id": "ir_score",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_score"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Range Constrained",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result_range",
+        "name": "result_range",
+        "typeRef": "string"
+      }
+    }
+  ],
+  "id": "Definitions_input_values",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_grade",
+      "name": "grade",
+      "typeRef": "string"
+    },
+    {
+      "id": "InputData_score",
+      "name": "score",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Input Values Constraint Test",
+  "namespace": "https://evilengine.dev/test/input-values"
+}

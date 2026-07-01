@@ -1,0 +1,94 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_upstream",
+        "text": "x + 1",
+        "typeRef": null
+      },
+      "id": "Decision_upstream",
+      "informationRequirements": [
+        {
+          "id": "ir_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Upstream Decision",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_authority_ref",
+          "requiredAuthorityId": "KS_policy",
+          "requiredDecisionId": null,
+          "requiredInputId": null
+        },
+        {
+          "id": "ar_decision_ref",
+          "requiredAuthorityId": null,
+          "requiredDecisionId": "Decision_upstream",
+          "requiredInputId": null
+        },
+        {
+          "id": "ar_input_ref",
+          "requiredAuthorityId": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_main",
+        "text": "Upstream Decision + 10",
+        "typeRef": null
+      },
+      "id": "Decision_main",
+      "informationRequirements": [
+        {
+          "id": "ir_upstream",
+          "requiredDecisionId": "Decision_upstream",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Main Decision",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_ar",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_ks_input",
+          "requiredAuthorityId": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "id": "KS_policy",
+      "name": "Company Policy",
+      "type": "Policy"
+    }
+  ],
+  "name": "Authority Requirement All Types",
+  "namespace": "https://example.com/dmn/ar"
+}

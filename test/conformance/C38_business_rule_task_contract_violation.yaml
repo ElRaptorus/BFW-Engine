@@ -1,0 +1,12 @@
+name: "C38: Business rule task result contract violation"
+fixture: "business_rule_task_contract_violation.bpmn"
+process_model_id: "BrtContractViolation"
+tier: interactive
+start:
+  payload:
+    input: "data"
+expected:
+  final_state: "error"
+  fni_count: 3
+  fatal_fni_ids:
+    - "BRT_1"

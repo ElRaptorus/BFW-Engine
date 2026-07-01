@@ -1,0 +1,76 @@
+---
+description: Keep the OpenAPI spec.yaml in sync with REST API surface changes
+globs:
+  - "apps/api_web/lib/**/controllers/**/*.ex"
+  - "apps/api_web/lib/**/router.ex"
+  - "apps/api_web/lib/**/plugs/**/*.ex"
+  - "apps/api_web/priv/openapi/spec.yaml"
+alwaysApply: false
+---
+
+# Maintain OpenAPI Spec
+
+The Evil Engine REST API is documented via a hand-maintained OpenAPI 3.0
+YAML file at `apps/api_web/priv/openapi/spec.yaml`. This file is served
+as JSON at `GET /api/openapi` and rendered by Swagger UI at `GET /`.
+
+Controller actions do **not** carry `OpenApiSpex.operation/2` annotations.
+The YAML file is the single source of truth for the REST API spec.
+
+When you modify any file matching the globs above, check the following:
+
+1. **New endpoint added**: Add a matching path + operation entry in `spec.yaml`
+   with request body schema, all response codes, and parameter documentation.
+   Reuse `$ref` components where possible.
+
+2. **Endpoint removed**: Remove its path entry from `spec.yaml`.
+
+3. **Response shape changed**: If a controller's response body shape changes
+   (new fields, renamed fields, changed types), update the corresponding
+   schema in `spec.yaml` — either inline or in `components/schemas`.
+
+4. **Error responses**: All non-2xx responses the endpoint can return
+   (including 413 Payload Too Large, 401 Unauthorized, 422 Unprocessable
+   Entity) must be documented. Use `$ref` to `components/responses` for
+   common error shapes.
+
+5. **New tags**: Group related endpoints under a `tag`. Add the tag to the
+   top-level `tags` array with a description.
+
+6. **Parameters**: Path, query, and header parameters must be documented.
+   Reuse `components/parameters` for parameters shared across routes
+   (e.g. `ProcessModelId`).
+
+7. **Verify**: After editing, confirm `spec.yaml` is valid YAML and that
+   Swagger UI renders all documented endpoints correctly.
+
+8. **Route ordering convention**: Within each resource group (Processes,
+   User Tasks, Process Instances, etc.), paths and operations must follow
+   this sort order:
+
+   **Primary sort — HTTP method:** `GET`, `POST`, `PUT`, `DELETE`
+   **Secondary sort — path complexity/depth:** shallow paths before deeper
+   paths (e.g. `/processes` before `/processes/{model_id}` before
+   `/processes/{model_id}/versions`).
+
+   When a single path entry has multiple HTTP methods (e.g. `/processes/{model_id}`
+   has both `GET` and `DELETE`), list methods in the canonical order
+   `get → post → put → delete` inside the path entry.
+
+   Example ordering for the Processes resource:
+
+   ```
+   GET    /processes
+   GET    /processes/{model_id}
+   GET    /processes/{model_id}/versions
+   POST   /processes
+   POST   /processes/{model_id}/start
+   PUT    /processes/{model_id}/enable
+   PUT    /processes/{model_id}/disable
+   DELETE /processes/{model_id}
+   DELETE /processes/{model_id}/versions/{version}
+   ```
+
+   This same ordering convention applies to the Phoenix router
+   (`router.ex`), controller moduledocs, and all documentation files
+   (`rest-reference.md`, `api-endpoints.cheatmd`, `api.md`).

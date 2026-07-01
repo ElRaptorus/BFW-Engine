@@ -1,0 +1,14 @@
+---
+description: Use "ThomasTheDaemonEngine" or "the Engine" as the project name
+alwaysApply: true
+---
+
+# Project Naming
+
+The project is called **ThomasTheDaemonEngine** (or simply "the Engine").
+
+- Never use "Evil Engine" in new documentation, code comments, or commit messages. Legacy references in existing docs are fine — do not rewrite them unless doing a targeted cleanup.
+- Hex package names use the `evil_engine_` prefix (e.g., `evil_engine_sdk`).
+- The npm SDK package is `@elraptorus/daemonengine_sdk`.
+- The npm client package is `@elraptorus/daemonengine_client`.
+- The Elixir module namespace is `EvilEngine.*` (e.g., `EvilEngine.Api`, `EvilEngine.Execution.ProcessInstance`).

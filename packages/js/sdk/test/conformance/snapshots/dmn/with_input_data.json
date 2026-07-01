@@ -1,0 +1,229 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "dt_greeting",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_name",
+            "inputExpression": "customerName",
+            "inputValues": null,
+            "label": "Customer Name",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_greeting",
+            "label": "Greeting",
+            "name": "greeting",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_named",
+            "inputEntries": [
+              {
+                "id": "IE_named",
+                "text": "not(\"\")"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_named",
+                "text": "\"Hello, \" + customerName"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_anonymous",
+            "inputEntries": [
+              {
+                "id": "IE_anonymous",
+                "text": "\"\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_anonymous",
+                "text": "\"Hello, Guest\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_greeting",
+      "informationRequirements": [
+        {
+          "id": "ir_customer",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_customerName"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Customer Greeting",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_discount_tier",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_amount",
+            "inputExpression": "orderAmount",
+            "inputValues": null,
+            "label": "Order Amount",
+            "typeRef": "number"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_member",
+            "inputExpression": "isMember",
+            "inputValues": null,
+            "label": "Is Member",
+            "typeRef": "boolean"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_tier",
+            "label": "Tier",
+            "name": "tier",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_gold",
+            "inputEntries": [
+              {
+                "id": "IE_amount_gold",
+                "text": ">= 1000"
+              },
+              {
+                "id": "IE_member_gold",
+                "text": "true"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_gold",
+                "text": "\"gold\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_silver",
+            "inputEntries": [
+              {
+                "id": "IE_amount_silver",
+                "text": ">= 500"
+              },
+              {
+                "id": "IE_member_silver",
+                "text": "true"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_silver",
+                "text": "\"silver\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_bronze",
+            "inputEntries": [
+              {
+                "id": "IE_amount_bronze",
+                "text": "-"
+              },
+              {
+                "id": "IE_member_bronze",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_bronze",
+                "text": "\"bronze\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_discount_tier",
+      "informationRequirements": [
+        {
+          "id": "ir_amount",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_orderAmount"
+        },
+        {
+          "id": "ir_member",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_isMember"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Discount Tier",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_order",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_customerName",
+      "name": "customerName",
+      "typeRef": "string"
+    },
+    {
+      "id": "InputData_orderAmount",
+      "name": "orderAmount",
+      "typeRef": "number"
+    },
+    {
+      "id": "InputData_isMember",
+      "name": "isMember",
+      "typeRef": "boolean"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Order Processing",
+  "namespace": "https://example.com/dmn/order"
+}

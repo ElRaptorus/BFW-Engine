@@ -1,0 +1,225 @@
+{
+  "definitionsId": "Definitions_UT_Pipeline",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Review With Full Pipeline",
+          "outgoing": [],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": [
+              {
+                "id": "action_confirm_1780760572357_1",
+                "isDefault": true,
+                "label": "Confirm",
+                "preset": "confirm",
+                "submitsForm": true
+              },
+              {
+                "id": "action_cancel_1780760572617_2",
+                "isDefault": false,
+                "label": "Cancel",
+                "preset": "cancel",
+                "submitsForm": false
+              },
+              {
+                "id": "action_custom_1780761002981_3",
+                "isDanger": true,
+                "isDefault": false,
+                "label": "DIE!",
+                "preset": "custom",
+                "submitsForm": true
+              }
+            ],
+            "formSchema": [
+              {
+                "defaultValue": "asdfasfdfsdf",
+                "hint": "fuck you",
+                "id": "field_text_1780760567547_1",
+                "label": "Hamlo",
+                "placeholder": "asdfasdfsda",
+                "required": false,
+                "type": "text"
+              },
+              {
+                "id": "field_number_1780760990626_2",
+                "label": "Number",
+                "required": false,
+                "type": "number"
+              },
+              {
+                "id": "field_date_1780760990997_3",
+                "label": "Date",
+                "required": false,
+                "type": "date"
+              },
+              {
+                "id": "field_header_1780760992806_4",
+                "label": "Section Header",
+                "required": false,
+                "type": "header"
+              },
+              {
+                "id": "field_boolean_1780760993101_5",
+                "label": "Toggle",
+                "required": false,
+                "type": "boolean"
+              },
+              {
+                "id": "field_file_1780760993417_6",
+                "label": "File Upload",
+                "required": false,
+                "type": "file"
+              },
+              {
+                "id": "field_textarea_1780760993686_7",
+                "label": "Multi-line",
+                "required": false,
+                "type": "textarea"
+              },
+              {
+                "id": "field_textarea_1780760993959_8",
+                "label": "Multi-line",
+                "required": false,
+                "type": "textarea"
+              },
+              {
+                "id": "field_radio_1780760994283_9",
+                "label": "Radio Group",
+                "required": false,
+                "type": "radio"
+              },
+              {
+                "id": "field_select_1780760994561_10",
+                "label": "Dropdown",
+                "required": false,
+                "type": "select"
+              },
+              {
+                "id": "field_checkbox_1780760994805_11",
+                "label": "Checkbox",
+                "required": false,
+                "type": "checkbox"
+              }
+            ],
+            "inMappings": [
+              {
+                "source": "token.raw_name",
+                "target": "name"
+              }
+            ],
+            "outMappings": [
+              {
+                "source": "token.user_approved",
+                "target": "approved"
+              }
+            ],
+            "payloadContract": {
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": ["name"],
+              "type": "object"
+            },
+            "priority": null,
+            "resultContract": {
+              "properties": {
+                "approved": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["approved"],
+              "type": "object"
+            }
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "UserTaskFullPipeline",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "User Task Full Pipeline",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "UserTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

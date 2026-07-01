@@ -1,0 +1,11 @@
+name: "C59: inputValues constraint — reject out-of-range"
+type: dmn
+fixture: "input_values_constraint.dmn"
+decision_definition_id: "Definitions_input_values"
+evaluate:
+  decision_model_id: "Decision_constrained"
+  input:
+    grade: "X"
+expected:
+  status: 422
+  error: "input_value_violation"

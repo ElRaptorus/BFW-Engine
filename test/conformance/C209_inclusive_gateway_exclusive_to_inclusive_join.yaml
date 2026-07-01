@@ -1,0 +1,11 @@
+name: "C209: Mixed gateways — exclusive split to inclusive join"
+fixture: "inclusive_gateway_exclusive_to_inclusive_join.bpmn"
+process_model_id: "InclusiveGatewayExclusiveToInclusiveJoin"
+tier: auto
+start:
+  payload:
+    path: "a"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

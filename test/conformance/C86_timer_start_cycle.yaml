@@ -1,0 +1,10 @@
+name: "C86: Timer Start Event — cycle, PI starts and completes"
+fixture: "timer_start_cycle.bpmn"
+process_model_id: "TimerStartCycle"
+tier: auto
+start:
+  mode: "timer_auto"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

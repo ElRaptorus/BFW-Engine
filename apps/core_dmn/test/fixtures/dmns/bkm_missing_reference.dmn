@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bkm_missing" name="BKM Missing Reference"
+  namespace="https://example.com/dmn/bkm-missing">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_broken" name="Broken Decision">
+    <variable id="var_broken" name="brokenResult" typeRef="number"/>
+    <informationRequirement id="ir_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_nonexistent">
+      <requiredKnowledge href="#BKM_nonexistent"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_broken" typeRef="number">
+      <text>x + 1</text>
+    </literalExpression>
+  </decision>
+</definitions>

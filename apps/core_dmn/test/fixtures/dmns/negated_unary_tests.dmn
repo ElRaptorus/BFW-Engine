@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_negated_unary" name="Negated Unary Tests"
+  namespace="https://example.com/dmn/negated-unary">
+
+  <inputData id="InputData_value" name="value">
+    <variable name="value" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_negated" name="Negated Test">
+    <informationRequirement id="ir_value">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_negated" hitPolicy="FIRST">
+      <input id="Input_value" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_result" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_not_gt_50">
+        <inputEntry id="IE_not_gt_50"><text>not(&gt; 50)</text></inputEntry>
+        <outputEntry id="OE_not_gt_50"><text>"at_most_50"</text></outputEntry>
+      </rule>
+      <rule id="Rule_gt_50">
+        <inputEntry id="IE_gt_50"><text>&gt; 50</text></inputEntry>
+        <outputEntry id="OE_gt_50"><text>"above_50"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_negated_range" name="Negated Range Test">
+    <informationRequirement id="ir_value_range">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <decisionTable id="dt_negated_range" hitPolicy="FIRST">
+      <input id="Input_value_range" label="Value">
+        <inputExpression typeRef="number">value</inputExpression>
+      </input>
+      <output id="Output_range_result" label="Result" name="result" typeRef="string"/>
+      <rule id="Rule_not_in_range">
+        <inputEntry id="IE_not_in_range"><text>not([1..10])</text></inputEntry>
+        <outputEntry id="OE_not_in_range"><text>"outside_range"</text></outputEntry>
+      </rule>
+      <rule id="Rule_in_range">
+        <inputEntry id="IE_in_range"><text>[1..10]</text></inputEntry>
+        <outputEntry id="OE_in_range"><text>"inside_range"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

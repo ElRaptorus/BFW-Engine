@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_order_risk_assessment">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_order-risk-assessment" name="Order Risk Assessment" processRef="order-risk-assessment" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="order-risk-assessment" name="Order Risk Assessment" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BRT_assess_order_risk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_risk_level</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_approved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_manual_review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_reviewed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_rejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Order received">
+      <bpmn:outgoing>Flow_start_to_brt</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:businessRuleTask id="BRT_assess_order_risk" name="Assess Order Risk" implementation="dmn">
+      <bpmn:extensionElements>
+        <evil:decisionRef>order-risk-rules</evil:decisionRef>
+        <evil:decisionElementId>Decision_Risk_Level</evil:decisionElementId>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_start_to_brt</bpmn:incoming>
+      <bpmn:outgoing>Flow_brt_to_gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <bpmn:exclusiveGateway id="Gateway_risk_level" name="Risk Level?" default="Flow_gateway_to_rejected">
+      <bpmn:incoming>Flow_brt_to_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_gateway_to_approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gateway_to_manual_review</bpmn:outgoing>
+      <bpmn:outgoing>Flow_gateway_to_rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="End_approved" name="Approved">
+      <bpmn:incoming>Flow_gateway_to_approved</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:userTask id="UserTask_manual_review" name="Manual Review">
+      <bpmn:incoming>Flow_gateway_to_manual_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_review_to_end</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="End_reviewed" name="Reviewed">
+      <bpmn:incoming>Flow_review_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_rejected" name="Rejected">
+      <bpmn:incoming>Flow_gateway_to_rejected</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_start_to_brt" sourceRef="Start_1" targetRef="BRT_assess_order_risk" />
+    <bpmn:sequenceFlow id="Flow_brt_to_gateway" sourceRef="BRT_assess_order_risk" targetRef="Gateway_risk_level" />
+    <bpmn:sequenceFlow id="Flow_gateway_to_approved" sourceRef="Gateway_risk_level" targetRef="End_approved">
+      <bpmn:conditionExpression>token.action = "auto_approve"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gateway_to_manual_review" sourceRef="Gateway_risk_level" targetRef="UserTask_manual_review">
+      <bpmn:conditionExpression>token.action = "manual_review"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_gateway_to_rejected" sourceRef="Gateway_risk_level" targetRef="End_rejected" />
+    <bpmn:sequenceFlow id="Flow_review_to_end" sourceRef="UserTask_manual_review" targetRef="End_reviewed" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_order-risk-assessment" bpmnElement="Participant_order-risk-assessment" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="806" height="346" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="776" height="346" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BRT_assess_order_risk" bpmnElement="BRT_assess_order_risk">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_risk_level" bpmnElement="Gateway_risk_level">
+        <dc:Bounds x="475" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_approved" bpmnElement="End_approved">
+        <dc:Bounds x="642" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_manual_review" bpmnElement="UserTask_manual_review">
+        <dc:Bounds x="610" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_reviewed" bpmnElement="End_reviewed">
+        <dc:Bounds x="802" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_rejected" bpmnElement="End_rejected">
+        <dc:Bounds x="642" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_start_to_brt" bpmnElement="Flow_start_to_brt">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_brt_to_gateway" bpmnElement="Flow_brt_to_gateway">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="475" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_gateway_to_approved" bpmnElement="Flow_gateway_to_approved">
+        <di:waypoint x="525" y="200" />
+        <di:waypoint x="583" y="200" />
+        <di:waypoint x="583" y="150" />
+        <di:waypoint x="642" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_gateway_to_manual_review" bpmnElement="Flow_gateway_to_manual_review">
+        <di:waypoint x="525" y="200" />
+        <di:waypoint x="583" y="200" />
+        <di:waypoint x="583" y="300" />
+        <di:waypoint x="610" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_gateway_to_rejected" bpmnElement="Flow_gateway_to_rejected">
+        <di:waypoint x="525" y="200" />
+        <di:waypoint x="583" y="200" />
+        <di:waypoint x="583" y="400" />
+        <di:waypoint x="642" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_review_to_end" bpmnElement="Flow_review_to_end">
+        <di:waypoint x="710" y="300" />
+        <di:waypoint x="802" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

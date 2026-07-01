@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_Multi"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:message id="Msg_1" name="OrderReceived"/>
+  <bpmn:signal id="Sig_1" name="AllDone"/>
+  <bpmn:error id="Err_1" name="Timeout" errorCode="ERR_TIMEOUT"/>
+  <bpmn:escalation id="Esc_1" name="ManagerReview" escalationCode="ESC_REVIEW"/>
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Process_Main" name="Main Process" processRef="Process_Main" />
+    <bpmn:participant id="Participant_Process_Helper" name="Helper" processRef="Process_Helper" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Main" name="Main Process" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>2.0.0</evil:version>
+      <evil:correlationKey>order.customerId</evil:correlationKey>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_1" name="Clerk">
+        <bpmn:flowNodeRef>Task_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_Main" name="Order Start">
+      <bpmn:messageEventDefinition messageRef="Msg_1"/>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Task_1" name="Review Order">
+      <bpmn:extensionElements>
+        <evil:assignees>clerk_role</evil:assignees>
+        <evil:dueDate>2026-12-31T23:59:59Z</evil:dueDate>
+        <evil:priority>5</evil:priority>
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_2" name="Process Payment" implementation="http">
+      <bpmn:dataOutputAssociation id="DOA_1">
+        <bpmn:targetRef>DOR_1</bpmn:targetRef>
+        <bpmn:transformation>token.payment_result</bpmn:transformation>
+      </bpmn:dataOutputAssociation>
+      <bpmn:dataInputAssociation id="DIA_1">
+        <bpmn:sourceRef>DOR_1</bpmn:sourceRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+
+    <bpmn:scriptTask id="Script_1" name="Calculate Tax" scriptFormat="feel">
+      <bpmn:script>token.amount * 1.19</bpmn:script>
+      <bpmn:extensionElements>
+        <evil:payloadContract>{"type":"object","required":["amount"]}</evil:payloadContract>
+        <evil:resultContract>{"type":"object"}</evil:resultContract>
+        <evil:inputMapping source="token.raw" target="amount"/>
+        <evil:outputMapping source="token.result" target="taxed"/>
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Script_2" name="Custom Validation">
+      <bpmn:extensionElements>
+        <evil:scriptRef>my_validator</evil:scriptRef>
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_Main" name="Done">
+      <bpmn:signalEventDefinition signalRef="Sig_1"/>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Main" targetRef="Task_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="Task_2"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_2" targetRef="Script_1"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Script_1" targetRef="Script_2"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Script_2" targetRef="End_Main"/>
+
+    <bpmn:dataObject id="DO_1" name="OrderData">
+      <bpmn:extensionElements>
+        <evil:valueContract>{"type":"object","required":["status"]}</evil:valueContract>
+      </bpmn:extensionElements>
+    </bpmn:dataObject>
+    <bpmn:dataObjectReference id="DOR_1" name="Order" dataObjectRef="DO_1"/>
+  </bpmn:process>
+
+  <bpmn:process id="Process_Helper" name="Helper" isExecutable="false">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_Helper</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Helper</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Helper"/>
+    <bpmn:endEvent id="End_Helper"/>
+    <bpmn:sequenceFlow id="Flow_H1" sourceRef="Start_Helper" targetRef="End_Helper"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Process_Main" bpmnElement="Participant_Process_Main" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="966" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Participant_Process_Helper" bpmnElement="Participant_Process_Helper" isHorizontal="true">
+        <dc:Bounds x="82" y="422" width="326" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="422" width="296" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_1" bpmnElement="Lane_1" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="936" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Main" bpmnElement="Start_Main">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_1" bpmnElement="Task_1">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_2" bpmnElement="Task_2">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Script_1" bpmnElement="Script_1">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Script_2" bpmnElement="Script_2">
+        <dc:Bounds x="770" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Main" bpmnElement="End_Main">
+        <dc:Bounds x="962" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_1" bpmnElement="DOR_1">
+        <dc:Bounds x="162" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="770" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="870" y="200" />
+        <di:waypoint x="962" y="200" />
+      </bpmndi:BPMNEdge>
+          <bpmndi:BPMNShape id="Shape_Start_Helper" bpmnElement="Start_Helper">
+        <dc:Bounds x="162" y="452" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Helper" bpmnElement="End_Helper">
+        <dc:Bounds x="322" y="452" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_H1" bpmnElement="Flow_H1">
+        <di:waypoint x="198" y="470" />
+        <di:waypoint x="322" y="470" />
+      </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_RetryParallelJoin"
+                  targetNamespace="https://evilengine.dev/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_RetryParallelJoin" name="Retry Parallel Join" processRef="RetryParallelJoin" />
+  </bpmn:collaboration>
+  <bpmn:process id="RetryParallelJoin" name="Retry Parallel Join" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>PG_Split</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Echo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_HoldB</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DeadEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>PG_Join</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="PG_Split" name="Split">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEcho</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToHoldB</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <!-- Branch A: script task completes immediately and arrives at join -->
+    <bpmn:scriptTask id="Task_Echo" name="Echo" scriptFormat="feel">
+      <bpmn:script>token</bpmn:script>
+      <bpmn:incoming>Flow_ToEcho</bpmn:incoming>
+      <bpmn:outgoing>Flow_EchoToJoin</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <!-- Branch B: user task holds until test releases it, then fatal service task -->
+    <bpmn:userTask id="Task_HoldB" name="Hold B">
+      <bpmn:incoming>Flow_ToHoldB</bpmn:incoming>
+      <bpmn:outgoing>Flow_HoldToDeadEnd</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_DeadEnd" name="Dead End" implementation="nonexistent_handler">
+      <bpmn:incoming>Flow_HoldToDeadEnd</bpmn:incoming>
+      <bpmn:outgoing>Flow_DeadEndToJoin</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="PG_Join" name="Join">
+      <bpmn:incoming>Flow_EchoToJoin</bpmn:incoming>
+      <bpmn:incoming>Flow_DeadEndToJoin</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="PG_Split" />
+    <bpmn:sequenceFlow id="Flow_ToEcho" sourceRef="PG_Split" targetRef="Task_Echo" />
+    <bpmn:sequenceFlow id="Flow_ToHoldB" sourceRef="PG_Split" targetRef="Task_HoldB" />
+    <bpmn:sequenceFlow id="Flow_EchoToJoin" sourceRef="Task_Echo" targetRef="PG_Join" />
+    <bpmn:sequenceFlow id="Flow_HoldToDeadEnd" sourceRef="Task_HoldB" targetRef="Task_DeadEnd" />
+    <bpmn:sequenceFlow id="Flow_DeadEndToJoin" sourceRef="Task_DeadEnd" targetRef="PG_Join" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="PG_Join" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant" bpmnElement="Participant_RetryParallelJoin" isHorizontal="true">
+        <dc:Bounds x="82" y="40" width="778" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="40" width="748" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_PG_Split" bpmnElement="PG_Split">
+        <dc:Bounds x="260" y="145" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Echo" bpmnElement="Task_Echo">
+        <dc:Bounds x="370" y="70" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_HoldB" bpmnElement="Task_HoldB">
+        <dc:Bounds x="370" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DeadEnd" bpmnElement="Task_DeadEnd">
+        <dc:Bounds x="530" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_PG_Join" bpmnElement="PG_Join">
+        <dc:Bounds x="690" y="145" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="792" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="170" />
+        <di:waypoint x="260" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEcho" bpmnElement="Flow_ToEcho">
+        <di:waypoint x="310" y="170" />
+        <di:waypoint x="340" y="170" />
+        <di:waypoint x="340" y="110" />
+        <di:waypoint x="370" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToHoldB" bpmnElement="Flow_ToHoldB">
+        <di:waypoint x="310" y="170" />
+        <di:waypoint x="340" y="170" />
+        <di:waypoint x="340" y="280" />
+        <di:waypoint x="370" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_EchoToJoin" bpmnElement="Flow_EchoToJoin">
+        <di:waypoint x="470" y="110" />
+        <di:waypoint x="580" y="110" />
+        <di:waypoint x="580" y="170" />
+        <di:waypoint x="690" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_HoldToDeadEnd" bpmnElement="Flow_HoldToDeadEnd">
+        <di:waypoint x="470" y="280" />
+        <di:waypoint x="530" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_DeadEndToJoin" bpmnElement="Flow_DeadEndToJoin">
+        <di:waypoint x="630" y="280" />
+        <di:waypoint x="660" y="280" />
+        <di:waypoint x="660" y="170" />
+        <di:waypoint x="690" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="740" y="170" />
+        <di:waypoint x="792" y="170" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

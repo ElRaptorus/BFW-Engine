@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_cycle" name="DRG Cycle"
+  namespace="https://example.com/dmn/drg_cycle">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_A" name="Decision A">
+    <variable id="var_a" name="A_result" typeRef="number"/>
+    <informationRequirement id="ir_a_b">
+      <requiredDecision href="#Decision_B"/>
+    </informationRequirement>
+    <literalExpression id="literal_a" typeRef="number">
+      <text>B_result + 1</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_B" name="Decision B">
+    <variable id="var_b" name="B_result" typeRef="number"/>
+    <informationRequirement id="ir_b_a">
+      <requiredDecision href="#Decision_A"/>
+    </informationRequirement>
+    <literalExpression id="literal_b" typeRef="number">
+      <text>A_result + 1</text>
+    </literalExpression>
+  </decision>
+</definitions>

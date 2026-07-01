@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_importing" name="Importing Model"
+  targetNamespace="https://example.com/dmn/importing">
+
+  <import id="Import_helpers"
+    namespace="https://example.com/dmn/helpers"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <inputData id="InputData_base" name="base" />
+
+  <decision id="Decision_final" name="Final">
+    <variable id="Var_final" name="Final" />
+    <informationRequirement id="ir_final_base">
+      <requiredInput href="#InputData_base" />
+    </informationRequirement>
+    <informationRequirement id="ir_final_double">
+      <requiredDecision href="https://example.com/dmn/helpers#Decision_double" />
+    </informationRequirement>
+    <literalExpression id="LE_final">
+      <text>Double + 10</text>
+    </literalExpression>
+  </decision>
+</definitions>

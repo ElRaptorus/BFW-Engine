@@ -1,0 +1,13 @@
+name: "C204: Inclusive Gateway split-join — three branches, two truthy"
+fixture: "inclusive_gateway_three_branches.bpmn"
+process_model_id: "InclusiveGatewayThreeBranches"
+tier: auto
+start:
+  payload:
+    a: true
+    b: true
+    c: false
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

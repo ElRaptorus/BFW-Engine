@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_Esc_SP_Int">
+  <bpmn:escalation id="Esc_Review" name="Review Required" escalationCode="ESC_REVIEW" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Escalation SP Interrupting" processRef="EscalationSPInterrupting" />
+  </bpmn:collaboration>
+  <bpmn:process id="EscalationSPInterrupting" name="Escalation SP Interrupting" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Escalation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Caught</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_1" name="Sub Process">
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="Sub_End_Escalation" name="Sub Escalation End">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_End_Escalation" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="BE_Escalation" attachedToRef="SubProcess_1" cancelActivity="true">
+      <bpmn:outgoing>Flow_Caught</bpmn:outgoing>
+      <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_Normal</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Caught" name="Escalation Caught">
+      <bpmn:incoming>Flow_Caught</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_Normal" sourceRef="SubProcess_1" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Caught" sourceRef="BE_Escalation" targetRef="End_Caught" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="726" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="696" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="290" y="130" width="320" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
+        <dc:Bounds x="330" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End_Escalation" bpmnElement="Sub_End_Escalation">
+        <dc:Bounds x="500" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Escalation" bpmnElement="BE_Escalation">
+        <dc:Bounds x="432" y="292" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="680" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Caught" bpmnElement="End_Caught">
+        <dc:Bounds x="680" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Normal" bpmnElement="Flow_Normal">
+        <di:waypoint x="610" y="200" />
+        <di:waypoint x="645" y="200" />
+        <di:waypoint x="645" y="250" />
+        <di:waypoint x="680" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Caught" bpmnElement="Flow_Caught">
+        <di:waypoint x="450" y="328" />
+        <di:waypoint x="575" y="328" />
+        <di:waypoint x="575" y="150" />
+        <di:waypoint x="680" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="366" y="220" />
+        <di:waypoint x="500" y="220" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

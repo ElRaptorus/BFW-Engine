@@ -1,0 +1,12 @@
+name: "C04: Start-Task-Task-Task-End chain"
+fixture: "chained_tasks.bpmn"
+process_model_id: "ChainedTasks"
+tier: auto
+start:
+  payload:
+    step: 0
+expected:
+  final_state: "finished"
+  fni_count: 5
+  final_tokens:
+    - endEventId: "End_1"

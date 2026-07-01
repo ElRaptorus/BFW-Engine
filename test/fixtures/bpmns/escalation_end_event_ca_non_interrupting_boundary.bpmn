@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_Esc_CA_NonInt">
+  <bpmn:escalation id="Esc_Approval" name="Approval Required" escalationCode="ESC_APPROVAL" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Escalation CA Non Interrupting" processRef="EscalationCANonInterrupting" />
+  </bpmn:collaboration>
+  <bpmn:process id="EscalationCANonInterrupting" name="Escalation CA Non Interrupting" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CA_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Escalation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Parallel</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:callActivity id="CA_1" name="Call Escalation Child" calledElement="EscalationEndChild">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Normal</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="BE_Escalation" attachedToRef="CA_1" cancelActivity="false">
+      <bpmn:outgoing>Flow_Parallel</bpmn:outgoing>
+      <bpmn:escalationEventDefinition escalationRef="Esc_Approval" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Normal" name="CA Finished">
+      <bpmn:incoming>Flow_Normal</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Parallel" name="Escalation Handled">
+      <bpmn:incoming>Flow_Parallel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="CA_1" />
+    <bpmn:sequenceFlow id="Flow_Normal" sourceRef="CA_1" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Parallel" sourceRef="BE_Escalation" targetRef="End_Parallel" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="558" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="528" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_1" bpmnElement="CA_1">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Escalation" bpmnElement="BE_Escalation">
+        <dc:Bounds x="322" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Parallel" bpmnElement="End_Parallel">
+        <dc:Bounds x="482" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Normal" bpmnElement="Flow_Normal">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Parallel" bpmnElement="Flow_Parallel">
+        <di:waypoint x="340" y="258" />
+        <di:waypoint x="340" y="300" />
+        <di:waypoint x="482" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

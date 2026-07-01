@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_importing" name="Importing Model"
+  targetNamespace="https://example.com/dmn/importing"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <import id="Import_helpers"
+    namespace="https://example.com/dmn/helpers"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <inputData id="InputData_base" name="base" />
+
+  <decision id="Decision_final" name="Final">
+    <variable id="Var_final" name="Final" />
+    <informationRequirement id="ir_final_base">
+      <requiredInput href="#InputData_base" />
+    </informationRequirement>
+    <informationRequirement id="ir_final_double">
+      <requiredDecision href="https://example.com/dmn/helpers#Decision_double" />
+    </informationRequirement>
+    <literalExpression id="LE_final">
+      <text>Double + 10</text>
+    </literalExpression>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_final" dmnElementRef="Decision_final">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_base" dmnElementRef="InputData_base">
+        <dc:Bounds x="130" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_final_base" dmnElementRef="ir_final_base">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

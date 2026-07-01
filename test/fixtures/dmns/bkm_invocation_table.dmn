@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bkm_invoke_dt" name="BKM Invocation Table"
+  namespace="https://example.com/dmn/bkm-invoke-dt"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_age" name="customerAge">
+    <variable name="customerAge" typeRef="number"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_discount" name="Discount Logic">
+    <variable id="var_bkm_discount" name="discountPercent" typeRef="number"/>
+    <encapsulatedLogic id="EL_discount" kind="FEEL">
+      <formalParameter id="FP_age" name="customerAge" typeRef="number"/>
+      <decisionTable id="dt_bkm" hitPolicy="FIRST">
+        <input id="Input_bkm_1" label="Customer Age">
+          <inputExpression typeRef="number">customerAge</inputExpression>
+        </input>
+        <output id="Output_bkm_1" label="Discount" name="discount" typeRef="number"/>
+        <rule id="Rule_bkm_1">
+          <inputEntry id="IE_bkm_1"><text>&gt; 65</text></inputEntry>
+          <outputEntry id="OE_bkm_1"><text>20</text></outputEntry>
+        </rule>
+        <rule id="Rule_bkm_2">
+          <inputEntry id="IE_bkm_2"><text>&gt; 30</text></inputEntry>
+          <outputEntry id="OE_bkm_2"><text>10</text></outputEntry>
+        </rule>
+        <rule id="Rule_bkm_3">
+          <inputEntry id="IE_bkm_3"><text>-</text></inputEntry>
+          <outputEntry id="OE_bkm_3"><text>5</text></outputEntry>
+        </rule>
+      </decisionTable>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_discount" name="Discount Decision">
+    <variable id="var_decision" name="finalResult" typeRef="number"/>
+    <informationRequirement id="ir_age">
+      <requiredInput href="#InputData_age"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_discount">
+      <requiredKnowledge href="#BKM_discount"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_decision" typeRef="number">
+      <text>discountPercent * 2</text>
+    </literalExpression>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_BKM_discount" dmnElementRef="BKM_discount">
+        <dc:Bounds x="100" y="240" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_discount" dmnElementRef="Decision_discount">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_age" dmnElementRef="InputData_age">
+        <dc:Bounds x="340" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_age" dmnElementRef="ir_age">
+        <di:waypoint x="430" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_kr_discount" dmnElementRef="kr_discount">
+        <di:waypoint x="190" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

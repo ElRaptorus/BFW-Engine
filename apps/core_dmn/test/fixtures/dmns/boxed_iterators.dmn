@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_iterators"
+             name="Iterator Tests"
+             namespace="https://example.com/dmn/iterators">
+  <inputData id="InputData_numbers" name="numbers"/>
+
+  <decision id="Decision_for" name="For Decision">
+    <variable id="var_for" name="forResult"/>
+    <informationRequirement id="ir_for">
+      <requiredInput href="#InputData_numbers"/>
+    </informationRequirement>
+    <for id="for_1" iteratorVariable="x">
+      <in>
+        <literalExpression><text>numbers</text></literalExpression>
+      </in>
+      <return>
+        <literalExpression><text>x * 2</text></literalExpression>
+      </return>
+    </for>
+  </decision>
+
+  <decision id="Decision_every" name="Every Decision">
+    <variable id="var_every" name="everyResult"/>
+    <informationRequirement id="ir_every">
+      <requiredInput href="#InputData_numbers"/>
+    </informationRequirement>
+    <every id="every_1" iteratorVariable="n">
+      <in>
+        <literalExpression><text>numbers</text></literalExpression>
+      </in>
+      <satisfies>
+        <literalExpression><text>n > 0</text></literalExpression>
+      </satisfies>
+    </every>
+  </decision>
+
+  <decision id="Decision_some" name="Some Decision">
+    <variable id="var_some" name="someResult"/>
+    <informationRequirement id="ir_some">
+      <requiredInput href="#InputData_numbers"/>
+    </informationRequirement>
+    <some id="some_1" iteratorVariable="n">
+      <in>
+        <literalExpression><text>numbers</text></literalExpression>
+      </in>
+      <satisfies>
+        <literalExpression><text>n > 10</text></literalExpression>
+      </satisfies>
+    </some>
+  </decision>
+</definitions>

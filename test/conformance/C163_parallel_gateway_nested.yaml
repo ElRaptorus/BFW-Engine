@@ -1,0 +1,10 @@
+name: "C163: Parallel Gateway — nested fork-join"
+fixture: "parallel_gateway_nested.bpmn"
+process_model_id: "ParallelGatewayNested"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

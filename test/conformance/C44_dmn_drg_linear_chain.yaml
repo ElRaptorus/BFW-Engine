@@ -1,0 +1,12 @@
+name: "C44: DMN DRD Linear Chain"
+type: dmn
+fixture: drg_linear_chain.dmn
+decision_definition_id: "definitions_linear_chain"
+evaluate:
+  decision_model_id: "Decision_A"
+  input:
+    x: 5
+expected:
+  status: 200
+  result: 30
+  trace_decision_count: 2

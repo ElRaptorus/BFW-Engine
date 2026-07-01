@@ -1,0 +1,13 @@
+name: "C71: Script Task inline FEEL evaluation"
+fixture: "script_task_inline_feel.bpmn"
+process_model_id: "ScriptTaskInlineFeel"
+tier: auto
+start:
+  payload:
+    x: 10
+    y: 20
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

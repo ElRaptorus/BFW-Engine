@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/DMN/20191111/MODEL"
+             xmlns:evil="https://evilengine.dev/schema/bpmn"
+             namespace="https://evilengine.dev/test/invocation"
+             name="InvocationTest"
+             id="Definitions_invocation">
+
+  <businessKnowledgeModel id="BKM_tax" name="Tax Calculation">
+    <encapsulatedLogic id="FL_tax" kind="FEEL">
+      <formalParameter id="FP_income" name="income" typeRef="number"/>
+      <formalParameter id="FP_rate" name="rate" typeRef="number"/>
+      <literalExpression id="LE_tax_body">
+        <text>income * rate</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_apply_tax" name="Apply Tax">
+    <knowledgeRequirement id="KR_1">
+      <requiredKnowledge href="#BKM_tax"/>
+    </knowledgeRequirement>
+    <invocation id="Inv_1">
+      <literalExpression id="LE_called">
+        <text>Tax Calculation</text>
+      </literalExpression>
+      <binding>
+        <parameter id="BP_income" name="income"/>
+        <literalExpression id="LE_bind_income">
+          <text>50000</text>
+        </literalExpression>
+      </binding>
+      <binding>
+        <parameter id="BP_rate" name="rate"/>
+        <literalExpression id="LE_bind_rate">
+          <text>0.2</text>
+        </literalExpression>
+      </binding>
+    </invocation>
+  </decision>
+
+</definitions>

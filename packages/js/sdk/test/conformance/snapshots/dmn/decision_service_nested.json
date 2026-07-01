@@ -1,0 +1,114 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [
+    {
+      "encapsulatedDecisions": ["Decision_adjusted_rate", "Decision_base_rate"],
+      "id": "DS_fee_calculation",
+      "inputData": ["InputData_amount", "InputData_category"],
+      "inputDecisions": [],
+      "name": "Fee Calculation Service",
+      "outputDecisions": ["Decision_fee"]
+    },
+    {
+      "encapsulatedDecisions": ["Decision_adjusted_rate"],
+      "id": "DS_with_input_decisions",
+      "inputData": ["InputData_amount"],
+      "inputDecisions": ["Decision_base_rate"],
+      "name": "Service With Input Decisions",
+      "outputDecisions": ["Decision_fee"]
+    }
+  ],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": null,
+        "text": "if Category = \"premium\" then 0.05 else 0.10",
+        "typeRef": null
+      },
+      "id": "Decision_base_rate",
+      "informationRequirements": [
+        {
+          "id": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_category"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Base Rate",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": null,
+        "text": "if Amount > 10000 then Base Rate * 0.9 else Base Rate",
+        "typeRef": null
+      },
+      "id": "Decision_adjusted_rate",
+      "informationRequirements": [
+        {
+          "id": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_amount"
+        },
+        {
+          "id": null,
+          "requiredDecisionId": "Decision_base_rate",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Adjusted Rate",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": null,
+        "text": "Amount * Adjusted Rate",
+        "typeRef": null
+      },
+      "id": "Decision_fee",
+      "informationRequirements": [
+        {
+          "id": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_amount"
+        },
+        {
+          "id": null,
+          "requiredDecisionId": "Decision_adjusted_rate",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Fee",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "Definitions_ds_nested",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_amount",
+      "name": "Amount",
+      "typeRef": null
+    },
+    {
+      "id": "InputData_category",
+      "name": "Category",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Decision Service Nested",
+  "namespace": "https://evilengine.dev/test/decision-service-nested"
+}

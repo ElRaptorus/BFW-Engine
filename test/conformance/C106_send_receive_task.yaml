@@ -1,0 +1,12 @@
+name: "C106: Send Task → Receive Task pair"
+fixture: "send_receive_task.bpmn"
+process_model_id: "SendReceiveTask"
+tier: interactive
+start:
+  payload:
+    request: "ping"
+expected:
+  final_state: "finished"
+  fni_count: 4
+  final_tokens:
+    - endEventId: "End_1"

@@ -1,0 +1,24 @@
+---
+description: Never abbreviate variable names, function names, or identifiers
+alwaysApply: true
+---
+
+# No Abbreviations
+
+Never abbreviate variable names, function names, parameters, or any other identifiers. Always use full, descriptive names.
+
+```elixir
+# BAD
+def handle_msg(msg), do: ...
+Enum.each(procs, fn proc -> ... end)
+def get_fni(id), do: ...
+def calc_total(items), do: ...
+
+# GOOD
+def handle_message(message), do: ...
+Enum.each(processes, fn process -> ... end)
+def get_flow_node_instance(id), do: ...
+def calculate_total(items), do: ...
+```
+
+This applies to all languages in the project.

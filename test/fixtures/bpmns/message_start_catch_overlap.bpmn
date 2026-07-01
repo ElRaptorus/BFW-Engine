@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:message id="Msg_shared" name="shared-msg" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_MessageStartCatchOverlap" name="Message Start Catch Overlap" processRef="MessageStartCatchOverlap" />
+  </bpmn:collaboration>
+  <bpmn:process id="MessageStartCatchOverlap" name="Message Start Catch Overlap" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+      <evil:correlationKey>token.correlationId</evil:correlationKey>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_regular</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Start_message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_catch_path</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_message_start</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_regular" name="Regular Start"/>
+    <bpmn:startEvent id="Start_message" name="Message Start">
+      <bpmn:messageEventDefinition messageRef="Msg_shared" />
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="Catch_1" name="Wait for Shared Message">
+      <bpmn:messageEventDefinition messageRef="Msg_shared" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End_catch_path" name="End Catch Path"/>
+    <bpmn:endEvent id="End_message_start" name="End Message Start"/>
+    <bpmn:sequenceFlow id="Flow_regular_to_catch" sourceRef="Start_regular" targetRef="Catch_1"/>
+    <bpmn:sequenceFlow id="Flow_catch_to_end" sourceRef="Catch_1" targetRef="End_catch_path"/>
+    <bpmn:sequenceFlow id="Flow_message_start_to_end" sourceRef="Start_message" targetRef="End_message_start"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_MessageStartCatchOverlap" bpmnElement="Participant_MessageStartCatchOverlap" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="646" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="616" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_regular" bpmnElement="Start_regular">
+        <dc:Bounds x="162" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_message" bpmnElement="Start_message">
+        <dc:Bounds x="162" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_1" bpmnElement="Catch_1">
+        <dc:Bounds x="322" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_catch_path" bpmnElement="End_catch_path">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_message_start" bpmnElement="End_message_start">
+        <dc:Bounds x="322" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_regular_to_catch" bpmnElement="Flow_regular_to_catch">
+        <di:waypoint x="198" y="150" />
+        <di:waypoint x="322" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_catch_to_end" bpmnElement="Flow_catch_to_end">
+        <di:waypoint x="358" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_message_start_to_end" bpmnElement="Flow_message_start_to_end">
+        <di:waypoint x="198" y="250" />
+        <di:waypoint x="322" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

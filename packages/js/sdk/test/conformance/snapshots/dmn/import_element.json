@@ -1,0 +1,41 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_result",
+        "text": "42",
+        "typeRef": null
+      },
+      "id": "Decision_result",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Result",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_import",
+  "imports": [
+    {
+      "id": "Import_shared",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": "shared_types.dmn",
+      "namespace": "https://example.com/dmn/shared-types"
+    },
+    {
+      "id": "Import_helpers",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://example.com/dmn/helpers"
+    }
+  ],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Import Test",
+  "namespace": "https://example.com/dmn/importing"
+}

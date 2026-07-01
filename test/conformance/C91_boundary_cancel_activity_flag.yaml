@@ -1,0 +1,11 @@
+name: "C91: Boundary cancel_activity:false leaves host alive, timer fires, user task continues"
+fixture: "timer_boundary_cancel_activity_flag.bpmn"
+process_model_id: "BoundaryCancelActivityFlag"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Normal"
+    - endEventId: "End_Timeout"

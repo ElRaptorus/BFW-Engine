@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_function_value"
+             name="Function Definition As Value"
+             namespace="https://example.com/dmn/function-value">
+  <decision id="Decision_function" name="Function Decision">
+    <variable id="var_function" name="functionResult"/>
+    <functionDefinition id="FD_increment" kind="FEEL">
+      <formalParameter id="FP_value" name="value" typeRef="number"/>
+      <literalExpression id="LE_increment_body">
+        <text>value + 1</text>
+      </literalExpression>
+    </functionDefinition>
+  </decision>
+
+  <decision id="Decision_context_function" name="Context With Function">
+    <variable id="var_context_function" name="contextFunctionResult"/>
+    <context id="ctx_function">
+      <contextEntry>
+        <variable name="increment" typeRef="Any"/>
+        <functionDefinition id="FD_context_increment" kind="FEEL">
+          <formalParameter id="FP_context_value" name="value" typeRef="number"/>
+          <literalExpression id="LE_context_body">
+            <text>value + 1</text>
+          </literalExpression>
+        </functionDefinition>
+      </contextEntry>
+    </context>
+  </decision>
+</definitions>

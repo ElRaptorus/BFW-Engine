@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_kr" name="Knowledge Requirement Test"
+  targetNamespace="https://example.com/dmn/kr">
+
+  <businessKnowledgeModel id="BKM_helper" name="Helper Logic">
+    <encapsulatedLogic id="EL_helper">
+      <formalParameter id="FP_x" name="x" typeRef="number"/>
+      <literalExpression id="LE_helper">
+        <text>x * 2</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <inputData id="InputData_value" name="inputValue">
+    <variable name="inputValue" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_main" name="Main Decision">
+    <variable id="var_main" name="result" typeRef="number"/>
+    <informationRequirement id="ir_value">
+      <requiredInput href="#InputData_value"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_helper">
+      <requiredKnowledge href="#BKM_helper"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_main">
+      <text>BKM_helper(inputValue)</text>
+    </literalExpression>
+  </decision>
+</definitions>

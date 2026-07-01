@@ -1,0 +1,211 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DO_Config",
+          "dataState": null,
+          "id": "DOR_Config",
+          "name": null
+        },
+        {
+          "dataObjectRef": "DO_Result",
+          "dataState": null,
+          "id": "DOR_Result",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DO_Config",
+          "itemSubjectRef": null,
+          "name": "Config",
+          "valueContract": null
+        },
+        {
+          "id": "DO_Result",
+          "itemSubjectRef": null,
+          "name": "Result",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_Config",
+              "sourceRef": null,
+              "targetRef": "DOR_Config",
+              "valueExpression": "{\"multiplier\": 5, \"label\": \"test\"}"
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_Init",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Init Config",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"multiplier\": 5, \"label\": \"test\", \"amount\": token.amount}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_Result",
+              "sourceRef": null,
+              "targetRef": "DOR_Result",
+              "valueExpression": "token.computed"
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_Compute",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Compute",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"base\": token.amount, \"computed\": token.amount * dataObjects.DO_Config.multiplier}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_ResultFinal",
+              "sourceRef": null,
+              "targetRef": "DOR_Result",
+              "valueExpression": "token.final"
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_Finalize",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Finalize",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"final\": dataObjects.DO_Result + 100, \"config_label\": dataObjects.DO_Config.label}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "DataObjectMultiMixed",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ScriptTask_Init", "ScriptTask_Compute", "ScriptTask_Finalize", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Data Object Multi Mixed Access",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ScriptTask_Init"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_Init",
+          "targetRef": "ScriptTask_Compute"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_Compute",
+          "targetRef": "ScriptTask_Finalize"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_Finalize",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

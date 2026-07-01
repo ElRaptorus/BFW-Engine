@@ -1,0 +1,72 @@
+{
+  "definitionsId": "Definitions_TimerStartCycle",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerStart_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Cycle Timer Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": "R3/PT0S",
+              "timeDate": null,
+              "timeDuration": null
+            },
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TimerStartCycle",
+      "isExecutable": true,
+      "lanes": [],
+      "linterScores": [],
+      "name": "Timer Start Cycle",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerStart_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

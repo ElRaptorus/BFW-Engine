@@ -1,0 +1,9 @@
+name: "C43: DMN Evaluate Non-existent Decision"
+type: dmn
+fixture: null
+decision_definition_id: "nonexistent_decision"
+evaluate:
+  input: {}
+expected:
+  status: 404
+  error: "decision_definition_not_found"

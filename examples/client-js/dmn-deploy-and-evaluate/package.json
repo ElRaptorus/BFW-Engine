@@ -1,0 +1,19 @@
+{
+  "name": "@daemonengine/example-dmn-deploy-and-evaluate",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@elraptorus/daemonengine_sdk": "workspace:*",
+    "@elraptorus/daemonengine_client": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_ParallelGatewayNested" name="Parallel Gateway Nested" processRef="ParallelGatewayNested" />
+  </bpmn:collaboration>
+  <bpmn:process id="ParallelGatewayNested" name="Parallel Gateway Nested" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>OuterFork</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>InnerFork</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_A1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_A2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>InnerJoin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>OuterJoin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="OuterFork" name="Outer Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Inner</bpmn:outgoing>
+      <bpmn:outgoing>Flow_B</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:parallelGateway id="InnerFork" name="Inner Fork">
+      <bpmn:incoming>Flow_Inner</bpmn:incoming>
+      <bpmn:outgoing>Flow_A1</bpmn:outgoing>
+      <bpmn:outgoing>Flow_A2</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:task id="Task_A1" name="Task A1">
+      <bpmn:incoming>Flow_A1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A1_Out</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_A2" name="Task A2">
+      <bpmn:incoming>Flow_A2</bpmn:incoming>
+      <bpmn:outgoing>Flow_A2_Out</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:parallelGateway id="InnerJoin" name="Inner Join">
+      <bpmn:incoming>Flow_A1_Out</bpmn:incoming>
+      <bpmn:incoming>Flow_A2_Out</bpmn:incoming>
+      <bpmn:outgoing>Flow_Inner_Out</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:task id="Task_B" name="Task B">
+      <bpmn:incoming>Flow_B</bpmn:incoming>
+      <bpmn:outgoing>Flow_B_Out</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:parallelGateway id="OuterJoin" name="Outer Join">
+      <bpmn:incoming>Flow_Inner_Out</bpmn:incoming>
+      <bpmn:incoming>Flow_B_Out</bpmn:incoming>
+      <bpmn:outgoing>Flow_Final</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_Final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="OuterFork" />
+    <bpmn:sequenceFlow id="Flow_Inner" sourceRef="OuterFork" targetRef="InnerFork" />
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="OuterFork" targetRef="Task_B" />
+    <bpmn:sequenceFlow id="Flow_A1" sourceRef="InnerFork" targetRef="Task_A1" />
+    <bpmn:sequenceFlow id="Flow_A2" sourceRef="InnerFork" targetRef="Task_A2" />
+    <bpmn:sequenceFlow id="Flow_A1_Out" sourceRef="Task_A1" targetRef="InnerJoin" />
+    <bpmn:sequenceFlow id="Flow_A2_Out" sourceRef="Task_A2" targetRef="InnerJoin" />
+    <bpmn:sequenceFlow id="Flow_Inner_Out" sourceRef="InnerJoin" targetRef="OuterJoin" />
+    <bpmn:sequenceFlow id="Flow_B_Out" sourceRef="Task_B" targetRef="OuterJoin" />
+    <bpmn:sequenceFlow id="Flow_Final" sourceRef="OuterJoin" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_ParallelGatewayNested" bpmnElement="Participant_ParallelGatewayNested" isHorizontal="true">
+        <dc:Bounds x="82" y="52" width="1116" height="336" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="52" width="1086" height="336" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_OuterFork" bpmnElement="OuterFork">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_InnerFork" bpmnElement="InnerFork">
+        <dc:Bounds x="475" y="60" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_A1" bpmnElement="Task_A1">
+        <dc:Bounds x="610" y="20" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_A2" bpmnElement="Task_A2">
+        <dc:Bounds x="610" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_InnerJoin" bpmnElement="InnerJoin">
+        <dc:Bounds x="795" y="60" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B" bpmnElement="Task_B">
+        <dc:Bounds x="470" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_OuterJoin" bpmnElement="OuterJoin">
+        <dc:Bounds x="955" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="1104" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Inner" bpmnElement="Flow_Inner">
+        <di:waypoint x="340" y="175" />
+        <di:waypoint x="340" y="85" />
+        <di:waypoint x="475" y="85" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B" bpmnElement="Flow_B">
+        <di:waypoint x="340" y="225" />
+        <di:waypoint x="340" y="300" />
+        <di:waypoint x="470" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A1" bpmnElement="Flow_A1">
+        <di:waypoint x="500" y="60" />
+        <di:waypoint x="500" y="60" />
+        <di:waypoint x="610" y="60" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A2" bpmnElement="Flow_A2">
+        <di:waypoint x="500" y="110" />
+        <di:waypoint x="500" y="160" />
+        <di:waypoint x="610" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A1_Out" bpmnElement="Flow_A1_Out">
+        <di:waypoint x="710" y="60" />
+        <di:waypoint x="820" y="60" />
+        <di:waypoint x="820" y="60" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A2_Out" bpmnElement="Flow_A2_Out">
+        <di:waypoint x="710" y="160" />
+        <di:waypoint x="820" y="160" />
+        <di:waypoint x="820" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Inner_Out" bpmnElement="Flow_Inner_Out">
+        <di:waypoint x="845" y="85" />
+        <di:waypoint x="980" y="85" />
+        <di:waypoint x="980" y="175" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B_Out" bpmnElement="Flow_B_Out">
+        <di:waypoint x="570" y="300" />
+        <di:waypoint x="980" y="300" />
+        <di:waypoint x="980" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Final" bpmnElement="Flow_Final">
+        <di:waypoint x="1005" y="200" />
+        <di:waypoint x="1104" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_XOR_CA"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_XorToCallActivity" name="XOR to Call Activity" processRef="XorToCallActivity" />
+  </bpmn:collaboration>
+  <bpmn:process id="XorToCallActivity" name="XOR to Call Activity" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>XOR_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CA_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Direct</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_CA</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Direct</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Error</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:exclusiveGateway id="XOR_1" name="Check Amount"/>
+    <bpmn:callActivity id="CA_1" name="Call Child" calledElement="ChildProcess"/>
+    <bpmn:boundaryEvent id="BE_1" attachedToRef="CA_1">
+      <bpmn:errorEventDefinition/>
+    </bpmn:boundaryEvent>
+    <bpmn:task id="Task_Direct" name="Direct Path"/>
+    <bpmn:endEvent id="End_CA" name="CA Done"/>
+    <bpmn:endEvent id="End_Direct" name="Direct Done"/>
+    <bpmn:endEvent id="End_Error" name="Error Handled"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="XOR_1"/>
+    <bpmn:sequenceFlow id="Flow_CA" sourceRef="XOR_1" targetRef="CA_1">
+      <bpmn:conditionExpression>token.route = "call"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Direct" sourceRef="XOR_1" targetRef="Task_Direct">
+      <bpmn:conditionExpression>token.route = "direct"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="CA_1" targetRef="End_CA"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_Direct" targetRef="End_Direct"/>
+    <bpmn:sequenceFlow id="Flow_BE" sourceRef="BE_1" targetRef="End_Error"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_XorToCallActivity" bpmnElement="Participant_XorToCallActivity" isHorizontal="true">
+        <dc:Bounds x="82" y="68" width="646" height="296" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="68" width="616" height="296" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_XOR_1" bpmnElement="XOR_1">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_1" bpmnElement="CA_1">
+        <dc:Bounds x="450" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_1" bpmnElement="BE_1">
+        <dc:Bounds x="482" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Direct" bpmnElement="Task_Direct">
+        <dc:Bounds x="450" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_CA" bpmnElement="End_CA">
+        <dc:Bounds x="642" y="298" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Direct" bpmnElement="End_Direct">
+        <dc:Bounds x="642" y="98" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Error" bpmnElement="End_Error">
+        <dc:Bounds x="642" y="198" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CA" bpmnElement="Flow_CA">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="407" y="200" />
+        <di:waypoint x="407" y="250" />
+        <di:waypoint x="450" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Direct" bpmnElement="Flow_Direct">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="407" y="200" />
+        <di:waypoint x="407" y="150" />
+        <di:waypoint x="450" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="550" y="250" />
+        <di:waypoint x="596" y="250" />
+        <di:waypoint x="596" y="316" />
+        <di:waypoint x="642" y="316" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="150" />
+        <di:waypoint x="596" y="150" />
+        <di:waypoint x="596" y="116" />
+        <di:waypoint x="642" y="116" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BE" bpmnElement="Flow_BE">
+        <di:waypoint x="500" y="308" />
+        <di:waypoint x="571" y="308" />
+        <di:waypoint x="571" y="216" />
+        <di:waypoint x="642" y="216" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

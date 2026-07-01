@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_function_value"
+             name="Function Definition As Value"
+             namespace="https://example.com/dmn/function-value"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <decision id="Decision_function" name="Function Decision">
+    <variable id="var_function" name="functionResult"/>
+    <functionDefinition id="FD_increment" kind="FEEL">
+      <formalParameter id="FP_value" name="value" typeRef="number"/>
+      <literalExpression id="LE_increment_body">
+        <text>value + 1</text>
+      </literalExpression>
+    </functionDefinition>
+  </decision>
+
+  <decision id="Decision_context_function" name="Context With Function">
+    <variable id="var_context_function" name="contextFunctionResult"/>
+    <context id="ctx_function">
+      <contextEntry>
+        <variable name="increment" typeRef="Any"/>
+        <functionDefinition id="FD_context_increment" kind="FEEL">
+          <formalParameter id="FP_context_value" name="value" typeRef="number"/>
+          <literalExpression id="LE_context_body">
+            <text>value + 1</text>
+          </literalExpression>
+        </functionDefinition>
+      </contextEntry>
+    </context>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_context_function" dmnElementRef="Decision_context_function">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_function" dmnElementRef="Decision_function">
+        <dc:Bounds x="340" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

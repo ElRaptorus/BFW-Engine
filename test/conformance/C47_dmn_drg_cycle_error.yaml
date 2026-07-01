@@ -1,0 +1,6 @@
+name: "C47: DMN DRG Cycle Rejected at Deploy"
+type: dmn
+fixture: drg_cycle.dmn
+expected:
+  deploy_status: [400, 422]
+  deploy_error: ["validation_failed", "dmn_parse_error"]

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_linear_chain" name="DRG Linear Chain"
+  namespace="https://example.com/dmn/drg_linear_chain"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_B" name="Decision B">
+    <variable id="var_b" name="B_result" typeRef="number"/>
+    <informationRequirement id="ir_b_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <literalExpression id="literal_b" typeRef="number">
+      <text>x + 10</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_A" name="Decision A">
+    <variable id="var_a" name="A_result" typeRef="number"/>
+    <informationRequirement id="ir_a_b">
+      <requiredDecision href="#Decision_B"/>
+    </informationRequirement>
+    <literalExpression id="literal_a" typeRef="number">
+      <text>B_result * 2</text>
+    </literalExpression>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_A" dmnElementRef="Decision_A">
+        <dc:Bounds x="250" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_B" dmnElementRef="Decision_B">
+        <dc:Bounds x="250" y="240" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_x" dmnElementRef="InputData_x">
+        <dc:Bounds x="250" y="380" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_b_x" dmnElementRef="ir_b_x">
+        <di:waypoint x="340" y="380"/>
+        <di:waypoint x="340" y="320"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_ir_a_b" dmnElementRef="ir_a_b">
+        <di:waypoint x="340" y="240"/>
+        <di:waypoint x="340" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

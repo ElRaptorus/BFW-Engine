@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EmbeddedSubprocess3LevelNested" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EmbeddedSubprocess3LevelNested" name="Embedded Subprocess 3 Level Nested" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_L1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start" />
+    <bpmn:subProcess id="SubProcess_L1" name="Level 1 Sub Process">
+      <bpmn:startEvent id="L1_Start" name="L1 Start" />
+      <bpmn:subProcess id="SubProcess_L2" name="Level 2 Sub Process">
+        <bpmn:startEvent id="L2_Start" name="L2 Start" />
+        <bpmn:subProcess id="SubProcess_L3" name="Level 3 Sub Process">
+          <bpmn:startEvent id="L3_Start" name="L3 Start" />
+          <bpmn:task id="L3_Task" name="L3 Task" />
+          <bpmn:endEvent id="L3_End" name="L3 End" />
+          <bpmn:sequenceFlow id="L3_Flow_1" sourceRef="L3_Start" targetRef="L3_Task" />
+          <bpmn:sequenceFlow id="L3_Flow_2" sourceRef="L3_Task" targetRef="L3_End" />
+        </bpmn:subProcess>
+        <bpmn:endEvent id="L2_End" name="L2 End" />
+        <bpmn:sequenceFlow id="L2_Flow_1" sourceRef="L2_Start" targetRef="SubProcess_L3" />
+        <bpmn:sequenceFlow id="L2_Flow_2" sourceRef="SubProcess_L3" targetRef="L2_End" />
+      </bpmn:subProcess>
+      <bpmn:endEvent id="L1_End" name="L1 End" />
+      <bpmn:sequenceFlow id="L1_Flow_1" sourceRef="L1_Start" targetRef="SubProcess_L2" />
+      <bpmn:sequenceFlow id="L1_Flow_2" sourceRef="SubProcess_L2" targetRef="L1_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_1" name="End" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_L1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_L1" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="72" width="1046" height="276" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="72" width="1016" height="276" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_L1" bpmnElement="SubProcess_L1" isExpanded="true">
+        <dc:Bounds x="250" y="90" width="720" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L1_Start" bpmnElement="L1_Start">
+        <dc:Bounds x="270" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_L2" bpmnElement="SubProcess_L2" isExpanded="true">
+        <dc:Bounds x="340" y="110" width="500" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L2_Start" bpmnElement="L2_Start">
+        <dc:Bounds x="360" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_L3" bpmnElement="SubProcess_L3" isExpanded="true">
+        <dc:Bounds x="430" y="130" width="320" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L3_Start" bpmnElement="L3_Start">
+        <dc:Bounds x="450" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L3_Task" bpmnElement="L3_Task">
+        <dc:Bounds x="520" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L3_End" bpmnElement="L3_End">
+        <dc:Bounds x="660" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L2_End" bpmnElement="L2_End">
+        <dc:Bounds x="780" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_L1_End" bpmnElement="L1_End">
+        <dc:Bounds x="900" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="1030" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="210" />
+        <di:waypoint x="250" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="970" y="210" />
+        <di:waypoint x="1030" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_L1_Flow_1" bpmnElement="L1_Flow_1">
+        <di:waypoint x="306" y="210" />
+        <di:waypoint x="340" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_L1_Flow_2" bpmnElement="L1_Flow_2">
+        <di:waypoint x="840" y="210" />
+        <di:waypoint x="900" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_L2_Flow_1" bpmnElement="L2_Flow_1">
+        <di:waypoint x="396" y="210" />
+        <di:waypoint x="430" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_L2_Flow_2" bpmnElement="L2_Flow_2">
+        <di:waypoint x="750" y="210" />
+        <di:waypoint x="780" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_L3_Flow_1" bpmnElement="L3_Flow_1">
+        <di:waypoint x="486" y="210" />
+        <di:waypoint x="520" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_L3_Flow_2" bpmnElement="L3_Flow_2">
+        <di:waypoint x="620" y="210" />
+        <di:waypoint x="660" y="210" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

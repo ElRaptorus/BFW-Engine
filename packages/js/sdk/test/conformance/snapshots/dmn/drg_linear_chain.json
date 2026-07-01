@@ -1,0 +1,69 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_b",
+        "text": "x + 10",
+        "typeRef": "number"
+      },
+      "id": "Decision_B",
+      "informationRequirements": [
+        {
+          "id": "ir_b_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Decision B",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_b",
+        "name": "B_result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_a",
+        "text": "B_result * 2",
+        "typeRef": "number"
+      },
+      "id": "Decision_A",
+      "informationRequirements": [
+        {
+          "id": "ir_a_b",
+          "requiredDecisionId": "Decision_B",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Decision A",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_a",
+        "name": "A_result",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_linear_chain",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "DRG Linear Chain",
+  "namespace": "https://example.com/dmn/drg_linear_chain"
+}

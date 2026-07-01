@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_batch_c">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_example-batch-process-c" name="Batch C" processRef="example-batch-process-c" />
+  </bpmn:collaboration>
+  <bpmn:process id="example-batch-process-c" name="Batch C" isExecutable="true">
+    <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_c1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_c1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_c1" name="Start">
+      <bpmn:outgoing>Flow_c1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="End_c1" name="End">
+      <bpmn:incoming>Flow_c1</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_c1" sourceRef="Start_c1" targetRef="End_c1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_example-batch-process-c" bpmnElement="Participant_example-batch-process-c" isHorizontal="true">
+        <dc:Bounds x="82" y="152" width="326" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="152" width="296" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_c1" bpmnElement="Start_c1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_c1" bpmnElement="End_c1">
+        <dc:Bounds x="322" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_c1" bpmnElement="Flow_c1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="322" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

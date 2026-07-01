@@ -1,0 +1,10 @@
+name: "C104: Message boundary (interrupting) — interrupts host task"
+fixture: "message_boundary_interrupting.bpmn"
+process_model_id: "MessageBoundaryInterrupting"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_cancelled"

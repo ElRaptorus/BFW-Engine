@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_XorSplitAmbiguous" name="XOR Split Ambiguous" processRef="XorSplitAmbiguous" />
+  </bpmn:collaboration>
+  <bpmn:process id="XorSplitAmbiguous" name="XOR Split Ambiguous" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>XOR_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_B</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:exclusiveGateway id="XOR_1" name="Overlapping Check"/>
+    <bpmn:endEvent id="End_A" name="End A"/>
+    <bpmn:endEvent id="End_B" name="End B"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="XOR_1"/>
+    <bpmn:sequenceFlow id="Flow_A" sourceRef="XOR_1" targetRef="End_A">
+      <bpmn:conditionExpression>token.amount &gt; 10</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="XOR_1" targetRef="End_B">
+      <bpmn:conditionExpression>token.amount &gt; 5</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_XorSplitAmbiguous" bpmnElement="Participant_XorSplitAmbiguous" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="486" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="456" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_XOR_1" bpmnElement="XOR_1">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_A" bpmnElement="End_A">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_B" bpmnElement="End_B">
+        <dc:Bounds x="482" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A" bpmnElement="Flow_A">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B" bpmnElement="Flow_B">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="250" />
+        <di:waypoint x="482" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

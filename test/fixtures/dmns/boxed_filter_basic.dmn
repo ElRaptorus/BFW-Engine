@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_filter"
+             name="Filter Test"
+             namespace="https://example.com/dmn/filter"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <decision id="Decision_filter" name="Filter Decision">
+    <variable id="var_filter" name="filterResult"/>
+    <context id="ctx_filter">
+      <contextEntry>
+        <variable name="numbers"/>
+        <list>
+          <literalExpression><text>1</text></literalExpression>
+          <literalExpression><text>2</text></literalExpression>
+          <literalExpression><text>3</text></literalExpression>
+          <literalExpression><text>4</text></literalExpression>
+          <literalExpression><text>5</text></literalExpression>
+        </list>
+      </contextEntry>
+      <contextEntry>
+        <filter id="flt_1">
+          <in>
+            <literalExpression><text>numbers</text></literalExpression>
+          </in>
+          <match>
+            <literalExpression><text>item > 2</text></literalExpression>
+          </match>
+        </filter>
+      </contextEntry>
+    </context>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_filter" dmnElementRef="Decision_filter">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

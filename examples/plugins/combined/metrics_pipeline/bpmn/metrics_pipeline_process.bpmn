@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_metrics-pipeline-process" name="Metrics Pipeline Process" processRef="metrics-pipeline-process" />
+  </bpmn:collaboration>
+  <bpmn:process id="metrics-pipeline-process" name="Metrics Pipeline Process" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_metrics</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_aggregate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_metrics</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_metrics" name="Start">
+      <bpmn:outgoing>Flow_start_aggregate</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_aggregate" name="Aggregate metrics" implementation="aggregate_metrics">
+      <bpmn:incoming>Flow_start_aggregate</bpmn:incoming>
+      <bpmn:outgoing>Flow_aggregate_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_metrics" name="End">
+      <bpmn:incoming>Flow_aggregate_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_start_aggregate" sourceRef="Start_metrics" targetRef="Task_aggregate" />
+    <bpmn:sequenceFlow id="Flow_aggregate_end" sourceRef="Task_aggregate" targetRef="End_metrics" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_metrics-pipeline-process" bpmnElement="Participant_metrics-pipeline-process" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="486" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="456" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_metrics" bpmnElement="Start_metrics">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_aggregate" bpmnElement="Task_aggregate">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_metrics" bpmnElement="End_metrics">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_start_aggregate" bpmnElement="Flow_start_aggregate">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_aggregate_end" bpmnElement="Flow_aggregate_end">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

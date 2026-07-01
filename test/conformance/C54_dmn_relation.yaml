@@ -1,0 +1,15 @@
+name: "C54: DMN Relation evaluation"
+type: dmn
+fixture: "relation_basic.dmn"
+decision_definition_id: "definitions_relation"
+evaluate:
+  decision_model_id: "Decision_relation"
+  input: {}
+expected:
+  status: 200
+  hit_policy: "boxed_expression"
+  result:
+    - Name: "Alice"
+      Age: 30
+    - Name: "Bob"
+      Age: 25

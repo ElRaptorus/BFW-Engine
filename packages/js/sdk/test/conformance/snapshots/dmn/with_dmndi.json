@@ -1,0 +1,44 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "le_result",
+        "text": "x + 1",
+        "typeRef": null
+      },
+      "id": "Decision_result",
+      "informationRequirements": [
+        {
+          "id": "ir_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Result",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_result",
+        "name": "result",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_dmndi",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "DMNDI Test",
+  "namespace": "https://example.com/dmn/dmndi"
+}

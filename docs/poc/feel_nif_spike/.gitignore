@@ -1,0 +1,11 @@
+# Elixir build artifacts
+/_build/
+/deps/
+
+# Compiled NIF binary
+/priv/native/
+
+# Rust/Cargo build artifacts
+/native/feel_nif/target/
+
+# Mix lock is kept (reproducible builds)

@@ -1,0 +1,291 @@
+---
+description: Elixir clean code conventions and Credo compliance for the Engine
+globs:
+  - "**/*.ex"
+  - "**/*.exs"
+alwaysApply: false
+---
+
+# Elixir Conventions
+
+## Design Principles
+
+These principles guide every code decision. They are not suggestions — they are
+the standard. When in doubt, choose the approach that best satisfies these
+principles in the order listed.
+
+### 1. Clean Code
+
+Code is read far more often than it is written. Every module, function, and
+variable must be immediately understandable to a reader who has never seen it
+before. If a piece of code requires a comment to explain *what* it does (as
+opposed to *why*), it should be rewritten to be self-explanatory.
+
+### 2. KISS — Keep It Simple
+
+Choose the simplest solution that correctly solves the problem. Do not introduce
+abstractions, behaviours, protocols, or indirection layers until there is a
+concrete, present-tense need. "We might need this later" is not a reason to
+build it now. One concrete module is better than a generic framework with one
+implementation.
+
+```elixir
+# BAD — premature abstraction
+defmodule EvilEngine.Expressions.Evaluator do
+  @callback evaluate(expression, context) :: result
+end
+
+defmodule EvilEngine.Expressions.FeelEvaluator do
+  @behaviour EvilEngine.Expressions.Evaluator
+  def evaluate(expression, context), do: ...
+end
+
+# GOOD — there is only one evaluator, so use a plain module
+defmodule EvilEngine.Expressions do
+  def evaluate(expression, context), do: ...
+end
+```
+
+### 3. Don't Repeat Yourself
+
+If the same logic appears in two or more places, extract it into a shared
+function. If the same constant appears in two or more places, extract it into
+a module attribute. Duplication is a maintenance liability — when a bug is
+fixed in one copy, the other copy silently remains broken.
+
+### 4. Convention over Configuration
+
+Follow established patterns in the codebase. When the project already uses a
+particular structure (module layout, directory layout, naming scheme, error
+return style), replicate that structure rather than inventing a new one. New
+code should be unsurprising to someone who has read existing code.
+
+### 5. Principle of Least Surprise
+
+Functions should do exactly what their name suggests — nothing more, nothing
+less. Public APIs must behave consistently:
+
+- If one function returns `{:ok, value} | {:error, reason}`, every function
+  in that module should follow the same pattern.
+- Pattern-matching clauses should be ordered from most specific to most general.
+- Side effects must be visible in the function name (e.g. `publish_message`,
+  not `handle_message` when it also writes to the DB).
+
+### 6. No Magic Values
+
+Never use unexplained literal strings or numbers in code. Extract them into
+module attributes with descriptive names.
+
+```elixir
+# BAD
+def check_payload(payload) do
+  if byte_size(payload) > 65_536, do: {:error, :too_large}, else: :ok
+end
+
+# GOOD
+@default_max_payload_bytes 65_536
+
+def check_payload(payload) do
+  if byte_size(payload) > @default_max_payload_bytes, do: {:error, :too_large}, else: :ok
+end
+```
+
+Exceptions: `0`, `1`, `""`, `[]`, `%{}`, `nil`, `true`, `false` are
+self-documenting and do not need extraction.
+
+### 7. Prefer Early Exit
+
+Use guard clauses, multi-clause function heads, and `with` chains to handle
+error cases early. Avoid deeply nested `if`/`case`/`cond` blocks.
+
+```elixir
+# BAD — nested conditions
+def process(data) do
+  if valid?(data) do
+    case transform(data) do
+      {:ok, result} ->
+        case persist(result) do
+          :ok -> {:ok, result}
+          {:error, reason} -> {:error, reason}
+        end
+      {:error, reason} -> {:error, reason}
+    end
+  else
+    {:error, :invalid}
+  end
+end
+
+# GOOD — with chain, flat structure
+def process(data) do
+  with :ok <- validate(data),
+       {:ok, result} <- transform(data),
+       :ok <- persist(result) do
+    {:ok, result}
+  end
+end
+```
+
+When a function has distinct branches based on input shape, prefer
+multi-clause function heads with pattern matching over internal branching:
+
+```elixir
+# BAD
+def handle_result(result) do
+  if is_list(result), do: ..., else: ...
+end
+
+# GOOD
+def handle_result(result) when is_list(result), do: ...
+def handle_result(result), do: ...
+```
+
+### 8. Prefer Named Functions over Complex Conditionals
+
+When a `case`, `cond`, or `if` block exceeds 5 lines per branch, extract
+each branch into a named private function. The function name documents the
+intent and keeps the calling function readable.
+
+```elixir
+# BAD — long case branches inline
+def execute(command) do
+  case command.type do
+    :deploy ->
+      # 15 lines of deploy logic
+      ...
+    :start ->
+      # 12 lines of start logic
+      ...
+  end
+end
+
+# GOOD — each branch is a named function
+def execute(%{type: :deploy} = command), do: execute_deploy(command)
+def execute(%{type: :start} = command), do: execute_start(command)
+
+defp execute_deploy(command), do: ...
+defp execute_start(command), do: ...
+```
+
+### 9. Single Responsibility — No God Modules
+
+Every module should have exactly one reason to change. A module that parses
+BPMN XML should not also validate it — parsing and validation are separate
+modules. Signs of a God Module:
+
+- More than ~10 public functions
+- The `@moduledoc` needs the word "and" to describe what it does
+- Functions in the module call each other in a chain that spans unrelated
+  concerns
+
+When a module grows too large, split it along responsibility boundaries and
+use `alias` / `defdelegate` in the original module if a unified facade is
+needed.
+
+### 10. Documentation: Public Yes, Private No
+
+- **`@moduledoc`** on every module — describe purpose, domain layer, and
+  what it implements.
+- **`@doc`** on every public function — describe what it does, its parameters,
+  and its return value.
+- **Never `@doc` or comment-document private functions.** Private functions
+  should be small enough and well-named enough to be self-explanatory. If a
+  private function needs a comment to explain *what* it does, rename it or
+  restructure it until the code speaks for itself.
+- **Inline comments** are reserved for explaining *why* something non-obvious
+  is done — never *what* the code does. Examples of good comments:
+  - `# dsntk's evaluate() returns raw AST for unary tests, so we wrap in "in"`
+  - `# Partition pruning requires the timestamp column in the WHERE clause`
+- **Never** add comments that narrate code: `# Convert to map`, `# Return
+  the result`, `# Handle the error`.
+
+---
+
+## Module Structure (in this order)
+
+1. `@moduledoc` — required on every module
+2. `@behaviour` declarations
+3. `use`, `import`, `alias`, `require`
+4. Module attributes (`@type`, `@spec`, constants)
+5. Public functions (each with `@doc` and `@impl true` if applicable)
+6. Private functions
+
+## Error Handling
+
+- Return tagged tuples: `{:ok, result}` | `{:error, reason}` | `:ok`
+- Be consistent within a module — if one function returns `{:ok, _}`, all
+  functions in the same API surface should follow the same convention
+- Use `with` chains for multi-step operations
+- Only use `rescue` in the persistence layer
+
+## Function Style
+
+- No inline anonymous functions over 3 lines — extract to named private functions
+- No single-pipe (`x |> f()` → use `f(x)`)
+- Pipe chains start with a raw value or variable, not a function call
+- `@impl true` on every behaviour callback
+- Guard clauses before function body — prefer `when` guards over `if` at the
+  top of the body
+- Multi-clause functions ordered: most specific match first, catch-all last
+
+## Naming
+
+Never abbreviate variable names, function names, parameters, or any other
+identifiers. Always use full, descriptive names.
+
+```elixir
+# BAD
+def handle_msg(msg), do: ...
+Enum.each(procs, fn proc -> ... end)
+def calc_total(items), do: ...
+
+# GOOD
+def handle_message(message), do: ...
+Enum.each(processes, fn process -> ... end)
+def calculate_total(items), do: ...
+```
+
+### Terminology Consistency
+
+Use consistent terminology for fields that classify or categorize entities:
+
+- **`type`** — preferred term for classification fields (e.g. `:timer_type`,
+  `:capability_type`, `:event_type`).
+- **Do not use `kind`** for classification. Use `type` instead.
+- **Do not use `sort`** for classification. Use `type` or `category` instead.
+
+Grandfathered exception: `event_kind` in `SinkFailed` / `sink_worker.ex`
+classifies which event struct caused a sink failure — this predates the rule
+and is not a plugin category field.
+
+```elixir
+# BAD
+@callback kind() :: atom()
+defp unique_key_for(:timer_source, %{kind: key}), do: key
+
+# GOOD
+@callback timer_type() :: atom()
+defp unique_key_for(:timer_source, %{timer_type: key}), do: key
+```
+
+## Ash-Specific Conventions
+
+- Resources follow the standard Ash structure: `attributes`, `relationships`,
+  `actions`, `policies`, `calculations`
+- Code Interface functions are the single service layer — never bypass them
+  from API or plugin code
+- Ash actions map 1:1 to Core access points (§5.4 in ImplementationPlan.md)
+
+## Credo Compliance
+
+After editing `.ex` files, run `mix credo --strict` and fix any issues before
+finishing.
+
+Common rules to follow while writing code:
+
+- **Alias nested modules** at the top of the module instead of using
+  fully-qualified names inline
+- **No trailing whitespace** or blank lines at end of file
+- **Max line length**: 120 characters (default Credo threshold)
+- **No TODO/FIXME/HACK comments** — these trigger Credo design warnings
+- **Function body nesting depth** ≤ 2 (Credo strict). Extract helpers early
+- **Numbers > 9999** must use underscores: `10_000`, not `10000`

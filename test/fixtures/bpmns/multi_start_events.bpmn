@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_MultiStartEvents" name="Multi Start Events" processRef="MultiStartEvents" />
+  </bpmn:collaboration>
+  <bpmn:process id="MultiStartEvents" name="Multi Start Events" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Start_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_B</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_A" name="Start A"/>
+    <bpmn:startEvent id="Start_B" name="Start B"/>
+    <bpmn:task id="Task_A" name="Path A Task"/>
+    <bpmn:task id="Task_B" name="Path B Task"/>
+    <bpmn:endEvent id="End_A" name="End A"/>
+    <bpmn:endEvent id="End_B" name="End B"/>
+    <bpmn:sequenceFlow id="Flow_A1" sourceRef="Start_A" targetRef="Task_A"/>
+    <bpmn:sequenceFlow id="Flow_A2" sourceRef="Task_A" targetRef="End_A"/>
+    <bpmn:sequenceFlow id="Flow_B1" sourceRef="Start_B" targetRef="Task_B"/>
+    <bpmn:sequenceFlow id="Flow_B2" sourceRef="Task_B" targetRef="End_B"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_MultiStartEvents" bpmnElement="Participant_MultiStartEvents" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="486" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="456" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_A" bpmnElement="Start_A">
+        <dc:Bounds x="162" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_B" bpmnElement="Start_B">
+        <dc:Bounds x="162" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_A" bpmnElement="Task_A">
+        <dc:Bounds x="290" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B" bpmnElement="Task_B">
+        <dc:Bounds x="290" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_A" bpmnElement="End_A">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_B" bpmnElement="End_B">
+        <dc:Bounds x="482" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_A1" bpmnElement="Flow_A1">
+        <di:waypoint x="198" y="150" />
+        <di:waypoint x="290" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A2" bpmnElement="Flow_A2">
+        <di:waypoint x="390" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B1" bpmnElement="Flow_B1">
+        <di:waypoint x="198" y="250" />
+        <di:waypoint x="290" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B2" bpmnElement="Flow_B2">
+        <di:waypoint x="390" y="250" />
+        <di:waypoint x="482" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

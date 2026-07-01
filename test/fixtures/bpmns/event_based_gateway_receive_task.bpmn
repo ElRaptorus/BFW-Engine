@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:message id="Message_A" name="ebg-recv-a" />
+  <bpmn:message id="Message_B" name="ebg-recv-b" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EbgReceiveTask" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EbgReceiveTask" name="EBG Receive Tasks" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EBG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ReceiveTask_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ReceiveTask_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:eventBasedGateway id="EBG_1" name="Wait for Event">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecvA</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RecvB</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:receiveTask id="ReceiveTask_A" name="Receive A" messageRef="Message_A">
+      <bpmn:incoming>Flow_RecvA</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecvA_End</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <bpmn:receiveTask id="ReceiveTask_B" name="Receive B" messageRef="Message_B">
+      <bpmn:incoming>Flow_RecvB</bpmn:incoming>
+      <bpmn:outgoing>Flow_RecvB_End</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_RecvA_End</bpmn:incoming>
+      <bpmn:incoming>Flow_RecvB_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="EBG_1" />
+    <bpmn:sequenceFlow id="Flow_RecvA" sourceRef="EBG_1" targetRef="ReceiveTask_A" />
+    <bpmn:sequenceFlow id="Flow_RecvB" sourceRef="EBG_1" targetRef="ReceiveTask_B" />
+    <bpmn:sequenceFlow id="Flow_RecvA_End" sourceRef="ReceiveTask_A" targetRef="End_1" />
+    <bpmn:sequenceFlow id="Flow_RecvB_End" sourceRef="ReceiveTask_B" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="EbgReceiveTask">
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EBG_1" bpmnElement="EBG_1">
+        <dc:Bounds x="300" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ReceiveTask_A" bpmnElement="ReceiveTask_A">
+        <dc:Bounds x="452" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ReceiveTask_B" bpmnElement="ReceiveTask_B">
+        <dc:Bounds x="452" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="652" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="300" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RecvA" bpmnElement="Flow_RecvA">
+        <di:waypoint x="325" y="175" />
+        <di:waypoint x="325" y="130" />
+        <di:waypoint x="452" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RecvB" bpmnElement="Flow_RecvB">
+        <di:waypoint x="325" y="225" />
+        <di:waypoint x="325" y="270" />
+        <di:waypoint x="452" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RecvA_End" bpmnElement="Flow_RecvA_End">
+        <di:waypoint x="552" y="130" />
+        <di:waypoint x="670" y="130" />
+        <di:waypoint x="670" y="182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RecvB_End" bpmnElement="Flow_RecvB_End">
+        <di:waypoint x="552" y="270" />
+        <di:waypoint x="670" y="270" />
+        <di:waypoint x="670" y="218" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

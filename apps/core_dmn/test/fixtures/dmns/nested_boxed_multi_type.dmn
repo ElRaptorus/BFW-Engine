@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_nested_multi"
+             name="Nested Boxed Multi Type"
+             namespace="https://example.com/dmn/nested-multi">
+
+  <businessKnowledgeModel id="BKM_values_list" name="Values List">
+    <variable id="var_values" name="values" typeRef="Any"/>
+    <encapsulatedLogic id="EL_values_list">
+      <list id="list_values">
+        <literalExpression><text>10</text></literalExpression>
+        <literalExpression><text>20</text></literalExpression>
+        <literalExpression><text>30</text></literalExpression>
+      </list>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_nested_multi" name="Nested Multi Type Decision">
+    <variable id="var_nested_multi" name="nestedMultiResult"/>
+    <knowledgeRequirement id="KR_values_list">
+      <requiredKnowledge href="#BKM_values_list"/>
+    </knowledgeRequirement>
+    <context id="ctx_nested_multi">
+      <contextEntry>
+        <variable name="items"/>
+        <invocation id="inv_values_list">
+          <literalExpression id="LE_called_bkm">
+            <text>Values List</text>
+          </literalExpression>
+        </invocation>
+      </contextEntry>
+      <contextEntry>
+        <literalExpression id="LE_final_items">
+          <text>items</text>
+        </literalExpression>
+      </contextEntry>
+    </context>
+  </decision>
+</definitions>

@@ -1,0 +1,14 @@
+name: "C77: PI retry with incompatible version migration rejected (422)"
+fixture: "retry_user_task.bpmn"
+process_model_id: "RetryUserTask"
+tier: interactive
+description: |
+  Start a PI with a user task (waits for input). Abort the PI. Deploy an
+  incompatible v2 (different flow node IDs). Attempt retry with
+  version="2.0.0". Expect 422 version_migration_incompatible.
+start:
+  payload: null
+expected:
+  pre_retry_state: "aborted"
+  retry_rejected: true
+  retry_status: 422

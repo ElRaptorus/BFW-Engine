@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="expression-showcase"
+  name="Expression Showcase"
+  namespace="https://example.com/dmn/showcase">
+
+  <inputData id="InputData_base_salary" name="baseSalary">
+    <variable name="baseSalary" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_department" name="department">
+    <variable name="department" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_performance_rating" name="performanceRating">
+    <variable name="performanceRating" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_years_of_service" name="yearsOfService">
+    <variable name="yearsOfService" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_certifications" name="certifications">
+    <variable name="certifications" typeRef="Any"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_seniority_bonus_calculator" name="Seniority Bonus Calculator">
+    <encapsulatedLogic id="EL_seniority_bonus" kind="FEEL">
+      <formalParameter id="FP_years" name="years" typeRef="number"/>
+      <formalParameter id="FP_rating" name="rating" typeRef="number"/>
+      <literalExpression id="LE_seniority_bonus_body">
+        <text>if years &gt;= 10 then rating * 1500 else rating * 500</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_department_multiplier" name="Department Multiplier">
+    <informationRequirement id="ir_department_multiplier_department">
+      <requiredInput href="#InputData_department"/>
+    </informationRequirement>
+    <variable name="departmentMultiplier" typeRef="number"/>
+    <decisionTable id="dt_department_multiplier" hitPolicy="UNIQUE">
+      <input id="Input_department" label="Department">
+        <inputExpression typeRef="string">department</inputExpression>
+      </input>
+      <output id="Output_multiplier" label="Multiplier" name="multiplier" typeRef="number"/>
+      <rule id="rule_engineering">
+        <inputEntry id="IE_engineering"><text>"engineering"</text></inputEntry>
+        <outputEntry id="OE_engineering"><text>1.15</text></outputEntry>
+      </rule>
+      <rule id="rule_sales">
+        <inputEntry id="IE_sales"><text>"sales"</text></inputEntry>
+        <outputEntry id="OE_sales"><text>1.10</text></outputEntry>
+      </rule>
+      <rule id="rule_marketing">
+        <inputEntry id="IE_marketing"><text>"marketing"</text></inputEntry>
+        <outputEntry id="OE_marketing"><text>1.05</text></outputEntry>
+      </rule>
+      <rule id="rule_support">
+        <inputEntry id="IE_support"><text>"support"</text></inputEntry>
+        <outputEntry id="OE_support"><text>1.00</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_performance_bonus" name="Performance Bonus">
+    <informationRequirement id="ir_performance_bonus_years">
+      <requiredInput href="#InputData_years_of_service"/>
+    </informationRequirement>
+    <informationRequirement id="ir_performance_bonus_rating">
+      <requiredInput href="#InputData_performance_rating"/>
+    </informationRequirement>
+    <variable name="performanceBonus" typeRef="number"/>
+    <knowledgeRequirement id="kr_performance_bonus">
+      <requiredKnowledge href="#BKM_seniority_bonus_calculator"/>
+    </knowledgeRequirement>
+    <invocation id="inv_performance_bonus">
+      <literalExpression id="le_called_bkm">
+        <text>Seniority Bonus Calculator</text>
+      </literalExpression>
+      <binding>
+        <parameter id="bp_years" name="years"/>
+        <literalExpression id="le_bind_years">
+          <text>yearsOfService</text>
+        </literalExpression>
+      </binding>
+      <binding>
+        <parameter id="bp_rating" name="rating"/>
+        <literalExpression id="le_bind_rating">
+          <text>performanceRating</text>
+        </literalExpression>
+      </binding>
+    </invocation>
+  </decision>
+
+  <decision id="Decision_certification_allowance" name="Certification Allowance">
+    <informationRequirement id="ir_certification_allowance_certs">
+      <requiredInput href="#InputData_certifications"/>
+    </informationRequirement>
+    <variable name="certificationAllowance" typeRef="Any"/>
+    <list id="list_certification_allowance">
+      <literalExpression id="le_allowance_aws">
+        <text>if "AWS" in certifications then 2000 else 0</text>
+      </literalExpression>
+      <literalExpression id="le_allowance_pmp">
+        <text>if "PMP" in certifications then 3000 else 0</text>
+      </literalExpression>
+      <literalExpression id="le_allowance_cpa">
+        <text>if "CPA" in certifications then 2500 else 0</text>
+      </literalExpression>
+      <literalExpression id="le_allowance_phd">
+        <text>if "PhD" in certifications then 5000 else 0</text>
+      </literalExpression>
+    </list>
+  </decision>
+
+  <decision id="Decision_certification_total" name="Certification Total">
+    <informationRequirement id="ir_certification_total_allowance">
+      <requiredDecision href="#Decision_certification_allowance"/>
+    </informationRequirement>
+    <variable name="certificationTotal" typeRef="number"/>
+    <literalExpression id="le_certification_total">
+      <text>sum(certificationAllowance)</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_benefits_package" name="Benefits Package">
+    <informationRequirement id="ir_benefits_base_salary">
+      <requiredInput href="#InputData_base_salary"/>
+    </informationRequirement>
+    <informationRequirement id="ir_benefits_years">
+      <requiredInput href="#InputData_years_of_service"/>
+    </informationRequirement>
+    <variable name="benefitsPackage" typeRef="Any"/>
+    <context id="ctx_benefits_package">
+      <contextEntry>
+        <variable name="healthTier" typeRef="string"/>
+        <literalExpression id="le_health_tier">
+          <text>if baseSalary &gt; 80000 then "premium" else "standard"</text>
+        </literalExpression>
+      </contextEntry>
+      <contextEntry>
+        <variable name="retirementMatch" typeRef="number"/>
+        <literalExpression id="le_retirement_match">
+          <text>if yearsOfService &gt;= 5 then 0.06 else 0.03</text>
+        </literalExpression>
+      </contextEntry>
+      <contextEntry>
+        <variable name="stockOptions" typeRef="number"/>
+        <literalExpression id="le_stock_options">
+          <text>baseSalary * 0.02</text>
+        </literalExpression>
+      </contextEntry>
+    </context>
+  </decision>
+
+  <decision id="Decision_salary_bands" name="Salary Bands">
+    <variable name="salaryBands" typeRef="Any"/>
+    <relation id="rel_salary_bands">
+      <column id="col_level" name="level" typeRef="string"/>
+      <column id="col_min_salary" name="minSalary" typeRef="number"/>
+      <column id="col_max_salary" name="maxSalary" typeRef="number"/>
+      <row>
+        <literalExpression><text>"junior"</text></literalExpression>
+        <literalExpression><text>40000</text></literalExpression>
+        <literalExpression><text>70000</text></literalExpression>
+      </row>
+      <row>
+        <literalExpression><text>"mid"</text></literalExpression>
+        <literalExpression><text>65000</text></literalExpression>
+        <literalExpression><text>100000</text></literalExpression>
+      </row>
+      <row>
+        <literalExpression><text>"senior"</text></literalExpression>
+        <literalExpression><text>90000</text></literalExpression>
+        <literalExpression><text>140000</text></literalExpression>
+      </row>
+      <row>
+        <literalExpression><text>"principal"</text></literalExpression>
+        <literalExpression><text>130000</text></literalExpression>
+        <literalExpression><text>200000</text></literalExpression>
+      </row>
+    </relation>
+  </decision>
+
+  <decision id="Decision_eligible_for_promotion" name="Eligible for Promotion">
+    <informationRequirement id="ir_eligible_rating">
+      <requiredInput href="#InputData_performance_rating"/>
+    </informationRequirement>
+    <informationRequirement id="ir_eligible_years">
+      <requiredInput href="#InputData_years_of_service"/>
+    </informationRequirement>
+    <variable name="eligibleForPromotion" typeRef="boolean"/>
+    <conditional id="cond_eligible_for_promotion">
+      <if>
+        <literalExpression id="le_eligible_if">
+          <text>performanceRating &gt;= 4 and yearsOfService &gt;= 2</text>
+        </literalExpression>
+      </if>
+      <then>
+        <literalExpression id="le_eligible_then"><text>true</text></literalExpression>
+      </then>
+      <else>
+        <literalExpression id="le_eligible_else"><text>false</text></literalExpression>
+      </else>
+    </conditional>
+  </decision>
+
+  <decision id="Decision_qualified_certifications" name="Qualified Certifications">
+    <informationRequirement id="ir_qualified_certifications">
+      <requiredInput href="#InputData_certifications"/>
+    </informationRequirement>
+    <variable name="qualifiedCertifications" typeRef="Any"/>
+    <filter id="flt_qualified_certifications">
+      <in>
+        <literalExpression id="le_qualified_in">
+          <text>certifications</text>
+        </literalExpression>
+      </in>
+      <match>
+        <literalExpression id="le_qualified_match">
+          <text>item in ["AWS", "PMP", "CPA", "PhD"]</text>
+        </literalExpression>
+      </match>
+    </filter>
+  </decision>
+
+  <decision id="Decision_certification_details" name="Certification Details">
+    <informationRequirement id="ir_certification_details">
+      <requiredInput href="#InputData_certifications"/>
+    </informationRequirement>
+    <variable name="certificationDetails" typeRef="Any"/>
+    <for id="for_certification_details" iteratorVariable="cert">
+      <in>
+        <literalExpression id="le_for_in">
+          <text>certifications</text>
+        </literalExpression>
+      </in>
+      <return>
+        <literalExpression id="le_for_return">
+          <text>{ name: cert, premium: if cert = "PhD" then 5000 else 2000 }</text>
+        </literalExpression>
+      </return>
+    </for>
+  </decision>
+
+  <decision id="Decision_all_certs_premium" name="All Certs Premium">
+    <informationRequirement id="ir_all_certs_premium">
+      <requiredInput href="#InputData_certifications"/>
+    </informationRequirement>
+    <variable name="allCertsPremium" typeRef="boolean"/>
+    <every id="every_all_certs_premium" iteratorVariable="cert">
+      <in>
+        <literalExpression id="le_every_in">
+          <text>certifications</text>
+        </literalExpression>
+      </in>
+      <satisfies>
+        <literalExpression id="le_every_satisfies">
+          <text>cert in ["AWS", "PMP", "CPA", "PhD"]</text>
+        </literalExpression>
+      </satisfies>
+    </every>
+  </decision>
+
+  <decision id="Decision_has_premium_cert" name="Has Premium Cert">
+    <informationRequirement id="ir_has_premium_cert">
+      <requiredInput href="#InputData_certifications"/>
+    </informationRequirement>
+    <variable name="hasPremiumCert" typeRef="boolean"/>
+    <some id="some_has_premium_cert" iteratorVariable="cert">
+      <in>
+        <literalExpression id="le_some_in">
+          <text>certifications</text>
+        </literalExpression>
+      </in>
+      <satisfies>
+        <literalExpression id="le_some_satisfies">
+          <text>cert in ["PhD", "CPA"]</text>
+        </literalExpression>
+      </satisfies>
+    </some>
+  </decision>
+
+  <decision id="Decision_total_compensation" name="Total Compensation">
+    <informationRequirement id="ir_total_base_salary">
+      <requiredInput href="#InputData_base_salary"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_department_multiplier">
+      <requiredDecision href="#Decision_department_multiplier"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_performance_bonus">
+      <requiredDecision href="#Decision_performance_bonus"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_certification_total">
+      <requiredDecision href="#Decision_certification_total"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_benefits_package">
+      <requiredDecision href="#Decision_benefits_package"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_salary_bands">
+      <requiredDecision href="#Decision_salary_bands"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_eligible">
+      <requiredDecision href="#Decision_eligible_for_promotion"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_qualified">
+      <requiredDecision href="#Decision_qualified_certifications"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_details">
+      <requiredDecision href="#Decision_certification_details"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_all_certs">
+      <requiredDecision href="#Decision_all_certs_premium"/>
+    </informationRequirement>
+    <informationRequirement id="ir_total_has_premium">
+      <requiredDecision href="#Decision_has_premium_cert"/>
+    </informationRequirement>
+    <variable name="totalCompensation" typeRef="number"/>
+    <literalExpression id="le_total_compensation">
+      <text>(baseSalary * departmentMultiplier) + performanceBonus + certificationTotal</text>
+    </literalExpression>
+  </decision>
+</definitions>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bkm_cycle" name="BKM Cycle"
+  namespace="https://example.com/dmn/bkm-cycle">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_A" name="BKM A">
+    <variable id="var_bkm_a" name="resultA" typeRef="number"/>
+    <knowledgeRequirement id="kr_a_b">
+      <requiredKnowledge href="#BKM_B"/>
+    </knowledgeRequirement>
+    <encapsulatedLogic id="EL_a">
+      <formalParameter id="FP_x_a" name="x" typeRef="number"/>
+      <literalExpression id="LE_a" typeRef="number">
+        <text>resultB + 1</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <businessKnowledgeModel id="BKM_B" name="BKM B">
+    <variable id="var_bkm_b" name="resultB" typeRef="number"/>
+    <knowledgeRequirement id="kr_b_a">
+      <requiredKnowledge href="#BKM_A"/>
+    </knowledgeRequirement>
+    <encapsulatedLogic id="EL_b">
+      <formalParameter id="FP_x_b" name="x" typeRef="number"/>
+      <literalExpression id="LE_b" typeRef="number">
+        <text>resultA + 2</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_cycle" name="Cycle Decision">
+    <variable id="var_decision" name="cycleResult" typeRef="number"/>
+    <informationRequirement id="ir_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_a">
+      <requiredKnowledge href="#BKM_A"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_decision" typeRef="number">
+      <text>resultA + x</text>
+    </literalExpression>
+  </decision>
+</definitions>

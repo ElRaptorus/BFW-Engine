@@ -1,0 +1,14 @@
+name: "C53: DMN nested boxed expressions across types"
+type: dmn
+fixture: "nested_boxed_multi_type.dmn"
+decision_definition_id: "definitions_nested_multi"
+evaluate:
+  decision_model_id: "Decision_nested_multi"
+  input: {}
+expected:
+  status: 200
+  hit_policy: "boxed_expression"
+  result:
+    - 10
+    - 20
+    - 30

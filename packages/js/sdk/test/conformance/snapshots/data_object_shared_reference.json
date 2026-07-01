@@ -1,0 +1,205 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DO_1",
+          "dataState": null,
+          "id": "DOR_A",
+          "name": null
+        },
+        {
+          "dataObjectRef": "DO_1",
+          "dataState": null,
+          "id": "DOR_B",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DO_1",
+          "itemSubjectRef": null,
+          "name": "SharedData",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_1",
+              "sourceRef": null,
+              "targetRef": "DOR_A",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Write via A",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"source\": \"A\", \"value\": token.amount}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_2",
+              "sourceRef": null,
+              "targetRef": "DOR_B",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_2",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Write via B",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"source\": \"B\", \"value\": token.value * 2}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_3",
+              "sourceRef": null,
+              "targetRef": "DOR_A",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_3",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Write via A again",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"source\": \"A_final\", \"value\": 999}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "DataObjectSharedRef",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ScriptTask_1", "ScriptTask_2", "ScriptTask_3", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Data Object Shared Reference",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ScriptTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_1",
+          "targetRef": "ScriptTask_2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_2",
+          "targetRef": "ScriptTask_3"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_3",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

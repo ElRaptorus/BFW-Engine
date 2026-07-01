@@ -1,0 +1,66 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_base",
+          "text": "n + 10",
+          "typeRef": null
+        },
+        "formalParameters": [
+          {
+            "id": "FP_n",
+            "name": "n",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_base",
+        "type": "feel"
+      },
+      "id": "BKM_base",
+      "knowledgeRequirements": [],
+      "name": "Base Logic",
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_derived",
+          "text": "BKM_base(m) * 3",
+          "typeRef": null
+        },
+        "formalParameters": [
+          {
+            "id": "FP_m",
+            "name": "m",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_derived",
+        "type": "feel"
+      },
+      "id": "BKM_derived",
+      "knowledgeRequirements": [
+        {
+          "id": "kr_base",
+          "requiredKnowledgeId": "BKM_base"
+        }
+      ],
+      "name": "Derived Logic",
+      "variable": null
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [],
+  "id": "definitions_kr_bkm",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "KR on BKM Test",
+  "namespace": "https://example.com/dmn/kr-bkm"
+}

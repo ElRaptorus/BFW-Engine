@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="loan-eligibility"
+  name="Loan Eligibility"
+  namespace="https://example.com/dmn/loan">
+
+  <inputData id="InputData_creditScore" name="creditScore">
+    <variable name="creditScore" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_annualIncome" name="annualIncome">
+    <variable name="annualIncome" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_debtToIncomeRatio" name="debtToIncomeRatio">
+    <variable name="debtToIncomeRatio" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_employmentYears" name="employmentYears">
+    <variable name="employmentYears" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_loan_eligibility" name="Loan Eligibility">
+    <informationRequirement id="ir_creditScore">
+      <requiredInput href="#InputData_creditScore"/>
+    </informationRequirement>
+    <informationRequirement id="ir_annualIncome">
+      <requiredInput href="#InputData_annualIncome"/>
+    </informationRequirement>
+    <informationRequirement id="ir_debtToIncomeRatio">
+      <requiredInput href="#InputData_debtToIncomeRatio"/>
+    </informationRequirement>
+    <informationRequirement id="ir_employmentYears">
+      <requiredInput href="#InputData_employmentYears"/>
+    </informationRequirement>
+    <decisionTable id="dt_loan_eligibility" hitPolicy="FIRST">
+      <input id="Input_creditScore" label="Credit Score">
+        <inputExpression typeRef="number"><text>creditScore</text></inputExpression>
+      </input>
+      <input id="Input_annualIncome" label="Annual Income">
+        <inputExpression typeRef="number"><text>annualIncome</text></inputExpression>
+      </input>
+      <input id="Input_debtToIncomeRatio" label="Debt-to-Income Ratio">
+        <inputExpression typeRef="number"><text>debtToIncomeRatio</text></inputExpression>
+      </input>
+      <input id="Input_employmentYears" label="Employment Years">
+        <inputExpression typeRef="number"><text>employmentYears</text></inputExpression>
+      </input>
+      <output id="Output_approved" label="Approved" name="approved" typeRef="boolean"/>
+      <output id="Output_maxAmount" label="Max Amount" name="maxAmount" typeRef="number"/>
+      <output id="Output_reason" label="Reason" name="reason" typeRef="string"/>
+      <rule id="rule_credit_below_minimum">
+        <description>Credit score below minimum threshold</description>
+        <inputEntry id="ie_credit_1"><text>&lt; 500</text></inputEntry>
+        <inputEntry id="ie_income_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_dti_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_emp_1"><text>-</text></inputEntry>
+        <outputEntry id="oe_approved_1"><text>false</text></outputEntry>
+        <outputEntry id="oe_max_1"><text>0</text></outputEntry>
+        <outputEntry id="oe_reason_1"><text>"Credit score below minimum threshold"</text></outputEntry>
+      </rule>
+      <rule id="rule_income_below_minimum">
+        <description>Income below minimum requirement</description>
+        <inputEntry id="ie_credit_2"><text>&gt;= 500</text></inputEntry>
+        <inputEntry id="ie_income_2"><text>&lt; 25000</text></inputEntry>
+        <inputEntry id="ie_dti_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_emp_2"><text>-</text></inputEntry>
+        <outputEntry id="oe_approved_2"><text>false</text></outputEntry>
+        <outputEntry id="oe_max_2"><text>0</text></outputEntry>
+        <outputEntry id="oe_reason_2"><text>"Income below minimum requirement"</text></outputEntry>
+      </rule>
+      <rule id="rule_dti_too_high">
+        <description>Debt-to-income ratio too high</description>
+        <inputEntry id="ie_credit_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_income_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_dti_3"><text>&gt; 0.50</text></inputEntry>
+        <inputEntry id="ie_emp_3"><text>-</text></inputEntry>
+        <outputEntry id="oe_approved_3"><text>false</text></outputEntry>
+        <outputEntry id="oe_max_3"><text>0</text></outputEntry>
+        <outputEntry id="oe_reason_3"><text>"Debt-to-income ratio too high"</text></outputEntry>
+      </rule>
+      <rule id="rule_excellent_profile">
+        <description>Excellent profile</description>
+        <inputEntry id="ie_credit_4"><text>&gt;= 700</text></inputEntry>
+        <inputEntry id="ie_income_4"><text>&gt;= 50000</text></inputEntry>
+        <inputEntry id="ie_dti_4"><text>&lt;= 0.35</text></inputEntry>
+        <inputEntry id="ie_emp_4"><text>&gt;= 2</text></inputEntry>
+        <outputEntry id="oe_approved_4"><text>true</text></outputEntry>
+        <outputEntry id="oe_max_4"><text>500000</text></outputEntry>
+        <outputEntry id="oe_reason_4"><text>"Excellent profile"</text></outputEntry>
+      </rule>
+      <rule id="rule_good_profile">
+        <description>Good profile</description>
+        <inputEntry id="ie_credit_5"><text>&gt;= 600</text></inputEntry>
+        <inputEntry id="ie_income_5"><text>&gt;= 35000</text></inputEntry>
+        <inputEntry id="ie_dti_5"><text>&lt;= 0.40</text></inputEntry>
+        <inputEntry id="ie_emp_5"><text>&gt;= 1</text></inputEntry>
+        <outputEntry id="oe_approved_5"><text>true</text></outputEntry>
+        <outputEntry id="oe_max_5"><text>250000</text></outputEntry>
+        <outputEntry id="oe_reason_5"><text>"Good profile"</text></outputEntry>
+      </rule>
+      <rule id="rule_standard_profile">
+        <description>Standard profile</description>
+        <inputEntry id="ie_credit_6"><text>&gt;= 500</text></inputEntry>
+        <inputEntry id="ie_income_6"><text>&gt;= 25000</text></inputEntry>
+        <inputEntry id="ie_dti_6"><text>&lt;= 0.50</text></inputEntry>
+        <inputEntry id="ie_emp_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_approved_6"><text>true</text></outputEntry>
+        <outputEntry id="oe_max_6"><text>100000</text></outputEntry>
+        <outputEntry id="oe_reason_6"><text>"Standard profile"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

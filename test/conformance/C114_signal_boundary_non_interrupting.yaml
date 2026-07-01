@@ -1,0 +1,11 @@
+name: "C114: Signal boundary (non-interrupting) — spawns parallel branch"
+fixture: "signal_boundary_non_interrupting.bpmn"
+process_model_id: "SignalBoundaryNonInterrupting"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_normal"
+    - endEventId: "End_notified"

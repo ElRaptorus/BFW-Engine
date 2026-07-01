@@ -1,0 +1,15 @@
+---
+description: Git commits are always created manually by the developer — never by AI
+alwaysApply: true
+---
+
+# Git Commit Policy
+
+The developer creates all git commits manually. This is a deliberate choice to ensure a final human review gate.
+
+## Rules
+
+- **NEVER** run `git commit`, `git commit --amend`, or `git push` unless the developer explicitly asks for it as a one-off exception.
+- **NEVER** proactively offer to create commits or ask "shall I commit this?"
+- You MAY run `git add` or `git status` when needed during your workflow.
+- You MAY describe what changed at the end of a task so the developer can compose their own commit message.

@@ -1,0 +1,8 @@
+name: "C88: Timer Start Event — disable via API, no PI created; re-enable, PI created"
+fixture: "timer_start_cycle.bpmn"
+process_model_id: "TimerStartCycle"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "finished"

@@ -1,0 +1,631 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_fully_indexed",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_fi_tier",
+            "inputExpression": "tier",
+            "inputValues": null,
+            "label": "tier",
+            "typeRef": "string"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_fi_region",
+            "inputExpression": "region",
+            "inputValues": null,
+            "label": "region",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Out_fi",
+            "label": "result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_fi_1",
+            "inputEntries": [
+              {
+                "id": "IE_fi_1a",
+                "text": "\"gold\""
+              },
+              {
+                "id": "IE_fi_1b",
+                "text": "\"EU\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_fi_1",
+                "text": "100"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_fi_2",
+            "inputEntries": [
+              {
+                "id": "IE_fi_2a",
+                "text": "\"gold\""
+              },
+              {
+                "id": "IE_fi_2b",
+                "text": "\"US\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_fi_2",
+                "text": "200"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_fi_3",
+            "inputEntries": [
+              {
+                "id": "IE_fi_3a",
+                "text": "\"silver\""
+              },
+              {
+                "id": "IE_fi_3b",
+                "text": "\"EU\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_fi_3",
+                "text": "50"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_fi_4",
+            "inputEntries": [
+              {
+                "id": "IE_fi_4a",
+                "text": "\"silver\""
+              },
+              {
+                "id": "IE_fi_4b",
+                "text": "\"US\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_fi_4",
+                "text": "75"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_fi_5",
+            "inputEntries": [
+              {
+                "id": "IE_fi_5a",
+                "text": "\"bronze\""
+              },
+              {
+                "id": "IE_fi_5b",
+                "text": "\"APAC\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_fi_5",
+                "text": "10"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_fully_indexed",
+      "informationRequirements": [
+        {
+          "id": "IR_fi_tier",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_tier"
+        },
+        {
+          "id": "IR_fi_region",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_region"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Fully Indexed",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_fi",
+        "name": "result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "DT_with_wildcards",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_ww_tier",
+            "inputExpression": "tier",
+            "inputValues": null,
+            "label": "tier",
+            "typeRef": "string"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_ww_region",
+            "inputExpression": "region",
+            "inputValues": null,
+            "label": "region",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Out_ww",
+            "label": "result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ww_1",
+            "inputEntries": [
+              {
+                "id": "IE_ww_1a",
+                "text": "\"gold\""
+              },
+              {
+                "id": "IE_ww_1b",
+                "text": "\"EU\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ww_1",
+                "text": "100"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ww_2",
+            "inputEntries": [
+              {
+                "id": "IE_ww_2a",
+                "text": "\"gold\""
+              },
+              {
+                "id": "IE_ww_2b",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ww_2",
+                "text": "80"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ww_3",
+            "inputEntries": [
+              {
+                "id": "IE_ww_3a",
+                "text": "-"
+              },
+              {
+                "id": "IE_ww_3b",
+                "text": "\"EU\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ww_3",
+                "text": "30"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ww_4",
+            "inputEntries": [
+              {
+                "id": "IE_ww_4a",
+                "text": "-"
+              },
+              {
+                "id": "IE_ww_4b",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ww_4",
+                "text": "10"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_with_wildcards",
+      "informationRequirements": [
+        {
+          "id": "IR_ww_tier",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_tier"
+        },
+        {
+          "id": "IR_ww_region",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_region"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "With Wildcards",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_ww",
+        "name": "result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "DT_mixed_columns",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_mc_tier",
+            "inputExpression": "tier",
+            "inputValues": null,
+            "label": "tier",
+            "typeRef": "string"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_mc_score",
+            "inputExpression": "score",
+            "inputValues": null,
+            "label": "score",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Out_mc",
+            "label": "result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_mc_1",
+            "inputEntries": [
+              {
+                "id": "IE_mc_1a",
+                "text": "\"gold\""
+              },
+              {
+                "id": "IE_mc_1b",
+                "text": "> 80"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_mc_1",
+                "text": "500"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_mc_2",
+            "inputEntries": [
+              {
+                "id": "IE_mc_2a",
+                "text": "\"gold\""
+              },
+              {
+                "id": "IE_mc_2b",
+                "text": "<= 80"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_mc_2",
+                "text": "200"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_mc_3",
+            "inputEntries": [
+              {
+                "id": "IE_mc_3a",
+                "text": "\"silver\""
+              },
+              {
+                "id": "IE_mc_3b",
+                "text": "> 50"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_mc_3",
+                "text": "100"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_mc_4",
+            "inputEntries": [
+              {
+                "id": "IE_mc_4a",
+                "text": "\"silver\""
+              },
+              {
+                "id": "IE_mc_4b",
+                "text": "<= 50"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_mc_4",
+                "text": "25"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_mc_5",
+            "inputEntries": [
+              {
+                "id": "IE_mc_5a",
+                "text": "\"bronze\""
+              },
+              {
+                "id": "IE_mc_5b",
+                "text": "-"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_mc_5",
+                "text": "5"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_mixed_columns",
+      "informationRequirements": [
+        {
+          "id": "IR_mc_tier",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_tier"
+        },
+        {
+          "id": "IR_mc_score",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_score"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Mixed Columns",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_mc",
+        "name": "result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "DT_numeric_index",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "In_ni_code",
+            "inputExpression": "code",
+            "inputValues": null,
+            "label": "code",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Out_ni",
+            "label": "result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ni_1",
+            "inputEntries": [
+              {
+                "id": "IE_ni_1",
+                "text": "1"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ni_1",
+                "text": "\"alpha\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ni_2",
+            "inputEntries": [
+              {
+                "id": "IE_ni_2",
+                "text": "2"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ni_2",
+                "text": "\"beta\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ni_3",
+            "inputEntries": [
+              {
+                "id": "IE_ni_3",
+                "text": "3"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ni_3",
+                "text": "\"gamma\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "R_ni_4",
+            "inputEntries": [
+              {
+                "id": "IE_ni_4",
+                "text": "99"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_ni_4",
+                "text": "\"special\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_numeric_index",
+      "informationRequirements": [
+        {
+          "id": "IR_ni_code",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_code"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Numeric Index",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_ni",
+        "name": "result",
+        "typeRef": "string"
+      }
+    }
+  ],
+  "id": "definitions_index_correctness",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_tier",
+      "name": "tier",
+      "typeRef": null
+    },
+    {
+      "id": "InputData_region",
+      "name": "region",
+      "typeRef": null
+    },
+    {
+      "id": "InputData_score",
+      "name": "score",
+      "typeRef": null
+    },
+    {
+      "id": "InputData_code",
+      "name": "code",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Index Correctness",
+  "namespace": "https://evilengine.dev/dmn/test/index-correctness"
+}

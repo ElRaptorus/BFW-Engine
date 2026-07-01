@@ -1,0 +1,56 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_final_chain",
+        "text": "AddTriple + 1000",
+        "typeRef": null
+      },
+      "id": "Decision_final_chain",
+      "informationRequirements": [
+        {
+          "id": "ir_a_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        },
+        {
+          "id": "ir_a_add_triple",
+          "requiredDecisionId": "https://example.com/dmn/chain-b#Decision_add_triple",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "FinalChain",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_final_chain",
+        "name": "FinalChain",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_chain_a",
+  "imports": [
+    {
+      "id": "Import_b",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://example.com/dmn/chain-b"
+    }
+  ],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Chain Model A (root)",
+  "namespace": "https://example.com/dmn/chain-a"
+}

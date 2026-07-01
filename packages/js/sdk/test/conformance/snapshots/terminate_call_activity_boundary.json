@@ -1,0 +1,145 @@
+{
+  "definitionsId": "Definitions_TerminateCallBoundary",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["TimerBE_1"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Call Child",
+          "outgoing": ["Flow_Normal"],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "TerminateChildProcess",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerBE_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_BE"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "CA_1",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT2S"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_Normal"],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Terminate",
+          "incoming": ["Flow_BE"],
+          "multiInstance": null,
+          "name": "Terminate",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TerminateCallBoundary",
+      "isExecutable": true,
+      "lanes": [],
+      "linterScores": [],
+      "name": "Terminate Call Activity Boundary",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "CA_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Normal",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerBE_1",
+          "targetRef": "End_Terminate"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

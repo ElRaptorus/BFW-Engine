@@ -1,0 +1,308 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "aggregation": null,
+          "hitPolicy": "first",
+          "id": "dt_age_discount",
+          "inputs": [
+            {
+              "compiledInputValuesRef": null,
+              "id": "Input_age",
+              "inputExpression": "age",
+              "inputValues": null,
+              "label": "Age",
+              "typeRef": "number"
+            }
+          ],
+          "outputs": [
+            {
+              "compiledDefaultRef": null,
+              "defaultOutputValue": null,
+              "id": "Output_age_disc",
+              "label": "Discount",
+              "name": "discount",
+              "outputValues": null,
+              "typeRef": "number"
+            }
+          ],
+          "preferredOrientation": "Rule-as-Row",
+          "ruleIndex": null,
+          "rules": [
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_senior",
+              "inputEntries": [
+                {
+                  "id": "IE_senior",
+                  "text": "> 65"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_senior",
+                  "text": "15"
+                }
+              ]
+            },
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_youth",
+              "inputEntries": [
+                {
+                  "id": "IE_youth",
+                  "text": "< 18"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_youth",
+                  "text": "10"
+                }
+              ]
+            },
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_default",
+              "inputEntries": [
+                {
+                  "id": "IE_default",
+                  "text": "-"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_default",
+                  "text": "0"
+                }
+              ]
+            }
+          ]
+        },
+        "formalParameters": [
+          {
+            "id": "FP_age",
+            "name": "age",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_age_discount",
+        "type": "feel"
+      },
+      "id": "BKM_age_discount",
+      "knowledgeRequirements": [],
+      "name": "Age Discount",
+      "variable": {
+        "id": "var_bkm_age",
+        "name": "ageDiscount",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_vol",
+          "text": "if total > 500 then 10 else if total > 100 then 5 else 0",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_total",
+            "name": "total",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_vol_discount",
+        "type": "feel"
+      },
+      "id": "BKM_volume_discount",
+      "knowledgeRequirements": [],
+      "name": "Volume Discount",
+      "variable": {
+        "id": "var_bkm_vol",
+        "name": "volumeDiscount",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_dec_policy",
+          "requiredAuthorityId": "KS_company_policy",
+          "requiredDecisionId": null,
+          "requiredInputId": null
+        }
+      ],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_age_disc",
+        "text": "BKM_age_discount(customer.age)",
+        "typeRef": null
+      },
+      "id": "Decision_age_discount",
+      "informationRequirements": [
+        {
+          "id": "ir_customer",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_customer"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_age",
+          "requiredKnowledgeId": "BKM_age_discount"
+        }
+      ],
+      "name": "Customer Age Discount",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_age_disc",
+        "name": "customerAgeDiscount",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_vol_disc",
+        "text": "BKM_volume_discount(orderTotal)",
+        "typeRef": null
+      },
+      "id": "Decision_volume_discount",
+      "informationRequirements": [
+        {
+          "id": "ir_order_total",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_order_total"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_vol",
+          "requiredKnowledgeId": "BKM_volume_discount"
+        }
+      ],
+      "name": "Order Volume Discount",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_vol_disc",
+        "name": "orderVolumeDiscount",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_final",
+        "text": "customerAgeDiscount + orderVolumeDiscount",
+        "typeRef": null
+      },
+      "id": "Decision_final_discount",
+      "informationRequirements": [
+        {
+          "id": "ir_age_disc",
+          "requiredDecisionId": "Decision_age_discount",
+          "requiredInputId": null
+        },
+        {
+          "id": "ir_vol_disc",
+          "requiredDecisionId": "Decision_volume_discount",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Final Discount",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_final",
+        "name": "finalDiscount",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_drd",
+  "imports": [
+    {
+      "id": "Import_ext",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://example.com/dmn/external"
+    }
+  ],
+  "inputData": [
+    {
+      "id": "InputData_customer",
+      "name": "customer",
+      "typeRef": "tCustomer"
+    },
+    {
+      "id": "InputData_order_total",
+      "name": "orderTotal",
+      "typeRef": "tAmount"
+    }
+  ],
+  "itemDefinitions": [
+    {
+      "allowedValues": ">= 0",
+      "id": "ItemDef_Amount",
+      "isCollection": false,
+      "itemComponents": [],
+      "name": "tAmount",
+      "typeRef": "number"
+    },
+    {
+      "allowedValues": null,
+      "id": "ItemDef_Customer",
+      "isCollection": false,
+      "itemComponents": [
+        {
+          "allowedValues": null,
+          "id": "ItemComp_Name",
+          "isCollection": false,
+          "itemComponents": [],
+          "name": "name",
+          "typeRef": "string"
+        },
+        {
+          "allowedValues": null,
+          "id": "ItemComp_Age",
+          "isCollection": false,
+          "itemComponents": [],
+          "name": "age",
+          "typeRef": "number"
+        }
+      ],
+      "name": "tCustomer",
+      "typeRef": null
+    }
+  ],
+  "knowledgeSources": [
+    {
+      "authorityRequirements": [
+        {
+          "id": "ar_ks_input",
+          "requiredAuthorityId": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_customer"
+        }
+      ],
+      "id": "KS_company_policy",
+      "name": "Company Discount Policy",
+      "type": "Policy"
+    }
+  ],
+  "name": "Comprehensive DRD",
+  "namespace": "https://example.com/dmn/comprehensive"
+}

@@ -1,0 +1,161 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_1"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Do Work",
+          "outgoing": [],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": "identity.groups",
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": {
+              "fields": []
+            },
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_1",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "signalRef": "Sig_cancel"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_normal",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_cancelled",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Cancelled End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "SignalBoundaryInterrupting",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "UserTask_1", "Boundary_1", "End_normal", "End_cancelled"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Signal Boundary Interrupting",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "UserTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_1",
+          "targetRef": "End_normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_1",
+          "targetRef": "End_cancelled"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_cancel",
+      "name": "cancel-signal"
+    }
+  ]
+}

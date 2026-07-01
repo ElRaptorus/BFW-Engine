@@ -1,0 +1,126 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_base",
+          "text": "n * 10",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_n_base",
+            "name": "n",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_base",
+        "type": "feel"
+      },
+      "id": "BKM_base",
+      "knowledgeRequirements": [],
+      "name": "Base Logic",
+      "variable": {
+        "id": "var_bkm_base",
+        "name": "baseResult",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_derived",
+          "text": "baseResult + m",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_n_derived",
+            "name": "n",
+            "typeRef": "number"
+          },
+          {
+            "id": "FP_m",
+            "name": "m",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_derived",
+        "type": "feel"
+      },
+      "id": "BKM_derived",
+      "knowledgeRequirements": [
+        {
+          "id": "kr_base",
+          "requiredKnowledgeId": "BKM_base"
+        }
+      ],
+      "name": "Derived Logic",
+      "variable": {
+        "id": "var_bkm_derived",
+        "name": "derivedResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_main",
+        "text": "derivedResult + 1",
+        "typeRef": "number"
+      },
+      "id": "Decision_main",
+      "informationRequirements": [
+        {
+          "id": "ir_n",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_n"
+        },
+        {
+          "id": "ir_m",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_m"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_derived",
+          "requiredKnowledgeId": "BKM_derived"
+        }
+      ],
+      "name": "Main Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_main",
+        "name": "finalResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_bkm_chain",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_n",
+      "name": "n",
+      "typeRef": "number"
+    },
+    {
+      "id": "InputData_m",
+      "name": "m",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM Chain",
+  "namespace": "https://example.com/dmn/bkm-chain"
+}

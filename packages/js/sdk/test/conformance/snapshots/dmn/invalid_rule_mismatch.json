@@ -1,0 +1,77 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "dt_mismatch",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_1",
+            "inputExpression": "age",
+            "inputValues": null,
+            "label": "Age",
+            "typeRef": "number"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_2",
+            "inputExpression": "score",
+            "inputValues": null,
+            "label": "Score",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_1",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_1",
+            "inputEntries": [
+              {
+                "id": "IE_1",
+                "text": "> 18"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_1",
+                "text": "\"eligible\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_mismatch",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Mismatched Rules",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_mismatch",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Rule Mismatch",
+  "namespace": "https://example.com/dmn/mismatch"
+}

@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+# Cancel any in-progress CI run for the same branch when a new commit lands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_test:
+    name: Build and Test Application
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: evil_engine
+          POSTGRES_PASSWORD: evil_engine
+          POSTGRES_DB: evil_engine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U evil_engine"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Erlang / Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.5"
+          elixir-version: "1.19.5"
+
+      - name: Cache Elixir deps
+        uses: actions/cache@v5
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-test-${{ hashFiles('**/mix.lock') }}
+
+      - name: Cache Elixir _build
+        uses: actions/cache@v5
+        with:
+          path: _build
+          key: ${{ runner.os }}-build-test-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('apps/**/lib/**/*.ex', 'apps/**/lib/**/*.exs', 'config/**/*.exs', 'mix.exs') }}
+          restore-keys: |
+            ${{ runner.os }}-build-test-${{ hashFiles('**/mix.lock') }}-
+
+      - name: Install Dependencies
+        run: mix deps.get --only test
+
+      - name: Dependency security audit
+        run: mix deps.audit
+
+      - name: Compile Dependencies
+        run: mix deps.compile
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Format check
+        run: mix format --check-formatted
+
+      - name: Credo
+        run: mix credo --strict
+
+      - name: Dialyzer
+        run: mix dialyzer --format github
+
+      - name: Sobelow (web security scan)
+        run: mix sobelow
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U evil_engine; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Postgres never became ready"
+          exit 1
+
+      - name: Run tests with coverage
+        run: mix coveralls.github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run full-stack integration tests
+        run: mix run test/integration_runner.exs
+
+  docker:
+    name: Docker Build & Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t engine:ci .
+
+      - name: Start Postgres
+        run: |
+          docker network create ci-net
+
+          docker run -d \
+            --name postgres \
+            --network ci-net \
+            -e POSTGRES_USER=evil_engine \
+            -e POSTGRES_PASSWORD=evil_engine \
+            -e POSTGRES_DB=evil_engine_ci \
+            postgres:16-alpine
+
+          for i in $(seq 1 15); do
+            if docker exec postgres pg_isready -U evil_engine > /dev/null 2>&1; then
+              echo "Postgres ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Start application container
+        run: |
+          docker run -d \
+            --name engine \
+            --network ci-net \
+            -p 4000:4000 \
+            -e EVIL_DATABASE_HOST=postgres \
+            -e EVIL_DATABASE_PORT=5432 \
+            -e EVIL_DATABASE_NAME=evil_engine_ci \
+            -e EVIL_DATABASE_USER=evil_engine \
+            -e EVIL_DATABASE_PASS=evil_engine \
+            -e EVIL_HTTP_PORT=4000 \
+            -e EVIL_HTTP_SECRET_KEY_BASE=ci-only-secret-key-base-must-be-at-least-64-characters-long-for-phoenix \
+            -e EVIL_AUTH_DISABLED=true \
+            -e EVIL_ENGINE_ID=evil-engine-ci \
+            -e EVIL_ENGINE_NAME="Evil Engine (CI)" \
+            engine:ci
+
+      - name: Verify health endpoint
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4000/health | grep -q '"status"'; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+          echo "=== /health ==="
+          curl -sf http://localhost:4000/health || true
+          echo ""
+          echo "=== / ==="
+          curl -sf http://localhost:4000/ || true
+          echo ""
+
+          # Final assertion
+          curl -sf http://localhost:4000/health | grep -q '"status":"ok"' \
+            && echo "Docker smoke test passed" \
+            || { echo "Docker smoke test FAILED — container logs:"; docker logs engine; exit 1; }
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f engine postgres 2>/dev/null || true
+          docker network rm ci-net 2>/dev/null || true

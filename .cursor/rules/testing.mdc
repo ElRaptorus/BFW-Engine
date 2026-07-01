@@ -1,0 +1,124 @@
+---
+description: Test conventions, infrastructure, and directory layout for Evil Engine
+globs: "**/test/**/*.exs"
+alwaysApply: false
+---
+
+# Testing Conventions
+
+Reference architecture doc: [`docs/architecture/testing.md`](../../docs/architecture/testing.md)
+
+## Infrastructure
+
+- **Real Postgres only** — Ecto sandbox against `docker-compose` Postgres. No mocks
+  below the Ash action layer; every test commits/rolls back against the real schema.
+- **Full Phoenix endpoint** — HTTP, GraphQL, and WebSocket smoke tests use the
+  real Phoenix endpoint via ConnCase.
+- **PI-nonce isolation** — every test operates on its own PI so suites run in parallel.
+
+## Directory layout (per umbrella app)
+
+```
+apps/<app>/test/
+├── test_helper.exs
+├── support/
+│   ├── data_case.ex            # Ecto sandbox CaseTemplate
+│   ├── conn_case.ex            # Phoenix endpoint CaseTemplate
+│   ├── engine_case.ex          # Full-engine CaseTemplate (starts GenServers)
+│   ├── auth_helper.ex          # JWT minting for test identities
+│   ├── fixture_provider.ex     # Centralized fixture factory
+│   └── process_interaction.ex  # PI start, task completion, message trigger
+├── <domain>_test.exs           # Unit tests
+└── integration/
+    └── *_test.exs              # Integration tests
+```
+
+### Shared cross-app support
+
+`apps/engine_sdk/test/support/` holds fixtures reusable across apps:
+BPMN files, YAML specs, test plugins.
+
+## CaseTemplates — when to use which
+
+| Template | Use when… |
+|----------|-----------|
+| `DataCase` | Testing Ash resources / Ecto queries in isolation |
+| `ConnCase` | Testing REST / GraphQL endpoints, task completions |
+| `EngineCase` | Full engine round-trip: deploy BPMN → start PI → assert DB state |
+
+## Writing a new test file
+
+1. Pick the appropriate CaseTemplate (see table above).
+2. Group related assertions inside `describe` blocks.
+3. Cover both happy path **and** error path.
+4. For integration tests, use the `EngineCase` template and exercise the full
+   deploy → start → assert lifecycle.
+
+## BPMN execution integration tests must use the HTTP API
+
+Umbrella-level integration tests that execute BPMN processes (everything
+under `test/integration/execution/`) **MUST** go through the HTTP API:
+
+- **Deploy** the BPMN via `POST /processes` (authenticated).
+- **Start** the PI via `POST /processes/{model_id}/start` (authenticated).
+- **Interact** with User Tasks / Manual Tasks via their REST endpoints.
+- **Assert** DB state and events as before.
+
+This ensures a fully qualified round-trip through the catalog, version
+resolution, ModelCache, and execution runtime — not just the runtime
+in isolation.
+
+The `ExecutionCase.start_process()` helper that calls
+`EvilEngine.Execution.start_process_instance/1` directly remains
+available for **per-app unit tests** in `core_execution` that
+intentionally test the runtime without the HTTP layer.
+
+When adding a new BPMN element type (gateway, event, task variant) in
+a future phase, its integration test **must** follow this same pattern:
+deploy via HTTP, start via HTTP, assert end-to-end.
+
+## Fixture rules
+
+- **Always use FixtureProvider** — never inline fixture data in test bodies.
+- BPMN fixtures live in `test/fixtures/` as `.bpmn` + `.yaml` pairs.
+- Use `FixtureProvider.mint_payload/1` for sized payloads and
+  `FixtureProvider.oversize_payload/0` for cap-rejection tests.
+- Test plugin registration goes through `FixtureProvider.register_test_plugin/1`.
+
+## Style rules
+
+- **Descriptive test names**: `"rejects oversize payload with :payload_too_large"`,
+  not `"test 1"`.
+- **No `Process.sleep`** — poll via GraphQL subscription or Ecto query with retry.
+- **Tagged assertions** — use ExUnit tags (`:integration`, `:slow`) for selective runs.
+- **`assert` / `refute`** — no `== true` / `== false` comparisons.
+- **No hardcoded UUIDs** for auto-generated IDs — let the test infrastructure
+  assign them, then pattern-match or capture.
+
+## Naming conventions
+
+| Test type | Module name pattern |
+|-----------|-------------------|
+| Unit | `EvilEngine.<Domain>.<Module>Test` |
+| Integration | `EvilEngine.<Domain>.Integration.<Feature>Test` |
+
+## Test types — when to use which
+
+| Type | Purpose | Speed |
+|------|---------|-------|
+| **Unit** | Per-handler state transitions, FEEL expressions, Ash actions | Fast |
+| **Property-based** | `stream_data` / Concuerror: random BPMN subsets, race-freedom proofs | Medium |
+| **Conformance** | BPMN corpus (`.bpmn` + YAML spec): normative BPMN 2.0 behavior | Medium |
+| **Integration** | Real BPMN end-to-end through all layers, DB-level assertions | Slow |
+| **Load** | k6/wrk: 10k concurrent PIs, latency, zero-downtime | Very slow |
+
+## CI enforcement
+
+Every PR must pass (in order):
+
+1. `mix format --check-formatted`
+2. `mix credo --strict`
+3. `mix dialyzer`
+4. `mix coveralls.html --umbrella` — two-level enforcement: per-app thresholds in each app's `mix.exs` + global aggregate in `coveralls.json` (see `ImplementationPhases.md` § Test Coverage Milestones)
+5. `mix sobelow`
+6. `mix deps.audit`

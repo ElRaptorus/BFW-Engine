@@ -1,0 +1,161 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_A",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start A",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_B",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start B",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Path A Task",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_B",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Path B Task",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_A",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End A",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_B",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End B",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "MultiStartEvents",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_A", "Start_B", "Task_A", "Task_B", "End_A", "End_B"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Multi Start Events",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_A1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_A",
+          "targetRef": "Task_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A",
+          "targetRef": "End_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_B",
+          "targetRef": "Task_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_B",
+          "targetRef": "End_B"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

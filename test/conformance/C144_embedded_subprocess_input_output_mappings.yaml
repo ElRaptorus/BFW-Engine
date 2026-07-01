@@ -1,0 +1,11 @@
+name: "C144: Subprocess input/output mappings transform payload"
+fixture: "embedded_subprocess_input_output_mappings.bpmn"
+process_model_id: "EmbeddedSubprocessInputOutputMappings"
+tier: auto
+start:
+  payload:
+    order_id: "ORD-99"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

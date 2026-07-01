@@ -1,0 +1,12 @@
+name: "C206: Inclusive Gateway — nested parallel split/join inside inclusive path"
+fixture: "inclusive_gateway_nested_parallel.bpmn"
+process_model_id: "InclusiveGatewayNestedParallel"
+tier: auto
+start:
+  payload:
+    a: true
+    b: true
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

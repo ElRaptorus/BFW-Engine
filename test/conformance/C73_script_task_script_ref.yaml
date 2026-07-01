@@ -1,0 +1,12 @@
+name: "C73: Script Task dispatched via evil:scriptRef plugin"
+fixture: "script_task_named_ref.bpmn"
+process_model_id: "ScriptTaskNamedRef"
+tier: interactive
+start:
+  payload:
+    data: "test-input"
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

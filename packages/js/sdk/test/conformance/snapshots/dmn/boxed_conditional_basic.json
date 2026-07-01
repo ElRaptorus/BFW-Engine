@@ -1,0 +1,59 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "elseExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "\"low\"",
+          "typeRef": null
+        },
+        "id": "cond_1",
+        "ifExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "score > 100",
+          "typeRef": null
+        },
+        "thenExpression": {
+          "expressionLanguage": null,
+          "id": null,
+          "text": "\"high\"",
+          "typeRef": null
+        }
+      },
+      "id": "Decision_conditional",
+      "informationRequirements": [
+        {
+          "id": "ir_score",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_score"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Conditional Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_cond",
+        "name": "conditionalResult",
+        "typeRef": "string"
+      }
+    }
+  ],
+  "id": "definitions_conditional",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_score",
+      "name": "score",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Conditional Test",
+  "namespace": "https://example.com/dmn/conditional"
+}

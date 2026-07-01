@@ -1,0 +1,44 @@
+---
+description: Project context and documentation entry point for ThomasTheDaemonEngine
+alwaysApply: true
+---
+
+# ThomasTheDaemonEngine Project Context
+
+ThomasTheDaemonEngine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 16+. It is structured as an Elixir umbrella project following DDD domain boundaries with a strict dependency direction: Core never calls API, Peripheral never blocks Core.
+
+## Key Invariants
+
+- **`EvilEngine.Api`** (Ash Code Interface) is the single shared service layer — every wire adapter and every plugin converges here.
+- **Core domains** (`core_types`, `core_execution`, `core_events`, `core_timers`, `core_expressions`, `core_bpmn`) never import from API or Peripheral domains.
+- **Plugins** (in-BEAM and gRPC sidecar) call `EvilEngine.Api.*` directly — no HTTP round-trip.
+- **EngineEventBus** is the only channel through which observability, audit logging, and external integrations see engine events.
+
+## Umbrella App Layout
+
+| App | Domain | Purpose |
+|-----|--------|---------|
+| `core_types` | Core | Behaviour-free structs, shared types |
+| `core_execution` | Core | PI/FNI runtime, resume, payload cap |
+| `core_events` | Core | EngineEventBus, pending sweeper |
+| `core_timers` | Core | ISO 8601 scheduler |
+| `core_expressions` | Core | FEEL evaluator |
+| `core_bpmn` | Core | XML parser, ModelCache, linter gate |
+| `peripheral_persistence` | Peripheral | Ash + AshPostgres, RetentionRunner |
+| `peripheral_telemetry` | Peripheral | :telemetry counters, /stats |
+| `peripheral_plugins` | Peripheral | Plugin registry, gRPC bridge |
+| `api_auth` | API | JWT validation |
+| `api_facade` | API | `EvilEngine.Api` service-layer facade |
+| `api_web` | API | REST + GraphQL + WebSocket + Admin |
+
+## Documentation (read on demand, not upfront)
+
+When working on a specific subsystem, consult the relevant docs as needed — do not read all of them before every change:
+
+- `docs/architecture/index.md` — Detailed architecture topics (authorization, plugins, data model, event system, API, routing, expressions, observability, packaging, common pitfalls)
+- `docs/Architecture.md` — High-level Mermaid diagram + layer-by-layer reading guide
+- `docs/ImplementationPlan.md` — Decision log (§0), runtime specs, testing strategy
+- `docs/ImplementationPhases.md` — Per-phase task lists and exit criteria
+- `docs/Glossary.md` — Every term used in this project
+- `docs/Schema.md` — Database ER diagram
+- `docs/Concept.md` — Original product concept

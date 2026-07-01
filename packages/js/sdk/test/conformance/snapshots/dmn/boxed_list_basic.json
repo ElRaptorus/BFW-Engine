@@ -1,0 +1,49 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "elements": [
+          {
+            "expressionLanguage": null,
+            "id": null,
+            "text": "10",
+            "typeRef": null
+          },
+          {
+            "expressionLanguage": null,
+            "id": null,
+            "text": "20",
+            "typeRef": null
+          },
+          {
+            "expressionLanguage": null,
+            "id": null,
+            "text": "30",
+            "typeRef": null
+          }
+        ],
+        "id": "list_1"
+      },
+      "id": "Decision_list",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "List Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_list",
+        "name": "listResult",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_list",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Boxed List Test",
+  "namespace": "https://example.com/dmn/boxed-list"
+}

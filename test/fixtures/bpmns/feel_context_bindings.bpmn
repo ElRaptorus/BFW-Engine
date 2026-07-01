@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_FeelContextBindings" name="FEEL Context Bindings Test" processRef="FeelContextBindings" />
+  </bpmn:collaboration>
+  <bpmn:process id="FeelContextBindings" name="FEEL Context Bindings Test" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Script_CaptureAll</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Script_VerifyContext</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start"/>
+
+    <bpmn:scriptTask id="Script_CaptureAll" name="Capture All Bindings" scriptFormat="feel">
+      <bpmn:script>{
+  "captured_token_input": token.input,
+  "captured_this_id": this.id,
+  "captured_this_type": this.type,
+  "captured_this_name": this.name,
+  "captured_context_tenant": context.tenant,
+  "captured_context_env": context.env,
+  "captured_process_id": process.id,
+  "captured_process_name": process.name,
+  "captured_process_version": process.version,
+  "captured_pi_id": processInstance.id,
+  "captured_pi_started_by": processInstance.startedBy,
+  "captured_identity_id": identity.id,
+  "captured_identity_roles": identity.roles
+}</bpmn:script>
+    </bpmn:scriptTask>
+
+    <bpmn:scriptTask id="Script_VerifyContext" name="Verify Context Immutability" scriptFormat="feel">
+      <bpmn:script>{
+  "context_still_has_tenant": context.tenant,
+  "context_still_has_env": context.env,
+  "token_changed": token.captured_token_input
+}</bpmn:script>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="End"/>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Script_CaptureAll"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Script_CaptureAll" targetRef="Script_VerifyContext"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Script_VerifyContext" targetRef="End_1"/>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_FeelContextBindings" bpmnElement="Participant_FeelContextBindings" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="586" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="556" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Script_CaptureAll" bpmnElement="Script_CaptureAll">
+        <dc:Bounds x="260" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Script_VerifyContext" bpmnElement="Script_VerifyContext">
+        <dc:Bounds x="420" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="582" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="260" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="200" />
+        <di:waypoint x="420" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="520" y="200" />
+        <di:waypoint x="582" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

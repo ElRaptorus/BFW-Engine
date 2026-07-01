@@ -1,0 +1,8 @@
+name: "C108: resultContract violation on message catch → FNI fatal"
+fixture: "message_catch_contract_violation.bpmn"
+process_model_id: "MessageCatchContractViolation"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "fatal"

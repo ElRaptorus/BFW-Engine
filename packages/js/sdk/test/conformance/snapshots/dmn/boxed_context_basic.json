@@ -1,0 +1,66 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "contextEntries": [
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": "le_x",
+              "text": "2 + 3",
+              "typeRef": null
+            },
+            "variable": {
+              "id": null,
+              "name": "x",
+              "typeRef": "number"
+            }
+          },
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": "le_y",
+              "text": "x * 2",
+              "typeRef": null
+            },
+            "variable": {
+              "id": null,
+              "name": "y",
+              "typeRef": "number"
+            }
+          },
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": "le_result",
+              "text": "y + 1",
+              "typeRef": null
+            },
+            "variable": null
+          }
+        ],
+        "id": "ctx_1"
+      },
+      "id": "Decision_context",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Context Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_ctx",
+        "name": "contextResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_context",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Boxed Context Test",
+  "namespace": "https://example.com/dmn/boxed-context"
+}

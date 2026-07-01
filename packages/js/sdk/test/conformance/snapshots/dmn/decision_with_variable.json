@@ -1,0 +1,102 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_tax",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_income",
+            "inputExpression": "annualIncome",
+            "inputValues": null,
+            "label": "Annual Income",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_rate",
+            "label": "Tax Rate",
+            "name": "taxRate",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_1",
+            "inputEntries": [
+              {
+                "id": "IE_1",
+                "text": "<= 30000"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_1",
+                "text": "0.15"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_2",
+            "inputEntries": [
+              {
+                "id": "IE_2",
+                "text": "> 30000"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_2",
+                "text": "0.25"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_tax",
+      "informationRequirements": [
+        {
+          "id": "ir_income",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_income"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Tax Rate",
+      "outputLabel": "Legacy Label",
+      "variable": {
+        "id": "var_tax",
+        "name": "taxRate",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_var",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_income",
+      "name": "annualIncome",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Decision Variable Test",
+  "namespace": "https://example.com/dmn/var"
+}

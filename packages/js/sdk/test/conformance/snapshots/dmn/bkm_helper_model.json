@@ -1,0 +1,41 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_tax",
+          "text": "if amount > 10000 then 0.20 else 0.10",
+          "typeRef": null
+        },
+        "formalParameters": [
+          {
+            "id": "FP_amount",
+            "name": "amount",
+            "typeRef": "number"
+          }
+        ],
+        "id": "FL_tax",
+        "type": "feel"
+      },
+      "id": "BKM_tax_rate",
+      "knowledgeRequirements": [],
+      "name": "Tax Rate Calculator",
+      "variable": {
+        "id": "var_bkm_tax",
+        "name": "Tax Rate Calculator",
+        "typeRef": null
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [],
+  "id": "Definitions_bkm_helper",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM Helper Model",
+  "namespace": "https://evilengine.dev/test/bkm-helper"
+}

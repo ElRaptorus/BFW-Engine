@@ -1,0 +1,10 @@
+name: "C80: Timer Catch Event — duration PT0S fires immediately"
+fixture: "timer_catch_duration.bpmn"
+process_model_id: "TimerCatchDuration"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -1,0 +1,182 @@
+{
+  "definitionsId": "Definitions_RetryCheckpointDataObjects",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DO_counter",
+          "dataState": null,
+          "id": "DOR_counter_A",
+          "name": null
+        },
+        {
+          "dataObjectRef": "DO_counter",
+          "dataState": null,
+          "id": "DOR_counter_B",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DO_counter",
+          "itemSubjectRef": null,
+          "name": "counter",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_A",
+              "sourceRef": null,
+              "targetRef": "DOR_counter_A",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_A",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Write Counter Step 1",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"step\": 1, \"label\": \"first\"}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_B",
+              "sourceRef": null,
+              "targetRef": "DOR_counter_B",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_B",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Write Counter Step 2",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{\"step\": 2, \"label\": \"second\"}",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_DeadEnd",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Dead End",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Unreachable",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Unreachable End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryCheckpointDataObjects",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ScriptTask_A", "ScriptTask_B", "Task_DeadEnd", "End_Unreachable"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Retry Checkpoint Data Objects",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ScriptTask_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_A",
+          "targetRef": "ScriptTask_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_B",
+          "targetRef": "Task_DeadEnd"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

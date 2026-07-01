@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_ks" name="Knowledge Source Test"
+  targetNamespace="https://example.com/dmn/ks">
+
+  <inputData id="InputData_amount" name="claimAmount">
+    <variable name="claimAmount" typeRef="number"/>
+  </inputData>
+
+  <knowledgeSource id="KS_regulation" name="Insurance Regulation" type="Policy Document">
+    <authorityRequirement id="ar_input">
+      <requiredInput href="#InputData_amount"/>
+    </authorityRequirement>
+  </knowledgeSource>
+
+  <knowledgeSource id="KS_actuary" name="Actuarial Standards" type="External Authority">
+    <authorityRequirement id="ar_authority">
+      <requiredAuthority href="#KS_regulation"/>
+    </authorityRequirement>
+  </knowledgeSource>
+
+  <decision id="Decision_claim" name="Claim Decision">
+    <authorityRequirement id="ar_decision_ks">
+      <requiredAuthority href="#KS_actuary"/>
+    </authorityRequirement>
+    <informationRequirement id="ir_amount">
+      <requiredInput href="#InputData_amount"/>
+    </informationRequirement>
+    <literalExpression id="LE_claim">
+      <text>if claimAmount > 1000 then "review" else "approve"</text>
+    </literalExpression>
+  </decision>
+</definitions>

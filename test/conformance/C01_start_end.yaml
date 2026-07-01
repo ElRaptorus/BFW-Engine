@@ -1,0 +1,11 @@
+name: "C01: Minimal Start-End"
+fixture: "linear_start_end.bpmn"
+process_model_id: "LinearStartEnd"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 2
+  final_tokens:
+    - endEventId: "End_1"

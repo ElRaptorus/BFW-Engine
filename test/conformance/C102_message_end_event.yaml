@@ -1,0 +1,11 @@
+name: "C102: Message end event — publish then PI finishes"
+fixture: "message_end_event.bpmn"
+process_model_id: "MessageEndEvent"
+tier: auto
+start:
+  payload:
+    status: "complete"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

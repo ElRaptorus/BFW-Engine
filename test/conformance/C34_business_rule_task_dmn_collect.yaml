@@ -1,0 +1,14 @@
+name: "C34: Business rule task in DMN mode — COLLECT + SUM hit policy"
+fixture: "business_rule_task_dmn_collect.bpmn"
+dmn_fixtures:
+  - "collect_with_sum.dmn"
+process_model_id: "BrtDmnCollectProcess"
+tier: auto
+start:
+  payload:
+    category: "A"
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

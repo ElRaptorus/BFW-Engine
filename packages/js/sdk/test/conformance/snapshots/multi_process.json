@@ -1,0 +1,339 @@
+{
+  "definitionsId": "Definitions_Multi",
+  "errors": [
+    {
+      "errorCode": "ERR_TIMEOUT",
+      "id": "Err_1",
+      "name": "Timeout"
+    }
+  ],
+  "escalations": [
+    {
+      "escalationCode": "ESC_REVIEW",
+      "id": "Esc_1",
+      "name": "ManagerReview"
+    }
+  ],
+  "messages": [
+    {
+      "id": "Msg_1",
+      "name": "OrderReceived"
+    }
+  ],
+  "processes": [
+    {
+      "correlationKey": "order.customerId",
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DO_1",
+          "dataState": null,
+          "id": "DOR_1",
+          "name": "Order"
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DO_1",
+          "itemSubjectRef": null,
+          "name": "OrderData",
+          "valueContract": {
+            "required": ["status"],
+            "type": "object"
+          }
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Main",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Order Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "eventMapping": null,
+              "messageRef": "Msg_1",
+              "payloadExpression": null
+            },
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Review Order",
+          "outgoing": [],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": "clerk_role",
+            "dueDate": "2026-12-31T23:59:59Z",
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": 5,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [
+            {
+              "id": "DIA_1",
+              "sourceRef": "DOR_1",
+              "targetRef": null,
+              "valueExpression": null
+            }
+          ],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_1",
+              "sourceRef": null,
+              "targetRef": "DOR_1",
+              "valueExpression": "token.payment_result"
+            }
+          ],
+          "documentation": null,
+          "id": "Task_2",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Process Payment",
+          "outgoing": [],
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "http",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Script_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Calculate Tax",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [
+              {
+                "source": "token.raw",
+                "target": "amount"
+              }
+            ],
+            "outMappings": [
+              {
+                "source": "token.result",
+                "target": "taxed"
+              }
+            ],
+            "payloadContract": {
+              "required": ["amount"],
+              "type": "object"
+            },
+            "resultContract": {
+              "type": "object"
+            },
+            "script": "token.amount * 1.19",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Script_2",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Custom Validation",
+          "outgoing": [],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": null,
+            "scriptFormat": null,
+            "scriptRef": "my_validator"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Main",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_1"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_Main",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Task_1"],
+          "id": "Lane_1",
+          "name": "Clerk"
+        }
+      ],
+      "linterScores": [],
+      "name": "Main Process",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Main",
+          "targetRef": "Task_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_1",
+          "targetRef": "Task_2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_2",
+          "targetRef": "Script_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Script_1",
+          "targetRef": "Script_2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Script_2",
+          "targetRef": "End_Main"
+        }
+      ],
+      "version": "2.0.0"
+    },
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Helper",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Helper",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_Helper",
+      "isExecutable": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_Helper", "End_Helper"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Helper",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_H1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Helper",
+          "targetRef": "End_Helper"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_1",
+      "name": "AllDone"
+    }
+  ]
+}

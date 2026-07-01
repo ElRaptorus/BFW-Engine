@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_DataObjectMultiMixed" name="Data Object Multi Mixed Access" processRef="DataObjectMultiMixed" />
+  </bpmn:collaboration>
+  <bpmn:process id="DataObjectMultiMixed" name="Data Object Multi Mixed Access" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Init</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Compute</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Finalize</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="DO_Config" name="Config"/>
+    <bpmn:dataObject id="DO_Result" name="Result"/>
+    <bpmn:dataObjectReference id="DOR_Config" dataObjectRef="DO_Config"/>
+    <bpmn:dataObjectReference id="DOR_Result" dataObjectRef="DO_Result"/>
+
+    <bpmn:startEvent id="Start_1" name="Start"/>
+
+    <!-- Task 1: Write to Config DO, preserve amount in output -->
+    <bpmn:scriptTask id="ScriptTask_Init" name="Init Config" scriptFormat="feel">
+      <bpmn:script>{"multiplier": 5, "label": "test", "amount": token.amount}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_Config">
+        <bpmn:targetRef>DOR_Config</bpmn:targetRef>
+        <bpmn:transformation>{"multiplier": 5, "label": "test"}</bpmn:transformation>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <!-- Task 2: Write to Result DO (uses expression) -->
+    <bpmn:scriptTask id="ScriptTask_Compute" name="Compute" scriptFormat="feel">
+      <bpmn:script>{"base": token.amount, "computed": token.amount * dataObjects.DO_Config.multiplier}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_Result">
+        <bpmn:targetRef>DOR_Result</bpmn:targetRef>
+        <bpmn:transformation>token.computed</bpmn:transformation>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <!-- Task 3: Read from both DOs (via FEEL), write to Result again -->
+    <bpmn:scriptTask id="ScriptTask_Finalize" name="Finalize" scriptFormat="feel">
+      <bpmn:script>{"final": dataObjects.DO_Result + 100, "config_label": dataObjects.DO_Config.label}</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_ResultFinal">
+        <bpmn:targetRef>DOR_Result</bpmn:targetRef>
+        <bpmn:transformation>token.final</bpmn:transformation>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="End"/>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ScriptTask_Init"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_Init" targetRef="ScriptTask_Compute"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="ScriptTask_Compute" targetRef="ScriptTask_Finalize"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="ScriptTask_Finalize" targetRef="End_1"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_DataObjectMultiMixed" bpmnElement="Participant_DataObjectMultiMixed" isHorizontal="true">
+        <dc:Bounds x="82" y="130" width="806" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="130" width="776" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Init" bpmnElement="ScriptTask_Init">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Compute" bpmnElement="ScriptTask_Compute">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Finalize" bpmnElement="ScriptTask_Finalize">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="802" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_Config" bpmnElement="DOR_Config">
+        <dc:Bounds x="162" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_Result" bpmnElement="DOR_Result">
+        <dc:Bounds x="282" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="802" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

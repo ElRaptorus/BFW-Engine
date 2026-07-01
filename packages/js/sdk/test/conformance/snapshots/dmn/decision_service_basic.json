@@ -1,0 +1,80 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [
+    {
+      "encapsulatedDecisions": ["Decision_risk"],
+      "id": "DS_eligibility",
+      "inputData": ["InputData_age", "InputData_income"],
+      "inputDecisions": [],
+      "name": "Eligibility Service",
+      "outputDecisions": ["Decision_eligibility"]
+    }
+  ],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": null,
+        "text": "if Age > 50 then \"high\" else \"low\"",
+        "typeRef": null
+      },
+      "id": "Decision_risk",
+      "informationRequirements": [
+        {
+          "id": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_age"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Risk Score",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": null,
+        "text": "if Risk Score = \"low\" and Income > 30000 then \"approved\" else \"denied\"",
+        "typeRef": null
+      },
+      "id": "Decision_eligibility",
+      "informationRequirements": [
+        {
+          "id": null,
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_income"
+        },
+        {
+          "id": null,
+          "requiredDecisionId": "Decision_risk",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Eligibility",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "Definitions_ds_basic",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_age",
+      "name": "Age",
+      "typeRef": null
+    },
+    {
+      "id": "InputData_income",
+      "name": "Income",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Decision Service Basic",
+  "namespace": "https://evilengine.dev/test/decision-service-basic"
+}

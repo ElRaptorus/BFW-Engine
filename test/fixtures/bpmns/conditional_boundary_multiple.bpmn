@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_ConditionalBoundaryMultiple">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_ConditionalBoundaryMultiple" name="Conditional Boundary Multiple" processRef="ConditionalBoundaryMultiple" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ConditionalBoundaryMultiple" name="Conditional Boundary Multiple" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_LongRunning</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_SetTrigger</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Critical</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Warning</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Critical</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Warning</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="TriggerData" name="Trigger Data" />
+    <bpmn:dataObjectReference id="TriggerDataRef" dataObjectRef="TriggerData" />
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:parallelGateway id="Fork_1" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A</bpmn:outgoing>
+      <bpmn:outgoing>Flow_B</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:userTask id="UserTask_LongRunning" name="Long Running Task">
+      <bpmn:extensionElements>
+        <evil:assignees>identity.groups</evil:assignees>
+        <evil:formFields>{"fields":[]}</evil:formFields>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_A</bpmn:incoming>
+      <bpmn:outgoing>Flow_A2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:boundaryEvent id="Boundary_Critical" name="Critical Boundary" attachedToRef="UserTask_LongRunning" cancelActivity="true">
+      <bpmn:outgoing>Flow_BE_Critical</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition>
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">dataObjects.TriggerData.critical = true</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:boundaryEvent id="Boundary_Warning" name="Warning Boundary" attachedToRef="UserTask_LongRunning" cancelActivity="false">
+      <bpmn:outgoing>Flow_BE_Warning</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition>
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">dataObjects.TriggerData.warning = true</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:scriptTask id="ScriptTask_SetTrigger" name="Set Trigger" scriptFormat="feel">
+      <bpmn:script>{ critical: true, warning: true }</bpmn:script>
+      <bpmn:incoming>Flow_B</bpmn:incoming>
+      <bpmn:outgoing>Flow_B2</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DOA_SetTrigger">
+        <bpmn:targetRef>TriggerDataRef</bpmn:targetRef>
+        <bpmn:transformation>token</bpmn:transformation>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_A2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_B" name="Branch B End">
+      <bpmn:incoming>Flow_B2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_Critical" name="Critical End">
+      <bpmn:incoming>Flow_BE_Critical</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_Warning" name="Warning End">
+      <bpmn:incoming>Flow_BE_Warning</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork_1" />
+    <bpmn:sequenceFlow id="Flow_A" sourceRef="Fork_1" targetRef="UserTask_LongRunning" />
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="Fork_1" targetRef="ScriptTask_SetTrigger" />
+    <bpmn:sequenceFlow id="Flow_A2" sourceRef="UserTask_LongRunning" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_B2" sourceRef="ScriptTask_SetTrigger" targetRef="End_B" />
+    <bpmn:sequenceFlow id="Flow_BE_Critical" sourceRef="Boundary_Critical" targetRef="End_Critical" />
+    <bpmn:sequenceFlow id="Flow_BE_Warning" sourceRef="Boundary_Warning" targetRef="End_Warning" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_ConditionalBoundaryMultiple" bpmnElement="Participant_ConditionalBoundaryMultiple" isHorizontal="true">
+        <dc:Bounds x="82" y="32" width="956" height="376" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="32" width="926" height="376" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork_1" bpmnElement="Fork_1">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_LongRunning" bpmnElement="UserTask_LongRunning">
+        <dc:Bounds x="470" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Critical" bpmnElement="Boundary_Critical">
+        <dc:Bounds x="502" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Warning" bpmnElement="Boundary_Warning">
+        <dc:Bounds x="534" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_SetTrigger" bpmnElement="ScriptTask_SetTrigger">
+        <dc:Bounds x="470" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="802" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_B" bpmnElement="End_B">
+        <dc:Bounds x="802" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Critical" bpmnElement="End_Critical">
+        <dc:Bounds x="642" y="32" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Warning" bpmnElement="End_Warning">
+        <dc:Bounds x="722" y="32" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TriggerDataRef" bpmnElement="TriggerDataRef">
+        <dc:Bounds x="502" y="330" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A" bpmnElement="Flow_A">
+        <di:waypoint x="340" y="175" />
+        <di:waypoint x="340" y="100" />
+        <di:waypoint x="470" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B" bpmnElement="Flow_B">
+        <di:waypoint x="340" y="225" />
+        <di:waypoint x="340" y="300" />
+        <di:waypoint x="470" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A2" bpmnElement="Flow_A2">
+        <di:waypoint x="570" y="100" />
+        <di:waypoint x="802" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B2" bpmnElement="Flow_B2">
+        <di:waypoint x="570" y="300" />
+        <di:waypoint x="802" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BE_Critical" bpmnElement="Flow_BE_Critical">
+        <di:waypoint x="520" y="122" />
+        <di:waypoint x="520" y="50" />
+        <di:waypoint x="642" y="50" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BE_Warning" bpmnElement="Flow_BE_Warning">
+        <di:waypoint x="552" y="122" />
+        <di:waypoint x="552" y="50" />
+        <di:waypoint x="722" y="50" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

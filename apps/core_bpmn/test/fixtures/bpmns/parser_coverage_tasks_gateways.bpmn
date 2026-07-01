@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_TasksGateways">
+
+  <bpmn:message id="Msg_Send" name="outbound-message" />
+  <bpmn:message id="Msg_Receive" name="inbound-message" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Process_TasksGateways" name="Tasks and Gateways" processRef="Process_TasksGateways" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_TasksGateways" name="Tasks and Gateways" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+      <evil:linterRulesetScore rulesetId="evil-default" score="92" checks="{}" />
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>MT_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ST_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>RT_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EBG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CA_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:manualTask id="MT_1" name="Manual Task">
+      <bpmn:documentation>Some docs</bpmn:documentation>
+      <bpmn:extensionElements>
+        <evil:requireConfirmation>true</evil:requireConfirmation>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:manualTask>
+
+    <bpmn:sendTask id="ST_1" name="Send Task" messageRef="Msg_Send">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <bpmn:receiveTask id="RT_1" name="Receive Task" messageRef="Msg_Receive">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <bpmn:eventBasedGateway id="EBG_1" name="Wait for event">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:complexGateway id="CG_1" name="Complex">
+      <bpmn:activationCondition>activatedCount &gt;= 2</bpmn:activationCondition>
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+    </bpmn:complexGateway>
+
+    <bpmn:callActivity id="CA_1" name="Call Child" calledElement="child-process">
+      <bpmn:extensionElements>
+        <evil:inputMapping source="token.orderId" target="orderId" />
+        <evil:outputMapping source="result.trackingNumber" target="trackingNumber" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="MT_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="MT_1" targetRef="ST_1" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="ST_1" targetRef="RT_1" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="RT_1" targetRef="EBG_1" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="EBG_1" targetRef="CG_1" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="CG_1" targetRef="CA_1" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="CA_1" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Process_TasksGateways" bpmnElement="Participant_Process_TasksGateways" isHorizontal="true">
+        <dc:Bounds x="82" y="132" width="1206" height="136" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="132" width="1176" height="136" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_MT_1" bpmnElement="MT_1">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ST_1" bpmnElement="ST_1">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_RT_1" bpmnElement="RT_1">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EBG_1" bpmnElement="EBG_1" isMarkerVisible="true">
+        <dc:Bounds x="770" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CG_1" bpmnElement="CG_1">
+        <dc:Bounds x="930" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_1" bpmnElement="CA_1">
+        <dc:Bounds x="1042" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="1202" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="770" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="820" y="200" />
+        <di:waypoint x="930" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_6" bpmnElement="Flow_6">
+        <di:waypoint x="980" y="200" />
+        <di:waypoint x="1042" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_7" bpmnElement="Flow_7">
+        <di:waypoint x="1142" y="200" />
+        <di:waypoint x="1202" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

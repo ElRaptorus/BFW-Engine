@@ -1,0 +1,177 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_negated",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_value",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_result",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_not_gt_50",
+            "inputEntries": [
+              {
+                "id": "IE_not_gt_50",
+                "text": "not(> 50)"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_not_gt_50",
+                "text": "\"at_most_50\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_gt_50",
+            "inputEntries": [
+              {
+                "id": "IE_gt_50",
+                "text": "> 50"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_gt_50",
+                "text": "\"above_50\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_negated",
+      "informationRequirements": [
+        {
+          "id": "ir_value",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Negated Test",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_negated_range",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_value_range",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_range_result",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_not_in_range",
+            "inputEntries": [
+              {
+                "id": "IE_not_in_range",
+                "text": "not([1..10])"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_not_in_range",
+                "text": "\"outside_range\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_in_range",
+            "inputEntries": [
+              {
+                "id": "IE_in_range",
+                "text": "[1..10]"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_in_range",
+                "text": "\"inside_range\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_negated_range",
+      "informationRequirements": [
+        {
+          "id": "ir_value_range",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Negated Range Test",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_negated_unary",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_value",
+      "name": "value",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Negated Unary Tests",
+  "namespace": "https://example.com/dmn/negated-unary"
+}

@@ -1,0 +1,9 @@
+name: "C76: Link Throw without matching Catch causes fatal"
+fixture: "link_events_orphan_throw.bpmn"
+process_model_id: "LinkEventsOrphanThrowProcess"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

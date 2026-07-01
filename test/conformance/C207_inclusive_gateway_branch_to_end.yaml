@@ -1,0 +1,10 @@
+name: "C207: Inclusive Gateway — branch reaches end event, dead-path fires join"
+fixture: "inclusive_gateway_branch_to_end.bpmn"
+process_model_id: "InclusiveGatewayBranchToEnd"
+tier: auto
+start:
+  payload:
+    x: true
+    route: "end"
+expected:
+  final_state: "finished"

@@ -1,0 +1,124 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_d",
+        "text": "x + 1",
+        "typeRef": "number"
+      },
+      "id": "Decision_D",
+      "informationRequirements": [
+        {
+          "id": "ir_d_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Decision D",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_d",
+        "name": "D_result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_b",
+        "text": "D_result + 10",
+        "typeRef": "number"
+      },
+      "id": "Decision_B",
+      "informationRequirements": [
+        {
+          "id": "ir_b_d",
+          "requiredDecisionId": "Decision_D",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Decision B",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_b",
+        "name": "B_result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_c",
+        "text": "D_result + 20",
+        "typeRef": "number"
+      },
+      "id": "Decision_C",
+      "informationRequirements": [
+        {
+          "id": "ir_c_d",
+          "requiredDecisionId": "Decision_D",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Decision C",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_c",
+        "name": "C_result",
+        "typeRef": "number"
+      }
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "literal_a",
+        "text": "B_result + C_result",
+        "typeRef": "number"
+      },
+      "id": "Decision_A",
+      "informationRequirements": [
+        {
+          "id": "ir_a_b",
+          "requiredDecisionId": "Decision_B",
+          "requiredInputId": null
+        },
+        {
+          "id": "ir_a_c",
+          "requiredDecisionId": "Decision_C",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Decision A",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_a",
+        "name": "A_result",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_diamond",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "DRG Diamond",
+  "namespace": "https://example.com/dmn/drg_diamond"
+}

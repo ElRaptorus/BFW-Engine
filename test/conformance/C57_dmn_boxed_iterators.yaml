@@ -1,0 +1,26 @@
+name: "C57: DMN Boxed For / Every / Some"
+type: dmn
+fixture: boxed_iterators.dmn
+decision_definition_id: "definitions_iterators"
+evaluate_for:
+  decision_model_id: "Decision_for"
+  input:
+    numbers: [1, 2, 3]
+expected_for:
+  status: 200
+  hit_policy: "boxed_expression"
+  result: [2, 4, 6]
+evaluate_every:
+  decision_model_id: "Decision_every"
+  input:
+    numbers: [1, 2, 3]
+expected_every:
+  status: 200
+  result: true
+evaluate_some:
+  decision_model_id: "Decision_some"
+  input:
+    numbers: [1, 2, 3]
+expected_some:
+  status: 200
+  result: false

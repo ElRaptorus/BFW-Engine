@@ -1,0 +1,11 @@
+name: "C60: Decision Service — missing required inputData"
+type: dmn
+fixture: "decision_service_basic.dmn"
+decision_definition_id: "Definitions_ds_basic"
+evaluate_service:
+  service_id: "DS_eligibility"
+  input:
+    Age: 30
+expected:
+  status: 422
+  error: "missing_service_input"

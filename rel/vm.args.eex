@@ -1,0 +1,14 @@
+## Per-node EVM flags.
+
+## Listen on loopback for the distribution protocol in single-node mode.
+## Phase 6 clustering swaps this.
+-kernel inet_dist_listen_min 9100 inet_dist_listen_max 9200
+
+## Enable observer/remsh later without restarting the release.
+-setcookie ${RELEASE_COOKIE}
+
+## Reasonable defaults for a BPMN engine: many lightweight GenServers.
++K true
++A 64
++P 262144
++S 2:2

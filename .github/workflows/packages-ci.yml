@@ -1,0 +1,285 @@
+name: Packages CI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  lint-build-unit:
+    name: Lint + Build + Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/js
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: packages/js/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm -r run lint
+
+      - name: Build
+        run: pnpm -r run build
+
+      - name: Unit tests
+        run: pnpm -r run test:unit
+
+  integration:
+    name: Integration Tests
+    needs: lint-build-unit
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: prod
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: evil_engine
+          POSTGRES_PASSWORD: evil_engine
+          POSTGRES_DB: evil_engine_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U evil_engine"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Erlang / Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.5"
+          elixir-version: "1.19.5"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: packages/js/pnpm-lock.yaml
+
+      - name: Cache Elixir deps
+        uses: actions/cache@v5
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-prod-${{ hashFiles('**/mix.lock') }}
+
+      - name: Cache Elixir _build
+        uses: actions/cache@v5
+        with:
+          path: _build
+          key: ${{ runner.os }}-build-prod-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('apps/**/lib/**/*.ex', 'apps/**/lib/**/*.exs', 'config/**/*.exs', 'mix.exs') }}
+          restore-keys: |
+            ${{ runner.os }}-build-prod-${{ hashFiles('**/mix.lock') }}-
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Compile engine and build release
+        run: |
+          mix deps.get --only prod
+          mix deps.compile
+          mix compile
+          mix release
+        timeout-minutes: 15
+
+      - name: Start engine
+        env:
+          EVIL_DATABASE_HOST: localhost
+          EVIL_DATABASE_PORT: "5432"
+          EVIL_DATABASE_NAME: evil_engine_dev
+          EVIL_DATABASE_USER: evil_engine
+          EVIL_DATABASE_PASS: evil_engine
+          EVIL_HTTP_PORT: "4100"
+          EVIL_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+          EVIL_ENGINE_ID: "evil-engine-ci-integration"
+          EVIL_ENGINE_NAME: "Evil Engine (CI Integration)"
+          EVIL_TOKEN_MAX_BYTES: "65536"
+          EVIL_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+          EVIL_EVENT_SINK_CONSOLE: "on"
+          EVIL_EVENT_SINK_TELEMETRY: "on"
+          EVIL_EVENT_SINK_WEBSOCKET: "on"
+        run: |
+          _build/prod/rel/evil_engine/bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
+          _build/prod/rel/evil_engine/bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"
+          _build/prod/rel/evil_engine/bin/evil_engine daemon
+
+      - name: Wait for engine health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4100/health; then
+              echo "Engine is healthy"
+              exit 0
+            fi
+            echo "Waiting for engine... attempt $i/60"
+            sleep 2
+          done
+          echo "Engine did not become healthy in time"
+          exit 1
+
+      - name: Install JS dependencies
+        working-directory: packages/js
+        run: pnpm install --frozen-lockfile
+
+      - name: Build JS packages
+        working-directory: packages/js
+        run: pnpm -r run build
+
+      - name: Run integration tests
+        working-directory: packages/js
+        env:
+          ENGINE_HTTP_URL: http://localhost:4100
+          ENGINE_WS_URL: ws://localhost:4100/socket
+        run: pnpm --filter @elraptorus/daemonengine_client run test:integration
+
+      - name: Stop engine
+        if: always()
+        run: _build/prod/rel/evil_engine/bin/evil_engine stop 2>/dev/null || true
+
+  publish:
+    name: Publish to GitHub Packages
+    needs: integration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/js
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Setup Node for GitHub Packages
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: packages/js/pnpm-lock.yaml
+          registry-url: https://npm.pkg.github.com
+          scope: "@elraptorus"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm -r run build
+
+      - name: Version from release tag
+        id: version-release
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "Using release tag: $TAG → version $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Version from registry (auto-increment)
+        id: version-dispatch
+        if: github.event_name != 'release'
+        run: |
+          set -euo pipefail
+          PACKAGE_NAME="@elraptorus/daemonengine_sdk"
+
+          echo "Querying registry for latest published version of $PACKAGE_NAME..."
+
+          set +e
+          QUERY_OUTPUT=$(pnpm view "$PACKAGE_NAME" version 2>&1)
+          QUERY_EXIT=$?
+          set -e
+
+          if [ $QUERY_EXIT -eq 0 ] && [ -n "$QUERY_OUTPUT" ]; then
+            LATEST=$(echo "$QUERY_OUTPUT" | tr -d '[:space:]')
+            echo "Latest published version: $LATEST"
+            NEXT_VERSION=$(node -e "const [M,m,p]='${LATEST}'.split('.').map(Number); console.log(M+'.'+m+'.'+(p+1))")
+          elif echo "$QUERY_OUTPUT" | grep -qi "404\|not found\|E404"; then
+            echo "Package not yet published — starting at 0.1.0"
+            NEXT_VERSION="0.1.0"
+          else
+            echo "::error::Failed to query registry for $PACKAGE_NAME (exit $QUERY_EXIT): $QUERY_OUTPUT"
+            exit 1
+          fi
+
+          echo "Resolved publish version: $NEXT_VERSION"
+          echo "version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish SDK
+        working-directory: packages/js/sdk
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version-release.outputs.version || steps.version-dispatch.outputs.version }}"
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+
+          if [ "$VERSION" != "$LOCAL_VERSION" ]; then
+            echo "Bumping SDK version: $LOCAL_VERSION → $VERSION"
+            pnpm version "$VERSION" --no-git-tag-version
+          fi
+
+          echo "Publishing @elraptorus/daemonengine_sdk@$VERSION"
+          pnpm publish --no-git-checks --access restricted
+
+      - name: Publish Client
+        working-directory: packages/js/client
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version-release.outputs.version || steps.version-dispatch.outputs.version }}"
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+
+          if [ "$VERSION" != "$LOCAL_VERSION" ]; then
+            echo "Bumping Client version: $LOCAL_VERSION → $VERSION"
+            pnpm version "$VERSION" --no-git-tag-version
+          fi
+
+          echo "Publishing @elraptorus/daemonengine_client@$VERSION"
+          pnpm publish --no-git-checks --access restricted
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version-release.outputs.version || steps.version-dispatch.outputs.version }}
+        run: |
+          echo "### Published Packages" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package | Version |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`@elraptorus/daemonengine_sdk\` | \`$VERSION\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`@elraptorus/daemonengine_client\` | \`$VERSION\` |" >> "$GITHUB_STEP_SUMMARY"

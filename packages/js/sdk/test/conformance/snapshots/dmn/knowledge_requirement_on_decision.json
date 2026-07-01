@@ -1,0 +1,74 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_helper",
+          "text": "x * 2",
+          "typeRef": null
+        },
+        "formalParameters": [
+          {
+            "id": "FP_x",
+            "name": "x",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_helper",
+        "type": "feel"
+      },
+      "id": "BKM_helper",
+      "knowledgeRequirements": [],
+      "name": "Helper Logic",
+      "variable": null
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_main",
+        "text": "BKM_helper(inputValue)",
+        "typeRef": null
+      },
+      "id": "Decision_main",
+      "informationRequirements": [
+        {
+          "id": "ir_value",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_helper",
+          "requiredKnowledgeId": "BKM_helper"
+        }
+      ],
+      "name": "Main Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_main",
+        "name": "result",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_kr",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_value",
+      "name": "inputValue",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Knowledge Requirement Test",
+  "namespace": "https://example.com/dmn/kr"
+}

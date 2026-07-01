@@ -1,0 +1,97 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "elements": [
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "10",
+              "typeRef": null
+            },
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "20",
+              "typeRef": null
+            },
+            {
+              "expressionLanguage": null,
+              "id": null,
+              "text": "30",
+              "typeRef": null
+            }
+          ],
+          "id": "list_values"
+        },
+        "formalParameters": [],
+        "id": "EL_values_list",
+        "type": "feel"
+      },
+      "id": "BKM_values_list",
+      "knowledgeRequirements": [],
+      "name": "Values List",
+      "variable": {
+        "id": "var_values",
+        "name": "values",
+        "typeRef": "Any"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "contextEntries": [
+          {
+            "expression": {
+              "bindings": [],
+              "calledFunction": "Values List",
+              "id": "inv_values_list"
+            },
+            "variable": {
+              "id": null,
+              "name": "items",
+              "typeRef": null
+            }
+          },
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": "LE_final_items",
+              "text": "items",
+              "typeRef": null
+            },
+            "variable": null
+          }
+        ],
+        "id": "ctx_nested_multi"
+      },
+      "id": "Decision_nested_multi",
+      "informationRequirements": [],
+      "knowledgeRequirements": [
+        {
+          "id": "KR_values_list",
+          "requiredKnowledgeId": "BKM_values_list"
+        }
+      ],
+      "name": "Nested Multi Type Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_nested_multi",
+        "name": "nestedMultiResult",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_nested_multi",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Nested Boxed Multi Type",
+  "namespace": "https://example.com/dmn/nested-multi"
+}

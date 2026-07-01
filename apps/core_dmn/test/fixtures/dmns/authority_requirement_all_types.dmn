@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_ar" name="Authority Requirement All Types"
+  targetNamespace="https://example.com/dmn/ar">
+
+  <inputData id="InputData_x" name="x">
+    <variable name="x" typeRef="number"/>
+  </inputData>
+
+  <knowledgeSource id="KS_policy" name="Company Policy" type="Policy">
+    <authorityRequirement id="ar_ks_input">
+      <requiredInput href="#InputData_x"/>
+    </authorityRequirement>
+  </knowledgeSource>
+
+  <decision id="Decision_upstream" name="Upstream Decision">
+    <informationRequirement id="ir_x">
+      <requiredInput href="#InputData_x"/>
+    </informationRequirement>
+    <literalExpression id="LE_upstream">
+      <text>x + 1</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_main" name="Main Decision">
+    <authorityRequirement id="ar_authority_ref">
+      <requiredAuthority href="#KS_policy"/>
+    </authorityRequirement>
+    <authorityRequirement id="ar_decision_ref">
+      <requiredDecision href="#Decision_upstream"/>
+    </authorityRequirement>
+    <authorityRequirement id="ar_input_ref">
+      <requiredInput href="#InputData_x"/>
+    </authorityRequirement>
+    <informationRequirement id="ir_upstream">
+      <requiredDecision href="#Decision_upstream"/>
+    </informationRequirement>
+    <literalExpression id="LE_main">
+      <text>Upstream Decision + 10</text>
+    </literalExpression>
+  </decision>
+</definitions>

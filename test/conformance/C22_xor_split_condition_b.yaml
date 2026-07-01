@@ -1,0 +1,12 @@
+name: "C22: XOR split routes to low branch (amount <= 100)"
+fixture: "xor_split_two_conditions.bpmn"
+process_model_id: "XorSplitTwoConditions"
+tier: auto
+start:
+  payload:
+    amount: 50
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_Low"

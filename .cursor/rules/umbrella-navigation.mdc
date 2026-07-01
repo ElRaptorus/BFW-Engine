@@ -1,0 +1,35 @@
+---
+description: Guides agents to the correct umbrella app based on the task at hand
+alwaysApply: true
+---
+
+# Umbrella Navigation
+
+This project is an Elixir umbrella with all domain apps under `apps/`. The dependency direction is strictly enforced: Core → Peripheral → API (never the reverse).
+
+## App Directory Map
+
+| App | Domain | Directory | Purpose |
+|-----|--------|-----------|---------|
+| `core_types` | Core | `apps/core_types/` | Behaviour-free structs, shared types (`Identity`, `Token`, event payloads) |
+| `core_execution` | Core | `apps/core_execution/` | PI/FNI runtime, resume, payload cap |
+| `core_events` | Core | `apps/core_events/` | EngineEventBus, pending sweeper |
+| `core_timers` | Core | `apps/core_timers/` | ISO 8601 scheduler |
+| `core_expressions` | Core | `apps/core_expressions/` | FEEL evaluator |
+| `core_bpmn` | Core | `apps/core_bpmn/` | XML parser, ModelCache, linter gate |
+| `peripheral_persistence` | Peripheral | `apps/peripheral_persistence/` | Ash + AshPostgres, RetentionRunner |
+| `peripheral_telemetry` | Peripheral | `apps/peripheral_telemetry/` | :telemetry counters, /stats |
+| `peripheral_plugins` | Peripheral | `apps/peripheral_plugins/` | Plugin registry, gRPC bridge |
+| `api_auth` | API | `apps/api_auth/` | JWT validation |
+| `api_facade` | API | `apps/api_facade/` | `EvilEngine.Api` service-layer facade |
+| `api_web` | API | `apps/api_web/` | REST + GraphQL + WebSocket + Admin |
+
+## Key Rules
+
+- **Mix commands** run from the project root: `mix compile`, `mix test`, `mix credo --strict`
+- **Single-app tests**: `mix test apps/core_execution/test`
+- **Single-app compile**: `mix compile` still compiles all apps (umbrella behavior); use the full suite
+- **Dependency direction**: Core apps may depend on `core_types` and each other within Core. Peripheral apps may depend on Core. API apps may depend on Core and Peripheral. No reverse dependencies.
+- **`EvilEngine.Api`** lives in its own module (not an app); it is the Ash Code Interface shared by all API apps and plugins
+- **Documentation** lives in `docs/` at the project root, not inside individual apps
+- **Configuration** lives in `config/` at the project root (`config.exs`, `runtime.exs`)

@@ -1,0 +1,10 @@
+name: "C140: Embedded subprocess completes, parent finishes"
+fixture: "embedded_subprocess_happy_path.bpmn"
+process_model_id: "EmbeddedSubprocessHappyPath"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

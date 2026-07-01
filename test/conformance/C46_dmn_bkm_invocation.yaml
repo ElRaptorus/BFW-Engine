@@ -1,0 +1,12 @@
+name: "C46: DMN BKM Invocation"
+type: dmn
+fixture: bkm_invocation_literal.dmn
+decision_definition_id: "definitions_bkm_invoke_le"
+evaluate:
+  decision_model_id: "Decision_tax"
+  input:
+    income: 50000
+    taxRate: 0.2
+expected:
+  status: 200
+  result: 10100

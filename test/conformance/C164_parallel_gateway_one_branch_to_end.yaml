@@ -1,0 +1,11 @@
+name: "C164: Parallel Gateway — fork with separate end events (no join)"
+fixture: "parallel_gateway_one_branch_to_end.bpmn"
+process_model_id: "ParallelGatewayOneBranchToEnd"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_A"
+    - endEventId: "End_B"

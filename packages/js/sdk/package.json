@@ -1,0 +1,50 @@
+{
+  "name": "@elraptorus/daemonengine_sdk",
+  "version": "0.1.0",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElRaptorus/ThomasTheDaemonEngine.git",
+    "directory": "packages/js/sdk"
+  },
+  "description": "Everything you ever wanted to build yourself a blooddrenched altar for making sacrifies to the daemon engine. Choo Choo.",
+  "main": "dist/index.js",
+  "author": "Khorne",
+  "license": "MIT",
+  "type": "module",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.0.8",
+      "onFail": "download"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit/",
+    "test:conformance": "vitest run test/conformance/",
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint --fix src/ test/",
+    "format": "prettier --write --config ../.prettierrc.json src/ test/"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3",
+    "eslint": "^10.3.0",
+    "prettier": "^3.8.3",
+    "vitest": "^4.1.6"
+  }
+}

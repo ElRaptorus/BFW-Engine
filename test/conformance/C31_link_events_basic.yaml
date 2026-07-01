@@ -1,0 +1,12 @@
+name: "C31: Link Throw/Catch basic pair"
+fixture: "link_events_basic.bpmn"
+process_model_id: "LinkEventsBasicProcess"
+tier: auto
+start:
+  payload:
+    order: "LNK-001"
+expected:
+  final_state: "finished"
+  fni_count: 6
+  final_tokens:
+    - endEventId: "End_1"

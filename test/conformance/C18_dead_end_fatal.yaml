@@ -1,0 +1,9 @@
+name: "C18: Dead end causes fatal"
+fixture: "dead_end.bpmn"
+process_model_id: "DeadEnd"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

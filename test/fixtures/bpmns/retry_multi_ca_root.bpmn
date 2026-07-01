@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_RetryMultiCaRoot"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Multi CA Root" processRef="RetryMultiCaRoot" />
+  </bpmn:collaboration>
+  <bpmn:process id="RetryMultiCaRoot" name="Multi CA Root" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>PG_Split</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CA_SubprocessChild</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CA_SimpleChild</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>PG_Join</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_ToSplit</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="PG_Split">
+      <bpmn:incoming>Flow_ToSplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCaSp</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToCaSimple</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:callActivity id="CA_SubprocessChild" name="Call Subprocess Child" calledElement="RetryMultiCaSubprocessChild">
+      <bpmn:incoming>Flow_ToCaSp</bpmn:incoming>
+      <bpmn:outgoing>Flow_CaSpToJoin</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="CA_SimpleChild" name="Call Simple Child" calledElement="RetryMultiCaSimpleChild">
+      <bpmn:incoming>Flow_ToCaSimple</bpmn:incoming>
+      <bpmn:outgoing>Flow_CaSimpleToJoin</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:parallelGateway id="PG_Join">
+      <bpmn:incoming>Flow_CaSpToJoin</bpmn:incoming>
+      <bpmn:incoming>Flow_CaSimpleToJoin</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ToSplit" sourceRef="Start_1" targetRef="PG_Split" />
+    <bpmn:sequenceFlow id="Flow_ToCaSp" sourceRef="PG_Split" targetRef="CA_SubprocessChild" />
+    <bpmn:sequenceFlow id="Flow_ToCaSimple" sourceRef="PG_Split" targetRef="CA_SimpleChild" />
+    <bpmn:sequenceFlow id="Flow_CaSpToJoin" sourceRef="CA_SubprocessChild" targetRef="PG_Join" />
+    <bpmn:sequenceFlow id="Flow_CaSimpleToJoin" sourceRef="CA_SimpleChild" targetRef="PG_Join" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="PG_Join" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="700" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="670" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="212" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_PG_Split" bpmnElement="PG_Split">
+        <dc:Bounds x="250" y="205" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_SubprocessChild" bpmnElement="CA_SubprocessChild">
+        <dc:Bounds x="370" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_SimpleChild" bpmnElement="CA_SimpleChild">
+        <dc:Bounds x="370" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_PG_Join" bpmnElement="PG_Join">
+        <dc:Bounds x="540" y="205" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="660" y="212" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSplit" bpmnElement="Flow_ToSplit">
+        <di:waypoint x="198" y="230" />
+        <di:waypoint x="250" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCaSp" bpmnElement="Flow_ToCaSp">
+        <di:waypoint x="275" y="205" />
+        <di:waypoint x="275" y="160" />
+        <di:waypoint x="370" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCaSimple" bpmnElement="Flow_ToCaSimple">
+        <di:waypoint x="275" y="255" />
+        <di:waypoint x="275" y="300" />
+        <di:waypoint x="370" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CaSpToJoin" bpmnElement="Flow_CaSpToJoin">
+        <di:waypoint x="470" y="160" />
+        <di:waypoint x="565" y="160" />
+        <di:waypoint x="565" y="205" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CaSimpleToJoin" bpmnElement="Flow_CaSimpleToJoin">
+        <di:waypoint x="470" y="300" />
+        <di:waypoint x="565" y="300" />
+        <di:waypoint x="565" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="590" y="230" />
+        <di:waypoint x="660" y="230" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

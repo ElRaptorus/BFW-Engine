@@ -1,0 +1,10 @@
+name: "C143: Nested subprocess (two levels) completes, parent finishes"
+fixture: "embedded_subprocess_nested.bpmn"
+process_model_id: "EmbeddedSubprocessNested"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

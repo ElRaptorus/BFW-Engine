@@ -1,0 +1,132 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": "MAX",
+        "hitPolicy": "collect",
+        "id": "dt_max",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_category",
+            "inputExpression": "category",
+            "inputValues": null,
+            "label": "Product Category",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_score",
+            "label": "Score",
+            "name": "score",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_electronics_1",
+            "inputEntries": [
+              {
+                "id": "IE_e1",
+                "text": "\"electronics\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_e1",
+                "text": "30"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_electronics_2",
+            "inputEntries": [
+              {
+                "id": "IE_e2",
+                "text": "\"electronics\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_e2",
+                "text": "10"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_electronics_3",
+            "inputEntries": [
+              {
+                "id": "IE_e3",
+                "text": "\"electronics\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_e3",
+                "text": "50"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_clothing",
+            "inputEntries": [
+              {
+                "id": "IE_c",
+                "text": "\"clothing\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_c",
+                "text": "20"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_max",
+      "informationRequirements": [
+        {
+          "id": "ir_category",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_category"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Maximum Score",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_collect_max",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_category",
+      "name": "category",
+      "typeRef": "string"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Collect Max Aggregation",
+  "namespace": "https://example.com/dmn/collect-max"
+}

@@ -1,0 +1,117 @@
+---
+description: Every BPMN file must include diagram coordinates (BPMNDiagram section)
+globs:
+  - "**/*.bpmn"
+alwaysApply: false
+---
+
+# BPMN Diagram Interchange (DI) — Mandatory
+
+Every `.bpmn` file in this repository **must** include a `<bpmndi:BPMNDiagram>` section with coordinates for all shapes and edges. A BPMN file without DI is invisible in the Studio, bpmn.io, and every standards-compliant modeler.
+
+## Rules
+
+- **NEVER** create or modify a `.bpmn` file without a complete `<bpmndi:BPMNDiagram>` section
+- **ALWAYS** include `<bpmndi:BPMNShape>` entries for every flow node, data object reference, and lane
+- **ALWAYS** include `<bpmndi:BPMNEdge>` entries for every sequence flow
+- **ALWAYS** declare the `bpmndi`, `dc`, and `di` namespaces on the `<bpmn:definitions>` element
+
+## Required namespace declarations
+
+```xml
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+```
+
+## Standard element sizes (px)
+
+| Element type | Width | Height |
+|---|---|---|
+| Start / End / Intermediate / Boundary events | 36 | 36 |
+| Tasks (all types), Call Activities | 100 | 80 |
+| Gateways (all types) | 50 | 50 |
+| Data Object References | 36 | 50 |
+
+## Layout conventions
+
+- **Left-to-right flow.** Start events on the left, end events on the right.
+- **Center-line baseline** at approximately `y = 200`.
+- **Horizontal spacing** of ~160 px between layer centers.
+- **Vertical spacing** of ~100 px between parallel branches.
+- **Boundary events** positioned on the bottom border of their host activity (`cy = host.cy + host.height / 2`).
+- **Data object references** positioned below the main flow.
+- **Lanes** wrap all contained elements with ~30 px padding.
+- **Edge waypoints**: straight horizontal line for same-Y connections; three-segment route (horizontal → vertical → horizontal) for connections across different Y levels.
+
+## DI structure
+
+Place the `<bpmndi:BPMNDiagram>` element after the closing `</bpmn:process>` and before `</bpmn:definitions>`. One diagram per process.
+
+```xml
+<bpmndi:BPMNDiagram id="BPMNDiagram_1">
+  <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="your-process-id">
+    <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+      <dc:Bounds x="162" y="182" width="36" height="36" />
+    </bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="Shape_Task_1" bpmnElement="Task_1">
+      <dc:Bounds x="290" y="160" width="100" height="80" />
+    </bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+      <dc:Bounds x="482" y="182" width="36" height="36" />
+    </bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+      <di:waypoint x="198" y="200" />
+      <di:waypoint x="290" y="200" />
+    </bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+      <di:waypoint x="390" y="200" />
+      <di:waypoint x="482" y="200" />
+    </bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane>
+</bpmndi:BPMNDiagram>
+```
+
+## ID conventions
+
+- Shape IDs: `Shape_<bpmnElementId>` (e.g., `Shape_Start_1`)
+- Edge IDs: `Edge_<sequenceFlowId>` (e.g., `Edge_Flow_1`)
+- Diagram IDs: `BPMNDiagram_<n>` (1-indexed per process)
+- Plane IDs: `BPMNPlane_<n>` (matching diagram index)
+
+## Auto-layout script
+
+If you need to add DI to an existing file that lacks it:
+
+```bash
+python3 scripts/bpmn_add_di.py path/to/file.bpmn
+```
+
+Files that already contain a `<bpmndi:BPMNDiagram>` are skipped automatically.
+
+## Pool and Lane requirement
+
+Every new BPMN diagram **must** contain at least one pool (`<bpmn:participant>` inside a `<bpmn:collaboration>`) and the process must include a `<bpmn:laneSet>` with a `<bpmn:lane>` named `"default"`. Pool-less diagrams cause serialization issues in the Bifrost Forge World Studio.
+
+## Namespace URI
+
+The canonical `evil:` namespace URI is `https://evilengine.dev/schema/bpmn`. Older variants (`http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`) are deprecated and must not be used in new files.
+
+## Coordinate calculation
+
+For a linear process with `N` elements on a single row:
+
+1. First element center X: `180`, subsequent elements: `+160` per layer
+2. All elements center Y: `200`
+3. Shape bounds: `x = centerX - width/2`, `y = centerY - height/2`
+4. Edge waypoints connect from the right-center of the source to the left-center of the target
+
+For branching (gateway → multiple targets):
+
+1. Targets in the same layer are distributed vertically around the center line (`±100` px spacing)
+2. Edge routing uses a midpoint: source-right → midpoint-X at source-Y → midpoint-X at target-Y → target-left

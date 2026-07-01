@@ -1,0 +1,92 @@
+# Plugin Behaviours
+
+## Plugin Lifecycle
+
+```elixir
+@behaviour EvilEngine.Plugin
+@callback on_load(facade :: struct()) :: :ok | {:error, term()}
+@callback on_ready(facade :: struct()) :: :ok | {:error, term()}
+```
+
+## ServiceTaskHandler
+
+Unique by `implementation`. Handles Service Task dispatch by `implementation` attribute. Always asynchronous.
+
+```elixir
+@behaviour EvilEngine.Plugin.ServiceTaskHandler
+@callback handle_enter(flow_node, token, handler_context) ::
+  {:async, String.t()} | {:error, term()}
+```
+
+## EventSink
+
+Many allowed. Receives engine events.
+
+```elixir
+@behaviour EvilEngine.Plugin.EventSink
+@callback init(opts :: keyword()) :: {:ok, state} | {:error, term()}
+@callback accepts?(event :: struct()) :: boolean()
+@callback handle_event(event, state) :: {:ok, state} | :skip
+@callback handle_shutdown(state) :: :ok
+```
+
+## PersistenceAdapter
+
+Unique. Replaces or chains default persistence.
+
+```elixir
+@behaviour EvilEngine.Plugin.PersistenceAdapter
+@callback init(opts :: keyword()) :: {:ok, state} | {:error, term()}
+@callback persist(changeset, state) :: {:ok, term()} | {:error, term()}
+```
+
+## RestApiExtension
+
+Mounted under prefix.
+
+```elixir
+@behaviour EvilEngine.Plugin.RestApiExtension
+@callback router_module() :: module()
+```
+
+## MonitoringPanel
+
+Many allowed. Admin page fragment.
+
+```elixir
+@behaviour EvilEngine.Plugin.MonitoringPanel
+@callback render(assigns :: map()) :: term()
+@callback panel_title() :: String.t()
+```
+
+## TimerSource
+
+Unique per type.
+
+```elixir
+@behaviour EvilEngine.Plugin.TimerSource
+@callback timer_type() :: atom()
+@callback evaluate(definition :: String.t(), context :: map()) ::
+  {:ok, DateTime.t()} | {:error, term()}
+```
+
+## DataStoreAdapter
+
+Unique per store_id.
+
+```elixir
+@behaviour EvilEngine.Plugin.DataStoreAdapter
+@callback store_id() :: String.t()
+@callback read(key :: String.t(), opts :: keyword()) :: {:ok, term()} | {:error, term()}
+@callback write(key :: String.t(), value :: term(), opts :: keyword()) :: :ok | {:error, term()}
+```
+
+## NamedScript
+
+Unique by script_key. Handles `evil:scriptRef` dispatch. Always synchronous.
+
+```elixir
+@behaviour EvilEngine.Plugin.NamedScript
+@callback handle_enter(flow_node :: map(), payload :: map(), context :: map()) ::
+  {:ok, map()} | {:error, term()}
+```

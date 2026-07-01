@@ -1,0 +1,107 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_date",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_birthDate",
+            "inputExpression": "birthDate",
+            "inputValues": null,
+            "label": "Birth Date",
+            "typeRef": "date"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_category",
+            "label": "Category",
+            "name": "category",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_before_2000",
+            "inputEntries": [
+              {
+                "id": "IE_before_2000",
+                "text": "< @\"2000-01-01\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_before_2000",
+                "text": "\"born_before_2000\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_after_2000",
+            "inputEntries": [
+              {
+                "id": "IE_after_2000",
+                "text": ">= @\"2000-01-01\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_after_2000",
+                "text": "\"born_2000_or_later\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_date_check",
+      "informationRequirements": [
+        {
+          "id": "ir_birthDate",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_birthDate"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Date Check",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_date_time",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_birthDate",
+      "name": "birthDate",
+      "typeRef": "DateType"
+    }
+  ],
+  "itemDefinitions": [
+    {
+      "allowedValues": null,
+      "id": "ItemDef_date",
+      "isCollection": false,
+      "itemComponents": [],
+      "name": "DateType",
+      "typeRef": "date"
+    }
+  ],
+  "knowledgeSources": [],
+  "name": "Date Time Input Coercion",
+  "namespace": "https://example.com/dmn/date-time"
+}

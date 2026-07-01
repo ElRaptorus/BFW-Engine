@@ -1,0 +1,37 @@
+---
+description: Keep AGENTS.md in sync when BPMN parser, validator, model, or expression engine changes
+globs:
+  - "apps/core_bpmn/lib/**/sax_handler.ex"
+  - "apps/core_bpmn/lib/**/validator.ex"
+  - "apps/core_bpmn/lib/**/model/**/*.ex"
+  - "apps/core_expressions/lib/**/*.ex"
+  - "AGENTS.md"
+alwaysApply: false
+---
+
+# Maintain AGENTS.md
+
+`AGENTS.md` at the project root is the tool-agnostic domain knowledge reference for agents and contributors. It documents the `evil:*` BPMN extension vocabulary, supported element types, validator rules, FEEL context bindings, and project structure.
+
+## When this rule fires
+
+This rule activates when you edit any of the files that `AGENTS.md` describes:
+- The SAX parser (`sax_handler.ex`)
+- The validator (`validator.ex`)
+- BPMN model structs (`model/**/*.ex`)
+- The expression engine (`core_expressions`)
+
+## What to check
+
+After making changes to any of these files, verify that `AGENTS.md` still accurately reflects:
+
+1. **Extension elements**: Every `evil:*` element parsed by `SaxHandler` has a corresponding entry in the "Extension Elements Reference" section. No stale entries remain for removed extensions.
+2. **Supported element types**: The "Supported BPMN Element Types" tables match `@flow_node_elements` and `@event_definition_elements` in `SaxHandler`.
+3. **Event position rules**: The "Event Definition Position Rules" table matches `@valid_event_positions` in `Validator`.
+4. **Validator rules**: The "Validator Rules" section reflects all checks performed by `Validator.validate/1`, including type-specific required properties and event definition completeness.
+5. **FEEL context bindings**: The "Context bindings" table matches the fields in `EvilEngine.Expressions.Context` and its `to_feel_scope/1` mapping.
+6. **Project structure**: The umbrella app table matches the actual `apps/` directory if apps were added or removed.
+
+## What to do
+
+If any of the above are out of date, update the corresponding section in `AGENTS.md`. Keep the same style and structure as the existing content.

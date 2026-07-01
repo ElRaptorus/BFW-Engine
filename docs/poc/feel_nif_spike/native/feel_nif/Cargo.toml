@@ -1,0 +1,14 @@
+[package]
+name = "feel_nif"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "feel_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.37"
+dsntk-feel = "0.3"
+dsntk-feel-parser = "0.3"
+dsntk-feel-evaluator = "0.3"

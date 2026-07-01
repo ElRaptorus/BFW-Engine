@@ -1,0 +1,8 @@
+name: "C103: Message start event — PI created from published message"
+fixture: "message_start_event.bpmn"
+process_model_id: "MessageStartEvent"
+tier: interactive
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="employee-benefits" name="Employee Benefits"
+  namespace="https://example.com/dmn/benefits">
+
+  <inputData id="InputData_years_of_service" name="yearsOfService">
+    <variable name="yearsOfService" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_department" name="department">
+    <variable name="department" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_performance_rating" name="performanceRating">
+    <variable name="performanceRating" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_employee_type" name="employeeType">
+    <variable name="employeeType" typeRef="string"/>
+  </inputData>
+
+  <decision id="Decision_benefits_tier" name="Benefits Tier">
+    <informationRequirement id="ir_years_of_service">
+      <requiredInput href="#InputData_years_of_service"/>
+    </informationRequirement>
+    <informationRequirement id="ir_department">
+      <requiredInput href="#InputData_department"/>
+    </informationRequirement>
+    <informationRequirement id="ir_performance_rating">
+      <requiredInput href="#InputData_performance_rating"/>
+    </informationRequirement>
+    <informationRequirement id="ir_employee_type">
+      <requiredInput href="#InputData_employee_type"/>
+    </informationRequirement>
+    <variable name="Benefits Tier" typeRef="Any"/>
+    <decisionTable id="dt_benefits_tier" hitPolicy="FIRST">
+      <input id="Input_years_of_service" label="Years of Service">
+        <inputExpression typeRef="number">yearsOfService</inputExpression>
+      </input>
+      <input id="Input_department" label="Department">
+        <inputExpression typeRef="string">department</inputExpression>
+      </input>
+      <input id="Input_performance_rating" label="Performance Rating">
+        <inputExpression typeRef="string">performanceRating</inputExpression>
+      </input>
+      <input id="Input_employee_type" label="Employee Type">
+        <inputExpression typeRef="string">employeeType</inputExpression>
+      </input>
+      <output id="Output_tier" label="Tier" name="tier" typeRef="string"/>
+      <output id="Output_health_plan" label="Health Plan" name="healthPlan" typeRef="string"/>
+      <output id="Output_retirement_match" label="Retirement Match" name="retirementMatch" typeRef="number"/>
+      <output id="Output_vacation_days" label="Vacation Days" name="vacationDays" typeRef="number"/>
+      <rule id="rule_1">
+        <inputEntry id="IE_yos_1"><text>&gt;= 20</text></inputEntry>
+        <inputEntry id="IE_dept_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_1"><text>"outstanding"</text></inputEntry>
+        <inputEntry id="IE_type_1"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_1"><text>"platinum"</text></outputEntry>
+        <outputEntry id="OE_health_1"><text>"premium_plus"</text></outputEntry>
+        <outputEntry id="OE_match_1"><text>0.10</text></outputEntry>
+        <outputEntry id="OE_vacation_1"><text>35</text></outputEntry>
+      </rule>
+      <rule id="rule_2">
+        <inputEntry id="IE_yos_2"><text>&gt;= 10</text></inputEntry>
+        <inputEntry id="IE_dept_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_2"><text>"outstanding"</text></inputEntry>
+        <inputEntry id="IE_type_2"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_2"><text>"gold"</text></outputEntry>
+        <outputEntry id="OE_health_2"><text>"premium"</text></outputEntry>
+        <outputEntry id="OE_match_2"><text>0.08</text></outputEntry>
+        <outputEntry id="OE_vacation_2"><text>30</text></outputEntry>
+      </rule>
+      <rule id="rule_3">
+        <inputEntry id="IE_yos_3"><text>&gt;= 10</text></inputEntry>
+        <inputEntry id="IE_dept_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_3"><text>"exceeds"</text></inputEntry>
+        <inputEntry id="IE_type_3"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_3"><text>"gold"</text></outputEntry>
+        <outputEntry id="OE_health_3"><text>"premium"</text></outputEntry>
+        <outputEntry id="OE_match_3"><text>0.06</text></outputEntry>
+        <outputEntry id="OE_vacation_3"><text>28</text></outputEntry>
+      </rule>
+      <rule id="rule_4">
+        <inputEntry id="IE_yos_4"><text>&gt;= 5</text></inputEntry>
+        <inputEntry id="IE_dept_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_4"><text>"meets"</text></inputEntry>
+        <inputEntry id="IE_type_4"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_4"><text>"silver"</text></outputEntry>
+        <outputEntry id="OE_health_4"><text>"standard"</text></outputEntry>
+        <outputEntry id="OE_match_4"><text>0.04</text></outputEntry>
+        <outputEntry id="OE_vacation_4"><text>22</text></outputEntry>
+      </rule>
+      <rule id="rule_5">
+        <inputEntry id="IE_yos_5"><text>&gt;= 5</text></inputEntry>
+        <inputEntry id="IE_dept_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_5"><text>"exceeds"</text></inputEntry>
+        <inputEntry id="IE_type_5"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_5"><text>"silver"</text></outputEntry>
+        <outputEntry id="OE_health_5"><text>"standard_plus"</text></outputEntry>
+        <outputEntry id="OE_match_5"><text>0.05</text></outputEntry>
+        <outputEntry id="OE_vacation_5"><text>25</text></outputEntry>
+      </rule>
+      <rule id="rule_6">
+        <inputEntry id="IE_yos_6"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="IE_dept_6"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_6"><text>-</text></inputEntry>
+        <inputEntry id="IE_type_6"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_6"><text>"bronze"</text></outputEntry>
+        <outputEntry id="OE_health_6"><text>"basic"</text></outputEntry>
+        <outputEntry id="OE_match_6"><text>0.03</text></outputEntry>
+        <outputEntry id="OE_vacation_6"><text>18</text></outputEntry>
+      </rule>
+      <rule id="rule_7">
+        <inputEntry id="IE_yos_7"><text>-</text></inputEntry>
+        <inputEntry id="IE_dept_7"><text>"executive"</text></inputEntry>
+        <inputEntry id="IE_perf_7"><text>-</text></inputEntry>
+        <inputEntry id="IE_type_7"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_7"><text>"platinum"</text></outputEntry>
+        <outputEntry id="OE_health_7"><text>"premium_plus"</text></outputEntry>
+        <outputEntry id="OE_match_7"><text>0.10</text></outputEntry>
+        <outputEntry id="OE_vacation_7"><text>35</text></outputEntry>
+      </rule>
+      <rule id="rule_8">
+        <inputEntry id="IE_yos_8"><text>-</text></inputEntry>
+        <inputEntry id="IE_dept_8"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_8"><text>-</text></inputEntry>
+        <inputEntry id="IE_type_8"><text>"part_time"</text></inputEntry>
+        <outputEntry id="OE_tier_8"><text>"basic"</text></outputEntry>
+        <outputEntry id="OE_health_8"><text>"minimal"</text></outputEntry>
+        <outputEntry id="OE_match_8"><text>0.01</text></outputEntry>
+        <outputEntry id="OE_vacation_8"><text>10</text></outputEntry>
+      </rule>
+      <rule id="rule_9">
+        <inputEntry id="IE_yos_9"><text>-</text></inputEntry>
+        <inputEntry id="IE_dept_9"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_9"><text>-</text></inputEntry>
+        <inputEntry id="IE_type_9"><text>"contractor"</text></inputEntry>
+        <outputEntry id="OE_tier_9"><text>"none"</text></outputEntry>
+        <outputEntry id="OE_health_9"><text>"none"</text></outputEntry>
+        <outputEntry id="OE_match_9"><text>0.00</text></outputEntry>
+        <outputEntry id="OE_vacation_9"><text>0</text></outputEntry>
+      </rule>
+      <rule id="rule_10">
+        <inputEntry id="IE_yos_10"><text>&gt;= 30</text></inputEntry>
+        <inputEntry id="IE_dept_10"><text>-</text></inputEntry>
+        <inputEntry id="IE_perf_10"><text>-</text></inputEntry>
+        <inputEntry id="IE_type_10"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_10"><text>"legacy_platinum"</text></outputEntry>
+        <outputEntry id="OE_health_10"><text>"premium_plus"</text></outputEntry>
+        <outputEntry id="OE_match_10"><text>0.12</text></outputEntry>
+        <outputEntry id="OE_vacation_10"><text>40</text></outputEntry>
+      </rule>
+      <rule id="rule_11">
+        <inputEntry id="IE_yos_11"><text>-</text></inputEntry>
+        <inputEntry id="IE_dept_11"><text>"discontinued_dept"</text></inputEntry>
+        <inputEntry id="IE_perf_11"><text>-</text></inputEntry>
+        <inputEntry id="IE_type_11"><text>-</text></inputEntry>
+        <outputEntry id="OE_tier_11"><text>"special"</text></outputEntry>
+        <outputEntry id="OE_health_11"><text>"premium"</text></outputEntry>
+        <outputEntry id="OE_match_11"><text>0.05</text></outputEntry>
+        <outputEntry id="OE_vacation_11"><text>25</text></outputEntry>
+      </rule>
+      <rule id="rule_12">
+        <inputEntry id="IE_yos_12"><text>&gt;= 5</text></inputEntry>
+        <inputEntry id="IE_dept_12"><text>"executive"</text></inputEntry>
+        <inputEntry id="IE_perf_12"><text>"below"</text></inputEntry>
+        <inputEntry id="IE_type_12"><text>"full_time"</text></inputEntry>
+        <outputEntry id="OE_tier_12"><text>"probation"</text></outputEntry>
+        <outputEntry id="OE_health_12"><text>"basic"</text></outputEntry>
+        <outputEntry id="OE_match_12"><text>0.02</text></outputEntry>
+        <outputEntry id="OE_vacation_12"><text>15</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

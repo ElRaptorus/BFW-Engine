@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_Esc_Parallel">
+  <!--
+    E12: Parallel branches with two distinct Escalation Intermediate Throw Events.
+
+    Root process with an Embedded Subprocess (SP_1).
+    SP_1 has a parallel split:
+      Branch A: Intermediate Throw ESC_A → End_BranchA (none end)
+      Branch B: Intermediate Throw ESC_B → End_BranchB (none end)
+
+    The child PI stays alive (intermediate throw, not end event), so both
+    passthroughs propagate to the root. SP_1 finishes normally once both
+    branches reach their End Events.
+
+    SP_1 has two non-interrupting escalation boundary events:
+      BE_A catches ESC_A
+      BE_B catches ESC_B
+
+    Both boundary paths fire and root PI finishes via End_Normal as well.
+  -->
+  <bpmn:escalation id="Esc_A" name="Escalation A" escalationCode="ESC_A" />
+  <bpmn:escalation id="Esc_B" name="Escalation B" escalationCode="ESC_B" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Escalation Parallel Branches" processRef="EscalationParallelBranches" />
+  </bpmn:collaboration>
+  <bpmn:process id="EscalationParallelBranches" name="Escalation Parallel Branches" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SP_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_BoundaryA</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_BoundaryB</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_Start_SP</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SP_1" name="Parallel Subprocess">
+      <bpmn:incoming>Flow_Start_SP</bpmn:incoming>
+      <bpmn:outgoing>Flow_SP_End</bpmn:outgoing>
+      <!-- Inner parallel split: Branch A throws ESC_A (intermediate), Branch B throws ESC_B (intermediate) -->
+      <bpmn:startEvent id="SP_Start" name="SP Start">
+        <bpmn:outgoing>Flow_SP_PG</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:parallelGateway id="PG_Split" name="Split">
+        <bpmn:incoming>Flow_SP_PG</bpmn:incoming>
+        <bpmn:outgoing>Flow_PG_A</bpmn:outgoing>
+        <bpmn:outgoing>Flow_PG_B</bpmn:outgoing>
+      </bpmn:parallelGateway>
+      <!-- Branch A: Intermediate Throw ESC_A then end normally -->
+      <bpmn:intermediateThrowEvent id="Throw_EscA" name="Throw A">
+        <bpmn:incoming>Flow_PG_A</bpmn:incoming>
+        <bpmn:outgoing>Flow_A_End</bpmn:outgoing>
+        <bpmn:escalationEventDefinition escalationRef="Esc_A" />
+      </bpmn:intermediateThrowEvent>
+      <bpmn:endEvent id="End_BranchA" name="Branch A End">
+        <bpmn:incoming>Flow_A_End</bpmn:incoming>
+      </bpmn:endEvent>
+      <!-- Branch B: Intermediate Throw ESC_B then end normally -->
+      <bpmn:intermediateThrowEvent id="Throw_EscB" name="Throw B">
+        <bpmn:incoming>Flow_PG_B</bpmn:incoming>
+        <bpmn:outgoing>Flow_B_End</bpmn:outgoing>
+        <bpmn:escalationEventDefinition escalationRef="Esc_B" />
+      </bpmn:intermediateThrowEvent>
+      <bpmn:endEvent id="End_BranchB" name="Branch B End">
+        <bpmn:incoming>Flow_B_End</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_SP_PG" sourceRef="SP_Start" targetRef="PG_Split" />
+      <bpmn:sequenceFlow id="Flow_PG_A" sourceRef="PG_Split" targetRef="Throw_EscA" />
+      <bpmn:sequenceFlow id="Flow_PG_B" sourceRef="PG_Split" targetRef="Throw_EscB" />
+      <bpmn:sequenceFlow id="Flow_A_End" sourceRef="Throw_EscA" targetRef="End_BranchA" />
+      <bpmn:sequenceFlow id="Flow_B_End" sourceRef="Throw_EscB" targetRef="End_BranchB" />
+    </bpmn:subProcess>
+    <!-- Non-interrupting boundary for ESC_A -->
+    <bpmn:boundaryEvent id="BE_A" name="Catch A" attachedToRef="SP_1" cancelActivity="false">
+      <bpmn:outgoing>Flow_BE_A</bpmn:outgoing>
+      <bpmn:escalationEventDefinition escalationRef="Esc_A" />
+    </bpmn:boundaryEvent>
+    <!-- Non-interrupting boundary for ESC_B -->
+    <bpmn:boundaryEvent id="BE_B" name="Catch B" attachedToRef="SP_1" cancelActivity="false">
+      <bpmn:outgoing>Flow_BE_B</bpmn:outgoing>
+      <bpmn:escalationEventDefinition escalationRef="Esc_B" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_BoundaryA" name="Done A">
+      <bpmn:incoming>Flow_BE_A</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_BoundaryB" name="Done B">
+      <bpmn:incoming>Flow_BE_B</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Normal" name="Done Normal">
+      <bpmn:incoming>Flow_SP_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_SP" sourceRef="Start_1" targetRef="SP_1" />
+    <bpmn:sequenceFlow id="Flow_SP_End" sourceRef="SP_1" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_BE_A" sourceRef="BE_A" targetRef="End_BoundaryA" />
+    <bpmn:sequenceFlow id="Flow_BE_B" sourceRef="BE_B" targetRef="End_BoundaryB" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="960" height="520" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="930" height="520" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="322" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SP_1" bpmnElement="SP_1" isExpanded="true">
+        <dc:Bounds x="250" y="130" width="560" height="320" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SP_Start" bpmnElement="SP_Start">
+        <dc:Bounds x="282" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_PG_Split" bpmnElement="PG_Split">
+        <dc:Bounds x="377" y="265" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_EscA" bpmnElement="Throw_EscA">
+        <dc:Bounds x="492" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_BranchA" bpmnElement="End_BranchA">
+        <dc:Bounds x="602" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_EscB" bpmnElement="Throw_EscB">
+        <dc:Bounds x="492" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_BranchB" bpmnElement="End_BranchB">
+        <dc:Bounds x="602" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_A" bpmnElement="BE_A">
+        <dc:Bounds x="492" y="432" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_B" bpmnElement="BE_B">
+        <dc:Bounds x="562" y="432" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_BoundaryA" bpmnElement="End_BoundaryA">
+        <dc:Bounds x="852" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_BoundaryB" bpmnElement="End_BoundaryB">
+        <dc:Bounds x="912" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="972" y="322" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Start_SP" bpmnElement="Flow_Start_SP">
+        <di:waypoint x="198" y="340" />
+        <di:waypoint x="250" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SP_PG" bpmnElement="Flow_SP_PG">
+        <di:waypoint x="318" y="290" />
+        <di:waypoint x="377" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_PG_A" bpmnElement="Flow_PG_A">
+        <di:waypoint x="402" y="265" />
+        <di:waypoint x="402" y="180" />
+        <di:waypoint x="492" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_PG_B" bpmnElement="Flow_PG_B">
+        <di:waypoint x="402" y="315" />
+        <di:waypoint x="402" y="400" />
+        <di:waypoint x="492" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A_End" bpmnElement="Flow_A_End">
+        <di:waypoint x="528" y="180" />
+        <di:waypoint x="602" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B_End" bpmnElement="Flow_B_End">
+        <di:waypoint x="528" y="400" />
+        <di:waypoint x="602" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SP_End" bpmnElement="Flow_SP_End">
+        <di:waypoint x="810" y="340" />
+        <di:waypoint x="972" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BE_A" bpmnElement="Flow_BE_A">
+        <di:waypoint x="510" y="468" />
+        <di:waypoint x="852" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BE_B" bpmnElement="Flow_BE_B">
+        <di:waypoint x="580" y="468" />
+        <di:waypoint x="912" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

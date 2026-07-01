@@ -1,0 +1,41 @@
+---
+description: Keep the detailed architecture documentation up to date as the Engine evolves
+alwaysApply: true
+---
+
+# Architecture Documentation Maintenance
+
+The folder `docs/architecture/` is the living, detailed architecture reference for the Engine. It contains one file per topic area, listed in `docs/architecture/index.md`. Each file documents internal implementation details: database schema, type definitions, behaviour signatures, event flows, configuration, and relationships between subsystems.
+
+## When to update
+
+Update the appropriate file in `docs/architecture/` whenever:
+
+- You modify code that changes the architecture (new types, renamed modules, changed event wiring, new endpoints, new tables, moved responsibilities)
+- You gain significant new understanding of an engine subsystem through research — even if you did not edit any code
+- You discover that existing documentation is incorrect or incomplete
+- Update `AGENTS.md` whenever you add, rename, or remove: `evil:*` extension elements, supported BPMN element types, validator rules, FEEL context bindings, or umbrella apps
+- Update `docs/architecture/api.md` when API endpoints are added, removed, or their request/response contracts change
+
+For a lookup table mapping "what changed" to "which file to update", see the `architecture-docs` skill.
+
+## What to write
+
+- Concrete, technical content: table schemas, behaviour signatures, endpoint tables, event flow descriptions, configuration options
+- Keep it factual and reference-oriented — this is not a tutorial, it is a technical reference for agents
+- The document is written in English. Maintain that language.
+
+## Adding new topics
+
+When documenting a subsystem that does not fit any existing file, create a new file in `docs/architecture/` and add it to the topic list in `docs/architecture/index.md`.
+
+## Special-purpose files
+
+- **`common-pitfalls.md`** — Recurring mistakes, gotchas, and non-obvious constraints. When you encounter a bug caused by a subtle architectural constraint, or when you discover a pattern that is easy to get wrong, add an entry here. Each entry should describe the mistake, explain why it happens, and show the correct approach.
+- **`docs/ImplementationPlan.md` §0** (Decisions table) — When a significant design decision is made (e.g., choosing one approach over another, adding a new Decision ID `D{n}`), add it to the decisions table in §0 of the ImplementationPlan.
+
+## What NOT to do
+
+- Do not rewrite existing sections unless they are wrong
+- Do not remove content — only add, correct, or restructure
+- Do not duplicate information already in `docs/Architecture.md` (high-level diagram) or `docs/Concept.md` (product concept); `docs/architecture/` covers implementation detail

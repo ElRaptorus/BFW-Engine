@@ -1,0 +1,10 @@
+name: "C120: Signal Start + Catch simultaneous — both fire on broadcast"
+fixture: "signal_catch_for_dual_test.bpmn"
+process_model_id: "SignalCatchForDual"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

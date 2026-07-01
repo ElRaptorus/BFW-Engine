@@ -1,0 +1,606 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "dt_unique",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_unique",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_unique",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_unique_1",
+            "inputEntries": [
+              {
+                "id": "IE_unique_1",
+                "text": "< 10"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_unique_1",
+                "text": "\"low\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_unique_2",
+            "inputEntries": [
+              {
+                "id": "IE_unique_2",
+                "text": "[10..50]"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_unique_2",
+                "text": "\"medium\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_unique_3",
+            "inputEntries": [
+              {
+                "id": "IE_unique_3",
+                "text": "> 50"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_unique_3",
+                "text": "\"high\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_unique",
+      "informationRequirements": [
+        {
+          "id": "ir_unique",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Unique Policy",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "first",
+        "id": "dt_first",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_first",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_first",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_first_1",
+            "inputEntries": [
+              {
+                "id": "IE_first_1",
+                "text": "< 100"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_first_1",
+                "text": "\"first_match\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_first_2",
+            "inputEntries": [
+              {
+                "id": "IE_first_2",
+                "text": "< 100"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_first_2",
+                "text": "\"second_match\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_first",
+      "informationRequirements": [
+        {
+          "id": "ir_first",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "First Policy",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "any",
+        "id": "dt_any",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_any",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_any",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_any_1",
+            "inputEntries": [
+              {
+                "id": "IE_any_1",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_any_1",
+                "text": "\"positive\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_any_2",
+            "inputEntries": [
+              {
+                "id": "IE_any_2",
+                "text": "> 5"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_any_2",
+                "text": "\"also_positive\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_any",
+      "informationRequirements": [
+        {
+          "id": "ir_any",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Any Policy",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "collect",
+        "id": "dt_collect",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_collect",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_collect",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_collect_1",
+            "inputEntries": [
+              {
+                "id": "IE_collect_1",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_collect_1",
+                "text": "1"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_collect_2",
+            "inputEntries": [
+              {
+                "id": "IE_collect_2",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_collect_2",
+                "text": "2"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_collect",
+      "informationRequirements": [
+        {
+          "id": "ir_collect",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Collect Policy",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "rule_order",
+        "id": "dt_rule_order",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_rule_order",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_rule_order",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_rule_order_1",
+            "inputEntries": [
+              {
+                "id": "IE_rule_order_1",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_rule_order_1",
+                "text": "\"rule_a\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_rule_order_2",
+            "inputEntries": [
+              {
+                "id": "IE_rule_order_2",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_rule_order_2",
+                "text": "\"rule_b\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_rule_order",
+      "informationRequirements": [
+        {
+          "id": "ir_rule_order",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Rule Order Policy",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "output_order",
+        "id": "dt_output_order",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_output_order",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_output_order",
+            "label": "Grade",
+            "name": "grade",
+            "outputValues": "\"A\", \"B\", \"C\"",
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_output_order_1",
+            "inputEntries": [
+              {
+                "id": "IE_output_order_1",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_output_order_1",
+                "text": "\"B\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_output_order_2",
+            "inputEntries": [
+              {
+                "id": "IE_output_order_2",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_output_order_2",
+                "text": "\"A\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_output_order",
+      "informationRequirements": [
+        {
+          "id": "ir_output_order",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Output Order Policy",
+      "outputLabel": null,
+      "variable": null
+    },
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "priority",
+        "id": "dt_priority",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_priority",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_priority",
+            "label": "Severity",
+            "name": "severity",
+            "outputValues": "\"critical\", \"warning\", \"info\"",
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_priority_1",
+            "inputEntries": [
+              {
+                "id": "IE_priority_1",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_priority_1",
+                "text": "\"info\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_priority_2",
+            "inputEntries": [
+              {
+                "id": "IE_priority_2",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_priority_2",
+                "text": "\"critical\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_priority_3",
+            "inputEntries": [
+              {
+                "id": "IE_priority_3",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_priority_3",
+                "text": "\"warning\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_priority",
+      "informationRequirements": [
+        {
+          "id": "ir_priority",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_value"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Priority Policy",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_hit_policies",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_value",
+      "name": "value",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "All Hit Policies",
+  "namespace": "https://example.com/dmn/hit-policies"
+}

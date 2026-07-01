@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             id="Definitions_ds_nested"
+             name="Decision Service Nested"
+             namespace="https://evilengine.dev/test/decision-service-nested">
+
+  <inputData id="InputData_amount" name="Amount" />
+  <inputData id="InputData_category" name="Category" />
+
+  <decision id="Decision_base_rate" name="Base Rate">
+    <informationRequirement>
+      <requiredInput href="#InputData_category" />
+    </informationRequirement>
+    <literalExpression>
+      <text>if Category = "premium" then 0.05 else 0.10</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_adjusted_rate" name="Adjusted Rate">
+    <informationRequirement>
+      <requiredInput href="#InputData_amount" />
+    </informationRequirement>
+    <informationRequirement>
+      <requiredDecision href="#Decision_base_rate" />
+    </informationRequirement>
+    <literalExpression>
+      <text>if Amount &gt; 10000 then Base Rate * 0.9 else Base Rate</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_fee" name="Fee">
+    <informationRequirement>
+      <requiredInput href="#InputData_amount" />
+    </informationRequirement>
+    <informationRequirement>
+      <requiredDecision href="#Decision_adjusted_rate" />
+    </informationRequirement>
+    <literalExpression>
+      <text>Amount * Adjusted Rate</text>
+    </literalExpression>
+  </decision>
+
+  <!-- Service exposes Fee, encapsulates the two intermediate calculations -->
+  <decisionService id="DS_fee_calculation" name="Fee Calculation Service">
+    <outputDecision href="#Decision_fee" />
+    <encapsulatedDecision href="#Decision_adjusted_rate" />
+    <encapsulatedDecision href="#Decision_base_rate" />
+    <inputData href="#InputData_amount" />
+    <inputData href="#InputData_category" />
+  </decisionService>
+
+  <!-- Service that has input decisions (external dependencies) -->
+  <decisionService id="DS_with_input_decisions" name="Service With Input Decisions">
+    <outputDecision href="#Decision_fee" />
+    <encapsulatedDecision href="#Decision_adjusted_rate" />
+    <inputDecision href="#Decision_base_rate" />
+    <inputData href="#InputData_amount" />
+  </decisionService>
+
+</definitions>

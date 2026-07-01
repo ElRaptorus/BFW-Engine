@@ -1,0 +1,10 @@
+name: "C79: Custom Auth Provider rejects invalid token (401)"
+fixture: "linear_start_end.bpmn"
+process_model_id: "LinearStartEnd"
+tier: interactive
+description: |
+  Register a custom AuthProvider plugin. Attempt to start a PI using an
+  invalid token. Expect 401 Unauthorized.
+expected:
+  start_rejected: true
+  start_status: 401

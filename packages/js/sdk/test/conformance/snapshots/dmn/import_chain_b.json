@@ -1,0 +1,56 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_add_triple",
+        "text": "Triple + 100",
+        "typeRef": null
+      },
+      "id": "Decision_add_triple",
+      "informationRequirements": [
+        {
+          "id": "ir_b_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        },
+        {
+          "id": "ir_b_triple",
+          "requiredDecisionId": "https://example.com/dmn/chain-c#Decision_triple",
+          "requiredInputId": null
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "AddTriple",
+      "outputLabel": null,
+      "variable": {
+        "id": "Var_add_triple",
+        "name": "AddTriple",
+        "typeRef": null
+      }
+    }
+  ],
+  "id": "definitions_chain_b",
+  "imports": [
+    {
+      "id": "Import_c",
+      "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
+      "locationUri": null,
+      "namespace": "https://example.com/dmn/chain-c"
+    }
+  ],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": null
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Chain Model B (middle)",
+  "namespace": "https://example.com/dmn/chain-b"
+}

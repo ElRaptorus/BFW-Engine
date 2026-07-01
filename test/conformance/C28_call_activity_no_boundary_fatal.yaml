@@ -1,0 +1,9 @@
+name: "C28: Call Activity child fails, no boundary, parent fatals"
+fixture: "call_activity_no_boundary_fatal.bpmn"
+child_fixture: "call_activity_failing_child.bpmn"
+process_model_id: "CallActivityNoBoundaryFatal"
+tier: call_activity
+start:
+  payload: null
+expected:
+  final_state: "fatal"

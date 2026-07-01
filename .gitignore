@@ -1,0 +1,50 @@
+# Build artifacts
+/_build/
+**/_build/
+**/deps/
+**/cover/
+/deps/
+/manual/
+/.fetch
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+erl_crash.dump
+*.ez
+
+# Generated release artefacts
+/rel/vm.args
+/rel/env.sh
+
+# Secrets & per-machine overrides
+*.secret.exs
+.env
+.env.*
+!.env.example
+
+# Ash / AshPostgres codegen snapshots are committed; only the working scratch is ignored.
+/priv/resource_snapshots/.tmp/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Rust / Cargo build artifacts (Rustler NIF crates live in apps/*/native/)
+**/native/*/target/
+
+# Node / TypeScript packages
+node_modules/
+packages/js/*/dist/
+
+# Test coverage exports
+**/cover/
+/coverage/
+excoveralls.json
+
+# Docker runtime data
+/tmp/
+.docker-compose-data/
+apps/core_expressions/priv/native/*.so

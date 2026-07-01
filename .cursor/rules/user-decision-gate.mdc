@@ -1,0 +1,50 @@
+---
+description: Enforce explicit user decisions when a plan flags "decision needed from user"
+alwaysApply: true
+---
+
+# User Decision Gate
+
+When a plan, analysis, or todo item contains any variation of:
+
+- "Decision needed from user"
+- "User decision required"
+- "Requires design input"
+- "Pending user input"
+
+the agent **MUST** ask the user for an explicit decision before implementing that item.
+
+## Rules
+
+1. **NEVER infer a user decision.** If the plan says input is required, it is required. No exceptions.
+2. **NEVER silently choose an option** from the alternatives listed in the plan.
+3. **Critical / High priority items**: Ask during `do pla` (PLAN mode), before the plan is finalized.
+4. **Medium / Low priority items**: Ask during `do exe` (EXECUTE mode), before implementing that specific step.
+5. **Use the chat window** to present the options and wait for the user's response.
+6. **Block execution of that item** until the user has responded. Continue with other independent items if possible.
+
+## Format
+
+When asking, present:
+
+- The finding/context (1-2 sentences)
+- The concrete options (labeled A, B, C, etc.)
+- A neutral recommendation if appropriate, but frame it as a suggestion — not a decision
+
+## Example
+
+```
+Finding 5 requires your input before I proceed:
+
+The BPMN user task `task_enter_missing_data` declares privilege `fremdgeld_edit`,
+which does not exist in the backend's UserGroup schema.
+
+Options:
+A) Add `fremdgeld_edit` as a new privilege to the UserGroup schema (requires DB migration)
+B) Update the BPMN to use the existing `fibu_fremdgeldliste` privilege (no migration)
+
+Recommendation: Option B avoids a schema change for the prototype, but Option A
+is more semantically correct if Fremdgeld editing is a distinct permission.
+
+Which would you prefer?
+```

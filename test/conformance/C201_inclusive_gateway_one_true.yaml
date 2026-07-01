@@ -1,0 +1,11 @@
+name: "C201: Inclusive Gateway split-join — one of two conditions true"
+fixture: "inclusive_gateway_one_true.bpmn"
+process_model_id: "InclusiveGatewayOneTrue"
+tier: auto
+start:
+  payload:
+    amount: 50
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

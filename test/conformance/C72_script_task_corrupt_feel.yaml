@@ -1,0 +1,9 @@
+name: "C72: Script Task with corrupt FEEL causes fatal"
+fixture: "script_task_corrupt_feel.bpmn"
+process_model_id: "ScriptTaskCorruptFeel"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

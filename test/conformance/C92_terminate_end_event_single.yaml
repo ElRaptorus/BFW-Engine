@@ -1,0 +1,11 @@
+name: "C92: Terminate End Event — single path"
+fixture: "terminate_end_event_single.bpmn"
+process_model_id: "TerminateSingle"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 2
+  final_tokens:
+    - endEventId: "End_Terminate"

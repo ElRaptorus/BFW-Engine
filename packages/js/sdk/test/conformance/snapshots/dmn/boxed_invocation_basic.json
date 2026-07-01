@@ -1,0 +1,89 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_tax_body",
+          "text": "income * rate",
+          "typeRef": null
+        },
+        "formalParameters": [
+          {
+            "id": "FP_income",
+            "name": "income",
+            "typeRef": "number"
+          },
+          {
+            "id": "FP_rate",
+            "name": "rate",
+            "typeRef": "number"
+          }
+        ],
+        "id": "FL_tax",
+        "type": "feel"
+      },
+      "id": "BKM_tax",
+      "knowledgeRequirements": [],
+      "name": "Tax Calculation",
+      "variable": null
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "bindings": [
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": "LE_bind_income",
+              "text": "50000",
+              "typeRef": null
+            },
+            "parameter": {
+              "id": "BP_income",
+              "name": "income",
+              "typeRef": null
+            }
+          },
+          {
+            "expression": {
+              "expressionLanguage": null,
+              "id": "LE_bind_rate",
+              "text": "0.2",
+              "typeRef": null
+            },
+            "parameter": {
+              "id": "BP_rate",
+              "name": "rate",
+              "typeRef": null
+            }
+          }
+        ],
+        "calledFunction": "Tax Calculation",
+        "id": "Inv_1"
+      },
+      "id": "Decision_apply_tax",
+      "informationRequirements": [],
+      "knowledgeRequirements": [
+        {
+          "id": "KR_1",
+          "requiredKnowledgeId": "BKM_tax"
+        }
+      ],
+      "name": "Apply Tax",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "Definitions_invocation",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "InvocationTest",
+  "namespace": "https://evilengine.dev/test/invocation"
+}

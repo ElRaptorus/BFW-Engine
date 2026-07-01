@@ -1,0 +1,86 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "any",
+        "id": "dt_any_same",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_val",
+            "inputExpression": "value",
+            "inputValues": null,
+            "label": "Value",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_result",
+            "label": "Result",
+            "name": "result",
+            "outputValues": null,
+            "typeRef": "string"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_broad",
+            "inputEntries": [
+              {
+                "id": "IE_broad",
+                "text": "> 0"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_broad",
+                "text": "\"positive\""
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_narrow",
+            "inputEntries": [
+              {
+                "id": "IE_narrow",
+                "text": "> 5"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_narrow",
+                "text": "\"positive\""
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_any_same",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Same Output Rules",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_any_same",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Any Same Output",
+  "namespace": "https://example.com/dmn/any_same_output"
+}

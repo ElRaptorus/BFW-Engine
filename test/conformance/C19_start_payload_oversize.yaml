@@ -1,0 +1,9 @@
+name: "C19: Oversize start payload rejected"
+fixture: "linear_start_end.bpmn"
+process_model_id: "LinearStartEnd"
+tier: error
+start:
+  payload_oversize: true
+expected:
+  start_error: true
+  start_status: 413

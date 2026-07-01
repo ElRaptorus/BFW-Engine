@@ -1,0 +1,9 @@
+name: "C17: Implicit split causes fatal"
+fixture: "implicit_split.bpmn"
+process_model_id: "ImplicitSplit"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "fatal"
+  final_tokens: null

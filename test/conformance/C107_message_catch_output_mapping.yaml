@@ -1,0 +1,11 @@
+name: "C107: outputMapping on catch applies correctly (D-MSG-1)"
+fixture: "message_catch_output_mapping.bpmn"
+process_model_id: "MessageCatchOutputMapping"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  fni_count: 3
+  final_tokens:
+    - endEventId: "End_1"

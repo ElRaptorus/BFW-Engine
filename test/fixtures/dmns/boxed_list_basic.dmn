@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definitions_list"
+             name="Boxed List Test"
+             namespace="https://example.com/dmn/boxed-list"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+  <decision id="Decision_list" name="List Decision">
+    <variable id="var_list" name="listResult"/>
+    <list id="list_1">
+      <literalExpression><text>10</text></literalExpression>
+      <literalExpression><text>20</text></literalExpression>
+      <literalExpression><text>30</text></literalExpression>
+    </list>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_list" dmnElementRef="Decision_list">
+        <dc:Bounds x="100" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

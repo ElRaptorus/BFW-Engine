@@ -1,0 +1,11 @@
+name: "C208: Inclusive Gateway split — unconditional + conditional flows"
+fixture: "inclusive_gateway_unconditional.bpmn"
+process_model_id: "InclusiveGatewayUnconditional"
+tier: auto
+start:
+  payload:
+    a: true
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

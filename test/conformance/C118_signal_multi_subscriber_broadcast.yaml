@@ -1,0 +1,12 @@
+name: "C118: Multi-subscriber broadcast — 3 catch events for same signal"
+fixture: "signal_multi_catch.bpmn"
+process_model_id: "SignalMultiCatch"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"
+    - endEventId: "End_2"
+    - endEventId: "End_3"

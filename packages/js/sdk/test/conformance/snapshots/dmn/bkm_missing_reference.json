@@ -1,0 +1,49 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "expressionLanguage": null,
+        "id": "LE_broken",
+        "text": "x + 1",
+        "typeRef": "number"
+      },
+      "id": "Decision_broken",
+      "informationRequirements": [
+        {
+          "id": "ir_x",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_x"
+        }
+      ],
+      "knowledgeRequirements": [
+        {
+          "id": "kr_nonexistent",
+          "requiredKnowledgeId": "BKM_nonexistent"
+        }
+      ],
+      "name": "Broken Decision",
+      "outputLabel": null,
+      "variable": {
+        "id": "var_broken",
+        "name": "brokenResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "id": "definitions_bkm_missing",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_x",
+      "name": "x",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM Missing Reference",
+  "namespace": "https://example.com/dmn/bkm-missing"
+}

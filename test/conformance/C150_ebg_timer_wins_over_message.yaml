@@ -1,0 +1,10 @@
+name: "C150: Event-Based Gateway — timer PT0S wins over message catch"
+fixture: "event_based_gateway_timer_message.bpmn"
+process_model_id: "EbgTimerMessage"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

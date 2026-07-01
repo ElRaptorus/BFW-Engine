@@ -1,0 +1,237 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": [],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Wait 1",
+          "outgoing": [],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_broadcast"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_2",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Wait 2",
+          "outgoing": [],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_broadcast"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_3",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Wait 3",
+          "outgoing": [],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_broadcast"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End 1",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_2",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End 2",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_3",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End 3",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "SignalMultiCatch",
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Fork_1", "Catch_1", "Catch_2", "Catch_3", "End_1", "End_2", "End_3"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "linterScores": [],
+      "name": "Signal Multi Catch",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_fork_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "Catch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_fork_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "Catch_2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_fork_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "Catch_3"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_end_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_1",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_end_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_2",
+          "targetRef": "End_2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_end_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_3",
+          "targetRef": "End_3"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_broadcast",
+      "name": "broadcast-signal"
+    }
+  ]
+}

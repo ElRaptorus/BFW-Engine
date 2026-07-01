@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_bkm_consumer"
+             name="Imported BKM Consumer"
+             namespace="https://evilengine.dev/test/bkm-consumer"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <import id="Import_helper"
+          namespace="https://evilengine.dev/test/bkm-helper"
+          importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <inputData id="InputData_amount" name="amount">
+    <variable id="var_amount" name="amount" typeRef="number"/>
+  </inputData>
+
+  <decision id="Decision_total_tax" name="Total Tax">
+    <variable id="var_total_tax" name="Total Tax"/>
+    <informationRequirement id="ir_amount">
+      <requiredInput href="#InputData_amount"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_tax_rate">
+      <requiredKnowledge href="https://evilengine.dev/test/bkm-helper#BKM_tax_rate"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_total_tax">
+      <text>amount * Tax Rate Calculator</text>
+    </literalExpression>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_Decision_total_tax" dmnElementRef="Decision_total_tax">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_amount" dmnElementRef="InputData_amount">
+        <dc:Bounds x="130" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_amount" dmnElementRef="ir_amount">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

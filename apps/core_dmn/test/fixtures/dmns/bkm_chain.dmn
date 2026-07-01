@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bkm_chain" name="BKM Chain"
+  namespace="https://example.com/dmn/bkm-chain">
+
+  <inputData id="InputData_n" name="n">
+    <variable name="n" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_m" name="m">
+    <variable name="m" typeRef="number"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_base" name="Base Logic">
+    <variable id="var_bkm_base" name="baseResult" typeRef="number"/>
+    <encapsulatedLogic id="EL_base">
+      <formalParameter id="FP_n_base" name="n" typeRef="number"/>
+      <literalExpression id="LE_base" typeRef="number">
+        <text>n * 10</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <businessKnowledgeModel id="BKM_derived" name="Derived Logic">
+    <variable id="var_bkm_derived" name="derivedResult" typeRef="number"/>
+    <knowledgeRequirement id="kr_base">
+      <requiredKnowledge href="#BKM_base"/>
+    </knowledgeRequirement>
+    <encapsulatedLogic id="EL_derived">
+      <formalParameter id="FP_n_derived" name="n" typeRef="number"/>
+      <formalParameter id="FP_m" name="m" typeRef="number"/>
+      <literalExpression id="LE_derived" typeRef="number">
+        <text>baseResult + m</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_main" name="Main Decision">
+    <variable id="var_main" name="finalResult" typeRef="number"/>
+    <informationRequirement id="ir_n">
+      <requiredInput href="#InputData_n"/>
+    </informationRequirement>
+    <informationRequirement id="ir_m">
+      <requiredInput href="#InputData_m"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_derived">
+      <requiredKnowledge href="#BKM_derived"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_main" typeRef="number">
+      <text>derivedResult + 1</text>
+    </literalExpression>
+  </decision>
+</definitions>

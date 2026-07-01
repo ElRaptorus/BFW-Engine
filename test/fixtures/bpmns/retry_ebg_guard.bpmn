@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_RetryEbgGuard"
+                  targetNamespace="https://evilengine.dev/schema/bpmn">
+  <bpmn:message id="Message_ebg_retry" name="ebg-retry-msg" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_RetryEbgGuard" name="Retry EBG Guard" processRef="RetryEbgGuard" />
+  </bpmn:collaboration>
+  <bpmn:process id="RetryEbgGuard" name="Retry EBG Guard" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EBG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_Timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_Message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DeadEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_MsgPath</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:eventBasedGateway id="EBG_1" name="EBG">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToTimer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToMessage</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="Catch_Timer" name="Timer Wins">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT0S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:incoming>Flow_ToTimer</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDeadEnd</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Catch_Message" name="Message Catch">
+      <bpmn:messageEventDefinition messageRef="Message_ebg_retry" />
+      <bpmn:incoming>Flow_ToMessage</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToMsgEnd</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_DeadEnd" name="Dead End">
+      <bpmn:incoming>Flow_ToDeadEnd</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_Unreachable</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_MsgPath" name="Message Path End">
+      <bpmn:incoming>Flow_ToMsgEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="EBG_1" />
+    <bpmn:sequenceFlow id="Flow_ToTimer" sourceRef="EBG_1" targetRef="Catch_Timer" />
+    <bpmn:sequenceFlow id="Flow_ToMessage" sourceRef="EBG_1" targetRef="Catch_Message" />
+    <bpmn:sequenceFlow id="Flow_ToDeadEnd" sourceRef="Catch_Timer" targetRef="Task_DeadEnd" />
+    <bpmn:sequenceFlow id="Flow_ToMsgEnd" sourceRef="Catch_Message" targetRef="End_MsgPath" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant" bpmnElement="Participant_RetryEbgGuard" isHorizontal="true">
+        <dc:Bounds x="82" y="40" width="618" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="40" width="588" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EBG_1" bpmnElement="EBG_1">
+        <dc:Bounds x="260" y="135" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_Timer" bpmnElement="Catch_Timer">
+        <dc:Bounds x="372" y="92" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_Message" bpmnElement="Catch_Message">
+        <dc:Bounds x="372" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DeadEnd" bpmnElement="Task_DeadEnd">
+        <dc:Bounds x="470" y="70" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="622" y="92" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_MsgPath" bpmnElement="End_MsgPath">
+        <dc:Bounds x="622" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="160" />
+        <di:waypoint x="260" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToTimer" bpmnElement="Flow_ToTimer">
+        <di:waypoint x="310" y="160" />
+        <di:waypoint x="341" y="160" />
+        <di:waypoint x="341" y="110" />
+        <di:waypoint x="372" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToMessage" bpmnElement="Flow_ToMessage">
+        <di:waypoint x="310" y="160" />
+        <di:waypoint x="341" y="160" />
+        <di:waypoint x="341" y="250" />
+        <di:waypoint x="372" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDeadEnd" bpmnElement="Flow_ToDeadEnd">
+        <di:waypoint x="408" y="110" />
+        <di:waypoint x="470" y="110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToMsgEnd" bpmnElement="Flow_ToMsgEnd">
+        <di:waypoint x="408" y="250" />
+        <di:waypoint x="622" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

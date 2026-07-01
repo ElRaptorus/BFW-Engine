@@ -1,0 +1,12 @@
+name: "C40: DMN Deploy + Evaluate UNIQUE"
+type: dmn
+fixture: "simple_unique.dmn"
+decision_definition_id: "definitions_discount"
+evaluate:
+  input:
+    age: 25
+expected:
+  status: 200
+  hit_policy: "unique"
+  result:
+    discount: 5

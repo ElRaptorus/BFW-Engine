@@ -1,0 +1,11 @@
+name: "C05: Start-End with explicit empty payload"
+fixture: "linear_start_end.bpmn"
+process_model_id: "LinearStartEnd"
+tier: auto
+start:
+  payload: {}
+expected:
+  final_state: "finished"
+  fni_count: 2
+  final_tokens:
+    - endEventId: "End_1"

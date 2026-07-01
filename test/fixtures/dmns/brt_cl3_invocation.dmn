@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  id="definitions_brt_cl3"
+  name="BRT CL3 BKM Invocation"
+  namespace="https://example.com/dmn/brt-cl3"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <extensionElements>
+    <evil:version>1.0.0</evil:version>
+  </extensionElements>
+
+  <inputData id="InputData_orderTotal" name="orderTotal">
+    <variable name="orderTotal" typeRef="number"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_calculate_discount" name="Calculate Discount">
+    <variable id="var_bkm_discount" name="discountPercent" typeRef="number"/>
+    <encapsulatedLogic id="EL_calculate_discount" kind="FEEL">
+      <formalParameter id="FP_orderTotal" name="orderTotal" typeRef="number"/>
+      <decisionTable id="dt_discount" hitPolicy="FIRST">
+        <input id="Input_bkm_1" label="Order Total">
+          <inputExpression typeRef="number">orderTotal</inputExpression>
+        </input>
+        <output id="Output_bkm_1" label="Discount Percent" name="discount" typeRef="number"/>
+        <rule id="Rule_bkm_1">
+          <inputEntry id="IE_bkm_1"><text>&gt;= 1000</text></inputEntry>
+          <outputEntry id="OE_bkm_1"><text>15</text></outputEntry>
+        </rule>
+        <rule id="Rule_bkm_2">
+          <inputEntry id="IE_bkm_2"><text>&gt;= 500</text></inputEntry>
+          <outputEntry id="OE_bkm_2"><text>10</text></outputEntry>
+        </rule>
+        <rule id="Rule_bkm_3">
+          <inputEntry id="IE_bkm_3"><text>-</text></inputEntry>
+          <outputEntry id="OE_bkm_3"><text>5</text></outputEntry>
+        </rule>
+      </decisionTable>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_discount" name="Discount Decision">
+    <variable id="var_decision" name="discountPercent" typeRef="number"/>
+    <informationRequirement id="ir_orderTotal">
+      <requiredInput href="#InputData_orderTotal"/>
+    </informationRequirement>
+    <invocation id="Inv_discount">
+      <literalExpression id="LE_called">
+        <text>Calculate Discount</text>
+      </literalExpression>
+      <binding>
+        <parameter id="BP_orderTotal" name="orderTotal"/>
+        <literalExpression id="LE_bind_orderTotal">
+          <text>orderTotal</text>
+        </literalExpression>
+      </binding>
+    </invocation>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_BKM_calculate_discount" dmnElementRef="BKM_calculate_discount">
+        <dc:Bounds x="100" y="240" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_discount" dmnElementRef="Decision_discount">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_orderTotal" dmnElementRef="InputData_orderTotal">
+        <dc:Bounds x="340" y="240" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_ir_orderTotal" dmnElementRef="ir_orderTotal">
+        <di:waypoint x="430" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

@@ -1,0 +1,10 @@
+name: "C151: Event-Based Gateway — message wins over timer"
+fixture: "event_based_gateway_message_over_timer.bpmn"
+process_model_id: "EbgMessageOverTimer"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

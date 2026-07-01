@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  id="Definitions_order_demo"
+  targetNamespace="https://evilengine.dev/examples/order-demo">
+
+  <bpmn:message id="Message_order_received" name="order-received" />
+  <bpmn:signal id="Signal_shipment_ready" name="shipment-ready" />
+  <bpmn:error id="Error_fulfillment" name="Fulfillment failed" errorCode="FULFILLMENT_FAILED" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_order-fulfillment-demo" name="Order fulfillment demo" processRef="order-fulfillment-demo" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="order-fulfillment-demo" name="Order fulfillment demo" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>2.1.0</evil:version>
+      <evil:correlationKey>token.orderId</evil:correlationKey>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_order_message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ManualTask_pack_slip</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_approval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_charge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_settlement_timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_rejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_order_message" name="Order message received">
+      <bpmn:outgoing>Flow_start_to_review</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_start" messageRef="Message_order_received" />
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="UserTask_review" name="Review order">
+      <bpmn:extensionElements>
+        <evil:assignees>identity.groups</evil:assignees>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_start_to_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_review_to_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:manualTask id="ManualTask_pack_slip" name="Prepare pack slip">
+      <bpmn:extensionElements>
+        <evil:requireConfirmation>true</evil:requireConfirmation>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_review_to_manual</bpmn:incoming>
+      <bpmn:outgoing>Flow_manual_to_fork</bpmn:outgoing>
+    </bpmn:manualTask>
+
+    <bpmn:exclusiveGateway id="Gateway_approval" name="Approved?" default="Flow_rejected">
+      <bpmn:incoming>Flow_manual_to_fork</bpmn:incoming>
+      <bpmn:outgoing>Flow_approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="ServiceTask_charge" name="Charge payment" implementation="http">
+      <bpmn:extensionElements>
+        <evil:httpUrl>https://payments.example.com/v2/charge</evil:httpUrl>
+        <evil:httpMethod>POST</evil:httpMethod>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_charge_to_timer</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateCatchEvent id="Catch_settlement_timer" name="Wait for settlement window">
+      <bpmn:incoming>Flow_charge_to_timer</bpmn:incoming>
+      <bpmn:outgoing>Flow_timer_to_end</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1">
+        <bpmn:timeDuration>PT5M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:endEvent id="End_success" name="Order complete">
+      <bpmn:incoming>Flow_timer_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_rejected" name="Order rejected">
+      <bpmn:incoming>Flow_rejected</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_reject" errorRef="Error_fulfillment" />
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_start_to_review" sourceRef="Start_order_message" targetRef="UserTask_review" />
+    <bpmn:sequenceFlow id="Flow_review_to_manual" sourceRef="UserTask_review" targetRef="ManualTask_pack_slip" />
+    <bpmn:sequenceFlow id="Flow_manual_to_fork" sourceRef="ManualTask_pack_slip" targetRef="Gateway_approval" />
+    <bpmn:sequenceFlow id="Flow_approved" sourceRef="Gateway_approval" targetRef="ServiceTask_charge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        token.approved = true
+      </bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_rejected" sourceRef="Gateway_approval" targetRef="End_rejected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        token.approved = false
+      </bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_charge_to_timer" sourceRef="ServiceTask_charge" targetRef="Catch_settlement_timer" />
+    <bpmn:sequenceFlow id="Flow_timer_to_end" sourceRef="Catch_settlement_timer" targetRef="End_success" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_order-fulfillment-demo" bpmnElement="Participant_order-fulfillment-demo" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="1126" height="218" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="1096" height="218" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_order_message" bpmnElement="Start_order_message">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_review" bpmnElement="UserTask_review">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ManualTask_pack_slip" bpmnElement="ManualTask_pack_slip">
+        <dc:Bounds x="450" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_approval" bpmnElement="Gateway_approval">
+        <dc:Bounds x="635" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_charge" bpmnElement="ServiceTask_charge">
+        <dc:Bounds x="770" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_settlement_timer" bpmnElement="Catch_settlement_timer">
+        <dc:Bounds x="962" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_success" bpmnElement="End_success">
+        <dc:Bounds x="1122" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_rejected" bpmnElement="End_rejected">
+        <dc:Bounds x="802" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_start_to_review" bpmnElement="Flow_start_to_review">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_review_to_manual" bpmnElement="Flow_review_to_manual">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="450" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_manual_to_fork" bpmnElement="Flow_manual_to_fork">
+        <di:waypoint x="550" y="200" />
+        <di:waypoint x="635" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_approved" bpmnElement="Flow_approved">
+        <di:waypoint x="685" y="200" />
+        <di:waypoint x="727" y="200" />
+        <di:waypoint x="727" y="250" />
+        <di:waypoint x="770" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_rejected" bpmnElement="Flow_rejected">
+        <di:waypoint x="685" y="200" />
+        <di:waypoint x="743" y="200" />
+        <di:waypoint x="743" y="150" />
+        <di:waypoint x="802" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_charge_to_timer" bpmnElement="Flow_charge_to_timer">
+        <di:waypoint x="870" y="250" />
+        <di:waypoint x="962" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_timer_to_end" bpmnElement="Flow_timer_to_end">
+        <di:waypoint x="998" y="250" />
+        <di:waypoint x="1122" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

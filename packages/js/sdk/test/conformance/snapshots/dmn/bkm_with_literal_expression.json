@@ -1,0 +1,46 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "expressionLanguage": null,
+          "id": "LE_tax",
+          "text": "income * taxRate",
+          "typeRef": "number"
+        },
+        "formalParameters": [
+          {
+            "id": "FP_income",
+            "name": "income",
+            "typeRef": "number"
+          },
+          {
+            "id": "FP_rate",
+            "name": "taxRate",
+            "typeRef": "number"
+          }
+        ],
+        "id": "EL_tax",
+        "type": "feel"
+      },
+      "id": "BKM_tax",
+      "knowledgeRequirements": [],
+      "name": "Tax Calculation",
+      "variable": {
+        "id": "var_bkm_tax",
+        "name": "taxAmount",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [],
+  "id": "definitions_bkm_le",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM with Literal Expression",
+  "namespace": "https://example.com/dmn/bkm-le"
+}

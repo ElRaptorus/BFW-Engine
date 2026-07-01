@@ -1,0 +1,29 @@
+# Source (consumers use dist/)
+src/
+
+# Tests
+test/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# TypeScript config (declaration files are in dist/)
+tsconfig.json
+
+# Test runner config
+vitest.config.*
+
+# Linting & formatting
+eslint.config.*
+.prettierrc*
+.editorconfig
+
+# IDE & tooling
+.cursor/
+.vscode/
+.idea/
+
+# CI & misc
+.github/
+.gitignore
+*.tgz

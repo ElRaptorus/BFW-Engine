@@ -1,0 +1,12 @@
+name: "C45: DMN DRD Diamond Deduplication"
+type: dmn
+fixture: drg_diamond.dmn
+decision_definition_id: "definitions_diamond"
+evaluate:
+  decision_model_id: "Decision_A"
+  input:
+    x: 1
+expected:
+  status: 200
+  result: 34
+  trace_decision_count: 4

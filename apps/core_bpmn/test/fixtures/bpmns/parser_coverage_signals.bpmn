@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_Signals">
+
+  <bpmn:signal id="Signal_Done" name="order-done" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Process_Signals" name="Signal Coverage" processRef="Process_Signals" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Signals" name="Signal Coverage" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_Signal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_Host</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_Signal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Signal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Signal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Signal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Boundary</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_Signal" name="Signal Start">
+      <bpmn:signalEventDefinition signalRef="Signal_Done" />
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="UserTask_Host" name="Host Task">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:intermediateCatchEvent id="Catch_Signal" name="Catch Signal">
+      <bpmn:signalEventDefinition signalRef="Signal_Done" />
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateThrowEvent id="Throw_Signal" name="Throw Signal">
+      <bpmn:signalEventDefinition signalRef="Signal_Done" />
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_Signal" name="Signal End">
+      <bpmn:signalEventDefinition signalRef="Signal_Done" />
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:boundaryEvent id="Boundary_Signal" name="Signal Boundary" attachedToRef="UserTask_Host" cancelActivity="false">
+      <bpmn:signalEventDefinition signalRef="Signal_Done" />
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:endEvent id="End_Boundary" name="Boundary End">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Signal" targetRef="UserTask_Host" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_Host" targetRef="Catch_Signal" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Catch_Signal" targetRef="Throw_Signal" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Throw_Signal" targetRef="End_Signal" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Boundary_Signal" targetRef="End_Boundary" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Process_Signals" bpmnElement="Participant_Process_Signals" isHorizontal="true">
+        <dc:Bounds x="82" y="132" width="886" height="216" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="132" width="856" height="216" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Signal" bpmnElement="Start_Signal">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_Host" bpmnElement="UserTask_Host">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_Signal" bpmnElement="Catch_Signal">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Signal" bpmnElement="Throw_Signal">
+        <dc:Bounds x="642" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Signal" bpmnElement="End_Signal">
+        <dc:Bounds x="802" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Signal" bpmnElement="Boundary_Signal">
+        <dc:Bounds x="322" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Boundary" bpmnElement="End_Boundary">
+        <dc:Bounds x="482" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="518" y="200" />
+        <di:waypoint x="642" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="678" y="200" />
+        <di:waypoint x="802" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="340" y="258" />
+        <di:waypoint x="411" y="258" />
+        <di:waypoint x="411" y="300" />
+        <di:waypoint x="482" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

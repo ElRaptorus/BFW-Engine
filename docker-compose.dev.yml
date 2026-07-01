@@ -1,0 +1,67 @@
+# Local-dev compose stack per `docs/ImplementationPlan.md` §14.2:
+# "Two services only: engine + postgres:16. No tracing / metrics sidecars
+# in v1 (D24)."
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: evil-engine-postgres-dev
+    environment:
+      POSTGRES_USER: evil_engine
+      POSTGRES_PASSWORD: evil_engine
+      POSTGRES_DB: evil_engine_dev
+      # Per Schema.md — LZ4 JSONB compression (D39).
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5543:5432"
+    volumes:
+      - evil_engine_postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "evil_engine", "-d", "evil_engine_dev" ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  engine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: evil-engine-dev
+    environment:
+      # §14.3 env contract.
+      EVIL_DEVTOOLS_ENABLED: true
+      EVIL_EXPOSE_OPENAPI_SPEC: true
+      EVIL_DATABASE_HOST: postgres
+      EVIL_DATABASE_PORT: 5432
+      EVIL_DATABASE_NAME: evil_engine_dev
+      EVIL_DATABASE_USER: evil_engine
+      EVIL_DATABASE_PASS: evil_engine
+      EVIL_HTTP_PORT: "4100"
+      EVIL_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+      EVIL_ENGINE_ID: "evil-engine-local-dev"
+      EVIL_ENGINE_NAME: "Evil Engine (local dev)"
+      # Payload cap + compression defaults (D39).
+      EVIL_TOKEN_MAX_BYTES: "65536"
+      EVIL_JSONB_COMPRESSION: "lz4"
+      # Auth — HS256 dev secret. Mint tokens with: mix evil.mint_token
+      EVIL_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+      # Event sinks (D37). DB sink stays off by default.
+      EVIL_EVENT_SINK_CONSOLE: "on"
+      EVIL_EVENT_SINK_TELEMETRY: "on"
+      EVIL_EVENT_SINK_WEBSOCKET: "on"
+      # Optional seeding directory (D19). Mount a host folder to use it.
+      # EVIL_SEEDING_DIRECTORY: "/app/seeding"
+    ports:
+      - "4100:4100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:4100/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  evil_engine_postgres_data_dev:

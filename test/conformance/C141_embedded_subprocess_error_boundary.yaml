@@ -1,0 +1,10 @@
+name: "C141: Embedded subprocess error caught by boundary, parent finishes"
+fixture: "embedded_subprocess_error_boundary.bpmn"
+process_model_id: "EmbeddedSubprocessErrorBoundary"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Error"

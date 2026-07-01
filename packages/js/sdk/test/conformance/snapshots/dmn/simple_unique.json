@@ -1,0 +1,115 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "unique",
+        "id": "dt_discount",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_1",
+            "inputExpression": "age",
+            "inputValues": null,
+            "label": "Customer Age",
+            "typeRef": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_1",
+            "label": "Discount",
+            "name": "discount",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_1",
+            "inputEntries": [
+              {
+                "id": "IE_1",
+                "text": "< 18"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_1",
+                "text": "10"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_2",
+            "inputEntries": [
+              {
+                "id": "IE_2",
+                "text": "[18..65]"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_2",
+                "text": "5"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_3",
+            "inputEntries": [
+              {
+                "id": "IE_3",
+                "text": "> 65"
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_3",
+                "text": "15"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_discount",
+      "informationRequirements": [
+        {
+          "id": "ir_age",
+          "requiredDecisionId": null,
+          "requiredInputId": "InputData_age"
+        }
+      ],
+      "knowledgeRequirements": [],
+      "name": "Discount Percentage",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_discount",
+  "imports": [],
+  "inputData": [
+    {
+      "id": "InputData_age",
+      "name": "age",
+      "typeRef": "number"
+    }
+  ],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Discount Rules",
+  "namespace": "https://example.com/dmn/discount"
+}

@@ -1,0 +1,13 @@
+name: "C95: Escalation End Event caught by interrupting CA boundary (S15)"
+fixture: "escalation_end_event_ca_interrupting_boundary.bpmn"
+child_fixtures:
+  - "escalation_end_child.bpmn"
+process_model_id: "EscalationCAInterrupting"
+tier: auto
+wait_timeout_ms: 5000
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Caught"

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_bkm_invoke_le" name="BKM Invocation Literal"
+  namespace="https://example.com/dmn/bkm-invoke-le">
+
+  <inputData id="InputData_income" name="income">
+    <variable name="income" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_rate" name="taxRate">
+    <variable name="taxRate" typeRef="number"/>
+  </inputData>
+
+  <businessKnowledgeModel id="BKM_tax" name="Tax Calculation">
+    <variable id="var_bkm_tax" name="taxAmount" typeRef="number"/>
+    <encapsulatedLogic id="EL_tax">
+      <formalParameter id="FP_income" name="income" typeRef="number"/>
+      <formalParameter id="FP_rate" name="taxRate" typeRef="number"/>
+      <literalExpression id="LE_tax" typeRef="number">
+        <text>income * taxRate</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_tax" name="Tax Decision">
+    <variable id="var_tax" name="totalWithTax" typeRef="number"/>
+    <informationRequirement id="ir_income">
+      <requiredInput href="#InputData_income"/>
+    </informationRequirement>
+    <informationRequirement id="ir_rate">
+      <requiredInput href="#InputData_rate"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_tax">
+      <requiredKnowledge href="#BKM_tax"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_decision" typeRef="number">
+      <text>taxAmount + 100</text>
+    </literalExpression>
+  </decision>
+</definitions>

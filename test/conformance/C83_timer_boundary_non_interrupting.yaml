@@ -1,0 +1,11 @@
+name: "C83: Timer Boundary Event — non-interrupting fires, user task continues"
+fixture: "timer_boundary_non_interrupting.bpmn"
+process_model_id: "TimerBoundaryNonInterrupting"
+tier: interactive
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Normal"
+    - endEventId: "End_Timeout"

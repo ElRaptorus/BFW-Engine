@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_mixed" name="Mixed Decisions"
+  namespace="https://example.com/dmn/mixed">
+  <inputData id="InputData_x" name="x" />
+  <inputData id="InputData_y" name="y" />
+  <decision id="Decision_table" name="Table Decision">
+    <informationRequirement id="ir_table_x">
+      <requiredInput href="#InputData_x" />
+    </informationRequirement>
+    <decisionTable id="dt_mixed" hitPolicy="UNIQUE">
+      <input id="Input_1" label="X">
+        <inputExpression typeRef="number">x</inputExpression>
+      </input>
+      <output id="Output_1" label="Y" name="y" typeRef="number"/>
+      <rule id="Rule_1">
+        <inputEntry id="IE_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_1"><text>1</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <decision id="Decision_literal" name="Literal Decision">
+    <informationRequirement id="ir_literal_x">
+      <requiredInput href="#InputData_x" />
+    </informationRequirement>
+    <informationRequirement id="ir_literal_y">
+      <requiredInput href="#InputData_y" />
+    </informationRequirement>
+    <literalExpression id="le_1" typeRef="number">
+      <text>x + y</text>
+    </literalExpression>
+  </decision>
+</definitions>

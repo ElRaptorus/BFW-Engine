@@ -1,0 +1,10 @@
+name: "C89: Timer Boundary Event — host finishes before timer, boundary cancelled"
+fixture: "timer_boundary_host_completes_first.bpmn"
+process_model_id: "TimerBoundaryHostFirst"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Normal"

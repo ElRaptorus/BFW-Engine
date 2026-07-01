@@ -1,0 +1,11 @@
+name: "C27: Call Activity child fails, error boundary catches"
+fixture: "call_activity_error_boundary.bpmn"
+child_fixture: "call_activity_failing_child.bpmn"
+process_model_id: "CallActivityErrorBoundary"
+tier: call_activity
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Error"

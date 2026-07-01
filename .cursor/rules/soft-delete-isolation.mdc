@@ -1,0 +1,47 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Soft-Delete Isolation
+
+Soft-deleted records (`deleted = true`) must **never** be visible through any public API surface. This is a security invariant, not a convenience guideline.
+
+## The Invariant
+
+Any Ash resource that has a `deleted` (boolean) attribute MUST enforce invisibility at the data layer:
+
+1. **`base_filter` on `:read`** — The primary `:read` action must include `filter expr(deleted == false)`. This is the only reliable enforcement point; it cannot be bypassed by `authorize?: false` or by any query built on top of it.
+2. **`primary_read_warning?: false`** — Add to the `use Ash.Resource` options to acknowledge the intentional filter on the primary read.
+3. **No read-including-deleted bypass** — Do not create a secondary `:read` action that omits the filter. If you need to mutate a soft-deleted record (e.g. cascade soft-delete to FNIs), fetch it with `Ash.get` before it is deleted, or use `Ash.Changeset.for_update` on a record already in memory.
+
+## When Adding a New Soft-Deletable Resource
+
+If you add `deleted`, `deleted_at`, `deleted_by` attributes to a new or existing Ash resource:
+
+- [ ] Add `filter expr(deleted == false)` to the primary `:read` action
+- [ ] Add `primary_read_warning?: false` to `use Ash.Resource`
+- [ ] Verify the resource's GraphQL `list` and `get` queries use the `:read` action (they do by default)
+- [ ] Ensure no REST controller, WebSocket channel, or plugin adapter reads this resource through a custom action that skips the filter
+- [ ] Do NOT include `deleted`, `deleted_at`, or `deleted_by` in any public-facing type, API response, or SDK interface
+- [ ] Run `mix quality` to confirm all tests pass with the filter in place
+
+## Error Messages
+
+When a query returns no result because the record is soft-deleted, the error must be indistinguishable from a genuinely missing record:
+
+- **Good:** `"not found"`, `"process version not found"`, HTTP 404
+- **Bad:** `"soft-deleted"`, `"marked as deleted"`, `"record exists but is deleted"`
+
+## Deletion Guards
+
+A soft-deletable resource that other active resources depend on must not be deletable while those dependents are active. Example: a `ProcessVersion` cannot be soft-deleted while non-terminal `ProcessInstance` records reference it. Enforce this with a guard check in the controller/action, returning HTTP 409 (`active_instances_exist`).
+
+## Public-Facing Terminology
+
+Never use the term "soft-delete" in SDK types, TSDoc comments, API documentation, or error messages. From the consumer's perspective, delete is delete. See `docs/architecture/common-pitfalls.md` §P10 for details.
+
+## Reference
+
+- `docs/architecture/common-pitfalls.md` §P9 (base_filter requirement) and §P10 (terminology)
+- `docs/architecture/api.md` §10.7 (soft-delete filtering)

@@ -1,0 +1,170 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A",
+          "incoming": ["Flow_A"],
+          "multiInstance": null,
+          "name": "Quick Path",
+          "outgoing": ["Flow_A2"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Terminate",
+          "incoming": ["Flow_A2"],
+          "multiInstance": null,
+          "name": "Terminate",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_Wait",
+          "incoming": ["Flow_B"],
+          "multiInstance": null,
+          "name": "Waiting User Task",
+          "outgoing": ["Flow_B2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_B2"],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TerminateParallel",
+      "isExecutable": true,
+      "lanes": [],
+      "linterScores": [],
+      "name": "Terminate Parallel",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "Task_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "UserTask_Wait"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A",
+          "targetRef": "End_Terminate"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_Wait",
+          "targetRef": "End_Normal"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

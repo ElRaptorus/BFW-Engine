@@ -1,0 +1,14 @@
+name: "C52: DMN Boxed List evaluation"
+type: dmn
+fixture: "boxed_list_basic.dmn"
+decision_definition_id: "definitions_list"
+evaluate:
+  decision_model_id: "Decision_list"
+  input: {}
+expected:
+  status: 200
+  hit_policy: "boxed_expression"
+  result:
+    - 10
+    - 20
+    - 30

@@ -1,0 +1,11 @@
+name: "C49: DMN Boxed Context with intermediate variables"
+type: dmn
+fixture: "boxed_context_basic.dmn"
+decision_definition_id: "definitions_context"
+evaluate:
+  decision_model_id: "Decision_context"
+  input: {}
+expected:
+  status: 200
+  hit_policy: "boxed_expression"
+  result: 11

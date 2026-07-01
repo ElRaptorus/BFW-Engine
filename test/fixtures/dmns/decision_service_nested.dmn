@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_ds_nested"
+             name="Decision Service Nested"
+             namespace="https://evilengine.dev/test/decision-service-nested"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <inputData id="InputData_amount" name="Amount" />
+  <inputData id="InputData_category" name="Category" />
+
+  <decision id="Decision_base_rate" name="Base Rate">
+    <informationRequirement>
+      <requiredInput href="#InputData_category" />
+    </informationRequirement>
+    <literalExpression>
+      <text>if Category = "premium" then 0.05 else 0.10</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_adjusted_rate" name="Adjusted Rate">
+    <informationRequirement>
+      <requiredInput href="#InputData_amount" />
+    </informationRequirement>
+    <informationRequirement>
+      <requiredDecision href="#Decision_base_rate" />
+    </informationRequirement>
+    <literalExpression>
+      <text>if Amount &gt; 10000 then Base Rate * 0.9 else Base Rate</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_fee" name="Fee">
+    <informationRequirement>
+      <requiredInput href="#InputData_amount" />
+    </informationRequirement>
+    <informationRequirement>
+      <requiredDecision href="#Decision_adjusted_rate" />
+    </informationRequirement>
+    <literalExpression>
+      <text>Amount * Adjusted Rate</text>
+    </literalExpression>
+  </decision>
+
+  <!-- Service exposes Fee, encapsulates the two intermediate calculations -->
+  <decisionService id="DS_fee_calculation" name="Fee Calculation Service">
+    <outputDecision href="#Decision_fee" />
+    <encapsulatedDecision href="#Decision_adjusted_rate" />
+    <encapsulatedDecision href="#Decision_base_rate" />
+    <inputData href="#InputData_amount" />
+    <inputData href="#InputData_category" />
+  </decisionService>
+
+  <!-- Service that has input decisions (external dependencies) -->
+  <decisionService id="DS_with_input_decisions" name="Service With Input Decisions">
+    <outputDecision href="#Decision_fee" />
+    <encapsulatedDecision href="#Decision_adjusted_rate" />
+    <inputDecision href="#Decision_base_rate" />
+    <inputData href="#InputData_amount" />
+  </decisionService>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_DS_fee_calculation" dmnElementRef="DS_fee_calculation">
+        <dc:Bounds x="100" y="520" width="200" height="100"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_DS_with_input_decisions" dmnElementRef="DS_with_input_decisions">
+        <dc:Bounds x="340" y="520" width="200" height="100"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_adjusted_rate" dmnElementRef="Decision_adjusted_rate">
+        <dc:Bounds x="370" y="240" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_base_rate" dmnElementRef="Decision_base_rate">
+        <dc:Bounds x="370" y="380" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_fee" dmnElementRef="Decision_fee">
+        <dc:Bounds x="370" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_amount" dmnElementRef="InputData_amount">
+        <dc:Bounds x="580" y="520" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_InputData_category" dmnElementRef="InputData_category">
+        <dc:Bounds x="820" y="520" width="180" height="45"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_edge_Decision_base_rate_InputData_category" dmnElementRef="edge_Decision_base_rate_InputData_category">
+        <di:waypoint x="910" y="520"/>
+        <di:waypoint x="460" y="460"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_edge_Decision_adjusted_rate_InputData_amount" dmnElementRef="edge_Decision_adjusted_rate_InputData_amount">
+        <di:waypoint x="670" y="520"/>
+        <di:waypoint x="460" y="320"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_edge_Decision_adjusted_rate_Decision_base_rate" dmnElementRef="edge_Decision_adjusted_rate_Decision_base_rate">
+        <di:waypoint x="460" y="380"/>
+        <di:waypoint x="460" y="320"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_edge_Decision_fee_InputData_amount" dmnElementRef="edge_Decision_fee_InputData_amount">
+        <di:waypoint x="670" y="520"/>
+        <di:waypoint x="460" y="180"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="Edge_edge_Decision_fee_Decision_adjusted_rate" dmnElementRef="edge_Decision_fee_Decision_adjusted_rate">
+        <di:waypoint x="460" y="240"/>
+        <di:waypoint x="460" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_RetryMultiCaSubprocessChild"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Subprocess Child" processRef="RetryMultiCaSubprocessChild" />
+  </bpmn:collaboration>
+  <bpmn:process id="RetryMultiCaSubprocessChild" name="Subprocess Child" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DoAStuff</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SP_Inner</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_ToDoAStuff</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="DoAStuff" name="Do A Stuff">
+      <bpmn:incoming>Flow_ToDoAStuff</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSp</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:subProcess id="SP_Inner" name="Inner Subprocess">
+      <bpmn:incoming>Flow_ToSp</bpmn:incoming>
+      <bpmn:outgoing>Flow_SpToEnd</bpmn:outgoing>
+      <bpmn:startEvent id="SP_Start" name="SP Start">
+        <bpmn:outgoing>Flow_SpToTask</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="SP_UserTask" name="Inner User Task">
+        <bpmn:incoming>Flow_SpToTask</bpmn:incoming>
+        <bpmn:outgoing>Flow_TaskToSpEnd</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="SP_End" name="SP End">
+        <bpmn:incoming>Flow_TaskToSpEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_SpToTask" sourceRef="SP_Start" targetRef="SP_UserTask" />
+      <bpmn:sequenceFlow id="Flow_TaskToSpEnd" sourceRef="SP_UserTask" targetRef="SP_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_SpToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ToDoAStuff" sourceRef="Start_1" targetRef="DoAStuff" />
+    <bpmn:sequenceFlow id="Flow_ToSp" sourceRef="DoAStuff" targetRef="SP_Inner" />
+    <bpmn:sequenceFlow id="Flow_SpToEnd" sourceRef="SP_Inner" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="700" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="670" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="132" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DoAStuff" bpmnElement="DoAStuff">
+        <dc:Bounds x="210" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SP_Inner" bpmnElement="SP_Inner" isExpanded="true">
+        <dc:Bounds x="360" y="110" width="350" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SP_Start" bpmnElement="SP_Start">
+        <dc:Bounds x="382" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SP_UserTask" bpmnElement="SP_UserTask">
+        <dc:Bounds x="470" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SP_End" bpmnElement="SP_End">
+        <dc:Bounds x="632" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_SpToTask" bpmnElement="Flow_SpToTask">
+        <di:waypoint x="418" y="190" />
+        <di:waypoint x="470" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_TaskToSpEnd" bpmnElement="Flow_TaskToSpEnd">
+        <di:waypoint x="570" y="190" />
+        <di:waypoint x="632" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="772" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDoAStuff" bpmnElement="Flow_ToDoAStuff">
+        <di:waypoint x="168" y="190" />
+        <di:waypoint x="210" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSp" bpmnElement="Flow_ToSp">
+        <di:waypoint x="310" y="190" />
+        <di:waypoint x="360" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SpToEnd" bpmnElement="Flow_SpToEnd">
+        <di:waypoint x="710" y="190" />
+        <di:waypoint x="772" y="190" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

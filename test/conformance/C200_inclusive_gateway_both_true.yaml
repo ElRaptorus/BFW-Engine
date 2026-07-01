@@ -1,0 +1,11 @@
+name: "C200: Inclusive Gateway split-join — both conditions true"
+fixture: "inclusive_gateway_both_true.bpmn"
+process_model_id: "InclusiveGatewayBothTrue"
+tier: auto
+start:
+  payload:
+    amount: 50
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

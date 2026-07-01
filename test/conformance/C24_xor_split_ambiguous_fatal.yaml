@@ -1,0 +1,10 @@
+name: "C24: XOR split with ambiguous conditions causes fatal"
+fixture: "xor_split_ambiguous.bpmn"
+process_model_id: "XorSplitAmbiguous"
+tier: auto
+start:
+  payload:
+    amount: 50
+expected:
+  final_state: "fatal"
+  final_tokens: null

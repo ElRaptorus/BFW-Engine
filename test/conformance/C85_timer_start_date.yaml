@@ -1,0 +1,11 @@
+name: "C85: Timer Start Event — past date, PI starts and completes immediately"
+fixture: "timer_start_date.bpmn"
+process_model_id: "TimerStartDate"
+tier: auto
+start:
+  start_event_id: "TimerStart_1"
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -1,0 +1,136 @@
+{
+  "businessKnowledgeModels": [],
+  "decisionServices": [],
+  "decisions": [
+    {
+      "authorityRequirements": [],
+      "expression": {
+        "aggregation": null,
+        "hitPolicy": "rule_order",
+        "id": "dt_routing",
+        "inputs": [
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_amount",
+            "inputExpression": "amount",
+            "inputValues": null,
+            "label": "Amount",
+            "typeRef": "number"
+          },
+          {
+            "compiledInputValuesRef": null,
+            "id": "Input_region",
+            "inputExpression": "region",
+            "inputValues": null,
+            "label": "Region",
+            "typeRef": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_warehouse",
+            "label": "Warehouse",
+            "name": "warehouse",
+            "outputValues": null,
+            "typeRef": "string"
+          },
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_priority",
+            "label": "Priority",
+            "name": "priority",
+            "outputValues": null,
+            "typeRef": "string"
+          },
+          {
+            "compiledDefaultRef": null,
+            "defaultOutputValue": null,
+            "id": "Output_fee",
+            "label": "Fee",
+            "name": "fee",
+            "outputValues": null,
+            "typeRef": "number"
+          }
+        ],
+        "preferredOrientation": "Rule-as-Row",
+        "ruleIndex": null,
+        "rules": [
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_1",
+            "inputEntries": [
+              {
+                "id": "IE_1",
+                "text": "> 1000"
+              },
+              {
+                "id": "IE_2",
+                "text": "\"EU\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_1",
+                "text": "\"Berlin\""
+              },
+              {
+                "id": "OE_2",
+                "text": "\"high\""
+              },
+              {
+                "id": "OE_3",
+                "text": "15"
+              }
+            ]
+          },
+          {
+            "annotationEntries": [],
+            "description": null,
+            "id": "Rule_2",
+            "inputEntries": [
+              {
+                "id": "IE_3",
+                "text": "-"
+              },
+              {
+                "id": "IE_4",
+                "text": "\"US\""
+              }
+            ],
+            "outputEntries": [
+              {
+                "id": "OE_4",
+                "text": "\"Chicago\""
+              },
+              {
+                "id": "OE_5",
+                "text": "\"normal\""
+              },
+              {
+                "id": "OE_6",
+                "text": "10"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "Decision_routing",
+      "informationRequirements": [],
+      "knowledgeRequirements": [],
+      "name": "Order Routing",
+      "outputLabel": null,
+      "variable": null
+    }
+  ],
+  "id": "definitions_multi_output",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "Multi Output Rule Order",
+  "namespace": "https://example.com/dmn/multi_output"
+}

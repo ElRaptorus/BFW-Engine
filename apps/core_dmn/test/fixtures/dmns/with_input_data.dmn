@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_order" name="Order Processing"
+  namespace="https://example.com/dmn/order">
+
+  <inputData id="InputData_customerName" name="customerName">
+    <variable name="customerName" typeRef="string"/>
+  </inputData>
+
+  <inputData id="InputData_orderAmount" name="orderAmount">
+    <variable name="orderAmount" typeRef="number"/>
+  </inputData>
+
+  <inputData id="InputData_isMember" name="isMember">
+    <variable name="isMember" typeRef="boolean"/>
+  </inputData>
+
+  <decision id="Decision_greeting" name="Customer Greeting">
+    <informationRequirement id="ir_customer">
+      <requiredInput href="#InputData_customerName"/>
+    </informationRequirement>
+    <decisionTable id="dt_greeting" hitPolicy="UNIQUE">
+      <input id="Input_name" label="Customer Name">
+        <inputExpression typeRef="string">customerName</inputExpression>
+      </input>
+      <output id="Output_greeting" label="Greeting" name="greeting" typeRef="string"/>
+      <rule id="Rule_named">
+        <inputEntry id="IE_named"><text>not("")</text></inputEntry>
+        <outputEntry id="OE_named"><text>"Hello, " + customerName</text></outputEntry>
+      </rule>
+      <rule id="Rule_anonymous">
+        <inputEntry id="IE_anonymous"><text>""</text></inputEntry>
+        <outputEntry id="OE_anonymous"><text>"Hello, Guest"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="Decision_discount_tier" name="Discount Tier">
+    <informationRequirement id="ir_amount">
+      <requiredInput href="#InputData_orderAmount"/>
+    </informationRequirement>
+    <informationRequirement id="ir_member">
+      <requiredInput href="#InputData_isMember"/>
+    </informationRequirement>
+    <decisionTable id="dt_discount_tier" hitPolicy="FIRST">
+      <input id="Input_amount" label="Order Amount">
+        <inputExpression typeRef="number">orderAmount</inputExpression>
+      </input>
+      <input id="Input_member" label="Is Member">
+        <inputExpression typeRef="boolean">isMember</inputExpression>
+      </input>
+      <output id="Output_tier" label="Tier" name="tier" typeRef="string"/>
+      <rule id="Rule_gold">
+        <inputEntry id="IE_amount_gold"><text>&gt;= 1000</text></inputEntry>
+        <inputEntry id="IE_member_gold"><text>true</text></inputEntry>
+        <outputEntry id="OE_gold"><text>"gold"</text></outputEntry>
+      </rule>
+      <rule id="Rule_silver">
+        <inputEntry id="IE_amount_silver"><text>&gt;= 500</text></inputEntry>
+        <inputEntry id="IE_member_silver"><text>true</text></inputEntry>
+        <outputEntry id="OE_silver"><text>"silver"</text></outputEntry>
+      </rule>
+      <rule id="Rule_bronze">
+        <inputEntry id="IE_amount_bronze"><text>-</text></inputEntry>
+        <inputEntry id="IE_member_bronze"><text>-</text></inputEntry>
+        <outputEntry id="OE_bronze"><text>"bronze"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

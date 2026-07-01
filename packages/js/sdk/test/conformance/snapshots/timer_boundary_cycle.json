@@ -1,0 +1,150 @@
+{
+  "definitionsId": "Definitions_TimerBoundaryCycle",
+  "errors": [],
+  "escalations": [],
+  "messages": [],
+  "processes": [
+    {
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["TimerBE_1"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Do Work",
+          "outgoing": ["Flow_2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerBE_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_BE"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_1",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "timeCycle": "R3/PT0S",
+              "timeDate": null,
+              "timeDuration": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Timeout",
+          "incoming": ["Flow_BE"],
+          "multiInstance": null,
+          "name": "Cycle Fire End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TimerBoundaryCycle",
+      "isExecutable": true,
+      "lanes": [],
+      "linterScores": [],
+      "name": "Timer Boundary Cycle",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "UserTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerBE_1",
+          "targetRef": "End_Timeout"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,0 +1,22 @@
+---
+id: C68
+name: "PI retry — checkpoint AT Call Activity (Scenario B)"
+tier: interactive
+description: |
+  Parent process with a failing child Call Activity. Retry the parent with
+  resetToFlowNodeInstanceId = the Call Activity FNI (Scenario B from §1.5.1).
+  The child PI is preserved (not deleted) and reset by Phase 2b.
+
+bpmn:
+  - retry_parent_with_failing_child.bpmn
+  - call_activity_failing_child.bpmn
+
+process_id: RetryParentWithFailingChild
+
+pre_retry_state: fatal
+post_retry_state: fatal
+checkpoint: call_activity_fni
+
+expectations:
+  child_pi_preserved: true
+  child_pi_state_after: fatal

@@ -1,0 +1,10 @@
+name: "C142: Terminate End Event inside subprocess only kills child scope"
+fixture: "embedded_subprocess_terminate_scoped.bpmn"
+process_model_id: "EmbeddedSubprocessTerminateScoped"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

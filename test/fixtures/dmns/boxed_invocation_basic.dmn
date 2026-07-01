@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/DMN/20191111/MODEL"
+             xmlns:evil="https://evilengine.dev/schema/bpmn"
+             namespace="https://evilengine.dev/test/invocation"
+             name="InvocationTest"
+             id="Definitions_invocation"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
+
+  <businessKnowledgeModel id="BKM_tax" name="Tax Calculation">
+    <encapsulatedLogic id="FL_tax" kind="FEEL">
+      <formalParameter id="FP_income" name="income" typeRef="number"/>
+      <formalParameter id="FP_rate" name="rate" typeRef="number"/>
+      <literalExpression id="LE_tax_body">
+        <text>income * rate</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_apply_tax" name="Apply Tax">
+    <knowledgeRequirement id="KR_1">
+      <requiredKnowledge href="#BKM_tax"/>
+    </knowledgeRequirement>
+    <invocation id="Inv_1">
+      <literalExpression id="LE_called">
+        <text>Tax Calculation</text>
+      </literalExpression>
+      <binding>
+        <parameter id="BP_income" name="income"/>
+        <literalExpression id="LE_bind_income">
+          <text>50000</text>
+        </literalExpression>
+      </binding>
+      <binding>
+        <parameter id="BP_rate" name="rate"/>
+        <literalExpression id="LE_bind_rate">
+          <text>0.2</text>
+        </literalExpression>
+      </binding>
+    </invocation>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1" name="DRD">
+      <dmndi:DMNShape id="Shape_BKM_tax" dmnElementRef="BKM_tax">
+        <dc:Bounds x="130" y="240" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="Shape_Decision_apply_tax" dmnElementRef="Decision_apply_tax">
+        <dc:Bounds x="130" y="100" width="180" height="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="Edge_KR_1" dmnElementRef="KR_1">
+        <di:waypoint x="220" y="240"/>
+        <di:waypoint x="220" y="180"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

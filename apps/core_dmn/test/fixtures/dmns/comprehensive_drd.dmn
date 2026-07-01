@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_drd" name="Comprehensive DRD"
+  targetNamespace="https://example.com/dmn/comprehensive">
+
+  <import id="Import_ext"
+    namespace="https://example.com/dmn/external"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <itemDefinition id="ItemDef_Amount" name="tAmount">
+    <typeRef>number</typeRef>
+    <allowedValues>&gt;= 0</allowedValues>
+  </itemDefinition>
+
+  <itemDefinition id="ItemDef_Customer" name="tCustomer">
+    <itemComponent id="ItemComp_Name" name="name">
+      <typeRef>string</typeRef>
+    </itemComponent>
+    <itemComponent id="ItemComp_Age" name="age">
+      <typeRef>number</typeRef>
+    </itemComponent>
+  </itemDefinition>
+
+  <inputData id="InputData_customer" name="customer">
+    <variable name="customer" typeRef="tCustomer"/>
+  </inputData>
+
+  <inputData id="InputData_order_total" name="orderTotal">
+    <variable name="orderTotal" typeRef="tAmount"/>
+  </inputData>
+
+  <knowledgeSource id="KS_company_policy" name="Company Discount Policy" type="Policy">
+    <authorityRequirement id="ar_ks_input">
+      <requiredInput href="#InputData_customer"/>
+    </authorityRequirement>
+  </knowledgeSource>
+
+  <businessKnowledgeModel id="BKM_age_discount" name="Age Discount">
+    <variable id="var_bkm_age" name="ageDiscount" typeRef="number"/>
+    <encapsulatedLogic id="EL_age_discount">
+      <formalParameter id="FP_age" name="age" typeRef="number"/>
+      <decisionTable id="dt_age_discount" hitPolicy="FIRST">
+        <input id="Input_age" label="Age">
+          <inputExpression typeRef="number">age</inputExpression>
+        </input>
+        <output id="Output_age_disc" label="Discount" name="discount" typeRef="number"/>
+        <rule id="Rule_senior">
+          <inputEntry id="IE_senior"><text>&gt; 65</text></inputEntry>
+          <outputEntry id="OE_senior"><text>15</text></outputEntry>
+        </rule>
+        <rule id="Rule_youth">
+          <inputEntry id="IE_youth"><text>&lt; 18</text></inputEntry>
+          <outputEntry id="OE_youth"><text>10</text></outputEntry>
+        </rule>
+        <rule id="Rule_default">
+          <inputEntry id="IE_default"><text>-</text></inputEntry>
+          <outputEntry id="OE_default"><text>0</text></outputEntry>
+        </rule>
+      </decisionTable>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <businessKnowledgeModel id="BKM_volume_discount" name="Volume Discount">
+    <variable id="var_bkm_vol" name="volumeDiscount" typeRef="number"/>
+    <encapsulatedLogic id="EL_vol_discount">
+      <formalParameter id="FP_total" name="total" typeRef="number"/>
+      <literalExpression id="LE_vol" typeRef="number">
+        <text>if total > 500 then 10 else if total > 100 then 5 else 0</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+  <decision id="Decision_age_discount" name="Customer Age Discount">
+    <variable id="var_age_disc" name="customerAgeDiscount" typeRef="number"/>
+    <informationRequirement id="ir_customer">
+      <requiredInput href="#InputData_customer"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_age">
+      <requiredKnowledge href="#BKM_age_discount"/>
+    </knowledgeRequirement>
+    <authorityRequirement id="ar_dec_policy">
+      <requiredAuthority href="#KS_company_policy"/>
+    </authorityRequirement>
+    <literalExpression id="LE_age_disc">
+      <text>BKM_age_discount(customer.age)</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_volume_discount" name="Order Volume Discount">
+    <variable id="var_vol_disc" name="orderVolumeDiscount" typeRef="number"/>
+    <informationRequirement id="ir_order_total">
+      <requiredInput href="#InputData_order_total"/>
+    </informationRequirement>
+    <knowledgeRequirement id="kr_vol">
+      <requiredKnowledge href="#BKM_volume_discount"/>
+    </knowledgeRequirement>
+    <literalExpression id="LE_vol_disc">
+      <text>BKM_volume_discount(orderTotal)</text>
+    </literalExpression>
+  </decision>
+
+  <decision id="Decision_final_discount" name="Final Discount">
+    <variable id="var_final" name="finalDiscount" typeRef="number"/>
+    <informationRequirement id="ir_age_disc">
+      <requiredDecision href="#Decision_age_discount"/>
+    </informationRequirement>
+    <informationRequirement id="ir_vol_disc">
+      <requiredDecision href="#Decision_volume_discount"/>
+    </informationRequirement>
+    <literalExpression id="LE_final">
+      <text>customerAgeDiscount + orderVolumeDiscount</text>
+    </literalExpression>
+  </decision>
+</definitions>

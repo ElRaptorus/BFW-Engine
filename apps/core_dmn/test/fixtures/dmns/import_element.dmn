@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  id="definitions_import" name="Import Test"
+  targetNamespace="https://example.com/dmn/importing">
+
+  <import id="Import_shared"
+    namespace="https://example.com/dmn/shared-types"
+    locationURI="shared_types.dmn"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <import id="Import_helpers"
+    namespace="https://example.com/dmn/helpers"
+    importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
+
+  <decision id="Decision_result" name="Result">
+    <literalExpression id="LE_result">
+      <text>42</text>
+    </literalExpression>
+  </decision>
+</definitions>

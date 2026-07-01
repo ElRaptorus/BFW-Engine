@@ -1,0 +1,141 @@
+{
+  "businessKnowledgeModels": [
+    {
+      "authorityRequirements": [],
+      "encapsulatedLogic": {
+        "body": {
+          "aggregation": null,
+          "hitPolicy": "first",
+          "id": "dt_bkm",
+          "inputs": [
+            {
+              "compiledInputValuesRef": null,
+              "id": "Input_bkm_1",
+              "inputExpression": "customerAge",
+              "inputValues": null,
+              "label": "Customer Age",
+              "typeRef": "number"
+            },
+            {
+              "compiledInputValuesRef": null,
+              "id": "Input_bkm_2",
+              "inputExpression": "memberStatus",
+              "inputValues": null,
+              "label": "Member Status",
+              "typeRef": "string"
+            }
+          ],
+          "outputs": [
+            {
+              "compiledDefaultRef": null,
+              "defaultOutputValue": null,
+              "id": "Output_bkm_1",
+              "label": "Discount",
+              "name": "discount",
+              "outputValues": null,
+              "typeRef": "number"
+            }
+          ],
+          "preferredOrientation": "Rule-as-Row",
+          "ruleIndex": null,
+          "rules": [
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_bkm_1",
+              "inputEntries": [
+                {
+                  "id": "IE_bkm_1",
+                  "text": "> 65"
+                },
+                {
+                  "id": "IE_bkm_2",
+                  "text": "\"gold\""
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_bkm_1",
+                  "text": "20"
+                }
+              ]
+            },
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_bkm_2",
+              "inputEntries": [
+                {
+                  "id": "IE_bkm_3",
+                  "text": "> 65"
+                },
+                {
+                  "id": "IE_bkm_4",
+                  "text": "-"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_bkm_2",
+                  "text": "15"
+                }
+              ]
+            },
+            {
+              "annotationEntries": [],
+              "description": null,
+              "id": "Rule_bkm_3",
+              "inputEntries": [
+                {
+                  "id": "IE_bkm_5",
+                  "text": "-"
+                },
+                {
+                  "id": "IE_bkm_6",
+                  "text": "-"
+                }
+              ],
+              "outputEntries": [
+                {
+                  "id": "OE_bkm_3",
+                  "text": "5"
+                }
+              ]
+            }
+          ]
+        },
+        "formalParameters": [
+          {
+            "id": "FP_age",
+            "name": "customerAge",
+            "typeRef": "number"
+          },
+          {
+            "id": "FP_status",
+            "name": "memberStatus",
+            "typeRef": "string"
+          }
+        ],
+        "id": "EL_discount",
+        "type": "feel"
+      },
+      "id": "BKM_discount",
+      "knowledgeRequirements": [],
+      "name": "Discount Logic",
+      "variable": {
+        "id": "var_bkm_discount",
+        "name": "discountResult",
+        "typeRef": "number"
+      }
+    }
+  ],
+  "decisionServices": [],
+  "decisions": [],
+  "id": "definitions_bkm_dt",
+  "imports": [],
+  "inputData": [],
+  "itemDefinitions": [],
+  "knowledgeSources": [],
+  "name": "BKM with Decision Table",
+  "namespace": "https://example.com/dmn/bkm-dt"
+}

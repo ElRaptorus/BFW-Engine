@@ -1,0 +1,2808 @@
+openapi: "3.0.3"
+
+x-graphql-limits:
+  description: >
+    GraphQL operational configuration (environment variables):
+    - EVIL_GRAPHQL_MAX_DEPTH (default 10) — max query field nesting depth
+    - EVIL_GRAPHQL_MAX_COMPLEXITY (default 1000) — max query complexity score
+    - EVIL_GRAPHQL_INTROSPECTION_DISABLED (default false) — blocks __schema/__type queries when true
+
+x-security-headers:
+  description: >
+    All API responses include the following security headers (set by SecurityHeadersPlug):
+    - x-content-type-options: nosniff
+    - x-frame-options: DENY
+    - referrer-policy: strict-origin-when-cross-origin
+    - permissions-policy: camera=(), microphone=(), geolocation=()
+    - strict-transport-security: max-age=31536000; includeSubDomains (HTTPS only)
+
+info:
+  title: Evil Engine API
+  version: "0.0.1"
+  description: |
+    ThomasTheDaemonEngine — a BPMN 2.0 Workflow Engine.
+
+    This REST API surface exposes health checks, engine info, telemetry,
+    process deployment, instance management, timer schedule management,
+    DMN decision evaluation, and trigger endpoints.
+
+    **GraphQL** is served separately at `POST /api/v1/graphql` (requires JWT).
+    An interactive [GraphQL Playground](/admin/graphiql) is available for
+    browsing the schema and running queries. It comes pre-loaded with
+    example query tabs covering processes, instances, and flow nodes.
+
+    **Note:** This spec, Swagger UI, and GraphQL Playground are disabled in
+    production by default (`EVIL_DEVTOOLS_ENABLED`). The spec endpoint can
+    be individually enabled via `EVIL_EXPOSE_OPENAPI_SPEC=true`.
+
+# "servers" is injected at runtime by OpenApiSpecLoader from EVIL_HTTP_PORT.
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Application
+    description: Telemetry, Engine Identity, Liveness & readiness probes (no auth required)
+  - name: Processes
+    description: BPMN process deployment, catalog, and instance lifecycle
+  - name: Process Instances
+    description: Process instance administrative operations (abort, delete)
+  - name: User Tasks
+    description: User Task and Manual Task interaction (finish, cancel)
+  - name: Timer Schedules
+    description: >-
+      Timer Start Event schedule management — list, inspect, enable, and
+      disable cycle-based timer start schedules created at deploy time
+  - name: Decisions
+    description: DMN decision deployment, catalog, evaluation, and Decision Service invocation
+  - name: Messages
+    description: Message publish and trigger operations
+  - name: Signals
+    description: Signal broadcast and trigger operations
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Health (public)
+  # ---------------------------------------------------------------------------
+  /health:
+    get:
+      tags: [Application]
+      summary: Health check
+      operationId: healthCheck
+      security: []
+      description: >-
+        Liveness probe. Returns 204 (no body) if the engine is running.
+        For load level and detailed status, use the authenticated GET /stats endpoint.
+      responses:
+        "204":
+          description: Engine is healthy (no body)
+
+  /info:
+    get:
+      tags: [Application]
+      summary: Engine info
+      operationId: engineInfo
+      security: []
+      description: Returns the engine identity and version.
+      responses:
+        "200":
+          description: Engine info
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [engineId, engineName, version, startedAt]
+                properties:
+                  engineId:
+                    type: string
+                    example: evil-engine-01
+                  engineName:
+                    type: string
+                    example: Evil Engine (local dev)
+                  version:
+                    type: string
+                    example: "0.0.1"
+                  startedAt:
+                    type: string
+                    format: date-time
+                    description: Engine boot timestamp (UTC).
+
+  /metrics:
+    get:
+      tags: [Application]
+      summary: Prometheus metrics
+      operationId: prometheusMetrics
+      security: []
+      description: |
+        Prometheus exposition format (`text/plain`). Disabled when
+        `EVIL_METRICS_ENABLED` resolves to false (returns 404 JSON).
+      responses:
+        "200":
+          description: Prometheus text exposition
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: Metrics disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, message]
+                properties:
+                  error:
+                    type: string
+                    example: metrics_disabled
+                  message:
+                    type: string
+
+  # ---------------------------------------------------------------------------
+  # Engine (authenticated)
+  # ---------------------------------------------------------------------------
+  /stats:
+    get:
+      tags: [Application]
+      summary: Runtime statistics
+      operationId: runtimeStats
+      description: >-
+        Returns a comprehensive snapshot of engine runtime telemetry —
+        active process instances, event listeners, and counters.
+      responses:
+        "200":
+          description: Stats snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ---------------------------------------------------------------------------
+  # Processes (authenticated)
+  # ---------------------------------------------------------------------------
+  /processes:
+    get:
+      tags: [Processes]
+      summary: List deployed processes
+      operationId: listProcesses
+      description: >-
+        Returns all currently deployed processes. Each entry contains the
+        latest active version. Processes with no active versions (fully
+        undeployed) are excluded.
+      responses:
+        "200":
+          description: List of deployed processes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProcessSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Processes]
+      summary: Deploy BPMN processes
+      operationId: deployProcesses
+      description: >-
+        Atomic batch deploy of one or more BPMN process definitions.
+        Pass an array of raw BPMN XML strings in the JSON body.
+        All sources are parsed, validated, and persisted in one
+        atomic transaction. If any source fails, the entire batch
+        is rejected.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim (D43 §4.1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeployRequest"
+      responses:
+        "201":
+          description: Deployment succeeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deployed:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeployResult"
+        "500":
+          description: Unexpected persistence or internal failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
+        "400":
+          description: >-
+            Invalid request body (missing sources) or BPMN parse error in one or more files.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/BadRequestError"
+                  - $ref: "#/components/schemas/ParseError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Version conflict (duplicate version or intra-batch conflict)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/VersionExistsError"
+                  - $ref: "#/components/schemas/BatchConflictError"
+        "415":
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: BPMN validation failed or deploy-time linter gate failed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DeployValidationFailedError"
+                  - $ref: "#/components/schemas/LinterGateFailedError"
+
+  /processes/{model_id}:
+    get:
+      tags: [Processes]
+      summary: Show process
+      operationId: showProcess
+      description: >-
+        Returns process metadata. Use `?includeXml=true` to include the
+        latest active version's BPMN XML. Version history is available
+        at `GET /processes/{model_id}/versions`.
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+        - name: includeXml
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include the latest active version's BPMN XML in the response.
+      responses:
+        "200":
+          description: Process found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Processes]
+      summary: Completely deletes a process and all its versions
+      operationId: undeployProcess
+      description: >-
+        Deletes all versions of a process, effectively undeploying it.
+        Rejects the request if non-terminal process instances are still
+        running on any version.
+
+        **Authorization:** Requires `delete_bpmn=true` claim (D43 §4.2).
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+      responses:
+        "204":
+          description: All versions deleted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Process not found or already fully undeployed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessNotFoundError"
+        "409":
+          description: Non-terminal process instances exist on one or more versions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveInstancesExistError"
+
+  /processes/{model_id}/versions:
+    get:
+      tags: [Processes]
+      summary: List process versions
+      operationId: listProcessVersions
+      description: >-
+        Returns the version history for a process. Use `?includeXml=true`
+        to include each version's BPMN XML.
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+        - name: includeXml
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include each version's BPMN XML in the response.
+      responses:
+        "200":
+          description: Version list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProcessVersionDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /processes/{model_id}/start:
+    post:
+      tags: [Processes]
+      summary: Start a process instance
+      operationId: startProcessInstance
+      description: >-
+        Starts a new process instance from the latest active version of
+        the given process model. Optionally targets a specific Start Event,
+        passes an initial payload, and sets immutable context variables.
+
+        **Authorization:** If the target Start Event sits on a lane, the
+        caller must hold `lane:<lane_name>=true` (D43 §4.3).
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startEventId:
+                  type: string
+                  description: >-
+                    ID of the Start Event to use. Required when the process
+                    has multiple untyped Start Events.
+                payload:
+                  type: object
+                  description: Initial token payload for the process instance.
+                  additionalProperties: true
+                context:
+                  type: object
+                  description: >-
+                    Immutable context variables stored as `started_with_context`
+                    on the process instance, accessible as `context.*` in FEEL
+                    expressions. Independent from the token payload. When omitted,
+                    context is empty.
+                  additionalProperties: true
+                businessKey:
+                  type: string
+                  description: Optional caller-supplied business key.
+      responses:
+        "201":
+          description: Process instance started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >-
+            Caller lacks the required lane claim for the target Start Event
+            (`forbidden`), or generic insufficient claims.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
+        "404":
+          description: Process not found (`process_not_found`) or no active version (`no_active_version`)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ProcessNotFoundError"
+                  - $ref: "#/components/schemas/NoActiveVersionError"
+        "422":
+          description: >-
+            Unprocessable entity. Possible causes: process is disabled
+            (`process_disabled`), ambiguous start event, missing executable
+            process, contract violation, or related start errors.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ProcessDisabledError"
+                  - $ref: "#/components/schemas/AmbiguousStartEventError"
+                  - $ref: "#/components/schemas/StartEventNotFoundError"
+                  - $ref: "#/components/schemas/NoStartEventError"
+                  - $ref: "#/components/schemas/NoExecutableProcessError"
+                  - $ref: "#/components/schemas/ContractViolationError"
+                  - $ref: "#/components/schemas/Error"
+        "413":
+          description: Payload exceeds EVIL_TOKEN_MAX_BYTES
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayloadTooLargeError"
+        "429":
+          description: >-
+            Global start rate limit exceeded (D49 Layer 2 —
+            `EVIL_PI_START_RATE_LIMIT`). Clients may retry after `Retry-After`
+            (`retryAfterSeconds` in the JSON body matches it).
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Suggested retry delay in seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitedError"
+        "503":
+          description: >-
+            Maximum concurrent process instances reached (D49 Layer 1 —
+            `EVIL_MAX_CONCURRENT_PIS`). Clients may retry after `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Suggested retry delay in seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EngineAtCapacityError"
+        "500":
+          description: Unexpected internal error while starting the instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
+
+  /processes/{model_id}/disable:
+    put:
+      tags: [Processes]
+      summary: Disable a process
+      operationId: disableProcess
+      description: >-
+        Sets the process to disabled. Running instances are not affected,
+        but new instances cannot be started.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim (D43 §4.1).
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+      responses:
+        "204":
+          description: Process disabled (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /processes/{model_id}/enable:
+    put:
+      tags: [Processes]
+      summary: Enable a process
+      operationId: enableProcess
+      description: >-
+        Sets the process to enabled, allowing new instances to be started.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim (D43 §4.1).
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+      responses:
+        "204":
+          description: Process enabled (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /processes/{model_id}/versions/{version}:
+    delete:
+      tags: [Processes]
+      summary: Delete a process version
+      operationId: deleteProcessVersion
+      description: >-
+        Deletes a specific version. Rejects the request if non-terminal
+        process instances are still running on this version.
+
+        **Authorization:** Requires `delete_bpmn=true` claim (D43 §4.2).
+      parameters:
+        - $ref: "#/components/parameters/ProcessModelId"
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The version string (e.g. `"1.0.0"` — corresponds to `evil:version`).
+      responses:
+        "204":
+          description: Version deleted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Non-terminal process instances exist on this version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveInstancesExistError"
+
+  # ---------------------------------------------------------------------------
+  # Process Instances (authenticated)
+  # ---------------------------------------------------------------------------
+  /process-instances/{id}/abort:
+    put:
+      tags: [Process Instances]
+      summary: Abort a process instance
+      operationId: abortProcessInstance
+      description: >-
+        Aborts a running process instance. All active and waiting FNIs are
+        cancelled, and the PI transitions to `:aborted`. Requires the
+        `abort_process_instance` claim (`own` or `all`) per D43 §6.2.
+      parameters:
+        - $ref: "#/components/parameters/ProcessInstanceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional abort reason.
+      responses:
+        "204":
+          description: Process instance aborted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Process instance not found or not running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Process instance is already in a terminal state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessInstanceAlreadyTerminalError"
+
+  /process-instances/{id}/retry:
+    put:
+      summary: Retry a terminal process instance
+      operationId: retryProcessInstance
+      description: >-
+        Retries a terminal (fatal or aborted) process instance. Optionally
+        migrates to a different version and/or resets to a checkpoint FNI.
+        Requires the `retry_process_instance` claim (`"own"` or `"all"`).
+      tags:
+        - Process Instances
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the process instance to retry
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version:
+                  type: string
+                  description: >-
+                    Target version to migrate to. Omit to retry on same version.
+                    `"latest"` resolves to the most recent enabled version of the
+                    same process.
+                  example: "2.0.0"
+                resetToFlowNodeInstanceId:
+                  type: string
+                  format: uuid
+                  description: >-
+                    UUID of a flow node instance to use as a reset checkpoint.
+                    All FNIs downstream of this checkpoint are deleted; the
+                    checkpoint FNI itself is reset to active.
+      responses:
+        "204":
+          description: Retry initiated successfully (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >-
+            Caller lacks the `retry_process_instance` claim, or has `"own"`
+            but the PI was started by a different identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
+        "404":
+          description: >-
+            Process instance not found, target version not found, or
+            checkpoint FNI not found.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Error"
+        "422":
+          description: >-
+            Process instance is not retriable, root PI is not terminal,
+            target process is disabled, or FNI chain is incompatible with
+            target version.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ProcessInstanceNotRetriableError"
+                  - $ref: "#/components/schemas/VersionMigrationIncompatibleError"
+                  - $ref: "#/components/schemas/Error"
+        "503":
+          description: >-
+            Engine at capacity (`EVIL_MAX_CONCURRENT_PIS`). Client may retry
+            after `Retry-After` seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Suggested retry delay in seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EngineAtCapacityError"
+
+  /process-instances/{id}:
+    delete:
+      tags: [Process Instances]
+      summary: Delete a process instance
+      operationId: deleteProcessInstance
+      description: >-
+        Deletes a terminal process instance and all its flow node instances.
+        Only terminal PIs (`finished`, `fatal`, `aborted`) can be deleted —
+        running PIs return 422.
+
+        **Authorization:** Requires `delete_process_instance` claim
+        (`own` or `all`) per D43 §6.2.
+      parameters:
+        - $ref: "#/components/parameters/ProcessInstanceId"
+      responses:
+        "204":
+          description: Process instance and FNIs deleted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: >-
+            Process instance not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Process instance is not in a terminal state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessInstanceNotTerminalError"
+        "500":
+          description: Unexpected failure while deleting the instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
+
+  # ---------------------------------------------------------------------------
+  # User Tasks (authenticated)
+  # ---------------------------------------------------------------------------
+  /user-tasks/{flowNodeInstanceId}/cancel:
+    put:
+      tags: [User Tasks]
+      summary: Cancel a user task
+      operationId: cancelUserTask
+      description: >-
+        Cancels a waiting User Task or Manual Task and aborts the entire
+        process instance (same effect as PUT /process-instances/{id}/abort).
+        All parallel branches are stopped. Authorization: same lane
+        visibility rules as finish (D43 §6.3).
+      parameters:
+        - $ref: "#/components/parameters/FlowNodeInstanceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional cancellation reason.
+      responses:
+        "204":
+          description: Task cancelled and process instance aborted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: FNI not found or invisible to caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Task is not in waiting state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FniNotWaitingError"
+
+  /user-tasks/{flowNodeInstanceId}/finish:
+    put:
+      tags: [User Tasks]
+      summary: Finish a user task
+      operationId: finishUserTask
+      description: >-
+        Completes a waiting User Task or Manual Task with the given result
+        payload. Authorization: caller must hold `lane:<lane_name>=true`
+        for the task's lane (D43 §6.3). Invisible tasks return 404.
+      parameters:
+        - $ref: "#/components/parameters/FlowNodeInstanceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  type: object
+                  description: Result payload to pass to the task's finish handler.
+                  additionalProperties: true
+      responses:
+        "204":
+          description: Task finished successfully (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: FNI not found or invisible to caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Result payload exceeds EVIL_TOKEN_MAX_BYTES
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayloadTooLargeError"
+        "422":
+          description: >-
+            Task is not in waiting state, or contract violation (PI stays
+            running, FNI stays waiting — caller may retry with valid data)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/FniNotWaitingError"
+                  - $ref: "#/components/schemas/ContractViolationError"
+                  - $ref: "#/components/schemas/Error"
+
+  # ---------------------------------------------------------------------------
+  # Timer Schedules (authenticated)
+  # ---------------------------------------------------------------------------
+  /timer-schedules:
+    get:
+      tags: [Timer Schedules]
+      summary: List timer start schedules
+      operationId: listTimerSchedules
+      description: >-
+        Returns all Timer Start Event schedules across all deployed process
+        versions. Schedules are created automatically when a process with a
+        `timeCycle` start event is deployed.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim.
+      parameters:
+        - name: processVersionId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by process version ID.
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by enabled state (`true` or `false`).
+      responses:
+        "200":
+          description: List of timer schedules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TimerSchedule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /timer-schedules/{id}:
+    get:
+      tags: [Timer Schedules]
+      summary: Show a timer schedule
+      operationId: showTimerSchedule
+      description: >-
+        Returns a single Timer Start Event schedule by ID.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/TimerScheduleId"
+      responses:
+        "200":
+          description: Timer schedule found
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TimerSchedule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /timer-schedules/{id}/enable:
+    put:
+      tags: [Timer Schedules]
+      summary: Enable a timer schedule
+      operationId: enableTimerSchedule
+      description: >-
+        Re-enables a previously disabled timer schedule. The next fire time
+        is recomputed based on the cycle spec and current time. Only
+        applicable to `cycle` schedules — date and duration schedules
+        return 422.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/TimerScheduleId"
+      responses:
+        "200":
+          description: Schedule enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TimerSchedule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Not applicable (schedule is not a cycle timer)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /timer-schedules/{id}/disable:
+    put:
+      tags: [Timer Schedules]
+      summary: Disable a timer schedule
+      operationId: disableTimerSchedule
+      description: >-
+        Disables a timer schedule. The armed ETS entry is cancelled and
+        the schedule is marked `enabled=false` in the database. The timer
+        stops firing until re-enabled. Only applicable to `cycle`
+        schedules — date and duration schedules return 422.
+
+        **Authorization:** Requires `deploy_bpmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/TimerScheduleId"
+      responses:
+        "200":
+          description: Schedule disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TimerSchedule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Not applicable (schedule is not a cycle timer)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ---------------------------------------------------------------------------
+  # Decisions (authenticated)
+  # ---------------------------------------------------------------------------
+  /decisions:
+    get:
+      tags: [Decisions]
+      summary: List deployed decisions
+      operationId: listDecisions
+      description: >-
+        Returns all currently deployed DMN decisions. Each entry contains the
+        latest active version. Decisions with no active versions (fully
+        undeployed) are excluded.
+      responses:
+        "200":
+          description: List of deployed decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DecisionSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Decisions]
+      summary: Deploy DMN decisions
+      operationId: deployDecisions
+      description: >-
+        Atomic batch deploy of one or more DMN definitions.
+        Pass an array of raw DMN XML strings in the JSON body.
+        All sources are parsed, validated, and persisted in one
+        atomic transaction. If any source fails, the entire batch
+        is rejected. Versions are auto-derived from a SHA-256 hash
+        of the raw XML (first 12 hex characters).
+
+        **Authorization:** Requires `deploy_dmn=true` claim.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DmnDeployRequest"
+      responses:
+        "201":
+          description: Deployment succeeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deployed:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DmnDeployResult"
+        "400":
+          description: >-
+            Invalid request body (missing sources) or DMN parse error.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/BadRequestError"
+                  - $ref: "#/components/schemas/DmnParseError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Version conflict (duplicate version)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionVersionExistsError"
+        "422":
+          description: DMN validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmnValidationFailedError"
+        "500":
+          description: Unexpected persistence or internal failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
+
+  /decisions/{model_id}:
+    get:
+      tags: [Decisions]
+      summary: Show decision
+      operationId: showDecision
+      description: >-
+        Returns decision metadata. Use `?includeXml=true` to include the
+        latest active version's DMN XML. Version history is available
+        at `GET /decisions/{model_id}/versions`.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+        - name: includeXml
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include the latest active version's DMN XML in the response.
+      responses:
+        "200":
+          description: Decision found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DecisionDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Decisions]
+      summary: Undeploy a decision (delete all versions)
+      operationId: undeployDecision
+      description: >-
+        Soft-deletes all versions of a decision, effectively undeploying it.
+
+        **Authorization:** Requires `delete_dmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+      responses:
+        "204":
+          description: All versions deleted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /decisions/{model_id}/versions:
+    get:
+      tags: [Decisions]
+      summary: List decision versions
+      operationId: listDecisionVersions
+      description: >-
+        Returns the version history for a decision. Use `?includeXml=true`
+        to include each version's DMN XML.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+        - name: includeXml
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include each version's DMN XML in the response.
+      responses:
+        "200":
+          description: Version list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DecisionVersionDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /decisions/{model_id}/evaluate:
+    post:
+      tags: [Decisions]
+      summary: Evaluate a decision (latest version)
+      operationId: evaluateDecision
+      description: >-
+        Ad-hoc evaluation against the latest active version of the given
+        decision definition. Optionally target a specific decision element
+        within the DMN model via `decisionModelId`.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionEvaluateRequest"
+      responses:
+        "200":
+          description: Evaluation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluationResult"
+        "400":
+          description: Invalid request (input must be a JSON object)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: >-
+            Decision definition not found, no active version, specific
+            decision element not found, or BKM not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: >-
+            Evaluation error — ambiguous decision, DRG cycle, expression
+            failure, type coercion failure, input value violation, or other
+            evaluation-time error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmnEvaluationError"
+
+  /decisions/{model_id}/versions/{version}/evaluate:
+    post:
+      tags: [Decisions]
+      summary: Evaluate a decision (specific version)
+      operationId: evaluateDecisionVersion
+      description: >-
+        Evaluate a specific version of a decision definition. Same request
+        and response shape as the latest-version evaluate endpoint.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+        - $ref: "#/components/parameters/DecisionVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionEvaluateRequest"
+      responses:
+        "200":
+          description: Evaluation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluationResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Decision or version not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Evaluation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmnEvaluationError"
+
+  /decisions/{model_id}/services/{service_id}/evaluate:
+    post:
+      tags: [Decisions]
+      summary: Evaluate a Decision Service
+      operationId: evaluateDecisionService
+      description: >-
+        Evaluate a DMN Decision Service within the given decision definition.
+        The service exposes a subset of decisions with declared input/output
+        contracts.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: >-
+            The DMN Decision Service element ID (`<decisionService id="...">`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input:
+                  type: object
+                  description: Input data for the Decision Service evaluation.
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Evaluation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceEvaluationResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Decision definition or Decision Service not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: >-
+            Missing service input, evaluation error, or other constraint violation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmnEvaluationError"
+
+  /decisions/{model_id}/enable:
+    put:
+      tags: [Decisions]
+      summary: Enable a decision
+      operationId: enableDecision
+      description: >-
+        Sets the decision to enabled, allowing evaluation.
+
+        **Authorization:** Requires `deploy_dmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+      responses:
+        "204":
+          description: Decision enabled (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /decisions/{model_id}/disable:
+    put:
+      tags: [Decisions]
+      summary: Disable a decision
+      operationId: disableDecision
+      description: >-
+        Sets the decision to disabled. Evaluation requests against this
+        definition will fail until re-enabled.
+
+        **Authorization:** Requires `deploy_dmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+      responses:
+        "204":
+          description: Decision disabled (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /decisions/{model_id}/versions/{version}:
+    delete:
+      tags: [Decisions]
+      summary: Delete a decision version
+      operationId: deleteDecisionVersion
+      description: >-
+        Soft-deletes a specific decision version.
+
+        **Authorization:** Requires `delete_dmn=true` claim.
+      parameters:
+        - $ref: "#/components/parameters/DecisionModelId"
+        - $ref: "#/components/parameters/DecisionVersion"
+      responses:
+        "204":
+          description: Version deleted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Messages
+  # ---------------------------------------------------------------------------
+  /messages/{message_name}/trigger:
+    post:
+      summary: Publish a named message
+      description: >-
+        Publishes a message to the engine routing pipeline. Requires JWT claim
+        `trigger_message: "all"`. Returns 503 with `Retry-After` while the
+        engine is resuming and message subscriptions are not yet ready.
+      operationId: triggerMessage
+      tags:
+        - Messages
+      parameters:
+        - name: message_name
+          in: path
+          required: true
+          description: The global message name (from the BPMN `<bpmn:message name="...">` definition)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                  description: Message payload delivered to matching subscriptions
+                  additionalProperties: true
+                correlation:
+                  type: string
+                  nullable: true
+                  description: >-
+                    Optional correlation value for targeted delivery. When
+                    omitted, the message is published with no correlation.
+            example:
+              payload:
+                orderId: ORD-42
+                status: paid
+              correlation: ORD-42
+      responses:
+        "200":
+          description: Message published
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - messageId
+                  - messageName
+                  - deliveries
+                  - startedProcessInstanceIds
+                  - pending
+                properties:
+                  messageId:
+                    type: string
+                    format: uuid
+                  messageName:
+                    type: string
+                  correlationValue:
+                    type: string
+                    nullable: true
+                  deliveries:
+                    type: integer
+                    description: Number of catch-side subscriptions that received the message
+                  startedProcessInstanceIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                    description: PIs started via Message Start Events (empty when catch subscriptions consumed the message)
+                  pending:
+                    type: boolean
+                    description: True when no subscriber or start event matched and the message was held in pending_messages
+              example:
+                messageId: 550e8400-e29b-41d4-a716-446655440000
+                messageName: payment-received
+                correlationValue: ORD-42
+                deliveries: 1
+                startedProcessInstanceIds: []
+                pending: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Unexpected internal error while publishing the message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
+        "503":
+          description: >-
+            Engine is resuming — message subscriptions not ready yet. Client
+            may retry after `Retry-After` seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Suggested retry delay in seconds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ---------------------------------------------------------------------------
+  # Signals
+  # ---------------------------------------------------------------------------
+
+  /signals/{signal_name}/trigger:
+    post:
+      summary: Broadcast a named signal
+      description: >-
+        Broadcasts a signal to the engine routing pipeline. Requires JWT claim
+        `trigger_signal: "all"`. Signals carry no payload and no correlation.
+        Any `payload` key in the request body is silently ignored. Returns 503
+        with `Retry-After` while the engine is resuming and signal subscriptions
+        are not yet ready.
+      operationId: triggerSignal
+      tags:
+        - Signals
+      parameters:
+        - name: signal_name
+          in: path
+          required: true
+          description: The global signal name (from the BPMN signal definition)
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Signal published
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - signalId
+                  - signalName
+                  - deliveries
+                  - startedProcessInstanceIds
+                  - pending
+                properties:
+                  signalId:
+                    type: string
+                    format: uuid
+                  signalName:
+                    type: string
+                  deliveries:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - processInstanceId
+                        - flowNodeInstanceId
+                      properties:
+                        processInstanceId:
+                          type: string
+                          format: uuid
+                        flowNodeInstanceId:
+                          type: string
+                          format: uuid
+                  startedProcessInstanceIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  pending:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Unexpected internal error while publishing the signal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
+        "503":
+          description: Engine is resuming — signal subscriptions not ready yet
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+# =============================================================================
+# Reusable components
+# =============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        HS256/RS256/ES256 JWT. Mint dev tokens with `mix evil.mint_token`.
+        See `docs/guides/api/authentication.md` for claim dictionary.
+
+  parameters:
+    ProcessModelId:
+      name: model_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >-
+        The BPMN process ID (the `id` attribute on the `<bpmn:process>`
+        element, used as the process model identifier in the engine).
+
+    FlowNodeInstanceId:
+      name: flowNodeInstanceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The flow node instance ID (UUIDv7).
+
+    ProcessInstanceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The process instance ID (UUIDv7).
+
+    TimerScheduleId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The timer schedule ID (UUID).
+
+    DecisionModelId:
+      name: model_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >-
+        The DMN definitions ID (the `id` attribute on the `<definitions>`
+        element, used as the decision definition identifier in the engine).
+
+    DecisionVersion:
+      name: version
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >-
+        The decision version string (first 12 hex characters of the
+        SHA-256 hash of the raw DMN XML).
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: string
+                example: unauthorized
+              message:
+                type: string
+                description: Human-readable detail when provided.
+
+    Forbidden:
+      description: Insufficient claims (structured body per D52 camelCase wire encoding).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ForbiddenError"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: string
+                example: not_found
+              message:
+                type: string
+                description: Human-readable detail when provided.
+
+  schemas:
+    ForbiddenError:
+      type: object
+      description: >-
+        Structured 403 body (camelCase per D52). `message` and `requiredValue` may be
+        omitted when the engine has no extra detail.
+      required: [error, requiredClaim, resource]
+      properties:
+        error:
+          type: string
+          enum: [forbidden]
+        message:
+          type: string
+          description: Human-readable detail when provided.
+        requiredClaim:
+          type: string
+          description: Claim name the caller must satisfy (e.g. deploy_bpmn, lane:Review).
+        requiredValue:
+          type: string
+          description: Expected claim value when applicable (e.g. "true", "own or all").
+        resource:
+          type: string
+          enum: [process, process_instance, decision]
+          description: Resource category the authorization check applied to.
+
+    ProcessNotFoundError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [process_not_found]
+        message:
+          type: string
+
+    NoActiveVersionError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [no_active_version]
+        message:
+          type: string
+
+    ProcessDisabledError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [process_disabled]
+        message:
+          type: string
+
+    AmbiguousStartEventError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [ambiguous_start_event]
+        message:
+          type: string
+
+    StartEventNotFoundError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [start_event_not_found]
+        message:
+          type: string
+
+    NoStartEventError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [no_start_event]
+        message:
+          type: string
+
+    NoExecutableProcessError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [no_executable_process]
+        message:
+          type: string
+
+    ContractViolationError:
+      type: object
+      required: [error, message, violations]
+      properties:
+        error:
+          type: string
+          enum: [contract_violation]
+        message:
+          type: string
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+              path:
+                type: string
+            additionalProperties: true
+
+    ActiveInstancesExistError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [active_instances_exist]
+        message:
+          type: string
+
+    ProcessInstanceAlreadyTerminalError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [process_already_terminal]
+        message:
+          type: string
+        currentState:
+          type: string
+          description: >-
+            The terminal state the process instance is in (finished, fatal, or aborted).
+
+    ProcessInstanceNotTerminalError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [process_instance_not_terminal]
+        message:
+          type: string
+        currentState:
+          type: string
+          description: Current state of the process instance.
+
+    FniNotWaitingError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Flow node instance is not in a state where the operation applies.
+          enum:
+            - fni_not_waiting
+            - fni_already_finished
+            - fni_already_aborted
+            - fni_already_interrupted
+            - fni_already_fatal
+        message:
+          type: string
+
+    ParseError:
+      type: object
+      required: [error, message, failures]
+      properties:
+        error:
+          type: string
+          enum: [parse_error]
+        message:
+          type: string
+        failures:
+          type: array
+          items:
+            type: object
+            properties:
+              file:
+                type: string
+              details:
+                type: array
+                items:
+                  type: string
+            additionalProperties: true
+
+    DeployValidationFailedError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [validation_failed]
+        message:
+          type: string
+        violations:
+          type: array
+          description: >-
+            Structured BPMN validator violations (`message` / `path` entries when emitted
+            as rule results).
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+              path:
+                type: string
+            additionalProperties: true
+        failures:
+          type: array
+          description: >-
+            Legacy wire key today; array of `{file, details}` objects from parse/validate.
+          items:
+            type: object
+            properties:
+              file:
+                type: string
+              details:
+                type: array
+                items:
+                  type: string
+            additionalProperties: true
+
+    LinterGateFailedError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [linter_gate_failed]
+        message:
+          type: string
+        failures:
+          type: array
+          description: Ruleset failures by file (always present on the wire today).
+          items:
+            type: object
+            properties:
+              file:
+                type: string
+              rulesetFailures:
+                type: array
+                items:
+                  type: object
+                description: Linter output objects (opaque per ruleset).
+            additionalProperties: true
+
+    VersionExistsError:
+      type: object
+      required: [error, message, conflicts]
+      properties:
+        error:
+          type: string
+          enum: [version_exists]
+        message:
+          type: string
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              processModelId:
+                type: string
+              version:
+                type: string
+            additionalProperties: true
+
+    BatchConflictError:
+      type: object
+      required: [error, message, conflicts]
+      properties:
+        error:
+          type: string
+          enum: [batch_conflict]
+        message:
+          type: string
+        conflicts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    InternalEngineError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [internal_error]
+        message:
+          type: string
+
+    BadRequestError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [bad_request]
+        message:
+          type: string
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable detail (optional)
+        failures:
+          type: array
+          items:
+            type: object
+          description: Structured failure details (parse/validation/linter errors)
+        conflicts:
+          type: array
+          items:
+            type: object
+          description: Version conflict details (deploy 409)
+
+    PayloadTooLargeError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [payload_too_large]
+        message:
+          type: string
+        field:
+          type: string
+          description: Body field that exceeded the cap (for example `payload` or `result`).
+        size:
+          type: number
+          description: Observed size in bytes.
+        limit:
+          type: number
+          description: Configured maximum (for example `EVIL_TOKEN_MAX_BYTES`).
+        details:
+          type: object
+          description: >-
+            Some endpoints (for example User Task finish) nest `field`, `size`, and
+            `limit` here instead of at the top level until responses are fully flattened.
+          properties:
+            field:
+              type: string
+            size:
+              type: number
+            limit:
+              type: number
+          additionalProperties: true
+
+    RateLimitedError:
+      type: object
+      required: [error, message, retryAfterSeconds]
+      properties:
+        error:
+          type: string
+          example: rate_limited
+        message:
+          type: string
+        retryAfterSeconds:
+          type: integer
+          example: 1
+
+    EngineAtCapacityError:
+      type: object
+      required: [error, message, active, retryAfterSeconds]
+      properties:
+        error:
+          type: string
+          example: engine_at_capacity
+        message:
+          type: string
+        active:
+          type: integer
+          description: Current number of child PI processes under the execution supervisor
+        limit:
+          type: integer
+          nullable: true
+          description: >-
+            Configured `EVIL_MAX_CONCURRENT_PIS` cap (omitted or null only if
+            misconfigured; normal responses use a finite integer)
+        retryAfterSeconds:
+          type: integer
+          example: 5
+
+    ProcessInstanceNotRetriableError:
+      type: object
+      required: [error, message, currentState]
+      properties:
+        error:
+          type: string
+          enum: [process_instance_not_retriable]
+        message:
+          type: string
+          example: "Process instance cannot be retried in its current state"
+        currentState:
+          type: string
+          description: Current state of the process instance
+          example: running
+
+    VersionMigrationIncompatibleError:
+      type: object
+      required: [error, message, conflicts]
+      properties:
+        error:
+          type: string
+          enum: [version_migration_incompatible]
+        message:
+          type: string
+          example: "FNI chain is incompatible with target version"
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              flowNodeInstanceId:
+                type: string
+                format: uuid
+              flowNodeId:
+                type: string
+          description: >-
+            List of flow node instances whose flow_node_id does not exist
+            in the target process version model.
+
+    DeployRequest:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: One or more BPMN 2.0 XML documents as strings
+      example:
+        sources:
+          - '<?xml version="1.0" encoding="UTF-8"?><bpmn:definitions ...>...</bpmn:definitions>'
+
+    DeployResult:
+      type: object
+      description: One entry per deployed process in the batch.
+      required: [processModelId, version]
+      properties:
+        processModelId:
+          type: string
+          description: BPMN process ID (the `<process id="...">` attribute).
+        version:
+          type: string
+          description: Deployment version string (`evil:version`).
+
+    StartResult:
+      type: object
+      properties:
+        processInstanceId:
+          type: string
+          format: uuid
+        processModelId:
+          type: string
+        version:
+          type: string
+        state:
+          type: string
+          example: running
+
+    ProcessSummary:
+      type: object
+      description: >-
+        ProcessModel-shaped response entry (listing). The `id` is the BPMN
+        `<process id="...">` attribute, not a database UUID.
+      required: [id, version, name, enabled, deployedAt]
+      properties:
+        id:
+          type: string
+          description: BPMN process ID (the `<process id="...">` attribute).
+        definitionsId:
+          type: string
+          nullable: true
+          description: BPMN `<definitions id="...">` attribute.
+        version:
+          type: string
+          description: Deployment version string (`evil:version`).
+        name:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        deployedAt:
+          type: string
+          format: date-time
+          description: Timestamp when this version was deployed.
+
+    ProcessDetail:
+      type: object
+      description: >-
+        ProcessModel-shaped response for a single process. Includes deployer
+        and optional BPMN XML.
+      required: [id, name, enabled]
+      properties:
+        id:
+          type: string
+          description: BPMN process ID (the `<process id="...">` attribute).
+        definitionsId:
+          type: string
+          nullable: true
+          description: BPMN `<definitions id="...">` attribute.
+        version:
+          type: string
+          description: Deployment version string (`evil:version`).
+        name:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        deployedAt:
+          type: string
+          format: date-time
+          description: Timestamp when this version was deployed.
+        deployer:
+          type: object
+          nullable: true
+          description: Identity snapshot of the deployer when available.
+          additionalProperties: true
+        bpmnXml:
+          type: string
+          description: >-
+            BPMN XML of the latest active version. Only present when
+            `?includeXml=true` is set.
+
+    ProcessVersionDetail:
+      type: object
+      description: >-
+        ProcessModel-shaped response for a specific version entry. Includes
+        the version's database UUID as `versionId` for delete operations.
+      required: [id, versionId, version, name, enabled, deployedAt]
+      properties:
+        id:
+          type: string
+          description: BPMN process ID (the `<process id="...">` attribute).
+        versionId:
+          type: string
+          format: uuid
+          description: Database UUID of this specific process version (used for deletion).
+        definitionsId:
+          type: string
+          nullable: true
+          description: BPMN `<definitions id="...">` attribute.
+        version:
+          type: string
+          description: Deployment version string (`evil:version`).
+        name:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        deployedAt:
+          type: string
+          format: date-time
+          description: Timestamp when this version was deployed.
+        deployer:
+          type: object
+          nullable: true
+          description: Identity snapshot of the deployer when available.
+          additionalProperties: true
+        bpmnXml:
+          type: string
+          description: >-
+            BPMN XML content. Only present when `?includeXml=true` is set.
+
+    StatsResponse:
+      type: object
+      description: Runtime snapshot from `StatsCollector.snapshot/0` (camelCase wire keys).
+      properties:
+        engine:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            version:
+              type: string
+            startedAt:
+              type: string
+              format: date-time
+            uptimeSeconds:
+              type: number
+            load:
+              type: string
+              enum: [normal, elevated, critical]
+              description: >-
+                Current PI capacity ratio: `normal` (<70%), `elevated` (70–89%),
+                `critical` (≥90%). Always `normal` when no cap is configured.
+        processInstances:
+          type: object
+          properties:
+            running:
+              type: integer
+            finished:
+              type: integer
+            fatal:
+              type: integer
+            aborted:
+              type: integer
+        flowNodeInstances:
+          type: object
+          properties:
+            active:
+              type: integer
+            waiting:
+              type: integer
+            finished:
+              type: integer
+            fatal:
+              type: integer
+            aborted:
+              type: integer
+            interrupted:
+              type: integer
+            byType:
+              type: object
+              additionalProperties:
+                type: integer
+        userTasksPending:
+          type: object
+          properties:
+            count:
+              type: integer
+            byAssigneeRole:
+              type: object
+              additionalProperties:
+                type: integer
+        asyncFlowNodes:
+          type: object
+          properties:
+            waiting:
+              type: integer
+            byPlugin:
+              type: object
+              additionalProperties:
+                type: integer
+        timers:
+          type: object
+          properties:
+            armed:
+              type: integer
+            fireInNextMinute:
+              type: integer
+        plugins:
+          type: array
+          items:
+            type: object
+        listeners:
+          type: object
+          properties:
+            eventSinksCount:
+              type: integer
+            eventSinksByName:
+              type: object
+              additionalProperties:
+                type: string
+                enum: ["on", "off"]
+            monitoringPanelsCount:
+              type: integer
+
+    # -----------------------------------------------------------------------
+    # Timer Schedule Schemas
+    # -----------------------------------------------------------------------
+    TimerSchedule:
+      type: object
+      description: >-
+        A Timer Start Event schedule. Created automatically when a process
+        with a `timeCycle` start event is deployed. Date and duration start
+        events also appear as schedules but are not auto-scheduled.
+      required:
+        - id
+        - processModelId
+        - processVersionId
+        - flowNodeId
+        - kind
+        - isoSpec
+        - enabled
+      properties:
+        id:
+          type: string
+          format: uuid
+        processModelId:
+          type: string
+          description: BPMN process ID.
+        processVersionId:
+          type: string
+          format: uuid
+        flowNodeId:
+          type: string
+          description: BPMN flow node ID of the Timer Start Event.
+        kind:
+          type: string
+          enum: [cycle, date, duration]
+          description: Timer type.
+        isoSpec:
+          type: string
+          description: Original ISO 8601 spec string (e.g. `R/PT1H`, `2027-01-01T00:00:00Z`).
+        enabled:
+          type: boolean
+          description: Whether the schedule is active. Only meaningful for `cycle` schedules.
+        nextFireAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Next scheduled fire time. `null` when the schedule is exhausted
+            (one-shot already fired, or cycle repetitions depleted).
+        lastTriggeredAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the last successful fire. `null` if never fired.
+        cycleTotal:
+          type: integer
+          nullable: true
+          description: >-
+            Total cycle repetitions (`null` for infinite cycles like `R/PT1H`).
+        cycleRemaining:
+          type: integer
+          nullable: true
+          description: >-
+            Remaining cycle repetitions (`null` for infinite cycles).
+
+    # -----------------------------------------------------------------------
+    # DMN Schemas
+    # -----------------------------------------------------------------------
+    DecisionSummary:
+      type: object
+      description: >-
+        Decision listing entry (latest active version). The `id` is the DMN
+        `<definitions id="...">` attribute.
+      required: [id, version, name, enabled, deployedAt]
+      properties:
+        id:
+          type: string
+          description: DMN definitions ID.
+        version:
+          type: string
+          description: Auto-derived version (SHA-256 hash prefix).
+        name:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        deployedAt:
+          type: string
+          format: date-time
+
+    DecisionDetail:
+      type: object
+      description: >-
+        Decision metadata for a single definition. Includes deployer
+        and optional DMN XML.
+      required: [id, name, enabled]
+      properties:
+        id:
+          type: string
+          description: DMN definitions ID.
+        version:
+          type: string
+        name:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        deployedAt:
+          type: string
+          format: date-time
+        deployer:
+          type: object
+          nullable: true
+          additionalProperties: true
+        dmnXml:
+          type: string
+          description: >-
+            DMN XML of the latest active version. Only present when
+            `?includeXml=true` is set.
+
+    DecisionVersionDetail:
+      type: object
+      description: >-
+        Version entry for a decision definition. Includes the version's
+        database UUID as `versionId` for delete operations.
+      required: [id, versionId, version, name, enabled, deployedAt]
+      properties:
+        id:
+          type: string
+          description: DMN definitions ID.
+        versionId:
+          type: string
+          format: uuid
+          description: Database UUID of this specific decision version.
+        version:
+          type: string
+        name:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        deployedAt:
+          type: string
+          format: date-time
+        deployer:
+          type: object
+          nullable: true
+          additionalProperties: true
+        dmnXml:
+          type: string
+          description: >-
+            DMN XML content. Only present when `?includeXml=true` is set.
+
+    DmnDeployRequest:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: One or more DMN XML documents as strings.
+      example:
+        sources:
+          - '<?xml version="1.0" encoding="UTF-8"?><definitions ...>...</definitions>'
+
+    DmnDeployResult:
+      type: object
+      description: One entry per deployed decision in the batch.
+      required: [decisionDefinitionId, version]
+      properties:
+        decisionDefinitionId:
+          type: string
+          description: DMN definitions ID.
+        version:
+          type: string
+          description: Auto-derived version (SHA-256 hash prefix).
+
+    DecisionEvaluateRequest:
+      type: object
+      required: [input]
+      properties:
+        input:
+          type: object
+          description: Input data for the decision evaluation.
+          additionalProperties: true
+        decisionModelId:
+          type: string
+          description: >-
+            Optional. The specific decision element ID within the DMN model
+            to evaluate. Required when the model contains multiple decisions.
+        includeUnmatchedDetails:
+          type: boolean
+          default: false
+          description: >-
+            When true, the evaluation trace includes full detail for
+            unmatched rules in decision tables.
+
+    EvaluationResult:
+      type: object
+      description: >-
+        DMN evaluation result with execution trace (camelCase wire keys).
+      properties:
+        decisionModelId:
+          type: string
+        decisionName:
+          type: string
+        hitPolicy:
+          type: string
+        result:
+          description: The decision output value.
+        matchedRules:
+          type: array
+          items:
+            type: string
+        trace:
+          $ref: "#/components/schemas/EvaluationTrace"
+        evaluatedAt:
+          type: string
+          format: date-time
+        durationMicroseconds:
+          type: integer
+        definitionsId:
+          type: string
+        definitionsNamespace:
+          type: string
+        decisionVersionId:
+          type: string
+          format: uuid
+
+    EvaluationTrace:
+      type: object
+      description: Nested execution trace for debugger step-into navigation.
+      properties:
+        decisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionTrace"
+        inputCoercions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoercionTrace"
+
+    DecisionTrace:
+      type: object
+      properties:
+        decisionModelId:
+          type: string
+        decisionName:
+          type: string
+        hitPolicy:
+          type: string
+        inputs:
+          type: array
+          items:
+            type: object
+            properties:
+              inputId:
+                type: string
+              inputLabel:
+                type: string
+              expression:
+                type: string
+              resolvedValue: {}
+        matchedRules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        unmatchedRulesCount:
+          type: integer
+        unmatchedRules:
+          type: array
+          description: >-
+            Only present when `includeUnmatchedDetails` was true.
+          items:
+            type: object
+            additionalProperties: true
+        result: {}
+        durationMicroseconds:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+        bkmTraces:
+          type: array
+          items:
+            $ref: "#/components/schemas/BkmTrace"
+        importTraces:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportTrace"
+
+    BkmTrace:
+      type: object
+      description: Trace of a single BKM invocation (recursive for BKM-to-BKM chains).
+      properties:
+        bkmId:
+          type: string
+        bkmName:
+          type: string
+          nullable: true
+        formalParameters:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              boundValue: {}
+        result: {}
+        durationMicroseconds:
+          type: integer
+        dependentBkmTraces:
+          type: array
+          items:
+            $ref: "#/components/schemas/BkmTrace"
+
+    ImportTrace:
+      type: object
+      description: Trace wrapping a full evaluation of an imported DMN model.
+      properties:
+        namespace:
+          type: string
+        decisionId:
+          type: string
+        sourceDefinitionsId:
+          type: string
+        evaluationTrace:
+          $ref: "#/components/schemas/EvaluationTrace"
+        result: {}
+        durationMicroseconds:
+          type: integer
+
+    CoercionTrace:
+      type: object
+      description: Per-input type coercion record from TypeResolver.
+      properties:
+        inputName:
+          type: string
+        originalValue: {}
+        coercedValue: {}
+        targetType:
+          type: string
+        coerced:
+          type: boolean
+
+    ServiceEvaluationResult:
+      type: object
+      description: >-
+        Result of evaluating a DMN Decision Service (camelCase wire keys).
+      properties:
+        serviceId:
+          type: string
+        serviceName:
+          type: string
+        outputs:
+          type: object
+          description: >-
+            Map of output variable names to their values, one per output
+            decision in the Decision Service.
+          additionalProperties: true
+        trace:
+          $ref: "#/components/schemas/EvaluationTrace"
+        evaluatedAt:
+          type: string
+          format: date-time
+        durationMicroseconds:
+          type: integer
+
+    DmnParseError:
+      type: object
+      required: [error, message, failures]
+      properties:
+        error:
+          type: string
+          enum: [dmn_parse_error]
+        message:
+          type: string
+        failures:
+          type: array
+          items:
+            type: object
+            properties:
+              file:
+                type: string
+              details:
+                type: array
+                items:
+                  type: string
+            additionalProperties: true
+
+    DmnValidationFailedError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [validation_failed]
+        message:
+          type: string
+        failures:
+          type: array
+          items:
+            type: object
+            properties:
+              file:
+                type: string
+              details:
+                type: array
+                items:
+                  type: string
+            additionalProperties: true
+
+    DecisionVersionExistsError:
+      type: object
+      required: [error, message, conflicts]
+      properties:
+        error:
+          type: string
+          enum: [decision_version_exists]
+        message:
+          type: string
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              decisionDefinitionId:
+                type: string
+              version:
+                type: string
+            additionalProperties: true
+
+    DmnEvaluationError:
+      type: object
+      description: >-
+        Catch-all for DMN evaluation errors. The `error` field indicates
+        the specific error type.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum:
+            - dmn_evaluation_error
+            - dmn_cycle_error
+            - ambiguous_decision
+            - no_decisions
+            - input_value_violation
+            - missing_service_input
+            - service_not_found
+            - bkm_not_found
+            - decision_not_found
+            - decision_definition_not_found
+            - no_active_version
+        message:
+          type: string
+        decisionModelId:
+          type: string
+          description: The decision element ID when relevant.
+        details:
+          type: string
+          description: >-
+            Sub-category detail (e.g. `missing_required_decision`,
+            `type_coercion_failed`, `import_not_found`).
+        decisionIds:
+          type: array
+          items:
+            type: string
+          description: Cycle participant IDs (for `dmn_cycle_error`).
+        bkmIds:
+          type: array
+          items:
+            type: string
+          description: BKM cycle participant IDs (for `dmn_cycle_error`).

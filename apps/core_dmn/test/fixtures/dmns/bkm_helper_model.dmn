@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_bkm_helper"
+             name="BKM Helper Model"
+             namespace="https://evilengine.dev/test/bkm-helper">
+
+  <businessKnowledgeModel id="BKM_tax_rate" name="Tax Rate Calculator">
+    <variable id="var_bkm_tax" name="Tax Rate Calculator"/>
+    <encapsulatedLogic id="FL_tax" kind="FEEL">
+      <formalParameter id="FP_amount" name="amount" typeRef="number"/>
+      <literalExpression id="LE_tax">
+        <text>if amount > 10000 then 0.20 else 0.10</text>
+      </literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+
+</definitions>

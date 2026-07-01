@@ -1,0 +1,10 @@
+name: "C161: Parallel Gateway fork-join — three branches happy path"
+fixture: "parallel_gateway_three_branches.bpmn"
+process_model_id: "ParallelGatewayThreeBranches"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

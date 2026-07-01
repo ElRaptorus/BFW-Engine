@@ -1,0 +1,11 @@
+name: "C87: Timer Catch Event — FEEL expression evaluates to duration"
+fixture: "timer_catch_feel_expression.bpmn"
+process_model_id: "TimerCatchFeelExpression"
+tier: auto
+start:
+  payload:
+    seconds: 0
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

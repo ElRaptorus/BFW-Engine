@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_XorSplitDefaultFlow" name="XOR Split Default Flow" processRef="XorSplitDefaultFlow" />
+  </bpmn:collaboration>
+  <bpmn:process id="XorSplitDefaultFlow" name="XOR Split Default Flow" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>XOR_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Premium</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Standard</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:exclusiveGateway id="XOR_1" name="Premium Check" default="Flow_Default"/>
+    <bpmn:endEvent id="End_Premium" name="Premium"/>
+    <bpmn:endEvent id="End_Standard" name="Standard"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="XOR_1"/>
+    <bpmn:sequenceFlow id="Flow_Premium" sourceRef="XOR_1" targetRef="End_Premium">
+      <bpmn:conditionExpression>token.amount &gt; 1000</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Default" sourceRef="XOR_1" targetRef="End_Standard"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_XorSplitDefaultFlow" bpmnElement="Participant_XorSplitDefaultFlow" isHorizontal="true">
+        <dc:Bounds x="82" y="102" width="486" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="102" width="456" height="196" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_XOR_1" bpmnElement="XOR_1">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Premium" bpmnElement="End_Premium">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Standard" bpmnElement="End_Standard">
+        <dc:Bounds x="482" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Premium" bpmnElement="Flow_Premium">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Default" bpmnElement="Flow_Default">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="423" y="200" />
+        <di:waypoint x="423" y="250" />
+        <di:waypoint x="482" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

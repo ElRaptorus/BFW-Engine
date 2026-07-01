@@ -1,0 +1,10 @@
+name: "C146: WIP diagram — invalid subprocess on unreachable branch, PI finishes on safe path"
+fixture: "embedded_subprocess_wip_never_reached.bpmn"
+process_model_id: "EmbeddedSubprocessWipNeverReached"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_OK"
