@@ -198,6 +198,9 @@ defmodule EvilEngine.Events.PendingSweeperTest do
     def mark_pending_delivered(_pending_message_id), do: :ok
 
     @impl true
+    def cancel_pending_for_message(_message_name, _correlation_value), do: {:ok, 0}
+
+    @impl true
     def expire_pending_messages do
       test_pid = Application.get_env(:core_events, :pending_sweeper_test_pid)
       result = Application.get_env(:core_events, :pending_sweeper_message_expire_result, {:ok, 0})
@@ -235,6 +238,9 @@ defmodule EvilEngine.Events.PendingSweeperTest do
 
     @impl true
     def mark_pending_delivered(_pending_signal_id), do: :ok
+
+    @impl true
+    def cancel_pending_for_signal_name(_signal_name), do: {:ok, 0}
 
     @impl true
     def expire_pending_signals do

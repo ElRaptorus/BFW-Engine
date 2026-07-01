@@ -672,7 +672,7 @@ pass. It never short-circuits on the first problem.
 | ReceiveTask | `messageRef` |
 | ScriptTask | `script` or `scriptRef` (at least one) |
 | BusinessRuleTask | `implementation` (must be `"feel"` or `"dmn"`); `feel` requires `<script>`, `dmn` requires `evil:decisionRef` |
-| ComplexGateway | `activationCondition` |
+| ComplexGateway (join) | `activationCondition` — required only when the gateway is a **join** (many incoming, one outgoing). See Complex Gateway rules below. |
 | BoundaryEvent | `attachedToRef` |
 
 ### Event definition completeness
@@ -704,6 +704,47 @@ pass. It never short-circuits on the first problem.
 ### Event-Based Gateway checks
 
 - Receive Tasks that are direct successors of an Event-Based Gateway must not have boundary events attached (boundary events on EBG targets create ambiguous cancellation semantics)
+
+### Complex Gateway checks (deploy-time)
+
+The Complex Gateway (`<bpmn:complexGateway>`) is executable with opinionated,
+engine-specific semantics (**not portable BPMN**). `Validator.check_complex_gateways/1`
+classifies each Complex Gateway by its incoming/outgoing flow counts and enforces:
+
+- **Mixed rejection** — a gateway with `> 1` incoming **and** `> 1` outgoing is a
+  mixed gateway → violation `complex_gateway_mixed`. A Complex Gateway must be
+  a split (one in, many out) or a join (many in, one out), never both.
+- **Split rule** — for a split (`> 1` outgoing), every outgoing flow must carry a
+  `conditionExpression` **or** be the gateway's `default` flow. An unconditional,
+  non-default outgoing flow → violation `complex_gateway_unconditional_flow`.
+  (This is the key contrast with the Inclusive Gateway, which silently activates
+  unconditional flows.)
+- **Join rule** — for a join (`> 1` incoming), a non-blank `<bpmn:activationCondition>`
+  is required → violation `complex_gateway_join_missing_activation_condition` when
+  absent. The join is a single-fire **threshold** join: it fires when the FEEL
+  `activationCondition` (with `activatedCount` / `incomingCount` bindings) becomes
+  true. If all branches resolve but the condition is never met, the join FNI fatals
+  with `complex_join_condition_unmet` (Twist 1).
+- **Pairing / SESE rule (Twist 2)** — every Complex Join must pair to exactly one
+  dominating Complex Split (`S = idom_complex(J)`), and the region between them must
+  be single-entry / single-exit. `ComplexRegionAnalysis.region_violations/1` (folded
+  into `check_complex_gateways/1`) rejects: an unpaired join
+  (`complex_join_no_paired_split`), a flow that escapes the region other than through
+  the split/join (`complex_region_cross_boundary`), and partially overlapping regions
+  (`complex_region_overlap` — regions must be disjoint or strictly nested).
+
+Runtime split outcomes: `complex_split_no_matching_condition` (zero truthy, no
+default), `complex_split_condition_failed` (FEEL error). Runtime join outcomes:
+`complex_join_condition_failed` (FEEL error). **Twist 2 cancellation:** when a
+Complex Join fires, every `:active`/`:waiting` FNI whose flow node lies inside the
+paired SESE region is interrupted (`Process.exit` + `handle_aborted/1` cleanup +
+recursive child-PI abort) and persisted as `:interrupted` with reason
+`:cancelled_by_complex_join`; unlike a Terminate/Error End Event this is scoped to
+the region and does not purge process-wide subscriptions. Because cancellation
+removes the losers, a straggler token reaching an already-fired join is absorbed
+silently (Phase 5.1's interim `complex_join_already_fired` fatal was removed). See
+[`docs/architecture/execution.md`](docs/architecture/execution.md) §Complex Gateway
+and the user handbook `docs/guides/handbook/complex-gateways.md`.
 
 ### Embedded subprocess structural checks (deploy-time)
 
@@ -770,12 +811,15 @@ to the string-keyed format required by the Rust NIF.
 | `processInstance` | Instance metadata (`id`, `startedAt`, `startedBy`) — camelCase string-keyed |
 | `identity` | Caller identity (`id`, `roles`, `groups`, `claims`) — string-keyed |
 | `loop` | Iteration-scoped overlay (Multi-Instance / standard-loop; nil when not in a loop) |
+| `activatedCount` | Complex-Join overlay: number of incoming branches that have delivered a token so far. Present **only** while evaluating a Complex Gateway join's `<bpmn:activationCondition>` |
+| `incomingCount` | Complex-Join overlay: total number of incoming sequence flows into the Complex Join. Present **only** while evaluating a Complex Gateway join's `<bpmn:activationCondition>` |
 
 ### Where FEEL appears
 
-- `<bpmn:conditionExpression>` on **Split-Gateway-outgoing** SequenceFlows only (Exclusive and Inclusive). Conditions on sequence flows whose source is anything other than a Split Gateway (Activity, Event, Gateway-join) are silently ignored at runtime; those flows are followed unconditionally. The Studio enforces this at modeling time.
+- `<bpmn:conditionExpression>` on **Split-Gateway-outgoing** SequenceFlows only (Exclusive, Inclusive, and Complex). Conditions on sequence flows whose source is anything other than a Split Gateway (Activity, Event, Gateway-join) are silently ignored at runtime; those flows are followed unconditionally. The Studio enforces this at modeling time.
 - `<bpmn:script>` inside ScriptTasks and BusinessRuleTasks (when `implementation="feel"`)
 - `<bpmn:condition>` inside `<bpmn:conditionalEventDefinition>` — FEEL expression re-evaluated by the PI on every state mutation until it becomes true
+- `<bpmn:activationCondition>` inside `<bpmn:complexGateway>` (join only) — FEEL threshold expression re-evaluated on every arrival / state change; gets the `activatedCount` / `incomingCount` overlay bindings
 - `<bpmn:timeDuration>`, `<bpmn:timeDate>`, `<bpmn:timeCycle>` (expression-based)
 - `evil:assignees`, `evil:dueDate`, `evil:payload`, `evil:eventMapping`,
   `evil:correlationRetrievalExpression`, `evil:correlationKey`,

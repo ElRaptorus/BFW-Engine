@@ -9,7 +9,7 @@ description: >-
 
 # Architecture Documentation
 
-Architecture docs live in `docs/architecture/`, one file per topic area, listed in `docs/architecture/index.md`. They are technical references for agents — not tutorials, not high-level overviews (those belong in `docs/Concept.md` and `docs/Architecture.md`).
+Architecture docs live in `docs/architecture/`, one file per topic area, listed in `docs/architecture/index.md`. They are technical references for agents — not tutorials, not high-level overviews (those belong in `docs/Architecture.md`).
 
 For **when** to update docs, see the workspace rule `maintain-architecture-docs.mdc`.
 
@@ -134,7 +134,6 @@ Every document ends with a table mapping modules to their file paths:
 ### What does NOT belong
 
 - Step-by-step tutorials (use skills for that)
-- High-level product concept (that's `docs/Concept.md`)
 - System-level overview diagrams (that's `docs/Architecture.md`)
 - Every internal helper function — only document what is architecturally significant
 - Redundant explanations of the same concept in multiple sections

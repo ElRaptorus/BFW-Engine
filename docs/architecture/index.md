@@ -34,4 +34,3 @@ Each file covers one architectural aspect. Documentation grows as design decisio
 | [`ImplementationPhases.md`](../ImplementationPhases.md) | Per-phase task lists and exit criteria |
 | [`Glossary.md`](../Glossary.md) | Every term used in this project |
 | [`Schema.md`](../Schema.md) | Database ER diagram + per-table narrative |
-| [`Concept.md`](../Concept.md) | Original product concept |

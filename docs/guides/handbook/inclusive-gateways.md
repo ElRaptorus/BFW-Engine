@@ -2,6 +2,8 @@
 
 Inclusive Gateways (OR-Gateways) route a process along **one or more** paths based on FEEL conditions. Unlike Exclusive Gateways (exactly one path) and Parallel Gateways (all paths unconditionally), Inclusive Gateways activate every outgoing path whose condition is truthy — a hybrid of both.
 
+> **Inclusive vs Complex.** The Inclusive Gateway is the portable, standards-compliant OR-gateway and the right default. The [Complex Gateway](complex-gateways.md) looks similar but is engine-specific: its split **rejects** unconditional non-default flows at deploy (instead of silently activating them), and its join is a FEEL-driven **threshold/quorum** join (instead of pure dead-path elimination). Reach for the Complex Gateway only when you specifically need those behaviours.
+
 ## OR-Split (Diverging)
 
 A split gateway has one incoming and multiple outgoing sequence flows. The engine evaluates **all** conditional flows and activates every path whose condition is `true`:

@@ -38,4 +38,4 @@ When documenting a subsystem that does not fit any existing file, create a new f
 
 - Do not rewrite existing sections unless they are wrong
 - Do not remove content — only add, correct, or restructure
-- Do not duplicate information already in `docs/Architecture.md` (high-level diagram) or `docs/Concept.md` (product concept); `docs/architecture/` covers implementation detail
+- Do not duplicate information already in `docs/Architecture.md` (high-level diagram); `docs/architecture/` covers implementation detail

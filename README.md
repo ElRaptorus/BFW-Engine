@@ -113,13 +113,13 @@ behaviour yet.
 ### Gateways
 
 
-| Element             | Supported   | Notes                                                                                             |
-| ------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| Exclusive Gateway   | Yes         | Split evaluates FEEL conditions (exactly-one-truthy), default flow fallback, Join is pass-through |
-| Event-Based Gateway | Yes         | First Intermediate Catch Event to trigger wins, all others get transitioned to `interrupted`    |
-| Parallel Gateway    | Yes         | Fork activates all outgoing paths unconditionally, Join waits for ALL incoming tokens before continuing |
-| Inclusive Gateway   | Yes         | Fork activates all outgoing paths with a matching condition; Join waits for all incoming paths that can still reach the gateway, before continuing |
-| Complex Gateway     | Parsed only | Planned: Phase 5  |
+| Element             | Supported | Notes                                                                                             |
+| ------------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| Exclusive Gateway   | Yes       | Split evaluates FEEL conditions (exactly-one-truthy), default flow fallback, Join is pass-through |
+| Event-Based Gateway | Yes       | First Intermediate Catch Event to trigger wins, all others get transitioned to `interrupted`    |
+| Parallel Gateway    | Yes       | Fork activates all outgoing paths unconditionally, Join waits for ALL incoming tokens before continuing |
+| Inclusive Gateway   | Yes       | Fork activates all outgoing paths with a matching condition; Join waits for all incoming paths that can still reach the gateway, before continuing |
+| Complex Gateway     | Yes       | Inclusive Gateways with a twist: Splits disallow unconditional flows (deploy error); Joins fire once, when condition is fulfilled; all remaining paths are killed |
 
 
 ### Events — Start

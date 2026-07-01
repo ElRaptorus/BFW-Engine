@@ -4,6 +4,7 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
   alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
+  alias EvilEngine.BPMN.Model.MultiInstance
   alias EvilEngine.Execution.FlowNodes
   alias EvilEngine.Execution.HandlerDispatch
 
@@ -238,11 +239,22 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
       assert {:ok, FlowNodes.ParallelGateway} == HandlerDispatch.handler_for(flow_node)
     end
 
-    test "unsupported FlowNode type returns error" do
+    test "complex_gateway FlowNode routes to ComplexGateway handler" do
       flow_node = %FlowNode{
         id: "cg-1",
         type: :complex_gateway,
         type_data: %FlowNodeData.ComplexGateway{}
+      }
+
+      assert {:ok, FlowNodes.ComplexGateway} == HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "multi-instance FlowNode returns unsupported_element" do
+      flow_node = %FlowNode{
+        id: "task-mi-1",
+        type: :task,
+        type_data: %FlowNodeData.Task{},
+        multi_instance: %MultiInstance{is_sequential: false}
       }
 
       assert {:error, :unsupported_element} == HandlerDispatch.handler_for(flow_node)

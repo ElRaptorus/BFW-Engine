@@ -324,28 +324,6 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
     end
   end
 
-  defp poll_pi_terminal(process_instance_id, timeout) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    do_poll_pi_terminal(process_instance_id, deadline)
-  end
-
-  defp do_poll_pi_terminal(process_instance_id, deadline) do
-    process_instance = fetch_process_instance(process_instance_id)
-
-    cond do
-      process_instance != nil and process_instance.state in ["finished", "fatal", "aborted"] ->
-        process_instance
-
-      System.monotonic_time(:millisecond) >= deadline ->
-        current_state = if process_instance, do: process_instance.state, else: "not_found"
-        raise "PI #{process_instance_id} did not reach terminal state within timeout (current: #{current_state})"
-
-      true ->
-        Process.sleep(50)
-        do_poll_pi_terminal(process_instance_id, deadline)
-    end
-  end
-
   defp poll_child_waiting_user_task(parent_process_instance_id, opts \\ []) do
     exclude = Keyword.get(opts, :exclude, [])
     deadline = System.monotonic_time(:millisecond) + 10_000

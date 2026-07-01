@@ -5,6 +5,7 @@ defmodule EvilEngine.BPMN.Model.Process do
   `version` is read from the mandatory `<evil:version>` extension.
   """
 
+  alias EvilEngine.BPMN.ComplexRegionAnalysis
   alias EvilEngine.BPMN.InclusiveJoinAnalysis
   alias EvilEngine.BPMN.Model.DataObject
   alias EvilEngine.BPMN.Model.DataObjectReference
@@ -27,7 +28,8 @@ defmodule EvilEngine.BPMN.Model.Process do
           extensions: [Extension.t()],
           linter_scores: [LinterRulesetScore.t()],
           correlation_key: String.t() | nil,
-          inclusive_join_analyses: %{String.t() => InclusiveJoinAnalysis.t()}
+          inclusive_join_analyses: %{String.t() => InclusiveJoinAnalysis.t()},
+          complex_region_analyses: %{String.t() => ComplexRegionAnalysis.t()}
         }
 
   @enforce_keys [:id]
@@ -44,6 +46,7 @@ defmodule EvilEngine.BPMN.Model.Process do
     data_object_references: [],
     extensions: [],
     linter_scores: [],
-    inclusive_join_analyses: %{}
+    inclusive_join_analyses: %{},
+    complex_region_analyses: %{}
   ]
 end

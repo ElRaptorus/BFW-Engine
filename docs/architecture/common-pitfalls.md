@@ -805,3 +805,30 @@ Timer Start Events are not manually triggerable through this path — they are m
 
 **Correct approach:** Join gateway FNIs are **reset to `active`** (never deleted). For full retry, their GPAs are cleared via `clear_gpa_fni_ids` in the reset spec. `Resumption.ensure_active_join_gateways_routed/2` detects active join FNIs with no GPAs and creates routing entries, so subsequent token arrivals route to the existing handler. For checkpoint retry, GPAs are preserved to maintain partial-join state from already-completed branches.
 
+## P44: Complex Gateway `activationCondition` is required for JOINs only — never for splits
+
+**Mistake:** Requiring `<bpmn:activationCondition>` on **every** Complex Gateway in the generic per-node validator (`validate_type_data/6`). This wrongly rejects valid Complex **Splits**, which have no activation condition — they route on outgoing `conditionExpression`s instead.
+
+**Why it happens:** `validate_type_data/6` only sees a single `%FlowNode{}` in isolation. It cannot tell whether a Complex Gateway is a split or a join, because that distinction depends on the **incoming / outgoing sequence-flow counts**, which live on the process, not the node. An unconditional "always require activationCondition" rule there fails the split fixtures at deploy time with `"ComplexGateway '...' is missing required properties: activationCondition"`.
+
+**Correct approach:** Enforce the activation-condition requirement in `check_complex_gateways/1` (called from `validate_process/2`), which has the process's `sequence_flows` and can classify each Complex Gateway by flow counts:
+
+- `> 1` incoming **and** `> 1` outgoing → `complex_gateway_mixed`.
+- `> 1` outgoing (split) → every outgoing flow must be conditional or default (`complex_gateway_unconditional_flow`); **no** activationCondition check.
+- `> 1` incoming (join) → non-blank `<bpmn:activationCondition>` required (`complex_gateway_join_missing_activation_condition`).
+
+The generic `validate_type_data/6` clause for `%FlowNodeData.ComplexGateway{}` must therefore return `[]` and delegate entirely to the flow-count-aware check.
+
+## P45: Complex Join scoped cancellation needs a well-formed SESE region — and the region excludes the split and join
+
+**Mistake:** Assuming a Complex Join can cancel "the other branches" without a strictly-bounded region, or that the region includes the paired split/join nodes. Both lead to wrong cancellation scope.
+
+**Why it happens:** Twist 2 cancellation (`interrupt_region_fnis/3`) interrupts every `:active`/`:waiting` FNI whose `flow_node_id` is in the join's `region_node_ids`. If the region is not single-entry/single-exit, "the branches between split and join" is ambiguous — a flow leaking out of the region would either be missed (leaving orphans) or, worse, cancellation would need to chase tokens outside the intended block. And if the region set mistakenly included the split `S` or the join `J` themselves, the firing join could try to interrupt itself or re-open the entry.
+
+**Correct approach:**
+
+- Pair each join to `S = idom_complex(J)` (nearest dominating Complex Split) and compute `region_node_ids = forward_reachable(S) ∩ backward_reachable(J) \ {S, J}` in `ComplexRegionAnalysis`. The region **excludes** both boundary nodes.
+- Enforce well-formedness **at deploy** (`region_violations/1`): reject unpaired joins (`complex_join_no_paired_split`), cross-boundary edges (`complex_region_cross_boundary`), and partially overlapping regions (`complex_region_overlap`). Valid regions therefore form a **laminar family** — any two are disjoint or strictly nested, so a partial overlap can only arise together with a cross-boundary or pairing violation and is caught first.
+- `interrupt_region_fnis/3` must explicitly skip the join FNI (`id != join_fni_id`) and must be **scoped** — it runs each interrupted FNI's `handle_aborted/1` for local cleanup but does **not** purge the whole PI's message/signal subscriptions (contrast `interrupt_remaining_fnis/2`, used by Terminate/Error End Events).
+- When testing cancellation in the shared-connection Ecto sandbox, drive the join with branches that are **idle-waiting** (e.g. user tasks completed explicitly) before the fire. Killing an FNI that is mid-DB-write on the single shared test connection can tear the connection down and surface as a spurious `DBConnection.OwnershipError` — a test artifact, not an engine bug (in production each process has its own pooled connection).
+

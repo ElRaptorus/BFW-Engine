@@ -61,6 +61,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/handbook/parallel-gateways.md",
           "docs/guides/handbook/inclusive-gateways.md",
           "docs/guides/handbook/event-based-gateways.md",
+          "docs/guides/handbook/complex-gateways.md",
           "docs/guides/handbook/call-activities.md",
           "docs/guides/handbook/embedded-subprocesses.md",
           "docs/guides/handbook/error-boundary-events.md",
@@ -114,7 +115,6 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/Architecture.md",
           "docs/Schema.md",
           "docs/Glossary.md",
-          "docs/Concept.md",
           "docs/Philosophy.md",
 
           # Architecture (detailed)
@@ -146,7 +146,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "Operations Guide": ~r{docs/guides/operations/},
           Cheatsheets: ~r{docs/guides/cheatsheets/},
           Specification: ~r{docs/Implementation},
-          Reference: ~r{docs/(Architecture|Schema|Glossary|Concept|Philosophy)\.md},
+          Reference: ~r{docs/(Architecture|Schema|Glossary|Philosophy)\.md},
           "Architecture (Detailed)": ~r{docs/architecture/}
         ],
         groups_for_modules: [

@@ -22,7 +22,8 @@ defmodule EvilEngine.Expressions.Context do
           process: map(),
           process_instance: map(),
           identity: map(),
-          loop: map() | nil
+          loop: map() | nil,
+          gateway: map() | nil
         }
 
   @enforce_keys [:token, :this, :context, :data_objects, :process, :process_instance, :identity]
@@ -34,7 +35,8 @@ defmodule EvilEngine.Expressions.Context do
     :process,
     :process_instance,
     :identity,
-    loop: nil
+    loop: nil,
+    gateway: nil
   ]
 
   @doc """
@@ -89,7 +91,10 @@ defmodule EvilEngine.Expressions.Context do
   `data_objects` maps to `"dataObjects"` and `process_instance` maps
   to `"processInstance"`.
 
-  The `loop` overlay is only included when non-nil.
+  The `loop` overlay is only included when non-nil. The `gateway` overlay
+  (Complex Gateway join bindings `activatedCount` / `incomingCount`) is
+  merged at the **top level** so expressions reference them directly
+  (e.g. `activatedCount >= 2`), and is only included when non-nil.
   """
   @spec to_feel_scope(t()) :: %{String.t() => term()}
   def to_feel_scope(%__MODULE__{} = context) do
@@ -103,11 +108,30 @@ defmodule EvilEngine.Expressions.Context do
       "identity" => context.identity
     }
 
-    case context.loop do
-      nil -> base
-      loop when is_map(loop) -> Map.put(base, "loop", loop)
-    end
+    base
+    |> merge_loop(context.loop)
+    |> merge_gateway(context.gateway)
   end
+
+  @doc """
+  Injects the Complex Gateway join bindings into a context.
+
+  Adds `activatedCount` (number of distinct incoming branches that have
+  delivered a token) and `incomingCount` (total incoming branch count) as
+  **top-level** FEEL bindings, used to evaluate a Complex Join's
+  `activationCondition` (e.g. `activatedCount >= 2`).
+  """
+  @spec put_gateway_bindings(t(), non_neg_integer(), non_neg_integer()) :: t()
+  def put_gateway_bindings(%__MODULE__{} = context, activated_count, incoming_count)
+      when is_integer(activated_count) and is_integer(incoming_count) do
+    %{context | gateway: %{"activatedCount" => activated_count, "incomingCount" => incoming_count}}
+  end
+
+  defp merge_loop(scope, nil), do: scope
+  defp merge_loop(scope, loop) when is_map(loop), do: Map.put(scope, "loop", loop)
+
+  defp merge_gateway(scope, nil), do: scope
+  defp merge_gateway(scope, gateway) when is_map(gateway), do: Map.merge(scope, gateway)
 
   # -- Private: string-key conversion for FEEL NIF compatibility -----------
 

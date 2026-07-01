@@ -361,6 +361,7 @@ Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements it
 | `ExclusiveGateway` | Owns routing: evaluates FEEL conditions on outgoing flows, enforces exactly-one-truthy (deliberate divergence from BPMN 2.0 "first truthy wins"). Mixed gateways (both split and join) rejected at runtime. Join is pure pass-through |
 | `ParallelGateway` | Fork: resolves all outgoing sequence flows via `SequenceFlowResolver` (conditions ignored). Join: handler-owned async Task with PI routing (see §Parallel Gateway below). Mixed gateways rejected at runtime |
 | `InclusiveGateway` | Fork: evaluates all outgoing conditional FEEL expressions; activates every truthy path plus unconditional non-default flows (OR-split). If zero truthy: default path, or fatal `:no_matching_condition`. Join: handler-owned async Task with PI routing and dead-path elimination (see §Inclusive Gateway below). Mixed gateways rejected at runtime |
+| `ComplexGateway` | Opinionated, deterministic. Split: inclusive-style fork on truthy conditions, but unconditional non-default outgoing flows are a **deploy-time error** (no auto fall-through); zero-truthy → default, else fatal `:complex_split_no_matching_condition`. Join: single-fire **threshold** join driven by a FEEL `activationCondition` with `activatedCount`/`incomingCount` bindings; fires once when the condition becomes true. Twist 1: all branches arrived-or-dead but condition still false → fatal `:complex_join_condition_unmet`. Twist 2: on fire, every still-active/waiting FNI in the join's paired SESE region is cancelled (`:cancelled_by_complex_join`). Mixed gateways rejected at deploy and runtime (see §Complex Gateway below) |
 | `CallActivity` | Owns full child PI lifecycle: version resolution via `CalledElementResolver`, child spawn, monitoring, result/error handling, boundary resolution via `BoundaryResolver`. Supports `in_mappings` (child start payload), `out_mappings` (parent result transformation), and `evil:startEventId` (selects the target Start Event in the child process — required when the child has multiple untyped Start Events). Returns `{:async, flow_node_instance_id, continuation}` to park the FNI while the handler Task monitors the child. Implements `handle_fatal/1` (cascades `force_fatal` to child PI) and `handle_aborted/1` (cascades `abort` to child PI). The cascade is recursive: if the child has its own Call Activities, they cascade further |
 | `SubProcess` | Embedded subprocess execution following the same async-continuation pattern as Call Activity. Validates subprocess contents at **runtime** (exactly one None Start Event, no typed start events, at least one End Event) — allowing WIP diagrams to be deployed. Builds a synthetic `%Process{}` from `FlowNodeData.SubProcess` via `ModelCache.fetch_subprocess_model/2`, starts a child PI under the same `process_version_id` with `subprocess_node_id` in `start_opts`, monitors completion. **Lane inheritance:** the synthetic process inherits the parent's lane that contains the subprocess shell — all inner FNIs are assigned to that lane. If the parent has no lanes, the synthetic process has none either. Supports `in_mappings`, `out_mappings`, `payload_contract`, `result_contract` (same data pipeline as Call Activity). Error bubbling uses `BoundaryResolver` on the subprocess shell. Emits `SubProcessChildStarted` event. Implements `handle_fatal/1` and `handle_aborted/1` for child PI cascade. Resume via `handle_resume/4` mirrors Call Activity |
 | `TimerCatchEvent` | Handler-centric timer lifecycle: resolves timer spec (FEEL), schedules via `Scheduler`, blocks handler Task on `receive {:timer_fired, ...}`, then completes. Implements `handle_fatal/1`, `handle_aborted/1` (cancel armed timer), and `handle_resume/3` (re-schedule or immediate-fire based on persisted `fire_at`). Rejects `time_cycle` (fatal). Returns `{:async, fni_id, continuation, type_properties}` |
@@ -520,6 +521,137 @@ Same as Parallel Gateway: `cleanup_all_pending_arrivals/1` removes `gateway_pend
 #### Retry guard
 
 Same as Parallel Gateway: checkpoint retry at an inclusive gateway FNI is rejected with `:retry_checkpoint_is_join_gateway`.
+
+### Complex Gateway
+
+**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/complex_gateway.ex`, `apps/core_execution/lib/evil_engine/execution/complex_join_evaluator.ex`
+
+The Complex Gateway is ThomasTheDaemonEngine's opinionated, deterministic take on the BPMN 2.0 Complex Gateway. Rather than the spec's under-specified "define your own activation semantics" escape hatch, the engine gives it a precise contract: a **conditional inclusive-style split** with no unconditional fall-through, and a **single-fire threshold join** driven by a FEEL `activationCondition`. Phase 5.1 delivers the split, the threshold join, and the dead-path-exhaustion error ("Twist 1"). Phase 5.2 adds SESE-scoped cancellation of losing branches ("Twist 2").
+
+> **Not standard BPMN.** The Complex Gateway's semantics here are engine-specific. Models that rely on them are not portable to other BPMN engines. See the Inclusive vs Complex comparison below.
+
+#### Split semantics (diverging: 1 incoming, N outgoing)
+
+`handle_enter/3` evaluates all outgoing conditional flows via FEEL and applies these routing rules:
+
+- **1+ truthy conditions** → activate every truthy flow (token fork). Unlike the Inclusive Gateway, unconditional non-default flows do **not** ride along — they are rejected at deploy time (see validator rule below), so at runtime they cannot exist.
+- **Zero truthy + default exists** → activate the default flow only.
+- **Zero truthy + no default** → fatal `:complex_split_no_matching_condition`.
+- **FEEL error during evaluation** → fatal `:complex_split_condition_failed`.
+
+**Deploy-time rule (`Validator.check_complex_gateways/1`):** every outgoing flow of a Complex Split must carry a `conditionExpression` OR be the gateway's `default` flow. An unconditional, non-default outgoing flow is a validation violation `:complex_gateway_unconditional_flow`. This is the defining behavioral difference from the Inclusive Gateway, which silently activates unconditional flows.
+
+#### Join semantics (converging: N incoming, 1 outgoing) — threshold join
+
+The Complex Join is a stateful async Task following the same pattern as the Inclusive Join, but its fire decision is driven by a FEEL `activationCondition` rather than pure dead-path elimination.
+
+**FEEL bindings for the condition** — the standard bindings (`token` = merged branch payloads accumulated so far, `context`, `dataObjects`, `process`, `processInstance`, `identity`) plus two gateway-scoped bindings injected via `Expressions.Context.put_gateway_bindings/3`:
+
+- **`activatedCount`** — the number of incoming branches that have delivered a token (`MapSet.size(arrived_via_flow_ids)`).
+- **`incomingCount`** — the total number of incoming sequence flows into the join.
+
+**Fire/error/wait decision (`ComplexJoinEvaluator.evaluate/3`)** — evaluated on every token arrival and on every FNI state change in the PI (mirrors `evaluate_parked_inclusive_joins`):
+
+1. Evaluate `activationCondition` with the current bindings.
+   - **true** → **FIRE** (§Fire behavior below).
+   - **false** → step 2.
+2. Compute branch resolution: a branch is *arrived* (its flow id is in `arrived_via_flow_ids`) or *dead* (no live upstream FNI, reusing `InclusiveJoinEvaluator.all_incoming_resolved?/2` reachability). If **all incoming branches are arrived-or-dead** → **ERROR** (Twist 1): fatal `:complex_join_condition_unmet` with a message of the form "all branches have finished but the gateway's activation condition '<expr>' was not met (activatedCount=<n>, incomingCount=<m>)".
+3. Otherwise → **WAIT** (more tokens may still arrive).
+
+A blank `activationCondition` is rejected at deploy (see validator rule `:complex_gateway_join_missing_activation_condition`); a FEEL evaluation failure at runtime is fatal `:complex_join_condition_failed`.
+
+#### Fire behavior
+
+- Merge accumulated branch payloads (last-wins per key via `Map.merge/2`, consistent with inclusive/parallel joins).
+- Resolve the single outgoing flow via `SequenceFlowResolver.resolve/2`, finish the join FNI via `FniLifecycle.finish/4`, delete `gateway_pending_arrivals` rows.
+- Mark the `join_routing` entry `fired: true`, then immediately run **scoped cancellation** over the paired SESE region (`interrupt_region_fnis/3`, see §SESE region & scoped cancellation below).
+- **Straggler tokens:** because cancellation interrupts every still-live in-region branch, a token can only reach an already-fired join if the branch completed in the same PI-message batch, just before cancellation ran. Such a straggler is **silently absorbed** (debug-logged, no state change) — the join outcome is already decided. (Phase 5.1 instead fatalled the arriving FNI with `:complex_join_already_fired`; Phase 5.2 replaced that interim behavior.)
+
+#### PI-level routing
+
+The PI detects complex-join topology in `join_gateway_check/2` (which now includes `:complex_gateway`) and routes to `dispatch_complex_join/4`:
+
+1. **First arriving token** — reuses `dispatch_join_first_token/7` (parameterized by `gateway_type`). The routing entry is seeded with the join's `activation_condition` and `fired: false` via `augment_complex_join_routing/3`.
+2. **Subsequent tokens** — `route_subsequent_complex_token/6` updates `arrived_via_flow_ids` and re-evaluates. Duplicate arrivals (same flow id twice) → fatal `:duplicate_join_arrival`.
+3. **Re-evaluation** — `evaluate_parked_complex_joins/1` runs after every FNI state change; for each parked complex join it calls `ComplexJoinEvaluator.evaluate/3`. On `:fire` it sends `{:fire}` to the handler Task, sets `fired: true`, and runs `interrupt_region_fnis/3` to cancel the losing in-region branches; on `{:error, info}` it records the join FNI as fatal; on `:wait` it does nothing.
+
+#### `join_routing` entry shape
+
+```elixir
+%{
+  fni_id: String.t(),
+  gateway_type: :complex_gateway,
+  required: pos_integer(),
+  arrived_via_flow_ids: MapSet.t(String.t()),
+  activation_condition: String.t(),
+  merged_payload: map(),
+  fired: boolean()
+}
+```
+
+#### Mixed gateway rejection
+
+A Complex Gateway with **both** `incoming_count > 1` AND `outgoing_count > 1` is a mixed gateway. It is rejected at **deploy** (`:complex_gateway_mixed`) and, defensively, at **runtime** (`:mixed_gateway`). A Complex Gateway must be either a split (one in, many out) or a join (many in, one out).
+
+#### SESE region & scoped cancellation (Twist 2)
+
+**Path:** `apps/core_bpmn/lib/evil_engine/bpmn/complex_region_analysis.ex` (deploy-time analysis), `interrupt_region_fnis/3` in `process_instance.ex` (runtime cancellation).
+
+When a Complex Join fires, the winning threshold has been reached but slower sibling branches may still be running. Twist 2 makes the fire a **scoped mini-terminate**: every still-active or waiting Flow Node Instance inside the join's Single-Entry/Single-Exit (SESE) region is cancelled. This bounds the "cancel the losers" behavior to a well-defined block and never leaks outside it.
+
+**Pairing (`S = idom_complex(J)`, CG-D10).** Each Complex Join `J` pairs to exactly one Complex Split `S` — the **nearest enclosing Complex Split that dominates `J`** (the immediate dominator of `J` restricted to Complex Split nodes). This is computed at deploy time by `ComplexRegionAnalysis`:
+
+1. Build the flow graph over the process's `sequence_flows` (forward/backward adjacency indexes).
+2. Compute dominators from a virtual entry via iterative dataflow (`compute_dominators/3`).
+3. For each Complex Join, pick the nearest dominating Complex Split.
+4. `region_node_ids = forward_reachable(S) ∩ backward_reachable(J) \ {S, J}` (reuses the inclusive-analysis reachability BFS with a forward twin).
+5. Verify SESE well-formedness.
+
+Because the pairing always selects the *innermost* enclosing split, nested complex regions are **strictly contained** (laminar): any two regions are either disjoint or one is fully nested inside the other — never partially overlapping.
+
+**Deploy-time well-formedness (`Validator.check_complex_gateways/1` → `ComplexRegionAnalysis.region_violations/1`):**
+
+| Violation | Code | Trigger |
+|---|---|---|
+| Unpaired join | `:complex_join_no_paired_split` | No Complex Split dominates the join (0 candidates) |
+| Cross-boundary edge | `:complex_region_cross_boundary` | A sequence flow leaves the region other than via `S → region` or `region → J` (breaks single-entry/single-exit) |
+| Overlapping regions | `:complex_region_overlap` | Two regions partially overlap (only strict containment or disjointness allowed) |
+
+A join that fails any of these is excluded from `complex_region_analyses`, and the deploy is rejected.
+
+**Runtime cancellation (`interrupt_region_fnis/3`).** On fire, the PI:
+
+1. Looks up the paired region's `region_node_ids` from the enriched process model (`complex_region_node_ids/2`).
+2. Filters `flow_node_instance_states` to entries that are `:active` or `:waiting` and whose `flow_node_id ∈ region` (excluding the join FNI itself).
+3. For each: kills the FNI process (`Process.exit(pid, :kill)`), invokes the handler's `handle_aborted/1` callback for **local** cleanup (its own message/signal subscriptions, timers, recursive child-PI aborts for Call Activities / SubProcesses), unregisters any conditional waiter, and persists the FNI as `:interrupted` with reason `:cancelled_by_complex_join`.
+
+Unlike `interrupt_remaining_fnis/2` (used by Terminate/Error End Events), this is **scoped to the region** — it does NOT purge the whole PI's subscriptions. Branches outside the region (including an enclosing region's other branches) are untouched. In a nested layout, an inner join firing cancels only the inner region; the outer region's parallel branches keep running.
+
+**Deploy enrichment.** `ComplexRegionAnalysis.enrich_process/1` is chained after `InclusiveJoinAnalysis.enrich_process/1` in `Helpers.fetch_process_model/2,3` (top-level process and embedded subprocess scopes), populating `Model.Process.complex_region_analyses` keyed by join id.
+
+**Resume.** On rehydration, `Resumption.reactivate_join_gateway_fni/5` reactivates `:complex_gateway` join FNIs, reconstructing the routing entry (`activation_condition`, `merged_payload` rebuilt from persisted `gateway_pending_arrivals`, `fired: false`) so the resumed PI re-evaluates the join and can still fire + cancel correctly after an engine restart.
+
+#### Inclusive vs Complex Gateway
+
+Both gateways look similar (conditional multi-path routing) but behave differently by design. This table makes the distinction unambiguous:
+
+| Aspect | Inclusive Gateway | Complex Gateway |
+|---|---|---|
+| Split — unconditional non-default flow | Silently activated alongside truthy conditionals | **Deploy error** (`:complex_gateway_unconditional_flow`) — every outgoing flow must be conditional or default |
+| Split — zero truthy, default present | Default flow only | Default flow only (same) |
+| Split — zero truthy, no default | Fatal `:no_matching_condition` | Fatal `:complex_split_no_matching_condition` |
+| Join — fire trigger | Dead-path elimination: fires when all reachable paths arrived-or-dead **and** ≥1 arrived | FEEL `activationCondition` becomes true (threshold join) |
+| Join — condition inputs | n/a (structural reachability only) | `activatedCount`, `incomingCount` + standard FEEL bindings |
+| Join — all branches resolved, threshold never met | Fires with whatever arrived (or finishes silently if zero arrived) | **Fatal** `:complex_join_condition_unmet` (Twist 1) |
+| Join — re-fire | Fires once per activation | Single-fire only; on fire the losing branches are cancelled, so stragglers are absorbed silently |
+| Losing-branch cancellation on fire | None | SESE-scoped cancellation (Twist 2): every `:active`/`:waiting` FNI inside the paired region is interrupted (`:cancelled_by_complex_join`) |
+| Split↔Join pairing | No pairing | Strict 1:1: join pairs to `idom_complex(J)`; unpaired / non-SESE / overlapping regions → deploy error |
+| BPMN portability | Standard BPMN 2.0 | Engine-specific semantics |
+
+**When to use which:**
+
+- Use an **Inclusive Gateway** for standard OR-split/OR-join: activate every matching path (plus any always-on unconditional paths), then merge whenever all live paths have arrived. This is portable, spec-compliant, and the right default.
+- Use a **Complex Gateway** when you need a **quorum / threshold** merge ("proceed as soon as 2 of 3 approvals arrive"), want to **forbid accidental unconditional fan-out** at the split, or want the winning path to **cancel the losing branches** within a bounded SESE region (Twist 2). It trades portability for deterministic, opinionated control.
 
 ### Event-Based Gateway
 

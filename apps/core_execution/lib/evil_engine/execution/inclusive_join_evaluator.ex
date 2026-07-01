@@ -35,12 +35,37 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluator do
           process_model :: BpmnProcess.t()
         ) :: boolean()
   def should_fire?(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
+    all_incoming_resolved?(
+      join_flow_node_id,
+      arrived_via_flow_ids,
+      flow_node_instance_states,
+      process_model
+    ) and MapSet.size(arrived_via_flow_ids) > 0
+  end
+
+  @doc """
+  Returns `true` when every incoming sequence flow of the join is either
+  **arrived** (a token was delivered) or **dead** (no live upstream FNI
+  can still deliver a token).
+
+  Unlike `should_fire?/4`, this does NOT require at least one arrival — it
+  is the pure dead-path-exhaustion predicate. The Complex Join reuses it to
+  detect the Twist-1 condition (all branches resolved, activation condition
+  still unmet → error).
+  """
+  @spec all_incoming_resolved?(
+          join_flow_node_id :: String.t(),
+          arrived_via_flow_ids :: MapSet.t(String.t()),
+          flow_node_instance_states :: map(),
+          process_model :: BpmnProcess.t()
+        ) :: boolean()
+  def all_incoming_resolved?(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
     case Map.get(process_model.inclusive_join_analyses, join_flow_node_id) do
       %InclusiveJoinAnalysis{} = analysis ->
-        evaluate_with_analysis(analysis, arrived_via_flow_ids, flow_node_instance_states)
+        resolved_with_analysis(analysis, arrived_via_flow_ids, flow_node_instance_states)
 
       nil ->
-        evaluate_with_runtime_bfs(
+        resolved_with_runtime_bfs(
           join_flow_node_id,
           arrived_via_flow_ids,
           flow_node_instance_states,
@@ -49,47 +74,41 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluator do
     end
   end
 
-  defp evaluate_with_analysis(analysis, arrived_via_flow_ids, flow_node_instance_states) do
+  defp resolved_with_analysis(analysis, arrived_via_flow_ids, flow_node_instance_states) do
     active_flow_node_ids = collect_active_flow_node_ids(flow_node_instance_states)
 
-    all_resolved =
-      Enum.all?(analysis.incoming_flow_ids, fn flow_id ->
-        if MapSet.member?(arrived_via_flow_ids, flow_id) do
-          true
-        else
-          upstream_nodes = Map.get(analysis.upstream_reachability, flow_id, MapSet.new())
-          MapSet.disjoint?(active_flow_node_ids, upstream_nodes)
-        end
-      end)
-
-    all_resolved and MapSet.size(arrived_via_flow_ids) > 0
+    Enum.all?(analysis.incoming_flow_ids, fn flow_id ->
+      if MapSet.member?(arrived_via_flow_ids, flow_id) do
+        true
+      else
+        upstream_nodes = Map.get(analysis.upstream_reachability, flow_id, MapSet.new())
+        MapSet.disjoint?(active_flow_node_ids, upstream_nodes)
+      end
+    end)
   end
 
-  defp evaluate_with_runtime_bfs(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
+  defp resolved_with_runtime_bfs(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
     incoming_index = build_incoming_index(process_model.sequence_flows)
 
     incoming_flow_ids = resolve_incoming_flow_ids(join_flow_node_id, process_model)
     active_flow_node_ids = collect_active_flow_node_ids(flow_node_instance_states)
 
-    all_resolved =
-      Enum.all?(incoming_flow_ids, fn flow_id ->
-        if MapSet.member?(arrived_via_flow_ids, flow_id) do
-          true
-        else
-          source_ref = find_flow_source_ref(flow_id, process_model)
+    Enum.all?(incoming_flow_ids, fn flow_id ->
+      if MapSet.member?(arrived_via_flow_ids, flow_id) do
+        true
+      else
+        source_ref = find_flow_source_ref(flow_id, process_model)
 
-          upstream_nodes =
-            InclusiveJoinAnalysis.backward_reachability_bfs(
-              source_ref,
-              join_flow_node_id,
-              incoming_index
-            )
+        upstream_nodes =
+          InclusiveJoinAnalysis.backward_reachability_bfs(
+            source_ref,
+            join_flow_node_id,
+            incoming_index
+          )
 
-          MapSet.disjoint?(active_flow_node_ids, upstream_nodes)
-        end
-      end)
-
-    all_resolved and MapSet.size(arrived_via_flow_ids) > 0
+        MapSet.disjoint?(active_flow_node_ids, upstream_nodes)
+      end
+    end)
   end
 
   defp collect_active_flow_node_ids(flow_node_instance_states) do

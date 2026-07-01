@@ -420,6 +420,49 @@ defmodule EvilEngine.ExpressionsTest do
     end
   end
 
+  describe "gateway overlay (Complex Gateway join bindings)" do
+    test "put_gateway_bindings/3 exposes activatedCount and incomingCount as top-level bindings" do
+      context = Context.put_gateway_bindings(build_context(), 2, 3)
+
+      assert {:ok, 2} = Expressions.eval("activatedCount", context)
+      assert {:ok, 3} = Expressions.eval("incomingCount", context)
+    end
+
+    test "activatedCount >= 2 evaluates true once the threshold is met" do
+      context = Context.put_gateway_bindings(build_context(), 2, 3)
+      assert {:ok, true} = Expressions.eval("activatedCount >= 2", context)
+    end
+
+    test "activatedCount >= 2 evaluates false below the threshold" do
+      context = Context.put_gateway_bindings(build_context(), 1, 3)
+      assert {:ok, false} = Expressions.eval("activatedCount >= 2", context)
+    end
+
+    test "gateway bindings coexist with token bindings" do
+      context =
+        build_context(token: %{"amount" => 500})
+        |> Context.put_gateway_bindings(2, 2)
+
+      assert {:ok, true} = Expressions.eval("activatedCount = incomingCount and token.amount > 100", context)
+    end
+
+    test "to_feel_scope merges gateway bindings at the top level" do
+      scope =
+        build_context()
+        |> Context.put_gateway_bindings(2, 3)
+        |> Context.to_feel_scope()
+
+      assert scope["activatedCount"] == 2
+      assert scope["incomingCount"] == 3
+    end
+
+    test "to_feel_scope omits gateway bindings when nil" do
+      scope = Context.to_feel_scope(build_context())
+      refute Map.has_key?(scope, "activatedCount")
+      refute Map.has_key?(scope, "incomingCount")
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Context struct
   # ---------------------------------------------------------------------------

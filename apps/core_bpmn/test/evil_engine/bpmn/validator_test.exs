@@ -51,6 +51,21 @@ defmodule EvilEngine.BPMN.ValidatorTest do
     %Definitions{raw_xml: "", processes: [struct!(BpmnProcess, proc_fields)]}
   end
 
+  # Asserts that no validation violation carries the given code. The overall
+  # validation may still fail on unrelated structural checks (orphan nodes,
+  # unreachable end events), so we assert the absence of the specific code
+  # rather than an overall `{:ok, _}`.
+  defp refute_violation_code(definitions, code) do
+    case Validator.validate(definitions) do
+      {:ok, _} ->
+        :ok
+
+      {:error, violations} ->
+        refute Enum.any?(violations, fn {c, _} -> c == code end),
+               "expected no #{inspect(code)} violation, got: #{inspect(violations)}"
+    end
+  end
+
   # -------------------------------------------------------------------------
   # Happy paths
   # -------------------------------------------------------------------------
@@ -970,28 +985,281 @@ defmodule EvilEngine.BPMN.ValidatorTest do
   # Gateway checks
   # -------------------------------------------------------------------------
 
-  describe "validate/1 — ComplexGateway completeness" do
-    test "rejects ComplexGateway without activationCondition" do
+  describe "validate/1 — ComplexGateway split/join rules" do
+    test "rejects a Complex Join without activationCondition" do
       definitions =
         minimal_valid_definitions(
           extra_nodes: [
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}},
             %FlowNode{
-              id: "CG1",
+              id: "CGJoin",
               type: :complex_gateway,
               type_data: %FlowNodeData.ComplexGateway{}
             }
           ],
           extra_flows: [
-            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "CG1"},
-            %SequenceFlow{id: "F3", source_ref: "CG1", target_ref: "E1"}
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "T1"},
+            %SequenceFlow{id: "F3", source_ref: "S1", target_ref: "T2"},
+            %SequenceFlow{id: "Fa", source_ref: "T1", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fb", source_ref: "T2", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fc", source_ref: "CGJoin", target_ref: "E1"}
           ]
         )
 
       assert {:error, violations} = Validator.validate(definitions)
 
-      {_, message} = Enum.find(violations, fn {c, _} -> c == :incomplete_flow_node end)
-      assert message =~ "ComplexGateway"
+      {_, message} =
+        Enum.find(violations, fn {c, _} -> c == :complex_gateway_join_missing_activation_condition end)
+
+      assert message =~ "ComplexGateway 'CGJoin'"
       assert message =~ "activationCondition"
+    end
+
+    test "accepts a Complex Join with a non-blank activationCondition" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{
+              id: "CGJoin",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 2"}
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "T1"},
+            %SequenceFlow{id: "F3", source_ref: "S1", target_ref: "T2"},
+            %SequenceFlow{id: "Fa", source_ref: "T1", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fb", source_ref: "T2", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fc", source_ref: "CGJoin", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :complex_gateway_join_missing_activation_condition)
+    end
+
+    test "rejects a Complex Split with an unconditional non-default outgoing flow" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "CGSplit",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{}
+            },
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}}
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "Fin", source_ref: "S1", target_ref: "CGSplit"},
+            %SequenceFlow{
+              id: "Fa",
+              source_ref: "CGSplit",
+              target_ref: "T1",
+              condition_expression: "token.a = true"
+            },
+            %SequenceFlow{id: "Fb", source_ref: "CGSplit", target_ref: "T2"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {c, _} -> c == :complex_gateway_unconditional_flow end)
+
+      assert message =~ "ComplexGateway 'CGSplit'"
+      assert message =~ "unconditional non-default outgoing flow 'Fb'"
+    end
+
+    test "accepts a Complex Split whose outgoing flows are all conditional or default" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "CGSplit",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{}
+            },
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}}
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "Fin", source_ref: "S1", target_ref: "CGSplit"},
+            %SequenceFlow{
+              id: "Fa",
+              source_ref: "CGSplit",
+              target_ref: "T1",
+              condition_expression: "token.a = true"
+            },
+            %SequenceFlow{id: "Fb", source_ref: "CGSplit", target_ref: "T2", is_default: true}
+          ]
+        )
+
+      refute_violation_code(definitions, :complex_gateway_unconditional_flow)
+    end
+
+    test "rejects a mixed Complex Gateway (many incoming AND many outgoing)" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T3", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T4", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{
+              id: "CGMixed",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 1"}
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "Fin1", source_ref: "T1", target_ref: "CGMixed"},
+            %SequenceFlow{id: "Fin2", source_ref: "T2", target_ref: "CGMixed"},
+            %SequenceFlow{id: "Fout1", source_ref: "CGMixed", target_ref: "T3"},
+            %SequenceFlow{id: "Fout2", source_ref: "CGMixed", target_ref: "T4"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} = Enum.find(violations, fn {c, _} -> c == :complex_gateway_mixed end)
+
+      assert message =~ "ComplexGateway 'CGMixed'"
+      assert message =~ "mixed gateway"
+    end
+  end
+
+  describe "validate/1 — ComplexGateway pairing / SESE region rules" do
+    test "rejects a Complex Join that has no dominating Complex Split" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{
+              id: "CGJoin",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 2"}
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "T1"},
+            %SequenceFlow{id: "F3", source_ref: "S1", target_ref: "T2"},
+            %SequenceFlow{id: "Fa", source_ref: "T1", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fb", source_ref: "T2", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fc", source_ref: "CGJoin", target_ref: "E1"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {c, _} -> c == :complex_join_no_paired_split end)
+
+      assert message =~ "ComplexGateway 'CGJoin'"
+      assert message =~ "no Complex Split dominates it"
+    end
+
+    test "rejects a region whose flow leaks out to an external node (single-exit violation)" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "CGSplit",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{}
+            },
+            %FlowNode{id: "T1", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "T2", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{
+              id: "CGJoin",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 2"}
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "Fin", source_ref: "S1", target_ref: "CGSplit"},
+            %SequenceFlow{
+              id: "Fa",
+              source_ref: "CGSplit",
+              target_ref: "T1",
+              condition_expression: "token.a = true"
+            },
+            %SequenceFlow{id: "Fb", source_ref: "CGSplit", target_ref: "T2", is_default: true},
+            %SequenceFlow{id: "Fc", source_ref: "T1", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fd", source_ref: "T2", target_ref: "CGJoin"},
+            %SequenceFlow{id: "Fe", source_ref: "CGJoin", target_ref: "E1"},
+            %SequenceFlow{id: "Fleak", source_ref: "T1", target_ref: "E1"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {c, _} -> c == :complex_region_cross_boundary end)
+
+      assert message =~ "split 'CGSplit'"
+      assert message =~ "join 'CGJoin'"
+      assert message =~ "single-exit"
+    end
+
+    test "accepts a well-formed nested pair of complex regions" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "OuterSplit",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{}
+            },
+            %FlowNode{
+              id: "InnerSplit",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{}
+            },
+            %FlowNode{id: "TaskA", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "TaskB", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{id: "TaskC", type: :task, type_data: %FlowNodeData.Task{}},
+            %FlowNode{
+              id: "InnerJoin",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 1"}
+            },
+            %FlowNode{
+              id: "OuterJoin",
+              type: :complex_gateway,
+              type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 1"}
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "Fin", source_ref: "S1", target_ref: "OuterSplit"},
+            %SequenceFlow{
+              id: "Fo1",
+              source_ref: "OuterSplit",
+              target_ref: "InnerSplit",
+              condition_expression: "token.x = true"
+            },
+            %SequenceFlow{id: "Fo2", source_ref: "OuterSplit", target_ref: "TaskC", is_default: true},
+            %SequenceFlow{
+              id: "Fi1",
+              source_ref: "InnerSplit",
+              target_ref: "TaskA",
+              condition_expression: "token.y = true"
+            },
+            %SequenceFlow{id: "Fi2", source_ref: "InnerSplit", target_ref: "TaskB", is_default: true},
+            %SequenceFlow{id: "Fj1", source_ref: "TaskA", target_ref: "InnerJoin"},
+            %SequenceFlow{id: "Fj2", source_ref: "TaskB", target_ref: "InnerJoin"},
+            %SequenceFlow{id: "Fj3", source_ref: "InnerJoin", target_ref: "OuterJoin"},
+            %SequenceFlow{id: "Fj4", source_ref: "TaskC", target_ref: "OuterJoin"},
+            %SequenceFlow{id: "Fj5", source_ref: "OuterJoin", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :complex_join_no_paired_split)
+      refute_violation_code(definitions, :complex_region_cross_boundary)
+      refute_violation_code(definitions, :complex_region_overlap)
     end
   end
 

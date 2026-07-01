@@ -36,6 +36,7 @@ defmodule EvilEngine.Execution.HandlerDispatch do
     business_rule_task: FlowNodes.BusinessRuleTask,
     parallel_gateway: FlowNodes.ParallelGateway,
     inclusive_gateway: FlowNodes.InclusiveGateway,
+    complex_gateway: FlowNodes.ComplexGateway,
     event_based_gateway: FlowNodes.EventBasedGateway,
     call_activity: FlowNodes.CallActivity,
     sub_process: FlowNodes.SubProcess,

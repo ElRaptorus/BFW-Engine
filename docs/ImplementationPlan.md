@@ -2,15 +2,15 @@
 title: Evil Engine — Implementation Plan
 date: 2026-04-24
 status: APPROVED
-companion_document: Concept.md
 ---
 
 # Evil Engine — Implementation Plan
 
 > Working title: *"The Anvil of Khorne"*.
 > This document is the concrete, phase-by-phase implementation plan derived from
-> `Concept.md`. It resolves every `AGENT:` / `TODO:` marker in the concept and
-> locks in the architectural decisions made during planning.
+> the project's original product concept. It resolves every `AGENT:` / `TODO:`
+> marker in that concept and locks in the architectural decisions made during
+> planning.
 >
 > §16 only contains remaining open technical questions (to be answered during
 > the relevant phase), risk register, and explicit v1 non-goals.
@@ -21,7 +21,6 @@ This plan has been split across several documents to keep each one focused:
 
 | Topic | Document |
 |---|---|
-| Product concept (source of this plan) | [`Concept.md`](./Concept.md) |
 | Full architectural diagram + narrative | [`Architecture.md`](./Architecture.md) |
 | **Detailed architecture docs (one topic per file)** | **[`architecture/index.md`](./architecture/index.md)** |
 | Full database schema diagram + per-table notes | [`Schema.md`](./Schema.md) |
@@ -64,6 +63,13 @@ Significant design decisions made during implementation. Each entry records the 
 | ID | Phase | Decision | Rationale |
 |----|-------|----------|-----------|
 | D1 | Phase 4 | **No pending-escalation cache; deterministic propagation.** The `pending_escalations` table, `PendingSweeper` involvement, and all late-catch drain logic (§3.5.7.1) were dropped. Escalation boundaries are pre-spawned in `:waiting` state when the host activity starts — there is no publish-before-register race condition for escalations. Propagation follows the existing parent-chain message-passing architecture (one handler Task + PI per scope level), which is deterministic and synchronous. | Eliminates a DB table, sweeper involvement, and complex late-catch semantics. The race condition that motivated the pending-escalation hold does not exist for Escalation Boundaries (unlike Messages, which are sent from outside the engine). |
+| CG-D1 | Phase 5 | **Complex Split is opinionated inclusive-style, no unconditional fall-through.** Every outgoing flow must be conditional or the `default`; an unconditional non-default flow is a deploy error. Default fires only when zero conditionals match. | Catches the classic "forgot a condition, so it always fires" Inclusive-split bug at deploy time instead of silently at runtime. |
+| CG-D2 | Phase 5 | **Complex Join is a single-fire threshold join.** Fires once when the FEEL `activationCondition` becomes true; deliberately no re-fire / reset. | Avoids the BPMN spec's oscillation-prone reset semantics; keeps the join deterministic. |
+| CG-D3 | Phase 5 | **Twist 1 — dead-path exhaustion is an error.** When every incoming branch is arrived-or-dead and the condition is still false → fatal `complex_join_condition_unmet`. | An impossible quorum fails loudly and immediately rather than leaving the PI silently stuck forever. |
+| CG-D4 | Phase 5 | **Twist 2 — firing cancels the losers in the SESE region.** On fire, all still-active/waiting FNIs inside the region bounded by the paired split are interrupted (`cancelled_by_complex_join`). | Turns "fastest N-of-M" into a clean scoped mini-terminate; no stragglers, no orphaned tasks/timers/child PIs. |
+| CG-D5 | Phase 5 | **Strict 1:1 join↔split pairing (SESE).** A Complex Join must pair to exactly one Complex Split; zero / ambiguous / non-SESE pairing is a deploy error. | Makes "which branches get cancelled" unambiguous and bounded. |
+| CG-D7 | Phase 5 | **Threshold bindings are `activatedCount` / `incomingCount`.** Injected as top-level FEEL bindings while evaluating the join's `activationCondition`. | Matches the seeded `activatedCount >= 2` fixture and reads naturally for quorum conditions. |
+| CG-D10 | Phase 5 | **Pairing rule `S = idom_complex(J)`.** The paired split is the nearest enclosing Complex Split that dominates the join (immediate dominator restricted to Complex Splits); region = `forward_reachable(S) ∩ backward_reachable(J) \ {S,J}`. | Deterministic; always picks the innermost enclosing split, so nested regions are strictly contained (laminar) and never partially overlap. |
 
 ---
 
@@ -110,7 +116,7 @@ Significant design decisions made during implementation. Each entry records the 
 
 ## 2. High-level architecture (DDD domains)
 
-Per concept: Core / API / Peripheral. Concrete domain layout below. Each box is an OTP application inside an **umbrella project** (`apps/`), letting us enforce the "no cross-cutting blocking" rule (§Concept.md/Architectural/Domain Driven Design) via explicit inter-app APIs.
+Per the original product concept: Core / API / Peripheral. Concrete domain layout below. Each box is an OTP application inside an **umbrella project** (`apps/`), letting us enforce the "no cross-cutting blocking" rule (Architectural / Domain Driven Design) via explicit inter-app APIs.
 
 ```
 apps/
@@ -477,7 +483,7 @@ The **readonly process context** (concept §Process Context) is set once at star
 
 ### 5.2 States — resolved
 
-Concept's state list stays intact. Final conflict resolution (concept §Process Instance States):
+The original concept's state list stays intact. Final conflict resolution (original concept §Process Instance States):
 
 1. `Fatal`
 2. `Aborted`
@@ -491,19 +497,19 @@ Concept's state list stays intact. Final conflict resolution (concept §Process 
 
 ### 5.3 Lifecycle events — final list
 
-Concept's list extended per `AGENT: Add more events as required`:
+The original concept's list extended per `AGENT: Add more events as required`:
 
 ```
 onStarted          — running state entered (preparation happens synchronously in init/1, no separate event)
 onSuspended        — temporarily paused (ops intervention — v2)
 onResuming         — after engine restart
 onRetrying         — with re-entry FNI IDs
-onFinished         — concept
-onFatality         — concept
-onAborted          — concept
-onEscalated        — concept
-onCompensated      — concept
-onError            — concept
+onFinished         — original concept
+onFatality         — original concept
+onAborted          — original concept
+onEscalated        — original concept
+onCompensated      — original concept
+onError            — original concept
 -- NEW:
 onMessageReceived       — a published message was routed to this PI
 onSignalReceived        — a signal was routed to this PI
@@ -529,7 +535,7 @@ onTokenSplit / onTokenMerged — parallel/inclusive gateway operations
 
 ### 5.4 Access points — final list
 
-Concept's list extended per `AGENT: Add more access points as required`:
+The original concept's list extended per `AGENT: Add more access points as required`:
 
 ```
 Start(processModelId, version?, startEventId?, payload?, businessKey?, identity)
@@ -691,19 +697,19 @@ From concept + additions:
 
 ### 6.2 States — final
 
-Concept-stated with one addition (`Waiting` promoted from lifecycle event to formal state):
+Stated in the original concept with one addition (`Waiting` promoted from lifecycle event to formal state):
 `Active | Waiting | Finished | Fatal | Aborted | Interrupted`
 
 ### 6.3 Lifecycle events — final
 
-Concept's list extended:
+The original concept's list extended:
 
 ```
-onStarted      — concept (preparation is synchronous in init/1, no separate onPreparing event)
-onFinished     — concept
-onFatality     — concept
-onAborted      — concept
-onCompensated  — concept
+onStarted      — original concept (preparation is synchronous in init/1, no separate onPreparing event)
+onFinished     — original concept
+onFatality     — original concept
+onAborted      — original concept
+onCompensated  — original concept
 -- NEW:
 onInterrupted       — boundary/terminate interrupted this FNI
 onWaiting           — FNI is now waiting (on message, signal, timer, user input…)
@@ -713,7 +719,7 @@ onProgress          — optional: long-running FNIs can emit intermediate progre
 
 ### 6.4 Access points
 
-From concept, no additions needed:
+From the original concept, no additions needed:
 ```
 Start / Resume / Abort / Interrupt / Kill / Compensate / Continue
 ```
@@ -1204,9 +1210,9 @@ agent-defaulted decisions left in this plan.**
 
 ---
 
-## Appendix A — Concept.md `AGENT:` / `TODO:` markers, resolved
+## Appendix A — Original product concept `AGENT:` / `TODO:` markers, resolved
 
-| Marker in Concept.md | Resolution in this plan |
+| Marker in the original product concept | Resolution in this plan |
 |---|---|
 | "Based on the decided Tech Stack describe which type of schema/data contract is most suitable" | §1 / §4 — JSON Schema 2020-12 |
 | "Make Recommendation based on stated requirements" (Tech Stack) | §1 — Elixir + Ash + Postgres, as justified in chat and §1 |
@@ -1220,9 +1226,9 @@ agent-defaulted decisions left in this plan.**
 ## Appendix B — Glossary
 
 The full glossary — covering both the BPMN-level terminology originally
-introduced in `Concept.md` §Glossary and every engine-implementation term
-defined in earlier revisions of this appendix — has been extracted into its
-own document to keep this plan focused.
+introduced in the original product concept's glossary and every
+engine-implementation term defined in earlier revisions of this appendix — has
+been extracted into its own document to keep this plan focused.
 
 > **See [`Glossary.md`](./Glossary.md) for every term definition.** That file
 > is the single source of truth for all engine vocabulary; this plan links out

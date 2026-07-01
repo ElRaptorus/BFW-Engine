@@ -62,11 +62,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
   import EvilEngine.Execution.ProcessInstance.Helpers
 
+  alias EvilEngine.BPMN.ComplexRegionAnalysis
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Events.MessageSubscriptions
   alias EvilEngine.Events.SignalSubscriptions
   alias EvilEngine.Execution.BoundaryAwareHandler
+  alias EvilEngine.Execution.ComplexJoinEvaluator
   alias EvilEngine.Execution.FlowNodeResult
   alias EvilEngine.Execution.FlowNodes
   alias EvilEngine.Execution.FniLifecycle
@@ -875,6 +877,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
       {:join, :inclusive_gateway, _incoming_count} ->
         dispatch_inclusive_join(data, flow_node, token, previous_flow_node_instance_ids)
 
+      {:join, :complex_gateway, _incoming_count} ->
+        dispatch_complex_join(data, flow_node, token, previous_flow_node_instance_ids)
+
       :not_join ->
         dispatch_flow_node_instance_immediate(
           data,
@@ -886,7 +891,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   defp join_gateway_check(%FlowNode{type: gateway_type} = flow_node, process_model)
-       when gateway_type in [:parallel_gateway, :inclusive_gateway] do
+       when gateway_type in [:parallel_gateway, :inclusive_gateway, :complex_gateway] do
     incoming_count = count_flows(flow_node.incoming, flow_node.id, :incoming, process_model)
     outgoing_count = count_flows(flow_node.outgoing, flow_node.id, :outgoing, process_model)
 
@@ -957,6 +962,88 @@ defmodule EvilEngine.Execution.ProcessInstance do
         end
     end
   end
+
+  defp dispatch_complex_join(data, flow_node, token, previous_flow_node_instance_ids) do
+    incoming_flow_id =
+      resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
+
+    incoming_count =
+      count_flows(flow_node.incoming, flow_node.id, :incoming, data.process_model)
+
+    case Map.get(data.join_routing, flow_node.id) do
+      nil ->
+        data =
+          dispatch_join_first_token(
+            data, flow_node, token, previous_flow_node_instance_ids,
+            incoming_count, :complex_gateway, incoming_flow_id
+          )
+
+        augment_complex_join_routing(data, flow_node, token.payload)
+
+      %{fired: true} ->
+        # Twist 2 (CG-D4): the join already fired and cancelled every active
+        # branch in its SESE region. A token arriving now can only come from a
+        # branch that completed in the same PI-message batch, just before
+        # cancellation ran — the join outcome is already decided, so this
+        # straggler is absorbed with no effect (no fatal, no re-fire).
+        Logger.debug(
+          "ProcessInstance: dropping straggler token at already-fired complex join " <>
+            "'#{flow_node.id}' (arrived via '#{incoming_flow_id}')"
+        )
+
+        data
+
+      %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
+        duplicate? = MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
+
+        if duplicate? do
+          error_info =
+            build_error_info(
+              {:duplicate_join_arrival,
+               %{flow_node_id: flow_node.id, incoming_flow_id: incoming_flow_id}}
+            )
+
+          record_fni_fatal(data, fni_id, flow_node, token, previous_flow_node_instance_ids, error_info)
+        else
+          route_subsequent_complex_token(
+            data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id
+          )
+        end
+    end
+  end
+
+  defp augment_complex_join_routing(data, flow_node, payload) do
+    case Map.get(data.join_routing, flow_node.id) do
+      nil ->
+        data
+
+      routing ->
+        augmented =
+          Map.merge(routing, %{
+            activation_condition: complex_activation_condition(flow_node),
+            merged_payload: payload || %{},
+            fired: false
+          })
+
+        put_in(data.join_routing[flow_node.id], augmented)
+    end
+  end
+
+  defp route_subsequent_complex_token(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id) do
+    data =
+      update_in(data.join_routing[flow_node.id], fn routing ->
+        %{
+          routing
+          | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
+        }
+        |> Map.put(:merged_payload, Map.merge(Map.get(routing, :merged_payload) || %{}, token.payload || %{}))
+      end)
+
+    route_token_to_join_handler(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id)
+  end
+
+  defp complex_activation_condition(%FlowNode{type_data: %{activation_condition: condition}}), do: condition
+  defp complex_activation_condition(_flow_node), do: nil
 
   defp dispatch_join_first_token(data, flow_node, token, previous_flow_node_instance_ids, required, gateway_type, incoming_flow_id) do
     flow_node_instance_id = generate_id()
@@ -1739,6 +1826,57 @@ defmodule EvilEngine.Execution.ProcessInstance do
     updated_data
   end
 
+  # Twist 2 (CG-D4): when a Complex Join fires, interrupt every still-active or
+  # waiting FNI whose flow node lies inside the SESE region bounded by the
+  # paired Complex Split. Unlike `interrupt_remaining_fnis/2`, this is scoped to
+  # the region — it does NOT purge the whole PI's message/signal subscriptions.
+  # Each interrupted FNI's `handle_aborted/1` callback performs its own targeted
+  # cleanup (own subscription unregister, timer cancellation, recursive child-PI
+  # abort for Call Activities / SubProcesses).
+  defp interrupt_region_fnis(data, join_flow_node_id, join_fni_id) do
+    region = complex_region_node_ids(data, join_flow_node_id)
+
+    data.flow_node_instance_states
+    |> Enum.filter(fn {id, entry} ->
+      id != join_fni_id and entry.state in [:active, :waiting] and
+        MapSet.member?(region, entry.flow_node_id)
+    end)
+    |> Enum.reduce(data, &interrupt_single_region_fni/2)
+  end
+
+  defp interrupt_single_region_fni({flow_node_instance_id, entry}, accumulator) do
+    if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+
+    flow_node = find_flow_node(accumulator, entry.flow_node_id)
+    invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+    _persist_result =
+      FniLifecycle.transition_to_interrupted(
+        flow_node_instance_id,
+        accumulator.process_instance_id,
+        :cancelled_by_complex_join,
+        flow_node,
+        Map.get(entry, :type_properties, %{}),
+        resolve_lane_name(accumulator.process_model, flow_node),
+        accumulator.root_process_instance_id
+      )
+
+    accumulator = unregister_conditional_waiter(accumulator, flow_node_instance_id)
+
+    put_in(accumulator.flow_node_instance_states[flow_node_instance_id], %{
+      entry
+      | state: :interrupted,
+        pid: nil
+    })
+  end
+
+  defp complex_region_node_ids(data, join_flow_node_id) do
+    case Map.get(data.process_model.complex_region_analyses || %{}, join_flow_node_id) do
+      %ComplexRegionAnalysis{region_node_ids: region} -> region
+      _ -> MapSet.new()
+    end
+  end
+
   # -------------------------------------------------------------------
   # Internal: Boundary event catch handling
   # -------------------------------------------------------------------
@@ -1955,6 +2093,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
   defp maybe_finish_or_continue(data) do
     data = evaluate_parked_inclusive_joins(data)
+    data = evaluate_parked_complex_joins(data)
     data = evaluate_conditional_waiters(data)
 
     has_fatal =
@@ -1972,6 +2111,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
   defp maybe_finish_or_continue_with_reply(data, from) do
     data = evaluate_parked_inclusive_joins(data)
+    data = evaluate_parked_complex_joins(data)
     data = evaluate_conditional_waiters(data)
 
     has_fatal =
@@ -2018,6 +2158,49 @@ defmodule EvilEngine.Execution.ProcessInstance do
           :ok
       end
     end
+  end
+
+  defp evaluate_parked_complex_joins(data) do
+    complex_joins =
+      Enum.filter(data.join_routing, fn {_id, routing} ->
+        routing.gateway_type == :complex_gateway and not Map.get(routing, :fired, false)
+      end)
+
+    Enum.reduce(complex_joins, data, fn {flow_node_id, routing}, accumulator ->
+      evaluate_single_complex_join(accumulator, flow_node_id, routing)
+    end)
+  end
+
+  defp evaluate_single_complex_join(data, flow_node_id, routing) do
+    flow_node = find_flow_node(data, flow_node_id)
+
+    case ComplexJoinEvaluator.evaluate(flow_node, routing, data) do
+      :fire ->
+        data
+        |> signal_complex_join(flow_node_id, routing, {:fire})
+        |> interrupt_region_fnis(flow_node_id, routing.fni_id)
+
+      {:error, error_info} ->
+        signal_complex_join(data, flow_node_id, routing, {:complex_join_error, error_info})
+
+      :wait ->
+        data
+    end
+  end
+
+  defp signal_complex_join(data, flow_node_id, routing, message) do
+    case Map.get(data.flow_node_instance_states, routing.fni_id) do
+      %{pid: pid} when is_pid(pid) ->
+        send(pid, message)
+
+      _ ->
+        :ok
+    end
+
+    update_in(data.join_routing[flow_node_id], fn
+      nil -> nil
+      entry -> Map.put(entry, :fired, true)
+    end)
   end
 
   # -------------------------------------------------------------------

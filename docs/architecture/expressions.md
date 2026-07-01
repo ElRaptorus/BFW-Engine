@@ -54,6 +54,24 @@ can introspect iteration state. Outside iterations this binding is absent.
 }
 ```
 
+**Complex-join gateway overlay.** Only when evaluating a Complex Gateway
+**join**'s `<bpmn:activationCondition>`, the engine injects two additional
+top-level bindings via `Context.put_gateway_bindings/3` so the threshold
+condition can introspect arrival state. Outside a complex-join evaluation
+these bindings are absent (see [execution.md §Complex Gateway](execution.md)).
+
+```
+{
+  ...,                          // the 7 bindings above
+  "activatedCount" : integer,   // incoming branches that delivered a token so far
+  "incomingCount"  : integer    // total number of incoming sequence flows into the join
+}
+```
+
+Typical use: `activatedCount >= 2` (a 2-of-N quorum) or
+`activatedCount = incomingCount` (wait for every branch). `token` during this
+evaluation is the merge of all branch payloads accumulated so far.
+
 ### 8.2 Library selection — decision: Rust NIF (dsntk + Rustler)
 
 **Status: DECIDED (Phase 0, Item 13).**
@@ -212,7 +230,7 @@ the lifetime of the process instance.
 |---|---|
 | Conditional sequence flow (**active**) | `<bpmn:conditionExpression>token.amount > 100</bpmn:conditionExpression>` — used by `ExclusiveGateway` handler |
 | Conditional boundary / intermediate | same |
-| Complex gateway activation | `<evil:activationCondition>…</evil:activationCondition>` |
+| Complex gateway join activation | `<bpmn:activationCondition>activatedCount &gt;= 2</bpmn:activationCondition>` — standard BPMN child of `<bpmn:complexGateway>`; evaluated by `ComplexJoinEvaluator` with the `activatedCount`/`incomingCount` overlay (§8.1) |
 | User Task assignees | `<evil:assignees>identity.groups[_.contains("reviewers")]</evil:assignees>` |
 | Throw event payload mapping | `<evil:payload>token</evil:payload>` |
 | Data Object association source | inline FEEL in data association |

@@ -9,6 +9,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
 
   require Logger
 
+  alias EvilEngine.BPMN.ComplexRegionAnalysis
   alias EvilEngine.BPMN.InclusiveJoinAnalysis
   alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
@@ -64,7 +65,11 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
             {:error, :no_executable_process}
 
           process ->
-            enriched_process = InclusiveJoinAnalysis.enrich_process(process)
+            enriched_process =
+              process
+              |> InclusiveJoinAnalysis.enrich_process()
+              |> ComplexRegionAnalysis.enrich_process()
+
             {:ok, enriched_process, definitions}
         end
 
@@ -76,7 +81,11 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
   def fetch_process_model(process_version_id, subprocess_node_id) do
     case ModelCache.fetch_subprocess_model(process_version_id, subprocess_node_id) do
       {:ok, subprocess_model, definitions} ->
-        enriched_subprocess = InclusiveJoinAnalysis.enrich_process(subprocess_model)
+        enriched_subprocess =
+          subprocess_model
+          |> InclusiveJoinAnalysis.enrich_process()
+          |> ComplexRegionAnalysis.enrich_process()
+
         {:ok, enriched_subprocess, definitions}
 
       error ->
@@ -341,6 +350,35 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
 
   defp humanize_error({:start_event_not_found, event_id}) do
     "Start event '#{event_id}' not found in the called process"
+  end
+
+  defp humanize_error({:mixed_gateway, %{flow_node_id: id, incoming_count: incoming, outgoing_count: outgoing}}) do
+    "Complex gateway '#{id}' is a mixed gateway (#{incoming} incoming, #{outgoing} outgoing). " <>
+      "A Complex Gateway must be either a split or a join, not both."
+  end
+
+  defp humanize_error({:complex_split_no_matching_condition, %{flow_node_id: id}}) do
+    "Complex gateway '#{id}' has no outgoing flow with a fulfilled condition and no default " <>
+      "flow to fall back on."
+  end
+
+  defp humanize_error({:complex_split_condition_failed, %{flow_node_id: id, sequence_flow_id: flow_id, reason: reason}}) do
+    "Complex gateway '#{id}': failed to evaluate the condition on sequence flow " <>
+      "'#{flow_id}': #{reason}"
+  end
+
+  defp humanize_error({:complex_join_condition_unmet, detail}) do
+    "Complex join '#{detail.flow_node_id}': all branches have finished but the gateway's " <>
+      "activation condition '#{detail.activation_condition}' was not met " <>
+      "(activatedCount=#{detail.activated_count}, incomingCount=#{detail.incoming_count})."
+  end
+
+  defp humanize_error({:complex_join_condition_failed, %{flow_node_id: id, activation_condition: condition, reason: reason}}) do
+    "Complex join '#{id}': failed to evaluate the activation condition '#{condition}': #{reason}"
+  end
+
+  defp humanize_error({:duplicate_join_arrival, %{flow_node_id: id, incoming_flow_id: flow_id}}) do
+    "A duplicate token arrived at join '#{id}' via sequence flow '#{flow_id}'."
   end
 
   defp humanize_error({:ambiguous_start_event, _detail}) do

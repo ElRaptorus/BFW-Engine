@@ -20,6 +20,7 @@ defmodule EvilEngine.BPMN.Validator do
   - Event-Based Gateway checks (no boundary events on EBG Receive Task targets)
   """
 
+  alias EvilEngine.BPMN.ComplexRegionAnalysis
   alias EvilEngine.BPMN.Model.Definitions
   alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
@@ -56,6 +57,7 @@ defmodule EvilEngine.BPMN.Validator do
       check_essential_properties(process),
       check_sequence_flow_refs(process),
       check_event_based_gateways(process),
+      check_complex_gateways(process),
       check_orphan_nodes(process),
       check_start_end_flow_direction(process),
       check_data_object_refs(process),
@@ -994,18 +996,19 @@ defmodule EvilEngine.BPMN.Validator do
   # --- Gateways ---
 
   defp validate_type_data(
-         id,
-         type,
-         %FlowNodeData.ComplexGateway{} = data,
+         _id,
+         _type,
+         %FlowNodeData.ComplexGateway{},
          _node_ids,
          _definitions,
-         scope_label
+         _scope_label
        ) do
-    missing =
-      []
-      |> maybe_add(blank?(data.activation_condition), "activationCondition")
-
-    missing_flow_node_props_error(id, type, missing, scope_label)
+    # Complex Gateway structural rules (mixed rejection, split flow
+    # conditionality, join activationCondition) are enforced in
+    # `check_complex_gateways/1`, which has access to the process's
+    # sequence flows to distinguish split from join. `activationCondition`
+    # is required for JOINs only, never for splits (see CG-D1/CG-D2).
+    []
   end
 
   # --- Boundary events ---
@@ -1267,6 +1270,81 @@ defmodule EvilEngine.BPMN.Validator do
     else
       []
     end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Complex Gateway checks
+  # ---------------------------------------------------------------------------
+
+  defp check_complex_gateways(%BpmnProcess{} = process) do
+    per_gateway_violations =
+      process.flow_nodes
+      |> Enum.filter(&(&1.type == :complex_gateway))
+      |> Enum.flat_map(&check_single_complex_gateway(&1, process))
+
+    # Pairing / SESE well-formedness (CG-D5, CG-D10): every Complex Join must
+    # pair to exactly one dominating Complex Split, and its region must be a
+    # single-entry / single-exit interval that is disjoint from or strictly
+    # nested inside every other region.
+    per_gateway_violations ++ ComplexRegionAnalysis.region_violations(process)
+  end
+
+  defp check_single_complex_gateway(gateway, process) do
+    incoming = Enum.filter(process.sequence_flows, &(&1.target_ref == gateway.id))
+    outgoing = Enum.filter(process.sequence_flows, &(&1.source_ref == gateway.id))
+
+    cond do
+      length(incoming) > 1 and length(outgoing) > 1 ->
+        [
+          {:complex_gateway_mixed,
+           "ComplexGateway '#{gateway.id}' is a mixed gateway (#{length(incoming)} incoming, " <>
+             "#{length(outgoing)} outgoing). A Complex Gateway must be either a split " <>
+             "(one incoming, many outgoing) or a join (many incoming, one outgoing), not both."}
+        ]
+
+      length(outgoing) > 1 ->
+        check_complex_split_flows(gateway, outgoing)
+
+      length(incoming) > 1 ->
+        check_complex_join_activation_condition(gateway)
+
+      true ->
+        []
+    end
+  end
+
+  defp check_complex_join_activation_condition(gateway) do
+    activation_condition =
+      case gateway.type_data do
+        %FlowNodeData.ComplexGateway{activation_condition: condition} -> condition
+        _ -> nil
+      end
+
+    if blank?(activation_condition) do
+      [
+        {:complex_gateway_join_missing_activation_condition,
+         "ComplexGateway '#{gateway.id}' is a join (many incoming, one outgoing) and is " <>
+           "missing required properties: activationCondition. A Complex Join fires when its " <>
+           "activationCondition becomes true, so the condition is mandatory."}
+      ]
+    else
+      []
+    end
+  end
+
+  defp check_complex_split_flows(gateway, outgoing_flows) do
+    Enum.flat_map(outgoing_flows, fn flow ->
+      if blank?(flow.condition_expression) and not flow.is_default do
+        [
+          {:complex_gateway_unconditional_flow,
+           "ComplexGateway '#{gateway.id}' has unconditional non-default outgoing flow " <>
+             "'#{flow.id}'. Every outgoing flow of a Complex Split must carry a " <>
+             "conditionExpression or be the gateway's default flow."}
+        ]
+      else
+        []
+      end
+    end)
   end
 
   # ---------------------------------------------------------------------------

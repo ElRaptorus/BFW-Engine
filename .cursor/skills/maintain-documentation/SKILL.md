@@ -40,8 +40,3 @@ Ask yourself:
 - Would a new developer reading these docs get an accurate picture of the current engine?
 - Are there any sections that now describe code that no longer exists?
 - Are all new modules, behaviours, endpoints, or patterns documented?
-
-## Exclusions
-
-The following docs are NOT updated automatically — only when the user explicitly requests it:
-- `docs/Concept.md` — Original product concept (historical document)

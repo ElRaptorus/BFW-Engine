@@ -1,12 +1,11 @@
 # Evil Engine — Glossary
 
-> **Companion document to [`ImplementationPlan.md`](./ImplementationPlan.md)
-> and [`Concept.md`](./Concept.md).**
+> **Companion document to [`ImplementationPlan.md`](./ImplementationPlan.md).**
 > This file is the single, authoritative glossary for the Evil Engine project.
 > Entries fall into two categories:
 >
-> 1. **Concept-level terms** — originally defined in `Concept.md` §Glossary,
->    describing the BPMN-level vocabulary the engine uses.
+> 1. **Concept-level terms** — the BPMN-level vocabulary the engine uses,
+>    originally defined in the project's original product concept.
 > 2. **Implementation-level terms** — originally in `ImplementationPlan.md`
 >    Appendix B, describing engine internals, typed events, schema, and
 >    infrastructure concepts (referenced by Decision IDs `D{n}`).
@@ -15,7 +14,7 @@
 
 ---
 
-## 1. Concept-level terms (from `Concept.md` §Glossary)
+## 1. Concept-level terms (from the original product concept)
 
 Some definitions for stack-specific terminologies, in addition to the BPMN
 standard:
@@ -162,4 +161,3 @@ The DMN API naming parallels the BPMN terms above (BPMN equivalent in parenthese
 | Architectural overview & diagram | [`Architecture.md`](./Architecture.md) |
 | Database ER diagram + per-table narrative | [`Schema.md`](./Schema.md) |
 | Implementation phases (coding-agent working plan) | [`ImplementationPhases.md`](./ImplementationPhases.md) |
-| Original product concept | [`Concept.md`](./Concept.md) |

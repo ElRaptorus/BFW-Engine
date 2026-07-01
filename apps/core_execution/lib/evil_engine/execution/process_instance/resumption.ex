@@ -112,11 +112,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       entry ->
         flow_node_id = entry.flow_node_id
         required = count_incoming_flows(data.process_model, flow_node_id)
-
-        gateway_type =
-          if entry.flow_node_type == :inclusive_gateway,
-            do: :inclusive_gateway,
-            else: :parallel_gateway
+        gateway_type = resume_gateway_type(entry.flow_node_type)
 
         arrived_via_flow_ids =
           rows
@@ -124,16 +120,56 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
           |> Enum.reject(&(&1 == "unknown"))
           |> MapSet.new()
 
-        routing = %{
-          fni_id: gateway_fni_id,
-          gateway_type: gateway_type,
-          required: required,
-          arrived_via_flow_ids: arrived_via_flow_ids
-        }
+        routing =
+          %{
+            fni_id: gateway_fni_id,
+            gateway_type: gateway_type,
+            required: required,
+            arrived_via_flow_ids: arrived_via_flow_ids
+          }
+          |> put_complex_join_fields(gateway_type, data, flow_node_id, rows)
 
         Map.put(accumulator, flow_node_id, routing)
     end
   end
+
+  defp resume_gateway_type(:inclusive_gateway), do: :inclusive_gateway
+  defp resume_gateway_type(:complex_gateway), do: :complex_gateway
+  defp resume_gateway_type(_flow_node_type), do: :parallel_gateway
+
+  # Complex joins carry additional routing state so the PI can re-evaluate the
+  # activation condition on resume: the FEEL `activationCondition`, the merged
+  # branch payload (reconstructed from persisted GPA rows), and the `fired`
+  # flag reset to false so a not-yet-fired join is re-evaluated.
+  # `arrived_via_flow_ids` is a MapSet (opaque); passing routing maps that embed
+  # it across these helpers is safe but trips Dialyzer's opacity check.
+  @dialyzer {:no_opaque,
+             [
+               rebuild_single_join_routing: 4,
+               ensure_active_join_gateways_routed: 2,
+               put_complex_join_fields: 5
+             ]}
+  defp put_complex_join_fields(routing, :complex_gateway, data, flow_node_id, rows) do
+    flow_node = find_flow_node(data, flow_node_id)
+
+    merged_payload =
+      rows
+      |> Enum.sort_by(& &1.arrived_at, DateTime)
+      |> Enum.reduce(%{}, fn row, accumulator ->
+        Map.merge(accumulator, row.arrived_payload || %{})
+      end)
+
+    Map.merge(routing, %{
+      activation_condition: complex_activation_condition(flow_node),
+      merged_payload: merged_payload,
+      fired: false
+    })
+  end
+
+  defp put_complex_join_fields(routing, _gateway_type, _data, _flow_node_id, _rows), do: routing
+
+  defp complex_activation_condition(%{type_data: %{activation_condition: condition}}), do: condition
+  defp complex_activation_condition(_flow_node), do: nil
 
   defp ensure_active_join_gateways_routed(data, join_routing) do
     already_routed_flow_node_ids = Map.keys(join_routing) |> MapSet.new()
@@ -141,23 +177,21 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     data.flow_node_instance_states
     |> Enum.filter(fn {_fni_id, entry} ->
       entry.state in [:active, :waiting] and
-        entry.flow_node_type in [:parallel_gateway, :inclusive_gateway] and
+        entry.flow_node_type in [:parallel_gateway, :inclusive_gateway, :complex_gateway] and
         not MapSet.member?(already_routed_flow_node_ids, entry.flow_node_id)
     end)
     |> Enum.reduce(join_routing, fn {fni_id, entry}, accumulator ->
       required = count_incoming_flows(data.process_model, entry.flow_node_id)
+      gateway_type = resume_gateway_type(entry.flow_node_type)
 
-      gateway_type =
-        if entry.flow_node_type == :inclusive_gateway,
-          do: :inclusive_gateway,
-          else: :parallel_gateway
-
-      routing = %{
-        fni_id: fni_id,
-        gateway_type: gateway_type,
-        required: required,
-        arrived_via_flow_ids: MapSet.new()
-      }
+      routing =
+        %{
+          fni_id: fni_id,
+          gateway_type: gateway_type,
+          required: required,
+          arrived_via_flow_ids: MapSet.new()
+        }
+        |> put_complex_join_fields(gateway_type, data, entry.flow_node_id, [])
 
       Map.put(accumulator, entry.flow_node_id, routing)
     end)
@@ -232,6 +266,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       handler_module =
         case entry.flow_node_type do
           :inclusive_gateway -> FlowNodes.InclusiveGateway
+          :complex_gateway -> FlowNodes.ComplexGateway
           _ -> FlowNodes.ParallelGateway
         end
 

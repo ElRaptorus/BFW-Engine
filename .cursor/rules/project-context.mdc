@@ -41,4 +41,3 @@ When working on a specific subsystem, consult the relevant docs as needed — do
 - `docs/ImplementationPhases.md` — Per-phase task lists and exit criteria
 - `docs/Glossary.md` — Every term used in this project
 - `docs/Schema.md` — Database ER diagram
-- `docs/Concept.md` — Original product concept

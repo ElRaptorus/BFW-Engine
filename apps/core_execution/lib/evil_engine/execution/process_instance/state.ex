@@ -30,10 +30,13 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
         }
 
   @type join_routing_entry :: %{
-          fni_id: String.t(),
-          gateway_type: :parallel_gateway | :inclusive_gateway,
-          required: pos_integer(),
-          arrived_via_flow_ids: MapSet.t(String.t())
+          required(:fni_id) => String.t(),
+          required(:gateway_type) => :parallel_gateway | :inclusive_gateway | :complex_gateway,
+          required(:required) => pos_integer(),
+          required(:arrived_via_flow_ids) => MapSet.t(String.t()),
+          optional(:activation_condition) => String.t() | nil,
+          optional(:merged_payload) => map(),
+          optional(:fired) => boolean()
         }
 
   @type conditional_waiter_entry :: %{

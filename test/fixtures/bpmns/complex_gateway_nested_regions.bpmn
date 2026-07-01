@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_1">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_ComplexGatewayNestedRegions" name="Complex Gateway Nested Regions" processRef="ComplexGatewayNestedRegions" />
+  </bpmn:collaboration>
+  <bpmn:process id="ComplexGatewayNestedRegions" name="Complex Gateway Nested Regions" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>OuterSplit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>InnerSplit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_InnerA</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_InnerB</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>InnerJoin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_Outer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>OuterJoin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:complexGateway id="OuterSplit" name="Outer Split">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_OuterLeft</bpmn:outgoing>
+      <bpmn:outgoing>Flow_OuterRight</bpmn:outgoing>
+    </bpmn:complexGateway>
+    <bpmn:complexGateway id="InnerSplit" name="Inner Split">
+      <bpmn:incoming>Flow_OuterLeft</bpmn:incoming>
+      <bpmn:outgoing>Flow_InnerA</bpmn:outgoing>
+      <bpmn:outgoing>Flow_InnerB</bpmn:outgoing>
+    </bpmn:complexGateway>
+    <bpmn:userTask id="UserTask_InnerA" name="User Task Inner A">
+      <bpmn:incoming>Flow_InnerA</bpmn:incoming>
+      <bpmn:outgoing>Flow_InnerA2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="UserTask_InnerB" name="User Task Inner B">
+      <bpmn:incoming>Flow_InnerB</bpmn:incoming>
+      <bpmn:outgoing>Flow_InnerB2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:complexGateway id="InnerJoin" name="Inner Join">
+      <bpmn:incoming>Flow_InnerA2</bpmn:incoming>
+      <bpmn:incoming>Flow_InnerB2</bpmn:incoming>
+      <bpmn:outgoing>Flow_InnerJoin</bpmn:outgoing>
+      <bpmn:activationCondition>activatedCount &gt;= 1</bpmn:activationCondition>
+    </bpmn:complexGateway>
+    <bpmn:userTask id="UserTask_Outer" name="User Task Outer">
+      <bpmn:incoming>Flow_OuterRight</bpmn:incoming>
+      <bpmn:outgoing>Flow_OuterRight2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:complexGateway id="OuterJoin" name="Outer Join">
+      <bpmn:incoming>Flow_InnerJoin</bpmn:incoming>
+      <bpmn:incoming>Flow_OuterRight2</bpmn:incoming>
+      <bpmn:outgoing>Flow_OuterJoin</bpmn:outgoing>
+      <bpmn:activationCondition>activatedCount &gt;= 2</bpmn:activationCondition>
+    </bpmn:complexGateway>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_OuterJoin</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="OuterSplit" />
+    <bpmn:sequenceFlow id="Flow_OuterLeft" sourceRef="OuterSplit" targetRef="InnerSplit">
+      <bpmn:conditionExpression>token.outer_left = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_OuterRight" sourceRef="OuterSplit" targetRef="UserTask_Outer">
+      <bpmn:conditionExpression>token.outer_right = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_InnerA" sourceRef="InnerSplit" targetRef="UserTask_InnerA">
+      <bpmn:conditionExpression>token.inner_a = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_InnerB" sourceRef="InnerSplit" targetRef="UserTask_InnerB">
+      <bpmn:conditionExpression>token.inner_b = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_InnerA2" sourceRef="UserTask_InnerA" targetRef="InnerJoin" />
+    <bpmn:sequenceFlow id="Flow_InnerB2" sourceRef="UserTask_InnerB" targetRef="InnerJoin" />
+    <bpmn:sequenceFlow id="Flow_InnerJoin" sourceRef="InnerJoin" targetRef="OuterJoin" />
+    <bpmn:sequenceFlow id="Flow_OuterRight2" sourceRef="UserTask_Outer" targetRef="OuterJoin" />
+    <bpmn:sequenceFlow id="Flow_OuterJoin" sourceRef="OuterJoin" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ComplexGatewayNestedRegions">
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="1096" height="290" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_OuterSplit" bpmnElement="OuterSplit">
+        <dc:Bounds x="315" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_InnerSplit" bpmnElement="InnerSplit">
+        <dc:Bounds x="475" y="225" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_InnerA" bpmnElement="UserTask_InnerA">
+        <dc:Bounds x="610" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_InnerB" bpmnElement="UserTask_InnerB">
+        <dc:Bounds x="610" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_InnerJoin" bpmnElement="InnerJoin">
+        <dc:Bounds x="795" y="275" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_Outer" bpmnElement="UserTask_Outer">
+        <dc:Bounds x="450" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_OuterJoin" bpmnElement="OuterJoin">
+        <dc:Bounds x="955" y="275" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="1122" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="315" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_OuterLeft" bpmnElement="Flow_OuterLeft">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="420" y="200" />
+        <di:waypoint x="420" y="250" />
+        <di:waypoint x="475" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_OuterRight" bpmnElement="Flow_OuterRight">
+        <di:waypoint x="365" y="200" />
+        <di:waypoint x="407" y="200" />
+        <di:waypoint x="407" y="150" />
+        <di:waypoint x="450" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_InnerA" bpmnElement="Flow_InnerA">
+        <di:waypoint x="525" y="250" />
+        <di:waypoint x="567" y="250" />
+        <di:waypoint x="567" y="300" />
+        <di:waypoint x="610" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_InnerB" bpmnElement="Flow_InnerB">
+        <di:waypoint x="525" y="250" />
+        <di:waypoint x="567" y="250" />
+        <di:waypoint x="567" y="200" />
+        <di:waypoint x="610" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_InnerA2" bpmnElement="Flow_InnerA2">
+        <di:waypoint x="710" y="300" />
+        <di:waypoint x="795" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_InnerB2" bpmnElement="Flow_InnerB2">
+        <di:waypoint x="710" y="200" />
+        <di:waypoint x="752" y="200" />
+        <di:waypoint x="752" y="300" />
+        <di:waypoint x="795" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_InnerJoin" bpmnElement="Flow_InnerJoin">
+        <di:waypoint x="845" y="300" />
+        <di:waypoint x="955" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_OuterRight2" bpmnElement="Flow_OuterRight2">
+        <di:waypoint x="550" y="150" />
+        <di:waypoint x="752" y="150" />
+        <di:waypoint x="752" y="300" />
+        <di:waypoint x="955" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_OuterJoin" bpmnElement="Flow_OuterJoin">
+        <di:waypoint x="1005" y="300" />
+        <di:waypoint x="1122" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
