@@ -832,3 +832,20 @@ The generic `validate_type_data/6` clause for `%FlowNodeData.ComplexGateway{}` m
 - `interrupt_region_fnis/3` must explicitly skip the join FNI (`id != join_fni_id`) and must be **scoped** — it runs each interrupted FNI's `handle_aborted/1` for local cleanup but does **not** purge the whole PI's message/signal subscriptions (contrast `interrupt_remaining_fnis/2`, used by Terminate/Error End Events).
 - When testing cancellation in the shared-connection Ecto sandbox, drive the join with branches that are **idle-waiting** (e.g. user tasks completed explicitly) before the fire. Killing an FNI that is mid-DB-write on the single shared test connection can tear the connection down and surface as a spurious `DBConnection.OwnershipError` — a test artifact, not an engine bug (in production each process has its own pooled connection).
 
+---
+
+## P46: Inner subprocess Start Events are never externally startable — `subprocess_node_id` requires a parent
+
+**Mistake:** Assuming a REST/plugin caller (or a `calledElement` / `evil:startEventId` on a Call Activity) could target a Start Event nested inside an embedded / event / (future) transactional subprocess by passing its ID, its synthetic model ID (`parentId__subprocess__nodeId`), or a `subprocess_node_id` option — or relying only on data-scoping to keep inner starts invisible.
+
+**Why it happens:** Inner start events live under `type_data.flow_nodes`, so they are *incidentally* invisible to top-level start-event resolution, Message/Signal Start indexing, and the `calledElement` catalog. That protection is real but implicit — a future model/index refactor that recursed into nested scopes, or a caller that forged `subprocess_node_id`, could silently break isolation. `subprocess_node_id` selects the synthetic inner-scope model, and it must only ever be set by the owning subprocess element's internal child spawn (which always carries a `parent_process_instance_id`).
+
+**Correct approach:**
+
+- **Core chokepoint is authoritative.** `Execution.start_process_instance/1` rejects any call where `subprocess_node_id` is present but `parent_process_instance_id` is nil with `{:error, :orphan_subprocess_start}`. Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through this single guard.
+- **Public surface omits internal keys structurally.** The `ProcessController` private `do_start` helper builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`. Do **not** re-introduce `subprocess_node_id` (or `parent_process_instance_id: nil`) into the public start contract; extraneous body params are ignored, not accepted.
+- **Keep resolution scoped.** `ProcessInstance.resolve_start_event/2` resolves strictly against `process_model.flow_nodes`. Never broaden this to recurse into `type_data.flow_nodes`.
+- **Enforce global ID uniqueness at deploy.** `BPMN.Validator` reports `duplicate_flow_node_id` when a flow-node ID collides across the process and any nested subprocess scope, keeping start-event resolution and subprocess scoping unambiguous.
+
+See [security.md](security.md) §Subprocess Start-Event Isolation.
+

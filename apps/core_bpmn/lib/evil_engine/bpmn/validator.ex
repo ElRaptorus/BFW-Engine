@@ -15,6 +15,7 @@ defmodule EvilEngine.BPMN.Validator do
   - Boundary event structural integrity
   - Embedded subprocess inner-scope structural integrity (non-event subprocesses only)
   - Cross-boundary sequence flow detection (parent flows must not reference inner nodes)
+  - Global flow-node ID uniqueness across a process and every nested subprocess scope
   - Dangling reference detection (sequence flows, data objects, globals)
   - Invalid event-definition/position combos
   - Event-Based Gateway checks (no boundary events on EBG Receive Task targets)
@@ -66,7 +67,8 @@ defmodule EvilEngine.BPMN.Validator do
       check_global_refs(process, definitions),
       check_event_definition_positions(process),
       check_flow_node_completeness(process, definitions),
-      check_cross_boundary_flows(process)
+      check_cross_boundary_flows(process),
+      check_unique_flow_node_ids(process)
     ])
   end
 
@@ -850,6 +852,48 @@ defmodule EvilEngine.BPMN.Validator do
       end
 
     source_error ++ target_error
+  end
+
+  # ---------------------------------------------------------------------------
+  # Global flow-node ID uniqueness (process + nested subprocess scopes)
+  # ---------------------------------------------------------------------------
+
+  # A flow-node ID must be unique across the entire process tree — the top-level
+  # process AND every embedded/event/transactional subprocess inner scope,
+  # recursively. Duplicate IDs make start-event resolution and subprocess scoping
+  # ambiguous (see the isolation invariant in
+  # `EvilEngine.Execution.ProcessInstance.resolve_start_event/2`): an inner Start
+  # Event sharing an ID with a top-level Start Event could otherwise blur the
+  # boundary between externally-addressable and scope-owned nodes.
+  defp check_unique_flow_node_ids(%BpmnProcess{} = process) do
+    process.flow_nodes
+    |> collect_all_flow_node_ids()
+    |> Enum.frequencies()
+    |> Enum.filter(fn {_id, count} -> count > 1 end)
+    |> Enum.sort_by(fn {id, _count} -> id end)
+    |> Enum.map(fn {id, count} ->
+      {:duplicate_flow_node_id,
+       "Flow node id '#{id}' is declared #{count} times across the process and its " <>
+         "subprocess scopes. Flow node ids must be unique within a process tree so that " <>
+         "start-event resolution and subprocess scoping remain unambiguous."}
+    end)
+  end
+
+  defp collect_all_flow_node_ids(flow_nodes) do
+    flow_nodes
+    |> Enum.flat_map(fn %FlowNode{id: id, type_data: type_data} ->
+      nested =
+        case type_data do
+          %FlowNodeData.SubProcess{flow_nodes: inner_flow_nodes} ->
+            collect_all_flow_node_ids(inner_flow_nodes)
+
+          _ ->
+            []
+        end
+
+      [id | nested]
+    end)
+    |> Enum.reject(&blank?/1)
   end
 
   # --- Activities ---

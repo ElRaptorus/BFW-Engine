@@ -467,6 +467,11 @@ defmodule EvilEngineWeb.Http.ProcessController do
   defp do_start(version, start_event_id, payload, context, business_key, conn) do
     process_instance_id = Ash.UUIDv7.generate()
 
+    # Public start contract only. Internal execution options
+    # (`parent_process_instance_id`, `triggerer_flow_node_instance_id`,
+    # `subprocess_node_id`, ...) are intentionally omitted rather than pinned to
+    # nil: `ProcessInstance.init/1` reads them via Access and defaults absent keys
+    # to nil, so a REST start can never target an inner subprocess scope.
     start_opts = %{
       process_instance_id: process_instance_id,
       process_version_id: version.id,
@@ -474,9 +479,7 @@ defmodule EvilEngineWeb.Http.ProcessController do
       payload: payload,
       context: context,
       identity: caller_identity(conn),
-      business_key: business_key,
-      parent_process_instance_id: nil,
-      triggerer_flow_node_instance_id: nil
+      business_key: business_key
     }
 
     start_opts

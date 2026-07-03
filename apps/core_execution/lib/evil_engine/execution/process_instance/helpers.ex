@@ -385,6 +385,13 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
     "Called process has multiple start events but no startEventId was specified"
   end
 
+  defp humanize_error(:orphan_subprocess_start) do
+    "Cannot start a process instance scoped to an embedded subprocess directly: " <>
+      "a subprocess node was targeted without a parent process instance. Start Events " <>
+      "inside embedded, event, or transactional subprocesses are reachable only when the " <>
+      "owning subprocess element is executed by its parent process."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end

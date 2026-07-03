@@ -2338,4 +2338,114 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       assert {:ok, _} = Validator.validate(definitions)
     end
   end
+
+  # -------------------------------------------------------------------------
+  # Global flow-node ID uniqueness (subprocess start isolation)
+  # -------------------------------------------------------------------------
+
+  defp subprocess_node(id, inner_nodes, inner_flows) do
+    %FlowNode{
+      id: id,
+      type: :sub_process,
+      type_data: %FlowNodeData.SubProcess{
+        triggered_by_event: false,
+        flow_nodes: inner_nodes,
+        sequence_flows: inner_flows
+      }
+    }
+  end
+
+  describe "validate/1 — global flow-node ID uniqueness" do
+    test "duplicate id across top-level and inner subprocess scope is rejected" do
+      # Inner start "S1" collides with the top-level start "S1".
+      inner_nodes = [
+        %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        %FlowNode{id: "Sub_End_1", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      inner_flows = [%SequenceFlow{id: "Sub_Flow_1", source_ref: "S1", target_ref: "Sub_End_1"}]
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [subprocess_node("SubProcess_1", inner_nodes, inner_flows)],
+          extra_flows: [%SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_1"}]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      assert Enum.any?(violations, fn {code, message} ->
+               code == :duplicate_flow_node_id and message =~ "'S1'"
+             end)
+    end
+
+    test "all-unique ids across scopes produce no duplicate violation" do
+      inner_nodes = [
+        %FlowNode{id: "Sub_Start_1", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        %FlowNode{id: "Sub_End_1", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      inner_flows = [
+        %SequenceFlow{id: "Sub_Flow_1", source_ref: "Sub_Start_1", target_ref: "Sub_End_1"}
+      ]
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [subprocess_node("SubProcess_1", inner_nodes, inner_flows)],
+          extra_flows: [%SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_1"}]
+        )
+
+      refute_violation_code(definitions, :duplicate_flow_node_id)
+    end
+
+    test "deep-nested duplicate id is caught" do
+      # SubProcess_Outer > SubProcess_Inner, whose inner end "E1" collides with
+      # the top-level end event "E1".
+      innermost_nodes = [
+        %FlowNode{id: "II_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      innermost_flows = [%SequenceFlow{id: "II_Flow", source_ref: "II_Start", target_ref: "E1"}]
+
+      inner_subprocess = subprocess_node("SubProcess_Inner", innermost_nodes, innermost_flows)
+
+      outer_nodes = [
+        %FlowNode{id: "O_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        inner_subprocess,
+        %FlowNode{id: "O_End", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      outer_flows = [
+        %SequenceFlow{id: "O_Flow_1", source_ref: "O_Start", target_ref: "SubProcess_Inner"},
+        %SequenceFlow{id: "O_Flow_2", source_ref: "SubProcess_Inner", target_ref: "O_End"}
+      ]
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [subprocess_node("SubProcess_Outer", outer_nodes, outer_flows)],
+          extra_flows: [%SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_Outer"}]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      assert Enum.any?(violations, fn {code, message} ->
+               code == :duplicate_flow_node_id and message =~ "'E1'"
+             end)
+    end
+
+    test "duplicate id within the same top-level scope is caught" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      assert Enum.any?(violations, fn {code, _message} ->
+               code == :duplicate_flow_node_id
+             end)
+    end
+  end
 end

@@ -2,6 +2,12 @@ defmodule EvilEngine.BPMN.ModelCacheTest do
   use ExUnit.Case, async: false
 
   alias EvilEngine.BPMN.Model.Definitions
+  alias EvilEngine.BPMN.Model.EventDefinition
+  alias EvilEngine.BPMN.Model.FlowNode
+  alias EvilEngine.BPMN.Model.FlowNodeData
+  alias EvilEngine.BPMN.Model.MessageDefinition
+  alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
+  alias EvilEngine.BPMN.Model.SignalDefinition
   alias EvilEngine.BPMN.ModelCache
 
   # ETS table name used by the single-flight test loader. Created/destroyed
@@ -196,6 +202,97 @@ defmodule EvilEngine.BPMN.ModelCacheTest do
   # -------------------------------------------------------------------
   # Defensive GenServer message handling
   # -------------------------------------------------------------------
+
+  # -------------------------------------------------------------------
+  # Start-event indexing isolation (subprocess start isolation)
+  #
+  # Message/Signal Start Event indexing must only ever surface TOP-LEVEL
+  # process start events, never start events nested inside a subprocess
+  # (embedded/event/transactional). Otherwise an inner Start Event would be
+  # externally triggerable by publishing its message/signal.
+  # -------------------------------------------------------------------
+
+  describe "start-event indexing excludes inner subprocess starts" do
+    defp definitions_with_inner_event_starts do
+      inner_message_start = %FlowNode{
+        id: "Inner_Msg_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{
+          event_definition: %EventDefinition.Message{message_ref: "Msg_1"}
+        }
+      }
+
+      inner_signal_start = %FlowNode{
+        id: "Inner_Sig_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{
+          event_definition: %EventDefinition.Signal{signal_ref: "Sig_1"}
+        }
+      }
+
+      event_subprocess = %FlowNode{
+        id: "EventSubProcess_1",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: true,
+          flow_nodes: [inner_message_start, inner_signal_start]
+        }
+      }
+
+      top_message_start = %FlowNode{
+        id: "Top_Msg_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{
+          event_definition: %EventDefinition.Message{message_ref: "Msg_1"}
+        }
+      }
+
+      top_signal_start = %FlowNode{
+        id: "Top_Sig_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{
+          event_definition: %EventDefinition.Signal{signal_ref: "Sig_1"}
+        }
+      }
+
+      process = %BpmnProcess{
+        id: "P_isolation",
+        is_executable: true,
+        flow_nodes: [top_message_start, top_signal_start, event_subprocess]
+      }
+
+      %Definitions{
+        raw_xml: "",
+        processes: [process],
+        messages: [%MessageDefinition{id: "Msg_1", name: "order-msg"}],
+        signals: [%SignalDefinition{id: "Sig_1", name: "order-sig"}]
+      }
+    end
+
+    test "find_message_start_events/1 returns only the top-level message start" do
+      ModelCache.put_new("v_iso_msg", definitions_with_inner_event_starts())
+
+      start_ids =
+        "order-msg"
+        |> ModelCache.find_message_start_events()
+        |> Enum.map(fn {_process_id, _version_id, start_event_id} -> start_event_id end)
+
+      assert "Top_Msg_Start" in start_ids
+      refute "Inner_Msg_Start" in start_ids
+    end
+
+    test "find_signal_start_events/1 returns only the top-level signal start" do
+      ModelCache.put_new("v_iso_sig", definitions_with_inner_event_starts())
+
+      start_ids =
+        "order-sig"
+        |> ModelCache.find_signal_start_events()
+        |> Enum.map(fn {_process_id, _version_id, start_event_id} -> start_event_id end)
+
+      assert "Top_Sig_Start" in start_ids
+      refute "Inner_Sig_Start" in start_ids
+    end
+  end
 
   describe "stale / unexpected GenServer messages" do
     test "unknown Task ref in handle_info result tuple is ignored" do

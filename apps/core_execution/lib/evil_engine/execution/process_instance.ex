@@ -788,6 +788,23 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # Internal: Start Event resolution
   # -------------------------------------------------------------------
 
+  # ISOLATION INVARIANT — DO NOT WEAKEN.
+  #
+  # Start Event resolution is strictly scoped to `process_model.flow_nodes`.
+  # `process_model` is whichever model `fetch_process_model/2` returned:
+  #
+  #   * the top-level executable process, when `subprocess_node_id` is nil; or
+  #   * the synthetic inner-scope model of a single embedded/event/transactional
+  #     subprocess, when `subprocess_node_id` is set (and only reachable when a
+  #     parent PI exists — see `Execution.start_process_instance/1`).
+  #
+  # `flow_nodes` for a subprocess model contains only that subprocess's own inner
+  # nodes; a top-level model's `flow_nodes` never includes nodes nested inside a
+  # subprocess (those live under `type_data.flow_nodes`). Consequently a Start
+  # Event living inside a subprocess can NEVER be resolved from a top-level
+  # start, and vice versa. Any refactor that broadens this lookup (e.g. recursing
+  # into `type_data.flow_nodes`) would make inner Start Events externally
+  # addressable and MUST be rejected.
   defp resolve_start_event(process_model, start_event_id) do
     case resolve_typed_start_event(process_model, start_event_id) do
       {:ok, _node} = result ->

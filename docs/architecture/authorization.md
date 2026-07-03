@@ -279,6 +279,17 @@ authenticated list request runs it).
 | Soft-**Delete** (`DELETE /process-instances/{id}`) | `delete_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `delete_process_instance=all` (any PI) | `delete_process_instance=none` or absent → `403` |
 | **Purge** (`purgeProcessInstances` mutation) | `purge_audit_data=true` | Admin-only |
 
+**Start contract excludes internal execution options.** The public start surface
+(`POST /processes/{model_id}/start` and `EvilEngine.Api.start_process_instance/3`)
+accepts only Model/Version + Start Event + payload/context/businessKey. Internal
+execution options such as `subprocess_node_id`, `parent_process_instance_id`, and
+`triggerer_flow_node_instance_id` are **not** public parameters — extraneous
+request-body params are ignored (consistent with other endpoints), not rejected.
+Isolation of inner subprocess Start Events is enforced by the core invariant in
+`Execution.start_process_instance/1` (`subprocess_node_id` ⇒ `parent_process_instance_id`,
+else `{:error, :orphan_subprocess_start}`), which every entry point flows through.
+See [security.md](security.md) §Subprocess Start-Event Isolation.
+
 ### 6.3 Flow Node Instance interaction
 
 | Action | Rule | Notes |

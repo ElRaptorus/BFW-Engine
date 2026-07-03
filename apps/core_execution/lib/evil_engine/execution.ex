@@ -46,15 +46,28 @@ defmodule EvilEngine.Execution do
   - `:payload` — initial token payload (map or nil).
   - `:identity` — `%Identity{}` of the initiator (required).
   - `:business_key` — optional external business key.
-  - `:parent_process_instance_id` — for Call Activity child PIs.
-  - `:triggerer_flow_node_instance_id` — for Call Activity child PIs.
+  - `:parent_process_instance_id` — for Call Activity / SubProcess child PIs.
+  - `:triggerer_flow_node_instance_id` — for Call Activity / SubProcess child PIs.
+  - `:subprocess_node_id` — internal only; selects the synthetic inner-scope
+    model for an embedded/event/transactional subprocess. Requires
+    `:parent_process_instance_id` (see the isolation invariant below).
+
+  ## Subprocess start isolation
+
+  A Start Event nested inside a subprocess is addressable only through an
+  internal child spawn, which always carries a `:parent_process_instance_id`.
+  Therefore a `:subprocess_node_id` without a parent means an external caller
+  (REST/plugin) tried to start an inner scope directly; such calls are rejected
+  with `{:error, :orphan_subprocess_start}` before the PI is ever supervised.
   """
   @spec start_process_instance(ProcessInstance.start_opts()) ::
           {:ok, pid()}
           | {:error, term()}
+          | {:error, :orphan_subprocess_start}
           | {:error, :engine_at_capacity, engine_capacity_info()}
   def start_process_instance(opts) do
-    with :ok <- check_capacity() do
+    with :ok <- validate_subprocess_parent(opts),
+         :ok <- check_capacity() do
       case DynamicSupervisor.start_child(
              EvilEngine.Execution.Supervisor,
              {ProcessInstance, opts}
@@ -87,6 +100,19 @@ defmodule EvilEngine.Execution do
         else
           :ok
         end
+    end
+  end
+
+  # Subprocess start isolation invariant. Every legitimate inner-scope spawn
+  # (Call Activity, embedded/event/transactional SubProcess) is initiated by a
+  # handler that sets `:parent_process_instance_id`. A `:subprocess_node_id`
+  # present without a parent can only originate from an external caller trying to
+  # start a nested Start Event directly, which must never be possible.
+  defp validate_subprocess_parent(opts) do
+    if not is_nil(opts[:subprocess_node_id]) and is_nil(opts[:parent_process_instance_id]) do
+      {:error, :orphan_subprocess_start}
+    else
+      :ok
     end
   end
 

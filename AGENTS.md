@@ -661,6 +661,10 @@ pass. It never short-circuits on the first problem.
 
 - Every FlowNode must have a non-blank `id`
 - Every SequenceFlow must have `id`, `sourceRef`, and `targetRef`
+- Flow-node IDs must be **globally unique** across the process and every nested
+  subprocess scope (recursively). A collision yields `duplicate_flow_node_id`.
+  This keeps start-event resolution and subprocess scoping unambiguous — see
+  Subprocess Start-Event Isolation below.
 
 ### Type-specific required properties
 
@@ -759,6 +763,43 @@ Inner-scope checks (messages prefixed with `[in SubProcess '<id>']`):
 - Cross-boundary flows are rejected: parent-scope SequenceFlows must not reference inner subprocess node IDs; inner SequenceFlows must not reference parent-scope node IDs
 
 Event subprocesses (`triggeredByEvent="true"`) skip inner structural validation entirely (Phase 4 rules differ).
+
+### Subprocess Start-Event Isolation
+
+A Start Event nested inside an embedded / event / (future) transactional
+subprocess can **never** be started directly by an external caller (REST,
+plugin, or Call Activity). Inner scopes are reachable only when the owning
+subprocess element is executed by its parent process instance.
+
+- **Public start contract:** `POST /processes/{model_id}/start` (and
+  `EvilEngine.Api.start_process_instance/3`) accept only Model/Version + Start
+  Event + payload/context/businessKey. `subprocess_node_id`,
+  `parent_process_instance_id`, and `triggerer_flow_node_instance_id` are
+  internal execution options, **not** public parameters. Extraneous request-body
+  params are ignored (consistent with other endpoints), not rejected. The REST
+  controller builds `start_opts` from only the public fields, so internal keys are
+  structurally absent from that path.
+- **Core invariant (authoritative guard):** `Execution.start_process_instance/1`
+  rejects any call where `subprocess_node_id` is set but
+  `parent_process_instance_id` is nil, returning `{:error, :orphan_subprocess_start}`.
+  Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through
+  this single chokepoint.
+- **Resolution scoping:** `ProcessInstance.resolve_start_event/2` resolves start
+  events strictly against `process_model.flow_nodes` (top-level model, or the
+  synthetic inner-scope model only when `subprocess_node_id` is set). Inner nodes
+  live under `type_data.flow_nodes` and are never visible to top-level resolution.
+- **Start-event indexing:** `ModelCache.find_message_start_events/1` and
+  `find_signal_start_events/1` index only top-level start events; an inner
+  Message/Signal Start Event can never be triggered by publishing its
+  message/signal.
+- **Deploy-time uniqueness:** the `duplicate_flow_node_id` validator rule (above)
+  guarantees flow-node IDs do not collide across the process and nested subprocess
+  scopes, removing resolution ambiguity.
+
+See [`docs/architecture/security.md`](docs/architecture/security.md)
+§Subprocess Start-Event Isolation and
+[`docs/architecture/common-pitfalls.md`](docs/architecture/common-pitfalls.md)
+§P46.
 
 ### Link event pair validation (runtime-only)
 

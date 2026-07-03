@@ -121,6 +121,38 @@ GraphQL requests use the same actor map shape, set via `AbsintheContext` into th
 Absinthe context (`context: %{actor: actor}`). Both paths share
 `AbsintheContext.prepare_actor/1` as the single construction point.
 
+### Subprocess Start-Event Isolation
+
+**Invariant: a Start Event nested inside an embedded / event / (future)
+transactional subprocess can never be started directly by an external caller
+(REST, plugin, or Call Activity).** Inner scopes are reachable only when the
+owning subprocess element is executed by its parent process instance.
+
+Two enforcement layers guarantee this:
+
+| Layer | Location | Behaviour |
+|-------|----------|-----------|
+| **Public boundary** | `EvilEngineWeb.Http.ProcessController` (private `do_start`) + `EvilEngine.Api.start_process_instance/3` | The public start contract is Model/Version + Start Event + payload/context/businessKey. `subprocess_node_id` is not a public parameter; extraneous request-body params are **ignored** (consistent with every other endpoint), not rejected. The controller builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`, so internal execution keys are *structurally absent* from the REST path. |
+| **Core chokepoint** | `EvilEngine.Execution.start_process_instance/1` | The authoritative guard: if `subprocess_node_id` is present but `parent_process_instance_id` is not, the call is rejected with `{:error, :orphan_subprocess_start}` before the PI is ever supervised. Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through this pipeline. |
+
+Supporting guarantees:
+
+- **Resolution scoping** — `ProcessInstance.resolve_start_event/2` resolves start
+  events strictly against `process_model.flow_nodes` (the top-level model, or the
+  synthetic inner-scope model only when `subprocess_node_id` is set). Inner nodes
+  live under `type_data.flow_nodes` and are never visible to top-level resolution.
+- **Start-event indexing** — `ModelCache.find_message_start_events/1` and
+  `find_signal_start_events/1` index only top-level start events, so an inner
+  Message/Signal Start Event can never be triggered by publishing its
+  message/signal.
+- **Deploy-time uniqueness** — `BPMN.Validator` rejects a definitions document
+  whose flow-node IDs collide across the process and any nested subprocess scope
+  (`duplicate_flow_node_id`), removing resolution ambiguity.
+
+A dedicated request-validation layer that *rejects* unknown parameters (rather
+than ignoring them) is acknowledged as useful but is a separate, out-of-scope
+concern.
+
 ---
 
 ## Input Validation
