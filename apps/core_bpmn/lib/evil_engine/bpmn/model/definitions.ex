@@ -8,6 +8,7 @@ defmodule EvilEngine.BPMN.Model.Definitions do
 
   alias EvilEngine.BPMN.Model.ErrorDefinition
   alias EvilEngine.BPMN.Model.EscalationDefinition
+  alias EvilEngine.BPMN.Model.LinterRulesetScore
   alias EvilEngine.BPMN.Model.MessageDefinition
   alias EvilEngine.BPMN.Model.Process
   alias EvilEngine.BPMN.Model.SignalDefinition
@@ -19,6 +20,7 @@ defmodule EvilEngine.BPMN.Model.Definitions do
           signals: [SignalDefinition.t()],
           errors: [ErrorDefinition.t()],
           escalations: [EscalationDefinition.t()],
+          linter_scores: [LinterRulesetScore.t()],
           raw_xml: String.t()
         }
 
@@ -29,6 +31,7 @@ defmodule EvilEngine.BPMN.Model.Definitions do
             signals: [],
             errors: [],
             escalations: [],
+            linter_scores: [],
             raw_xml: ""
 end
 

@@ -1,0 +1,230 @@
+{
+  "definitionsId": "Definitions_Signals",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Signal",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Signal Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Signal_Done"
+            },
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Signal"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_Host",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Host Task",
+          "outgoing": ["Flow_2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_Signal",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Catch Signal",
+          "outgoing": ["Flow_3"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Signal_Done"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Signal",
+          "incoming": ["Flow_3"],
+          "multiInstance": null,
+          "name": "Throw Signal",
+          "outgoing": ["Flow_4"],
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Signal_Done"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Signal",
+          "incoming": ["Flow_4"],
+          "multiInstance": null,
+          "name": "Signal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Signal_Done"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Signal",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Signal Boundary",
+          "outgoing": ["Flow_5"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_Host",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "signalRef": "Signal_Done"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Boundary",
+          "incoming": ["Flow_5"],
+          "multiInstance": null,
+          "name": "Boundary End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_Signals",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_Signal",
+            "UserTask_Host",
+            "Catch_Signal",
+            "Throw_Signal",
+            "End_Signal",
+            "Boundary_Signal",
+            "End_Boundary"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Signal Coverage",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Signal",
+          "targetRef": "UserTask_Host"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_Host",
+          "targetRef": "Catch_Signal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_Signal",
+          "targetRef": "Throw_Signal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Signal",
+          "targetRef": "End_Signal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Signal",
+          "targetRef": "End_Boundary"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Signal_Done",
+      "name": "order-done"
+    }
+  ]
+}

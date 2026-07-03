@@ -1,0 +1,187 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Sub Process",
+          "outgoing": [],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Sub Start",
+                "outgoing": [],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_UserTask",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Sub User Task",
+                "outgoing": [],
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": "identity.groups",
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_End",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Sub End",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Start",
+                "targetRef": "Sub_UserTask"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_UserTask",
+                "targetRef": "Sub_End"
+              }
+            ],
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EmbeddedSubprocessResume",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Embedded Subprocess Resume",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

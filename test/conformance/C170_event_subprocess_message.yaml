@@ -1,0 +1,8 @@
+name: "C170: Interrupting message Event Subprocess fires and finishes the scope"
+fixture: "event_subprocess_message.bpmn"
+process_model_id: "EventSubprocessMessage"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

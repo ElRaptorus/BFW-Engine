@@ -1,0 +1,8 @@
+name: "C172: Interrupting signal Event Subprocess fires and finishes the scope"
+fixture: "event_subprocess_signal.bpmn"
+process_model_id: "EventSubprocessSignal"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

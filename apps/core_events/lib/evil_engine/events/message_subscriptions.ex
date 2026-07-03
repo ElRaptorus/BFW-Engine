@@ -33,7 +33,7 @@ defmodule EvilEngine.Events.MessageSubscriptions do
   defmodule Subscription do
     @moduledoc "A single message subscription entry stored in the ETS table."
 
-    @type kind :: :intermediate_catch | :boundary | :receive_task
+    @type kind :: :intermediate_catch | :boundary | :receive_task | :event_subprocess_start
 
     @type t :: %__MODULE__{
             subscription_id: String.t(),

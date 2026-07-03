@@ -44,6 +44,7 @@ defmodule EvilEngine.Types.Event do
           | __MODULE__.SignalPublished.t()
           | __MODULE__.SignalArrived.t()
           | __MODULE__.EscalationRaised.t()
+          | __MODULE__.EventSubprocessTriggered.t()
 end
 
 defmodule EvilEngine.Types.Event.SinkFailed do
@@ -486,6 +487,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
           subprocess_node_id: String.t(),
           child_process_model_id: String.t(),
           child_version: String.t(),
+          is_event_subprocess: boolean(),
           occurred_at: DateTime.t()
         }
 
@@ -496,6 +498,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
     :subprocess_node_id,
     :child_process_model_id,
     :child_version,
+    :is_event_subprocess,
     :occurred_at
   ]
 
@@ -506,6 +509,48 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
     :subprocess_node_id,
     :child_process_model_id,
     :child_version,
+    :is_event_subprocess,
+    :occurred_at
+  ]
+end
+
+defmodule EvilEngine.Types.Event.EventSubprocessTriggered do
+  @moduledoc """
+  Emitted by the scope PI when an Event Subprocess trigger fires and spawns an
+  ESP child PI (ESP-D2/D3/D4). Engine-level observability signal; the Studio
+  debugger primarily uses `SubProcessChildStarted` with `is_event_subprocess`
+  (ESP-D16), while this event carries the trigger kind and interrupting flag.
+  """
+
+  @type trigger_kind :: :message | :signal | :timer | :error | :escalation | :conditional
+
+  @type t :: %__MODULE__{
+          scope_process_instance_id: String.t(),
+          root_process_instance_id: String.t(),
+          subprocess_node_id: String.t(),
+          child_process_instance_id: String.t(),
+          trigger_kind: trigger_kind(),
+          is_interrupting: boolean(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :scope_process_instance_id,
+    :root_process_instance_id,
+    :subprocess_node_id,
+    :child_process_instance_id,
+    :trigger_kind,
+    :is_interrupting,
+    :occurred_at
+  ]
+
+  defstruct [
+    :scope_process_instance_id,
+    :root_process_instance_id,
+    :subprocess_node_id,
+    :child_process_instance_id,
+    :trigger_kind,
+    :is_interrupting,
     :occurred_at
   ]
 end

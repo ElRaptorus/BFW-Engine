@@ -54,6 +54,13 @@ const SERVICE_TASK_HANDLER_FIELDS = new Set([
 ]);
 
 /**
+ * Fields that exist only in one parser's output and should be stripped
+ * during normalization. Elixir-only fields appear in snapshots but not
+ * in TS output; TS-only fields appear in TS output but not snapshots.
+ */
+const ELIXIR_ONLY_FIELDS = new Set(['complexRegionAnalyses', 'inclusiveJoinAnalyses']);
+
+/**
  * Normalizes parser output for comparison between the TS and Elixir parsers.
  *
  * Intentional structural differences:
@@ -64,6 +71,10 @@ const SERVICE_TASK_HANDLER_FIELDS = new Set([
  *    model does not yet expose them
  * 4. ServiceTask handler-specific fields — Elixir stores them as top-level
  *    fields (httpUrl, httpBody, etc.); TS groups them into `serviceTaskTypeConfig`
+ * 5. `linterScores` — Elixir places at definitions level; TS places at process
+ *    level. Both are stripped for conformance comparison.
+ * 6. `complexRegionAnalyses` — deploy-time analysis only in Elixir parser;
+ *    not produced by the TS parser
  */
 function normalizeForConformance(value: unknown, isSnapshot = false): unknown {
   if (value === null || value === undefined) {
@@ -77,6 +88,12 @@ function normalizeForConformance(value: unknown, isSnapshot = false): unknown {
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(record)) {
       if (key === 'rawXml') {
+        continue;
+      }
+      if (key === 'linterScores') {
+        continue;
+      }
+      if (ELIXIR_ONLY_FIELDS.has(key)) {
         continue;
       }
       if (key === 'dataStores' && Array.isArray(val) && val.length === 0) {
@@ -444,5 +461,47 @@ describe('data object', () => {
 
   it('parses a resumable process with data objects', () => {
     expectConformance('data_object_resume');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Event Subprocesses
+// ---------------------------------------------------------------------------
+
+describe('event subprocess', () => {
+  it('parses an interrupting message event subprocess', () => {
+    expectConformance('event_subprocess_message');
+  });
+
+  it('parses a non-interrupting message event subprocess', () => {
+    expectConformance('event_subprocess_message_non_interrupting');
+  });
+
+  it('parses an interrupting signal event subprocess', () => {
+    expectConformance('event_subprocess_signal');
+  });
+
+  it('parses a non-interrupting signal event subprocess', () => {
+    expectConformance('event_subprocess_signal_non_interrupting');
+  });
+
+  it('parses an interrupting timer event subprocess', () => {
+    expectConformance('event_subprocess_timer_interrupting');
+  });
+
+  it('parses a non-interrupting timer event subprocess', () => {
+    expectConformance('event_subprocess_timer_non_interrupting');
+  });
+
+  it('parses an escalation event subprocess', () => {
+    expectConformance('event_subprocess_escalation');
+  });
+
+  it('parses a process with multiple event subprocesses', () => {
+    expectConformance('event_subprocess_multiple');
+  });
+
+  it('parses a nested event subprocess inside an embedded subprocess', () => {
+    expectConformance('event_subprocess_nested_embedded');
   });
 });

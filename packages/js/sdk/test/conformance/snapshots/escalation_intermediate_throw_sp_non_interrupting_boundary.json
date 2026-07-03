@@ -1,0 +1,239 @@
+{
+  "definitionsId": "Definitions_Esc_Throw_SP_NonInt",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_INFO",
+      "id": "Esc_Info",
+      "name": "Information Escalation"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Escalation"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Sub Process",
+          "outgoing": [],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Sub Start",
+                "outgoing": ["Sub_Flow_1"],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Throw",
+                "incoming": ["Sub_Flow_1"],
+                "multiInstance": null,
+                "name": "Throw Escalation",
+                "outgoing": ["Sub_Flow_2"],
+                "type": "intermediate_throw_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "escalationCode": null,
+                    "escalationRef": "Esc_Info"
+                  },
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_End",
+                "incoming": ["Sub_Flow_2"],
+                "multiInstance": null,
+                "name": "Sub End",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Start",
+                "targetRef": "Sub_Throw"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Throw",
+                "targetRef": "Sub_End"
+              }
+            ],
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Escalation",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_Parallel"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "SubProcess_1",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_Info"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_Normal"],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Parallel",
+          "incoming": ["Flow_Parallel"],
+          "multiInstance": null,
+          "name": "Info Handled",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EscalationThrowSPNonInt",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Escalation", "End_Normal", "End_Parallel"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Escalation Throw SP Non Interrupting",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Normal",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parallel",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Escalation",
+          "targetRef": "End_Parallel"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

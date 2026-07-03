@@ -1,0 +1,257 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "OuterFork",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Outer Fork",
+          "outgoing": ["Flow_B", "Flow_Inner"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InnerFork",
+          "incoming": ["Flow_Inner"],
+          "multiInstance": null,
+          "name": "Inner Fork",
+          "outgoing": ["Flow_A2", "Flow_A1"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A1",
+          "incoming": ["Flow_A1"],
+          "multiInstance": null,
+          "name": "Task A1",
+          "outgoing": ["Flow_A1_Out"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A2",
+          "incoming": ["Flow_A2"],
+          "multiInstance": null,
+          "name": "Task A2",
+          "outgoing": ["Flow_A2_Out"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InnerJoin",
+          "incoming": ["Flow_A2_Out", "Flow_A1_Out"],
+          "multiInstance": null,
+          "name": "Inner Join",
+          "outgoing": ["Flow_Inner_Out"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_B",
+          "incoming": ["Flow_B"],
+          "multiInstance": null,
+          "name": "Task B",
+          "outgoing": ["Flow_B_Out"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "OuterJoin",
+          "incoming": ["Flow_B_Out", "Flow_Inner_Out"],
+          "multiInstance": null,
+          "name": "Outer Join",
+          "outgoing": ["Flow_Final"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Final"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ParallelGatewayNested",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "OuterFork",
+            "InnerFork",
+            "Task_A1",
+            "Task_A2",
+            "InnerJoin",
+            "Task_B",
+            "OuterJoin",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Parallel Gateway Nested",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "OuterFork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Inner",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterFork",
+          "targetRef": "InnerFork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterFork",
+          "targetRef": "Task_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InnerFork",
+          "targetRef": "Task_A1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InnerFork",
+          "targetRef": "Task_A2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A1_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A1",
+          "targetRef": "InnerJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A2",
+          "targetRef": "InnerJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Inner_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InnerJoin",
+          "targetRef": "OuterJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_B",
+          "targetRef": "OuterJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Final",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterJoin",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

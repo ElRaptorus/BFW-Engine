@@ -1,0 +1,217 @@
+{
+  "definitionsId": "Definitions_ConditionalCatchDataObject",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "OrderData",
+          "dataState": null,
+          "id": "OrderRef",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "OrderData",
+          "itemSubjectRef": null,
+          "name": "Order Data",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_WriteData",
+              "sourceRef": null,
+              "targetRef": "OrderRef",
+              "valueExpression": "token"
+            }
+          ],
+          "documentation": null,
+          "id": "UserTask_WriteData",
+          "incoming": ["Flow_A"],
+          "multiInstance": null,
+          "name": "Write Order Data",
+          "outgoing": ["Flow_A2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": "identity.groups",
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": {
+              "fields": [
+                {
+                  "name": "status",
+                  "type": "text"
+                }
+              ]
+            },
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ConditionalCatch_OrderReady",
+          "incoming": ["Flow_B"],
+          "multiInstance": null,
+          "name": "Wait for Order Ready",
+          "outgoing": ["Flow_B2"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "conditionExpression": "dataObjects.OrderData.status = \"ready\""
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Join_1",
+          "incoming": ["Flow_B2", "Flow_A2"],
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Flow_Join"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Join"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ConditionalCatchDataObject",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Fork_1", "UserTask_WriteData", "ConditionalCatch_OrderReady", "Join_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Conditional Catch Data Object",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "UserTask_WriteData"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "ConditionalCatch_OrderReady"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_WriteData",
+          "targetRef": "Join_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ConditionalCatch_OrderReady",
+          "targetRef": "Join_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Join_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

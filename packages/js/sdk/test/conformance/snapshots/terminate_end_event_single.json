@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -47,9 +50,9 @@
         }
       ],
       "id": "TerminateSingle",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Terminate Single",
       "sequenceFlows": [
         {

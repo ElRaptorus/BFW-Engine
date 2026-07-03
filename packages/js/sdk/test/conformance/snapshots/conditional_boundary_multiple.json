@@ -1,0 +1,317 @@
+{
+  "definitionsId": "Definitions_ConditionalBoundaryMultiple",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "TriggerData",
+          "dataState": null,
+          "id": "TriggerDataRef",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "TriggerData",
+          "itemSubjectRef": null,
+          "name": "Trigger Data",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Warning", "Boundary_Critical"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_LongRunning",
+          "incoming": ["Flow_A"],
+          "multiInstance": null,
+          "name": "Long Running Task",
+          "outgoing": ["Flow_A2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": "identity.groups",
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": {
+              "fields": []
+            },
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Critical",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Critical Boundary",
+          "outgoing": ["Flow_BE_Critical"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_LongRunning",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "conditionExpression": "dataObjects.TriggerData.critical = true"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Warning",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Warning Boundary",
+          "outgoing": ["Flow_BE_Warning"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_LongRunning",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "conditionExpression": "dataObjects.TriggerData.warning = true"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_SetTrigger",
+              "sourceRef": null,
+              "targetRef": "TriggerDataRef",
+              "valueExpression": "token"
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_SetTrigger",
+          "incoming": ["Flow_B"],
+          "multiInstance": null,
+          "name": "Set Trigger",
+          "outgoing": ["Flow_B2"],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ critical: true, warning: true }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_A2"],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_B",
+          "incoming": ["Flow_B2"],
+          "multiInstance": null,
+          "name": "Branch B End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Critical",
+          "incoming": ["Flow_BE_Critical"],
+          "multiInstance": null,
+          "name": "Critical End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Warning",
+          "incoming": ["Flow_BE_Warning"],
+          "multiInstance": null,
+          "name": "Warning End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ConditionalBoundaryMultiple",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Fork_1",
+            "UserTask_LongRunning",
+            "ScriptTask_SetTrigger",
+            "Boundary_Critical",
+            "Boundary_Warning",
+            "End_Normal",
+            "End_B",
+            "End_Critical",
+            "End_Warning"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Conditional Boundary Multiple",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "UserTask_LongRunning"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "ScriptTask_SetTrigger"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_LongRunning",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_SetTrigger",
+          "targetRef": "End_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE_Critical",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Critical",
+          "targetRef": "End_Critical"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE_Warning",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Warning",
+          "targetRef": "End_Warning"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

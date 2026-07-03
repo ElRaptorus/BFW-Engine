@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -67,6 +70,7 @@
         }
       ],
       "id": "SignalCatchSimple",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -75,7 +79,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Signal Catch Simple",
       "sequenceFlows": [
         {

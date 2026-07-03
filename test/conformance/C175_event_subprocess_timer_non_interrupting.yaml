@@ -1,0 +1,8 @@
+name: "C175: Non-interrupting timer Event Subprocess fires in parallel; scope finishes after both"
+fixture: "event_subprocess_timer_non_interrupting.bpmn"
+process_model_id: "EventSubprocessTimerNonInterrupting"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

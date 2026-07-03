@@ -1,0 +1,259 @@
+{
+  "definitionsId": "Definitions_TasksGateways",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [
+    {
+      "complianceStatus": "valid",
+      "computedAtIso": "2026-07-03T12:00:00Z",
+      "maxPoints": 100.0,
+      "penaltyPoints": 7.5,
+      "rawErrorFindings": 0,
+      "rawWarningFindings": 2,
+      "rulesetId": "evil-default",
+      "schemaVersion": "1",
+      "scorePercent": 92.5
+    }
+  ],
+  "messages": [
+    {
+      "id": "Msg_Send",
+      "name": "outbound-message"
+    },
+    {
+      "id": "Msg_Receive",
+      "name": "inbound-message"
+    }
+  ],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": "Some docs",
+          "id": "MT_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Manual Task",
+          "outgoing": ["Flow_2"],
+          "type": "manual_task",
+          "typeData": {
+            "requireConfirmation": true
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ST_1",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Send Task",
+          "outgoing": ["Flow_3"],
+          "type": "send_task",
+          "typeData": {
+            "inMappings": [],
+            "messageRef": "Msg_Send",
+            "outMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "RT_1",
+          "incoming": ["Flow_3"],
+          "multiInstance": null,
+          "name": "Receive Task",
+          "outgoing": ["Flow_4"],
+          "type": "receive_task",
+          "typeData": {
+            "inMappings": [],
+            "messageRef": "Msg_Receive",
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": ["Flow_4"],
+          "multiInstance": null,
+          "name": "Wait for event",
+          "outgoing": ["Flow_5"],
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CG_1",
+          "incoming": ["Flow_5"],
+          "multiInstance": null,
+          "name": "Complex",
+          "outgoing": ["Flow_6"],
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": "activatedCount >= 2"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_1",
+          "incoming": ["Flow_6"],
+          "multiInstance": null,
+          "name": "Call Child",
+          "outgoing": ["Flow_7"],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "child-process",
+            "inMappings": [
+              {
+                "source": "token.orderId",
+                "target": "orderId"
+              }
+            ],
+            "outMappings": [
+              {
+                "source": "result.trackingNumber",
+                "target": "trackingNumber"
+              }
+            ],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_7"],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_TasksGateways",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "MT_1", "ST_1", "RT_1", "EBG_1", "CG_1", "CA_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Tasks and Gateways",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "MT_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "MT_1",
+          "targetRef": "ST_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ST_1",
+          "targetRef": "RT_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "RT_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "CG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_6",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CG_1",
+          "targetRef": "CA_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_7",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

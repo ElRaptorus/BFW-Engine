@@ -1,0 +1,333 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_L1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Level 1 Sub Process",
+          "outgoing": [],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "L1_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "L1 Start",
+                "outgoing": [],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SubProcess_L2",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Level 2 Sub Process",
+                "outgoing": [],
+                "type": "sub_process",
+                "typeData": {
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "L2_Start",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "L2 Start",
+                      "outgoing": [],
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "SubProcess_L3",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "Level 3 Sub Process",
+                      "outgoing": [],
+                      "type": "sub_process",
+                      "typeData": {
+                        "dataObjectReferences": [],
+                        "dataObjects": [],
+                        "flowNodes": [
+                          {
+                            "boundaryEventRefs": [],
+                            "dataContracts": [],
+                            "dataInputAssociations": [],
+                            "dataOutputAssociations": [],
+                            "documentation": null,
+                            "id": "L3_Start",
+                            "incoming": [],
+                            "multiInstance": null,
+                            "name": "L3 Start",
+                            "outgoing": [],
+                            "type": "start_event",
+                            "typeData": {
+                              "eventDefinition": {},
+                              "isInterrupting": true,
+                              "resultContract": null
+                            }
+                          },
+                          {
+                            "boundaryEventRefs": [],
+                            "dataContracts": [],
+                            "dataInputAssociations": [],
+                            "dataOutputAssociations": [],
+                            "documentation": null,
+                            "id": "L3_Task",
+                            "incoming": [],
+                            "multiInstance": null,
+                            "name": "L3 Task",
+                            "outgoing": [],
+                            "type": "task",
+                            "typeData": {}
+                          },
+                          {
+                            "boundaryEventRefs": [],
+                            "dataContracts": [],
+                            "dataInputAssociations": [],
+                            "dataOutputAssociations": [],
+                            "documentation": null,
+                            "id": "L3_End",
+                            "incoming": [],
+                            "multiInstance": null,
+                            "name": "L3 End",
+                            "outgoing": [],
+                            "type": "end_event",
+                            "typeData": {
+                              "eventDefinition": {},
+                              "inMappings": [],
+                              "payloadContract": null
+                            }
+                          }
+                        ],
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "resultContract": null,
+                        "sequenceFlows": [
+                          {
+                            "conditionExpression": null,
+                            "id": "L3_Flow_1",
+                            "isDefault": false,
+                            "name": null,
+                            "sourceRef": "L3_Start",
+                            "targetRef": "L3_Task"
+                          },
+                          {
+                            "conditionExpression": null,
+                            "id": "L3_Flow_2",
+                            "isDefault": false,
+                            "name": null,
+                            "sourceRef": "L3_Task",
+                            "targetRef": "L3_End"
+                          }
+                        ],
+                        "triggeredByEvent": false
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "L2_End",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "L2 End",
+                      "outgoing": [],
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "L2_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "L2_Start",
+                      "targetRef": "SubProcess_L3"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "L2_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "SubProcess_L3",
+                      "targetRef": "L2_End"
+                    }
+                  ],
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "L1_End",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "L1 End",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "L1_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "L1_Start",
+                "targetRef": "SubProcess_L2"
+              },
+              {
+                "conditionExpression": null,
+                "id": "L1_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SubProcess_L2",
+                "targetRef": "L1_End"
+              }
+            ],
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EmbeddedSubprocess3LevelNested",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_L1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Embedded Subprocess 3 Level Nested",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_L1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_L1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

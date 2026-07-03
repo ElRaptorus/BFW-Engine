@@ -1,0 +1,8 @@
+name: "C176: Escalation Event Subprocess catches a main-flow escalation throw at scope proximity"
+fixture: "event_subprocess_escalation.bpmn"
+process_model_id: "EventSubprocessEscalation"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

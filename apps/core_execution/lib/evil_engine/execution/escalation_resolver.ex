@@ -43,14 +43,25 @@ defmodule EvilEngine.Execution.EscalationResolver do
   """
   @spec resolve_escalation_info(EventDefinition.Escalation.t(), Definitions.t()) ::
           escalation_info()
-  def resolve_escalation_info(%EventDefinition.Escalation{escalation_ref: nil}, _definitions) do
-    %{escalation_code: nil, escalation_name: nil}
+  # Inline `escalation_code` takes precedence, mirroring the ESP trigger
+  # registration (`ProcessInstance.resolve_esp_escalation_code/2`) and the
+  # inline `evil:errorCode` pattern for errors. Without this, a throw carrying
+  # an inline code could never match an ESP escalation start declared with the
+  # same inline code. The name is only available from a referenced global
+  # `<bpmn:escalation>`, so it stays `nil` for a purely inline code.
+  def resolve_escalation_info(
+        %EventDefinition.Escalation{escalation_code: code},
+        _definitions
+      )
+      when is_binary(code) and code != "" do
+    %{escalation_code: code, escalation_name: nil}
   end
 
   def resolve_escalation_info(
         %EventDefinition.Escalation{escalation_ref: escalation_ref},
         definitions
-      ) do
+      )
+      when is_binary(escalation_ref) do
     case find_escalation_definition(escalation_ref, definitions) do
       %EscalationDefinition{escalation_code: code, name: name} ->
         %{escalation_code: code, escalation_name: name}
@@ -58,6 +69,10 @@ defmodule EvilEngine.Execution.EscalationResolver do
       nil ->
         %{escalation_code: nil, escalation_name: nil}
     end
+  end
+
+  def resolve_escalation_info(%EventDefinition.Escalation{}, _definitions) do
+    %{escalation_code: nil, escalation_name: nil}
   end
 
   # ---------------------------------------------------------------------------

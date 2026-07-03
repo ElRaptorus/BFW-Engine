@@ -1,0 +1,183 @@
+{
+  "definitionsId": "Definitions_RetryMultiCaRoot",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_ToSplit"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "PG_Split",
+          "incoming": ["Flow_ToSplit"],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_ToCaSimple", "Flow_ToCaSp"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_SubprocessChild",
+          "incoming": ["Flow_ToCaSp"],
+          "multiInstance": null,
+          "name": "Call Subprocess Child",
+          "outgoing": ["Flow_CaSpToJoin"],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "RetryMultiCaSubprocessChild",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_SimpleChild",
+          "incoming": ["Flow_ToCaSimple"],
+          "multiInstance": null,
+          "name": "Call Simple Child",
+          "outgoing": ["Flow_CaSimpleToJoin"],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "RetryMultiCaSimpleChild",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "PG_Join",
+          "incoming": ["Flow_CaSimpleToJoin", "Flow_CaSpToJoin"],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_ToEnd"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_ToEnd"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryMultiCaRoot",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "PG_Split", "CA_SubprocessChild", "CA_SimpleChild", "PG_Join", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Multi CA Root",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToSplit",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "PG_Split"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToCaSp",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "PG_Split",
+          "targetRef": "CA_SubprocessChild"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToCaSimple",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "PG_Split",
+          "targetRef": "CA_SimpleChild"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_CaSpToJoin",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_SubprocessChild",
+          "targetRef": "PG_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_CaSimpleToJoin",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_SimpleChild",
+          "targetRef": "PG_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "PG_Join",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

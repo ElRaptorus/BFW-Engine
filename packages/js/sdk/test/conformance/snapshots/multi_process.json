@@ -14,6 +14,7 @@
       "name": "ManagerReview"
     }
   ],
+  "linterScores": [],
   "messages": [
     {
       "id": "Msg_1",
@@ -22,6 +23,7 @@
   ],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": "order.customerId",
       "dataObjectReferences": [
         {
@@ -63,6 +65,7 @@
               "messageRef": "Msg_1",
               "payloadExpression": null
             },
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -210,6 +213,7 @@
         }
       ],
       "id": "Process_Main",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -218,7 +222,6 @@
           "name": "Clerk"
         }
       ],
-      "linterScores": [],
       "name": "Main Process",
       "sequenceFlows": [
         {
@@ -265,6 +268,7 @@
       "version": "2.0.0"
     },
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -284,6 +288,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -307,6 +312,7 @@
         }
       ],
       "id": "Process_Helper",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": false,
       "lanes": [
         {
@@ -315,7 +321,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Helper",
       "sequenceFlows": [
         {

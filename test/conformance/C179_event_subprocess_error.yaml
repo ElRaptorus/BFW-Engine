@@ -1,0 +1,8 @@
+name: "C179: Interrupting error Event Subprocess catches a BPMN error from an embedded subprocess"
+fixture: "event_subprocess_error.bpmn"
+process_model_id: "EventSubprocessError"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

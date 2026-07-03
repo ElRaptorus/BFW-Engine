@@ -1,0 +1,224 @@
+{
+  "definitionsId": "Definitions_RetryParallelJoin",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "PG_Split",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Split",
+          "outgoing": ["Flow_ToHoldB", "Flow_ToEcho"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Echo",
+          "incoming": ["Flow_ToEcho"],
+          "multiInstance": null,
+          "name": "Echo",
+          "outgoing": ["Flow_EchoToJoin"],
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "token",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_HoldB",
+          "incoming": ["Flow_ToHoldB"],
+          "multiInstance": null,
+          "name": "Hold B",
+          "outgoing": ["Flow_HoldToDeadEnd"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_DeadEnd",
+          "incoming": ["Flow_HoldToDeadEnd"],
+          "multiInstance": null,
+          "name": "Dead End",
+          "outgoing": ["Flow_DeadEndToJoin"],
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "nonexistent_handler",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "PG_Join",
+          "incoming": ["Flow_DeadEndToJoin", "Flow_EchoToJoin"],
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Flow_ToEnd"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_ToEnd"],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryParallelJoin",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "PG_Split", "Task_Echo", "Task_HoldB", "Task_DeadEnd", "PG_Join", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Retry Parallel Join",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "PG_Split"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToEcho",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "PG_Split",
+          "targetRef": "Task_Echo"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToHoldB",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "PG_Split",
+          "targetRef": "Task_HoldB"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_EchoToJoin",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Echo",
+          "targetRef": "PG_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_HoldToDeadEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_HoldB",
+          "targetRef": "Task_DeadEnd"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_DeadEndToJoin",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_DeadEnd",
+          "targetRef": "PG_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "PG_Join",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

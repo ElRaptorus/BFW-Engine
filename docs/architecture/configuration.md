@@ -254,28 +254,39 @@ against the local engine out of the box.
 
 ### 14.5 Linter-score deploy gate
 
-An external component (e.g. Evil Studio's `bpmn-linter` extension) may attach one or
-more `<evil:linterRulesetScore>` entries to the BPMN XML under
-`<bpmn:definitions>/<evil:properties>`, each summarizing the result of one linter
-ruleset evaluation:
+An external component (the Studio's `bpmn-linter` extension) attaches one or
+more `<evil:LinterRulesetScore>` entries to the BPMN XML at the **definitions
+level**, under `<bpmn:definitions>/<bpmn:extensionElements>/<evil:Properties>`,
+each summarizing the result of one linter ruleset evaluation. The element name
+is capitalised (`evil:LinterRulesetScore`, upper-L) and every field is a string
+attribute (numeric values are bare, no `%`). This is the authoritative shape
+written by the Studio's `UpdateEvilLinterRulesetScoreHandler` (ESP-D17); the
+engine parser matches it exactly:
 
 ```xml
-<evil:properties>
-  <evil:linterRulesetScore
-    rulesetId="bpmn-production-ready"
-    scorePercent="100"
-    complianceStatus="valid"
-    computedAtIso="2026-04-22T14:08:37.849Z"
-    schemaVersion="1"
-    maxPoints="52"
-    penaltyPoints="0"
-    rawErrorFindings="0"
-    rawWarningFindings="0" />
-</evil:properties>
+<bpmn:definitions ...>
+  <bpmn:extensionElements>
+    <evil:Properties>
+      <evil:LinterRulesetScore
+        rulesetId="bpmn-production-ready"
+        scorePercent="100"
+        complianceStatus="valid"
+        computedAtIso="2026-04-22T14:08:37.849Z"
+        schemaVersion="1"
+        maxPoints="52"
+        penaltyPoints="0"
+        rawErrorFindings="0"
+        rawWarningFindings="0" />
+    </evil:Properties>
+  </bpmn:extensionElements>
+  <!-- processes ... -->
+</bpmn:definitions>
 ```
 
 The engine **never runs a linter itself**. It only reads these attributes and, at
-deploy time, compares them against the configured gate thresholds.
+deploy time, compares them against the configured gate thresholds. Scores are
+scoped to the **definitions** (carried on `%Definitions{linter_scores: [...]}`),
+not to individual processes.
 
 #### 14.5.1 Configuration
 

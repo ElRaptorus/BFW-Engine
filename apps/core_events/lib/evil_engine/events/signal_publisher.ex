@@ -235,7 +235,17 @@ defmodule EvilEngine.Events.SignalPublisher do
 
   defp deliver_to_subscriptions(subscriptions, signal_id, triggerer_fni_id) do
     Enum.map(subscriptions, fn subscription ->
-      send(subscription.via_pid, {:signal_arrived, signal_id, triggerer_fni_id})
+      # ESP-D13c: signals are broadcast-all. An ESP signal start fires alongside
+      # inline catches/boundaries and standalone starts. Its `via_pid` is the
+      # scope PI, which routes `{:event_subprocess_signal, flow_node_id}` to
+      # `trigger_event_subprocess/*`; all other kinds get the generic delivery.
+      case subscription.kind do
+        :event_subprocess_start ->
+          send(subscription.via_pid, {:event_subprocess_signal, subscription.flow_node_id})
+
+        _ ->
+          send(subscription.via_pid, {:signal_arrived, signal_id, triggerer_fni_id})
+      end
 
       EngineEventBus.publish(%Event.SignalArrived{
         signal_id: signal_id,

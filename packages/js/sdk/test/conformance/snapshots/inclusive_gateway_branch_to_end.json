@@ -1,0 +1,236 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InclusiveSplit",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Inclusive Split",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "type": "inclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A",
+          "incoming": ["Flow_A"],
+          "multiInstance": null,
+          "name": "Task A",
+          "outgoing": ["Flow_A_to_Join"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_B",
+          "incoming": ["Flow_B"],
+          "multiInstance": null,
+          "name": "Task B",
+          "outgoing": ["Flow_B_to_Xor"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ExclusiveSplit",
+          "incoming": ["Flow_B_to_Xor"],
+          "multiInstance": null,
+          "name": "Route Split",
+          "outgoing": ["Flow_B_to_Join", "Flow_B_to_End"],
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": "Flow_B_to_Join"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_B",
+          "incoming": ["Flow_B_to_End"],
+          "multiInstance": null,
+          "name": "Branch End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InclusiveJoin",
+          "incoming": ["Flow_B_to_Join", "Flow_A_to_Join"],
+          "multiInstance": null,
+          "name": "Inclusive Join",
+          "outgoing": ["Flow_Join"],
+          "type": "inclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Join"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "InclusiveGatewayBranchToEnd",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "InclusiveSplit",
+            "Task_A",
+            "Task_B",
+            "ExclusiveSplit",
+            "End_B",
+            "InclusiveJoin",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Inclusive Gateway Branch To End",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "InclusiveSplit"
+        },
+        {
+          "conditionExpression": "token.x = true",
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InclusiveSplit",
+          "targetRef": "Task_A"
+        },
+        {
+          "conditionExpression": "token.x = true",
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InclusiveSplit",
+          "targetRef": "Task_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A_to_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A",
+          "targetRef": "InclusiveJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_to_Xor",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_B",
+          "targetRef": "ExclusiveSplit"
+        },
+        {
+          "conditionExpression": "token.route = \"end\"",
+          "id": "Flow_B_to_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ExclusiveSplit",
+          "targetRef": "End_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_to_Join",
+          "isDefault": true,
+          "name": null,
+          "sourceRef": "ExclusiveSplit",
+          "targetRef": "InclusiveJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InclusiveJoin",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

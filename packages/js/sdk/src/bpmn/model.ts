@@ -202,6 +202,7 @@ export interface WithContracts {
 export interface StartEventTypeData {
   type: 'start_event';
   eventDefinition: EventDefinition;
+  isInterrupting: boolean;
   resultContract: Record<string, unknown> | null;
 }
 

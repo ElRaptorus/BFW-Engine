@@ -1,0 +1,103 @@
+{
+  "definitionsId": "Definitions_EEE_Child",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Do Work",
+          "outgoing": ["Flow_2"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Validation Failed",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "errorCode": "VALIDATION_FAILED",
+              "errorMessage": "Input validation failed",
+              "errorRef": null
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ErrorEndChild",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Task_1", "End_Error"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Error End Child",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_1",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

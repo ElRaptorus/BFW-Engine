@@ -1,0 +1,8 @@
+name: "C174: Interrupting timer Event Subprocess fires after the duration, cancels main flow, scope finishes"
+fixture: "event_subprocess_timer_interrupting.bpmn"
+process_model_id: "EventSubprocessTimerInterrupting"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

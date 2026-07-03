@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TerminateCallBoundary",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -108,9 +111,9 @@
         }
       ],
       "id": "TerminateCallBoundary",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Terminate Call Activity Boundary",
       "sequenceFlows": [
         {

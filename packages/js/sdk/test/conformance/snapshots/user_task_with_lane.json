@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -71,6 +74,7 @@
         }
       ],
       "id": "LanedUserTask",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -79,7 +83,6 @@
           "name": "Management"
         }
       ],
-      "linterScores": [],
       "name": "Laned User Task",
       "sequenceFlows": [
         {

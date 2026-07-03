@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -113,6 +116,7 @@
         }
       ],
       "id": "SignalBoundaryInterrupting",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -121,7 +125,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Signal Boundary Interrupting",
       "sequenceFlows": [
         {

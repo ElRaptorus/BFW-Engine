@@ -77,19 +77,48 @@ defmodule EvilEngine.Events.MessagePublisher do
     persist_message_audit(message_id, message_name, correlation_value, payload, origin, now)
 
     ets_correlation = correlation_value || :none
-    subscriptions = MessageSubscriptions.lookup(message_name, ets_correlation)
+    all_subscriptions = MessageSubscriptions.lookup(message_name, ets_correlation)
 
-    deliveries = deliver_to_subscriptions(subscriptions, message_id, payload, triggerer_fni_id)
+    # ESP-D13: an Event Subprocess message start is a *gated* Start Event, not a
+    # tier-1 delivery. Inline catch / boundary / receive-task subscriptions
+    # (tier 1) always win; the ESP message start (tier 2) fires only when tier 1
+    # delivered nothing, and it in turn suppresses standalone message starts
+    # (tier 3, ESP-D13b).
+    {event_subprocess_start_subscriptions, tier_one_subscriptions} =
+      Enum.split_with(all_subscriptions, &(&1.kind == :event_subprocess_start))
 
-    persist_delivery_correlations(message_id, deliveries)
+    deliveries =
+      deliver_to_subscriptions(tier_one_subscriptions, message_id, payload, triggerer_fni_id)
+
+    event_subprocess_deliveries =
+      if deliveries == [] do
+        deliver_to_event_subprocess_starts(
+          event_subprocess_start_subscriptions,
+          message_id,
+          payload
+        )
+      else
+        []
+      end
+
+    combined_deliveries = deliveries ++ event_subprocess_deliveries
+
+    persist_delivery_correlations(message_id, combined_deliveries)
 
     started_process_instance_ids =
-      resolve_start_events(message_id, message_name, payload, ets_correlation, deliveries, triggerer_fni_id)
+      resolve_start_events(
+        message_id,
+        message_name,
+        payload,
+        ets_correlation,
+        combined_deliveries,
+        triggerer_fni_id
+      )
 
     {pending, started_process_instance_ids} =
       resolve_pending(
         message_id, message_name, correlation_value, payload, now,
-        deliveries, started_process_instance_ids, skip_pending
+        combined_deliveries, started_process_instance_ids, skip_pending
       )
 
     emit_message_published(
@@ -97,14 +126,14 @@ defmodule EvilEngine.Events.MessagePublisher do
       message_name,
       correlation_value,
       origin,
-      deliveries,
+      combined_deliveries,
       started_process_instance_ids,
       pending
     )
 
     :telemetry.execute(
       [:evil_engine, :message, :published],
-      %{delivery_count: length(deliveries)},
+      %{delivery_count: length(combined_deliveries)},
       %{message_name: message_name, correlation_value: correlation_value}
     )
 
@@ -113,7 +142,7 @@ defmodule EvilEngine.Events.MessagePublisher do
        message_id: message_id,
        message_name: message_name,
        correlation_value: correlation_value,
-       deliveries: deliveries,
+       deliveries: combined_deliveries,
        started_process_instance_ids: started_process_instance_ids,
        pending: pending
      }}
@@ -295,6 +324,38 @@ defmodule EvilEngine.Events.MessagePublisher do
           "to FNI=#{subscription.flow_node_instance_id} " <>
           "PI=#{subscription.process_instance_id}"
       )
+
+      %{
+        process_instance_id: subscription.process_instance_id,
+        flow_node_instance_id: subscription.flow_node_instance_id
+      }
+    end)
+  end
+
+  # ESP-D13: deliver a message to Event Subprocess message-start triggers. The
+  # subscription's `via_pid` is the scope PI (not a handler Task); the PI routes
+  # `{:event_subprocess_message, flow_node_id, payload}` to
+  # `trigger_event_subprocess/*`. These count as deliveries (tier 2) so a
+  # standalone message start (tier 3) is suppressed (ESP-D13b).
+  defp deliver_to_event_subprocess_starts(subscriptions, message_id, payload) do
+    Enum.map(subscriptions, fn subscription ->
+      send(subscription.via_pid, {:event_subprocess_message, subscription.flow_node_id, payload})
+
+      event_correlation =
+        case subscription.expected_correlation_value do
+          :none -> nil
+          value -> value
+        end
+
+      EngineEventBus.publish(%Event.MessageArrived{
+        message_id: message_id,
+        message_name: subscription.message_name,
+        correlation_value: event_correlation,
+        process_instance_id: subscription.process_instance_id,
+        flow_node_instance_id: subscription.flow_node_instance_id,
+        payload: payload,
+        occurred_at: DateTime.utc_now()
+      })
 
       %{
         process_instance_id: subscription.process_instance_id,

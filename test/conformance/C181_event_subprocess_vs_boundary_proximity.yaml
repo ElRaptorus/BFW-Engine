@@ -1,0 +1,8 @@
+name: "C181: Escalation boundary on activity wins over scope-level escalation Event Subprocess (proximity)"
+fixture: "event_subprocess_vs_boundary_proximity.bpmn"
+process_model_id: "EventSubprocessVsBoundaryProximity"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

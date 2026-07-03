@@ -2028,7 +2028,7 @@ defmodule EvilEngine.BPMN.ValidatorTest do
              end)
     end
 
-    test "event subprocess (triggered_by_event) is not validated" do
+    test "event subprocess inner scope IS validated (orphan node rejected)" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -2041,30 +2041,281 @@ defmodule EvilEngine.BPMN.ValidatorTest do
           <bpmn:startEvent id="Start_1">
             <bpmn:outgoing>Flow_1</bpmn:outgoing>
           </bpmn:startEvent>
-          <bpmn:subProcess id="SubProcess_1">
-            <bpmn:startEvent id="Sub_Start_1">
-              <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+          <bpmn:subProcess id="EventSub_1" triggeredByEvent="true">
+            <bpmn:startEvent id="EventSub_Start_1">
+              <bpmn:messageEventDefinition id="EventSub_MsgDef_1" messageRef="Msg_1" />
+              <bpmn:outgoing>EventSub_Flow_1</bpmn:outgoing>
             </bpmn:startEvent>
-            <bpmn:subProcess id="EventSub_1" triggeredByEvent="true">
-              <bpmn:startEvent id="EventSub_Start_1" />
-              <bpmn:task id="EventSub_Orphan_1" name="Would fail if validated" />
-            </bpmn:subProcess>
-            <bpmn:endEvent id="Sub_End_1">
-              <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+            <bpmn:endEvent id="EventSub_End_1">
+              <bpmn:incoming>EventSub_Flow_1</bpmn:incoming>
             </bpmn:endEvent>
-            <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start_1" targetRef="Sub_End_1" />
+            <bpmn:task id="EventSub_Orphan_1" name="Orphan task now validated" />
+            <bpmn:sequenceFlow id="EventSub_Flow_1" sourceRef="EventSub_Start_1" targetRef="EventSub_End_1" />
           </bpmn:subProcess>
           <bpmn:endEvent id="End_1">
-            <bpmn:incoming>Flow_2</bpmn:incoming>
+            <bpmn:incoming>Flow_1</bpmn:incoming>
           </bpmn:endEvent>
-          <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
-          <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_1" targetRef="End_1" />
+          <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="End_1" />
         </bpmn:process>
       </bpmn:definitions>
       """
 
       definitions = parse_fixture_from_xml(xml)
-      assert {:ok, ^definitions} = Validator.validate(definitions)
+      assert {:error, violations} = Validator.validate(definitions)
+
+      assert Enum.any?(violations, fn {code, message} ->
+               code == :orphan_node and message =~ "EventSub_Orphan_1" and
+                 message =~ "Event SubProcess"
+             end)
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # Event Subprocess structural validation (ESP-D7)
+  # -------------------------------------------------------------------------
+
+  describe "validate/1 — Event Subprocess structure" do
+    test "valid message-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Msg" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Msg_Start">
+          <bpmn:messageEventDefinition id="ESP_Msg_Def" messageRef="Msg_ESP" />
+          <bpmn:outgoing>ESP_Msg_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Msg_End">
+          <bpmn:incoming>ESP_Msg_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Msg_SF" sourceRef="ESP_Msg_Start" targetRef="ESP_Msg_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} = validate_esp(esp, ~s(<bpmn:message id="Msg_ESP" name="esp-msg" />))
+    end
+
+    test "valid signal-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Sig" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Sig_Start">
+          <bpmn:signalEventDefinition id="ESP_Sig_Def" signalRef="Sig_ESP" />
+          <bpmn:outgoing>ESP_Sig_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Sig_End">
+          <bpmn:incoming>ESP_Sig_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Sig_SF" sourceRef="ESP_Sig_Start" targetRef="ESP_Sig_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} = validate_esp(esp, ~s(<bpmn:signal id="Sig_ESP" name="esp-sig" />))
+    end
+
+    test "valid timer-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Timer" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Timer_Start">
+          <bpmn:timerEventDefinition id="ESP_Timer_Def">
+            <bpmn:timeDuration>PT5M</bpmn:timeDuration>
+          </bpmn:timerEventDefinition>
+          <bpmn:outgoing>ESP_Timer_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Timer_End">
+          <bpmn:incoming>ESP_Timer_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Timer_SF" sourceRef="ESP_Timer_Start" targetRef="ESP_Timer_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} = validate_esp(esp)
+    end
+
+    test "valid interrupting error-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Err" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Err_Start" isInterrupting="true">
+          <bpmn:errorEventDefinition id="ESP_Err_Def" errorRef="Err_ESP" />
+          <bpmn:outgoing>ESP_Err_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Err_End">
+          <bpmn:incoming>ESP_Err_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Err_SF" sourceRef="ESP_Err_Start" targetRef="ESP_Err_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} = validate_esp(esp, ~s(<bpmn:error id="Err_ESP" name="err" errorCode="E1" />))
+    end
+
+    test "valid escalation-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Esc" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Esc_Start">
+          <bpmn:escalationEventDefinition id="ESP_Esc_Def" escalationRef="Esc_ESP" />
+          <bpmn:outgoing>ESP_Esc_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Esc_End">
+          <bpmn:incoming>ESP_Esc_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Esc_SF" sourceRef="ESP_Esc_Start" targetRef="ESP_Esc_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} =
+               validate_esp(esp, ~s(<bpmn:escalation id="Esc_ESP" name="esc" escalationCode="ES1" />))
+    end
+
+    test "valid conditional-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Cond" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Cond_Start">
+          <bpmn:conditionalEventDefinition id="ESP_Cond_Def">
+            <bpmn:condition>token.ready = true</bpmn:condition>
+          </bpmn:conditionalEventDefinition>
+          <bpmn:outgoing>ESP_Cond_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Cond_End">
+          <bpmn:incoming>ESP_Cond_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Cond_SF" sourceRef="ESP_Cond_Start" targetRef="ESP_Cond_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} = validate_esp(esp)
+    end
+
+    test "ESP with no start event is rejected" do
+      esp = """
+      <bpmn:subProcess id="ESP_NoStart" triggeredByEvent="true">
+        <bpmn:endEvent id="ESP_NoStart_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:error, violations} = validate_esp(esp)
+      assert Enum.any?(violations, fn {code, _} -> code == :event_subprocess_no_start_event end)
+    end
+
+    test "ESP with multiple start events is rejected" do
+      esp = """
+      <bpmn:subProcess id="ESP_MultiStart" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_MS_1">
+          <bpmn:messageEventDefinition id="ESP_MS_Def1" messageRef="Msg_ESP" />
+          <bpmn:outgoing>ESP_MS_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:startEvent id="ESP_MS_2">
+          <bpmn:signalEventDefinition id="ESP_MS_Def2" signalRef="Sig_ESP" />
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_MS_End">
+          <bpmn:incoming>ESP_MS_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_MS_SF" sourceRef="ESP_MS_1" targetRef="ESP_MS_End" />
+      </bpmn:subProcess>
+      """
+
+      globals =
+        ~s(<bpmn:message id="Msg_ESP" name="m" /><bpmn:signal id="Sig_ESP" name="s" />)
+
+      assert {:error, violations} = validate_esp(esp, globals)
+
+      assert Enum.any?(violations, fn {code, _} ->
+               code == :event_subprocess_multiple_start_events
+             end)
+    end
+
+    test "ESP with an untyped (none) start event is rejected" do
+      esp = """
+      <bpmn:subProcess id="ESP_None" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_None_Start">
+          <bpmn:outgoing>ESP_None_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_None_End">
+          <bpmn:incoming>ESP_None_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_None_SF" sourceRef="ESP_None_Start" targetRef="ESP_None_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:error, violations} = validate_esp(esp)
+      assert Enum.any?(violations, fn {code, _} -> code == :event_subprocess_untyped_start end)
+    end
+
+    test "ESP with a non-interrupting error start is rejected" do
+      esp = """
+      <bpmn:subProcess id="ESP_ErrNI" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_ErrNI_Start" isInterrupting="false">
+          <bpmn:errorEventDefinition id="ESP_ErrNI_Def" errorRef="Err_ESP" />
+          <bpmn:outgoing>ESP_ErrNI_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_ErrNI_End">
+          <bpmn:incoming>ESP_ErrNI_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_ErrNI_SF" sourceRef="ESP_ErrNI_Start" targetRef="ESP_ErrNI_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:error, violations} =
+               validate_esp(esp, ~s(<bpmn:error id="Err_ESP" name="err" errorCode="E1" />))
+
+      assert Enum.any?(violations, fn {code, _} ->
+               code == :event_subprocess_error_start_must_interrupt
+             end)
+    end
+
+    test "ESP shell with an incoming sequence flow is rejected" do
+      esp = """
+      <bpmn:subProcess id="ESP_WithFlow" triggeredByEvent="true">
+        <bpmn:incoming>Bad_Flow</bpmn:incoming>
+        <bpmn:startEvent id="ESP_WF_Start">
+          <bpmn:messageEventDefinition id="ESP_WF_Def" messageRef="Msg_ESP" />
+          <bpmn:outgoing>ESP_WF_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_WF_End">
+          <bpmn:incoming>ESP_WF_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_WF_SF" sourceRef="ESP_WF_Start" targetRef="ESP_WF_End" />
+      </bpmn:subProcess>
+      <bpmn:sequenceFlow id="Bad_Flow" sourceRef="Main_Start" targetRef="ESP_WithFlow" />
+      """
+
+      assert {:error, violations} =
+               validate_esp(esp, ~s(<bpmn:message id="Msg_ESP" name="m" />))
+
+      assert Enum.any?(violations, fn {code, _} ->
+               code == :event_subprocess_has_sequence_flow
+             end)
+    end
+
+    test "nested ESP inner scope is validated (orphan inside inner ESP rejected)" do
+      esp = """
+      <bpmn:subProcess id="ESP_Outer" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Outer_Start">
+          <bpmn:messageEventDefinition id="ESP_Outer_Def" messageRef="Msg_ESP" />
+          <bpmn:outgoing>ESP_Outer_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Outer_End">
+          <bpmn:incoming>ESP_Outer_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Outer_SF" sourceRef="ESP_Outer_Start" targetRef="ESP_Outer_End" />
+        <bpmn:subProcess id="ESP_Inner" triggeredByEvent="true">
+          <bpmn:startEvent id="ESP_Inner_Start">
+            <bpmn:signalEventDefinition id="ESP_Inner_Def" signalRef="Sig_ESP" />
+            <bpmn:outgoing>ESP_Inner_SF</bpmn:outgoing>
+          </bpmn:startEvent>
+          <bpmn:endEvent id="ESP_Inner_End">
+            <bpmn:incoming>ESP_Inner_SF</bpmn:incoming>
+          </bpmn:endEvent>
+          <bpmn:task id="ESP_Inner_Orphan" name="Nested orphan" />
+          <bpmn:sequenceFlow id="ESP_Inner_SF" sourceRef="ESP_Inner_Start" targetRef="ESP_Inner_End" />
+        </bpmn:subProcess>
+      </bpmn:subProcess>
+      """
+
+      globals =
+        ~s(<bpmn:message id="Msg_ESP" name="m" /><bpmn:signal id="Sig_ESP" name="s" />)
+
+      assert {:error, violations} = validate_esp(esp, globals)
+
+      assert Enum.any?(violations, fn {code, message} ->
+               code == :orphan_node and message =~ "ESP_Inner_Orphan"
+             end)
     end
   end
 
@@ -2447,5 +2698,43 @@ defmodule EvilEngine.BPMN.ValidatorTest do
                code == :duplicate_flow_node_id
              end)
     end
+  end
+
+  # -------------------------------------------------------------------------
+  # Event Subprocess test helpers
+  # -------------------------------------------------------------------------
+
+  # Wraps a standard main Start->End flow plus one Event Subprocess shell
+  # (no incoming/outgoing sequence flows) carrying `esp_inner`. `globals` is
+  # extra definitions-level XML (messages/signals/errors/escalations).
+  defp esp_definition_xml(esp_inner, globals) do
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                      xmlns:evil="https://evilengine.dev/schema/bpmn"
+                      id="Definitions_ESP">
+      #{globals}
+      <bpmn:process id="Process_ESP" isExecutable="true">
+        <bpmn:extensionElements>
+          <evil:version>1.0.0</evil:version>
+        </bpmn:extensionElements>
+        <bpmn:startEvent id="Main_Start">
+          <bpmn:outgoing>Main_Flow</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="Main_End">
+          <bpmn:incoming>Main_Flow</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="Main_Flow" sourceRef="Main_Start" targetRef="Main_End" />
+        #{esp_inner}
+      </bpmn:process>
+    </bpmn:definitions>
+    """
+  end
+
+  defp validate_esp(esp_inner, globals \\ "") do
+    esp_inner
+    |> esp_definition_xml(globals)
+    |> parse_fixture_from_xml()
+    |> Validator.validate()
   end
 end

@@ -1,0 +1,8 @@
+name: "C173: Non-interrupting signal Event Subprocess runs in parallel; scope finishes after both"
+fixture: "event_subprocess_signal_non_interrupting.bpmn"
+process_model_id: "EventSubprocessSignalNonInterrupting"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

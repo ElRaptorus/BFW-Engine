@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_MsgEspVsStart">
+
+  <bpmn:message id="Msg_Tier" name="tier-message" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EspConflictMsgEspVsStandaloneStart" />
+  </bpmn:collaboration>
+
+  <!-- Process with UserTask (keeps PI alive) + ESP message start.
+       When tier-message is published with a running PI containing
+       this ESP, the ESP should win over a standalone Message Start Event
+       in a different process (ESP-D13b). -->
+  <bpmn:process id="EspConflictMsgEspVsStandaloneStart" name="ESP Message vs Standalone Start" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_Wait</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="UserTask_Wait" name="Wait">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ESP with non-interrupting message start -->
+    <bpmn:subProcess id="ESP_Msg_Tier" name="ESP Message Tier" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Tier_Start" name="ESP Tier Start" isInterrupting="false">
+        <bpmn:messageEventDefinition id="ESP_Tier_MsgDef" messageRef="Msg_Tier" />
+        <bpmn:outgoing>ESP_Tier_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="ESP_Tier_End" name="ESP Tier End">
+        <bpmn:incoming>ESP_Tier_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Tier_Flow_1" sourceRef="ESP_Tier_Start" targetRef="ESP_Tier_End" />
+    </bpmn:subProcess>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="UserTask_Wait" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_Wait" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="526" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="496" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_Wait" bpmnElement="UserTask_Wait">
+        <dc:Bounds x="290" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="482" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Msg_Tier" bpmnElement="ESP_Msg_Tier" isExpanded="true">
+        <dc:Bounds x="160" y="240" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Tier_Start" bpmnElement="ESP_Tier_Start">
+        <dc:Bounds x="190" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Tier_End" bpmnElement="ESP_Tier_End">
+        <dc:Bounds x="360" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="160" />
+        <di:waypoint x="290" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="160" />
+        <di:waypoint x="482" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Tier_Flow_1" bpmnElement="ESP_Tier_Flow_1">
+        <di:waypoint x="226" y="300" />
+        <di:waypoint x="360" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

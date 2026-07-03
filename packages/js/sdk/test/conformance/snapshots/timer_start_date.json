@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TimerStartDate",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -28,6 +30,7 @@
               "timeDate": "2020-01-01T00:00:00Z",
               "timeDuration": null
             },
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -51,9 +54,9 @@
         }
       ],
       "id": "TimerStartDate",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Timer Start Date",
       "sequenceFlows": [
         {

@@ -385,6 +385,11 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
     "Called process has multiple start events but no startEventId was specified"
   end
 
+  defp humanize_error(:interrupted_by_event_subprocess) do
+    "This flow node was interrupted because an interrupting Event Subprocess in " <>
+      "the enclosing scope was triggered, cancelling all other work in the scope."
+  end
+
   defp humanize_error(:orphan_subprocess_start) do
     "Cannot start a process instance scoped to an embedded subprocess directly: " <>
       "a subprocess node was targeted without a parent process instance. Start Events " <>

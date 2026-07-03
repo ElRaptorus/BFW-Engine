@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_RetryParentThenFatal",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -80,6 +83,7 @@
         }
       ],
       "id": "RetryParentThenFatal",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -88,7 +92,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Retry Parent Then Fatal",
       "sequenceFlows": [
         {

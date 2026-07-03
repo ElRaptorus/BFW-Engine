@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_ErrEspVsShellChild">
+
+  <bpmn:error id="Error_Inner" name="Inner Error" errorCode="INNER_ERROR" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EspConflictErrEspVsShellChild" />
+  </bpmn:collaboration>
+
+  <!-- Child process: has Error End Event + ESP error start that catches it -->
+  <bpmn:process id="EspConflictErrEspVsShellChild" name="Error ESP vs Shell Child" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_Inner</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Embedded subprocess that throws the error -->
+    <bpmn:subProcess id="SubProcess_Inner" name="Inner Sub">
+      <bpmn:startEvent id="Inner_Start" name="Inner Start">
+        <bpmn:outgoing>Inner_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="Inner_ErrorEnd" name="Inner Error End">
+        <bpmn:errorEventDefinition id="Inner_ErrDef" errorRef="Error_Inner">
+          <bpmn:extensionElements>
+            <evil:errorCode>INNER_ERROR</evil:errorCode>
+            <evil:errorMessage>Inner error thrown</evil:errorMessage>
+          </bpmn:extensionElements>
+        </bpmn:errorEventDefinition>
+        <bpmn:incoming>Inner_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Inner_Flow_1" sourceRef="Inner_Start" targetRef="Inner_ErrorEnd" />
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ESP with catch-all error start INSIDE the child process (error ESP must be interrupting) -->
+    <bpmn:subProcess id="ESP_ErrorInner" name="Error ESP" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Err_Start" name="ESP Error Start" isInterrupting="true">
+        <bpmn:errorEventDefinition id="ESP_Err_ErrDef" />
+        <bpmn:outgoing>ESP_Err_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="ESP_Err_End" name="ESP Error End">
+        <bpmn:incoming>ESP_Err_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Err_Flow_1" sourceRef="ESP_Err_Start" targetRef="ESP_Err_End" />
+    </bpmn:subProcess>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_Inner" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Inner" targetRef="End_Normal" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="626" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="596" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_Inner" bpmnElement="SubProcess_Inner" isExpanded="true">
+        <dc:Bounds x="280" y="100" width="300" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Inner_Start" bpmnElement="Inner_Start">
+        <dc:Bounds x="310" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Inner_ErrorEnd" bpmnElement="Inner_ErrorEnd">
+        <dc:Bounds x="460" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="642" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_ErrorInner" bpmnElement="ESP_ErrorInner" isExpanded="true">
+        <dc:Bounds x="180" y="310" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Err_Start" bpmnElement="ESP_Err_Start">
+        <dc:Bounds x="210" y="352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Err_End" bpmnElement="ESP_Err_End">
+        <dc:Bounds x="380" y="352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="180" />
+        <di:waypoint x="280" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="580" y="180" />
+        <di:waypoint x="642" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Inner_Flow_1" bpmnElement="Inner_Flow_1">
+        <di:waypoint x="346" y="180" />
+        <di:waypoint x="460" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Err_Flow_1" bpmnElement="ESP_Err_Flow_1">
+        <di:waypoint x="246" y="370" />
+        <di:waypoint x="380" y="370" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,159 @@
+{
+  "definitionsId": "Definitions_Esc_Mixed_Root",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_MIXED",
+      "id": "Esc_Mixed",
+      "name": "Mixed Chain Escalation"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Escalation"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Call Middle",
+          "outgoing": ["Flow_Normal"],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "EscalationMixedMiddle",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Escalation",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_Caught"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "CA1",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_Mixed"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_Normal"],
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Caught",
+          "incoming": ["Flow_Caught"],
+          "multiInstance": null,
+          "name": "Escalation Caught",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EscalationMixedCASPCARoot",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "CA1", "BE_Escalation", "End_Normal", "End_Caught"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Escalation Mixed CA-SP-CA Root",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "CA1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Normal",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Caught",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Escalation",
+          "targetRef": "End_Caught"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

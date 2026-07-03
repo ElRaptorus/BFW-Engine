@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_UT_OutReshape",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -84,6 +87,7 @@
         }
       ],
       "id": "UserTaskOutputMapperReshapes",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -92,7 +96,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "User Task Output Mapper Reshapes",
       "sequenceFlows": [
         {

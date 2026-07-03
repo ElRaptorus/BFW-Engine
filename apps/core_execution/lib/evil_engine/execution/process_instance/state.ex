@@ -67,6 +67,8 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           data_object_cache: %{String.t() => term()},
           join_routing: %{String.t() => join_routing_entry()},
           conditional_waiters: %{String.t() => conditional_waiter_entry()},
+          event_subprocess_triggers: %{String.t() => EvilEngine.Execution.EventSubprocessTrigger.t()},
+          event_subprocess_kinds: %{String.t() => {atom(), boolean()}},
           task_supervisor: pid() | nil,
           bpmn_error_info: map() | nil,
           escalation_info: escalation_info() | nil
@@ -90,6 +92,8 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
     data_object_cache: %{},
     join_routing: %{},
     conditional_waiters: %{},
+    event_subprocess_triggers: %{},
+    event_subprocess_kinds: %{},
     task_supervisor: nil,
     bpmn_error_info: nil,
     escalation_info: nil

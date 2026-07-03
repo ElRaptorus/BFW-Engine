@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TimerBoundaryHostFirst",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -103,9 +106,9 @@
         }
       ],
       "id": "TimerBoundaryHostFirst",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Timer Boundary Host Completes First",
       "sequenceFlows": [
         {

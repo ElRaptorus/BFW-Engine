@@ -1,0 +1,8 @@
+name: "C182: Nested Event Subprocess — outer message ESP contains inner timer ESP; both complete"
+fixture: "event_subprocess_nested_esp.bpmn"
+process_model_id: "EventSubprocessNestedESP"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

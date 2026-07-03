@@ -2,6 +2,7 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [
     {
       "id": "Msg_contract",
@@ -10,6 +11,7 @@
   ],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -29,6 +31,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -78,6 +81,7 @@
         }
       ],
       "id": "MessageCatchContractViolation",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -86,7 +90,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Message Catch Contract Violation",
       "sequenceFlows": [
         {

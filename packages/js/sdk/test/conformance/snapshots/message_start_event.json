@@ -2,6 +2,7 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [
     {
       "id": "Msg_trigger",
@@ -10,6 +11,7 @@
   ],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -34,6 +36,7 @@
               "messageRef": "Msg_trigger",
               "payloadExpression": null
             },
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -57,6 +60,7 @@
         }
       ],
       "id": "MessageStartEvent",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -65,7 +69,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Message Start Event",
       "sequenceFlows": [
         {

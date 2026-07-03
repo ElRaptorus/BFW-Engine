@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_ST_Reshape",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -85,6 +88,7 @@
         }
       ],
       "id": "ServiceTaskMapperReshapes",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -93,7 +97,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Service Task Mapper Reshapes",
       "sequenceFlows": [
         {

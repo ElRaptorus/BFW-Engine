@@ -1,0 +1,289 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Msg_ESP",
+      "name": "esp-nested-message"
+    }
+  ],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Main_Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Main_UserTask",
+          "incoming": ["Main_Flow_1"],
+          "multiInstance": null,
+          "name": "Main Work",
+          "outgoing": ["Main_Flow_2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Main_Flow_2"],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ESP_Nested",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Nested Event Subprocess",
+          "outgoing": [],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Message Received",
+                "outgoing": ["ESP_Flow_1"],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "correlationRetrievalExpression": null,
+                    "eventMapping": null,
+                    "messageRef": "Msg_ESP",
+                    "payloadExpression": null
+                  },
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Embedded",
+                "incoming": ["ESP_Flow_1"],
+                "multiInstance": null,
+                "name": "Embedded Work",
+                "outgoing": ["ESP_Flow_2"],
+                "type": "sub_process",
+                "typeData": {
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Emb_Start",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "Embedded Start",
+                      "outgoing": ["Emb_Flow_1"],
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Emb_Task",
+                      "incoming": ["Emb_Flow_1"],
+                      "multiInstance": null,
+                      "name": "Embedded Task",
+                      "outgoing": ["Emb_Flow_2"],
+                      "type": "task",
+                      "typeData": {}
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Emb_End",
+                      "incoming": ["Emb_Flow_2"],
+                      "multiInstance": null,
+                      "name": "Embedded End",
+                      "outgoing": [],
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "Emb_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Emb_Start",
+                      "targetRef": "Emb_Task"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "Emb_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Emb_Task",
+                      "targetRef": "Emb_End"
+                    }
+                  ],
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_End",
+                "incoming": ["ESP_Flow_2"],
+                "multiInstance": null,
+                "name": "ESP Done",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Start",
+                "targetRef": "ESP_Embedded"
+              },
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Embedded",
+                "targetRef": "ESP_End"
+              }
+            ],
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "EventSubprocessNestedEmbedded",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Nested"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Event Subprocess Nested Embedded",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Main_UserTask"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Main_UserTask",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -372,9 +372,15 @@ defmodule EvilEngine.Integration.Execution.EscalationEventTest do
         |> Enum.sort_by(& &1.occurred_at)
 
       assert length(pi_events) == 2, "Expected 2 PI state changes (running, escalated), got: #{length(pi_events)}"
-      [running_event, escalated_event] = pi_events
-      assert running_event.new_state == :running
-      assert escalated_event.new_state == :escalated
+
+      # Assert the transition chain by state rather than by occurred_at ordering:
+      # both events can share the same microsecond timestamp, which makes a
+      # positional sort non-deterministic. Verifying that the :escalated event
+      # transitioned out of :running proves the chain order deterministically.
+      assert Enum.any?(pi_events, &(&1.new_state == :running))
+      escalated_event = Enum.find(pi_events, &(&1.new_state == :escalated))
+      assert escalated_event != nil
+      assert escalated_event.old_state == :running
 
       escalation_raised = Enum.find(events, &(&1.__struct__ == Event.EscalationRaised))
       assert escalation_raised != nil

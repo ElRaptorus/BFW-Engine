@@ -1,0 +1,173 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Message_1",
+      "name": "ebg-test-message"
+    }
+  ],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Wait for Event",
+          "outgoing": ["Flow_Message", "Flow_Timer"],
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerCatch_1",
+          "incoming": ["Flow_Timer"],
+          "multiInstance": null,
+          "name": "Timer Catch",
+          "outgoing": ["Flow_Timer_End"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT0S"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "MessageCatch_1",
+          "incoming": ["Flow_Message"],
+          "multiInstance": null,
+          "name": "Message Catch",
+          "outgoing": ["Flow_Message_End"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "eventMapping": null,
+              "messageRef": "Message_1",
+              "payloadExpression": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Message_End", "Flow_Timer_End"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EbgTimerMessage",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "EBG_1", "TimerCatch_1", "MessageCatch_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "EBG Timer vs Message",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "TimerCatch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Message",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "MessageCatch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerCatch_1",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Message_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "MessageCatch_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

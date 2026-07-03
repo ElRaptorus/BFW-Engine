@@ -137,20 +137,40 @@ end
 
 defmodule EvilEngine.BPMN.Model.LinterRulesetScore do
   @moduledoc """
-  An `<evil:linterRulesetScore>` element carried on a process.
+  An `<evil:LinterRulesetScore>` entry carried on the **definitions**
+  (`definitions/extensionElements/evil:Properties/evil:LinterRulesetScore`).
 
-  Read at deploy time by the linter-gate to accept or reject
-  a process version deployment.
+  This matches the authoritative Studio contract emitted by
+  `UpdateEvilLinterRulesetScoreHandler.ts` (ESP-D17). Every field is a
+  string attribute on the XML element; numeric fields are parsed from their
+  bare-string form (e.g. `scorePercent="92.5"`, no `%`). Read at deploy time
+  by the linter-gate to accept or reject a process version deployment.
   """
 
   @type t :: %__MODULE__{
           ruleset_id: String.t(),
-          score: number(),
-          checks: map()
+          score_percent: number() | nil,
+          compliance_status: String.t() | nil,
+          computed_at_iso: String.t() | nil,
+          schema_version: String.t() | nil,
+          max_points: number() | nil,
+          penalty_points: number() | nil,
+          raw_error_findings: non_neg_integer() | nil,
+          raw_warning_findings: non_neg_integer() | nil
         }
 
-  @enforce_keys [:ruleset_id, :score]
-  defstruct [:ruleset_id, :score, checks: %{}]
+  @enforce_keys [:ruleset_id]
+  defstruct [
+    :ruleset_id,
+    :score_percent,
+    :compliance_status,
+    :computed_at_iso,
+    :schema_version,
+    :max_points,
+    :penalty_points,
+    :raw_error_findings,
+    :raw_warning_findings
+  ]
 end
 
 defmodule EvilEngine.BPMN.Model.MultiInstance do

@@ -1,0 +1,173 @@
+{
+  "definitionsId": "Definitions_RetryBoundaryGuard",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Timer"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Complete Me",
+          "outgoing": ["Flow_ToDeadEnd"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Timer",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Timer Boundary",
+          "outgoing": ["Flow_ToBoundaryEnd"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_1",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT30S"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_DeadEnd",
+          "incoming": ["Flow_ToDeadEnd"],
+          "multiInstance": null,
+          "name": "Dead End",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Happy",
+          "incoming": ["Flow_Unreachable"],
+          "multiInstance": null,
+          "name": "Happy End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Boundary",
+          "incoming": ["Flow_ToBoundaryEnd"],
+          "multiInstance": null,
+          "name": "Boundary End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryBoundaryGuard",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "UserTask_1", "BE_Timer", "Task_DeadEnd", "End_Happy", "End_Boundary"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Retry Boundary Guard",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "UserTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToDeadEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_1",
+          "targetRef": "Task_DeadEnd"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToBoundaryEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Timer",
+          "targetRef": "End_Boundary"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -81,6 +84,7 @@
         }
       ],
       "id": "XorSplitDefaultFlow",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -89,7 +93,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "XOR Split Default Flow",
       "sequenceFlows": [
         {

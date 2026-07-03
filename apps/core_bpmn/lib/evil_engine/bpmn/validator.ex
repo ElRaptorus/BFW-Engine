@@ -68,6 +68,7 @@ defmodule EvilEngine.BPMN.Validator do
       check_event_definition_positions(process),
       check_flow_node_completeness(process, definitions),
       check_cross_boundary_flows(process),
+      check_event_subprocess_shell_flows(process),
       check_unique_flow_node_ids(process)
     ])
   end
@@ -199,6 +200,17 @@ defmodule EvilEngine.BPMN.Validator do
 
   defp check_node_orphan(%FlowNode{type: type}, _sequence_flow_node_ids)
        when type in [:start_event, :end_event, :boundary_event],
+       do: []
+
+  # Event Subprocesses have no incoming/outgoing sequence flows by definition
+  # (they are triggered by their start event), so they are never orphans.
+  defp check_node_orphan(
+         %FlowNode{
+           type: :sub_process,
+           type_data: %FlowNodeData.SubProcess{triggered_by_event: true}
+         },
+         _sequence_flow_node_ids
+       ),
        do: []
 
   defp check_node_orphan(
@@ -596,6 +608,32 @@ defmodule EvilEngine.BPMN.Validator do
          %Definitions{} = definitions
        ) do
     scope_label = "[in SubProcess '#{subprocess_id}'] "
+    validate_inner_scope_structure(subprocess_id, data, definitions, scope_label)
+  end
+
+  # Event Subprocess structural validation (ESP-D7). Runs the same inner-scope
+  # checks as an embedded subprocess, then adds ESP-specific start-event rules.
+  # The "no incoming/outgoing sequence flow on the shell" rule is enforced at the
+  # containing-scope level by `check_event_subprocess_shell_flows/1`.
+  defp validate_event_subprocess_structure(
+         subprocess_id,
+         %FlowNodeData.SubProcess{} = data,
+         %Definitions{} = definitions
+       ) do
+    scope_label = "[in Event SubProcess '#{subprocess_id}'] "
+
+    List.flatten([
+      validate_inner_scope_structure(subprocess_id, data, definitions, scope_label),
+      check_event_subprocess_start_event(subprocess_id, data, scope_label)
+    ])
+  end
+
+  defp validate_inner_scope_structure(
+         subprocess_id,
+         %FlowNodeData.SubProcess{} = data,
+         %Definitions{} = definitions,
+         scope_label
+       ) do
     inner_node_ids = MapSet.new(data.flow_nodes, & &1.id)
 
     inner_scope_as_process = %BpmnProcess{
@@ -614,6 +652,86 @@ defmodule EvilEngine.BPMN.Validator do
       end)
     ])
   end
+
+  # ESP-D7: exactly one start event; the start must be a supported typed trigger
+  # (message/signal/timer/error/escalation/conditional), never None/other; an
+  # error start must be interrupting.
+  defp check_event_subprocess_start_event(
+         subprocess_id,
+         %FlowNodeData.SubProcess{flow_nodes: flow_nodes},
+         scope_label
+       ) do
+    start_events = Enum.filter(flow_nodes, &(&1.type == :start_event))
+
+    case start_events do
+      [] ->
+        [
+          {:event_subprocess_no_start_event,
+           scope_label <>
+             "Event SubProcess '#{subprocess_id}' must have exactly one start event, but has none"}
+        ]
+
+      [start] ->
+        check_esp_start_event_type(subprocess_id, start, scope_label)
+
+      many ->
+        [
+          {:event_subprocess_multiple_start_events,
+           scope_label <>
+             "Event SubProcess '#{subprocess_id}' must have exactly one start event, " <>
+             "but has #{length(many)}"}
+        ]
+    end
+  end
+
+  defp check_esp_start_event_type(
+         subprocess_id,
+         %FlowNode{
+           id: start_id,
+           type_data: %FlowNodeData.StartEvent{
+             event_definition: event_definition,
+             is_interrupting: is_interrupting
+           }
+         },
+         scope_label
+       ) do
+    typed_error =
+      if esp_start_allowed?(event_definition) do
+        []
+      else
+        [
+          {:event_subprocess_untyped_start,
+           scope_label <>
+             "Start event '#{start_id}' of Event SubProcess '#{subprocess_id}' must be a " <>
+             "supported typed trigger (message, signal, timer, error, escalation, or " <>
+             "conditional); a plain/none or unsupported start is not allowed"}
+        ]
+      end
+
+    interrupt_error =
+      case event_definition do
+        %EventDefinition.Error{} when is_interrupting == false ->
+          [
+            {:event_subprocess_error_start_must_interrupt,
+             scope_label <>
+               "Error start event '#{start_id}' of Event SubProcess '#{subprocess_id}' must be " <>
+               "interrupting (isInterrupting must not be false)"}
+          ]
+
+        _ ->
+          []
+      end
+
+    typed_error ++ interrupt_error
+  end
+
+  defp esp_start_allowed?(%EventDefinition.Message{}), do: true
+  defp esp_start_allowed?(%EventDefinition.Signal{}), do: true
+  defp esp_start_allowed?(%EventDefinition.Timer{}), do: true
+  defp esp_start_allowed?(%EventDefinition.Error{}), do: true
+  defp esp_start_allowed?(%EventDefinition.Escalation{}), do: true
+  defp esp_start_allowed?(%EventDefinition.Conditional{}), do: true
+  defp esp_start_allowed?(_), do: false
 
   defp check_subprocess_essential_properties(scope_label, %FlowNodeData.SubProcess{} = data) do
     node_errors =
@@ -855,6 +973,78 @@ defmodule EvilEngine.BPMN.Validator do
   end
 
   # ---------------------------------------------------------------------------
+  # Event Subprocess shell flow checks (ESP-D7: no incoming/outgoing flows)
+  # ---------------------------------------------------------------------------
+
+  # An Event Subprocess shell is triggered by its start event and is NOT
+  # connected to the sequence flow of its containing scope. This check scans
+  # every scope (top-level process + each nested subprocess inner scope) and
+  # rejects any sequence flow that references an ESP shell node id.
+  defp check_event_subprocess_shell_flows(%BpmnProcess{} = process) do
+    check_scope_event_subprocess_flows(process.flow_nodes, process.sequence_flows)
+  end
+
+  defp check_scope_event_subprocess_flows(flow_nodes, sequence_flows) do
+    event_subprocess_ids =
+      flow_nodes
+      |> Enum.filter(fn
+        %FlowNode{type: :sub_process, type_data: %FlowNodeData.SubProcess{triggered_by_event: true}} ->
+          true
+
+        _ ->
+          false
+      end)
+      |> MapSet.new(& &1.id)
+
+    own_errors =
+      Enum.flat_map(sequence_flows, fn %SequenceFlow{} = sequence_flow ->
+        check_event_subprocess_flow_endpoints(sequence_flow, event_subprocess_ids)
+      end)
+
+    nested_errors =
+      Enum.flat_map(flow_nodes, fn %FlowNode{type_data: type_data} ->
+        case type_data do
+          %FlowNodeData.SubProcess{flow_nodes: inner_flow_nodes, sequence_flows: inner_flows} ->
+            check_scope_event_subprocess_flows(inner_flow_nodes, inner_flows)
+
+          _ ->
+            []
+        end
+      end)
+
+    own_errors ++ nested_errors
+  end
+
+  defp check_event_subprocess_flow_endpoints(
+         %SequenceFlow{id: id, source_ref: source_ref, target_ref: target_ref},
+         event_subprocess_ids
+       ) do
+    source_error =
+      if not blank?(source_ref) and MapSet.member?(event_subprocess_ids, source_ref) do
+        [
+          {:event_subprocess_has_sequence_flow,
+           "SequenceFlow '#{id}' has source '#{source_ref}', an Event SubProcess, which must " <>
+             "have no incoming or outgoing sequence flows"}
+        ]
+      else
+        []
+      end
+
+    target_error =
+      if not blank?(target_ref) and MapSet.member?(event_subprocess_ids, target_ref) do
+        [
+          {:event_subprocess_has_sequence_flow,
+           "SequenceFlow '#{id}' has target '#{target_ref}', an Event SubProcess, which must " <>
+             "have no incoming or outgoing sequence flows"}
+        ]
+      else
+        []
+      end
+
+    source_error ++ target_error
+  end
+
+  # ---------------------------------------------------------------------------
   # Global flow-node ID uniqueness (process + nested subprocess scopes)
   # ---------------------------------------------------------------------------
 
@@ -1028,14 +1218,15 @@ defmodule EvilEngine.BPMN.Validator do
   end
 
   defp validate_type_data(
-         _id,
+         id,
          _type,
-         %FlowNodeData.SubProcess{triggered_by_event: true},
+         %FlowNodeData.SubProcess{triggered_by_event: true} = data,
          _node_ids,
-         _definitions,
+         definitions,
          _scope_label
-       ),
-       do: []
+       ) do
+    validate_event_subprocess_structure(id, data, definitions)
+  end
 
   # --- Gateways ---
 

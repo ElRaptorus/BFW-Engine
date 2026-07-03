@@ -1,0 +1,81 @@
+{
+  "definitionsId": "Definitions_ErrorEndSimpleChild",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Child Error",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "errorCode": "CHILD_ERROR",
+              "errorMessage": "Child process error",
+              "errorRef": null
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ErrorEndChild",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "End_Error"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Error End Simple Child",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,0 +1,170 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Wait for Event",
+          "outgoing": ["Flow_Timer", "Flow_Signal"],
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SignalCatch_1",
+          "incoming": ["Flow_Signal"],
+          "multiInstance": null,
+          "name": "Signal Catch",
+          "outgoing": ["Flow_Signal_End"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Signal_1"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerCatch_1",
+          "incoming": ["Flow_Timer"],
+          "multiInstance": null,
+          "name": "Timer Catch",
+          "outgoing": ["Flow_Timer_End"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT30S"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Timer_End", "Flow_Signal_End"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EbgSignalTimer",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "EBG_1", "SignalCatch_1", "TimerCatch_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "EBG Signal vs Timer",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Signal",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "SignalCatch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "TimerCatch_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Signal_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SignalCatch_1",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerCatch_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Signal_1",
+      "name": "ebg-test-signal"
+    }
+  ]
+}

@@ -129,10 +129,16 @@ end
 defmodule EvilEngine.BPMN.Model.FlowNodeData.StartEvent do
   @moduledoc """
   Start event position data. `event_definition` is one of
-  `EventDefinition.None`, `.Message`, `.Signal`, `.Timer`, `.Conditional`.
+  `EventDefinition.None`, `.Message`, `.Signal`, `.Timer`, `.Conditional`,
+  `.Error`, `.Escalation`.
 
   `result_contract` validates incoming data on catch-side events
   (message start events receive messages).
+
+  `is_interrupting` is only meaningful for Event Subprocess start events
+  (BPMN `isInterrupting`, default `true`). It is ignored for top-level and
+  embedded-subprocess start events (which are always "interrupting" in the
+  trivial sense of being the sole entry point).
   """
 
   alias EvilEngine.BPMN.Model.EventDefinition
@@ -143,9 +149,17 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.StartEvent do
           | EventDefinition.Signal.t()
           | EventDefinition.Timer.t()
           | EventDefinition.Conditional.t()
+          | EventDefinition.Error.t()
+          | EventDefinition.Escalation.t()
 
-  @type t :: %__MODULE__{event_definition: event_def(), result_contract: map() | nil}
-  defstruct event_definition: %EventDefinition.None{}, result_contract: nil
+  @type t :: %__MODULE__{
+          event_definition: event_def(),
+          result_contract: map() | nil,
+          is_interrupting: boolean()
+        }
+  defstruct event_definition: %EventDefinition.None{},
+            result_contract: nil,
+            is_interrupting: true
 end
 
 defmodule EvilEngine.BPMN.Model.FlowNodeData.EndEvent do

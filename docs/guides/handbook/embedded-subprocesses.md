@@ -40,7 +40,7 @@ The engine validates subprocess contents at **runtime** (not deploy time), which
 | Rule | Requirement |
 |------|-------------|
 | Exactly one None Start Event | The subprocess must have exactly one untyped Start Event |
-| No typed Start Events | Timer, Message, Signal Start Events are only allowed in Event Subprocesses (not yet supported) |
+| No typed Start Events | Timer, Message, Signal Start Events are only allowed in [Event Subprocesses](event-subprocesses.md) |
 | At least one End Event | The subprocess must contain at least one End Event |
 
 If the subprocess is on a branch that is never reached at runtime, validation never fires and the process runs normally.

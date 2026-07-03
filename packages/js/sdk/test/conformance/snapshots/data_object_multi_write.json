@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_1",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
         {
@@ -38,6 +40,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -119,6 +122,7 @@
         }
       ],
       "id": "DataObjectMultiWrite",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -127,7 +131,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Data Object Multi Write",
       "sequenceFlows": [
         {

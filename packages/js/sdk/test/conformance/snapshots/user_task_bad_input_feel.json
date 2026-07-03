@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_UT_BadFeel",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -76,6 +79,7 @@
         }
       ],
       "id": "UserTaskBadInputFeel",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -84,7 +88,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "User Task Bad Input FEEL",
       "sequenceFlows": [
         {

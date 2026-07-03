@@ -72,6 +72,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       signals: [],
       errors: [],
       escalations: [],
+      linter_scores: [],
       current_process: nil,
       current_node: nil,
       current_node_type: nil,
@@ -121,8 +122,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
             lanes: reversed_lanes,
             data_objects: Enum.reverse(process.data_objects),
             data_object_references: Enum.reverse(process.data_object_references),
-            extensions: Enum.reverse(process.extensions),
-            linter_scores: Enum.reverse(process.linter_scores)
+            extensions: Enum.reverse(process.extensions)
         }
       end)
 
@@ -133,6 +133,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       signals: Enum.reverse(state.signals),
       errors: Enum.reverse(state.errors),
       escalations: Enum.reverse(state.escalations),
+      linter_scores: Enum.reverse(state.linter_scores),
       raw_xml: state.raw_xml
     }
   end
@@ -464,15 +465,32 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: [:evil_correlation_key | state.stack]}}
   end
 
-  defp handle_start("linterRulesetScore", attributes, state) do
-    score = %LinterRulesetScore{
-      ruleset_id: attributes["rulesetId"] || attributes["ruleset-id"],
-      score: parse_number(attributes["score"]),
-      checks: parse_json_attr(attributes["checks"])
-    }
+  # Definitions-level linter score written by the Studio
+  # (`definitions/extensionElements/evil:Properties/evil:LinterRulesetScore`).
+  # `local_name/1` strips the `evil:` prefix but preserves case, so the element
+  # name is `LinterRulesetScore` (upper-L). Every field is an XML attribute
+  # (ESP-D17). Gated on `current_process == nil` so a same-named element inside
+  # a process is ignored.
+  defp handle_start("LinterRulesetScore", attributes, %{current_process: nil} = state) do
+    ruleset_id = attributes["rulesetId"]
 
-    {:ok,
-     %{state | current_extension: {:linter_score, score}, stack: [:linter_score | state.stack]}}
+    if is_binary(ruleset_id) and ruleset_id != "" do
+      score = %LinterRulesetScore{
+        ruleset_id: ruleset_id,
+        score_percent: parse_number_or_nil(attributes["scorePercent"]),
+        compliance_status: attributes["complianceStatus"],
+        computed_at_iso: attributes["computedAtIso"],
+        schema_version: attributes["schemaVersion"],
+        max_points: parse_number_or_nil(attributes["maxPoints"]),
+        penalty_points: parse_number_or_nil(attributes["penaltyPoints"]),
+        raw_error_findings: parse_integer_or_nil(attributes["rawErrorFindings"]),
+        raw_warning_findings: parse_integer_or_nil(attributes["rawWarningFindings"])
+      }
+
+      {:ok, %{state | linter_scores: [score | state.linter_scores]}}
+    else
+      {:ok, state}
+    end
   end
 
   defp handle_start("assignees", _attributes, state) do
@@ -1006,20 +1024,6 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       end
 
     {:ok, %{state | text_buffer: "", stack: rest}}
-  end
-
-  defp handle_end("linterRulesetScore", %{stack: [:linter_score | rest]} = state) do
-    state =
-      case {state.current_extension, state.current_process} do
-        {{:linter_score, score}, %BpmnProcess{} = process} ->
-          process = %BpmnProcess{process | linter_scores: [score | process.linter_scores]}
-          %{state | current_process: process}
-
-        _ ->
-          state
-      end
-
-    {:ok, %{state | current_extension: nil, stack: rest}}
   end
 
   defp handle_end("assignees", %{stack: [:evil_assignees | rest]} = state) do
@@ -1626,6 +1630,10 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     %FlowNodeData.BusinessRuleTask{implementation: attributes["implementation"]}
   end
 
+  defp build_initial_type_data(FlowNodeData.StartEvent, attributes) do
+    %FlowNodeData.StartEvent{is_interrupting: attributes["isInterrupting"] != "false"}
+  end
+
   defp build_initial_type_data(mod, _attributes), do: struct(mod)
 
   defp build_event_definition(:message, attributes) do
@@ -1749,15 +1757,6 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp set_timer_field(other, _field, _text), do: other
 
-  defp parse_number(nil), do: 0
-
-  defp parse_number(string) do
-    case Float.parse(string) do
-      {number, ""} -> number
-      _ -> 0
-    end
-  end
-
   defp parse_int_attr(string) do
     case Integer.parse(string) do
       {number, _} -> number
@@ -1765,12 +1764,24 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     end
   end
 
-  defp parse_json_attr(nil), do: %{}
+  # Parses a bare numeric string (e.g. `"92.5"`) into a float, or `nil` when the
+  # attribute is absent or unparseable. Used for the definitions-level linter
+  # score fields (ESP-D17).
+  defp parse_number_or_nil(nil), do: nil
 
-  defp parse_json_attr(string) do
-    case Jason.decode(string) do
-      {:ok, map} when is_map(map) -> map
-      _ -> %{}
+  defp parse_number_or_nil(string) when is_binary(string) do
+    case Float.parse(string) do
+      {number, _rest} -> number
+      :error -> nil
+    end
+  end
+
+  defp parse_integer_or_nil(nil), do: nil
+
+  defp parse_integer_or_nil(string) when is_binary(string) do
+    case Integer.parse(string) do
+      {number, _rest} -> number
+      :error -> nil
     end
   end
 

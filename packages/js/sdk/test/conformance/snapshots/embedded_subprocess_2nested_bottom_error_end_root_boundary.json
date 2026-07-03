@@ -1,0 +1,311 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [
+    {
+      "errorCode": "INNER_ERROR",
+      "id": "Error_Inner",
+      "name": "Inner Error"
+    }
+  ],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_1"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_Outer",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Outer Sub Process",
+          "outgoing": [],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Outer_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Outer Start",
+                "outgoing": [],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SubProcess_Inner",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Inner Sub Process",
+                "outgoing": [],
+                "type": "sub_process",
+                "typeData": {
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Inner_Start",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "Inner Start",
+                      "outgoing": [],
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ErrorEnd_Inner",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "Inner Error",
+                      "outgoing": [],
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "errorCode": "INNER_ERROR",
+                          "errorMessage": "Inner subprocess error",
+                          "errorRef": "Error_Inner"
+                        },
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "End_Inner",
+                      "incoming": [],
+                      "multiInstance": null,
+                      "name": "Inner End",
+                      "outgoing": [],
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "Inner_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Inner_Start",
+                      "targetRef": "ErrorEnd_Inner"
+                    }
+                  ],
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "End_Outer",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Outer End",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Outer_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Outer_Start",
+                "targetRef": "SubProcess_Inner"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Outer_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SubProcess_Inner",
+                "targetRef": "End_Outer"
+              }
+            ],
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "SubProcess_Outer",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "errorCode": "INNER_ERROR",
+              "errorMessage": null,
+              "errorRef": "Error_Inner"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_OK",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "OK End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Error Handled",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EmbeddedSubprocess2NestedErrorEndRootBoundary",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_Outer", "BE_1", "End_OK", "End_Error"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Embedded Subprocess 2 Nested Error End Root Boundary",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_Outer"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_Outer",
+          "targetRef": "End_OK"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_BE",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_1",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

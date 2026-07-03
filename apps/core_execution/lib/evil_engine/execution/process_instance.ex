@@ -71,6 +71,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   alias EvilEngine.Execution.ComplexJoinEvaluator
   alias EvilEngine.Execution.FlowNodeResult
   alias EvilEngine.Execution.FlowNodes
+  alias EvilEngine.Execution.FlowNodes.EventSubprocess, as: EspScope
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerDispatch
   alias EvilEngine.Execution.PayloadCap
@@ -80,7 +81,6 @@ defmodule EvilEngine.Execution.ProcessInstance do
   alias EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator
   alias EvilEngine.Execution.ProcessInstance.Resumption
   alias EvilEngine.Execution.ProcessInstance.State
-
   alias EvilEngine.Timers.Scheduler
   alias EvilEngine.Types.Event
   alias EvilEngine.Types.FinalToken
@@ -106,7 +106,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
           optional(:root_process_instance_id) => String.t() | nil,
           optional(:triggerer_flow_node_instance_id) => String.t() | nil,
           optional(:notify_pid) => pid() | nil,
-          optional(:subprocess_node_id) => String.t() | nil
+          optional(:subprocess_node_id) => String.t() | nil,
+          optional(:esp_start_passthrough) => boolean()
         }
 
   # -------------------------------------------------------------------
@@ -269,6 +270,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
       pending_arrivals = opts[:pending_arrivals] || []
       data = Resumption.resume(data, flow_node_instance_data, pending_arrivals, self())
 
+      data = EspScope.register_triggers(data)
+
       emit_pi_state_changed(data, nil, :running)
       {:ok, :running, data}
     else
@@ -320,7 +323,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
             created_at: now
           }
 
-          data = dispatch_flow_node_instance(data, start_event, initial_token, [])
+          dispatch_start_event =
+            EspScope.passthrough_start_event(start_event, opts[:esp_start_passthrough])
+
+          data = dispatch_flow_node_instance(data, dispatch_start_event, initial_token, [])
+          data = EspScope.register_triggers(data)
           {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
 
         {:error, reason} ->
@@ -486,8 +493,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
         {:keep_state, data}
 
       _entry ->
-        data = handle_fni_fatal(data, flow_node_instance_id, reason)
-        transition_to_fatal(data, reason)
+        case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
+          {:caught, data, action} ->
+            data = execute_esp_action(data, action)
+            maybe_finish_or_continue(data)
+
+          :not_caught ->
+            data = handle_fni_fatal(data, flow_node_instance_id, reason)
+            transition_to_fatal(data, reason)
+        end
     end
   end
 
@@ -635,7 +649,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   def running(
         :info,
         {:subprocess_child_started, flow_node_instance_id, child_process_instance_id,
-         subprocess_node_id, child_process_model_id, child_version},
+         subprocess_node_id, child_process_model_id, child_version, is_event_subprocess},
         data
       ) do
     emit_subprocess_child_started(
@@ -644,10 +658,39 @@ defmodule EvilEngine.Execution.ProcessInstance do
       child_process_instance_id,
       subprocess_node_id,
       child_process_model_id,
-      child_version
+      child_version,
+      is_event_subprocess
+    )
+
+    EspScope.maybe_emit_triggered(
+      data,
+      subprocess_node_id,
+      child_process_instance_id,
+      is_event_subprocess
     )
 
     {:keep_state, data}
+  end
+
+  def running(:info, {:event_subprocess_message, subprocess_node_id, payload}, data) do
+    data = execute_esp_action(data, EspScope.resolve_trigger(data, subprocess_node_id, payload))
+    maybe_finish_or_continue(data)
+  end
+
+  def running(:info, {:event_subprocess_signal, subprocess_node_id}, data) do
+    data = execute_esp_action(data, EspScope.resolve_trigger(data, subprocess_node_id, %{}))
+    maybe_finish_or_continue(data)
+  end
+
+  def running(
+        :info,
+        {:timer_fired, _timer_ref,
+         %{kind: :event_subprocess_start, subprocess_node_id: subprocess_node_id} = metadata},
+        data
+      ) do
+    data = EspScope.rearm_timer(data, subprocess_node_id, metadata)
+    data = execute_esp_action(data, EspScope.resolve_trigger(data, subprocess_node_id, %{}))
+    maybe_finish_or_continue(data)
   end
 
   # FNI Task process crashed (crash isolation)
@@ -783,6 +826,22 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   def aborted(:info, _msg, _data), do: :keep_state_and_data
+
+  # -------------------------------------------------------------------
+  # Terminate callback — clean up linked Task.Supervisor
+  # -------------------------------------------------------------------
+
+  @impl :gen_statem
+  def terminate(_reason, _state, %{task_supervisor: task_supervisor})
+      when is_pid(task_supervisor) do
+    if Process.alive?(task_supervisor) do
+      Supervisor.stop(task_supervisor, :shutdown, 5_000)
+    end
+
+    :ok
+  end
+
+  def terminate(_reason, _state, _data), do: :ok
 
   # -------------------------------------------------------------------
   # Internal: Start Event resolution
@@ -1730,8 +1789,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
       _entry ->
         data = record_fni_error(data, flow_node_instance_id, result)
-        data = error_all_remaining_fnis(data, flow_node_instance_id)
-        %{data | bpmn_error_info: error_info}
+
+        case EspScope.resolve_bpmn_error_catch(data, error_info) do
+          {:ok, action} ->
+            execute_esp_action(data, action)
+
+          :none ->
+            data = error_all_remaining_fnis(data, flow_node_instance_id)
+            %{data | bpmn_error_info: error_info}
+        end
     end
   end
 
@@ -1746,8 +1812,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
       entry ->
         emit_escalation_raised(data, flow_node_instance_id, entry.flow_node_id, escalation_info, :end_event)
         data = do_handle_fni_ok(data, flow_node_instance_id, result)
-        data = interrupt_remaining_fnis(data, flow_node_instance_id, :escalation_end_event)
-        %{data | escalation_info: escalation_info}
+
+        case EspScope.resolve_escalation_catch(data, escalation_info) do
+          {:ok, action} ->
+            execute_esp_action(data, action)
+
+          :none ->
+            data = interrupt_remaining_fnis(data, flow_node_instance_id, :escalation_end_event)
+            %{data | escalation_info: escalation_info}
+        end
     end
   end
 
@@ -1762,8 +1835,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
       entry ->
         emit_escalation_raised(data, flow_node_instance_id, entry.flow_node_id, escalation_info, :intermediate_throw)
         data = do_handle_fni_ok(data, flow_node_instance_id, result)
-        notify_parent(data, {:escalation_passthrough, escalation_info})
-        data
+
+        case EspScope.resolve_escalation_catch(data, escalation_info) do
+          {:ok, action} ->
+            execute_esp_action(data, action)
+
+          :none ->
+            notify_parent(data, {:escalation_passthrough, escalation_info})
+            data
+        end
     end
   end
 
@@ -1777,8 +1857,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
       _entry ->
         data = do_handle_fni_ok(data, flow_node_instance_id, result)
-        data = interrupt_remaining_fnis(data, flow_node_instance_id, :escalation_end_event)
-        %{data | escalation_info: escalation_info}
+
+        case EspScope.resolve_escalation_catch(data, escalation_info) do
+          {:ok, action} ->
+            execute_esp_action(data, action)
+
+          :none ->
+            data = interrupt_remaining_fnis(data, flow_node_instance_id, :escalation_end_event)
+            %{data | escalation_info: escalation_info}
+        end
     end
   end
 
@@ -2112,6 +2199,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
     data = evaluate_parked_inclusive_joins(data)
     data = evaluate_parked_complex_joins(data)
     data = evaluate_conditional_waiters(data)
+    data = execute_esp_conditionals(data)
 
     has_fatal =
       Enum.any?(data.flow_node_instance_states, fn {_id, entry} -> entry.state == :fatal end)
@@ -2130,6 +2218,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
     data = evaluate_parked_inclusive_joins(data)
     data = evaluate_parked_complex_joins(data)
     data = evaluate_conditional_waiters(data)
+    data = execute_esp_conditionals(data)
 
     has_fatal =
       Enum.any?(data.flow_node_instance_states, fn {_id, entry} -> entry.state == :fatal end)
@@ -2849,13 +2938,48 @@ defmodule EvilEngine.Execution.ProcessInstance do
     )
   end
 
+  # -------------------------------------------------------------------
+  # ESP trigger action execution (thin delegation to EspScope)
+  # -------------------------------------------------------------------
+
+  defp execute_esp_action(data, {:fire_interrupting, esp_node, payload}) do
+    data
+    |> interrupt_remaining_fnis(nil, :interrupted_by_event_subprocess)
+    |> EspScope.teardown_triggers()
+    |> dispatch_esp_shell(esp_node, payload)
+  end
+
+  defp execute_esp_action(data, {:fire_non_interrupting, esp_node, payload}) do
+    dispatch_esp_shell(data, esp_node, payload)
+  end
+
+  defp execute_esp_action(data, :noop), do: data
+
+  defp dispatch_esp_shell(data, esp_node, payload) do
+    token = %Token{
+      id: generate_id(),
+      process_instance_id: data.process_instance_id,
+      payload: payload || %{},
+      originating_flow_node_instance_id: nil,
+      created_at: DateTime.utc_now()
+    }
+
+    dispatch_flow_node_instance(data, esp_node, token, [])
+  end
+
+  defp execute_esp_conditionals(data) do
+    {data, actions} = EspScope.evaluate_conditionals(data)
+    Enum.reduce(actions, data, &execute_esp_action(&2, &1))
+  end
+
   defp emit_subprocess_child_started(
          data,
          flow_node_instance_id,
          child_process_instance_id,
          subprocess_node_id,
          child_process_model_id,
-         child_version
+         child_version,
+         is_event_subprocess
        ) do
     EngineEventBus.publish(%Event.SubProcessChildStarted{
       subprocess_flow_node_instance_id: flow_node_instance_id,
@@ -2864,6 +2988,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       subprocess_node_id: subprocess_node_id,
       child_process_model_id: child_process_model_id,
       child_version: child_version,
+      is_event_subprocess: is_event_subprocess,
       occurred_at: DateTime.utc_now()
     })
 
@@ -2876,7 +3001,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
         child_process_instance_id: child_process_instance_id,
         subprocess_node_id: subprocess_node_id,
         child_process_model_id: child_process_model_id,
-        child_version: child_version
+        child_version: child_version,
+        is_event_subprocess: is_event_subprocess
       }
     )
   end

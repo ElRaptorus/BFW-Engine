@@ -1,0 +1,159 @@
+{
+  "definitionsId": "Definitions_Esc_CA_NonInt",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_APPROVAL",
+      "id": "Esc_Approval",
+      "name": "Approval Required"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Escalation"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CA_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Call Escalation Child",
+          "outgoing": ["Flow_Normal"],
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "EscalationEndChild",
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Escalation",
+          "incoming": [],
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_Parallel"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "CA_1",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_Approval"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_Normal"],
+          "multiInstance": null,
+          "name": "CA Finished",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Parallel",
+          "incoming": ["Flow_Parallel"],
+          "multiInstance": null,
+          "name": "Escalation Handled",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EscalationCANonInterrupting",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "CA_1", "BE_Escalation", "End_Normal", "End_Parallel"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Escalation CA Non Interrupting",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "CA_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Normal",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CA_1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parallel",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Escalation",
+          "targetRef": "End_Parallel"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

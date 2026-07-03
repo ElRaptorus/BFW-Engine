@@ -7,6 +7,21 @@
                   targetNamespace="https://evilengine.dev/schema/bpmn"
                   id="Definitions_TasksGateways">
 
+  <bpmn:extensionElements>
+    <evil:Properties>
+      <evil:LinterRulesetScore
+        rulesetId="evil-default"
+        scorePercent="92.5"
+        complianceStatus="valid"
+        computedAtIso="2026-07-03T12:00:00Z"
+        schemaVersion="1"
+        maxPoints="100"
+        penaltyPoints="7.5"
+        rawErrorFindings="0"
+        rawWarningFindings="2" />
+    </evil:Properties>
+  </bpmn:extensionElements>
+
   <bpmn:message id="Msg_Send" name="outbound-message" />
   <bpmn:message id="Msg_Receive" name="inbound-message" />
 
@@ -17,7 +32,6 @@
   <bpmn:process id="Process_TasksGateways" name="Tasks and Gateways" isExecutable="true">
     <bpmn:extensionElements>
       <evil:version>1.0.0</evil:version>
-      <evil:linterRulesetScore rulesetId="evil-default" score="92" checks="{}" />
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">

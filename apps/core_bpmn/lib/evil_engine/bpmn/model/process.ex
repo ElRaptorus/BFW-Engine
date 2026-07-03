@@ -12,7 +12,6 @@ defmodule EvilEngine.BPMN.Model.Process do
   alias EvilEngine.BPMN.Model.Extension
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.Lane
-  alias EvilEngine.BPMN.Model.LinterRulesetScore
   alias EvilEngine.BPMN.Model.SequenceFlow
 
   @type t :: %__MODULE__{
@@ -26,7 +25,6 @@ defmodule EvilEngine.BPMN.Model.Process do
           data_objects: [DataObject.t()],
           data_object_references: [DataObjectReference.t()],
           extensions: [Extension.t()],
-          linter_scores: [LinterRulesetScore.t()],
           correlation_key: String.t() | nil,
           inclusive_join_analyses: %{String.t() => InclusiveJoinAnalysis.t()},
           complex_region_analyses: %{String.t() => ComplexRegionAnalysis.t()}
@@ -45,7 +43,6 @@ defmodule EvilEngine.BPMN.Model.Process do
     data_objects: [],
     data_object_references: [],
     extensions: [],
-    linter_scores: [],
     inclusive_join_analyses: %{},
     complex_region_analyses: %{}
   ]

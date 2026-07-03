@@ -44,6 +44,8 @@ A published message `(name, payload, correlation_value)` flows through
 5. **Catch-wins-over-Start rule**: if step 2 yielded **zero** matching subscriptions **and** any deployed non-deleted process version (i.e. `process_versions.deleted=false`) has a Message Start Event with matching `name`, start one new PI per such process (each seeding its own correlation value via §3.5.2). If step 2 yielded at least one match, Message Start Events are **not** triggered for this publish — the message is considered consumed by the subscription(s).
 6. If step 2 yielded zero matching subscriptions **and** no deployed process has a Message Start Event with matching `name`, move to §3.5.4.
 
+**Event Subprocess Message Start interaction (ESP-D13 / ESP-D13b).** An ESP Message Start registers with the informational `:event_subprocess_start` kind but is **excluded from the delivery set** in step 2 — it is a gated Start Event, not a fan-out delivery. The full precedence ladder for a message `(name, correlation)` is: **(1)** inline Message Catch / Message Boundary (the broadcast-within-key fan-out of step 2), **(2)** ESP Message Start of a running scope (fires only when step 2 delivered to zero catch/boundary subscriptions, correlated at scope activation), **(3)** standalone Message Start Event (new PI). A Catch/Boundary therefore **always** beats an ESP Message Start, and an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). See §3.5.8.
+
 #### 3.5.4 Unmatched publishes (pending with TTL)
 
 Pending messages are held in the durable `pending_messages` table ([data-model.md](./data-model.md) §4.3) for
@@ -89,7 +91,10 @@ signals have:
 an ETS `:bag` table keyed by `signal_name` for O(1) lookup on publish. A
 subscription row: `%Subscription{subscription_id, process_instance_id,
 flow_node_instance_id, flow_node_id, signal_name, kind :: :intermediate_catch
-| :boundary, registered_at, via_pid}`. The registry is **in-memory only**;
+| :boundary | :event_subprocess_start, registered_at, via_pid}`. Event
+Subprocess Signal Starts register with the `:event_subprocess_start` kind and
+fire alongside catches, boundaries, and standalone Signal Starts (broadcast-all,
+no catch-wins-over-Start gate — see §3.5.8). The registry is **in-memory only**;
 on engine restart it is empty until PIs resume and their active catches /
 boundaries re-register. `POST /signals/:signal_name/trigger` returns 503
 until `SignalSubscriptions.mark_ready/0` is called by the resume pipeline
@@ -239,3 +244,23 @@ Observable escalation outcomes are available via:
 - `[:evil_engine, :escalation, :uncaught]` telemetry (at root-of-root when no catch found)
 - `FlowNodeInstanceFinished` events on throw FNIs
 - PI state transitions (`ProcessInstanceStateChanged` to `:escalated`)
+
+#### 3.5.8 Event Subprocess start-event routing
+
+An **Event Subprocess (ESP)** start event (`<bpmn:subProcess triggeredByEvent="true">`) is a **scope-owned** trigger: the scope PI registers it on init/resume via `FlowNodes.EventSubprocess.register_triggers/1` (aliased as `EspScope` in the PI) and it lies dormant until an event occurs within its enclosing scope. Routing differs by trigger kind. Execution semantics (interrupting vs non-interrupting, shell FNI, child PI) live in [execution.md](./execution.md) §Event Subprocess Handler; this section covers **routing/precedence only**.
+
+**Message ESP starts (ESP-D13 / ESP-D13b).** Registered in `MessageSubscriptions` with kind `:event_subprocess_start`, but **excluded from the delivery set** and fired by `resolve_start_events` only when `deliveries == []` — the same gate as standalone Message Starts, ordered **before** them. Precedence ladder for `(name, correlation)`:
+
+1. **Inline Message Catch / Message Boundary** (existing broadcast-within-key fan-out) — always consumes.
+2. **ESP Message Start** of a running scope (correlated) — fires only if tier 1 delivered to nothing; no new PI is created.
+3. **Standalone Message Start** — new PI, only if tiers 1 and 2 are both empty.
+
+A Catch/Boundary always beats an ESP Message Start (correlate-to-existing-catch), and an ESP Message Start beats a Standalone Message Start (correlate-to-existing-instance). Two peer ESP Message Starts in the same scope with the same key both fire.
+
+**Signal ESP starts (ESP-D13c).** Registered in `SignalSubscriptions` with kind `:event_subprocess_start`. Signals are broadcast-all with **no** catch-wins-over-Start gate — an ESP Signal Start fires **alongside** any active Signal Catch/Boundary and any standalone Signal Start for the same `signal_name`. A non-interrupting ESP Signal Start published twice fires twice (two independent child PIs).
+
+**Timer / Conditional ESP starts.** No cross-entity routing conflict — each is an independent trigger. Timer starts arm the `Scheduler` relative to **scope activation** (not deploy time) and fire via the PI `:info` message `{:timer_fired, ref, %{kind: :event_subprocess_start, subprocess_node_id: ...}}`; `timeCycle` re-arms per tick (scope-owned), date/duration are one-shot. Conditional starts are **edge-triggered** (fire on a `false → true` transition of the FEEL condition), re-evaluated on every scope FNI state change.
+
+**Error / Escalation ESP starts.** Not subscription-based — resolved **reactively** at raise time by `EvilEngine.Execution.EventSubprocessResolver` (`find_matching_error_start/2` / `find_matching_escalation_start/2`). A scope-level ESP catches an error/escalation raised in its scope **before** it propagates to the parent (proximity), and a specific code beats a catch-all ESP start within the same scope (specificity). A boundary on the throwing activity is always tested before the scope ESP (boundary and ESP occupy different proximity levels), so boundary-vs-ESP is decided by proximity, never specificity.
+
+**Correlation at scope activation.** A message ESP start's `expected_correlation_value` is evaluated from `<evil:correlationKey>` against the scope's state at registration time (scope activation), exactly like a Catch/Boundary subscription (§3.5.2). If the scope declares no `<evil:correlationKey>`, the ESP start matches only messages whose `correlation_value` is `:none`.

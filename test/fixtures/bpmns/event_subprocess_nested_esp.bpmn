@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EventSubprocessNestedESP" />
+  </bpmn:collaboration>
+
+  <bpmn:message id="Msg_Outer" name="esp-outer-message" />
+
+  <bpmn:process id="EventSubprocessNestedESP" name="Event Subprocess Nested ESP" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Main_UserTask</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ESP_Outer</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Main_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Main_UserTask" name="Main Work">
+      <bpmn:incoming>Main_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Main_Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Main_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Main_Flow_1" sourceRef="Start_1" targetRef="Main_UserTask" />
+    <bpmn:sequenceFlow id="Main_Flow_2" sourceRef="Main_UserTask" targetRef="End_1" />
+
+    <bpmn:subProcess id="ESP_Outer" name="Outer Message Event Subprocess" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Outer_Start" name="Message Received" isInterrupting="true">
+        <bpmn:messageEventDefinition id="ESP_Outer_MsgDef" messageRef="Msg_Outer" />
+        <bpmn:outgoing>ESP_Outer_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="ESP_Outer_UserTask" name="Outer ESP Work">
+        <bpmn:incoming>ESP_Outer_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>ESP_Outer_Flow_2</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="ESP_Outer_End" name="Outer ESP Done">
+        <bpmn:incoming>ESP_Outer_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Outer_Flow_1" sourceRef="ESP_Outer_Start" targetRef="ESP_Outer_UserTask" />
+      <bpmn:sequenceFlow id="ESP_Outer_Flow_2" sourceRef="ESP_Outer_UserTask" targetRef="ESP_Outer_End" />
+
+      <bpmn:subProcess id="ESP_Inner" name="Inner Timer Event Subprocess" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Inner_Start" name="Timer Elapsed" isInterrupting="true">
+          <bpmn:timerEventDefinition id="ESP_Inner_TimerDef">
+            <bpmn:timeDuration>PT1S</bpmn:timeDuration>
+          </bpmn:timerEventDefinition>
+          <bpmn:outgoing>ESP_Inner_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:task id="ESP_Inner_Task" name="Inner ESP Work">
+          <bpmn:incoming>ESP_Inner_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>ESP_Inner_Flow_2</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:endEvent id="ESP_Inner_End" name="Inner ESP Done">
+          <bpmn:incoming>ESP_Inner_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Inner_Flow_1" sourceRef="ESP_Inner_Start" targetRef="ESP_Inner_Task" />
+        <bpmn:sequenceFlow id="ESP_Inner_Flow_2" sourceRef="ESP_Inner_Task" targetRef="ESP_Inner_End" />
+      </bpmn:subProcess>
+    </bpmn:subProcess>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="40" width="726" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="40" width="696" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Main_UserTask" bpmnElement="Main_UserTask">
+        <dc:Bounds x="290" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="490" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Outer" bpmnElement="ESP_Outer" isExpanded="true">
+        <dc:Bounds x="150" y="200" width="580" height="320" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Outer_Start" bpmnElement="ESP_Outer_Start">
+        <dc:Bounds x="180" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Outer_UserTask" bpmnElement="ESP_Outer_UserTask">
+        <dc:Bounds x="280" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Outer_End" bpmnElement="ESP_Outer_End">
+        <dc:Bounds x="450" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Inner" bpmnElement="ESP_Inner" isExpanded="true">
+        <dc:Bounds x="200" y="340" width="380" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Inner_Start" bpmnElement="ESP_Inner_Start">
+        <dc:Bounds x="220" y="397" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Inner_Task" bpmnElement="ESP_Inner_Task">
+        <dc:Bounds x="310" y="375" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Inner_End" bpmnElement="ESP_Inner_End">
+        <dc:Bounds x="462" y="397" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_1" bpmnElement="Main_Flow_1">
+        <di:waypoint x="198" y="120" />
+        <di:waypoint x="290" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_2" bpmnElement="Main_Flow_2">
+        <di:waypoint x="390" y="120" />
+        <di:waypoint x="490" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Outer_Flow_1" bpmnElement="ESP_Outer_Flow_1">
+        <di:waypoint x="216" y="250" />
+        <di:waypoint x="280" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Outer_Flow_2" bpmnElement="ESP_Outer_Flow_2">
+        <di:waypoint x="380" y="250" />
+        <di:waypoint x="450" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Inner_Flow_1" bpmnElement="ESP_Inner_Flow_1">
+        <di:waypoint x="256" y="415" />
+        <di:waypoint x="310" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Inner_Flow_2" bpmnElement="ESP_Inner_Flow_2">
+        <di:waypoint x="410" y="415" />
+        <di:waypoint x="462" y="415" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

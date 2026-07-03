@@ -1,0 +1,170 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Message_A",
+      "name": "ebg-recv-a"
+    },
+    {
+      "id": "Message_B",
+      "name": "ebg-recv-b"
+    }
+  ],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Wait for Event",
+          "outgoing": ["Flow_RecvB", "Flow_RecvA"],
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ReceiveTask_A",
+          "incoming": ["Flow_RecvA"],
+          "multiInstance": null,
+          "name": "Receive A",
+          "outgoing": ["Flow_RecvA_End"],
+          "type": "receive_task",
+          "typeData": {
+            "inMappings": [],
+            "messageRef": "Message_A",
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ReceiveTask_B",
+          "incoming": ["Flow_RecvB"],
+          "multiInstance": null,
+          "name": "Receive B",
+          "outgoing": ["Flow_RecvB_End"],
+          "type": "receive_task",
+          "typeData": {
+            "inMappings": [],
+            "messageRef": "Message_B",
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_RecvB_End", "Flow_RecvA_End"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EbgReceiveTask",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "EBG_1", "ReceiveTask_A", "ReceiveTask_B", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "EBG Receive Tasks",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_RecvA",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "ReceiveTask_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_RecvB",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "ReceiveTask_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_RecvA_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ReceiveTask_A",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_RecvB_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ReceiveTask_B",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

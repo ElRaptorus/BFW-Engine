@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EventSubprocessNestedEmbedded" />
+  </bpmn:collaboration>
+
+  <bpmn:message id="Msg_ESP" name="esp-nested-message" />
+
+  <bpmn:process id="EventSubprocessNestedEmbedded" name="Event Subprocess Nested Embedded" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Main_UserTask</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ESP_Nested</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Main_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Main_UserTask" name="Main Work">
+      <bpmn:incoming>Main_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Main_Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Main_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Main_Flow_1" sourceRef="Start_1" targetRef="Main_UserTask" />
+    <bpmn:sequenceFlow id="Main_Flow_2" sourceRef="Main_UserTask" targetRef="End_1" />
+
+    <bpmn:subProcess id="ESP_Nested" name="Nested Event Subprocess" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Start" name="Message Received" isInterrupting="true">
+        <bpmn:messageEventDefinition id="ESP_MsgDef" messageRef="Msg_ESP" />
+        <bpmn:outgoing>ESP_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:subProcess id="ESP_Embedded" name="Embedded Work">
+        <bpmn:incoming>ESP_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>ESP_Flow_2</bpmn:outgoing>
+        <bpmn:startEvent id="Emb_Start" name="Embedded Start">
+          <bpmn:outgoing>Emb_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:task id="Emb_Task" name="Embedded Task">
+          <bpmn:incoming>Emb_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>Emb_Flow_2</bpmn:outgoing>
+        </bpmn:task>
+        <bpmn:endEvent id="Emb_End" name="Embedded End">
+          <bpmn:incoming>Emb_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="Emb_Flow_1" sourceRef="Emb_Start" targetRef="Emb_Task" />
+        <bpmn:sequenceFlow id="Emb_Flow_2" sourceRef="Emb_Task" targetRef="Emb_End" />
+      </bpmn:subProcess>
+      <bpmn:endEvent id="ESP_End" name="ESP Done">
+        <bpmn:incoming>ESP_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Flow_1" sourceRef="ESP_Start" targetRef="ESP_Embedded" />
+      <bpmn:sequenceFlow id="ESP_Flow_2" sourceRef="ESP_Embedded" targetRef="ESP_End" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="EventSubprocessNestedEmbedded">
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="80" y="80" width="488" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Main_UserTask" bpmnElement="Main_UserTask">
+        <dc:Bounds x="290" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Nested" bpmnElement="ESP_Nested">
+        <dc:Bounds x="130" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_1" bpmnElement="Main_Flow_1">
+        <di:waypoint x="198" y="150" />
+        <di:waypoint x="290" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_2" bpmnElement="Main_Flow_2">
+        <di:waypoint x="390" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

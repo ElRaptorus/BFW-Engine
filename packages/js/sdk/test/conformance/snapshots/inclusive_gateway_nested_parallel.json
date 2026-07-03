@@ -1,0 +1,261 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InclusiveSplit",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Inclusive Split",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "type": "inclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ParallelSplit",
+          "incoming": ["Flow_A"],
+          "multiInstance": null,
+          "name": "Parallel Split",
+          "outgoing": ["Flow_P2", "Flow_P1"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_P1",
+          "incoming": ["Flow_P1"],
+          "multiInstance": null,
+          "name": "Task P1",
+          "outgoing": ["Flow_P1_Out"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_P2",
+          "incoming": ["Flow_P2"],
+          "multiInstance": null,
+          "name": "Task P2",
+          "outgoing": ["Flow_P2_Out"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ParallelJoin",
+          "incoming": ["Flow_P2_Out", "Flow_P1_Out"],
+          "multiInstance": null,
+          "name": "Parallel Join",
+          "outgoing": ["Flow_Parallel_Out"],
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_B",
+          "incoming": ["Flow_B"],
+          "multiInstance": null,
+          "name": "Task B",
+          "outgoing": ["Flow_B_Out"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InclusiveJoin",
+          "incoming": ["Flow_B_Out", "Flow_Parallel_Out"],
+          "multiInstance": null,
+          "name": "Inclusive Join",
+          "outgoing": ["Flow_Final"],
+          "type": "inclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Final"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "InclusiveGatewayNestedParallel",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "InclusiveSplit",
+            "ParallelSplit",
+            "Task_P1",
+            "Task_P2",
+            "ParallelJoin",
+            "Task_B",
+            "InclusiveJoin",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Inclusive Gateway Nested Parallel",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "InclusiveSplit"
+        },
+        {
+          "conditionExpression": "token.a = true",
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InclusiveSplit",
+          "targetRef": "ParallelSplit"
+        },
+        {
+          "conditionExpression": "token.b = true",
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InclusiveSplit",
+          "targetRef": "Task_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_P1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ParallelSplit",
+          "targetRef": "Task_P1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_P2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ParallelSplit",
+          "targetRef": "Task_P2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_P1_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_P1",
+          "targetRef": "ParallelJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_P2_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_P2",
+          "targetRef": "ParallelJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Parallel_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ParallelJoin",
+          "targetRef": "InclusiveJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_B",
+          "targetRef": "InclusiveJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Final",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InclusiveJoin",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

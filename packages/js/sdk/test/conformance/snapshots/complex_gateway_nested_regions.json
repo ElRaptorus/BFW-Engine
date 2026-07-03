@@ -1,0 +1,295 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "OuterSplit",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Outer Split",
+          "outgoing": ["Flow_OuterRight", "Flow_OuterLeft"],
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InnerSplit",
+          "incoming": ["Flow_OuterLeft"],
+          "multiInstance": null,
+          "name": "Inner Split",
+          "outgoing": ["Flow_InnerB", "Flow_InnerA"],
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_InnerA",
+          "incoming": ["Flow_InnerA"],
+          "multiInstance": null,
+          "name": "User Task Inner A",
+          "outgoing": ["Flow_InnerA2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_InnerB",
+          "incoming": ["Flow_InnerB"],
+          "multiInstance": null,
+          "name": "User Task Inner B",
+          "outgoing": ["Flow_InnerB2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "InnerJoin",
+          "incoming": ["Flow_InnerB2", "Flow_InnerA2"],
+          "multiInstance": null,
+          "name": "Inner Join",
+          "outgoing": ["Flow_InnerJoin"],
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": "activatedCount >= 1"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_Outer",
+          "incoming": ["Flow_OuterRight"],
+          "multiInstance": null,
+          "name": "User Task Outer",
+          "outgoing": ["Flow_OuterRight2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "OuterJoin",
+          "incoming": ["Flow_OuterRight2", "Flow_InnerJoin"],
+          "multiInstance": null,
+          "name": "Outer Join",
+          "outgoing": ["Flow_OuterJoin"],
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": "activatedCount >= 2"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_OuterJoin"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ComplexGatewayNestedRegions",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "OuterSplit",
+            "InnerSplit",
+            "UserTask_InnerA",
+            "UserTask_InnerB",
+            "InnerJoin",
+            "UserTask_Outer",
+            "OuterJoin",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Complex Gateway Nested Regions",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "OuterSplit"
+        },
+        {
+          "conditionExpression": "token.outer_left = true",
+          "id": "Flow_OuterLeft",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterSplit",
+          "targetRef": "InnerSplit"
+        },
+        {
+          "conditionExpression": "token.outer_right = true",
+          "id": "Flow_OuterRight",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterSplit",
+          "targetRef": "UserTask_Outer"
+        },
+        {
+          "conditionExpression": "token.inner_a = true",
+          "id": "Flow_InnerA",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InnerSplit",
+          "targetRef": "UserTask_InnerA"
+        },
+        {
+          "conditionExpression": "token.inner_b = true",
+          "id": "Flow_InnerB",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InnerSplit",
+          "targetRef": "UserTask_InnerB"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_InnerA2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_InnerA",
+          "targetRef": "InnerJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_InnerB2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_InnerB",
+          "targetRef": "InnerJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_InnerJoin",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "InnerJoin",
+          "targetRef": "OuterJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_OuterRight2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_Outer",
+          "targetRef": "OuterJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_OuterJoin",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterJoin",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

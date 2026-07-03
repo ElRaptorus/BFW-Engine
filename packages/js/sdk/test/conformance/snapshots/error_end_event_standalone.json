@@ -1,0 +1,81 @@
+{
+  "definitionsId": "Definitions_EEE_Standalone",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Error Out",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "errorCode": "STANDALONE_ERROR",
+              "errorMessage": "Process encountered an error condition",
+              "errorRef": null
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ErrorEndStandalone",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "End_Error"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Error End Standalone",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

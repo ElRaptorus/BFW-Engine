@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TerminateChild",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -71,9 +74,9 @@
         }
       ],
       "id": "TerminateChildProcess",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Terminate Child Process",
       "sequenceFlows": [
         {

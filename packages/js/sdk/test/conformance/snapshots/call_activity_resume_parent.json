@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_CA_Resume_Parent",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -66,6 +69,7 @@
         }
       ],
       "id": "CallActivityResumeParent",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -74,7 +78,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Call Activity Resume Parent",
       "sequenceFlows": [
         {

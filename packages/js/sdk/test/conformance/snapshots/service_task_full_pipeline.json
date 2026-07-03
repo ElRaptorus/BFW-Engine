@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_ST_Pipeline",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -98,6 +101,7 @@
         }
       ],
       "id": "ServiceTaskFullPipeline",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -106,7 +110,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Service Task Full Pipeline",
       "sequenceFlows": [
         {

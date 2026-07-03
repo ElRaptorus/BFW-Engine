@@ -1,0 +1,209 @@
+{
+  "definitionsId": "Definitions_RetryMultiCaSubprocessChild",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_ToDoAStuff"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "DoAStuff",
+          "incoming": ["Flow_ToDoAStuff"],
+          "multiInstance": null,
+          "name": "Do A Stuff",
+          "outgoing": ["Flow_ToSp"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SP_Inner",
+          "incoming": ["Flow_ToSp"],
+          "multiInstance": null,
+          "name": "Inner Subprocess",
+          "outgoing": ["Flow_SpToEnd"],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SP_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "SP Start",
+                "outgoing": ["Flow_SpToTask"],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SP_UserTask",
+                "incoming": ["Flow_SpToTask"],
+                "multiInstance": null,
+                "name": "Inner User Task",
+                "outgoing": ["Flow_TaskToSpEnd"],
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SP_End",
+                "incoming": ["Flow_TaskToSpEnd"],
+                "multiInstance": null,
+                "name": "SP End",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Flow_SpToTask",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SP_Start",
+                "targetRef": "SP_UserTask"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Flow_TaskToSpEnd",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SP_UserTask",
+                "targetRef": "SP_End"
+              }
+            ],
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_SpToEnd"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryMultiCaSubprocessChild",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "DoAStuff", "SP_Inner", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Subprocess Child",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToDoAStuff",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "DoAStuff"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToSp",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "DoAStuff",
+          "targetRef": "SP_Inner"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_SpToEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SP_Inner",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

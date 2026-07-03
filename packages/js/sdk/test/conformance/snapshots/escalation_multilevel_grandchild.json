@@ -1,0 +1,86 @@
+{
+  "definitionsId": "Definitions_Esc_GrandChild",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_DEEP",
+      "id": "Esc_Deep",
+      "name": "Deep Escalation"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Escalation",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Escalation End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_Deep"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "EscalationGrandchild",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "End_Escalation"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Escalation Grandchild",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "End_Escalation"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

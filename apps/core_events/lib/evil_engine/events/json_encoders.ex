@@ -32,6 +32,7 @@ for module <- [
       EvilEngine.Types.Event.SignalPublished,
       EvilEngine.Types.Event.SignalArrived,
       EvilEngine.Types.Event.EscalationRaised,
+      EvilEngine.Types.Event.EventSubprocessTriggered,
       EvilEngine.Types.Token,
       EvilEngine.Types.FinalToken,
       EvilEngine.Types.Identity

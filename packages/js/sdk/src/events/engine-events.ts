@@ -45,6 +45,7 @@ export type EngineEvent =
   | SignalPublished
   | SignalArrived
   | EscalationRaised
+  | EventSubprocessTriggered
   | SinkFailed;
 
 export interface EngineStarted {
@@ -241,9 +242,14 @@ export interface CallActivityChildStarted {
 }
 
 /**
- * Emitted when an Embedded Subprocess handler spawns a child process
- * instance for its inner scope. Mirrors `CallActivityChildStarted`
+ * Emitted when an Embedded Subprocess or Event Subprocess handler spawns a
+ * child process instance for its inner scope. Mirrors `CallActivityChildStarted`
  * but distinguishes subprocess children in observability.
+ *
+ * `isEventSubprocess` is `true` when the child was spawned by an Event
+ * Subprocess (`<bpmn:subProcess triggeredByEvent="true">`) and `false` for a
+ * plain embedded subprocess. This is the primary observability signal a
+ * debugger uses to distinguish an ESP trigger from a normal subprocess entry.
  */
 export interface SubProcessChildStarted {
   type: 'SubProcessChildStarted';
@@ -253,6 +259,7 @@ export interface SubProcessChildStarted {
   subprocessNodeId: string;
   childProcessModelId: string;
   childVersion: string;
+  isEventSubprocess: boolean;
   occurredAt: string;
 }
 
@@ -493,5 +500,22 @@ export interface EscalationRaised {
   flowNodeId: string;
   /** Whether this is a terminal throw (end event) or a pass-through throw (intermediate). */
   throwType: 'end_event' | 'intermediate_throw';
+  occurredAt: string;
+}
+
+/**
+ * Emitted by the scope PI when an Event Subprocess trigger fires and spawns
+ * an ESP child PI. The Studio debugger primarily consumes
+ * `SubProcessChildStarted` (with `isEventSubprocess`); this event
+ * additionally exposes the trigger kind and interrupting flag.
+ */
+export interface EventSubprocessTriggered {
+  type: 'EventSubprocessTriggered';
+  scopeProcessInstanceId: string;
+  rootProcessInstanceId: string;
+  subprocessNodeId: string;
+  childProcessInstanceId: string;
+  triggerKind: 'message' | 'signal' | 'timer' | 'error' | 'escalation' | 'conditional';
+  isInterrupting: boolean;
   occurredAt: string;
 }

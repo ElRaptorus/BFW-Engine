@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TimerCatchFeel",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -69,9 +72,9 @@
         }
       ],
       "id": "TimerCatchFeelExpression",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Timer Catch FEEL Expression",
       "sequenceFlows": [
         {

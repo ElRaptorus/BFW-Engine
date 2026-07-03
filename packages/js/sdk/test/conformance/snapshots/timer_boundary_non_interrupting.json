@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TimerBoundaryNonInterrupting",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -113,9 +116,9 @@
         }
       ],
       "id": "TimerBoundaryNonInterrupting",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Timer Boundary Non-Interrupting",
       "sequenceFlows": [
         {

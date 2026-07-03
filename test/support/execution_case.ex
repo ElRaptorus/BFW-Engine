@@ -43,6 +43,7 @@ defmodule EvilEngine.ExecutionCase do
     EvilEngine.Auth.ProviderRegistry.reset_to_default()
     EvilEngine.BPMN.ModelCache.reset_state()
     terminate_all_process_instances()
+    await_supervisor_drain()
     ensure_test_secret()
 
     Application.put_env(
@@ -77,7 +78,7 @@ defmodule EvilEngine.ExecutionCase do
 
     on_exit(fn ->
       terminate_all_process_instances()
-      Process.sleep(50)
+      await_supervisor_drain()
 
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :called_element_resolver)
@@ -101,6 +102,31 @@ defmodule EvilEngine.ExecutionCase do
     Enum.each(children, fn {_, pid, _, _} ->
       DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
     end)
+  rescue
+    _ -> :ok
+  end
+
+  @supervisor_drain_timeout_ms 2_000
+  @supervisor_drain_poll_ms 25
+
+  defp await_supervisor_drain do
+    deadline = System.monotonic_time(:millisecond) + @supervisor_drain_timeout_ms
+
+    Stream.repeatedly(fn ->
+      case DynamicSupervisor.which_children(EvilEngine.Execution.Supervisor) do
+        [] ->
+          :drained
+
+        _children ->
+          if System.monotonic_time(:millisecond) >= deadline do
+            :timeout
+          else
+            Process.sleep(@supervisor_drain_poll_ms)
+            :waiting
+          end
+      end
+    end)
+    |> Enum.find(&(&1 != :waiting))
   rescue
     _ -> :ok
   end
@@ -602,7 +628,9 @@ defmodule EvilEngine.ExecutionCase do
   @doc """
   Wait for a PI to stop by looking up its PID from the Execution Registry.
 
-  Handles the race where the PI already terminated before lookup.
+  After the monitored PI terminates, also drains the DynamicSupervisor to
+  ensure child PIs (from SubProcess/Call Activity) have fully terminated
+  and flushed their DB writes before the test proceeds with assertions.
   """
   def wait_for_process_instance(process_instance_id, timeout \\ 2_000) do
     case EvilEngine.Execution.lookup_process_instance(process_instance_id) do
@@ -610,7 +638,9 @@ defmodule EvilEngine.ExecutionCase do
         ref = Process.monitor(pid)
 
         receive do
-          {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+          {:DOWN, ^ref, :process, ^pid, _reason} ->
+            await_supervisor_drain()
+            :ok
         after
           timeout ->
             Process.demonitor(ref, [:flush])

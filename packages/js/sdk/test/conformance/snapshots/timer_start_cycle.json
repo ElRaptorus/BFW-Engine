@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_TimerStartCycle",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -28,6 +30,7 @@
               "timeDate": null,
               "timeDuration": null
             },
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -51,9 +54,9 @@
         }
       ],
       "id": "TimerStartCycle",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [],
-      "linterScores": [],
       "name": "Timer Start Cycle",
       "sequenceFlows": [
         {

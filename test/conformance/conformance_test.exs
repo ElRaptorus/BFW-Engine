@@ -1396,6 +1396,183 @@ defmodule EvilEngine.Conformance.ConformanceTest do
   end
 
   # ===================================================================
+  # INTERACTIVE TIER — Event Subprocess conformance (C170–C178)
+  # ===================================================================
+
+  test "C170: Interrupting message Event Subprocess fires and finishes the scope" do
+    spec = Runner.load_spec("C170_event_subprocess_message.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_message("esp-message")
+
+    wait_for_process_instance(process_instance_id, 10_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C171: Non-interrupting message Event Subprocess runs in parallel; scope finishes after both" do
+    spec = Runner.load_spec("C171_event_subprocess_message_non_interrupting.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_message("esp-message-ni")
+
+    # The non-interrupting ESP runs in parallel; the main user task is still
+    # waiting, so the scope must be driven to completion by finishing it.
+    Process.sleep(500)
+    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+
+    wait_for_process_instance(process_instance_id, 10_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C172: Interrupting signal Event Subprocess fires and finishes the scope" do
+    spec = Runner.load_spec("C172_event_subprocess_signal.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_signal("esp-signal")
+
+    wait_for_process_instance(process_instance_id, 10_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C173: Non-interrupting signal Event Subprocess runs in parallel; scope finishes after both" do
+    spec = Runner.load_spec("C173_event_subprocess_signal_non_interrupting.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_signal("esp-signal-ni")
+
+    Process.sleep(500)
+    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+
+    wait_for_process_instance(process_instance_id, 10_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C174: Interrupting timer Event Subprocess fires after the duration and finishes the scope" do
+    spec = Runner.load_spec("C174_event_subprocess_timer_interrupting.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    # The timer (PT1S) fires while the main user task waits, interrupting it.
+    wait_for_process_instance(process_instance_id, 15_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C175: Non-interrupting timer Event Subprocess fires in parallel; scope finishes after both" do
+    spec = Runner.load_spec("C175_event_subprocess_timer_non_interrupting.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    # Give the PT1S timer time to fire and spawn the parallel ESP child.
+    Process.sleep(2_000)
+    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+
+    wait_for_process_instance(process_instance_id, 15_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C176: Escalation Event Subprocess catches a main-flow escalation throw" do
+    spec = Runner.load_spec("C176_event_subprocess_escalation.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    # The escalation throw fires at start; the scope-level escalation ESP catches
+    # it (non-interrupting) and the main flow continues to its End event.
+    wait_for_process_instance(process_instance_id, 10_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C177: Two Event Subprocesses in one scope; only the matching (message) trigger fires" do
+    spec = Runner.load_spec("C177_event_subprocess_multiple.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_message("esp-multi-message")
+
+    wait_for_process_instance(process_instance_id, 10_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C178: Interrupting message Event Subprocess with an embedded subprocess body completes" do
+    spec = Runner.load_spec("C178_event_subprocess_nested_embedded.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_message("esp-nested-message")
+
+    wait_for_process_instance(process_instance_id, 15_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C179: Interrupting error Event Subprocess catches BPMN error from embedded subprocess" do
+    spec = Runner.load_spec("C179_event_subprocess_error.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    wait_for_process_instance(process_instance_id, 15_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C180: Interrupting conditional Event Subprocess fires when condition transitions to true" do
+    spec = Runner.load_spec("C180_event_subprocess_conditional.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    wait_for_process_instance(process_instance_id, 15_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C181: Escalation boundary on activity wins over scope-level escalation ESP (proximity)" do
+    spec = Runner.load_spec("C181_event_subprocess_vs_boundary_proximity.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    wait_for_process_instance(process_instance_id, 15_000)
+    Runner.assert_expectations(process_instance_id, spec)
+
+    flow_node_instances = fetch_flow_node_instances(process_instance_id)
+
+    boundary_path_fnis =
+      Enum.filter(flow_node_instances, &(&1.flow_node_id == "End_BoundaryCaught"))
+
+    assert boundary_path_fnis != [],
+           "Expected End_BoundaryCaught to be reached (boundary wins over ESP)"
+
+    esp_fnis = Enum.filter(flow_node_instances, &(&1.flow_node_id == "ESP_Task"))
+
+    assert Enum.empty?(esp_fnis),
+           "Expected ESP_Task to NOT be reached (boundary has priority over ESP)"
+  end
+
+  test "C182: Nested ESP — outer message ESP contains inner timer ESP; both complete" do
+    spec = Runner.load_spec("C182_event_subprocess_nested_esp.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _user_task_fni} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {200, _trigger_result} = http_trigger_message("esp-outer-message")
+
+    wait_for_process_instance(process_instance_id, 20_000)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  # ===================================================================
   # Private helpers
   # ===================================================================
 

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_ErrTwoEsps">
+
+  <bpmn:error id="Error_PF" name="Payment Failed" errorCode="PAYMENT_FAILED" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EspConflictErrTwoEspsSpecificWins" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EspConflictErrTwoEspsSpecificWins" name="Two Error ESPs: Specific Wins" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_Thrower</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Subprocess that throws PAYMENT_FAILED error -->
+    <bpmn:subProcess id="SubProcess_Thrower" name="Error Thrower">
+      <bpmn:startEvent id="Thrower_Start" name="Thrower Start">
+        <bpmn:outgoing>Thrower_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="Thrower_ErrorEnd" name="Payment Failed">
+        <bpmn:errorEventDefinition id="Thrower_ErrDef" errorRef="Error_PF">
+          <bpmn:extensionElements>
+            <evil:errorCode>PAYMENT_FAILED</evil:errorCode>
+            <evil:errorMessage>Payment processing failed</evil:errorMessage>
+          </bpmn:extensionElements>
+        </bpmn:errorEventDefinition>
+        <bpmn:incoming>Thrower_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Thrower_Flow_1" sourceRef="Thrower_Start" targetRef="Thrower_ErrorEnd" />
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ESP 1: Specific error code PAYMENT_FAILED (must be interrupting) -->
+    <bpmn:subProcess id="ESP_Specific_Error" name="ESP Specific PAYMENT_FAILED" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Specific_Err_Start" name="Specific Error Start" isInterrupting="true">
+        <bpmn:errorEventDefinition id="ESP_Specific_Err_Def" errorRef="Error_PF" />
+        <bpmn:outgoing>ESP_Specific_Err_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="ESP_Specific_Err_End" name="Specific Error End">
+        <bpmn:incoming>ESP_Specific_Err_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Specific_Err_Flow_1" sourceRef="ESP_Specific_Err_Start" targetRef="ESP_Specific_Err_End" />
+    </bpmn:subProcess>
+
+    <!-- ESP 2: Catch-all error (must be interrupting) -->
+    <bpmn:subProcess id="ESP_CatchAll_Error" name="ESP CatchAll Error" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_CatchAll_Err_Start" name="CatchAll Error Start" isInterrupting="true">
+        <bpmn:errorEventDefinition id="ESP_CatchAll_Err_Def" />
+        <bpmn:outgoing>ESP_CatchAll_Err_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="ESP_CatchAll_Err_End" name="CatchAll Error End">
+        <bpmn:incoming>ESP_CatchAll_Err_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_CatchAll_Err_Flow_1" sourceRef="ESP_CatchAll_Err_Start" targetRef="ESP_CatchAll_Err_End" />
+    </bpmn:subProcess>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_Thrower" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Thrower" targetRef="End_Normal" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="726" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="696" height="500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_Thrower" bpmnElement="SubProcess_Thrower" isExpanded="true">
+        <dc:Bounds x="280" y="80" width="300" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Thrower_Start" bpmnElement="Thrower_Start">
+        <dc:Bounds x="310" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Thrower_ErrorEnd" bpmnElement="Thrower_ErrorEnd">
+        <dc:Bounds x="460" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="662" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Specific_Error" bpmnElement="ESP_Specific_Error" isExpanded="true">
+        <dc:Bounds x="160" y="290" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Specific_Err_Start" bpmnElement="ESP_Specific_Err_Start">
+        <dc:Bounds x="190" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Specific_Err_End" bpmnElement="ESP_Specific_Err_End">
+        <dc:Bounds x="360" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_CatchAll_Error" bpmnElement="ESP_CatchAll_Error" isExpanded="true">
+        <dc:Bounds x="160" y="430" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_CatchAll_Err_Start" bpmnElement="ESP_CatchAll_Err_Start">
+        <dc:Bounds x="190" y="472" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_CatchAll_Err_End" bpmnElement="ESP_CatchAll_Err_End">
+        <dc:Bounds x="360" y="472" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="160" />
+        <di:waypoint x="280" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="580" y="160" />
+        <di:waypoint x="662" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Thrower_Flow_1" bpmnElement="Thrower_Flow_1">
+        <di:waypoint x="346" y="160" />
+        <di:waypoint x="460" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Specific_Err_Flow_1" bpmnElement="ESP_Specific_Err_Flow_1">
+        <di:waypoint x="226" y="350" />
+        <di:waypoint x="360" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_CatchAll_Err_Flow_1" bpmnElement="ESP_CatchAll_Err_Flow_1">
+        <di:waypoint x="226" y="490" />
+        <di:waypoint x="360" y="490" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

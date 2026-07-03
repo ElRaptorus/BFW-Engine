@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_NoStart",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -30,6 +32,7 @@
         }
       ],
       "id": "Process_NoStart",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -38,7 +41,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": null,
       "sequenceFlows": [],
       "version": "1.0.0"

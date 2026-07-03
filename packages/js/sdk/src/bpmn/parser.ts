@@ -558,6 +558,7 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
       return {
         type: 'start_event',
         eventDefinition: parseEventDefinition(kids),
+        isInterrupting: attr(node, 'isInterrupting') !== 'false',
         resultContract: parseJsonText(childText(extKids, 'resultContract')),
       };
 

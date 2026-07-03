@@ -25,7 +25,7 @@ A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blo
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 4 complete.** Embedded Subprocesses, Parallel Gateways, Inclusive Gateways, Event-Based Gateways, Conditional Events, and Escalation Events are all fully implemented.
+> **Status**: **Phase 5 started.** Complex Gateways and Event Subprocesses implemented.
 >
 > See tables below for [BPMN](#bpmn-20-element-support) and [DMN](#dmn-15-support) element support.
 
@@ -131,8 +131,10 @@ behaviour yet.
 | Start Event (Timer)       | Yes         | Automated Process Start via Cyclic, Date or Duration Timers |
 | Start Event (Message)     | Yes         | Automated Process Start, when a Message is received. Correlation-aware; only triggers if no Message Catch Event in the same process listens for the same message with the same correlation. |
 | Start Event (Signal)      | Yes         | Automated Process Start, when a Signal is received |
-| Start Event (Conditional) | Parsed only | Planned: Phase 5 (Event Subprocesses) |
-| Start Event (Error)       | Parsed only | Planned: Phase 5 (Event Subprocesses) |
+| Start Event (Conditional) | Yes         | Event Subprocesses only. Triggers when a FEEL condition is met. |
+| Start Event (Error)       | Yes         | Event Subprocesses only. Triggers when an Error is caught. |
+| Start Event (Escalation)  | Yes         | Event Subprocesses only. Triggers when an Escalation is caught. |
+| Start Event (Compensation)| Parsed Only | Planned, Phase 5. |
 
 
 ### Events — End
@@ -202,7 +204,7 @@ behaviour yet.
 
 | Element                | Supported   | Notes                    |
 | ---------------------- | ----------- | ------------------------ |
-| Event Subprocess       | Parsed only | Planned: Phase 5         |
+| Event Subprocess       | Yes         | Interrupting + Non-Interrupting, triggered by single typed Start Event         |
 | Transaction Subprocess | Parsed only | Planned: Phase 5         |
 | Data Stores            | No          | Not planned at this time |
 | Ad Hoc Subprocess      | No          | Not planned at this time |

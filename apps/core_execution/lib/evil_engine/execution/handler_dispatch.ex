@@ -17,6 +17,7 @@ defmodule EvilEngine.Execution.HandlerDispatch do
 
   alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
+  alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.BPMN.Model.MultiInstance
   alias EvilEngine.Execution.FlowNodes
 
@@ -257,6 +258,16 @@ defmodule EvilEngine.Execution.HandlerDispatch do
 
   defp resolve_handler(%FlowNode{type_data: %{event_definition: %EventDefinition.Cancel{}}}) do
     :unsupported_event_definition
+  end
+
+  # Event Subprocess shell — triggered by its start event, not by a token enter.
+  # Firing is orchestrated by the scope PI, which dispatches the shell FNI
+  # through this handler.
+  defp resolve_handler(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{triggered_by_event: true}
+       }) do
+    {:ok, FlowNodes.EventSubprocess}
   end
 
   defp resolve_handler(_flow_node), do: :fallback

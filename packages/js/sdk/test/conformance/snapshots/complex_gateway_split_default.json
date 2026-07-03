@@ -1,0 +1,171 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ComplexSplit",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Split",
+          "outgoing": ["Flow_Default", "Flow_A"],
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A",
+          "incoming": ["Flow_A"],
+          "multiInstance": null,
+          "name": "Task A",
+          "outgoing": ["Flow_A2"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Default",
+          "incoming": ["Flow_Default"],
+          "multiInstance": null,
+          "name": "Task Default",
+          "outgoing": ["Flow_Default2"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_A",
+          "incoming": ["Flow_A2"],
+          "multiInstance": null,
+          "name": "End A",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Default",
+          "incoming": ["Flow_Default2"],
+          "multiInstance": null,
+          "name": "End Default",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ComplexGatewaySplitDefault",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ComplexSplit", "Task_A", "Task_Default", "End_A", "End_Default"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Complex Gateway Split Default",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ComplexSplit"
+        },
+        {
+          "conditionExpression": "token.amount > 1000",
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ComplexSplit",
+          "targetRef": "Task_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Default",
+          "isDefault": true,
+          "name": null,
+          "sourceRef": "ComplexSplit",
+          "targetRef": "Task_Default"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A",
+          "targetRef": "End_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Default2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Default",
+          "targetRef": "End_Default"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

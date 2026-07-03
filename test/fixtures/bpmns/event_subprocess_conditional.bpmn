@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EventSubprocessConditional" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EventSubprocessConditional" name="Event Subprocess Conditional" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Script_WriteDO</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Main_UserTask</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ESP_Conditional</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DataObjRef_Trigger</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="DO_Trigger" name="Trigger" />
+    <bpmn:dataObjectReference id="DataObjRef_Trigger" name="Trigger" dataObjectRef="DO_Trigger" />
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Main_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Script_WriteDO" name="Write Data Object" scriptFormat="feel">
+      <bpmn:script>{ activated: true }</bpmn:script>
+      <bpmn:incoming>Main_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Main_Flow_2</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DOA_Script">
+        <bpmn:targetRef>DataObjRef_Trigger</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+    <bpmn:userTask id="Main_UserTask" name="Main Work">
+      <bpmn:incoming>Main_Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Main_Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Main_Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Main_Flow_1" sourceRef="Start_1" targetRef="Script_WriteDO" />
+    <bpmn:sequenceFlow id="Main_Flow_2" sourceRef="Script_WriteDO" targetRef="Main_UserTask" />
+    <bpmn:sequenceFlow id="Main_Flow_3" sourceRef="Main_UserTask" targetRef="End_1" />
+
+    <bpmn:subProcess id="ESP_Conditional" name="Conditional Event Subprocess" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Start" name="Condition Met" isInterrupting="true">
+        <bpmn:conditionalEventDefinition id="ESP_CondDef">
+          <bpmn:condition>dataObjects.DO_Trigger != null</bpmn:condition>
+        </bpmn:conditionalEventDefinition>
+        <bpmn:outgoing>ESP_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:task id="ESP_Task" name="Handle Condition">
+        <bpmn:incoming>ESP_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>ESP_Flow_2</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:endEvent id="ESP_End" name="ESP Done">
+        <bpmn:incoming>ESP_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Flow_1" sourceRef="ESP_Start" targetRef="ESP_Task" />
+      <bpmn:sequenceFlow id="ESP_Flow_2" sourceRef="ESP_Task" targetRef="ESP_End" />
+    </bpmn:subProcess>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="726" height="420" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="696" height="420" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Script_WriteDO" bpmnElement="Script_WriteDO">
+        <dc:Bounds x="260" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Main_UserTask" bpmnElement="Main_UserTask">
+        <dc:Bounds x="420" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="582" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataObjRef_Trigger" bpmnElement="DataObjRef_Trigger">
+        <dc:Bounds x="292" y="240" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Conditional" bpmnElement="ESP_Conditional" isExpanded="true">
+        <dc:Bounds x="200" y="320" width="380" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Start" bpmnElement="ESP_Start">
+        <dc:Bounds x="220" y="372" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Task" bpmnElement="ESP_Task">
+        <dc:Bounds x="310" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_End" bpmnElement="ESP_End">
+        <dc:Bounds x="462" y="372" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_1" bpmnElement="Main_Flow_1">
+        <di:waypoint x="198" y="160" />
+        <di:waypoint x="260" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_2" bpmnElement="Main_Flow_2">
+        <di:waypoint x="360" y="160" />
+        <di:waypoint x="420" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Main_Flow_3" bpmnElement="Main_Flow_3">
+        <di:waypoint x="520" y="160" />
+        <di:waypoint x="582" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Flow_1" bpmnElement="ESP_Flow_1">
+        <di:waypoint x="256" y="390" />
+        <di:waypoint x="310" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Flow_2" bpmnElement="ESP_Flow_2">
+        <di:waypoint x="410" y="390" />
+        <di:waypoint x="462" y="390" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

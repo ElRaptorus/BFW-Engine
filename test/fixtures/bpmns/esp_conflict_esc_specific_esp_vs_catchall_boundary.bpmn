@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_EscSpecificEspVsCatchall">
+
+  <bpmn:escalation id="Esc_X" name="esc-x" escalationCode="ESC_X" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="EspConflictEscSpecificEspVsCatchall" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="EspConflictEscSpecificEspVsCatchall" name="ESP Conflict: Specific ESP vs Catch-all Boundary" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_CatchAll</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_BoundaryCaught</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Subprocess A with catch-all escalation boundary (no escalationRef) -->
+    <bpmn:subProcess id="SubProcess_A" name="Subprocess A">
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:intermediateThrowEvent id="Sub_Throw" name="Throw ESC_X">
+        <bpmn:escalationEventDefinition id="Sub_EscDef" escalationRef="Esc_X" />
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
+      </bpmn:intermediateThrowEvent>
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_Throw" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Sub_Throw" targetRef="Sub_End" />
+    </bpmn:subProcess>
+
+    <!-- Catch-all escalation boundary on SubProcess_A (no escalation code) -->
+    <bpmn:boundaryEvent id="BE_CatchAll" attachedToRef="SubProcess_A" cancelActivity="true">
+      <bpmn:escalationEventDefinition id="BE_EscDef" />
+      <bpmn:outgoing>Flow_BE</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_BoundaryCaught" name="Boundary Caught">
+      <bpmn:incoming>Flow_BE</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ESP with SPECIFIC escalation code ESC_X -->
+    <bpmn:subProcess id="ESP_SpecificEsc" name="ESP Specific ESC_X" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Start" name="ESP Escalation Start" isInterrupting="true">
+        <bpmn:escalationEventDefinition id="ESP_EscDef" escalationRef="Esc_X" />
+        <bpmn:outgoing>ESP_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="ESP_End" name="ESP End">
+        <bpmn:incoming>ESP_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Flow_1" sourceRef="ESP_Start" targetRef="ESP_End" />
+    </bpmn:subProcess>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_A" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_A" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_BE" sourceRef="BE_CatchAll" targetRef="End_BoundaryCaught" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="826" height="440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="796" height="440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_A" bpmnElement="SubProcess_A" isExpanded="true">
+        <dc:Bounds x="290" y="120" width="380" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
+        <dc:Bounds x="310" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Throw" bpmnElement="Sub_Throw">
+        <dc:Bounds x="420" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End" bpmnElement="Sub_End">
+        <dc:Bounds x="530" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_CatchAll" bpmnElement="BE_CatchAll">
+        <dc:Bounds x="462" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="762" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_BoundaryCaught" bpmnElement="End_BoundaryCaught">
+        <dc:Bounds x="762" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_SpecificEsc" bpmnElement="ESP_SpecificEsc" isExpanded="true">
+        <dc:Bounds x="200" y="360" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Start" bpmnElement="ESP_Start">
+        <dc:Bounds x="230" y="402" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_End" bpmnElement="ESP_End">
+        <dc:Bounds x="400" y="402" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="670" y="200" />
+        <di:waypoint x="762" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BE" bpmnElement="Flow_BE">
+        <di:waypoint x="498" y="280" />
+        <di:waypoint x="630" y="280" />
+        <di:waypoint x="630" y="350" />
+        <di:waypoint x="762" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="346" y="200" />
+        <di:waypoint x="420" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_2" bpmnElement="Sub_Flow_2">
+        <di:waypoint x="456" y="200" />
+        <di:waypoint x="530" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Flow_1" bpmnElement="ESP_Flow_1">
+        <di:waypoint x="266" y="420" />
+        <di:waypoint x="400" y="420" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

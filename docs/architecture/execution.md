@@ -785,7 +785,7 @@ The synthetic process carries the inner `flow_nodes`, `sequence_flows`, `data_ob
 
 Entry sequence:
 
-1. **Event subprocess guard** — rejects `triggered_by_event: true` with `{:error, :event_subprocess_not_supported}`
+1. **Event subprocess guard** — `guard_event_subprocess/1` returns `{:error, :event_subprocess_not_supported}` for `triggered_by_event: true`. This is a **defensive** guard for the token-entry path only: an Event Subprocess has no incoming sequence flow, so it is never reached through `handle_enter/3`. Its shell FNI is created and dispatched by the scope PI's trigger machinery through the dedicated `FlowNodes.EventSubprocess` handler instead — see [§Event Subprocess Handler](#event-subprocess-handler)
 2. **Runtime structural validation** — exactly one None Start Event, no typed Start Events, at least one End Event (`validate_subprocess_contents/2`). Deploy-time validator allows WIP inner diagrams; these rules fire here
 3. **Input pipeline** — `MappingHelper.apply_in_mappings/3` then `payload_contract` validation
 4. **Child spawn** — `Execution.start_process_instance/1` with `process_version_id` inherited from the parent (no separate deployment), plus `subprocess_node_id`, `parent_process_instance_id`, `root_process_instance_id`, and `triggerer_flow_node_instance_id`
@@ -828,6 +828,121 @@ Invoked from `ProcessInstance.Resumption.reactivate_sub_process_fni/4` for `:wai
 | Not found | Re-runs full lifecycle (`run_fresh_lifecycle/4`) — re-validates inner structure, re-applies input pipeline, spawns a new child PI |
 
 Synthetic model resolution uses the same `fetch_subprocess_model/2` path as initial start (rebuilt from the parent's cached `%Definitions{}`, not a separately persisted artifact).
+
+### Event Subprocess Handler
+
+**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/event_subprocess.ex`
+
+An **Event Subprocess (ESP)** is a `<bpmn:subProcess>` with `triggeredByEvent="true"` placed inside a process (top-level) or an embedded subprocess. It has **no incoming or outgoing sequence flows** and is therefore never token-entered. It lies **dormant** until its single **typed** start event (Message, Signal, Timer, Error, Escalation, or Conditional — validator-enforced) is triggered by an event occurring within its enclosing **scope**. On trigger the scope PI spawns a **child PI** running the ESP's inner flow — the same child-PI execution model as an embedded subprocess (synthetic model via `ModelCache.fetch_subprocess_model/2`, same `process_version_id`, no separate deployment).
+
+This module has a dual structure:
+
+- **§A — Handler callbacks** (`handle_enter/3`, `handle_resume/4`, `handle_fatal/1`, `handle_aborted/1`): own the ESP shell FNI lifecycle (child PI spawn, await, cascade).
+- **§B — Scope-level trigger API** (`register_triggers/1`, `teardown_triggers/1`, `resolve_trigger/3`, `resolve_reactive_trigger/3`, `rearm_timer/3`, `resolve_error_catch/3`, `resolve_bpmn_error_catch/2`, `resolve_escalation_catch/2`, `evaluate_conditionals/1`, `passthrough_start_event/2`, `maybe_emit_triggered/4`): all ESP trigger detection, resolution, and lifecycle management. These functions operate on the scope PI's `State` and return `trigger_action()` tuples that the PI executes through thin delegation functions (see [§PI thin delegation](#pi-thin-delegation)).
+
+#### Execution model (ESP-D1, ESP-D12)
+
+A running ESP instance is represented in the scope PI as a **shell FNI** (`flow_node_id` = ESP shell node id, `type: :sub_process`) that owns the child PI's `child_process_instance_id` and participates in the scope's `active_count`. `handle_enter/3` resolves the single start event, pre-generates the `child_process_instance_id`, parks the shell FNI as async-waiting via `FniLifecycle.park_async` (persisting `child_process_instance_id` and `is_event_subprocess: true`), and runs `run_child_lifecycle/6` in the continuation. The child is started through `Execution.start_process_instance/1` with `subprocess_node_id`, the mandatory `parent_process_instance_id` (= the scope PI id — the core isolation guard rejects a `subprocess_node_id` spawn without a parent, `:orphan_subprocess_start`), the inherited `root_process_instance_id`, `start_event_id`, and `esp_start_passthrough: true`. The trigger payload passes straight through — **no data mappings** on the ESP shell (ESP-D decision D). On child completion the shell FNI finishes with `next_flow_node_ids: []` (no outgoing flow).
+
+`esp_start_passthrough: true` converts a Timer / Conditional / Escalation ESP start event into an `EventDefinition.None` start for the child's **initial dispatch**, so the child does not re-arm the timer, re-evaluate the condition, or re-throw the escalation that triggered it.
+
+#### Scope-level trigger API (§B)
+
+All ESP trigger detection, resolution, and lifecycle management lives in `FlowNodes.EventSubprocess` (§B of the module). The PI aliases this module as `EspScope` and delegates through thin functions (see [§PI thin delegation](#pi-thin-delegation) below). The §B functions operate on the scope PI's `State`, returning `trigger_action()` tuples that the PI pattern-matches and executes.
+
+**`trigger_action()` type:**
+
+```elixir
+@type trigger_action ::
+  {:fire_interrupting, FlowNode.t(), map()}
+  | {:fire_non_interrupting, FlowNode.t(), map()}
+  | :noop
+```
+
+**Scope-level API functions:**
+
+| Function | Signature | Purpose |
+|----------|-----------|---------|
+| `register_triggers/1` | `(State.t()) :: State.t()` | Scans flow nodes for ESPs, registers dormant triggers (message/signal subscriptions, timer arms, conditional waiters). Called from PI `init` and `Resumption.resume` |
+| `teardown_triggers/1` | `(State.t()) :: State.t()` | Cancels all dormant ESP triggers (timers, subscriptions). Called during interrupting fire |
+| `resolve_trigger/3` | `(State.t(), subprocess_node_id, payload) :: trigger_action()` | Resolves a pre-registered trigger (message/signal/timer) into a fire action or `:noop` |
+| `resolve_reactive_trigger/3` | `(State.t(), EventSubprocessTrigger.t(), payload) :: trigger_action()` | Resolves a reactive trigger (error/escalation found by `EventSubprocessResolver`) into a fire action |
+| `rearm_timer/3` | `(State.t(), subprocess_node_id, metadata) :: State.t()` | Re-arms a non-interrupting cyclic timer trigger after a tick |
+| `resolve_error_catch/3` | `(State.t(), flow_node_instance_id, reason) :: {:caught, State.t(), trigger_action()} \| :not_caught` | Checks if a handler `{:error, reason}` is catchable by an ESP error start |
+| `resolve_bpmn_error_catch/2` | `(State.t(), error_info) :: {:ok, trigger_action()} \| :none` | Checks if a BPMN error (from Error End Event) is catchable by an ESP error start |
+| `resolve_escalation_catch/2` | `(State.t(), escalation_info) :: {:ok, trigger_action()} \| :none` | Checks if an escalation is catchable by an ESP escalation start |
+| `evaluate_conditionals/1` | `(State.t()) :: {State.t(), [trigger_action()]}` | Re-evaluates all conditional ESP triggers; returns a list of fire actions for those that transitioned `false → true` |
+| `passthrough_start_event/2` | `(FlowNode.t(), boolean()) :: FlowNode.t()` | Converts a Timer/Conditional/Escalation ESP start into `EventDefinition.None` for the child's initial dispatch |
+| `maybe_emit_triggered/4` | `(State.t(), subprocess_node_id, child_process_instance_id, is_event_subprocess) :: :ok` | Emits `EventSubprocessTriggered` for ESP child spawns |
+
+**Trigger registration and routing (unchanged mechanism):**
+
+| Trigger kind | Registration (inside `register_triggers/1`) | Fires via |
+|--------------|----------------------------------------------|-----------|
+| Message | `MessageSubscriptions.register` with kind `:event_subprocess_start` (correlation evaluated at scope activation) | PI `:info` `{:event_subprocess_message, subprocess_node_id, payload}` |
+| Signal | `SignalSubscriptions.register` with kind `:event_subprocess_start` | PI `:info` `{:event_subprocess_signal, subprocess_node_id}` |
+| Timer | `Scheduler` arm relative to scope activation | PI `:info` `{:timer_fired, ref, %{kind: :event_subprocess_start, subprocess_node_id: ...}}` |
+| Conditional | scope-PI conditional waiter (edge-triggered, kind `:event_subprocess_start`) | re-evaluated on every scope FNI state change via `evaluate_conditionals/1` |
+| Error / Escalation | **not** pre-registered (reactive) | resolved at raise time via `resolve_error_catch/3`, `resolve_bpmn_error_catch/2`, `resolve_escalation_catch/2` (which delegate to `EventSubprocessResolver`) |
+
+Each PI `:info` clause calls `EspScope.resolve_trigger/3` or `EspScope.rearm_timer/3`, receives a `trigger_action()`, and passes it to `execute_esp_action/2`. Message/signal/timer/conditional triggers lie **dormant** until fired; on scope-PI finish they are cleaned up with the rest of the subscriptions.
+
+#### PI thin delegation
+
+The PI module (`ProcessInstance`) aliases `FlowNodes.EventSubprocess` as `EspScope` and keeps three thin private functions that pattern-match on `trigger_action()` tuples:
+
+- **`execute_esp_action/2`** — dispatches `{:fire_interrupting, ...}` (calls `interrupt_remaining_fnis` + `EspScope.teardown_triggers` + `dispatch_esp_shell`), `{:fire_non_interrupting, ...}` (calls `dispatch_esp_shell`), or `:noop` (identity).
+- **`dispatch_esp_shell/3`** — creates a token and calls `dispatch_flow_node_instance` for the ESP shell node.
+- **`execute_esp_conditionals/1`** — calls `EspScope.evaluate_conditionals/1` and reduces over the returned action list via `execute_esp_action/2`.
+
+This separation keeps the PI free of trigger-detection logic while preserving its authority over FNI dispatch, interruption, and state-machine transitions.
+
+#### Lane-neutrality (ESP-D9)
+
+ESP triggering is **never lane-gated**. The ESP shell FNI's lane is derived from the BPMN model (nil if the shell is not placed inside any lane). Activities *inside* the ESP's inner scope may carry their own lane assignments per ESP-D9, but the trigger itself fires regardless of the caller's lane claims.
+
+#### Interrupting vs non-interrupting (ESP-D3, ESP-D4)
+
+`isInterrupting` is a standard BPMN attribute on the ESP start event (modeler-controlled only; no `evil:*` override, no property-pane toggle). The `trigger_action()` returned by the §B API encodes this decision: `{:fire_interrupting, ...}` or `{:fire_non_interrupting, ...}`. The PI's `execute_esp_action/2` pattern-matches and applies the correct scope effects — the handler code (`handle_enter/3`) is identical for both variants.
+
+- **Interrupting** (`{:fire_interrupting, esp_node, payload}`): `execute_esp_action/2` calls `interrupt_remaining_fnis` (terminal state `:interrupted`, reason `:interrupted_by_event_subprocess`), then `EspScope.teardown_triggers/1` to cancel all other dormant ESP triggers and inline catch subscriptions, then `dispatch_esp_shell/3` to create and dispatch the ESP shell FNI. **The interrupting fire does not kill the scope PI itself** — `interrupt_remaining_fnis` iterates only FNIs other than the ESP shell and keeps the PI alive (the same primitive Terminate End Events and Complex-Join Twist 2 use). When the child completes, `maybe_finish/1` sees `active_count == 0` and the scope PI reaches `:finished` — never `:aborted`/`:fatal` merely because the ESP fired. Two interrupting triggers enqueued together are idempotent: the first dequeued wins, the second becomes a no-op (its siblings are already interrupted).
+- **Non-interrupting** (`{:fire_non_interrupting, esp_node, payload}`): `execute_esp_action/2` calls `dispatch_esp_shell/3` directly — creating a *distinct* shell FNI per fire and spawning a parallel ESP child. The trigger re-arms (via `rearm_timer/3` for cyclic timers; message/signal subscriptions persist) so it may fire again → multiple concurrent independent child PIs. The scope's main flow continues. The scope PI finishes only once the main flow **and** every ESP shell FNI (child PI) have completed.
+
+#### Error / escalation reactive hooks
+
+Uncaught **error** and **escalation** triggers are resolved **reactively** at raise time (not pre-registered). The §B API provides three functions that wrap `EvilEngine.Execution.EventSubprocessResolver`:
+
+- `resolve_error_catch/3` — handles handler `{:error, reason}` results; extracts error info and delegates to `EventSubprocessResolver.find_matching_error_start/2`. Returns `{:caught, updated_data, trigger_action}` or `:not_caught`.
+- `resolve_bpmn_error_catch/2` — handles BPMN errors from Error End Events; delegates to `EventSubprocessResolver.find_matching_error_start/2`. Returns `{:ok, trigger_action}` or `:none`.
+- `resolve_escalation_catch/2` — handles escalations; delegates to `EventSubprocessResolver.find_matching_escalation_start/2`. Returns `{:ok, trigger_action}` or `:none`.
+
+The underlying resolver ranks ESP error/escalation-start triggers in the scope; a specific `error_code`/`escalation_code` match beats a catch-all (no code). Error ESP starts are always interrupting (ESP-D7). The resolver only ranks candidates that are **peers in one scope**; **proximity** (boundary-on-host tested before the scope ESP, scope ESP before outward propagation) is enforced by the call sites in `ProcessInstance`. When an Error End is raised in the scope, `handle_fni_bpmn_error/*` consults `EspScope.resolve_bpmn_error_catch/2` before transitioning the PI to `:error`; a match fires the ESP (interrupting) via `execute_esp_action/2`. `handle_fni_escalation_throw`/escalation-end paths consult `EspScope.resolve_escalation_catch/2` before notifying the parent — a scope-level escalation ESP start catches an escalation raised in that scope **before** it propagates outward (this closes the escalation-proximity gap).
+
+An uncaught error/escalation raised by the **ESP child itself** is first offered to the ESP shell's own boundary events; if none matches it bubbles to the **scope PI's own parent** (ESP-D11) — the handler cannot re-handle its own escape.
+
+#### Cyclic timer (scope-owned re-arm)
+
+A `timeCycle` (e.g. `R/PT1H`) is supported on a **non-interrupting** timer ESP start. The recurrence is owned by the **scope** — the scope re-arms the cycle timer after each tick, and each tick spawns a fresh, independent ESP child PI. Because the child's initial dispatch uses `esp_start_passthrough`, the child's own timer start passes through as a None start and does not re-schedule the cycle. Date/duration timer starts are one-shot (no re-arm).
+
+#### Cascade callbacks
+
+`handle_fatal/1` and `handle_aborted/1` cascade to the child PI via `ProcessInstance.force_fatal/2` / `ProcessInstance.abort/3` when the child is still running (same pattern as embedded SubProcess), reading `child_process_instance_id` from the shell FNI's `type_properties`.
+
+#### `handle_resume/4`
+
+On engine restart the scope PI calls `EspScope.register_triggers/1` to re-register dormant ESP triggers (same scan as fresh init) so a never-yet-triggered ESP fires correctly after a restart. A triggered-but-incomplete ESP is an ordinary child PI, reattached via the shell FNI's persisted `child_process_instance_id`:
+
+| Child state | Resume behaviour |
+|-------------|------------------|
+| Running (found in Registry) | Re-attaches notify PID, re-monitors, completes with the child's result when it finishes |
+| Terminal (`finished`/`fatal`/`error`) | Re-derives the result / error from the child's persisted terminal state |
+| Not found | Re-runs the full lifecycle (`run_fresh_lifecycle/4`) — spawns a new child PI |
+
+Already-`interrupted` siblings are not reloaded (existing resume filter). Abort/fatal/retry cascade to ESP child PIs falls out of the shared shell-FNI machinery.
+
+#### Events
+
+The ESP child spawn emits `SubProcessChildStarted` with `is_event_subprocess: true` (ESP-D16 — the Studio debugger's primary ESP signal) and, in addition, `EspScope.maybe_emit_triggered/4` emits `EventSubprocessTriggered` (`trigger_kind`, `is_interrupting`) for engine-level observers. See [event-system.md](event-system.md).
 
 ### Adding Typed Event Handlers
 

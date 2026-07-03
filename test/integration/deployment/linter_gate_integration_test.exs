@@ -4,25 +4,22 @@ defmodule EvilEngine.Integration.Deployment.LinterGateIntegrationTest do
   alias EvilEngine.BPMN.LinterGate
   alias EvilEngine.BPMN.Model.Definitions
   alias EvilEngine.BPMN.Model.LinterRulesetScore
-  alias EvilEngine.BPMN.Model.Process
 
+  # Linter scores are scoped to the definitions (ESP-D17), matching the
+  # Studio-emitted `definitions/extensionElements/evil:Properties` shape.
   defp sample_definitions(opts \\ []) do
     score = Keyword.get(opts, :score, 95)
     ruleset_id = Keyword.get(opts, :ruleset_id, "evil-default")
 
     %Definitions{
       raw_xml: "<bpmn/>",
-      processes: [
-        %Process{
-          id: "deployed-process",
-          version: "1.0.0",
-          linter_scores: [
-            %LinterRulesetScore{
-              ruleset_id: ruleset_id,
-              score: score,
-              checks: %{"errors" => 0, "warnings" => 2}
-            }
-          ]
+      processes: [],
+      linter_scores: [
+        %LinterRulesetScore{
+          ruleset_id: ruleset_id,
+          score_percent: score,
+          raw_error_findings: 0,
+          raw_warning_findings: 2
         }
       ]
     }

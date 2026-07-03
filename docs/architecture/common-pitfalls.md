@@ -606,18 +606,18 @@ start_opts = [
 
 ## P31: SubProcess vs Event SubProcess confusion
 
-**Mistake:** Modelling event-triggered behaviour with `<bpmn:subProcess triggeredByEvent="true">` (Event SubProcess) or expecting embedded subprocess semantics (token arrives via incoming sequence flow) from an event subprocess container.
+**Mistake:** Expecting embedded-subprocess semantics (token arrives via an incoming sequence flow) from an Event SubProcess container, or attaching a sequence flow to the ESP shell.
 
-**Why it happens:** BPMN 2.0 defines two subprocess flavours with the same XML element name. The parser stores the distinction on `FlowNodeData.SubProcess.triggered_by_event`. ThomasTheDaemonEngine only executes embedded subprocesses (`triggered_by_event: false`).
+**Why it happens:** BPMN 2.0 defines two subprocess flavours with the same XML element name. The parser stores the distinction on `FlowNodeData.SubProcess.triggered_by_event`. Both are executed, but through entirely different entry paths.
 
 **Correct approach:**
 
 | Variant | XML | Engine behaviour |
 |---------|-----|------------------|
 | Embedded SubProcess | `<bpmn:subProcess>` (default) | Executes when a token arrives on an incoming sequence flow; spawns a child PI via `FlowNodes.SubProcess` |
-| Event SubProcess | `<bpmn:subProcess triggeredByEvent="true">` | **Not supported** — `handle_enter/3` returns `{:error, :event_subprocess_not_supported}` |
+| Event SubProcess | `<bpmn:subProcess triggeredByEvent="true">` | **Never token-entered** — has no sequence flows. The scope PI's trigger machinery creates the shell FNI and dispatches it through `FlowNodes.EventSubprocess` when the ESP's typed start event fires (see [execution.md](execution.md) §Event Subprocess Handler and [routing.md](routing.md) §3.5.8) |
 
-For event-triggered behaviour inside a process, attach boundary events (timer, message, signal, error) to the subprocess shell or to an inner activity. Event subprocess deploy-time inner validation is skipped entirely (Phase 4 rules differ).
+`FlowNodes.SubProcess.guard_event_subprocess/1` still returns `{:error, :event_subprocess_not_supported}` — but only as a **defensive** guard on the token-entry path, which an ESP can never legitimately reach. It does **not** mean ESPs are unsupported. Event Subprocesses undergo recursive deploy-time inner validation (like embedded subprocesses) plus ESP-specific start-event rules (`validate_event_subprocess_structure`).
 
 ---
 
@@ -848,4 +848,64 @@ The generic `validate_type_data/6` clause for `%FlowNodeData.ComplexGateway{}` m
 - **Enforce global ID uniqueness at deploy.** `BPMN.Validator` reports `duplicate_flow_node_id` when a flow-node ID collides across the process and any nested subprocess scope, keeping start-event resolution and subprocess scoping unambiguous.
 
 See [security.md](security.md) §Subprocess Start-Event Isolation.
+
+---
+
+## P47: An interrupting Event Subprocess must NOT kill the scope PI — it reaches `:finished`
+
+**Mistake:** Assuming that an interrupting Event Subprocess (ESP) firing terminates its enclosing scope Process Instance the way a Terminate/Error End Event ends a process, i.e. expecting the scope PI to end in `:aborted` or `:fatal` once the ESP interrupts the main flow.
+
+**Why it happens:** "Interrupting" reads like "kill the scope." But an interrupting ESP only cancels the scope's *other* work; the scope itself continues so it can run the ESP body and complete normally.
+
+**Correct approach:** The interrupting fire calls `interrupt_remaining_fnis` (reason `:interrupted_by_event_subprocess`), which iterates only FNIs **other than** the ESP shell FNI — it structurally cannot target the scope PI and does not stop it (the same primitive Terminate End Events use). When the ESP child completes, `maybe_finish/1` sees `active_count == 0` and the scope PI reaches `:finished`. Tests must assert the scope reaches `finished`, never `aborted`/`fatal`, merely because the ESP fired. Two interrupting triggers enqueued together are idempotent — the first dequeued wins, the second is a no-op (its siblings are already `:interrupted`).
+
+---
+
+## P48: Escalation/error proximity beats propagation, and a specific code beats catch-all — but only within one scope
+
+**Mistake:** Ranking an ESP escalation/error start against a boundary event by specificity (assuming a specific-code catcher always wins), or forgetting that a scope-level ESP catches an escalation raised in that scope **before** it propagates to the parent.
+
+**Why it happens:** The escalation/error catcher set spans two different structural levels — boundary events attach to an *activity*, ESP starts attach to a *scope*. Mixing them into one specificity contest gives wrong winners.
+
+**Correct approach:** The law is **proximity first, specificity second** (ESP-D6). Proximity is enforced by the call sites in `ProcessInstance` (`handle_fni_bpmn_error/*`, `handle_fni_escalation_throw`): a boundary on the throwing activity is tested first, then the scope ESP start (`EventSubprocessResolver.find_matching_error_start/2` / `find_matching_escalation_start/2`), then outward propagation to the parent. Specificity (specific code beats catch-all `nil` code) is only a tiebreak **among peers in the same scope** — two ESP starts in one scope, resolved by `rank_by_specificity/3`. A boundary-vs-ESP contest is therefore never decided by specificity. A scope-level escalation ESP start always catches a matching escalation raised in that scope before the parent sees it.
+
+---
+
+## P49: Conditional Event Subprocess starts are edge-triggered (false→true), not level-triggered
+
+**Mistake:** Expecting a conditional ESP start whose FEEL condition is already `true` (or stays `true`) to keep firing on every scope state change, or expecting it to fire immediately at scope activation when the condition is already satisfied.
+
+**Why it happens:** A conditional trigger looks like a predicate that should hold continuously. But continuous firing would spawn an unbounded stream of ESP child PIs while the condition remains true.
+
+**Correct approach:** Conditional ESP starts are **edge-triggered** — they fire on a `false → true` transition of the FEEL condition, re-evaluated on every scope FNI state change (the same conditional-waiter mechanism as Conditional Boundary/Catch events). A non-interrupting conditional ESP re-arms after each fire and will not fire again until the condition returns to `false` and then back to `true`. This prevents busy re-firing while the condition stays true. (Related: P39 — conditional waiter registration includes an immediate evaluation.)
+
+---
+
+## P50: An ESP Message Start is a gated Start Event — a Catch/Boundary always beats it (no fan-out delivery)
+
+**Mistake:** Assuming an ESP Message Start receives the message as one of the broadcast-within-key deliveries alongside an inline Message Catch/Boundary, so both fire for the same `(name, correlation)`.
+
+**Why it happens:** All three register in the same `MessageSubscriptions` registry, so it looks like they all participate in the delivery fan-out.
+
+**Correct approach (ESP-D13 / ESP-D13b):** The ESP Message Start registers with the informational `:event_subprocess_start` kind but is **excluded from the delivery set**, and fires via `resolve_start_events` **only when `deliveries == []`** (the same gate as standalone starts, ordered *before* them). Precedence ladder: **inline Catch/Boundary → ESP Message Start → standalone Message Start**. A Catch/Boundary in the same PI always beats the ESP Message Start; an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). Signals are different — an ESP Signal Start is broadcast-all with no catch-wins-over-Start gate (ESP-D13c). See [routing.md](routing.md) §3.5.8.
+
+---
+
+## P51: An Event Subprocess shell must have NO incoming/outgoing sequence flows
+
+**Mistake:** Drawing a sequence flow into or out of a `<bpmn:subProcess triggeredByEvent="true">` shell (out of habit from embedded subprocesses), or expecting the ESP to be reachable by a token.
+
+**Why it happens:** In a modeler an ESP looks like any other subprocess box, and embedded subprocesses *are* wired into the flow.
+
+**Correct approach:** An ESP is **triggered**, never token-entered — it has no incoming and no outgoing sequence flows. The deploy-time validator rejects a shell that carries either with `:event_subprocess_has_sequence_flow` (`validate_event_subprocess_structure`). The ESP body runs as a child PI spawned by the scope PI's trigger machinery; its inner End Events terminate the child, they do not route a token back into the parent.
+
+---
+
+## P52: Flow-node IDs must be globally unique across the whole process tree — nested ESP scopes cannot reuse `Start_1`
+
+**Mistake:** Reusing convenient IDs like `Start_1` / `End_1` inside an Event Subprocess (or a nested ESP-in-ESP) that already exist in the top-level process or another scope.
+
+**Why it happens:** BPMN modelers often scope IDs mentally per subprocess, and an ESP inner scope *feels* like a separate namespace.
+
+**Correct approach:** `BPMN.Validator.check_unique_flow_node_ids/1` recurses into **every** `SubProcess` scope — including `triggered_by_event: true` — via `collect_all_flow_node_ids/1`, and rejects any collision across the process and all nested subprocess scopes with `:duplicate_flow_node_id`. Suffix IDs per scope (e.g. `ESP_Msg_Start`, `Inner_ESP_Start`) so nested-ESP and ESP-in-ESP diagrams deploy. This uniqueness is what keeps start-event resolution and subprocess scoping unambiguous (see P46).
 

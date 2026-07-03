@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_XOR_CA",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -156,6 +159,7 @@
         }
       ],
       "id": "XorToCallActivity",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -164,7 +168,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "XOR to Call Activity",
       "sequenceFlows": [
         {

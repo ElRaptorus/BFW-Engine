@@ -2,19 +2,21 @@ defmodule EvilEngine.BPMN.LinterGate do
   @moduledoc """
   Deploy-time quality gate based on linter ruleset scores.
 
-  Reads gate configuration from `:core_bpmn, :linter_gate` and checks
-  each process's `LinterRulesetScore` entries against the configured
-  thresholds. Six check types are supported:
+  Reads gate configuration from `:core_bpmn, :linter_gate` and checks the
+  **definitions-level** `LinterRulesetScore` entries (written by the Studio
+  under `definitions/extensionElements/evil:Properties`, ESP-D17) against the
+  configured thresholds. Six check types are supported, each mapped to a field
+  on the Studio-emitted score entry:
 
   - `requirePresence` — the ruleset must be present in the BPMN
-  - `minScorePercent` — minimum score percentage
-  - `maxErrors` — maximum number of errors
-  - `maxWarnings` — maximum number of warnings
-  - `requireComplianceStatus` — exact match on compliance status string
-  - `schemaVersion` — exact match on schema version string
+  - `minScorePercent` — minimum `scorePercent`
+  - `maxErrors` — maximum `rawErrorFindings`
+  - `maxWarnings` — maximum `rawWarningFindings`
+  - `requireComplianceStatus` — exact match on `complianceStatus`
+  - `schemaVersion` — exact match on `schemaVersion`
 
-  Returns `{:ok, :passed}` when all checks pass for all processes, or
-  `{:error, failures}` with a list of violation maps.
+  Returns `{:ok, :passed}` when all checks pass, or `{:error, failures}` with
+  a list of violation maps.
   """
 
   alias EvilEngine.BPMN.Model.Definitions
@@ -52,20 +54,14 @@ defmodule EvilEngine.BPMN.LinterGate do
 
   defp run(definitions, config) do
     failures =
-      Enum.flat_map(definitions.processes, fn process ->
-        check_process_against_config(process, config)
+      Enum.flat_map(config, fn {ruleset_id, ruleset_config} ->
+        score_entry =
+          Enum.find(definitions.linter_scores, &(&1.ruleset_id == ruleset_id))
+
+        check_ruleset(ruleset_id, ruleset_config, score_entry)
       end)
 
     if failures == [], do: {:ok, :passed}, else: {:error, failures}
-  end
-
-  defp check_process_against_config(process, config) do
-    Enum.flat_map(config, fn {ruleset_id, ruleset_config} ->
-      score_entry =
-        Enum.find(process.linter_scores, &(&1.ruleset_id == ruleset_id))
-
-      check_ruleset(ruleset_id, ruleset_config, score_entry)
-    end)
   end
 
   defp check_ruleset(ruleset_id, config, score_entry) do
@@ -86,29 +82,23 @@ defmodule EvilEngine.BPMN.LinterGate do
 
   defp check_require_presence(_ruleset_id, _config, _score), do: nil
 
-  defp check_min_score(ruleset_id, %{"minScorePercent" => min}, %{score: score})
-       when score < min do
+  defp check_min_score(ruleset_id, %{"minScorePercent" => min}, %{score_percent: score})
+       when is_number(score) and score < min do
     %{ruleset_id: ruleset_id, check: "minScorePercent", expected: min, actual: score}
   end
 
   defp check_min_score(_ruleset_id, _config, _score), do: nil
 
-  defp check_max_errors(ruleset_id, %{"maxErrors" => max}, %{checks: checks})
-       when is_map(checks) do
-    actual = Map.get(checks, "errors", 0)
-
-    if actual > max,
-      do: %{ruleset_id: ruleset_id, check: "maxErrors", expected: max, actual: actual}
+  defp check_max_errors(ruleset_id, %{"maxErrors" => max}, %{raw_error_findings: actual})
+       when is_number(actual) and actual > max do
+    %{ruleset_id: ruleset_id, check: "maxErrors", expected: max, actual: actual}
   end
 
   defp check_max_errors(_ruleset_id, _config, _score), do: nil
 
-  defp check_max_warnings(ruleset_id, %{"maxWarnings" => max}, %{checks: checks})
-       when is_map(checks) do
-    actual = Map.get(checks, "warnings", 0)
-
-    if actual > max,
-      do: %{ruleset_id: ruleset_id, check: "maxWarnings", expected: max, actual: actual}
+  defp check_max_warnings(ruleset_id, %{"maxWarnings" => max}, %{raw_warning_findings: actual})
+       when is_number(actual) and actual > max do
+    %{ruleset_id: ruleset_id, check: "maxWarnings", expected: max, actual: actual}
   end
 
   defp check_max_warnings(_ruleset_id, _config, _score), do: nil
@@ -116,28 +106,22 @@ defmodule EvilEngine.BPMN.LinterGate do
   defp check_compliance_status(
          ruleset_id,
          %{"requireComplianceStatus" => expected},
-         %{checks: checks}
+         %{compliance_status: actual}
        )
-       when is_map(checks) do
-    actual = Map.get(checks, "complianceStatus")
-
-    if actual != expected,
-      do: %{
-        ruleset_id: ruleset_id,
-        check: "requireComplianceStatus",
-        expected: expected,
-        actual: actual
-      }
+       when actual != expected do
+    %{
+      ruleset_id: ruleset_id,
+      check: "requireComplianceStatus",
+      expected: expected,
+      actual: actual
+    }
   end
 
   defp check_compliance_status(_ruleset_id, _config, _score), do: nil
 
-  defp check_schema_version(ruleset_id, %{"schemaVersion" => expected}, %{checks: checks})
-       when is_map(checks) do
-    actual = Map.get(checks, "schemaVersion")
-
-    if actual != expected,
-      do: %{ruleset_id: ruleset_id, check: "schemaVersion", expected: expected, actual: actual}
+  defp check_schema_version(ruleset_id, %{"schemaVersion" => expected}, %{schema_version: actual})
+       when actual != expected do
+    %{ruleset_id: ruleset_id, check: "schemaVersion", expected: expected, actual: actual}
   end
 
   defp check_schema_version(_ruleset_id, _config, _score), do: nil

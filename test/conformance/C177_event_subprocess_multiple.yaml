@@ -1,0 +1,8 @@
+name: "C177: Two Event Subprocesses in one scope; only the matching (message) trigger fires"
+fixture: "event_subprocess_multiple.bpmn"
+process_model_id: "EventSubprocessMultiple"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

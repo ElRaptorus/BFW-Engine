@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_RetryParentWithErrorBoundary",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -108,6 +111,7 @@
         }
       ],
       "id": "RetryParentWithErrorBoundary",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -116,7 +120,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Retry Parent With Error Boundary",
       "sequenceFlows": [
         {

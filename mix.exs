@@ -64,6 +64,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/handbook/complex-gateways.md",
           "docs/guides/handbook/call-activities.md",
           "docs/guides/handbook/embedded-subprocesses.md",
+          "docs/guides/handbook/event-subprocesses.md",
           "docs/guides/handbook/error-boundary-events.md",
           "docs/guides/handbook/error-end-events.md",
           "docs/guides/handbook/timer-events.md",

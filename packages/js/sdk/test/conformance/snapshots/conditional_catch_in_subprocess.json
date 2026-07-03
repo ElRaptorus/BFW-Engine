@@ -1,0 +1,295 @@
+{
+  "definitionsId": "Definitions_ConditionalCatchInSubprocess",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Sub Process",
+          "outgoing": ["Flow_2"],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [
+              {
+                "dataObjectRef": "SubData",
+                "dataState": null,
+                "id": "SubDataRef",
+                "name": null
+              }
+            ],
+            "dataObjects": [
+              {
+                "id": "SubData",
+                "itemSubjectRef": null,
+                "name": "Sub Data",
+                "valueContract": null
+              }
+            ],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SubStart",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Sub Start",
+                "outgoing": ["Sub_Flow_1"],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Fork",
+                "incoming": ["Sub_Flow_1"],
+                "multiInstance": null,
+                "name": "Sub Fork",
+                "outgoing": ["Sub_Flow_B", "Sub_Flow_A"],
+                "type": "parallel_gateway",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [
+                  {
+                    "id": "DOA_InSub",
+                    "sourceRef": null,
+                    "targetRef": "SubDataRef",
+                    "valueExpression": "token"
+                  }
+                ],
+                "documentation": null,
+                "id": "UserTask_InSub",
+                "incoming": ["Sub_Flow_A"],
+                "multiInstance": null,
+                "name": "Set Sub Data",
+                "outgoing": ["Sub_Flow_A2"],
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": "identity.groups",
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": {
+                    "fields": [
+                      {
+                        "name": "done",
+                        "type": "boolean"
+                      }
+                    ]
+                  },
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ConditionalCatch_SubData",
+                "incoming": ["Sub_Flow_B"],
+                "multiInstance": null,
+                "name": "Wait for Sub Data",
+                "outgoing": ["Sub_Flow_B2"],
+                "type": "intermediate_catch_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "conditionExpression": "dataObjects.SubData.done = true"
+                  },
+                  "outMappings": [],
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Join",
+                "incoming": ["Sub_Flow_B2", "Sub_Flow_A2"],
+                "multiInstance": null,
+                "name": "Sub Join",
+                "outgoing": ["Sub_Flow_Join"],
+                "type": "parallel_gateway",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SubEnd",
+                "incoming": ["Sub_Flow_Join"],
+                "multiInstance": null,
+                "name": "Sub End",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SubStart",
+                "targetRef": "Sub_Fork"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_A",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Fork",
+                "targetRef": "UserTask_InSub"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_B",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Fork",
+                "targetRef": "ConditionalCatch_SubData"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_A2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "UserTask_InSub",
+                "targetRef": "Sub_Join"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_B2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ConditionalCatch_SubData",
+                "targetRef": "Sub_Join"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_Join",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Join",
+                "targetRef": "SubEnd"
+              }
+            ],
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ConditionalCatchInSubprocess",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Conditional Catch In Subprocess",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

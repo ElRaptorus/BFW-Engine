@@ -1,0 +1,179 @@
+{
+  "definitionsId": "Definitions_ConditionalCatchEbg",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "Result",
+          "dataState": null,
+          "id": "ResultRef",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "Result",
+          "itemSubjectRef": null,
+          "name": "Result",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Wait for Event",
+          "outgoing": ["Flow_Timer", "Flow_Conditional"],
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ConditionalCatch_DataReady",
+          "incoming": ["Flow_Conditional"],
+          "multiInstance": null,
+          "name": "Wait for Data Ready",
+          "outgoing": ["Flow_Conditional_End"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "conditionExpression": "context.ready = true"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerCatch_Timeout",
+          "incoming": ["Flow_Timer"],
+          "multiInstance": null,
+          "name": "Timeout",
+          "outgoing": ["Flow_Timer_End"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT1H"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Timer_End", "Flow_Conditional_End"],
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ConditionalCatchEbg",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "EBG_1", "ConditionalCatch_DataReady", "TimerCatch_Timeout", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Conditional Catch EBG",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Conditional",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "ConditionalCatch_DataReady"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "TimerCatch_Timeout"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Conditional_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ConditionalCatch_DataReady",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerCatch_Timeout",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

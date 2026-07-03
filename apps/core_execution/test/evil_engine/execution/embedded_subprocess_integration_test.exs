@@ -279,26 +279,11 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
   # Bad Paths — Invalid Subprocess Structure
   # ===================================================================
 
-  describe "bad path — event subprocess rejection" do
-    test "PI fatals when subprocess has triggered_by_event=true", %{ref: ref} do
-      definitions = build_event_subprocess()
-      ModelCache.put_new(@version_id, definitions)
-
-      parent_id = random_id()
-
-      assert {:ok, pid} =
-               start_process_instance(@version_id,
-                 process_instance_id: parent_id,
-                 payload: %{}
-               )
-
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
-                     3_000
-
-      await_process_death(pid)
-    end
-  end
+  # NOTE: `triggered_by_event: true` is now a supported construct (Event
+  # Subprocess, Phase 5). A token-wired ESP shell is rejected at deploy time by
+  # the validator (`:event_subprocess_has_sequence_flow`), covered by
+  # `EvilEngine.BPMN.ValidatorTest`. There is therefore no runtime bad-path test
+  # for it here — the invariant lives at the validation layer.
 
   describe "bad path — no start event" do
     test "PI fatals when subprocess has no start events", %{ref: ref} do
@@ -1085,16 +1070,6 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
     ]
 
     wrap_parent_process(type_data, lanes: lanes)
-  end
-
-  defp build_event_subprocess do
-    type_data = %FlowNodeData.SubProcess{
-      triggered_by_event: true,
-      flow_nodes: [make_inner_start(), make_inner_task(), make_inner_end()],
-      sequence_flows: standard_inner_flows()
-    }
-
-    wrap_parent_process(type_data)
   end
 
   defp build_subprocess_no_start_event do

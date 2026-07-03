@@ -2,9 +2,11 @@
   "definitionsId": "Definitions_RetryParentTaskBeforeThenFatal",
   "errors": [],
   "escalations": [],
+  "linterScores": [],
   "messages": [],
   "processes": [
     {
+      "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
@@ -24,6 +26,7 @@
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
+            "isInterrupting": true,
             "resultContract": null
           }
         },
@@ -94,6 +97,7 @@
         }
       ],
       "id": "RetryParentTaskBeforeThenFatal",
+      "inclusiveJoinAnalyses": {},
       "isExecutable": true,
       "lanes": [
         {
@@ -102,7 +106,6 @@
           "name": "default"
         }
       ],
-      "linterScores": [],
       "name": "Retry Parent Task Before Then Fatal",
       "sequenceFlows": [
         {

@@ -12,9 +12,14 @@ defmodule EvilEngine.Test.DbAssertions do
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance
 
+  @sandbox_retry_attempts 3
+  @sandbox_retry_delay_ms 50
+
   @doc "Fetch a ProcessInstance row by ID. Raises on not-found."
   def fetch_process_instance!(process_instance_id) do
-    Ash.get!(ProcessInstance, process_instance_id, domain: Domain, authorize?: false)
+    with_sandbox_retry(fn ->
+      Ash.get!(ProcessInstance, process_instance_id, domain: Domain, authorize?: false)
+    end)
   end
 
   @doc "Fetch a ProcessInstance row by ID. Returns nil if not found."
@@ -27,11 +32,36 @@ defmodule EvilEngine.Test.DbAssertions do
 
   @doc "Fetch all FlowNodeInstance rows for a PI, ordered by started_at."
   def fetch_flow_node_instances(process_instance_id) do
-    FlowNodeInstance
-    |> Ash.Query.filter(process_instance_id == ^process_instance_id)
-    |> Ash.Query.sort(started_at: :asc)
-    |> Ash.read!(domain: Domain, authorize?: false)
+    with_sandbox_retry(fn ->
+      FlowNodeInstance
+      |> Ash.Query.filter(process_instance_id == ^process_instance_id)
+      |> Ash.Query.sort(started_at: :asc)
+      |> Ash.read!(domain: Domain, authorize?: false)
+    end)
   end
+
+  defp with_sandbox_retry(function, attempt \\ 1) do
+    function.()
+  rescue
+    error in [Ash.Error.Unknown, DBConnection.OwnershipError] ->
+      if attempt < @sandbox_retry_attempts && sandbox_ownership_error?(error) do
+        Process.sleep(@sandbox_retry_delay_ms * attempt)
+        with_sandbox_retry(function, attempt + 1)
+      else
+        reraise error, __STACKTRACE__
+      end
+  end
+
+  defp sandbox_ownership_error?(%DBConnection.OwnershipError{}), do: true
+
+  defp sandbox_ownership_error?(%Ash.Error.Unknown{errors: errors}) do
+    Enum.any?(errors, fn
+      %Ash.Error.Unknown.UnknownError{error: %DBConnection.OwnershipError{}} -> true
+      _ -> false
+    end)
+  end
+
+  defp sandbox_ownership_error?(_), do: false
 
   @doc "Assert a PI row exists with the expected state."
   def assert_pi_state!(process_instance_id, expected_state) do

@@ -29,7 +29,7 @@ defmodule EvilEngine.Events.SignalSubscriptions do
   defmodule Subscription do
     @moduledoc "A single signal subscription entry stored in the ETS table."
 
-    @type kind :: :intermediate_catch | :boundary
+    @type kind :: :intermediate_catch | :boundary | :event_subprocess_start
 
     @type t :: %__MODULE__{
             subscription_id: String.t(),

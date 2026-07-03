@@ -1,0 +1,205 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Main_Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Main_UserTask",
+          "incoming": ["Main_Flow_1"],
+          "multiInstance": null,
+          "name": "Main Work",
+          "outgoing": ["Main_Flow_2"],
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Main_Flow_2"],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ESP_Timer",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Timer Event Subprocess",
+          "outgoing": [],
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Start",
+                "incoming": [],
+                "multiInstance": null,
+                "name": "Timer Elapsed",
+                "outgoing": ["ESP_Flow_1"],
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "timeCycle": null,
+                    "timeDate": null,
+                    "timeDuration": "PT1S"
+                  },
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Task",
+                "incoming": ["ESP_Flow_1"],
+                "multiInstance": null,
+                "name": "Handle Timeout",
+                "outgoing": ["ESP_Flow_2"],
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_End",
+                "incoming": ["ESP_Flow_2"],
+                "multiInstance": null,
+                "name": "ESP Done",
+                "outgoing": [],
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Start",
+                "targetRef": "ESP_Task"
+              },
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Task",
+                "targetRef": "ESP_End"
+              }
+            ],
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "EventSubprocessTimerInterrupting",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Timer"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Event Subprocess Timer Interrupting",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Main_UserTask"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Main_UserTask",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

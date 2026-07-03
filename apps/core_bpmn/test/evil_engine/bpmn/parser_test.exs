@@ -22,6 +22,33 @@ defmodule EvilEngine.BPMN.ParserTest do
     Enum.find(process.flow_nodes, &(&1.id == id))
   end
 
+  # Builds a process with a single Event Subprocess whose start event carries
+  # `event_def_xml` and the optional `start_attrs` (e.g. `isInterrupting="false"`).
+  defp esp_start_xml(event_def_xml, start_attrs) do
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                      xmlns:evil="https://evilengine.dev/schema/bpmn"
+                      id="Definitions_1">
+      <bpmn:process id="Process_1" isExecutable="true">
+        <bpmn:extensionElements>
+          <evil:version>1.0.0</evil:version>
+        </bpmn:extensionElements>
+        <bpmn:subProcess id="ESP_1" triggeredByEvent="true">
+          <bpmn:startEvent id="ESP_Start_1" #{start_attrs}>
+            #{event_def_xml}
+          </bpmn:startEvent>
+        </bpmn:subProcess>
+      </bpmn:process>
+    </bpmn:definitions>
+    """
+  end
+
+  defp esp_start_event(%Definitions{processes: [process | _]}) do
+    esp = Enum.find(process.flow_nodes, &(&1.id == "ESP_1"))
+    Enum.find(esp.type_data.flow_nodes, &(&1.id == "ESP_Start_1"))
+  end
+
   describe "parse/1 — minimal valid BPMN" do
     test "returns {:ok, %Definitions{}}" do
       xml = read_fixture("minimal_valid.bpmn")
@@ -662,6 +689,119 @@ defmodule EvilEngine.BPMN.ParserTest do
       assert event_sub.type_data.triggered_by_event == true
     end
 
+    test "ESP start event defaults is_interrupting to true when isInterrupting absent" do
+      xml = esp_start_xml(~s(<bpmn:messageEventDefinition id="D" messageRef="M" />), "")
+
+      {:ok, definitions} = Parser.parse(xml)
+      assert esp_start_event(definitions).type_data.is_interrupting == true
+    end
+
+    test "ESP start event with isInterrupting=\"true\" parses as interrupting" do
+      xml =
+        esp_start_xml(~s(<bpmn:messageEventDefinition id="D" messageRef="M" />), ~s(isInterrupting="true"))
+
+      {:ok, definitions} = Parser.parse(xml)
+      assert esp_start_event(definitions).type_data.is_interrupting == true
+    end
+
+    test "ESP start event with isInterrupting=\"false\" parses as non-interrupting" do
+      xml =
+        esp_start_xml(~s(<bpmn:messageEventDefinition id="D" messageRef="M" />), ~s(isInterrupting="false"))
+
+      {:ok, definitions} = Parser.parse(xml)
+      assert esp_start_event(definitions).type_data.is_interrupting == false
+    end
+
+    test "ESP message start event definition parses" do
+      xml = esp_start_xml(~s(<bpmn:messageEventDefinition id="D" messageRef="M" />), "")
+      {:ok, definitions} = Parser.parse(xml)
+      assert %EventDefinition.Message{} = esp_start_event(definitions).type_data.event_definition
+    end
+
+    test "ESP signal start event definition parses" do
+      xml = esp_start_xml(~s(<bpmn:signalEventDefinition id="D" signalRef="S" />), "")
+      {:ok, definitions} = Parser.parse(xml)
+      assert %EventDefinition.Signal{} = esp_start_event(definitions).type_data.event_definition
+    end
+
+    test "ESP timer start event definition parses" do
+      xml =
+        esp_start_xml(
+          ~s(<bpmn:timerEventDefinition id="D"><bpmn:timeDuration>PT5M</bpmn:timeDuration></bpmn:timerEventDefinition>),
+          ""
+        )
+
+      {:ok, definitions} = Parser.parse(xml)
+      assert %EventDefinition.Timer{} = esp_start_event(definitions).type_data.event_definition
+    end
+
+    test "ESP error start event definition parses" do
+      xml =
+        esp_start_xml(~s(<bpmn:errorEventDefinition id="D" errorRef="E" />), ~s(isInterrupting="true"))
+
+      {:ok, definitions} = Parser.parse(xml)
+      assert %EventDefinition.Error{} = esp_start_event(definitions).type_data.event_definition
+    end
+
+    test "ESP escalation start event definition parses" do
+      xml = esp_start_xml(~s(<bpmn:escalationEventDefinition id="D" escalationRef="ESC" />), "")
+      {:ok, definitions} = Parser.parse(xml)
+
+      assert %EventDefinition.Escalation{} =
+               esp_start_event(definitions).type_data.event_definition
+    end
+
+    test "ESP conditional start event definition parses" do
+      xml =
+        esp_start_xml(
+          ~s(<bpmn:conditionalEventDefinition id="D"><bpmn:condition>token.ready = true</bpmn:condition></bpmn:conditionalEventDefinition>),
+          ""
+        )
+
+      {:ok, definitions} = Parser.parse(xml)
+
+      assert %EventDefinition.Conditional{} =
+               esp_start_event(definitions).type_data.event_definition
+    end
+
+    test "nested event subprocess parses inner ESP with its own trigger" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Definitions_1">
+        <bpmn:process id="Process_1" isExecutable="true">
+          <bpmn:extensionElements>
+            <evil:version>1.0.0</evil:version>
+          </bpmn:extensionElements>
+          <bpmn:subProcess id="ESP_Outer" triggeredByEvent="true">
+            <bpmn:startEvent id="ESP_Outer_Start">
+              <bpmn:messageEventDefinition id="D1" messageRef="M" />
+            </bpmn:startEvent>
+            <bpmn:subProcess id="ESP_Inner" triggeredByEvent="true">
+              <bpmn:startEvent id="ESP_Inner_Start" isInterrupting="false">
+                <bpmn:signalEventDefinition id="D2" signalRef="S" />
+              </bpmn:startEvent>
+            </bpmn:subProcess>
+          </bpmn:subProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+
+      outer = Enum.find(process.flow_nodes, &(&1.id == "ESP_Outer"))
+      assert outer.type_data.triggered_by_event == true
+
+      inner = Enum.find(outer.type_data.flow_nodes, &(&1.id == "ESP_Inner"))
+      assert inner.type_data.triggered_by_event == true
+
+      inner_start = Enum.find(inner.type_data.flow_nodes, &(&1.id == "ESP_Inner_Start"))
+      assert inner_start.type_data.is_interrupting == false
+      assert %EventDefinition.Signal{} = inner_start.type_data.event_definition
+    end
+
     test "subprocess shell has incoming and outgoing refs" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
@@ -1248,13 +1388,19 @@ defmodule EvilEngine.BPMN.ParserTest do
              } = gateway.type_data
     end
 
-    test "process linterRulesetScore maps rulesetId score and checks attributes", %{
-      process: process
+    test "definitions-level evil:LinterRulesetScore maps all Studio attributes", %{
+      definitions: definitions
     } do
-      assert [%LinterRulesetScore{} = score] = process.linter_scores
+      assert [%LinterRulesetScore{} = score] = definitions.linter_scores
       assert score.ruleset_id == "evil-default"
-      assert score.score == 92
-      assert score.checks == %{}
+      assert score.score_percent == 92.5
+      assert score.compliance_status == "valid"
+      assert score.computed_at_iso == "2026-07-03T12:00:00Z"
+      assert score.schema_version == "1"
+      assert score.max_points == 100.0
+      assert score.penalty_points == 7.5
+      assert score.raw_error_findings == 0
+      assert score.raw_warning_findings == 2
     end
 
     test "call activity maps inputMapping and outputMapping attributes to Mapping structs", %{

@@ -4,36 +4,26 @@ defmodule EvilEngine.BPMN.LinterGateTest do
   alias EvilEngine.BPMN.LinterGate
   alias EvilEngine.BPMN.Model.Definitions
   alias EvilEngine.BPMN.Model.LinterRulesetScore
-  alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
 
-  defp definitions_with_processes(processes) do
-    %Definitions{raw_xml: "", processes: processes}
-  end
-
-  defp process_with_scores(linter_scores) do
-    %BpmnProcess{
-      id: "P1",
-      version: "1.0.0",
-      linter_scores: linter_scores
-    }
+  # The linter gate reads scores from the **definitions** level (ESP-D17), not
+  # from individual processes. These helpers build a `%Definitions{}` carrying
+  # the Studio-emitted score entries directly.
+  defp definitions_with_scores(linter_scores) do
+    %Definitions{raw_xml: "", processes: [], linter_scores: linter_scores}
   end
 
   describe "check/2" do
     test "passes when scores meet all thresholds for one ruleset" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{
-              ruleset_id: "evil-default",
-              score: 95,
-              checks: %{
-                "errors" => 0,
-                "warnings" => 1,
-                "complianceStatus" => "pass",
-                "schemaVersion" => "1"
-              }
-            }
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{
+            ruleset_id: "evil-default",
+            score_percent: 95,
+            raw_error_findings: 0,
+            raw_warning_findings: 1,
+            compliance_status: "pass",
+            schema_version: "1"
+          }
         ])
 
       config = %{
@@ -51,12 +41,11 @@ defmodule EvilEngine.BPMN.LinterGateTest do
     end
 
     test "passes when multiple configured rulesets all pass" do
-      scores = [
-        %LinterRulesetScore{ruleset_id: "a", score: 100, checks: %{}},
-        %LinterRulesetScore{ruleset_id: "b", score: 80, checks: %{}}
-      ]
-
-      definitions = definitions_with_processes([process_with_scores(scores)])
+      definitions =
+        definitions_with_scores([
+          %LinterRulesetScore{ruleset_id: "a", score_percent: 100},
+          %LinterRulesetScore{ruleset_id: "b", score_percent: 80}
+        ])
 
       config = %{
         "a" => %{"minScorePercent" => 90},
@@ -68,11 +57,9 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "ignores BPMN rulesets that have no gate config" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{ruleset_id: "only-in-bpmn", score: 10, checks: %{}},
-            %LinterRulesetScore{ruleset_id: "gated", score: 100, checks: %{}}
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{ruleset_id: "only-in-bpmn", score_percent: 10},
+          %LinterRulesetScore{ruleset_id: "gated", score_percent: 100}
         ])
 
       config = %{"gated" => %{"minScorePercent" => 50}}
@@ -82,17 +69,15 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "empty explicit config is a no-op" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{ruleset_id: "x", score: 0, checks: %{}}
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{ruleset_id: "x", score_percent: 0}
         ])
 
       assert {:ok, :passed} = LinterGate.check(definitions, %{})
     end
 
     test "fails requirePresence when ruleset is absent" do
-      definitions = definitions_with_processes([process_with_scores([])])
+      definitions = definitions_with_scores([])
 
       config = %{"evil-default" => %{"requirePresence" => true}}
 
@@ -108,10 +93,8 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "fails minScorePercent below threshold" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{ruleset_id: "evil-default", score: 70, checks: %{}}
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{ruleset_id: "evil-default", score_percent: 70}
         ])
 
       config = %{"evil-default" => %{"minScorePercent" => 90}}
@@ -122,16 +105,14 @@ defmodule EvilEngine.BPMN.LinterGateTest do
       assert failure.ruleset_id == "evil-default"
     end
 
-    test "fails maxErrors when error count exceeds limit" do
+    test "fails maxErrors when rawErrorFindings exceeds limit" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{
-              ruleset_id: "evil-default",
-              score: 100,
-              checks: %{"errors" => 5}
-            }
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{
+            ruleset_id: "evil-default",
+            score_percent: 100,
+            raw_error_findings: 5
+          }
         ])
 
       config = %{"evil-default" => %{"maxErrors" => 2}}
@@ -140,16 +121,14 @@ defmodule EvilEngine.BPMN.LinterGateTest do
                LinterGate.check(definitions, config)
     end
 
-    test "fails maxWarnings when warning count exceeds limit" do
+    test "fails maxWarnings when rawWarningFindings exceeds limit" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{
-              ruleset_id: "evil-default",
-              score: 100,
-              checks: %{"warnings" => 4}
-            }
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{
+            ruleset_id: "evil-default",
+            score_percent: 100,
+            raw_warning_findings: 4
+          }
         ])
 
       config = %{"evil-default" => %{"maxWarnings" => 1}}
@@ -160,14 +139,12 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "fails requireComplianceStatus on mismatch" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{
-              ruleset_id: "evil-default",
-              score: 100,
-              checks: %{"complianceStatus" => "fail"}
-            }
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{
+            ruleset_id: "evil-default",
+            score_percent: 100,
+            compliance_status: "fail"
+          }
         ])
 
       config = %{"evil-default" => %{"requireComplianceStatus" => "pass"}}
@@ -184,14 +161,12 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "fails schemaVersion on mismatch" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{
-              ruleset_id: "evil-default",
-              score: 100,
-              checks: %{"schemaVersion" => "2"}
-            }
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{
+            ruleset_id: "evil-default",
+            score_percent: 100,
+            schema_version: "2"
+          }
         ])
 
       config = %{"evil-default" => %{"schemaVersion" => "1"}}
@@ -208,11 +183,9 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "collects failures across rulesets in one response" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{ruleset_id: "a", score: 50, checks: %{}},
-            %LinterRulesetScore{ruleset_id: "b", score: 50, checks: %{}}
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{ruleset_id: "a", score_percent: 50},
+          %LinterRulesetScore{ruleset_id: "b", score_percent: 50}
         ])
 
       config = %{
@@ -229,14 +202,13 @@ defmodule EvilEngine.BPMN.LinterGateTest do
 
     test "multiple checks can fail for the same ruleset" do
       definitions =
-        definitions_with_processes([
-          process_with_scores([
-            %LinterRulesetScore{
-              ruleset_id: "evil-default",
-              score: 50,
-              checks: %{"errors" => 9, "warnings" => 9}
-            }
-          ])
+        definitions_with_scores([
+          %LinterRulesetScore{
+            ruleset_id: "evil-default",
+            score_percent: 50,
+            raw_error_findings: 9,
+            raw_warning_findings: 9
+          }
         ])
 
       config = %{
@@ -252,9 +224,8 @@ defmodule EvilEngine.BPMN.LinterGateTest do
       assert checks == ["maxErrors", "maxWarnings", "minScorePercent"]
     end
 
-    test "process with no linter scores fails when gate requires presence" do
-      definitions =
-        definitions_with_processes([%BpmnProcess{id: "P1", version: "1.0.0", linter_scores: []}])
+    test "definitions with no linter scores fail when gate requires presence" do
+      definitions = definitions_with_scores([])
 
       config = %{"evil-default" => %{"requirePresence" => true}}
 
@@ -280,10 +251,7 @@ defmodule EvilEngine.BPMN.LinterGateTest do
     test "no linter_gate config is a no-op" do
       Application.delete_env(:core_bpmn, :linter_gate)
 
-      definitions =
-        definitions_with_processes([
-          process_with_scores([])
-        ])
+      definitions = definitions_with_scores([])
 
       assert {:ok, :passed} = LinterGate.check(definitions)
     end

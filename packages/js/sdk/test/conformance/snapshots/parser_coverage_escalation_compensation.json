@@ -1,0 +1,340 @@
+{
+  "definitionsId": "Definitions_EscalationCompensation",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_LVL2",
+      "id": "Esc_1",
+      "name": "Level2"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Escalation"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_EscalationHost",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "Escalation Host",
+          "outgoing": ["Flow_2"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Compensation"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Compensate",
+          "incoming": ["Flow_2"],
+          "multiInstance": null,
+          "name": "Compensate Target",
+          "outgoing": ["Flow_CompEnd", "Flow_3"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Conditional"],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_ConditionalHost",
+          "incoming": ["Flow_3"],
+          "multiInstance": null,
+          "name": "Conditional Host",
+          "outgoing": ["Flow_4"],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Escalation",
+          "incoming": ["Flow_EscBoundary"],
+          "multiInstance": null,
+          "name": "Escalation End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_1"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Compensation",
+          "incoming": ["Flow_CompEnd"],
+          "multiInstance": null,
+          "name": "Compensation End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": "Task_Compensate",
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Cancel",
+          "incoming": ["Flow_4"],
+          "multiInstance": null,
+          "name": "Cancel End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Escalation",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Escalation Boundary",
+          "outgoing": ["Flow_EscBoundary"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_EscalationHost",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_1"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Compensation",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Compensation Boundary",
+          "outgoing": ["Flow_CompBoundary"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_Compensate",
+            "cancelActivity": true,
+            "eventDefinition": {
+              "activityRef": "Task_Compensate",
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Conditional",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Conditional Boundary",
+          "outgoing": ["Flow_CondBoundary"],
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_ConditionalHost",
+            "cancelActivity": false,
+            "eventDefinition": {
+              "conditionExpression": "token.amount > 1000"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Boundary_Comp",
+          "incoming": ["Flow_CompBoundary"],
+          "multiInstance": null,
+          "name": "Comp Boundary End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Boundary_Cond",
+          "incoming": ["Flow_CondBoundary"],
+          "multiInstance": null,
+          "name": "Cond Boundary End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_EscComp",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_EscalationHost",
+            "Task_Compensate",
+            "Task_ConditionalHost",
+            "End_Escalation",
+            "End_Compensation",
+            "End_Cancel",
+            "Boundary_Escalation",
+            "Boundary_Compensation",
+            "Boundary_Conditional",
+            "End_Boundary_Comp",
+            "End_Boundary_Cond"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Escalation Compensation",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_EscalationHost"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_EscalationHost",
+          "targetRef": "Task_Compensate"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Compensate",
+          "targetRef": "Task_ConditionalHost"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_ConditionalHost",
+          "targetRef": "End_Cancel"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_CompEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Compensate",
+          "targetRef": "End_Compensation"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_EscBoundary",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Escalation",
+          "targetRef": "End_Escalation"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_CompBoundary",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Compensation",
+          "targetRef": "End_Boundary_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_CondBoundary",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Conditional",
+          "targetRef": "End_Boundary_Cond"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

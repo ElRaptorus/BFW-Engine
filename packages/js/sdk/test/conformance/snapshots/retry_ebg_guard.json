@@ -1,0 +1,205 @@
+{
+  "definitionsId": "Definitions_RetryEbgGuard",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Message_ebg_retry",
+      "name": "ebg-retry-msg"
+    }
+  ],
+  "processes": [
+    {
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": ["Flow_1"],
+          "multiInstance": null,
+          "name": "EBG",
+          "outgoing": ["Flow_ToMessage", "Flow_ToTimer"],
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_Timer",
+          "incoming": ["Flow_ToTimer"],
+          "multiInstance": null,
+          "name": "Timer Wins",
+          "outgoing": ["Flow_ToDeadEnd"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT0S"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_Message",
+          "incoming": ["Flow_ToMessage"],
+          "multiInstance": null,
+          "name": "Message Catch",
+          "outgoing": ["Flow_ToMsgEnd"],
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "eventMapping": null,
+              "messageRef": "Message_ebg_retry",
+              "payloadExpression": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_DeadEnd",
+          "incoming": ["Flow_ToDeadEnd"],
+          "multiInstance": null,
+          "name": "Dead End",
+          "outgoing": [],
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Unreachable"],
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_MsgPath",
+          "incoming": ["Flow_ToMsgEnd"],
+          "multiInstance": null,
+          "name": "Message Path End",
+          "outgoing": [],
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "RetryEbgGuard",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "EBG_1", "Catch_Timer", "Catch_Message", "Task_DeadEnd", "End_1", "End_MsgPath"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Retry EBG Guard",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToTimer",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "Catch_Timer"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToMessage",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "Catch_Message"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToDeadEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_Timer",
+          "targetRef": "Task_DeadEnd"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_ToMsgEnd",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_Message",
+          "targetRef": "End_MsgPath"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

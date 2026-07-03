@@ -1,0 +1,8 @@
+name: "C180: Interrupting conditional Event Subprocess fires when condition transitions to true"
+fixture: "event_subprocess_conditional.bpmn"
+process_model_id: "EventSubprocessConditional"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"

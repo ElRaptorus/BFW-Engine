@@ -8,6 +8,8 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
 
   import EvilEngine.Execution.ProcessInstance.Helpers
 
+  alias EvilEngine.BPMN.Model.FlowNode
+  alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Execution.BoundaryAwareHandler
   alias EvilEngine.Execution.FlowNodes
@@ -709,13 +711,17 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       Map.get(type_properties, "child_process_instance_id") ||
         Map.get(type_properties, :child_process_instance_id)
 
+    # An Event Subprocess shell FNI (`triggered_by_event: true`) uses the ESP
+    # handler for reattach (ESP-D10); an embedded subprocess uses SubProcess.
+    resume_module = subprocess_resume_module(flow_node)
+
     spawn_resume_task(
       data,
       flow_node_instance_id,
       entry,
       process_instance_pid,
       fn ->
-        FlowNodes.SubProcess.handle_resume(
+        resume_module.handle_resume(
           flow_node,
           entry,
           handler_context,
@@ -725,6 +731,14 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       "SP"
     )
   end
+
+  defp subprocess_resume_module(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{triggered_by_event: true}
+       }),
+       do: FlowNodes.EventSubprocess
+
+  defp subprocess_resume_module(_flow_node), do: FlowNodes.SubProcess
 
   defp spawn_resume_task(
          data,

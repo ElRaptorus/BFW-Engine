@@ -87,15 +87,53 @@ Message Start Event creates a new PI (there is no PI state yet).
 <evil:correlationKey>token.orderId</evil:correlationKey>
 ```
 
-#### `evil:linterRulesetScore`
+#### `evil:LinterRulesetScore` (definitions-level)
 
-Carries linter gate scores attached to the process at design time. Read by
-the deploy-time linter gate. Attributes: `rulesetId`, `score`,
-`checks` (JSON string).
+Carries linter gate scores attached to the **definitions** at design time by
+the Studio. Read by the deploy-time linter gate. Unlike other `evil:*`
+extensions, these live at the **definitions level** — inside
+`<bpmn:definitions>/<bpmn:extensionElements>/<evil:Properties>`, **not** on a
+process. The element name is capitalised (`evil:LinterRulesetScore`, upper-L).
+
+Every field is a string attribute; numeric values are bare (no `%` suffix):
+
+| Attribute | Meaning |
+|-----------|---------|
+| `rulesetId` | Ruleset identifier (matched against gate config keys) |
+| `scorePercent` | Score percentage as a bare number (e.g. `"92.5"`) |
+| `complianceStatus` | Compliance status string (e.g. `"compliant"`) |
+| `computedAtIso` | ISO 8601 timestamp of computation |
+| `schemaVersion` | Score schema version string |
+| `maxPoints` | Maximum achievable points |
+| `penaltyPoints` | Penalty points deducted |
+| `rawErrorFindings` | Number of error-level findings |
+| `rawWarningFindings` | Number of warning-level findings |
 
 ```xml
-<evil:linterRulesetScore rulesetId="evil-default" score="92" checks="{}" />
+<bpmn:definitions ...>
+ <bpmn:extensionElements>
+ <evil:Properties>
+ <evil:LinterRulesetScore
+ rulesetId="evil-default"
+ scorePercent="92.5"
+ complianceStatus="compliant"
+ computedAtIso="2026-07-03T12:00:00Z"
+ schemaVersion="1"
+ maxPoints="100"
+ penaltyPoints="7.5"
+ rawErrorFindings="0"
+ rawWarningFindings="2" />
+ </evil:Properties>
+ </bpmn:extensionElements>
+ <bpmn:process id="order-process" ...>...</bpmn:process>
+</bpmn:definitions>
 ```
+
+The gate maps its six checks to these fields: `requirePresence` ← entry
+present, `minScorePercent` ← `scorePercent`, `maxErrors` ← `rawErrorFindings`,
+`maxWarnings` ← `rawWarningFindings`, `requireComplianceStatus` ←
+`complianceStatus`, `schemaVersion` ← `schemaVersion`. See
+`docs/architecture/configuration.md` §Linter Gate.
 
 ### ServiceTask Extensions
 
@@ -459,7 +497,95 @@ JSON Schema contracts on the subprocess shell's input and output, validated at r
 
 Boundary events may be attached to the subprocess shell or to activities inside the inner scope; error boundaries on the shell receive BPMN errors bubbled up from the child PI.
 
-> **Not supported:** Event SubProcesses (`triggeredByEvent="true"`). The SubProcess handler rejects them at runtime with `{:error, :event_subprocess_not_supported}`. Use boundary events on the subprocess shell for event-triggered behaviour instead.
+### Event Subprocess Extensions / Semantics
+
+An **Event Subprocess (ESP)** is a `<bpmn:subProcess triggeredByEvent="true">`
+placed inside a process (top-level) or inside an embedded subprocess. It has
+**no incoming or outgoing sequence flows** — it is not entered by a token.
+Instead it lies dormant until its single **event start event** is triggered
+by an event that occurs within its enclosing **scope** (the process or
+subprocess that contains it). When triggered, the engine spawns a **child
+process instance** running the ESP's inner flow — the same execution model as
+an embedded subprocess (`EvilEngine.Execution.FlowNodes.EventSubprocess`
+handler; child PI within the same deployment/version, no separate deploy).
+
+#### Trigger types
+
+The ESP start event's event definition selects the trigger. Two mechanisms
+back them:
+
+| Trigger | Mechanism | Notes |
+|---------|-----------|-------|
+| Message | Subscription registered at scope activation | Gated start event — **not** a message fan-out delivery (ESP-D13) |
+| Signal | Subscription registered at scope activation | Broadcast-all by signal name |
+| Timer | Scheduler registration at scope activation | `timeDuration` / `timeDate` / `timeCycle`; cyclic supported for non-interrupting (see below) |
+| Conditional | Edge-triggered re-evaluation | Fires on a `false → true` transition of the FEEL condition |
+| Error | Reactive hook (`EventSubprocessResolver`) | Catches a BPMN error raised within the scope; **must be interrupting** (ESP-D7) |
+| Escalation | Reactive hook (`EventSubprocessResolver`) | Catches an escalation raised within the scope |
+
+#### `isInterrupting` (standard BPMN attribute on the ESP start event)
+
+`isInterrupting="true"` (the BPMN default) makes the ESP **interrupting**;
+`isInterrupting="false"` makes it **non-interrupting**. This is
+modeler-controlled only — there is no property-pane toggle and no `evil:*`
+override.
+
+- **Interrupting:** on trigger, the engine cancels every other active/waiting
+  Flow Node Instance in the scope (`interrupt_remaining_fnis`, terminal state
+  `:interrupted`), runs the ESP child, then the scope finishes. The
+  interrupting fire does **not** kill the scope PI itself — the scope reaches
+  `:finished` (never `:aborted`/`:fatal` merely because the ESP fired). Two
+  concurrent interrupting triggers are idempotent: the first wins, the second
+  is a no-op.
+- **Non-interrupting:** the ESP child runs in parallel with the rest of the
+  scope. It may fire multiple times (each fire spawns an independent child
+  PI). The scope only finishes once the main flow **and** every ESP child PI
+  have completed.
+
+#### Start-event scope (which triggers may be interrupting vs non-interrupting)
+
+| Trigger | Interrupting | Non-interrupting |
+|---------|:---:|:---:|
+| Message | ✓ | ✓ |
+| Signal | ✓ | ✓ |
+| Timer | ✓ | ✓ |
+| Conditional | ✓ | ✓ |
+| Escalation | ✓ | ✓ |
+| Error | ✓ | — (Error must interrupt, ESP-D7) |
+
+#### Cyclic timer ESP starts
+
+A `timeCycle` (e.g. `R/PT1H`) is supported on a **non-interrupting** timer
+ESP start. The recurrence is owned by the **scope** (the scope re-arms the
+cycle timer after each tick); each tick spawns a fresh, independent ESP child
+PI. The child's own timer start passes through as a None start event on its
+initial dispatch, so the child does not re-schedule the cycle.
+
+#### Message / escalation precedence
+
+- **ESP-D13:** an Intermediate Catch or Boundary event **always** beats an ESP
+  Message Start for the same message — the ESP message start is a gated start
+  event, not a fan-out delivery. **ESP-D13b:** an ESP Message Start beats a
+  standalone Message Start Event (a running instance handles the message; no
+  new top-level PI is created).
+- **Escalation proximity:** a scope-level escalation ESP start catches an
+  escalation raised in that scope (interrupting or non-interrupting) **before**
+  it propagates to the parent, resolved via
+  `EventSubprocessResolver.find_matching_escalation_start/2`. A **specific**
+  escalation code beats a **catch-all** (no-code) ESP escalation start. The
+  same specificity rule applies to error ESP starts.
+
+#### Observability
+
+Triggering emits an `EventSubprocessTriggered` engine event, and the child
+spawn emits `SubProcessChildStarted` carrying the mandatory
+`is_event_subprocess: true` flag (ESP-D16). See §Engine Events and
+[`docs/architecture/event-system.md`](docs/architecture/event-system.md).
+
+#### Not supported
+
+Compensation start events on Event Subprocesses are out of scope (deferred to
+Phase 5.4). Multiple / Parallel-Multiple start events are not supported.
 
 ### Data Contract Extension
 
@@ -579,6 +705,12 @@ this list is silently ignored.
 | `<bpmn:callActivity>` | `:call_activity` | `FlowNodeData.CallActivity` |
 | `<bpmn:subProcess>` | `:sub_process` | `FlowNodeData.SubProcess` |
 
+`<bpmn:subProcess>` covers both embedded subprocesses (`triggeredByEvent="false"`,
+the default) and **Event Subprocesses** (`triggeredByEvent="true"`) — both are
+supported. The `triggered_by_event` boolean on `FlowNodeData.SubProcess`
+distinguishes them, and the ESP variant is dispatched to the
+`EventSubprocess` handler. See §Event Subprocess Extensions / Semantics.
+
 ### Gateways
 
 | XML element | Internal type | Type-specific data struct |
@@ -637,11 +769,17 @@ validator rejects invalid combinations.
 
 | Position | Allowed definitions |
 |----------|---------------------|
-| StartEvent | None, Message, Signal, Timer, Conditional |
+| StartEvent (top-level / embedded-subprocess None start) | None, Message, Signal, Timer, Conditional |
+| StartEvent (Event Subprocess) | Message, Signal, Timer, Conditional, Error, Escalation |
 | EndEvent | None, Message, Signal, Error, Escalation, Terminate, Cancel, Compensation |
 | IntermediateCatchEvent | None, Message, Signal, Timer, Conditional, Link |
 | IntermediateThrowEvent | None, Message, Signal, Escalation, Compensation, Link |
 | BoundaryEvent | None, Message, Signal, Error, Timer, Escalation, Conditional, Compensation, Cancel |
+
+An **Event Subprocess start event** must carry a typed event definition —
+Error and Escalation are valid there (unlike a top-level StartEvent), and a
+None (untyped) start is rejected (`:event_subprocess_untyped_start`). An Error
+ESP start must be interrupting (ESP-D7).
 
 ---
 
@@ -762,7 +900,18 @@ Inner-scope checks (messages prefixed with `[in SubProcess '<id>']`):
 - Inner flow nodes undergo the same type-specific completeness checks as top-level nodes (recursive for nested subprocesses)
 - Cross-boundary flows are rejected: parent-scope SequenceFlows must not reference inner subprocess node IDs; inner SequenceFlows must not reference parent-scope node IDs
 
-Event subprocesses (`triggeredByEvent="true"`) skip inner structural validation entirely (Phase 4 rules differ).
+Event Subprocesses (`triggeredByEvent="true"`) **are** validated recursively at
+deploy time (`validate_event_subprocess_structure`). They undergo the same
+inner-scope structural checks as embedded subprocesses (messages prefixed
+`[in Event SubProcess '<id>']`) **plus** ESP-specific start-event rules:
+
+| Atom | Rejected condition |
+|------|--------------------|
+| `:event_subprocess_has_sequence_flow` | The ESP shell has an incoming or outgoing SequenceFlow (an ESP is triggered, never token-entered) |
+| `:event_subprocess_no_start_event` | The ESP has no start event |
+| `:event_subprocess_multiple_start_events` | The ESP has more than one start event |
+| `:event_subprocess_untyped_start` | The ESP start event carries no event definition (a None start is not a valid trigger) |
+| `:event_subprocess_error_start_must_interrupt` | The ESP start event is an Error start with `isInterrupting="false"` (Error must interrupt, ESP-D7) |
 
 ### Subprocess Start-Event Isolation
 
@@ -913,7 +1062,8 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `UserTaskValidationFailed` | Same + `violations` | `violations`: array of `{message, path}` |
 | `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName` | `pluginName` may be `null` |
 | `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `evil:version` string |
-| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `occurredAt` | Emitted when an Embedded SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. Does not carry `rootProcessInstanceId` — use `parentProcessInstanceId` or subscribe to the root PI channel |
+| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `occurredAt` | Emitted when an Embedded SubProcess **or** Event Subprocess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` (mandatory, ESP-D16) is `true` when the child is an Event Subprocess spawn, `false` for an embedded subprocess. Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. Does not carry `rootProcessInstanceId` — use `parentProcessInstanceId` or subscribe to the root PI channel |
+| `EventSubprocessTriggered` | `scopeProcessInstanceId`, `rootProcessInstanceId`, `subprocessNodeId`, `childProcessInstanceId`, `triggerKind`, `isInterrupting`, `occurredAt` | Emitted by the scope PI when an Event Subprocess trigger fires and spawns an ESP child PI. `triggerKind` is one of `message`, `signal`, `timer`, `error`, `escalation`, `conditional`. `isInterrupting` reflects the ESP start event's `isInterrupting` attribute. The Studio debugger primarily consumes `SubProcessChildStarted` (with `isEventSubprocess`); this event additionally exposes the trigger kind |
 | `DataObjectWritten` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `dataObjectId`, `writeId`, `previousValue`, `value`, `createdAt` | Emitted after each successful DOA write. `previousValue` is computed from the in-memory cache (not stored in DB). |
 | `ProcessDefinitionDeployed` | `processModelId`, `version`, `source` | Emitted per deployed version from `persist_deploy_batch/3` |
 | `ProcessDefinitionUndeployed` | `processModelId`, `version`, `source` | `version` is `null` for bulk undeploy |

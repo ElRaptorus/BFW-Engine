@@ -1,0 +1,8 @@
+name: "C178: Interrupting message Event Subprocess whose body contains an embedded subprocess completes"
+fixture: "event_subprocess_nested_embedded.bpmn"
+process_model_id: "EventSubprocessNestedEmbedded"
+tier: interactive
+start:
+  payload: {}
+expected:
+  final_state: "finished"
