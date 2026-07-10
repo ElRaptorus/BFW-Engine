@@ -1,0 +1,10 @@
+name: "C215: Compensation throw with no registered targets — passthrough"
+fixture: "compensation_no_targets_throw.bpmn"
+process_model_id: "CompensationNoTargetsThrow"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

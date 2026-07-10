@@ -65,6 +65,26 @@ defmodule EvilEngine.Execution.EventSubprocessResolver do
     rank_by_specificity(candidates, & &1.escalation_code, raised_code)
   end
 
+  @doc """
+  Finds the ESP compensation start in the scope, or `:none`.
+
+  Compensation ESP starts are always interrupting (COMP-D5). Only `armed?`
+  `:compensation` triggers are considered.
+  """
+  @spec find_matching_compensation_start(%{optional(String.t()) => EventSubprocessTrigger.t()}) ::
+          {:ok, EventSubprocessTrigger.t()} | :none
+  def find_matching_compensation_start(triggers) do
+    candidate =
+      triggers
+      |> Map.values()
+      |> Enum.find(&(&1.trigger_kind == :compensation and &1.armed?))
+
+    case candidate do
+      nil -> :none
+      trigger -> {:ok, trigger}
+    end
+  end
+
   # Specific code (equal to the raised code) wins over a catch-all (nil code).
   defp rank_by_specificity(candidates, code_getter, raised_code) do
     specific =

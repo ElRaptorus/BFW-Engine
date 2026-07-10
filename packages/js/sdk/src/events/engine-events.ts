@@ -45,6 +45,8 @@ export type EngineEvent =
   | SignalPublished
   | SignalArrived
   | EscalationRaised
+  | CompensationTriggered
+  | ActivityCompensated
   | EventSubprocessTriggered
   | SinkFailed;
 
@@ -515,7 +517,48 @@ export interface EventSubprocessTriggered {
   rootProcessInstanceId: string;
   subprocessNodeId: string;
   childProcessInstanceId: string;
-  triggerKind: 'message' | 'signal' | 'timer' | 'error' | 'escalation' | 'conditional';
+  triggerKind: 'message' | 'signal' | 'timer' | 'error' | 'escalation' | 'conditional' | 'compensation';
   isInterrupting: boolean;
+  occurredAt: string;
+}
+
+/**
+ * Emitted when a Compensate Throw or Compensate End Event fires, before
+ * any compensation handler activities are dispatched.
+ *
+ * `throwType` distinguishes `"throw"` (intermediate — flow continues after
+ * handlers) from `"end"` (token consumed, PI may reach `compensated`).
+ * `targetCount` is the number of handler activities that will be dispatched
+ * (may be 0 if no completed activities have compensation handlers).
+ */
+export interface CompensationTriggered {
+  type: 'CompensationTriggered';
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  flowNodeInstanceId: string;
+  flowNodeId: string;
+  throwType: 'throw' | 'end';
+  activityRef: string | null;
+  targetCount: number;
+  occurredAt: string;
+}
+
+/**
+ * Emitted after each compensation handler activity finishes successfully.
+ *
+ * `compensatedFniId` identifies the original completed FNI whose work was
+ * undone; `handlerFniId` identifies the compensation handler FNI that
+ * executed; `throwFniId` identifies the Compensate Throw/End FNI that
+ * initiated the compensation run.
+ */
+export interface ActivityCompensated {
+  type: 'ActivityCompensated';
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  compensatedFniId: string;
+  handlerFniId: string;
+  throwFniId: string;
+  flowNodeId: string;
+  handlerActivityId: string;
   occurredAt: string;
 }

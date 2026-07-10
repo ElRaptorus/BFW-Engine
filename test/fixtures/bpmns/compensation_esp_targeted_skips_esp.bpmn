@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="CompensationEspTargetedSkipsEsp" />
+  </bpmn:collaboration>
+
+  <!--
+    COMP-9: Targeted compensation skips ESP.
+    Task_A has a compensation boundary + handler (Task_CompHandler_A).
+    A compensation ESP also exists at the process scope.
+    TARGETED compensation (activityRef="Task_A") fires → boundary handler wins, ESP does NOT fire.
+  -->
+
+  <bpmn:process id="CompensationEspTargetedSkipsEsp" name="Compensation ESP Targeted Skips ESP" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Comp_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CompHandler_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Compensation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ESP_Compensation</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:task id="Task_A" name="Task A">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:task>
+
+    <bpmn:boundaryEvent id="BE_Comp_A" name="Compensate A" attachedToRef="Task_A" cancelActivity="false">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:task id="Task_CompHandler_A" name="Boundary Handler A" isForCompensation="true" />
+
+    <!-- Targeted: activityRef="Task_A" → should skip ESP, fire boundary handler -->
+    <bpmn:intermediateThrowEvent id="Throw_Compensation" name="Throw Compensation">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:compensateEventDefinition activityRef="Task_A" />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_A" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_A" targetRef="Throw_Compensation" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Throw_Compensation" targetRef="End_1" />
+
+    <bpmn:association id="Assoc_Comp_A" sourceRef="BE_Comp_A" targetRef="Task_CompHandler_A" associationDirection="One" />
+
+    <!-- Compensation ESP — should NOT fire because compensation is targeted -->
+    <bpmn:subProcess id="ESP_Compensation" name="Compensation ESP" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Comp_Start" name="Compensation Start" isInterrupting="true">
+        <bpmn:compensateEventDefinition />
+        <bpmn:outgoing>ESP_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:task id="ESP_Task" name="ESP Undo Handler">
+        <bpmn:incoming>ESP_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>ESP_Flow_2</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:endEvent id="ESP_End" name="ESP Done">
+        <bpmn:incoming>ESP_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Flow_1" sourceRef="ESP_Comp_Start" targetRef="ESP_Task" />
+      <bpmn:sequenceFlow id="ESP_Flow_2" sourceRef="ESP_Task" targetRef="ESP_End" />
+    </bpmn:subProcess>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="120" y="60" width="700" height="440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="150" y="60" width="670" height="440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="182" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_A" bpmnElement="Task_A">
+        <dc:Bounds x="290" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Comp_A" bpmnElement="BE_Comp_A">
+        <dc:Bounds x="322" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CompHandler_A" bpmnElement="Task_CompHandler_A">
+        <dc:Bounds x="290" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Compensation" bpmnElement="Throw_Compensation">
+        <dc:Bounds x="472" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="592" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Compensation" bpmnElement="ESP_Compensation" isExpanded="true">
+        <dc:Bounds x="480" y="240" width="300" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Comp_Start" bpmnElement="ESP_Comp_Start">
+        <dc:Bounds x="510" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Task" bpmnElement="ESP_Task">
+        <dc:Bounds x="580" y="290" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_End" bpmnElement="ESP_End">
+        <dc:Bounds x="720" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="218" y="160" />
+        <di:waypoint x="290" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="160" />
+        <di:waypoint x="472" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="508" y="160" />
+        <di:waypoint x="592" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Comp_A" bpmnElement="Assoc_Comp_A">
+        <di:waypoint x="340" y="218" />
+        <di:waypoint x="340" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Flow_1" bpmnElement="ESP_Flow_1">
+        <di:waypoint x="546" y="330" />
+        <di:waypoint x="580" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Flow_2" bpmnElement="ESP_Flow_2">
+        <di:waypoint x="680" y="330" />
+        <di:waypoint x="720" y="330" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

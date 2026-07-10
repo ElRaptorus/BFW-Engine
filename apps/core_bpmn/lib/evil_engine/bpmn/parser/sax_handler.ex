@@ -8,6 +8,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   require Logger
 
+  alias EvilEngine.BPMN.Model.Association
   alias EvilEngine.BPMN.Model.DataAssociation
   alias EvilEngine.BPMN.Model.DataContract
   alias EvilEngine.BPMN.Model.DataObject
@@ -122,6 +123,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
             lanes: reversed_lanes,
             data_objects: Enum.reverse(process.data_objects),
             data_object_references: Enum.reverse(process.data_object_references),
+            associations: Enum.reverse(process.associations),
             extensions: Enum.reverse(process.extensions)
         }
       end)
@@ -344,7 +346,8 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       id: attributes["id"],
       name: attributes["name"],
       type: :sub_process,
-      type_data: type_data
+      type_data: type_data,
+      is_for_compensation: attributes["isForCompensation"] == "true"
     }
 
     defaults =
@@ -398,7 +401,8 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       id: attributes["id"],
       name: attributes["name"],
       type: type_atom,
-      type_data: type_data
+      type_data: type_data,
+      is_for_compensation: attributes["isForCompensation"] == "true"
     }
 
     defaults =
@@ -639,6 +643,19 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_extension: {:output_mapping, mapping}}}
   end
 
+  defp handle_start("association", attributes, %{current_process: %BpmnProcess{}} = state) do
+    association = %Association{
+      id: attributes["id"],
+      source_ref: attributes["sourceRef"],
+      target_ref: attributes["targetRef"],
+      association_direction: attributes["associationDirection"]
+    }
+
+    process = state.current_process
+    process = %BpmnProcess{process | associations: [association | process.associations]}
+    {:ok, %{state | current_process: process}}
+  end
+
   defp handle_start(_name, _attributes, state), do: {:ok, state}
 
   # ---------------------------------------------------------------------------
@@ -650,6 +667,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       state.current_process
       |> apply_default_flows(state.default_flows)
       |> link_boundary_refs()
+      |> resolve_compensation_handlers()
 
     {:ok,
      %{
@@ -779,6 +797,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
     inner_scope = apply_default_flows(inner_scope, state.default_flows)
     inner_scope = link_boundary_refs(inner_scope)
+    inner_scope = resolve_compensation_handlers(inner_scope)
 
     subprocess_data = %{
       saved.subprocess_data
@@ -1706,6 +1725,32 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       Enum.map(process.flow_nodes, fn %FlowNode{} = node ->
         refs = boundary_map |> Map.get(node.id, []) |> Enum.map(& &1.id)
         %FlowNode{node | boundary_event_refs: refs}
+      end)
+
+    %BpmnProcess{process | flow_nodes: flow_nodes}
+  end
+
+  defp resolve_compensation_handlers(%BpmnProcess{} = process) do
+    association_by_source =
+      Map.new(process.associations, fn assoc -> {assoc.source_ref, assoc.target_ref} end)
+
+    flow_nodes =
+      Enum.map(process.flow_nodes, fn %FlowNode{} = node ->
+        case node do
+          %FlowNode{
+            type: :boundary_event,
+            type_data:
+              %FlowNodeData.BoundaryEvent{
+                event_definition: %EventDefinition.Compensation{}
+              } = boundary_data
+          } ->
+            handler_id = Map.get(association_by_source, node.id)
+            updated = %FlowNodeData.BoundaryEvent{boundary_data | compensation_handler_id: handler_id}
+            %FlowNode{node | type_data: updated}
+
+          _ ->
+            node
+        end
       end)
 
     %BpmnProcess{process | flow_nodes: flow_nodes}

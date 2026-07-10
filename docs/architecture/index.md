@@ -18,7 +18,7 @@ Each file covers one architectural aspect. Documentation grows as design decisio
 - **[configuration.md](configuration.md)** — Configuration sources, env vars table (~50 entries), linter-score deploy gate, database housekeeping and retention
 - **[testing.md](testing.md)** — Test infrastructure, BPMN execution scenario matrix (S1–S15c), assertion framework, conformance corpus, crash-resume variants, CI enforcement
 - **[security.md](security.md)** — Threat model, JWT authentication, authorization summary, input validation, plugin trust model, secrets management, known gaps
-- **[execution.md](execution.md)** — PI/FNI runtime: gen_statem lifecycle, handler-owned FNI lifecycle via `FniLifecycle`, modular decomposition (Helpers, BoundaryOrchestrator, Resumption), handler dispatch, sequence flow resolution, supervision tree, persistence adapter, encounter-time validation, Start Event resolution and FinalToken result derivation
+- **[execution.md](execution.md)** — PI/FNI runtime: gen_statem lifecycle, handler-owned FNI lifecycle via `FniLifecycle`, modular decomposition (Helpers, BoundaryOrchestrator, CompensationOrchestrator, Resumption), handler dispatch, sequence flow resolution, compensation (registry, resolver, orchestrator, LIFO dispatch), supervision tree, persistence adapter, encounter-time validation, Start Event resolution and FinalToken result derivation
 - **[dmn.md](dmn.md)** — DMN model, parser, validator, evaluator (7 hit policies, literal expressions, all 10 boxed expression types), Decision Services, evaluation trace, persistence catalog, REST API
 - **[sdk-client.md](sdk-client.md)** — TypeScript SDK and client packages: package structure, dependency direction, error mapping pipeline, authentication, integration test architecture, CI/CD
 - **[timers.md](timers.md)** — `core_timers` subsystem: Scheduler (ETS layout, tick mechanism, cycle re-arm, PID monitoring), ISO 8601 parser, StartEventManager (cycle schedule lifecycle), persistence behaviour, configuration, telemetry events
@@ -34,3 +34,11 @@ Each file covers one architectural aspect. Documentation grows as design decisio
 | [`ImplementationPhases.md`](../ImplementationPhases.md) | Per-phase task lists and exit criteria |
 | [`Glossary.md`](../Glossary.md) | Every term used in this project |
 | [`Schema.md`](../Schema.md) | Database ER diagram + per-table narrative |
+
+## User Handbook
+
+The `docs/guides/handbook/` directory contains per-topic user guides with worked examples and best practices. Key topics relevant to architecture:
+
+- **Compensation** (`docs/guides/handbook/compensation.md`) — Compensation modeling (Saga pattern, LIFO, ESP handlers, trigger-vs-mechanism)
+- **Event Subprocesses** (`docs/guides/handbook/event-subprocesses.md`) — Event Subprocess modeling and trigger semantics
+- **Retry / Restart** (`docs/guides/handbook/retry-restart.md`) — PI retry, checkpoint reset, version migration

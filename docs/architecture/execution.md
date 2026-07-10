@@ -67,12 +67,11 @@ One Erlang process per running PI, registered in `EvilEngine.Execution.Registry`
 | `:aborted` | PI was administratively aborted (terminal, PI process stops) |
 | `:error` | An Error End Event was reached — modeled BPMN error outcome (terminal, PI process stops) |
 | `:escalated` | An Escalation End Event reached the root of its scope with no matching boundary catch — modeled BPMN escalation outcome (terminal, PI process stops). **Not retryable.** |
-
-**Reserved for future implementations:** `:compensated` (Compensation). This state will arrive with the Compensation BPMN element implementation.
+| `:compensated` | A Compensation End Event was reached and all handlers completed — the PI finished after compensation (terminal, PI process stops). **Not retryable** — compensation is a successful business outcome, not a failure. |
 
 Preparation (model fetch, Start Event resolution, Task.Supervisor start) happens synchronously in `init/1`. If preparation fails, `start_link` returns `{:error, reason}` — the PI process never starts.
 
-When the PI reaches a terminal state (`:finished`, `:fatal`, `:aborted`, or `:error`), the `:gen_statem` process stops with `:normal` exit reason. There is no lingering process in terminal state.
+When the PI reaches a terminal state (`:finished`, `:fatal`, `:aborted`, `:error`, `:escalated`, or `:compensated`), the `:gen_statem` process stops with `:normal` exit reason. There is no lingering process in terminal state.
 
 **FNI cleanup on PI termination:** Each terminal PI state cascades a matching FNI state to all remaining `active`/`waiting` FNIs:
 - `transition_to_fatal` → `fatal_all_fnis` persists all `active`/`waiting` FNIs to `fatal` (with `error_code: "process_fatal"`) and emits `FlowNodeInstanceFinished` events
@@ -1590,6 +1589,111 @@ This is intentional BPMN semantics: Intermediate Throw = "I'm not done yet" (chi
 | `EvilEngine.Execution.FlowNodes.EscalationEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/escalation_end_event.ex` |
 | `EvilEngine.Execution.FlowNodes.EscalationIntermediateThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/escalation_intermediate_throw_event.ex` |
 | `EvilEngine.Execution.FlowNodes.EscalationBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/escalation_boundary_event.ex` |
+
+---
+
+## Compensation
+
+### Compensation Registry
+
+The PI maintains a `compensation_registry` in its state — a list of `%{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}` entries. An entry is pushed in `do_handle_fni_ok` whenever a finished FNI's flow node has a resolvable compensation boundary event with a `compensation_handler_id`. The `token_snapshot` captures the output payload at the moment of completion, giving compensation handlers access to the exact data the original task produced. On resume, `Resumption.rebuild_compensation_registry/1` re-derives the registry from persisted `:finished` FNIs.
+
+### Compensation Resolution
+
+`CompensationResolver.resolve/2` takes the registry and an `EventDefinition.Compensation` (which may carry an `activity_ref`):
+- **Broadcast** (no `activity_ref`): returns all entries sorted by `completion_order` descending (LIFO)
+- **Targeted** (`activity_ref` set): returns only the matching entry
+
+### Compensation Orchestration
+
+`CompensationOrchestrator.build_run/4` builds a `%CompensationRun{}` struct with a queue of compensation targets, a cursor, the throw type, outgoing flow node IDs, and the original token payload.
+
+The PI processes `{:compensate, run_spec, result}` from the handler by:
+1. Resolving targets via `CompensationResolver`
+2. Building a `CompensationRun` and storing it in state
+3. Emitting `CompensationTriggered`
+4. Dispatching the first handler target (or completing immediately if no targets)
+
+After each handler finishes (`handle_compensation_handler_finished`):
+1. Emit `ActivityCompensated`
+2. Advance the cursor
+3. If more targets remain, dispatch the next one
+4. If complete:
+   - For throw: park as `:waiting`, then dispatch outgoing flows
+   - For end: finish the compensation end FNI, set `compensation_end_reached`
+
+### PI Terminal State: `:compensated`
+
+When a PI finishes naturally (`active_count == 0`) and `compensation_end_reached` is set, the terminal state is `:compensated` instead of `:finished`. This state is **not retryable** — it represents a successful business outcome (compensation ran to completion), on par with `:finished` and `:escalated`.
+
+### Handler Dispatch
+
+Three handler modules:
+- `CompensateThrowEvent`: returns `{:compensate, %{throw_type: :throw, ...}, result}`
+- `CompensateEndEvent`: returns `{:compensate, %{throw_type: :end, ...}, result}`
+- `CompensationBoundaryEvent`: returns `{:error, :compensation_boundary_not_dispatched}` (safety guard — boundaries are filtered out before dispatch)
+
+### Compensation + Boundary Orchestrator
+
+`BoundaryOrchestrator.resolve_subscription_boundaries/3` explicitly filters out compensation boundaries (`:compensation` event definitions) since they are passive registration carriers, not subscription-based boundaries.
+
+### Resume and Retry
+
+The compensation registry is an **in-memory** data structure on the PI's gen_statem state — it is not persisted as a separate table. On resume (engine restart or retry), `Resumption.rebuild_compensation_registry/1` re-derives the registry by scanning all persisted `:finished` FNIs: for each finished FNI, it checks whether the corresponding flow node in the BPMN model has a compensation boundary event with a resolved `compensation_handler_id`. If so, an entry is pushed.
+
+Compensation handler FNIs are ordinary FNIs — they are persisted in `:finished` state and participate in the standard retry reset/re-derive cycle. No special retry logic is needed for compensation; the registry is rebuilt from the same `:finished` FNI set that retry preserves.
+
+PI state fields relevant to compensation:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `compensation_registry` | `[%{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}]` | Ordered list of completed activities eligible for compensation |
+| `compensation_completion_counter` | `integer` | Monotonic counter for LIFO ordering |
+| `compensation_runs` | `%{throw_fni_id => %CompensationRun{}}` | Active compensation run state (cursor, remaining targets) |
+| `compensation_end_reached` | `boolean` | Set when a Compensation End Event fires; influences terminal state |
+| `compensation_esp_throw_map` | `%{scope_pi_id => throw_fni_id}` | Maps ESP scope PI to the throw FNI that triggered compensation-start ESP |
+
+### Edge-Case Matrix: When Compensation Does NOT Auto-Trigger
+
+Compensation is **never automatically triggered** by the engine in response to failures or exceptional paths. It requires explicit wiring by the diagram author via a Compensate Throw or Compensate End Event.
+
+| Scenario | Does compensation auto-trigger? | Notes |
+|----------|:---:|-------|
+| FNI fatal | No | PI goes `:fatal`; no compensation dispatch |
+| PI abort (user/API) | No | Entire tree aborted; no compensation dispatch |
+| Error End Event | No | PI goes `:error`; compensation requires explicit modeling (e.g. error boundary → compensate throw) |
+| Escalation (uncaught) | No | PI state depends on throw type; no compensation dispatch |
+| Terminate End Event | No | Remaining FNIs interrupted; no compensation dispatch |
+
+Compensation must be explicitly placed in the BPMN diagram. The typical pattern is: error boundary catches → compensate throw event → handlers run → process continues or ends.
+
+### Compensation-Start Event Subprocess
+
+A `<bpmn:subProcess triggeredByEvent="true">` with a `<bpmn:startEvent>` carrying `<bpmn:compensateEventDefinition>` acts as a scope-level compensation handler. When a Compensate Throw or End Event fires in the scope, `CompensationResolver` checks for a matching compensation-start ESP via `EventSubprocessResolver` (COMP-D5). If found, the ESP is triggered as the scope's compensation handler, reusing the standard ESP child-PI machinery. The ESP start is always interrupting (compensation consumes the scope).
+
+### Responsibility Split
+
+Compensation logic is deliberately distributed across thin, focused modules to avoid a "God-ProcessInstance" pattern:
+
+| Module | Responsibility |
+|--------|---------------|
+| `CompensateThrowEvent` / `CompensateEndEvent` | Thin handlers: resolve outgoing flows, build `run_spec`, return `{:compensate, ...}` tuple. No PI mutation, no persistence. |
+| `CompensationBoundaryEvent` | Safety guard only — returns `{:error, :compensation_boundary_not_dispatched}`. Compensation boundaries are passive registration carriers, never dispatched. |
+| `CompensationResolver` | Pure resolver: given a registry and an event definition, returns the ordered list of targets (LIFO broadcast or single targeted). No state mutation, no IO. |
+| `CompensationOrchestrator` | Pure plan builder: constructs `%CompensationRun{}` struct with cursor, targets, throw type. Provides `advance_cursor/1`, `current_target/1`, `run_complete?/1`. No state mutation, no IO. |
+| `ProcessInstance` | Orchestration glue: receives `{:compensate, ...}` from handlers, calls Resolver + Orchestrator to build the run, stores the run in state, dispatches handler FNIs sequentially, emits events, handles persistence. Compensation-specific PI code is confined to ~150 lines of clearly scoped private functions. |
+| `BoundaryOrchestrator` | Filters out compensation boundaries from subscription resolution (they are not subscription-based). |
+| `Resumption` | Re-derives `compensation_registry` from persisted `:finished` FNIs on resume/retry. |
+
+### Files
+
+| Module | Path |
+|--------|------|
+| `EvilEngine.Execution.CompensationResolver` | `apps/core_execution/lib/evil_engine/execution/compensation_resolver.ex` |
+| `EvilEngine.Execution.ProcessInstance.CompensationOrchestrator` | `apps/core_execution/lib/evil_engine/execution/process_instance/compensation_orchestrator.ex` |
+| `EvilEngine.Execution.FlowNodes.CompensateThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensate_throw_event.ex` |
+| `EvilEngine.Execution.FlowNodes.CompensateEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensate_end_event.ex` |
+| `EvilEngine.Execution.FlowNodes.CompensationBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensation_boundary_event.ex` |
 
 ---
 

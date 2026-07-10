@@ -350,6 +350,62 @@ FixtureProvider.oversize_payload()
 
 ---
 
+## MANDATORY: Fix ALL Test Failures
+
+**Every agent MUST fix ALL test failures, warnings, and errors encountered
+during `mix quality` or any test run — no exceptions.**
+
+This is a **non-negotiable** rule. Violations of this rule directly endanger
+the CI pipeline and block every other contributor.
+
+### Why "pre-existing" is not an excuse
+
+ThomasTheDaemonEngine is a highly interconnected umbrella project. A change
+to `core_execution` can break tests in `api_web`. A new handler in
+`handler_dispatch.ex` can cause cascading failures in conformance tests. A
+new PI state can break retry logic in `api_facade`. **It is never safe to
+assume a failing test is unrelated to your changes.**
+
+Even if a failure genuinely predates your work, the CI pipeline does not
+distinguish "your fault" from "someone else's fault" — it sees red and
+blocks the merge. Leaving a known failure for "someone else to fix" is
+functionally identical to introducing it yourself.
+
+### Rules
+
+1. **Run `mix quality` after every logical change.** This is defined in
+   `.cursor/rules/build.mdc` and is non-optional.
+2. **If any test fails, fix it.** Do not move on to the next task. Do not
+   mark your work as complete. Do not report "N tests failed but they seem
+   pre-existing."
+3. **If a test that previously passed now fails, the cause is almost
+   certainly your change.** Investigate the connection before assuming
+   otherwise. The codebase is too interconnected for coincidences.
+4. **If you genuinely cannot fix a failure** (e.g., it requires domain
+   knowledge you lack, or it depends on infrastructure you cannot access),
+   **explicitly report it as a blocker** with full error output, your
+   analysis of the root cause, and what you tried. Do not silently skip it.
+5. **"It worked on my machine" is not acceptable.** Tests must pass in the
+   standardized `mix quality` pipeline, which includes compile, Credo,
+   Dialyzer, Sobelow, docs, unit tests, integration tests, and conformance
+   tests.
+
+### Common trap: `DBConnection.OwnershipError`
+
+This error in integration tests almost always means a Process Instance
+outlived the test's Ecto sandbox checkout. Common causes:
+
+- The PI's `terminate/3` callback does async work after the test ends
+- A child process (Task.Supervisor, handler Task) does a DB write after
+  the owning test process exits
+- `wait_for_process_instance/2` returned before all PI cleanup finished
+
+Fix by ensuring PI processes fully terminate (including their
+Task.Supervisor) before the test asserts. Use `Process.monitor` +
+`assert_receive {:DOWN, ...}` patterns instead of `refute Process.alive?`.
+
+---
+
 ## Test Coverage Requirements
 
 Every new feature MUST include tests covering:

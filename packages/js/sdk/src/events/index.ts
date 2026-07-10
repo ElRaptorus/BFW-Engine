@@ -33,6 +33,8 @@ export type {
   SignalPublished,
   SignalArrived,
   EscalationRaised,
+  CompensationTriggered,
+  ActivityCompensated,
   EventSubprocessTriggered,
   SinkFailed,
 } from './engine-events.js';

@@ -9,7 +9,9 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   require Logger
 
+  alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
+  alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.Persistence, as: PersistenceAdapter
@@ -139,9 +141,19 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
       boundary_refs
       |> Enum.map(&Map.get(node_index, &1))
-      |> Enum.reject(&is_nil/1)
+      |> Enum.reject(fn node -> is_nil(node) or compensation_boundary?(node) end)
     end
   end
+
+  defp compensation_boundary?(%FlowNode{
+         type: :boundary_event,
+         type_data: %FlowNodeData.BoundaryEvent{
+           event_definition: %EventDefinition.Compensation{}
+         }
+       }),
+       do: true
+
+  defp compensation_boundary?(_), do: false
 
   @doc "Interrupts all active/waiting boundary FNIs attached to the given host FNI."
   @spec cancel_boundary_fnis_for_host(struct(), String.t()) :: struct()

@@ -25,6 +25,7 @@ defmodule EvilEngine.BPMN.Model.FlowNode do
           data_input_associations: [DataAssociation.t()],
           data_output_associations: [DataAssociation.t()],
           multi_instance: MultiInstance.t() | nil,
+          is_for_compensation: boolean(),
           documentation: String.t() | nil
         }
 
@@ -41,7 +42,8 @@ defmodule EvilEngine.BPMN.Model.FlowNode do
     boundary_event_refs: [],
     data_contracts: [],
     data_input_associations: [],
-    data_output_associations: []
+    data_output_associations: [],
+    is_for_compensation: false
   ]
 end
 

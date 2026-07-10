@@ -2182,6 +2182,23 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       assert {:ok, _} = validate_esp(esp)
     end
 
+    test "valid compensation-triggered ESP passes" do
+      esp = """
+      <bpmn:subProcess id="ESP_Comp" triggeredByEvent="true">
+        <bpmn:startEvent id="ESP_Comp_Start">
+          <bpmn:compensateEventDefinition id="ESP_Comp_Def" />
+          <bpmn:outgoing>ESP_Comp_SF</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:endEvent id="ESP_Comp_End">
+          <bpmn:incoming>ESP_Comp_SF</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="ESP_Comp_SF" sourceRef="ESP_Comp_Start" targetRef="ESP_Comp_End" />
+      </bpmn:subProcess>
+      """
+
+      assert {:ok, _} = validate_esp(esp)
+    end
+
     test "ESP with no start event is rejected" do
       esp = """
       <bpmn:subProcess id="ESP_NoStart" triggeredByEvent="true">

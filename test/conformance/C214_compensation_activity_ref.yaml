@@ -1,0 +1,10 @@
+name: "C214: Compensation throw with activityRef — only targeted handler fires"
+fixture: "compensation_activity_ref.bpmn"
+process_model_id: "CompensationActivityRef"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

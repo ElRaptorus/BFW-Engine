@@ -150,6 +150,8 @@ export type {
   SignalPublished,
   SignalArrived,
   EscalationRaised,
+  CompensationTriggered,
+  ActivityCompensated,
   EventSubprocessTriggered,
   SinkFailed,
 } from './events/index.js';

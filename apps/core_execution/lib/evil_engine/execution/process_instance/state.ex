@@ -50,6 +50,22 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           fired: boolean()
         }
 
+  @type compensation_registry_entry :: %{
+          completed_fni_id: String.t(),
+          flow_node_id: String.t(),
+          handler_activity_id: String.t(),
+          token_snapshot: map(),
+          completion_order: non_neg_integer()
+        }
+
+  @type compensation_run :: %{
+          queue: [compensation_registry_entry()],
+          cursor: non_neg_integer(),
+          mode: :throw | :end,
+          outgoing: [String.t()],
+          token: map()
+        }
+
   @type t :: %__MODULE__{
           process_instance_id: String.t(),
           process_version_id: String.t(),
@@ -69,6 +85,11 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           conditional_waiters: %{String.t() => conditional_waiter_entry()},
           event_subprocess_triggers: %{String.t() => EvilEngine.Execution.EventSubprocessTrigger.t()},
           event_subprocess_kinds: %{String.t() => {atom(), boolean()}},
+          compensation_registry: [compensation_registry_entry()],
+          compensation_completion_counter: non_neg_integer(),
+          compensation_runs: %{String.t() => compensation_run()},
+          compensation_end_reached: boolean(),
+          compensation_esp_throw_map: %{String.t() => String.t()},
           task_supervisor: pid() | nil,
           bpmn_error_info: map() | nil,
           escalation_info: escalation_info() | nil
@@ -94,6 +115,11 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
     conditional_waiters: %{},
     event_subprocess_triggers: %{},
     event_subprocess_kinds: %{},
+    compensation_registry: [],
+    compensation_completion_counter: 0,
+    compensation_runs: %{},
+    compensation_end_reached: false,
+    compensation_esp_throw_map: %{},
     task_supervisor: nil,
     bpmn_error_info: nil,
     escalation_info: nil

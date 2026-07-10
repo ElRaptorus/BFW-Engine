@@ -374,8 +374,10 @@ defmodule EvilEngine.Execution do
     end
   end
 
+  @retriable_pi_states ["fatal", "aborted", "error"]
+
   defp validate_and_continue_walk(ancestor_data, adapter, accumulated_chain) do
-    if ancestor_data.state in ["fatal", "aborted", "error"] do
+    if ancestor_data.state in @retriable_pi_states do
       chain = accumulated_chain ++ [ancestor_data]
 
       case ancestor_data.parent_process_instance_id do

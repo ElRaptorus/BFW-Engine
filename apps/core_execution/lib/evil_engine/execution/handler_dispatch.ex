@@ -231,8 +231,25 @@ defmodule EvilEngine.Execution.HandlerDispatch do
     :unsupported_event_definition
   end
 
-  defp resolve_handler(%FlowNode{type_data: %{event_definition: %EventDefinition.Compensation{}}}) do
-    :unsupported_event_definition
+  defp resolve_handler(%FlowNode{
+         type: :intermediate_throw_event,
+         type_data: %{event_definition: %EventDefinition.Compensation{}}
+       }) do
+    {:ok, FlowNodes.CompensateThrowEvent}
+  end
+
+  defp resolve_handler(%FlowNode{
+         type: :end_event,
+         type_data: %{event_definition: %EventDefinition.Compensation{}}
+       }) do
+    {:ok, FlowNodes.CompensateEndEvent}
+  end
+
+  defp resolve_handler(%FlowNode{
+         type: :boundary_event,
+         type_data: %{event_definition: %EventDefinition.Compensation{}}
+       }) do
+    {:ok, FlowNodes.CompensationBoundaryEvent}
   end
 
   defp resolve_handler(%FlowNode{

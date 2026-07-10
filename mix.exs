@@ -75,6 +75,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/handbook/expressions.md",
           "docs/guides/handbook/data-objects.md",
           "docs/guides/handbook/link-events.md",
+          "docs/guides/handbook/compensation.md",
           "docs/guides/handbook/retry-restart.md",
           "docs/guides/handbook/error-handling.md",
           "docs/guides/handbook/monitoring.md",

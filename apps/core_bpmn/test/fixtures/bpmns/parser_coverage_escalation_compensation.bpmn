@@ -31,7 +31,8 @@
         <bpmn:flowNodeRef>Boundary_Escalation</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Boundary_Compensation</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Boundary_Conditional</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>End_Boundary_Comp</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CompHandler</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Compensation</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>End_Boundary_Cond</bpmn:flowNodeRef>
       </bpmn:lane>
     </bpmn:laneSet>
@@ -48,12 +49,11 @@
     <bpmn:task id="Task_Compensate" name="Compensate Target">
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:outgoing>Flow_3</bpmn:outgoing>
-      <bpmn:outgoing>Flow_CompEnd</bpmn:outgoing>
     </bpmn:task>
 
     <bpmn:task id="Task_ConditionalHost" name="Conditional Host">
-      <bpmn:incoming>Flow_3</bpmn:incoming>
-      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:task>
 
     <bpmn:endEvent id="End_Escalation" name="Escalation End">
@@ -68,7 +68,7 @@
 
     <bpmn:endEvent id="End_Cancel" name="Cancel End">
       <bpmn:cancelEventDefinition />
-      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:incoming>Flow_5</bpmn:incoming>
     </bpmn:endEvent>
 
     <bpmn:boundaryEvent id="Boundary_Escalation" name="Escalation Boundary" attachedToRef="Task_EscalationHost" cancelActivity="true">
@@ -76,10 +76,19 @@
       <bpmn:outgoing>Flow_EscBoundary</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
-    <bpmn:boundaryEvent id="Boundary_Compensation" name="Compensation Boundary" attachedToRef="Task_Compensate" cancelActivity="true">
-      <bpmn:compensateEventDefinition activityRef="Task_Compensate" />
-      <bpmn:outgoing>Flow_CompBoundary</bpmn:outgoing>
+    <bpmn:boundaryEvent id="Boundary_Compensation" name="Compensation Boundary" attachedToRef="Task_Compensate">
+      <bpmn:compensateEventDefinition />
     </bpmn:boundaryEvent>
+
+    <bpmn:task id="Task_CompHandler" name="Undo Compensate" isForCompensation="true" />
+
+    <bpmn:association id="Association_Comp" sourceRef="Boundary_Compensation" targetRef="Task_CompHandler" associationDirection="One" />
+
+    <bpmn:intermediateThrowEvent id="Throw_Compensation" name="Compensate Throw">
+      <bpmn:compensateEventDefinition activityRef="Task_Compensate" />
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
 
     <bpmn:boundaryEvent id="Boundary_Conditional" name="Conditional Boundary" attachedToRef="Task_ConditionalHost" cancelActivity="false">
       <bpmn:conditionalEventDefinition>
@@ -88,9 +97,6 @@
       <bpmn:outgoing>Flow_CondBoundary</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
-    <bpmn:endEvent id="End_Boundary_Comp" name="Comp Boundary End">
-      <bpmn:incoming>Flow_CompBoundary</bpmn:incoming>
-    </bpmn:endEvent>
 
     <bpmn:endEvent id="End_Boundary_Cond" name="Cond Boundary End">
       <bpmn:incoming>Flow_CondBoundary</bpmn:incoming>
@@ -98,21 +104,21 @@
 
     <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_EscalationHost" />
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_EscalationHost" targetRef="Task_Compensate" />
-    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_Compensate" targetRef="Task_ConditionalHost" />
-    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_ConditionalHost" targetRef="End_Cancel" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_Compensate" targetRef="Throw_Compensation" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Throw_Compensation" targetRef="Task_ConditionalHost" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_ConditionalHost" targetRef="End_Cancel" />
     <bpmn:sequenceFlow id="Flow_CompEnd" sourceRef="Task_Compensate" targetRef="End_Compensation" />
     <bpmn:sequenceFlow id="Flow_EscBoundary" sourceRef="Boundary_Escalation" targetRef="End_Escalation" />
-    <bpmn:sequenceFlow id="Flow_CompBoundary" sourceRef="Boundary_Compensation" targetRef="End_Boundary_Comp" />
     <bpmn:sequenceFlow id="Flow_CondBoundary" sourceRef="Boundary_Conditional" targetRef="End_Boundary_Cond" />
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
       <bpmndi:BPMNShape id="Shape_Participant_Process_EscComp" bpmnElement="Participant_Process_EscComp" isHorizontal="true">
-        <dc:Bounds x="82" y="112" width="1046" height="296" />
+        <dc:Bounds x="82" y="82" width="1146" height="396" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
-        <dc:Bounds x="112" y="112" width="1016" height="296" />
+        <dc:Bounds x="112" y="82" width="1116" height="396" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
@@ -123,11 +129,17 @@
       <bpmndi:BPMNShape id="Shape_Task_Compensate" bpmnElement="Task_Compensate">
         <dc:Bounds x="450" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Compensation" bpmnElement="Throw_Compensation">
+        <dc:Bounds x="582" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Task_ConditionalHost" bpmnElement="Task_ConditionalHost">
-        <dc:Bounds x="610" y="160" width="100" height="80" />
+        <dc:Bounds x="690" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Cancel" bpmnElement="End_Cancel">
-        <dc:Bounds x="802" y="182" width="36" height="36" />
+        <dc:Bounds x="882" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CompHandler" bpmnElement="Task_CompHandler">
+        <dc:Bounds x="450" y="320" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Escalation" bpmnElement="End_Escalation">
         <dc:Bounds x="482" y="282" width="36" height="36" />
@@ -144,9 +156,6 @@
       <bpmndi:BPMNShape id="Shape_Boundary_Conditional" bpmnElement="Boundary_Conditional">
         <dc:Bounds x="642" y="222" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_End_Boundary_Comp" bpmnElement="End_Boundary_Comp">
-        <dc:Bounds x="802" y="282" width="36" height="36" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Boundary_Cond" bpmnElement="End_Boundary_Cond">
         <dc:Bounds x="962" y="282" width="36" height="36" />
       </bpmndi:BPMNShape>
@@ -160,11 +169,15 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
         <di:waypoint x="550" y="200" />
-        <di:waypoint x="610" y="200" />
+        <di:waypoint x="582" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
-        <di:waypoint x="710" y="200" />
-        <di:waypoint x="802" y="200" />
+        <di:waypoint x="618" y="200" />
+        <di:waypoint x="690" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="790" y="200" />
+        <di:waypoint x="882" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_CompEnd" bpmnElement="Flow_CompEnd">
         <di:waypoint x="500" y="240" />
@@ -176,12 +189,6 @@
         <di:waypoint x="411" y="258" />
         <di:waypoint x="411" y="300" />
         <di:waypoint x="482" y="300" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_CompBoundary" bpmnElement="Flow_CompBoundary">
-        <di:waypoint x="500" y="258" />
-        <di:waypoint x="651" y="258" />
-        <di:waypoint x="651" y="300" />
-        <di:waypoint x="802" y="300" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_CondBoundary" bpmnElement="Flow_CondBoundary">
         <di:waypoint x="660" y="258" />

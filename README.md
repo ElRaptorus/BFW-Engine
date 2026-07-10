@@ -25,7 +25,7 @@ A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blo
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 5 started.** Complex Gateways and Event Subprocesses implemented.
+> **Status**: **Phase 5 started.** Complex Gateways, Compensation Events and Event Subprocesses implemented.
 >
 > See tables below for [BPMN](#bpmn-20-element-support) and [DMN](#dmn-15-support) element support.
 
@@ -72,7 +72,7 @@ python3 -m http.server 8080 -d manual # requires python3 to be installed.
 | Section                | Content                                                                                                                                                                                                                                              |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Getting Started**    | Overview, quickstart, core concepts                                                                                                                                                                                                                  |
-| **User Handbook**      | Deploying processes, starting instances, user/service/manual/script/business rule tasks, exclusive gateways, parallel gateways, inclusive gateways, event-based gateways, call activities, embedded subprocesses, error boundary events, error end events, timer events, message events, signal events, conditional events, escalation events, link events, data objects, retry/restart, expressions, error handling, monitoring |
+| **User Handbook**      | Deploying processes, starting instances, user/service/manual/script/business rule tasks, exclusive gateways, parallel gateways, inclusive gateways, complex gateways, event-based gateways, call activities, embedded subprocesses, event subprocesses, error boundary events, error end events, timer events, message events, signal events, conditional events, escalation events, compensation, link events, data objects, DMN decisions, retry/restart, expressions, error handling, monitoring |
 | **API Reference**      | REST endpoints, GraphQL schema, authentication, WebSocket channels                                                                                                                                                                                   |
 | **Plugin Development** | Behaviours, engine facade, service task handlers, event sinks, built-in plugins                                                                                                                                                                      |
 | **Operations Guide**   | Deployment, database admin, security, observability, troubleshooting                                                                                                                                                                                 |
@@ -134,7 +134,7 @@ behaviour yet.
 | Start Event (Conditional) | Yes         | Event Subprocesses only. Triggers when a FEEL condition is met. |
 | Start Event (Error)       | Yes         | Event Subprocesses only. Triggers when an Error is caught. |
 | Start Event (Escalation)  | Yes         | Event Subprocesses only. Triggers when an Escalation is caught. |
-| Start Event (Compensation)| Parsed Only | Planned, Phase 5. |
+| Start Event (Compensation)| Yes         | Event Subprocesses only. Triggers when a Compensation is caught. |
 
 
 ### Events — End
@@ -148,7 +148,7 @@ behaviour yet.
 | End Event (Signal)       | Yes         | Publishes signal and finishes the process path  |
 | End Event (Error)        | Yes         | Finishes Process with `Error`. The error propagates to the parent process and can be caught by an `Error Boundary Event`. |
 | End Event (Escalation)   | Yes         | Terminates process scope (`:escalated` state) and propagates escalation to the parent; caught by Escalation Boundary Event on Call Activity or Embedded Subprocess |
-| End Event (Compensation) | Parsed only | Planned: Phase 5                                |
+| End Event (Compensation) | Yes         | Triggers compensation for completed activities in the current scope, then finishes the PI with `Compensated` state |
 | End Event (Cancel)       | Parsed only | Planned: Phase 5                                |
 
 
@@ -167,7 +167,7 @@ behaviour yet.
 | Intermediate Throw Event (Message)      | Yes         | Publishes messages for 1:1 and deterministic 1:n communication        |
 | Intermediate Throw Event (Signal)       | Yes         | Publishes signals for non-deterministic broadcasts           |
 | Intermediate Throw Event (Escalation)   | Yes         | Propagates escalation to the parent without terminating the current process; PI continues normally after the throw |
-| Intermediate Throw Event (Compensation) | Parsed only | Planned: Phase 5                                      |
+| Intermediate Throw Event (Compensation) | Yes         | Triggers compensation on a specific finished activity, or ALL finished activities. Waits for handlers to complete, then continues normally. |
 
 
 ### Events — Boundary
@@ -181,7 +181,7 @@ behaviour yet.
 | Boundary Event (Signal)       | Yes         | Interrupting + non-interrupting;  |
 | Boundary Event (Conditional)  | Yes         | Interrupting + non-interrupting; FEEL condition, fires only once        |
 | Boundary Event (Escalation)   | Yes         | Interrupting + non-interrupting; catches escalations from child PIs; specific-code matching beats catch-all regardless of declaration order |
-| Boundary Event (Compensation) | Parsed only | Planned: Phase 5                  |
+| Boundary Event (Compensation) | Yes         | Passive marker; registers the host activity for compensation upon completion. Linked to a handler activity via Association. |
 | Boundary Event (Cancel)       | Parsed only | Planned: Phase 5                  |
 
 
@@ -194,6 +194,7 @@ behaviour yet.
 | Conditional Expression      | Yes         | FEEL-based condition, used by forking Exclusive- and Inclusive Gateways                 |
 | Data Object                 | Yes         | DOA-driven writes, value contracts, FEEL reads, full write history for audit trail |
 | Data Object Reference       | Yes         | Visual Data Object representation |
+| Association                 | Yes         | Links compensation boundary events to their handler activities |
 | Multi-Instance (Parallel)   | Parsed only | Planned: Phase 5                  |
 | Multi-Instance (Sequential) | Parsed only | Planned: Phase 5                  |
 | Multi-Instance (Loop)       | Parsed only | Planned: Phase 5                  |
@@ -444,8 +445,8 @@ The root `mix.exs` provides aliases that run the full pipeline in one command.
 | Layer                 | Command                | Coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Unit tests**        | `mix test`             | 900+ tests across all umbrella apps. Covers types, BPMN parser/validator, FEEL expressions, DMN parser/evaluator (all 7 hit policies, CL3 expressions), PI/FNI state machine, parallel/inclusive/EBG gateway handlers, conditional event re-evaluation, escalation resolver, timer scheduler/ISO8601/StartEventManager, event bus, plugin registry, auth, persistence, telemetry, HTTP controllers, GraphQL.                                                                                                                                                                                                                                                                                                                                                                                               |
-| **Integration tests** | `mix test.integration` | 600+ full-stack tests with DB. Deploy via HTTP, start PIs, complete user/service/script/BRT tasks, verify persistence, payload cap, finalTokens, resume-on-startup, Call Activity lifecycle, Embedded Subprocess lifecycle, Parallel/Inclusive/EBG gateway flows, Conditional events, Escalation cross-PI propagation (S15–S15c), Data Object DOA writes, PI retry/restart, auth provider plugins.                                                                                                                                                                                                                                                                                                                                                                       |
-| **Conformance tests** | `mix test.conformance` | 115+ tests driven by 112+ YAML specs (C01–C142) covering linear flows, user/manual/service/script tasks, business rule tasks (FEEL + DMN + contract violation), data objects (DOA + value contracts + checkpoint rollback), multi-start disambiguation, runtime validation (implicit split, dead end), payload cap rejection, resume-after-restart, exclusive gateway routing (conditions, default, ambiguous, no-match), call activity (basic, error boundary, no-boundary fatal, result mapping, XOR-to-CA), link events (basic pair, multi-pair, orphan throw), PI retry (fatal-replay, aborted-replay, version-migration accept/reject, tree/checkpoint/DO scenarios), auth provider plugins, 22 DMN-only specs (CL1–CL3), 12 timer event specs (catch/boundary/start with duration/date/cycle/FEEL), 9 message event specs (catch/throw/start/end/boundary/send-receive/mappings/contract), 3 embedded subprocess specs (C140–C142: happy path, error boundary, terminate scope), and 4 escalation specs (C95–C98: interrupting boundary, non-interrupting boundary, uncaught three-level CA chain, uncaught intermediate throw). |
+| **Integration tests** | `mix test.integration` | 600+ full-stack tests with DB. Deploy via HTTP, start PIs, complete user/service/script/BRT tasks, verify persistence, payload cap, finalTokens, resume-on-startup, Call Activity lifecycle, Embedded Subprocess lifecycle, Parallel/Inclusive/EBG gateway flows, Conditional events, Escalation cross-PI propagation (S15–S15c), Compensation events (COMP-1–COMP-10: basic throw/end, LIFO ordering, targeted, no-targets, error/escalation-driven, ESP precedence, unfinished activities), Data Object DOA writes, PI retry/restart, auth provider plugins.                                                                                                                                                                                                                                                                                                                                                                       |
+| **Conformance tests** | `mix test.conformance` | 170+ tests driven by 171 YAML specs (C01–C220) covering linear flows, user/manual/service/script tasks, business rule tasks (FEEL + DMN + contract violation), data objects (DOA + value contracts + checkpoint rollback), multi-start disambiguation, runtime validation (implicit split, dead end), payload cap rejection, resume-after-restart, exclusive gateway routing (conditions, default, ambiguous, no-match), call activity (basic, error boundary, no-boundary fatal, result mapping, XOR-to-CA), link events (basic pair, multi-pair, orphan throw), PI retry (fatal-replay, aborted-replay, version-migration accept/reject, tree/checkpoint/DO scenarios), auth provider plugins, 22 DMN-only specs (CL1–CL3), 12 timer event specs (catch/boundary/start with duration/date/cycle/FEEL), 9 message event specs (catch/throw/start/end/boundary/send-receive/mappings/contract), 8 embedded subprocess specs (C140–C146), 4 escalation specs (C95–C98), 6 parallel gateway specs (C160–C164), 6 EBG specs (C150–C154), 12 inclusive gateway specs (C200–C210), 15 event subprocess specs (C170–C182), and 10 compensation specs (C211–C220: basic throw/end, LIFO, targeted, no-targets, error/escalation-driven, ESP precedence, unfinished activity). |
 | **Load tests**        | `mix test.load`        | 15 benchmarks in two suites: **Resume** (L1–L8) — resume 100–10,000 PIs across varying process types and FNI counts, plus seeding throughput at 1K/5K/10K batch sizes. **Execution** (E1–E7) — full API-driven lifecycle: deploy via HTTP, start 100–10,000 PIs through the API across 5 fixture types (linear, chained tasks, sync/async service tasks, user tasks), with auto-finishing of user tasks via an EngineEventBus sink.                                                                                                                                                                                                                                                                                                                                                                       |
 | **Coverage**          | `mix coveralls.html`   | HTML coverage report under `cover/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
@@ -456,7 +457,7 @@ The root `mix.exs` provides aliases that run the full pipeline in one command.
 mix quality
 ```
 
-Runs compile → Credo → Dialyzer → Sobelow → unit tests (with coverage) → integration tests → conformance tests (112+ YAML specs including 22 DMN specs, 4 escalation specs, and 3 embedded subprocess specs) in sequence. Fails on first error.
+Runs compile → Credo → Dialyzer → Sobelow → unit tests (with coverage) → integration tests → conformance tests (171 YAML specs including 22 DMN, 15 event subprocess, 12 inclusive gateway, 10 compensation, 8 embedded subprocess, 6 parallel gateway, 6 EBG, 4 escalation specs) in sequence. Fails on first error.
 
 ### CI pipeline
 

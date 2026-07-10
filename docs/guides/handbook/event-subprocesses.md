@@ -231,7 +231,8 @@ So a Catch/Boundary always beats an ESP Message Start, and an ESP Message Start 
 - **Error must interrupt.** An Error ESP start with `isInterrupting="false"` fails deploy (`event_subprocess_error_start_must_interrupt`).
 - **Conditional is edge-triggered.** A conditional ESP fires on `false → true`, not continuously while true. It re-arms after each fire (non-interrupting) only once the condition returns to false.
 - **The ESP's own escape bubbles outward.** An uncaught error/escalation raised by the ESP child itself is offered to the ESP shell's own boundary events, then bubbles to the scope PI's parent — never back into the same scope.
-- **Not yet supported:** Compensation start events on ESPs, and Multiple / Parallel-Multiple start events.
+- **Compensation start events on ESPs** are supported — see [Compensation](compensation.md). When compensation is triggered for a scope, an ESP with a compensation start event acts as the scope-level compensation handler.
+- **Not yet supported:** Multiple / Parallel-Multiple start events.
 
 ## Related
 

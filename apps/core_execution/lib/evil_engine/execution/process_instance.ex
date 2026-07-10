@@ -63,11 +63,14 @@ defmodule EvilEngine.Execution.ProcessInstance do
   import EvilEngine.Execution.ProcessInstance.Helpers
 
   alias EvilEngine.BPMN.ComplexRegionAnalysis
+  alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
+  alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Events.MessageSubscriptions
   alias EvilEngine.Events.SignalSubscriptions
   alias EvilEngine.Execution.BoundaryAwareHandler
+  alias EvilEngine.Execution.CompensationResolver
   alias EvilEngine.Execution.ComplexJoinEvaluator
   alias EvilEngine.Execution.FlowNodeResult
   alias EvilEngine.Execution.FlowNodes
@@ -78,6 +81,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   alias EvilEngine.Execution.Persistence, as: PersistenceAdapter
   alias EvilEngine.Execution.PersistenceRetry
   alias EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator
+  alias EvilEngine.Execution.ProcessInstance.CompensationOrchestrator
   alias EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator
   alias EvilEngine.Execution.ProcessInstance.Resumption
   alias EvilEngine.Execution.ProcessInstance.State
@@ -92,6 +96,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   @pi_state_aborted "aborted"
   @pi_state_error "error"
   @pi_state_escalated "escalated"
+  @pi_state_compensated "compensated"
   @shutdown_timeout 5_000
 
   @type start_opts :: %{
@@ -419,6 +424,18 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
       ) do
     data = handle_fni_escalation_throw(data, flow_node_instance_id, result, escalation_info)
+    maybe_finish_or_continue(data)
+  end
+
+  # Compensate Throw/End Event: park throw FNI, resolve targets, begin
+  # sequential LIFO compensation run.
+  def running(
+        :info,
+        {:fni_result, flow_node_instance_id,
+         {:compensate, run_spec, %FlowNodeResult{} = result}},
+        data
+      ) do
+    data = handle_fni_compensate(data, flow_node_instance_id, result, run_spec)
     maybe_finish_or_continue(data)
   end
 
@@ -835,7 +852,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
   def terminate(_reason, _state, %{task_supervisor: task_supervisor})
       when is_pid(task_supervisor) do
     if Process.alive?(task_supervisor) do
-      Supervisor.stop(task_supervisor, :shutdown, 5_000)
+      Process.unlink(task_supervisor)
+      Supervisor.stop(task_supervisor, :shutdown, @shutdown_timeout)
     end
 
     :ok
@@ -1577,9 +1595,74 @@ defmodule EvilEngine.Execution.ProcessInstance do
       nil ->
         data
 
-      _entry ->
-        do_handle_fni_ok(data, flow_node_instance_id, result)
+      entry ->
+        throw_fni_id = compensation_throw_fni_id(entry)
+        esp_throw_fni_id = compensation_esp_throw_fni_id(data, entry)
+
+        cond do
+          throw_fni_id != nil ->
+            handle_compensation_handler_finished(data, flow_node_instance_id, result, throw_fni_id)
+
+          esp_throw_fni_id != nil ->
+            handle_compensation_esp_finished(data, flow_node_instance_id, result, esp_throw_fni_id)
+
+          true ->
+            do_handle_fni_ok(data, flow_node_instance_id, result)
+        end
     end
+  end
+
+  defp compensation_throw_fni_id(entry) do
+    type_properties = entry.type_properties || %{}
+
+    Map.get(type_properties, :compensation_throw_fni_id) ||
+      Map.get(type_properties, "compensation_throw_fni_id")
+  end
+
+  defp compensation_esp_throw_fni_id(data, entry) do
+    Map.get(data.compensation_esp_throw_map, entry.flow_node_id)
+  end
+
+  defp handle_compensation_handler_finished(data, flow_node_instance_id, result, throw_fni_id) do
+    entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
+    output_payload = result.output_payload || entry.token.payload
+
+    cache_updates =
+      extract_cache_updates(result.metadata)
+
+    data = %{data | data_object_cache: Map.merge(data.data_object_cache, cache_updates)}
+
+    data =
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+        entry
+        | state: :finished,
+          pid: nil,
+          token: %{entry.token | payload: output_payload}
+      })
+
+    emit_activity_compensated(data, flow_node_instance_id, entry, throw_fni_id)
+    advance_compensation_run(data, throw_fni_id)
+  end
+
+  defp handle_compensation_esp_finished(data, flow_node_instance_id, result, throw_fni_id) do
+    entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
+    output_payload = result.output_payload || entry.token.payload
+
+    cache_updates =
+      extract_cache_updates(result.metadata)
+
+    data = %{data | data_object_cache: Map.merge(data.data_object_cache, cache_updates)}
+
+    data =
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+        entry
+        | state: :finished,
+          pid: nil,
+          token: %{entry.token | payload: output_payload}
+      })
+
+    data = %{data | compensation_esp_throw_map: Map.delete(data.compensation_esp_throw_map, entry.flow_node_id)}
+    finish_compensation_run(data, throw_fni_id, Map.fetch!(data.compensation_runs, throw_fni_id))
   end
 
   defp do_handle_fni_ok(data, flow_node_instance_id, %FlowNodeResult{} = result) do
@@ -1587,7 +1670,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
     output_payload = result.output_payload || entry.token.payload
 
     cache_updates =
-      get_in(result.metadata, [:lifecycle, Access.key(:data_object_cache_updates, %{})])
+      extract_cache_updates(result.metadata)
 
     data = %{data | data_object_cache: Map.merge(data.data_object_cache, cache_updates)}
     dispatch_successors(data, flow_node_instance_id, entry, output_payload, result)
@@ -1622,6 +1705,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
           pid: nil,
           token: %{entry.token | payload: output_payload}
       })
+
+    data = maybe_push_compensation_registry(data, flow_node_instance_id, entry, output_payload)
 
     data =
       if BoundaryOrchestrator.has_boundary_fnis?(data, flow_node_instance_id) do
@@ -1869,12 +1954,473 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
+  # -- Compensation orchestration ------------------------------------------------
+
+  defp handle_fni_compensate(data, flow_node_instance_id, %FlowNodeResult{} = result, run_spec) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
+        data
+
+      nil ->
+        data
+
+      entry ->
+        event_definition = run_spec.event_definition
+
+        case maybe_fire_compensation_esp(data, event_definition) do
+          {:ok, action} ->
+            handle_compensation_esp_fire(
+              data, flow_node_instance_id, result, run_spec, entry, action
+            )
+
+          :none ->
+            resolve_compensation_boundary_targets(
+              data, flow_node_instance_id, result, run_spec, entry, event_definition
+            )
+        end
+    end
+  end
+
+  defp maybe_fire_compensation_esp(data, %EventDefinition.Compensation{activity_ref: ref})
+       when ref in [nil, ""] do
+    EspScope.resolve_compensation_esp_catch(data)
+  end
+
+  defp maybe_fire_compensation_esp(_data, _event_definition), do: :none
+
+  defp handle_compensation_esp_fire(
+         data,
+         flow_node_instance_id,
+         result,
+         run_spec,
+         entry,
+         action
+       ) do
+    output_payload = result.output_payload || entry.token.payload
+
+    data =
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+        entry
+        | state: :waiting,
+          pid: nil,
+          token: %{entry.token | payload: output_payload},
+          type_properties: %{
+            compensation_run: true,
+            throw_type: Atom.to_string(run_spec.throw_type),
+            target_count: 0,
+            cursor: 0,
+            delegated_to_esp: true
+          }
+      })
+
+    data = put_in(data.compensation_runs[flow_node_instance_id], %{
+      queue: [],
+      cursor: 0,
+      mode: :esp,
+      throw_type: run_spec.throw_type,
+      outgoing_flow_node_ids: run_spec.outgoing_flow_node_ids,
+      token_payload: output_payload
+    })
+
+    emit_compensation_triggered(data, flow_node_instance_id, run_spec, 0)
+    fire_esp_action(data, action, flow_node_instance_id)
+  end
+
+  defp fire_esp_action(data, {:fire_interrupting, esp_node, payload}, throw_fni_id) do
+    data = EspScope.teardown_triggers(data)
+    data = interrupt_remaining_fnis(data, throw_fni_id, :compensation_esp_interrupting)
+    data = %{data | compensation_esp_throw_map: Map.put(data.compensation_esp_throw_map, esp_node.id, throw_fni_id)}
+    dispatch_esp_shell(data, esp_node, payload)
+  end
+
+  defp fire_esp_action(data, {:fire_non_interrupting, esp_node, payload}, throw_fni_id) do
+    data = %{data | compensation_esp_throw_map: Map.put(data.compensation_esp_throw_map, esp_node.id, throw_fni_id)}
+    dispatch_esp_shell(data, esp_node, payload)
+  end
+
+  defp fire_esp_action(data, :noop, _throw_fni_id), do: data
+
+  defp resolve_compensation_boundary_targets(
+         data,
+         flow_node_instance_id,
+         result,
+         run_spec,
+         entry,
+         event_definition
+       ) do
+    targets = CompensationResolver.resolve(data.compensation_registry, event_definition)
+
+    if targets == [] do
+      handle_compensation_no_targets(
+        data, flow_node_instance_id, result, run_spec, entry
+      )
+    else
+      start_compensation_run(
+        data, flow_node_instance_id, result, run_spec, entry, targets
+      )
+    end
+  end
+
+  defp handle_compensation_no_targets(data, flow_node_instance_id, result, run_spec, entry) do
+    emit_compensation_triggered(data, flow_node_instance_id, run_spec, 0)
+
+    case run_spec.throw_type do
+      :throw ->
+        _retry_result = persist_compensation_throw_no_targets(data, flow_node_instance_id)
+        do_handle_fni_ok(data, flow_node_instance_id, result)
+
+      :end ->
+        output_payload = result.output_payload || entry.token.payload
+
+        _retry_result = persist_compensation_throw_no_targets(data, flow_node_instance_id)
+
+        data =
+          put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+            entry
+            | state: :finished,
+              pid: nil,
+              token: %{entry.token | payload: output_payload}
+          })
+
+        %{data | compensation_end_reached: true}
+    end
+  end
+
+  defp persist_compensation_throw_no_targets(_data, flow_node_instance_id) do
+    adapter = PersistenceAdapter.adapter()
+
+    PersistenceRetry.with_retry(
+      fn ->
+        adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+          state: "finished",
+          finished_at: DateTime.utc_now()
+        })
+      end,
+      "FNI comp throw no-targets #{flow_node_instance_id}"
+    )
+  end
+
+  defp start_compensation_run(data, flow_node_instance_id, result, run_spec, entry, targets) do
+    output_payload = result.output_payload || entry.token.payload
+
+    run =
+      CompensationOrchestrator.build_run(
+        targets,
+        run_spec.throw_type,
+        run_spec.outgoing_flow_node_ids,
+        output_payload
+      )
+
+    type_properties = %{
+      compensation_run: true,
+      throw_type: Atom.to_string(run_spec.throw_type),
+      target_count: length(targets),
+      cursor: 0
+    }
+
+    data =
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+        entry
+        | state: :waiting,
+          pid: nil,
+          token: %{entry.token | payload: output_payload},
+          type_properties: type_properties
+      })
+
+    data = put_in(data.compensation_runs[flow_node_instance_id], run)
+
+    _persist = persist_compensation_throw_waiting(data, flow_node_instance_id, type_properties)
+
+    emit_compensation_triggered(
+      data,
+      flow_node_instance_id,
+      run_spec,
+      length(targets)
+    )
+
+    dispatch_next_compensation_handler(data, flow_node_instance_id)
+  end
+
+  defp dispatch_next_compensation_handler(data, throw_fni_id) do
+    run = Map.fetch!(data.compensation_runs, throw_fni_id)
+    target = CompensationOrchestrator.current_target(run)
+
+    if target == nil do
+      finish_compensation_run(data, throw_fni_id, run)
+    else
+      handler_node = find_flow_node(data, target.handler_activity_id)
+
+      if handler_node == nil do
+        Logger.warning(
+          "Compensation handler activity #{target.handler_activity_id} not found in model, " <>
+            "skipping for throw FNI #{throw_fni_id}"
+        )
+
+        data = put_in(data.compensation_runs[throw_fni_id], CompensationOrchestrator.advance_cursor(run))
+        dispatch_next_compensation_handler(data, throw_fni_id)
+      else
+        handler_token = %Token{
+          id: generate_id(),
+          process_instance_id: data.process_instance_id,
+          payload: target.token_snapshot,
+          originating_flow_node_instance_id: throw_fni_id,
+          created_at: DateTime.utc_now()
+        }
+
+        handler_type_properties = %{
+          compensation_for: target.completed_fni_id,
+          compensation_throw_fni_id: throw_fni_id
+        }
+
+        dispatch_compensation_handler_fni(
+          data, handler_node, handler_token, throw_fni_id, handler_type_properties
+        )
+      end
+    end
+  end
+
+  defp finish_compensation_run(data, throw_fni_id, run) do
+    data = %{data | compensation_runs: Map.delete(data.compensation_runs, throw_fni_id)}
+
+    case run.throw_type do
+      :throw ->
+        entry = Map.fetch!(data.flow_node_instance_states, throw_fni_id)
+
+        node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
+
+        targets =
+          run.outgoing_flow_node_ids
+          |> Enum.map(&Map.get(node_index, &1))
+          |> Enum.reject(&is_nil/1)
+
+        new_token = %Token{
+          id: generate_id(),
+          process_instance_id: data.process_instance_id,
+          payload: run.token_payload,
+          originating_flow_node_instance_id: throw_fni_id,
+          created_at: DateTime.utc_now()
+        }
+
+        data =
+          put_in(data.flow_node_instance_states[throw_fni_id], %{
+            entry | state: :finished
+          })
+
+        _persist = persist_compensation_throw_finished(data, throw_fni_id)
+
+        Enum.reduce(targets, data, fn target_node, accumulator ->
+          dispatch_flow_node_instance(accumulator, target_node, new_token, [throw_fni_id])
+        end)
+
+      :end ->
+        entry = Map.fetch!(data.flow_node_instance_states, throw_fni_id)
+
+        data =
+          put_in(data.flow_node_instance_states[throw_fni_id], %{
+            entry | state: :finished
+          })
+
+        _persist = persist_compensation_throw_finished(data, throw_fni_id)
+        %{data | compensation_end_reached: true}
+    end
+  end
+
+  defp advance_compensation_run(data, throw_fni_id) do
+    case Map.get(data.compensation_runs, throw_fni_id) do
+      nil ->
+        data
+
+      run ->
+        run = CompensationOrchestrator.advance_cursor(run)
+
+        throw_entry = Map.get(data.flow_node_instance_states, throw_fni_id)
+
+        if throw_entry do
+          cursor_properties = Map.merge(throw_entry.type_properties, %{cursor: run.cursor})
+
+          data =
+            put_in(
+              data.flow_node_instance_states[throw_fni_id],
+              %{throw_entry | type_properties: cursor_properties}
+            )
+
+          data = put_in(data.compensation_runs[throw_fni_id], run)
+          dispatch_next_compensation_handler(data, throw_fni_id)
+        else
+          data
+        end
+    end
+  end
+
+  defp dispatch_compensation_handler_fni(
+         data,
+         handler_node,
+         token,
+         throw_fni_id,
+         extra_type_properties
+       ) do
+    flow_node_instance_id = generate_id()
+    lane_name = resolve_lane_name(data.process_model, handler_node)
+
+    case persist_compensation_handler_fni(
+           data,
+           flow_node_instance_id,
+           handler_node,
+           token,
+           lane_name,
+           throw_fni_id,
+           extra_type_properties
+         ) do
+      {:ok, _} ->
+        emit_fni_started(data, flow_node_instance_id, handler_node, [throw_fni_id])
+
+        spawn_compensation_handler_task(
+          data,
+          flow_node_instance_id,
+          handler_node,
+          token,
+          throw_fni_id,
+          extra_type_properties
+        )
+
+      {:error, reason} ->
+        Logger.error(
+          "Compensation: failed to persist handler FNI #{flow_node_instance_id}: #{inspect(reason)}"
+        )
+
+        data
+    end
+  end
+
+  defp persist_compensation_handler_fni(
+         data,
+         flow_node_instance_id,
+         handler_node,
+         token,
+         lane_name,
+         throw_fni_id,
+         extra_type_properties
+       ) do
+    adapter = PersistenceAdapter.adapter()
+
+    PersistenceRetry.with_retry(
+      fn ->
+        adapter.create_flow_node_instance(%{
+          id: flow_node_instance_id,
+          process_instance_id: data.process_instance_id,
+          flow_node_id: handler_node.id,
+          flow_node_type: Atom.to_string(handler_node.type),
+          event_type: nil,
+          lane_name: lane_name,
+          state: "active",
+          started_at: DateTime.utc_now(),
+          input_token: token.payload,
+          previous_flow_node_instance_ids: [throw_fni_id],
+          type_properties: extra_type_properties
+        })
+      end,
+      "FNI comp handler create #{flow_node_instance_id}"
+    )
+  end
+
+  defp spawn_compensation_handler_task(
+         data,
+         flow_node_instance_id,
+         handler_node,
+         token,
+         throw_fni_id,
+         extra_type_properties
+       ) do
+    process_instance_pid = self()
+
+    with {:ok, handler_module} <- HandlerDispatch.handler_for(handler_node),
+         handler_context =
+           build_handler_context(data, flow_node_instance_id, handler_node, process_instance_pid),
+         {:ok, task_pid} <-
+           Task.Supervisor.start_child(data.task_supervisor, fn ->
+             result =
+               BoundaryAwareHandler.wrap_enter(handler_module, handler_node, token, handler_context)
+
+             dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
+           end) do
+      Process.monitor(task_pid)
+
+      entry = %{
+        pid: task_pid,
+        flow_node_id: handler_node.id,
+        flow_node_type: handler_node.type,
+        event_type: nil,
+        state: :active,
+        token: token,
+        previous_flow_node_instance_ids: [throw_fni_id],
+        type_properties: extra_type_properties,
+        next_flow_node_ids: []
+      }
+
+      put_in(data.flow_node_instance_states[flow_node_instance_id], entry)
+    else
+      {:error, reason} ->
+        Logger.error(
+          "Compensation: handler spawn failed for #{handler_node.id} " <>
+            "(FNI #{flow_node_instance_id}): #{inspect(reason)}"
+        )
+
+        data
+    end
+  end
+
+  defp persist_compensation_throw_waiting(data, flow_node_instance_id, type_properties) do
+    adapter = PersistenceAdapter.adapter()
+
+    _retry_result =
+      PersistenceRetry.with_retry(
+        fn ->
+          adapter.update_flow_node_instance(flow_node_instance_id, :update_waiting, %{
+            state: "waiting",
+            type_properties: type_properties
+          })
+        end,
+        "FNI comp throw waiting #{flow_node_instance_id}"
+      )
+
+    emit_fni_state_changed(
+      data,
+      flow_node_instance_id,
+      Map.get(data.flow_node_instance_states, flow_node_instance_id),
+      :active,
+      :waiting
+    )
+  end
+
+  defp persist_compensation_throw_finished(data, flow_node_instance_id) do
+    adapter = PersistenceAdapter.adapter()
+
+    _retry_result =
+      PersistenceRetry.with_retry(
+        fn ->
+          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+            state: "finished",
+            finished_at: DateTime.utc_now()
+          })
+        end,
+        "FNI comp throw finished #{flow_node_instance_id}"
+      )
+
+    entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
+
+    if entry do
+      emit_fni_state_changed(data, flow_node_instance_id, entry, :waiting, :finished)
+    end
+  end
+
+  # -- End Compensation orchestration -------------------------------------------
+
   defp record_fni_error(data, flow_node_instance_id, %FlowNodeResult{} = result) do
     entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
     output_payload = result.output_payload || entry.token.payload
 
     cache_updates =
-      get_in(result.metadata, [:lifecycle, Access.key(:data_object_cache_updates, %{})])
+      extract_cache_updates(result.metadata)
 
     data = %{data | data_object_cache: Map.merge(data.data_object_cache, cache_updates)}
 
@@ -2429,16 +2975,79 @@ defmodule EvilEngine.Execution.ProcessInstance do
     %{data | conditional_waiters: Map.delete(data.conditional_waiters, fni_id)}
   end
 
+  defp extract_cache_updates(metadata) do
+    case metadata[:lifecycle] do
+      nil -> %{}
+      lifecycle -> Map.get(lifecycle, :data_object_cache_updates, %{})
+    end
+  end
+
+  defp maybe_push_compensation_registry(data, fni_id, entry, output_payload) do
+    node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
+    flow_node = Map.get(node_index, entry.flow_node_id)
+
+    compensation_handler_id = find_compensation_handler_id(flow_node, node_index)
+
+    if compensation_handler_id do
+      order = data.compensation_completion_counter
+      new_entry = %{
+        completed_fni_id: fni_id,
+        flow_node_id: entry.flow_node_id,
+        handler_activity_id: compensation_handler_id,
+        token_snapshot: output_payload,
+        completion_order: order
+      }
+
+      %{
+        data
+        | compensation_registry: [new_entry | data.compensation_registry],
+          compensation_completion_counter: order + 1
+      }
+    else
+      data
+    end
+  end
+
+  defp find_compensation_handler_id(nil, _node_index), do: nil
+
+  defp find_compensation_handler_id(%FlowNode{} = flow_node, node_index) do
+    Enum.find_value(flow_node.boundary_event_refs, fn boundary_ref ->
+      case Map.get(node_index, boundary_ref) do
+        %FlowNode{
+          type: :boundary_event,
+          type_data: %FlowNodeData.BoundaryEvent{
+            event_definition: %EventDefinition.Compensation{},
+            compensation_handler_id: handler_id
+          }
+        }
+        when handler_id != nil ->
+          handler_id
+
+        _ ->
+          nil
+      end
+    end)
+  end
+
   defp maybe_finish(data) do
     active_count =
       Enum.count(data.flow_node_instance_states, fn {_id, entry} ->
         entry.state in [:active, :waiting]
       end)
 
+    if active_count == 0 do
+      finish_quiesced_pi(data)
+    else
+      {:continue, data}
+    end
+  end
+
+  defp finish_quiesced_pi(data) do
+    MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+    SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+
     cond do
-      active_count == 0 and data.escalation_info != nil ->
-        MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
-        SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+      data.escalation_info != nil ->
         _persist_result = persist_pi_escalated(data, data.escalation_info)
         emit_pi_state_changed(data, :running, :escalated)
 
@@ -2448,27 +3057,23 @@ defmodule EvilEngine.Execution.ProcessInstance do
           emit_escalation_uncaught(data, data.escalation_info)
         end
 
-        {:stop, data}
-
-      active_count == 0 and data.bpmn_error_info != nil ->
-        MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
-        SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+      data.bpmn_error_info != nil ->
         _persist_result = persist_pi_error(data, data.bpmn_error_info)
         emit_pi_state_changed(data, :running, :error)
         notify_parent(data, {:bpmn_error, data.bpmn_error_info})
-        {:stop, data}
 
-      active_count == 0 ->
-        MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
-        SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+      data.compensation_end_reached ->
+        _persist_result = persist_pi_compensated(data)
+        emit_pi_state_changed(data, :running, :compensated)
+        notify_parent(data, :compensated)
+
+      true ->
         _persist_result = persist_pi_finished(data)
         emit_pi_state_changed(data, :running, :finished)
         notify_parent(data, :finished)
-        {:stop, data}
-
-      true ->
-        {:continue, data}
     end
+
+    {:stop, data}
   end
 
   defp transition_to_fatal(data, reason) do
@@ -2706,6 +3311,20 @@ defmodule EvilEngine.Execution.ProcessInstance do
     )
   end
 
+  defp persist_pi_compensated(data) do
+    adapter = PersistenceAdapter.adapter()
+
+    PersistenceRetry.with_retry(
+      fn ->
+        adapter.update_process_instance(data.process_instance_id, %{
+          state: @pi_state_compensated,
+          finished_at: DateTime.utc_now()
+        })
+      end,
+      "PI compensated #{data.process_instance_id}"
+    )
+  end
+
   defp persist_fni_create(
          data,
          flow_node_instance_id,
@@ -2829,6 +3448,18 @@ defmodule EvilEngine.Execution.ProcessInstance do
       pid when is_pid(pid) ->
         process_instance_pid = self()
         send(pid, {:child_pi_aborted, process_instance_pid})
+    end
+  end
+
+  defp notify_parent(data, :compensated) do
+    case data.notify_pid do
+      nil ->
+        :ok
+
+      pid when is_pid(pid) ->
+        process_instance_pid = self()
+        final_tokens = build_final_tokens(data)
+        send(pid, {:child_pi_compensated, process_instance_pid, final_tokens})
     end
   end
 
@@ -3044,6 +3675,63 @@ defmodule EvilEngine.Execution.ProcessInstance do
     Logger.warning(
       "Uncaught escalation reached root process instance " <>
         "#{data.process_instance_id}: #{inspect(escalation_info[:escalation_code])}"
+    )
+  end
+
+  defp emit_compensation_triggered(data, flow_node_instance_id, run_spec, target_count) do
+    entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
+
+    EngineEventBus.publish(%Event.CompensationTriggered{
+      process_instance_id: data.process_instance_id,
+      root_process_instance_id: data.root_process_instance_id,
+      flow_node_instance_id: flow_node_instance_id,
+      flow_node_id: (entry && entry.flow_node_id) || "",
+      throw_type: run_spec.throw_type,
+      activity_ref: get_in(run_spec, [:event_definition, Access.key(:activity_ref)]),
+      target_count: target_count,
+      occurred_at: DateTime.utc_now()
+    })
+
+    :telemetry.execute(
+      [:evil_engine, :compensation, :triggered],
+      %{system_time: System.system_time()},
+      %{
+        process_instance_id: data.process_instance_id,
+        flow_node_instance_id: flow_node_instance_id,
+        throw_type: run_spec.throw_type,
+        target_count: target_count
+      }
+    )
+  end
+
+  defp emit_activity_compensated(data, handler_fni_id, handler_entry, throw_fni_id) do
+    type_properties = handler_entry.type_properties || %{}
+
+    compensated_fni_id =
+      Map.get(type_properties, :compensation_for) ||
+        Map.get(type_properties, "compensation_for") || ""
+
+    handler_activity_id = handler_entry.flow_node_id
+
+    EngineEventBus.publish(%Event.ActivityCompensated{
+      process_instance_id: data.process_instance_id,
+      root_process_instance_id: data.root_process_instance_id,
+      compensated_fni_id: compensated_fni_id,
+      handler_fni_id: handler_fni_id,
+      throw_fni_id: throw_fni_id,
+      flow_node_id: handler_activity_id,
+      handler_activity_id: handler_activity_id,
+      occurred_at: DateTime.utc_now()
+    })
+
+    :telemetry.execute(
+      [:evil_engine, :compensation, :activity_compensated],
+      %{system_time: System.system_time()},
+      %{
+        process_instance_id: data.process_instance_id,
+        handler_fni_id: handler_fni_id,
+        throw_fni_id: throw_fni_id
+      }
     )
   end
 

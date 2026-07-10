@@ -1232,8 +1232,10 @@ defmodule EvilEngine.BPMN.ParserTest do
       assert escalation.escalation_code == "ESC_LVL2"
     end
 
-    test "parses twelve flow nodes including boundary and end events", %{process: process} do
-      assert length(process.flow_nodes) == 12
+    test "parses thirteen flow nodes including boundary, compensation, and end events", %{
+      process: process
+    } do
+      assert length(process.flow_nodes) == 13
     end
 
     test "escalation end event maps escalationRef to escalation_ref", %{process: process} do
@@ -1269,12 +1271,43 @@ defmodule EvilEngine.BPMN.ParserTest do
              } = end_event.type_data
     end
 
-    test "compensation boundary maps activityRef to activity_ref", %{process: process} do
+    test "compensation boundary resolves handler via association", %{process: process} do
       boundary = find_node(process, "Boundary_Compensation")
 
       assert %FlowNodeData.BoundaryEvent{
-               event_definition: %EventDefinition.Compensation{activity_ref: "Task_Compensate"}
+               event_definition: %EventDefinition.Compensation{},
+               compensation_handler_id: "Task_CompHandler"
              } = boundary.type_data
+    end
+
+    test "isForCompensation flag is parsed on handler activity", %{process: process} do
+      handler = find_node(process, "Task_CompHandler")
+
+      assert handler.is_for_compensation
+    end
+
+    test "association is parsed into process associations list", %{process: process} do
+      assert [association] = process.associations
+      assert association.id == "Association_Comp"
+      assert association.source_ref == "Boundary_Compensation"
+      assert association.target_ref == "Task_CompHandler"
+      assert association.association_direction == "One"
+    end
+
+    test "compensate intermediate throw maps activityRef to activity_ref", %{process: process} do
+      throw_event = find_node(process, "Throw_Compensation")
+
+      assert %FlowNodeData.IntermediateThrowEvent{
+               event_definition: %EventDefinition.Compensation{
+                 activity_ref: "Task_Compensate"
+               }
+             } = throw_event.type_data
+    end
+
+    test "non-compensation activities have is_for_compensation false", %{process: process} do
+      task = find_node(process, "Task_Compensate")
+
+      refute task.is_for_compensation
     end
 
     test "cancel end event carries empty EventDefinition.Cancel", %{process: process} do

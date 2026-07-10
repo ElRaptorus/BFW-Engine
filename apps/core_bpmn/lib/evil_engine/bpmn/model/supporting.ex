@@ -78,6 +78,27 @@ defmodule EvilEngine.BPMN.Model.DataObjectReference do
   defstruct [:id, :name, :data_object_ref, :data_state]
 end
 
+defmodule EvilEngine.BPMN.Model.Association do
+  @moduledoc """
+  A `<bpmn:association>` linking two BPMN elements.
+
+  Used primarily for compensation: a directed association connects a
+  Compensation Boundary Event (source) to an `isForCompensation` handler
+  activity (target). The model-build step resolves these into
+  `compensation_handler_id` on the boundary's `FlowNodeData.BoundaryEvent`.
+  """
+
+  @type t :: %__MODULE__{
+          id: String.t(),
+          source_ref: String.t() | nil,
+          target_ref: String.t() | nil,
+          association_direction: String.t() | nil
+        }
+
+  @enforce_keys [:id]
+  defstruct [:id, :source_ref, :target_ref, :association_direction]
+end
+
 defmodule EvilEngine.BPMN.Model.Mapping do
   @moduledoc """
   An input or output mapping for Call Activities (and potentially

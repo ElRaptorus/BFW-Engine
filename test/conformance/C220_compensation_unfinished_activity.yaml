@@ -1,0 +1,13 @@
+name: "C220: Compensation throw ignores unfinished activities"
+fixture: "compensation_unfinished_activity.bpmn"
+process_model_id: "CompensationUnfinishedActivity"
+tier: interactive
+notes: >
+  Parallel gateway splits into two branches. Branch 1 has a plain task
+  followed by a compensation throw. Branch 2 has a compensable user task.
+  The throw fires while the user task is still waiting — its handler must
+  NOT fire. After finishing the user task, the PI completes normally.
+start:
+  payload: null
+expected:
+  final_state: "finished"

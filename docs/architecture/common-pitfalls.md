@@ -909,3 +909,69 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 **Correct approach:** `BPMN.Validator.check_unique_flow_node_ids/1` recurses into **every** `SubProcess` scope — including `triggered_by_event: true` — via `collect_all_flow_node_ids/1`, and rejects any collision across the process and all nested subprocess scopes with `:duplicate_flow_node_id`. Suffix IDs per scope (e.g. `ESP_Msg_Start`, `Inner_ESP_Start`) so nested-ESP and ESP-in-ESP diagrams deploy. This uniqueness is what keeps start-event resolution and subprocess scoping unambiguous (see P46).
 
+---
+
+## P53: Compensation Boundary Events are not subscription boundaries
+
+**Mistake:** Treating Compensation Boundary Events like timer/message/signal boundaries and expecting them to be pre-spawned alongside the host activity.
+
+**Why it happens:** Compensation boundaries look structurally similar to other boundary events, but they have fundamentally different semantics. They are passive registration carriers — their sole purpose is to link a host activity to a compensation handler via a `<bpmn:association>`.
+
+**Correct approach:** `BoundaryOrchestrator.resolve_subscription_boundaries/3` filters out `:compensation` event definitions. The compensation handler is dispatched only when a Compensate Throw/End Event fires and the PI's compensation registry contains an entry for the host activity. The `CompensationBoundaryEvent` handler module exists only as a safety guard — it returns `{:error, :compensation_boundary_not_dispatched}` if accidentally invoked.
+
+---
+
+## P54: FlowNodeResult metadata lifecycle may be nil
+
+**Mistake:** Using `get_in(result.metadata, [:lifecycle, Access.key(:data_object_cache_updates, %{})])` when `result.metadata[:lifecycle]` might be `nil`.
+
+**Why it happens:** Not all handlers populate `metadata.lifecycle`. Compensation handlers and other lightweight handlers return `metadata: %{}`. `Access.key/2` calls `Map.get/3` on the lifecycle value, which crashes with `BadMapError` when it's `nil`.
+
+**Correct approach:** Use a safe extraction helper that checks for `nil` first:
+
+```elixir
+defp extract_cache_updates(metadata) do
+  case metadata[:lifecycle] do
+    nil -> %{}
+    lifecycle -> Map.get(lifecycle, :data_object_cache_updates, %{})
+  end
+end
+```
+
+---
+
+## P55: Compensation is NOT auto-triggered by fatal, error, escalation, or abort
+
+**Mistake:** Expecting the engine to automatically run compensation handlers when a PI encounters a fatal error, an Error End Event fires, an escalation goes uncaught, or the PI is aborted via API.
+
+**Why it happens:** In transactional systems (and in BPMN 2.0 Transaction SubProcesses with `<cancelEventDefinition>`), compensation is automatically triggered on transaction rollback. This creates the expectation that any failure path should automatically undo previous work. But the engine's compensation support is based on explicit throw/end events, not implicit transaction semantics.
+
+**Correct approach:** Compensation requires explicit modeling by the diagram author. To compensate after an error, the typical BPMN pattern is:
+
+1. Attach an Error Boundary Event to the failing activity (or scope)
+2. Route the boundary's outgoing flow to a Compensate Intermediate Throw Event
+3. The throw event dispatches compensation handlers in LIFO order
+4. After handlers complete, the flow continues (or ends via a Compensate End Event)
+
+Fatal PIs, aborted PIs, escalated PIs, and error PIs do **not** trigger compensation. The PI reaches its terminal state directly. Retry is the recovery mechanism for fatal/aborted/error PIs, not compensation.
+
+---
+
+## P56: `isForCompensation` tasks have no sequence flows — they are linked via association
+
+**Mistake:** Expecting a compensation handler activity (`isForCompensation="true"`) to have incoming or outgoing sequence flows, or flagging it as an orphan node during validation.
+
+**Why it happens:** Every other activity in BPMN must be connected to at least one sequence flow to be reachable. Compensation handlers look like normal tasks in the modeler and in the XML, so the validator's orphan-node check would reject them without a special exemption.
+
+**Correct approach:** Activities with `isForCompensation="true"` are linked to their host activity via a `<bpmn:association>` that connects a Compensation Boundary Event (on the host) to the handler. The parser resolves the association at model-build time and stores `compensation_handler_id` on the boundary event's type data. The validator explicitly exempts `isForCompensation` activities from orphan-node checks (no sequence flows required) and from dead-end checks.
+
+---
+
+## P57: Subprocess handler `resolve_outgoing` is eager — always add a normal outgoing flow
+
+**Mistake:** Modeling an embedded subprocess with only a boundary event (e.g. a timer or error boundary) and no outgoing sequence flow, expecting the boundary to be the only exit path.
+
+**Why it happens:** The embedded subprocess handler calls `resolve_outgoing` during `handle_enter`, **before** starting the child PI. If the subprocess shell has no outgoing sequence flows and no default flow, `resolve_outgoing` returns `{:error, :dead_end}`, which fatals the subprocess FNI before the child PI ever starts — and before any boundary event has a chance to fire.
+
+**Correct approach:** Always add a normal outgoing sequence flow from the subprocess shell, even if you expect the boundary to always fire. The outgoing flow serves as the "happy path" exit. The boundary event fires independently and interrupts the subprocess if needed. Without the outgoing flow, the subprocess never starts.
+

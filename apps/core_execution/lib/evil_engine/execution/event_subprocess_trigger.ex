@@ -24,7 +24,8 @@ defmodule EvilEngine.Execution.EventSubprocessTrigger do
 
   alias EvilEngine.BPMN.Model.EventDefinition
 
-  @type trigger_kind :: :message | :signal | :timer | :error | :escalation | :conditional
+  @type trigger_kind ::
+          :message | :signal | :timer | :error | :escalation | :conditional | :compensation
 
   @type t :: %__MODULE__{
           subprocess_node_id: String.t(),

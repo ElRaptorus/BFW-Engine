@@ -75,6 +75,10 @@ defmodule EvilEngine.Execution.FlowNodeHandler do
               | {:wait, FlowNodeResult.t()}
               | {:terminate, FlowNodeResult.t()}
               | {:bpmn_error, map(), FlowNodeResult.t()}
+              | {:compensate, map(), FlowNodeResult.t()}
+              | {:escalation_throw, map(), FlowNodeResult.t()}
+              | {:escalation_end, map(), FlowNodeResult.t()}
+              | {:escalation_end_propagate, map(), FlowNodeResult.t()}
               | {:error, reason :: term()}
               | {:async, String.t()}
               | {:async, String.t(), (-> term())}

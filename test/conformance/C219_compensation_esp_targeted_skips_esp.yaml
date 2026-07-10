@@ -1,0 +1,10 @@
+name: "C219: Targeted compensation skips ESP, boundary handler fires"
+fixture: "compensation_esp_targeted_skips_esp.bpmn"
+process_model_id: "CompensationEspTargetedSkipsEsp"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

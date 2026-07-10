@@ -436,6 +436,15 @@ pending_escalations    -- [`routing.md`](./routing.md) §3.5.7 — escalations w
   -- IMPORTANT: draining a pending_escalations row in state='pending' to a late-registering
   --   boundary does NOT un-apply the terminal state of any PI. See [`routing.md`](./routing.md) §3.5.7 for the precise rules.
 
+-- NOTE: The PI's `compensation_registry` (the ordered list of completed activities
+-- eligible for compensation) is an IN-MEMORY data structure on the PI's gen_statem
+-- state — it is NOT stored in a dedicated database table. On resume,
+-- `Resumption.rebuild_compensation_registry/1` re-derives the registry from persisted
+-- `:finished` FNIs by matching each FNI's flow node against the BPMN model's
+-- compensation boundary events. Related PI state fields (`compensation_runs`,
+-- `compensation_completion_counter`, `compensation_end_reached`,
+-- `compensation_esp_throw_map`) are also purely in-memory.
+
 compensations    -- compensation trigger log (one row per emitted compensation token).
   -- PARTITIONED: PARTITION BY RANGE (triggered_at), one partition per calendar month.
   -- Composite primary key (id, triggered_at). Retention-eligible in full.

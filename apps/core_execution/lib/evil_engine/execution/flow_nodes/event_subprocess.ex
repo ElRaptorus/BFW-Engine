@@ -866,6 +866,25 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   end
 
   @doc """
+  Resolve whether a scope-level compensation throw (broadcast, no `activityRef`)
+  can be consumed by a Compensation-start Event Subprocess.
+
+  Returns `{:ok, trigger_action}` or `:none`.
+  """
+  @spec resolve_compensation_esp_catch(State.t()) :: {:ok, trigger_action()} | :none
+  def resolve_compensation_esp_catch(data) do
+    case EventSubprocessResolver.find_matching_compensation_start(
+           data.event_subprocess_triggers
+         ) do
+      {:ok, trigger} ->
+        {:ok, resolve_reactive_trigger(data, trigger, %{})}
+
+      :none ->
+        :none
+    end
+  end
+
+  @doc """
   Edge-evaluate conditional ESP triggers against current scope state.
 
   Returns `{updated_data, [trigger_action]}` — the PI executes each action.
@@ -993,6 +1012,9 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
 
       %EventDefinition.Conditional{condition_expression: expression} ->
         {:ok, %{base | trigger_kind: :conditional, condition_expression: expression}}
+
+      %EventDefinition.Compensation{} ->
+        {:ok, %{base | trigger_kind: :compensation, is_interrupting: true}}
 
       _other ->
         :skip
@@ -1239,6 +1261,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   defp start_needs_passthrough?(%EventDefinition.Timer{}), do: true
   defp start_needs_passthrough?(%EventDefinition.Conditional{}), do: true
   defp start_needs_passthrough?(%EventDefinition.Escalation{}), do: true
+  defp start_needs_passthrough?(%EventDefinition.Compensation{}), do: true
   defp start_needs_passthrough?(_event_definition), do: false
 
   # -------------------------------------------------------------------

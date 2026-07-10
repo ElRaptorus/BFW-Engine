@@ -903,8 +903,9 @@ defmodule EvilEngine.Api do
     end
   end
 
-  defp validate_retriable_state(%{state: state}) when state in ["fatal", "aborted", "error"],
-    do: :ok
+  defp validate_retriable_state(%{state: state})
+       when state in ["fatal", "aborted", "error"],
+       do: :ok
 
   defp validate_retriable_state(%{state: state}) do
     {:error, :process_instance_not_retriable, state}

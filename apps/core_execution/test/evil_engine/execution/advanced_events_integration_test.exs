@@ -1,11 +1,12 @@
 defmodule EvilEngine.Execution.AdvancedEventsIntegrationTest do
   @moduledoc """
   Integration tests for BPMN event definitions that are parsed and validated
-  but not yet fully implemented at runtime: compensation and cancel events.
+  but not yet fully implemented at runtime: cancel events.
 
   Unsupported-event scenarios verify that reaching the event causes the PI and
   the responsible FNI to transition to `:fatal` with diagnostic error metadata.
-  Conditional and escalation events are now supported and are tested separately.
+  Conditional, escalation, and compensation events are now supported and are
+  tested separately.
   """
 
   use ExUnit.Case, async: false
@@ -172,22 +173,17 @@ defmodule EvilEngine.Execution.AdvancedEventsIntegrationTest do
   end
 
   describe "compensation throw event" do
-    test "PI and FNI go fatal when compensation throw is reached" do
+    test "PI finishes normally when compensation throw has no targets" do
       definitions = BpmnFactory.compensation_throw_process()
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_reference = attach_pi_telemetry("compensation-throw")
-      flow_node_instance_reference = attach_fni_telemetry("compensation-throw-fni")
+      _flow_node_instance_reference = attach_fni_telemetry("compensation-throw-fni")
 
       assert {:ok, _process_instance_pid} = start_process_instance()
 
-      assert_unsupported_event_fatal(
-        process_instance_reference,
-        flow_node_instance_reference,
-        "Throw_Compensation",
-        :intermediate_throw_event,
-        "compensation"
-      )
+      assert_receive {:pi_state_change, ^process_instance_reference, :finished, _metadata},
+                     2_000
     end
   end
 

@@ -4,9 +4,9 @@ This document is the domain knowledge reference for ThomasTheDaemonEngine,
 a BPMN 2.0 Workflow Engine built with Elixir/OTP and oceans of sacrificial blood collected from all over the false emperors rotting domain in honor of the [Blood God](https://wh40k.lexicanum.com/wiki/Khorne).
 It covers the engine's custom BPMN extension vocabulary, parser expectations, validator rules, FEEL expression conventions, and project structure.
 
-**Scope:** This reference covers Phase 0 through Phase 7 capabilities (BPMN
-execution engine + DMN CL3 DRG decision engine + DMN observability traces).
-It will be extended as new phases land.
+**Scope:** This reference covers Phase 0 through Phase 8 capabilities (BPMN
+execution engine + DMN CL3 DRG decision engine + DMN observability traces +
+BPMN compensation). It will be extended as new phases land.
 
 **Coding conventions, build verification, test conventions, and review
 checklists** are maintained in the Cursor-specific `.cursor/rules/` and
@@ -439,6 +439,58 @@ Human-readable error message attached to the error event.
 <evil:errorMessage>Input validation failed</evil:errorMessage>
 ```
 
+### Compensation Extensions
+
+#### `isForCompensation` (standard BPMN attribute on activities)
+
+Boolean attribute on `<bpmn:task>`, `<bpmn:serviceTask>`, `<bpmn:scriptTask>`, `<bpmn:userTask>`, `<bpmn:manualTask>`, `<bpmn:sendTask>`, `<bpmn:receiveTask>`, and `<bpmn:callActivity>`. When `true`, the activity is a compensation handler — it will not be reached via normal sequence flow. Instead, it is linked to a Compensation Boundary Event via a `<bpmn:association>` and dispatched only when compensation is triggered.
+
+```xml
+<bpmn:task id="Task_UndoBooking" name="Undo Booking" isForCompensation="true" />
+```
+
+#### `<bpmn:association>` (standard BPMN)
+
+Links a Compensation Boundary Event to its handler activity. `sourceRef` is the boundary event ID; `targetRef` is the handler activity ID. The parser resolves this at model-build time and stores the `compensation_handler_id` on the boundary event's data struct.
+
+```xml
+<bpmn:association id="Assoc_1" sourceRef="BE_Comp" targetRef="Task_UndoBooking" associationDirection="One" />
+```
+
+#### Compensation Boundary Event
+
+A `<bpmn:boundaryEvent>` with `<bpmn:compensateEventDefinition>` and `cancelActivity="false"`. It does NOT execute at runtime — it serves as a passive registration carrier that links the host activity to a compensation handler via association.
+
+```xml
+<bpmn:boundaryEvent id="BE_Comp" attachedToRef="Task_Book" cancelActivity="false">
+  <bpmn:compensateEventDefinition />
+</bpmn:boundaryEvent>
+```
+
+#### Compensate Intermediate Throw Event
+
+`<bpmn:intermediateThrowEvent>` with `<bpmn:compensateEventDefinition>`. Triggers compensation and the current path continues after all handlers complete.
+
+- No `activityRef` → broadcast: all completed activities with compensation handlers are compensated in LIFO order
+- `activityRef="Task_Book"` → targeted: only the specified activity's handler fires
+- `waitForCompletion` (standard BPMN attribute on `<bpmn:compensateEventDefinition>`): default `true`. The engine always executes compensation synchronously (handlers run to completion before the token proceeds). `waitForCompletion="false"` is parsed but treated as `true` — asynchronous fire-and-forget compensation is not supported.
+
+```xml
+<bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+  <bpmn:compensateEventDefinition />
+</bpmn:intermediateThrowEvent>
+```
+
+#### Compensate End Event
+
+`<bpmn:endEvent>` with `<bpmn:compensateEventDefinition>`. Same handler dispatch as throw, but token is consumed (like a None End Event). If `compensation_end_reached` flag is set when the PI quiesces, terminal state is `:compensated` instead of `:finished`.
+
+```xml
+<bpmn:endEvent id="End_Compensate" name="Compensate and End">
+  <bpmn:compensateEventDefinition />
+</bpmn:endEvent>
+```
+
 ### CallActivity Extensions
 
 #### `evil:startEventId`
@@ -522,6 +574,7 @@ back them:
 | Conditional | Edge-triggered re-evaluation | Fires on a `false → true` transition of the FEEL condition |
 | Error | Reactive hook (`EventSubprocessResolver`) | Catches a BPMN error raised within the scope; **must be interrupting** (ESP-D7) |
 | Escalation | Reactive hook (`EventSubprocessResolver`) | Catches an escalation raised within the scope |
+| Compensation | Reactive hook (`CompensationResolver`) | Consumes a thrown compensation for the scope; registered as scope's compensation handler (COMP-D5) |
 
 #### `isInterrupting` (standard BPMN attribute on the ESP start event)
 
@@ -552,6 +605,7 @@ override.
 | Conditional | ✓ | ✓ |
 | Escalation | ✓ | ✓ |
 | Error | ✓ | — (Error must interrupt, ESP-D7) |
+| Compensation | ✓ | — (Compensation consumes scope, always interrupting) |
 
 #### Cyclic timer ESP starts
 
@@ -584,8 +638,7 @@ spawn emits `SubProcessChildStarted` carrying the mandatory
 
 #### Not supported
 
-Compensation start events on Event Subprocesses are out of scope (deferred to
-Phase 5.4). Multiple / Parallel-Multiple start events are not supported.
+Multiple / Parallel-Multiple start events are not supported.
 
 ### Data Contract Extension
 
@@ -711,6 +764,8 @@ supported. The `triggered_by_event` boolean on `FlowNodeData.SubProcess`
 distinguishes them, and the ESP variant is dispatched to the
 `EventSubprocess` handler. See §Event Subprocess Extensions / Semantics.
 
+All activity types support the standard BPMN `isForCompensation="true"` attribute (default `false`). When set, the activity is a compensation handler — it has no incoming or outgoing sequence flows and is linked to a Compensation Boundary Event via `<bpmn:association>`. Activities with `isForCompensation="true"` are exempt from orphan-node checks. See §Compensation Extensions.
+
 ### Gateways
 
 | XML element | Internal type | Type-specific data struct |
@@ -760,6 +815,12 @@ and referenced by ID from within event definitions or tasks:
 | `<bpmn:error>` | `errorRef` attribute on error event definitions |
 | `<bpmn:escalation>` | `escalationRef` attribute on escalation event definitions |
 
+### Associations
+
+| XML element | Internal type | Notes |
+|-------------|---------------|-------|
+| `<bpmn:association>` | `Association` | Parsed at model-build time; links Compensation Boundary Events to handler activities. Not a flow node. |
+
 ---
 
 ## Event Definition Position Rules
@@ -770,16 +831,18 @@ validator rejects invalid combinations.
 | Position | Allowed definitions |
 |----------|---------------------|
 | StartEvent (top-level / embedded-subprocess None start) | None, Message, Signal, Timer, Conditional |
-| StartEvent (Event Subprocess) | Message, Signal, Timer, Conditional, Error, Escalation |
+| StartEvent (Event Subprocess) | Message, Signal, Timer, Conditional, Error, Escalation, Compensation |
 | EndEvent | None, Message, Signal, Error, Escalation, Terminate, Cancel, Compensation |
 | IntermediateCatchEvent | None, Message, Signal, Timer, Conditional, Link |
 | IntermediateThrowEvent | None, Message, Signal, Escalation, Compensation, Link |
 | BoundaryEvent | None, Message, Signal, Error, Timer, Escalation, Conditional, Compensation, Cancel |
 
 An **Event Subprocess start event** must carry a typed event definition —
-Error and Escalation are valid there (unlike a top-level StartEvent), and a
-None (untyped) start is rejected (`:event_subprocess_untyped_start`). An Error
-ESP start must be interrupting (ESP-D7).
+Error, Escalation, and Compensation are valid there (unlike a top-level
+StartEvent), and a None (untyped) start is rejected
+(`:event_subprocess_untyped_start`). An Error ESP start must be interrupting
+(ESP-D7). A Compensation start consumes a thrown compensation for its scope
+(COMP-D5).
 
 ---
 
@@ -913,6 +976,11 @@ inner-scope structural checks as embedded subprocesses (messages prefixed
 | `:event_subprocess_untyped_start` | The ESP start event carries no event definition (a None start is not a valid trigger) |
 | `:event_subprocess_error_start_must_interrupt` | The ESP start event is an Error start with `isInterrupting="false"` (Error must interrupt, ESP-D7) |
 
+### Compensation-specific checks
+
+- Activities with `isForCompensation="true"` are **exempt from orphan-node checks** — they intentionally have no incoming or outgoing sequence flows. They are linked to their host activity's Compensation Boundary Event via `<bpmn:association>`, not via sequence flows.
+- A Compensation Start Event (`<bpmn:compensateEventDefinition>` on a `<bpmn:startEvent>`) is valid **only** inside an Event Subprocess (`triggeredByEvent="true"`). A Compensation Start on a top-level or embedded-subprocess start event is rejected by the Event Definition Position Rules.
+
 ### Subprocess Start-Event Isolation
 
 A Start Event nested inside an embedded / event / (future) transactional
@@ -1044,7 +1112,7 @@ Events are delivered via WebSocket in a camelCase JSON envelope:
 
 Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Full catalog and sink semantics: [`docs/architecture/event-system.md`](docs/architecture/event-system.md).
 
-### Current Events (Phase 0–3)
+### Current Events
 
 | Event Type | Key Fields | Notes |
 |------------|-----------|-------|
@@ -1078,9 +1146,11 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | No payload, no correlation; true broadcast. Emitted after pipeline completes |
 | `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `occurredAt` | No payload — signal identity and recipient only |
 | `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `caught`, `caughtByFlowNodeInstanceId`, `caughtInProcessInstanceId`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught). `throwType`: `"end_event"` or `"intermediate_throw"`. `caught`: `true` if a matching boundary fired; `false` if the escalation propagated uncaught to root-of-root. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. |
+| `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
+| `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
 
-**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Seven event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, and `DataObjectWritten`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, and data-object events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
+**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Nine event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, and `ActivityCompensated`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
 
 **`EngineOverloaded` / `EngineRecovered` detail:** Emitted on load-threshold **crossings** (`normal` ↔ `elevated` ↔ `critical`), not on every poller tick. `EngineOverloaded` fires on upward transitions (normal→elevated, elevated→critical, normal→critical). `EngineRecovered` fires on downward transitions to normal (elevated→normal, critical→normal). Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). Detection lives in `EvilEngine.Telemetry.Measurements`.
 
@@ -1142,6 +1212,8 @@ ancestors and descendants (for Call Activity trees), (3) resume from root
 via the standard `ResumeRunner` codepath. Optional version migration and
 checkpoint reset (`resetToFlowNodeInstanceId`) are supported.
 
+**Compensation and retry/resume:** Compensation handler FNIs are ordinary FNIs — they are persisted as `:finished` and handled by the existing retry/reset machinery. The PI's `compensation_registry` is an in-memory data structure; on resume, `Resumption.rebuild_compensation_registry/1` re-derives it from persisted `:finished` FNIs by matching each FNI's flow node against the BPMN model's compensation boundary events.
+
 **Retry checkpoint error codes** (HTTP 422):
 
 | Error code | Message |
@@ -1190,6 +1262,18 @@ is the user's emergency stop, not a modeled business error.
 
 For implementation details see
 [`docs/architecture/execution.md`](docs/architecture/execution.md) §Abort cascade.
+
+### Process Instance terminal states
+
+| PI state | Trigger | Retryable |
+|----------|---------|-----------|
+| `:finished` | All tokens consumed via End Events (normal completion) | No |
+| `:compensated` | PI finished after a Compensation End Event triggered handler dispatch | Yes |
+| `:error` | Error End Event (modeled BPMN error) | Yes |
+| `:fatal` | Engine crash / unhandled failure | Yes |
+| `:aborted` | User/API kill switch (tree-wide) | Yes |
+
+> `:compensated` — terminal state indicating the PI finished after a Compensation End Event triggered handler dispatch. Retryable.
 
 ---
 

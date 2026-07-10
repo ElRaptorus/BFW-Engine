@@ -7,6 +7,7 @@ defmodule EvilEngine.BPMN.Model.Process do
 
   alias EvilEngine.BPMN.ComplexRegionAnalysis
   alias EvilEngine.BPMN.InclusiveJoinAnalysis
+  alias EvilEngine.BPMN.Model.Association
   alias EvilEngine.BPMN.Model.DataObject
   alias EvilEngine.BPMN.Model.DataObjectReference
   alias EvilEngine.BPMN.Model.Extension
@@ -24,6 +25,7 @@ defmodule EvilEngine.BPMN.Model.Process do
           lanes: [Lane.t()],
           data_objects: [DataObject.t()],
           data_object_references: [DataObjectReference.t()],
+          associations: [Association.t()],
           extensions: [Extension.t()],
           correlation_key: String.t() | nil,
           inclusive_join_analyses: %{String.t() => InclusiveJoinAnalysis.t()},
@@ -42,6 +44,7 @@ defmodule EvilEngine.BPMN.Model.Process do
     lanes: [],
     data_objects: [],
     data_object_references: [],
+    associations: [],
     extensions: [],
     inclusive_join_analyses: %{},
     complex_region_analyses: %{}

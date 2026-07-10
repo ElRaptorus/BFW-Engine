@@ -1,0 +1,10 @@
+name: "C216: Error in subprocess caught by boundary, then compensation"
+fixture: "compensation_error_then_compensate.bpmn"
+process_model_id: "CompensationErrorThenCompensate"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Compensated"

@@ -1,0 +1,8 @@
+name: "C212: Compensation End Event — handler fires, PI compensated"
+fixture: "compensation_basic_end.bpmn"
+process_model_id: "CompensationBasicEnd"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "compensated"

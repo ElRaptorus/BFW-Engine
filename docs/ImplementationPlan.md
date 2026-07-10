@@ -86,10 +86,18 @@ Significant design decisions made during implementation. Each entry records the 
 | ESP-D13 | Phase 5 | **An ESP Message Start is a gated Start Event** subject to catch-wins-over-start: any active inline Message Catch/Boundary with a matching `(name, correlation)` always beats it (and beats a standalone start). The ESP message start registers with an informational `:event_subprocess_start` kind but is excluded from the delivery set and fires only when `deliveries == []`. | User directive: Catch/Boundary always beats a Start Event regardless of where it lies. Spec-aligned. |
 | ESP-D13b | Phase 5 | **An ESP Message Start beats a Standalone Message Start** when no catch consumes the message: the running instance handles it and no new PI is created. Precedence ladder: inline catch/boundary → ESP message start → standalone message start. | Correlate to the in-flight instance before creating a new one. |
 | ESP-D13c | Phase 5 | **Signal ESP starts keep broadcast-all simultaneous semantics** — an ESP signal start fires alongside signal catches/boundaries and standalone signal starts. The message catch-wins-over-start gate does not apply to signals. | Signals are not point-to-point; the "catch beats start" directive was scoped to messages. |
-| ESP-D14 | Phase 5 | **Scope:** Message/Signal/Timer/Error/Escalation/Conditional starts. **Compensation start excluded** (deferred to Phase 5 item 4). | Phase 5.4 owns compensation. |
+| ESP-D14 | Phase 5 | **Scope:** Message/Signal/Timer/Error/Escalation/Conditional starts. **Compensation start** added in Phase 5.4 (see COMP-D1, COMP-D5). | Compensation start triggers consume a thrown compensation for the containing scope and run the ESP inner flow. |
 | ESP-D15 | Phase 5 | **An ESP inner Start Event is never externally startable** — it is spawned only by the scope PI's trigger machinery, always with both `subprocess_node_id` and `parent_process_instance_id`. This is the Subprocess Start-Event Isolation invariant (see **D2** above); cross-referenced, not duplicated. | Guarantees ESP starts are scope-owned; a user/plugin/Call Activity can never trigger an ESP inner start directly. |
 | ESP-D16 | Phase 5 | **The ESP child PI is announced with the existing `SubProcessChildStarted` event carrying a new mandatory `is_event_subprocess` boolean** (`true` for ESP shells, `false` for embedded / plain shells); the richer `EventSubprocessTriggered` event is emitted in addition for engine-level observers. | Deterministic, reuses the SP-13 root-PI WebSocket fan-out, and the flag lets third-party consumers react ESP-specifically. |
 | ESP-D17 | Phase 5 | **Coordinated Studio↔Engine linter-score contract fix (Studio authoritative).** The engine's process-level `<evil:linterRulesetScore>` parser + `LinterGate` are rewritten to consume the Studio's definitions-level `<evil:Properties>/<evil:LinterRulesetScore>` shape (attributes `rulesetId`, `scorePercent`, `complianceStatus`, `computedAtIso`, `schemaVersion`, `maxPoints`, `penaltyPoints`, `rawErrorFindings`, `rawWarningFindings`). | The old engine path was dead code against real Studio output; fixing it unblocks deployment of any Studio-linted diagram, ESP included. |
+| COMP-D1 | Phase 5 | **Compensation-only scope (v1).** Compensate Throw, Compensate End, Compensation Boundary, Compensation-start Event Subprocess, plus `isForCompensation` + `<bpmn:association>` parsing. Transaction + Cancel End/Boundary are a follow-up that depends on this work. | Compensation is useful standalone (saga pattern, escalation-drives-rollback) and is the prerequisite for transaction/cancel. Building the smaller feature first reduces risk. |
+| COMP-D2 | Phase 5 | **Sequential strict reverse-completion order (LIFO), one handler at a time.** `activityRef` targets a single activity; absent `activityRef` broadcasts to all completed activities in scope in reverse completion order. | Matches BPMN 2.0 §10.6 and the Camunda/Flowable implementations. Sequential execution is simpler to reason about and resume; parallel compensation is a documented follow-up. |
+| COMP-D3 | Phase 5 | **Re-derive the compensation registry on resume from persisted finished FNIs + the BPMN model (no new registry table).** In-flight throw runs resume from a persisted cursor stored in `type_properties`. | Same "reconstructed vs re-derived" philosophy used for join routing. No schema migration needed; the registry is a cheap runtime view over data already persisted by the FNI lifecycle. |
+| COMP-D4 | Phase 5 | **Compensation End is non-interrupting to parallel branches.** It consumes its token like a None End Event (not a Terminate). When the PI quiesces with `compensation_end_reached` and no stronger terminal (error/escalation/terminate), the PI terminal state is `:compensated`; otherwise `:finished`. | Matches BPMN 2.0 §10.6 and Camunda: "a compensation end event triggers compensation and the current path of execution is ended; same behavior as a compensation intermediate throwing event." A Compensate End only ends its own path. |
+| COMP-D5 | Phase 5 | **Compensation Start event is legal only inside a `triggeredByEvent` subprocess.** This is the only hard compensation-position rule enforced at deploy time; all other compensation checks (missing association, unresolved `activityRef`) are linter/runtime concerns. | Mirrors the ESP-D7 style. The deploy-time validator stays lenient (WIP diagrams can be deployed); structural correctness beyond this rule is the Studio linter's job. |
+| COMP-D6 | Phase 5 | **State model: only PI terminal `:compensated` ships in v1.** No `compensating` PI state and no new FNI state. "Compensation is active / what got compensated" is expressed via `CompensationTriggered` / `ActivityCompensated` events + `type_properties` markers on the involved FNIs. | Avoids duplicating every `:running` gen_statem clause for a `:compensating` state; preserves the "finished is terminal" FNI invariant that retry/resume rely on. A live `compensating` indicator is a deferred follow-up. |
+| COMP-D7 | Phase 5 | **Responsibility split: thin handlers + `CompensationResolver` + `ProcessInstance.CompensationOrchestrator`.** Handlers return a tuple tag; the resolver does model matching; the orchestrator builds ordered plans (no spawning); the PI stays a thin executor. | Follows the anti-god-module pattern established by `BoundaryOrchestrator` (which documents "does not spawn FNIs — those remain in ProcessInstance"). All matching/ordering logic sits in pure, unit-testable modules. |
+| COMP-D8 | Phase 5 | **Subprocess / Call Activity scope (v1): atomic-unit compensation only.** Embedded subprocesses and call activities are compensated as atomic units via a compensation boundary on the shell + a parent-scope handler. No cross-PI recursion into a child PI's inner completed activities. | Deep hierarchical recursion into embedded-subprocess internals is spec-correct but materially larger, touching child-PI boundary and resume/registry design. Call-activity non-propagation is permanent per BPMN spec. |
 
 ---
 
@@ -382,7 +390,7 @@ EventSinks, Service Task handlers, timer sources, etc.) — for any
 
 - Each live Process Instance is one **`:gen_statem` process** (`EvilEngine.Execution.ProcessInstance`) supervised by a `DynamicSupervisor` and registered in a `Registry` under its PI ID.
 - State machine states mirror concept §Process Instance States plus two internal substates:
-  - `init` → `:running` → `:finished | :fatal | :aborted` (currently implemented) | `:error | :escalated | :compensated` (reserved for future BPMN element implementations)
+  - `init` → `:running` → `:finished | :fatal | :aborted | :error | :escalated` (currently implemented) | `:compensated` (Phase 5 — Compensation; see COMP-D4, COMP-D6)
   - Internal substates: `:ramping_up` (during Start/Resume/Retry), `:draining` (during graceful stop).
 - Event handling per state is implemented as explicit handler callbacks — no catch-all `handle_info/2` lumping.
 - Holds in memory: parsed BPMN AST reference, active tokens, dictionary of running FNI child PIDs, Data Object cache, pending timers/catch subscriptions, the full `Identity` of the initiator.
@@ -996,10 +1004,14 @@ Resolves the big `AGENT:` marker in concept §BPMN Spec Coverage by Priority.
 
 #### Compensation Events
 
-- **Compensation Start (event subprocess only)**: Registered; when parent triggers compensation, runs the subprocess.
-- **Compensation Intermediate Throw**: Triggers compensation for prior matching activities (via the compensation registry maintained on the PI).
-- **Compensation End**: Same as throw, then ends PI with `compensated`.
-- **Compensation Boundary**: Registers compensation for the attached activity; runs when compensation is triggered.
+> Verified against OMG BPMN 2.0 §10.6 (Compensation) + Camunda 7/8 + Flowable. See decisions COMP-D1 through COMP-D8.
+>
+> Compensation is a general-purpose "undo completed work" mechanism, decoupled from whatever triggers it. The engine never auto-triggers compensation on fatal/error/escalation/abort — the modeler wires the trigger explicitly. Transaction + Cancel are a documented follow-up (COMP-D1).
+
+- **Compensation Intermediate Throw**: Triggers compensation for completed activities with a compensation handler in the current scope. `activityRef` present → single activity; absent → broadcast to all, reverse completion order (LIFO). Synchronous: the throw FNI parks in `:waiting`, dispatches handler activities one at a time, then continues on its outgoing flow (COMP-D2). Handlers receive a snapshot of the host activity's output token.
+- **Compensation End**: Same trigger/handler mechanics as the throw, then ends only the current path (consumes its token like a None End — NOT a Terminate). Does not interrupt parallel branches (COMP-D4). When the PI quiesces with `compensation_end_reached` and no stronger terminal, PI state = `:compensated`.
+- **Compensation Boundary**: A passive registration carrier on an activity. Activates on host successful completion (not on start); `cancelActivity` does not apply. References exactly one handler activity via a directed `<bpmn:association>` (parsed from the BPMN XML). The handler activity is an `isForCompensation` activity with no incoming/outgoing sequence flows, dispatched only when a compensation throw/end fires.
+- **Compensation Start (event subprocess only)**: A `triggeredByEvent` subprocess whose start event is Compensation. Consumes a thrown compensation for its scope and runs its inner flow (which may itself throw compensation). Registered as the scope's compensation handler. Deploy-time validator enforces this position (COMP-D5). See also ESP-D14.
 
 #### Cancel Events (only inside Transaction Subprocess)
 
@@ -1038,7 +1050,17 @@ All of these are in-scope. Assigned to priorities below:
 
 ### Compensation registry mechanics
 
-The PI maintains a list of `{flow_node_instance_id, compensation_handler_ref}` entries, pushed whenever an activity with an attached Compensation Boundary or Compensation Event Subprocess finishes successfully. A Compensation Throw/End pops them in reverse order (LIFO) and runs each handler. This is per BPMN §10.5.3.
+> See decisions COMP-D2, COMP-D3, COMP-D7, COMP-D8.
+
+The PI maintains an in-memory `compensation_registry` — a list of `{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}` entries. An entry is pushed in `do_handle_fni_ok` whenever a just-finished activity has a resolvable Compensation Boundary whose `<bpmn:association>` points to an `isForCompensation` handler activity. The handler activity's token snapshot captures the host's output token at completion time (per BPMN §10.6: handlers run with the activity's completion data).
+
+**Ordering:** entries are ordered by a monotonically increasing `compensation_completion_counter` kept in PI state. On resume, completion order is re-derived from persisted `finished_at` timestamps then FNI UUIDv7 ordering (COMP-D3).
+
+**Resolution:** `CompensationResolver` (pure module) resolves `activityRef` → single registry entry, or absent `activityRef` → all entries in reverse completion order. `CompensationOrchestrator` (pure module, sibling of `BoundaryOrchestrator`) builds the ordered dispatch plan — queue, cursor, `{target, token, prev_ids}` descriptors. Neither module spawns FNIs; the PI executes the plan via `dispatch_flow_node_instance/4` (COMP-D7).
+
+**Resume-safe cursor:** the throw FNI persists its ordered target list + cursor in `type_properties`. On resume, a `:waiting` compensate-throw FNI rebuilds its run and continues from the next pending target (already-completed handler FNIs are `:finished` in the DB).
+
+**Subprocess / CA scope (v1):** embedded subprocesses and call activities are compensated as atomic units via a compensation boundary on the shell + a parent-scope handler. No cross-PI recursion into child PI internals (COMP-D8). BPMN's deeper rule — recurse into completed embedded-subprocess scopes — is a documented follow-up; call-activity non-propagation is permanent per spec.
 
 ---
 

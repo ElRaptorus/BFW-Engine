@@ -200,7 +200,9 @@ defmodule EvilEngine.Execution.HttpServiceTaskIntegrationTest do
                      2_000
 
       assert_receive {:pi_state_change, ^process_instance_reference, :finished, _metadata}, 2_000
-      refute Process.alive?(process_instance_pid)
+
+      ref = Process.monitor(process_instance_pid)
+      assert_receive {:DOWN, ^ref, :process, ^process_instance_pid, _reason}, 2_000
     end
 
     test "HTTP-I2: POST with FEEL body from token payload completes PI" do

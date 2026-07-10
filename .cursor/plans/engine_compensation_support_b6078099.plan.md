@@ -4,7 +4,7 @@ overview: Implement full BPMN 2.0 Compensation support in ThomasTheDaemonEngine 
 todos:
   - id: comp-decisions-note
     content: "In docs/ImplementationPlan.md: add the spec-verification note + COMP-D decision rows (scope=compensation-only, sequential LIFO, re-derive-on-resume, compensation-end-non-interrupting, compensation-start-only-in-ESP, state-model=`:compensated`-terminal-only-with-no-`compensating`-state-in-v1, responsibility-split=thin-handlers+CompensationResolver+CompensationOrchestrator) to the §0 Decisions table; refine the existing Compensation sections (~997-1002, ~1039-1041) to match the confirmed decisions. Also persist this plan under ThomasTheDaemonEngine/.cursor/plans/."
-    status: pending
+    status: done
   - id: parse-isforcompensation
     content: "core_bpmn: parse isForCompensation on activities and add an is_for_compensation field to the activity FlowNodeData structs; keep it lenient (default false)."
     status: pending

@@ -1,0 +1,10 @@
+name: "C213: Compensation broadcast — two tasks, LIFO handler execution"
+fixture: "compensation_lifo_two_tasks.bpmn"
+process_model_id: "CompensationLifoTwoTasks"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

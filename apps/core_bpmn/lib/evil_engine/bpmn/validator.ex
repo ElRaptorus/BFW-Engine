@@ -223,6 +223,9 @@ defmodule EvilEngine.BPMN.Validator do
        when type in [:intermediate_throw_event, :intermediate_catch_event],
        do: []
 
+  defp check_node_orphan(%FlowNode{is_for_compensation: true}, _sequence_flow_node_ids),
+    do: []
+
   defp check_node_orphan(%FlowNode{id: id, type: type}, sequence_flow_node_ids) do
     if MapSet.member?(sequence_flow_node_ids, id),
       do: [],
@@ -653,9 +656,9 @@ defmodule EvilEngine.BPMN.Validator do
     ])
   end
 
-  # ESP-D7: exactly one start event; the start must be a supported typed trigger
-  # (message/signal/timer/error/escalation/conditional), never None/other; an
-  # error start must be interrupting.
+  # ESP-D7 + COMP-D5: exactly one start event; the start must be a supported
+  # typed trigger (message/signal/timer/error/escalation/conditional/compensation),
+  # never None/other; an error start must be interrupting.
   defp check_event_subprocess_start_event(
          subprocess_id,
          %FlowNodeData.SubProcess{flow_nodes: flow_nodes},
@@ -703,8 +706,8 @@ defmodule EvilEngine.BPMN.Validator do
           {:event_subprocess_untyped_start,
            scope_label <>
              "Start event '#{start_id}' of Event SubProcess '#{subprocess_id}' must be a " <>
-             "supported typed trigger (message, signal, timer, error, escalation, or " <>
-             "conditional); a plain/none or unsupported start is not allowed"}
+             "supported typed trigger (message, signal, timer, error, escalation, " <>
+             "conditional, or compensation); a plain/none or unsupported start is not allowed"}
         ]
       end
 
@@ -731,6 +734,7 @@ defmodule EvilEngine.BPMN.Validator do
   defp esp_start_allowed?(%EventDefinition.Error{}), do: true
   defp esp_start_allowed?(%EventDefinition.Escalation{}), do: true
   defp esp_start_allowed?(%EventDefinition.Conditional{}), do: true
+  defp esp_start_allowed?(%EventDefinition.Compensation{}), do: true
   defp esp_start_allowed?(_), do: false
 
   defp check_subprocess_essential_properties(scope_label, %FlowNodeData.SubProcess{} = data) do
@@ -842,6 +846,13 @@ defmodule EvilEngine.BPMN.Validator do
          _sequence_flow_node_ids
        )
        when type in [:intermediate_throw_event, :intermediate_catch_event],
+       do: []
+
+  defp check_subprocess_node_orphan(
+         _scope_label,
+         %FlowNode{is_for_compensation: true},
+         _sequence_flow_node_ids
+       ),
        do: []
 
   defp check_subprocess_node_orphan(

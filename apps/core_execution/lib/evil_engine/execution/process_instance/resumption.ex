@@ -8,6 +8,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
 
   import EvilEngine.Execution.ProcessInstance.Helpers
 
+  alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.Events.EngineEventBus
@@ -32,6 +33,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
 
     data
     |> rebuild_flow_node_instance_states(persisted_flow_node_instances)
+    |> rebuild_compensation_registry()
     |> rebuild_join_routing(pending_arrivals)
     |> reactivate_fnis(process_instance_pid, grouped_arrivals)
   end
@@ -80,6 +82,67 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       end)
 
     %{data | flow_node_instance_states: flow_node_instance_states}
+  end
+
+  @doc """
+  Re-derives the compensation registry from persisted FNI state.
+
+  Scans all `:finished` FNIs, checks whether their BPMN flow node has a
+  Compensation Boundary Event with a resolved handler, and rebuilds the
+  LIFO-ordered registry. The ordering is derived from `started_at` or
+  fallback index, since persistence does not store the original counter.
+  """
+  @spec rebuild_compensation_registry(struct()) :: struct()
+  def rebuild_compensation_registry(data) do
+    node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
+
+    {entries, counter} =
+      data.flow_node_instance_states
+      |> Enum.filter(fn {_fni_id, entry} -> entry.state == :finished end)
+      |> Enum.sort_by(fn {_fni_id, entry} ->
+        entry.token.created_at
+      end)
+      |> Enum.reduce({[], 0}, fn {fni_id, entry}, {accumulator, order} ->
+        flow_node = Map.get(node_index, entry.flow_node_id)
+        handler_id = find_compensation_handler_id(flow_node, node_index)
+
+        if handler_id do
+          new_entry = %{
+            completed_fni_id: fni_id,
+            flow_node_id: entry.flow_node_id,
+            handler_activity_id: handler_id,
+            token_snapshot: entry.token.payload,
+            completion_order: order
+          }
+
+          {[new_entry | accumulator], order + 1}
+        else
+          {accumulator, order}
+        end
+      end)
+
+    %{data | compensation_registry: entries, compensation_completion_counter: counter}
+  end
+
+  defp find_compensation_handler_id(nil, _node_index), do: nil
+
+  defp find_compensation_handler_id(%FlowNode{} = flow_node, node_index) do
+    Enum.find_value(flow_node.boundary_event_refs, fn boundary_ref ->
+      case Map.get(node_index, boundary_ref) do
+        %FlowNode{
+          type: :boundary_event,
+          type_data: %FlowNodeData.BoundaryEvent{
+            event_definition: %EventDefinition.Compensation{},
+            compensation_handler_id: handler_id
+          }
+        }
+        when handler_id != nil ->
+          handler_id
+
+        _ ->
+          nil
+      end
+    end)
   end
 
   @doc """

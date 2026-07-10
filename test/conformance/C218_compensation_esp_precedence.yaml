@@ -1,0 +1,10 @@
+name: "C218: Broadcast compensation fires ESP, boundary handler skipped"
+fixture: "compensation_esp_precedence.bpmn"
+process_model_id: "CompensationEspPrecedence"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

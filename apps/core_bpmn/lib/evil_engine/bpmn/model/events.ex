@@ -265,6 +265,7 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.BoundaryEvent do
           event_definition: event_def(),
           attached_to_ref: String.t() | nil,
           cancel_activity: boolean(),
+          compensation_handler_id: String.t() | nil,
           out_mappings: [Mapping.t()],
           result_contract: map() | nil
         }
@@ -272,6 +273,7 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.BoundaryEvent do
   defstruct event_definition: %EventDefinition.None{},
             attached_to_ref: nil,
             cancel_activity: true,
+            compensation_handler_id: nil,
             out_mappings: [],
             result_contract: nil
 end

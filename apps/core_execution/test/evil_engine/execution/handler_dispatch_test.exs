@@ -260,7 +260,7 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
       assert {:error, :unsupported_element} == HandlerDispatch.handler_for(flow_node)
     end
 
-    test "compensation throw event returns unsupported_event_definition error" do
+    test "compensation throw event routes to CompensateThrowEvent handler" do
       flow_node = %FlowNode{
         id: "Throw_Compensation",
         type: :intermediate_throw_event,
@@ -269,7 +269,34 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
         }
       }
 
-      assert {:error, {:unsupported_event_definition, ^flow_node}} =
+      assert {:ok, FlowNodes.CompensateThrowEvent} =
+               HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "compensation end event routes to CompensateEndEvent handler" do
+      flow_node = %FlowNode{
+        id: "End_Compensation",
+        type: :end_event,
+        type_data: %FlowNodeData.EndEvent{
+          event_definition: %EventDefinition.Compensation{}
+        }
+      }
+
+      assert {:ok, FlowNodes.CompensateEndEvent} =
+               HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "compensation boundary event routes to CompensationBoundaryEvent handler" do
+      flow_node = %FlowNode{
+        id: "Boundary_Compensation",
+        type: :boundary_event,
+        type_data: %FlowNodeData.BoundaryEvent{
+          attached_to_ref: "Task_1",
+          event_definition: %EventDefinition.Compensation{}
+        }
+      }
+
+      assert {:ok, FlowNodes.CompensationBoundaryEvent} =
                HandlerDispatch.handler_for(flow_node)
     end
 

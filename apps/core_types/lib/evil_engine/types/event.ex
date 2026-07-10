@@ -1081,3 +1081,92 @@ defmodule EvilEngine.Types.Event.EscalationRaised do
     :occurred_at
   ]
 end
+
+defmodule EvilEngine.Types.Event.CompensationTriggered do
+  @moduledoc """
+  Emitted when a Compensate Throw or Compensate End Event fires,
+  before any compensation handler activities are dispatched.
+
+  `throw_type` distinguishes `:throw` (intermediate, flow continues
+  after handlers) from `:end` (token consumed, PI may reach
+  `:compensated`). `target_count` is the number of handler activities
+  that will be dispatched (may be 0 if no completed activities have
+  compensation handlers).
+  """
+
+  @type throw_type :: :throw | :end
+
+  @type t :: %__MODULE__{
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t() | nil,
+          flow_node_instance_id: String.t(),
+          flow_node_id: String.t(),
+          throw_type: throw_type(),
+          activity_ref: String.t() | nil,
+          target_count: non_neg_integer(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :process_instance_id,
+    :flow_node_instance_id,
+    :flow_node_id,
+    :throw_type,
+    :target_count,
+    :occurred_at
+  ]
+
+  defstruct [
+    :process_instance_id,
+    :root_process_instance_id,
+    :flow_node_instance_id,
+    :flow_node_id,
+    :throw_type,
+    :activity_ref,
+    :target_count,
+    :occurred_at
+  ]
+end
+
+defmodule EvilEngine.Types.Event.ActivityCompensated do
+  @moduledoc """
+  Emitted after each compensation handler activity finishes successfully.
+
+  `compensated_fni_id` identifies the original completed FNI whose work
+  was undone; `handler_fni_id` identifies the compensation handler FNI
+  that executed; `throw_fni_id` identifies the Compensate Throw/End FNI
+  that initiated the compensation run.
+  """
+
+  @type t :: %__MODULE__{
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t() | nil,
+          compensated_fni_id: String.t(),
+          handler_fni_id: String.t(),
+          throw_fni_id: String.t(),
+          flow_node_id: String.t(),
+          handler_activity_id: String.t(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :process_instance_id,
+    :compensated_fni_id,
+    :handler_fni_id,
+    :throw_fni_id,
+    :flow_node_id,
+    :handler_activity_id,
+    :occurred_at
+  ]
+
+  defstruct [
+    :process_instance_id,
+    :root_process_instance_id,
+    :compensated_fni_id,
+    :handler_fni_id,
+    :throw_fni_id,
+    :flow_node_id,
+    :handler_activity_id,
+    :occurred_at
+  ]
+end

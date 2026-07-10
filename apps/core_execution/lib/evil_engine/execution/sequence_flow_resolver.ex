@@ -49,14 +49,14 @@ defmodule EvilEngine.Execution.SequenceFlowResolver do
            outgoing_count: outgoing_count
          }}
 
-      not is_end_event and outgoing_count == 0 ->
+      not is_end_event and outgoing_count == 0 and not completed_node.is_for_compensation ->
         {:error, :dead_end,
          %{
            flow_node_id: completed_node.id,
            flow_node_type: completed_node.type
          }}
 
-      is_end_event and outgoing_count == 0 ->
+      outgoing_count == 0 ->
         {:ok, []}
 
       true ->
