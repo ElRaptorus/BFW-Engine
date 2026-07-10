@@ -88,130 +88,135 @@ Task Handler).
 ## BPMN 2.0 Element Support
 
 The table below lists every BPMN 2.0 element the engine recognises, grouped
-by category. **Supported = Yes** means the parser, validator, and runtime
-all handle the element end-to-end with tests. Elements marked **Parsed only**
-are recognised by the parser and stored in the AST, but have no runtime
-behaviour yet.
+by category.
+Each of these Elements has full Runtime support.
 
 ### Activities
 
-
-| Element                | Supported   | Notes                                                                                                                                     |
-| ---------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Task (Untyped)         | Yes         | Pass-through  |
-| User Task              | Yes         | Defines User Forms, Actions and Assignees. Waits for User Input |
-| Manual Task            | Yes         | Either pass-through, or optional `requires confirmation` to wait for manual user continuation |
-| Service Task           | Yes         | Plugin-driven Service dispatch; built-in HTTP default handler; always `asynchronous` |
-| Script Task            | Yes         | Inline FEEL evaluation or plugin dispatch. Always `synchronous`                                  |
-| Business Rule Task     | Yes         | Either simple FEEL Expression, or full `DMN` execution |
-| Send Task              | Yes         | Publishes messages for 1:1 and deterministic 1:n communication |
-| Receive Task           | Yes         | Receives messages, with optional process-level correlation |
-| Call Activity          | Yes         | Executes a target process and waits for the result |
-| Sub Process (Embedded) | Yes         | Inline-Subprocess. Semantically similar to Call Activity, but only ever has one Untyped Start Event and no Lanes of its own. |
+| Element                | Notes                                                          |
+| ---------------------- | -------------------------------------------------------------- |
+| Task (Untyped)         |Pass-through                                                    |
+| User Task              |Defines User Forms, Actions and Assignees. Waits for User Input |
+| Manual Task            |Either pass-through, or optional `requires confirmation` to wait for manual user continuation |
+| Service Task           |Plugin-driven Service dispatch; built-in HTTP default handler; always `asynchronous` |
+| Script Task            |Inline FEEL evaluation or plugin dispatch. Always `synchronous`                                  |
+| Business Rule Task     |Either simple FEEL Expression, or full `DMN` execution |
+| Send Task              |Publishes messages for 1:1 and deterministic 1:n communication |
+| Receive Task           |Receives messages, with optional process-level correlation |
+| Call Activity          |Executes a target process and waits for the result |
+| Sub Process (Embedded) |Inline-Subprocess. Semantically similar to Call Activity, but only ever has one Untyped Start Event and no Lanes of its own. |
 
 
 ### Gateways
 
-
-| Element             | Supported | Notes                                                                                             |
-| ------------------- | --------- | ------------------------------------------------------------------------------------------------- |
-| Exclusive Gateway   | Yes       | Split evaluates FEEL conditions (exactly-one-truthy), default flow fallback, Join is pass-through |
-| Event-Based Gateway | Yes       | First Intermediate Catch Event to trigger wins, all others get transitioned to `interrupted`    |
-| Parallel Gateway    | Yes       | Fork activates all outgoing paths unconditionally, Join waits for ALL incoming tokens before continuing |
-| Inclusive Gateway   | Yes       | Fork activates all outgoing paths with a matching condition; Join waits for all incoming paths that can still reach the gateway, before continuing |
-| Complex Gateway     | Yes       | Inclusive Gateways with a twist: Splits disallow unconditional flows (deploy error); Joins fire once, when condition is fulfilled; all remaining paths are killed |
-
-
-### Events — Start
+| Element             | Notes                                                               |
+| ------------------- | ------------------------------------------------------------------- |
+| Exclusive Gateway   | Split evaluates FEEL conditions (exactly-one-truthy), default flow fallback, Join is pass-through |
+| Event-Based Gateway | First Intermediate Catch Event to trigger wins, all others get transitioned to `interrupted`    |
+| Parallel Gateway    | Fork activates all outgoing paths unconditionally, Join waits for ALL incoming tokens before continuing |
+| Inclusive Gateway   | Fork activates all outgoing paths with a matching condition; Join waits for all incoming paths that can still reach the gateway, before continuing |
+| Complex Gateway     | Inclusive Gateways with a twist: Splits disallow unconditional flows (deploy error); Joins fire once, when condition is fulfilled; all remaining paths are killed |
 
 
-| Element                   | Supported   | Notes                                                |
-| ------------------------- | ----------- | ---------------------------------------------------- |
-| Start Event (Untyped)     | Yes         | Normal Entry Point for a BPMN Process Instance |
-| Start Event (Timer)       | Yes         | Automated Process Start via Cyclic, Date or Duration Timers |
-| Start Event (Message)     | Yes         | Automated Process Start, when a Message is received. Correlation-aware; only triggers if no Message Catch Event in the same process listens for the same message with the same correlation. |
-| Start Event (Signal)      | Yes         | Automated Process Start, when a Signal is received |
-| Start Event (Conditional) | Yes         | Event Subprocesses only. Triggers when a FEEL condition is met. |
-| Start Event (Error)       | Yes         | Event Subprocesses only. Triggers when an Error is caught. |
-| Start Event (Escalation)  | Yes         | Event Subprocesses only. Triggers when an Escalation is caught. |
-| Start Event (Compensation)| Yes         | Event Subprocesses only. Triggers when a Compensation is caught. |
+### Start Events
+
+| Element                   | Notes                                                 |
+| ------------------------- | ----------------------------------------------------- |
+| Untyped     | Normal Entry Point for a BPMN Process Instance                      |
+| Timer       | Automated Process Start via Cyclic, Date or Duration Timers         |
+| Message     | Automated Process Start, when a Message is received. Correlation-aware; only triggers if no Message Catch Event in the same process listens for the same message with the same correlation. |
+| Signal      | Automated Process Start, when a Signal is received                  |
+
+#### Start Events - Event Subprocess only
+
+| Element     | Notes                                      |
+| ----------- | ------------------------------------------ |
+| Conditional | Triggers when a FEEL condition is met.     |
+| Error       | Triggers when an Error is caught.          |
+| Escalation  | Triggers when an Escalation is caught.     |
+| Compensation| Triggers when a Compensation is caught.    |
 
 
-### Events — End
+### End Events
+
+| Element      | Notes                                                                  |
+| ------------ | ---------------------------------------------------------------------- |
+| Untyped      | Finishes a single process path normally                                |
+| Terminate    | Terminates all remaining parallel Paths                                |
+| Message      | Publishes message and finishes the process path                        |
+| Signal       | Publishes signal and finishes the process path                         |
+| Error        | Finishes Process with `Error`. The error propagates to the parent process and can be caught by an `Error Boundary Event`. |
+| Escalation   | Terminates process scope (`:escalated` state) and propagates escalation to the parent; caught by Escalation Boundary Event on Call Activity or Embedded Subprocess |
+| Compensation | Triggers compensation for completed activities in the current scope, then finishes the PI with `Compensated` state |
+| Cancel       |  Parsed only. Planned: Phase 5                                         |
 
 
-| Element                  | Supported   | Notes                                           |
-| ------------------------ | ----------- | ----------------------------------------------- |
-| End Event (Untyped)      | Yes         | Finishes a single process path normally         |
-| End Event (Terminate)    | Yes         | Terminates all remaining parallel Paths         |
-| End Event (Message)      | Yes         | Publishes message and finishes the process path |
-| End Event (Signal)       | Yes         | Publishes signal and finishes the process path  |
-| End Event (Error)        | Yes         | Finishes Process with `Error`. The error propagates to the parent process and can be caught by an `Error Boundary Event`. |
-| End Event (Escalation)   | Yes         | Terminates process scope (`:escalated` state) and propagates escalation to the parent; caught by Escalation Boundary Event on Call Activity or Embedded Subprocess |
-| End Event (Compensation) | Yes         | Triggers compensation for completed activities in the current scope, then finishes the PI with `Compensated` state |
-| End Event (Cancel)       | Parsed only | Planned: Phase 5                                |
+### Intermediate Catch Events
+
+| Element      | Notes                                                      |
+| ------------ | ---------------------------------------------------------- |
+| Untyped      | Pass-through                                               |
+| Link         | Landing pad for Link Throw with the same name              |
+| Timer        | Duration and Date Timers, FEEL Expression Support          |
+| Message      | Receives messages, with optional process-level correlation |
+| Signal       | Receives signal broadcasts from any source                 |
+| Conditional  | FEEL-based condition                                       |
 
 
-### Events — Intermediate
+### Intermediate Throw Events
+
+| Element      | Notes                                                                       |
+| ------------ | --------------------------------------------------------------------------- |
+| Link         | Resolves matching Link Catch by name within the same process                |
+| Message      | Publishes messages for 1:1 and deterministic 1:n communication              |
+| Signal       | Publishes signals for non-deterministic broadcasts                          |
+| Escalation   | Propagates escalation to the parent without terminating the current process; PI continues normally after the throw |
+| Compensation | Triggers compensation on a specific finished activity, or ALL finished activities. Waits for handlers to complete, then continues normally. |
 
 
-| Element                                 | Supported   | Notes                                                                             |
-| --------------------------------------- | ----------- | --------------------------------------------------------------------------------- |
-| Intermediate Event (Untyped)            | Yes         | Pass-through|
-| Intermediate Catch Event (Link)         | Yes         | Landing pad for Link Throw with the same name                              |
-| Intermediate Catch Event (Timer)        | Yes         | Duration and Date Timers, FEEL Expression Support                     |
-| Intermediate Catch Event (Message)      | Yes         | Receives messages, with optional process-level correlation              |
-| Intermediate Catch Event (Signal)       | Yes         | Receives signal broadcasts from any source                                 |
-| Intermediate Catch Event (Conditional)  | Yes         | FEEL-based condition |
-| Intermediate Throw Event (Link)         | Yes         | Resolves matching Link Catch by name within the same process                |
-| Intermediate Throw Event (Message)      | Yes         | Publishes messages for 1:1 and deterministic 1:n communication        |
-| Intermediate Throw Event (Signal)       | Yes         | Publishes signals for non-deterministic broadcasts           |
-| Intermediate Throw Event (Escalation)   | Yes         | Propagates escalation to the parent without terminating the current process; PI continues normally after the throw |
-| Intermediate Throw Event (Compensation) | Yes         | Triggers compensation on a specific finished activity, or ALL finished activities. Waits for handlers to complete, then continues normally. |
+### Boundary Events
 
-
-### Events — Boundary
-
-
-| Element                       | Supported   | Notes                                                                                   |
-| ----------------------------- | ----------- | --------------------------------------------------------------------------------------- |
-| Boundary Event (Error)        | Yes         | Matches by error code and/or message; alternative catch-all mode |
-| Boundary Event (Timer)        | Yes         | Interrupting and Non-Interrupting; Cyclic, Date and Duration Timer Support              |
-| Boundary Event (Message)      | Yes         | Interrupting + non-interrupting;  |
-| Boundary Event (Signal)       | Yes         | Interrupting + non-interrupting;  |
-| Boundary Event (Conditional)  | Yes         | Interrupting + non-interrupting; FEEL condition, fires only once        |
-| Boundary Event (Escalation)   | Yes         | Interrupting + non-interrupting; catches escalations from child PIs; specific-code matching beats catch-all regardless of declaration order |
-| Boundary Event (Compensation) | Yes         | Passive marker; registers the host activity for compensation upon completion. Linked to a handler activity via Association. |
-| Boundary Event (Cancel)       | Parsed only | Planned: Phase 5                  |
+| Element      | Notes                                                                      |
+| ------------ | -------------------------------------------------------------------------- |
+| Error        | Matches by error code and/or message; alternative catch-all mode           |
+| Timer        | Interrupting and Non-Interrupting; Cyclic, Date and Duration Timer Support |
+| Message      | Interrupting + non-interrupting;                                           |
+| Signal       | Interrupting + non-interrupting;                                           |
+| Conditional  | Interrupting + non-interrupting; FEEL condition, fires only once           |
+| Escalation   | Interrupting + non-interrupting; catches escalations from child PIs; specific-code matching beats catch-all regardless of declaration order |
+| Compensation | Passive marker; registers the host activity for compensation upon completion. Linked to a handler activity via Association. |
+| Cancel       | Parsed only. Planned: Phase 5                                              |
 
 
 ### Flows & Data
 
 
-| Element                     | Supported   | Notes                                                         |
-| --------------------------- | ----------- | ------------------------------------------------------------- |
-| Sequence Flow               | Yes         | Connects 2 Flow Nodes             |
-| Conditional Expression      | Yes         | FEEL-based condition, used by forking Exclusive- and Inclusive Gateways                 |
-| Data Object                 | Yes         | DOA-driven writes, value contracts, FEEL reads, full write history for audit trail |
-| Data Object Reference       | Yes         | Visual Data Object representation |
-| Association                 | Yes         | Links compensation boundary events to their handler activities |
-| Multi-Instance (Parallel)   | Parsed only | Planned: Phase 5                  |
-| Multi-Instance (Sequential) | Parsed only | Planned: Phase 5                  |
-| Multi-Instance (Loop)       | Parsed only | Planned: Phase 5                  |
+| Element                     | Notes                                                         |
+| --------------------------- | ------------------------------------------------------------- |
+| Sequence Flow               | Connects 2 Flow Nodes                                         |
+| Conditional Expression      | FEEL-based condition, used by forking Exclusive- and Inclusive Gateways                 |
+| Data Object                 | DOA-driven writes, value contracts, FEEL reads, full write history for audit trail |
+| Data Object Reference       | Visual Data Object representation                             |
+| Association                 | Links compensation boundary events to their handler activities|
+| Multi-Instance (Parallel)   | Parsed only. Planned: Phase 5                                 |
+| Multi-Instance (Sequential) | Parsed only. Planned: Phase 5                                 |
+| Multi-Instance (Loop)       | Parsed only. Planned: Phase 5                                 |
 
 
 ### Other
 
+| Element          | Notes                                                                  |
+| -----------------| ---------------------------------------------------------------------- |
+| Event Subprocess | Interrupting + Non-Interrupting, triggered by single typed Start Event |
+| Transaction      | Parsed only. Planned: Phase 5                                          |
 
-| Element                | Supported   | Notes                    |
-| ---------------------- | ----------- | ------------------------ |
-| Event Subprocess       | Yes         | Interrupting + Non-Interrupting, triggered by single typed Start Event         |
-| Transaction Subprocess | Parsed only | Planned: Phase 5         |
-| Data Stores            | No          | Not planned at this time |
-| Ad Hoc Subprocess      | No          | Not planned at this time |
-| Text Annotation        | No          | Not planned at this time |
-| Group                  | No          | Not planned at this time |
-| Message Flow           | No          | Not planned at this time |
+### Not Supported and not planned at this time
+
+- Data Stores
+- Ad Hoc Subprocess
+- Text Annotation
+- Group
+- Message Flow
 
 
 ---
@@ -226,71 +231,71 @@ REST API.
 ### Decision Elements
 
 
-| Element                  | Supported | Notes                                                                                       |
-| ------------------------ | --------- | ------------------------------------------------------------------------------------------- |
-| Decision                 | Yes       | DRG-aware evaluation; `evil:decisionElementId` selects root in multi-decision models        |
-| Input Data               | Yes       | Typed inputs declared in the model; bound from the BPMN token or REST payload               |
-| Business Knowledge Model | Yes       | Encapsulated logic with formal parameters; invoked via `knowledgeRequirement` references    |
-| Decision Service         | Yes       | Evaluate a published subset of decisions; REST `POST /decisions/:id/services/:sid/evaluate` |
-| Knowledge Source         | Yes       | Parsed and stored in the AST; no runtime behaviour (documentation-only per DMN spec)        |
-| Item Definition          | Yes       | Parsed; type coercion tracked in evaluation trace                                           |
-| Import                   | Yes       | Cross-model imports with max-depth circuit breaker (`:max_import_depth`, default 10)        |
+| Element                  | Notes                                                          |
+| ------------------------ | -------------------------------------------------------------- |
+| Decision                 | DRG-aware evaluation; `evil:decisionElementId` selects root in multi-decision models        |
+| Input Data               | Typed inputs declared in the model; bound from the BPMN token or REST payload               |
+| Business Knowledge Model | Encapsulated logic with formal parameters; invoked via `knowledgeRequirement` references    |
+| Decision Service         | Evaluate a published subset of decisions; REST `POST /decisions/:id/services/:sid/evaluate` |
+| Knowledge Source         | Parsed and stored in the AST; no runtime behaviour (documentation-only per DMN spec)        |
+| Item Definition          | Parsed; type coercion tracked in evaluation trace                                           |
+| Import                   | Cross-model imports with max-depth circuit breaker (`:max_import_depth`, default 10)        |
 
 
 ### Expressions
 
 
-| Expression Type     | Supported | Notes                                                                  |
-| ------------------- | --------- | ---------------------------------------------------------------------- |
-| Decision Table      | Yes       | All 7 hit policies; input/output entries are FEEL expressions          |
-| Literal Expression  | Yes       | Single FEEL expression; precompiled at deploy time                     |
-| Context             | Yes       | Ordered key-value entries; entries can reference earlier siblings      |
-| Invocation          | Yes       | Calls a BKM's encapsulated logic with explicit parameter bindings      |
-| List                | Yes       | Ordered collection of sub-expressions                                  |
-| Relation            | Yes       | Tabular data (named columns, expression rows)                          |
-| Function Definition | Yes       | FEEL-kind supported; Java/PMML kinds parsed but rejected at evaluation |
-| Conditional         | Yes       | `if` / `then` / `else` boxed expression                                |
-| Filter              | Yes       | `in` / `match` list filtering                                          |
-| For                 | Yes       | Iteration with `iterator` / `in` / `return`                            |
-| Every               | Yes       | Universal quantifier (`every x in list satisfies ...`)                 |
-| Some                | Yes       | Existential quantifier (`some x in list satisfies ...`)                |
+| Expression Type     | Notes                                                                  |
+| ------------------- | ---------------------------------------------------------------------- |
+| Decision Table      | All 7 hit policies; input/output entries are FEEL expressions          |
+| Literal Expression  | Single FEEL expression; precompiled at deploy time                     |
+| Context             | Ordered key-value entries; entries can reference earlier siblings      |
+| Invocation          | Calls a BKM's encapsulated logic with explicit parameter bindings      |
+| List                | Ordered collection of sub-expressions                                  |
+| Relation            | Tabular data (named columns, expression rows)                          |
+| Function Definition | FEEL-kind supported; Java/PMML kinds parsed but rejected at evaluation |
+| Conditional         | `if` / `then` / `else` boxed expression                                |
+| Filter              | `in` / `match` list filtering                                          |
+| For                 | Iteration with `iterator` / `in` / `return`                            |
+| Every               | Universal quantifier (`every x in list satisfies ...`)                 |
+| Some                | Existential quantifier (`some x in list satisfies ...`)                |
 
 
 ### Hit Policies
 
 
-| Policy       | Supported | Notes                                               |
-| ------------ | --------- | --------------------------------------------------- |
-| UNIQUE (U)   | Yes       | Exactly one rule matches; error on multiple matches |
-| FIRST (F)    | Yes       | First matching rule in declaration order            |
-| PRIORITY (P) | Yes       | Highest-priority matching rule by output values     |
-| ANY (A)      | Yes       | All matches must agree on the same output           |
-| COLLECT (C)  | Yes       | Aggregation: list, sum, min, max, count             |
-| RULE ORDER   | Yes       | All matching rules, in declaration order            |
-| OUTPUT ORDER | Yes       | All matching rules, sorted by output priority       |
+| Policy       | Notes                                               |
+| ------------ | --------------------------------------------------- |
+| UNIQUE (U)   | Exactly one rule matches; error on multiple matches |
+| FIRST (F)    | First matching rule in declaration order            |
+| PRIORITY (P) | Highest-priority matching rule by output values     |
+| ANY (A)      | All matches must agree on the same output           |
+| COLLECT (C)  | Aggregation: list, sum, min, max, count             |
+| RULE ORDER   | All matching rules, in declaration order            |
+| OUTPUT ORDER | All matching rules, sorted by output priority       |
 
 
 ### Diagram Interchange
 
 
-| Feature | Supported | Notes                                                         |
-| ------- | --------- | ------------------------------------------------------------- |
-| DMNDI   | Yes       | Parsed and preserved in model AST; round-trips through deploy |
+| Feature | Notes                                                         |
+| ------- | ------------------------------------------------------------- |
+| DMNDI   | Parsed and preserved in model AST; round-trips through deploy |
 
 
 ### Integration
 
 
-| Feature                  | Supported | Notes                                                                                          |
-| ------------------------ | --------- | ---------------------------------------------------------------------------------------------- |
-| Business Rule Task (DMN) | Yes       | `implementation="dmn"` + `evil:decisionRef` + optional `evil:decisionElementId`                |
-| REST Deploy              | Yes       | `POST /decisions` — batch deploy DMN XML sources                                               |
-| REST Evaluate            | Yes       | `POST /decisions/:id/evaluate` — ad-hoc evaluation outside of BPMN                             |
-| REST Decision Services   | Yes       | `POST /decisions/:id/services/:sid/evaluate`                                                   |
-| Plugin Observation       | Yes       | `FlowNodeInstanceFinished` events carry `type_properties` with full DMN trace for event sinks  |
-| Plugin Facade            | Yes       | `facade.decisions.*` — deploy, evaluate, list, get, enable/disable, get_xml, evaluate_service  |
-| Execution Trace    | Yes       | Structured `EvaluationTrace` with per-decision timing, BKM traces, import traces, coercion log |
-| TypeScript SDK/Client    | Yes       | Full CL3 type definitions in `@elraptorus/daemonengine_sdk`; evaluate/deploy in `@elraptorus/daemonengine_client`    |
+| Feature                  | Notes |
+| ------------------------ |------ |
+| Business Rule Task (DMN) | `implementation="dmn"` + `evil:decisionRef` + optional `evil:decisionElementId`                |
+| REST Deploy              | `POST /decisions` — batch deploy DMN XML sources                                               |
+| REST Evaluate            | `POST /decisions/:id/evaluate` — ad-hoc evaluation outside of BPMN                             |
+| REST Decision Services   | `POST /decisions/:id/services/:sid/evaluate`                                                   |
+| Plugin Observation       | `FlowNodeInstanceFinished` events carry `type_properties` with full DMN trace for event sinks  |
+| Plugin Facade            | `facade.decisions.*` — deploy, evaluate, list, get, enable/disable, get_xml, evaluate_service  |
+| Execution Trace          | Structured `EvaluationTrace` with per-decision timing, BKM traces, import traces, coercion log |
+| TypeScript SDK/Client    | Full CL3 type definitions in `@elraptorus/daemonengine_sdk`; evaluate/deploy in `@elraptorus/daemonengine_client`    |
 
 
 ---
