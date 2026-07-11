@@ -662,4 +662,17 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
   def parse_fni_state("interrupted"), do: :interrupted
   def parse_fni_state("error"), do: :error
   def parse_fni_state("cancelled"), do: :aborted
+
+  @doc "Generates a Version 7 UUID (time-ordered, random tail)."
+  @spec generate_uuid_v7() :: String.t()
+  def generate_uuid_v7 do
+    timestamp_ms = System.system_time(:millisecond)
+    <<rand_a::12, rand_b::62, _::6>> = :crypto.strong_rand_bytes(10)
+
+    <<timestamp_ms::48, 7::4, rand_a::12, 2::2, rand_b::62>>
+    |> Base.encode16(case: :lower)
+    |> then(fn <<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>> ->
+      "#{a}-#{b}-#{c}-#{d}-#{e}"
+    end)
+  end
 end

@@ -85,7 +85,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   def handle_enter(flow_node, token, context) do
     with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data) do
       process_instance_pid = context.process_instance_pid
-      child_process_instance_id = generate_uuid_v7()
+      child_process_instance_id = PiHelpers.generate_uuid_v7()
 
       continuation = fn ->
         run_child_lifecycle(
@@ -602,7 +602,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
 
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data) do
-      child_process_instance_id = generate_uuid_v7()
+      child_process_instance_id = PiHelpers.generate_uuid_v7()
 
       run_child_lifecycle(
         flow_node,
@@ -692,17 +692,6 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   defp get_child_process_instance_id(type_properties) do
     type_properties[:child_process_instance_id] ||
       type_properties["child_process_instance_id"]
-  end
-
-  defp generate_uuid_v7 do
-    timestamp_ms = System.system_time(:millisecond)
-    <<rand_a::12, rand_b::62, _::6>> = :crypto.strong_rand_bytes(10)
-
-    <<timestamp_ms::48, 7::4, rand_a::12, 2::2, rand_b::62>>
-    |> Base.encode16(case: :lower)
-    |> then(fn <<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>> ->
-      "#{a}-#{b}-#{c}-#{d}-#{e}"
-    end)
   end
 
   # ===================================================================

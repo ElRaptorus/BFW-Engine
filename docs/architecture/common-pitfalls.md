@@ -975,3 +975,11 @@ Fatal PIs, aborted PIs, escalated PIs, and error PIs do **not** trigger compensa
 
 **Correct approach:** Always add a normal outgoing sequence flow from the subprocess shell, even if you expect the boundary to always fire. The outgoing flow serves as the "happy path" exit. The boundary event fires independently and interrupts the subprocess if needed. Without the outgoing flow, the subprocess never starts.
 
+## P58: Do not duplicate child-PI lifecycle code — use `ChildLifecycle`
+
+**Mistake:** Copying child-PI lifecycle logic (await, result processing, error/escalation handling, resume, cascade) from `SubProcess` or `CallActivity` into a new handler.
+
+**Why it happens:** The child-PI lifecycle involves ~600 lines of interconnected logic (receive loop, token aggregation, output mappings, boundary resolution, escalation propagation, resume from persistence, fatal/abort cascade). It is tempting to copy from an existing handler when building a new subprocess-like handler (e.g. Transaction SubProcess).
+
+**Correct approach:** Use `EvilEngine.Execution.FlowNodes.ChildLifecycle`. This module contains all shared child-PI lifecycle functions and is parameterized via options (`child_label`, `extra_terminal_states`, `extra_message_handler`, `fresh_lifecycle_fn`) to accommodate handler-specific differences. Both `SubProcess` and `CallActivity` already delegate to it. New handlers should do the same and add handler-specific concerns through the parameterization points.
+

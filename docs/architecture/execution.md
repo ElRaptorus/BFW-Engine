@@ -757,11 +757,44 @@ Conditional catch events are valid successors of an Event-Based Gateway. When pl
 
 Conditional events inside an embedded subprocess evaluate against the **child PI's state** (child's token, child's data objects, child's context). They do not see the parent PI's state — each PI maintains its own `conditional_waiters` map and `data_object_cache`.
 
+### Child Lifecycle (shared infrastructure)
+
+**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/child_lifecycle.ex`
+
+`ChildLifecycle` is a pure helper module (no behaviour, no state) that contains all shared child-PI lifecycle logic used by both `SubProcess` and `CallActivity` handlers. It was extracted to eliminate ~600 lines of duplicated code and to provide a single extension point for future subprocess-like handlers (e.g. Transaction SubProcess).
+
+#### Responsibilities
+
+| Function cluster | Purpose |
+|---|---|
+| `await_child_completion/7` | Blocking receive loop for child PI messages (finished, fatal, BPMN error, escalation, abort cascade) with optional `extra_message_handler` for handler-specific messages |
+| `apply_out_mappings_to_result/5`, `apply_result/5` | Aggregate end-event tokens, apply output mappings, validate result contract, resolve outgoing flows |
+| `handle_child_error/3`, `handle_child_bpmn_error/4`, `propagate_bpmn_error/4` | Error boundary resolution via `BoundaryResolver`, BPMN error propagation |
+| Escalation cluster (6 functions) | Interrupting/non-interrupting boundary resolution, passthrough, propagation |
+| `resume_existing_child/5` | State-based resume dispatch after engine restart (parameterized via `extra_terminal_states` for future Transaction support) |
+| `monitor_and_wait/8`, `start_child_from_persistence/7` | Re-monitor running children or restart from DB |
+| `cascade_to_child/2` | Fatal/abort cascade to child PI |
+| `dispatch_enter_result/7`, `dispatch_await_result/7` | Route child completion outcomes to the appropriate PI response tuple |
+
+#### Parameterization points
+
+`ChildLifecycle` functions accept keyword options to accommodate type-specific differences:
+
+- **`child_label`** — customizes error messages (e.g. `"SubProcess"` vs `"Call Activity"`)
+- **`extra_terminal_states`** — allows handlers to process additional terminal child states (reserved for Transaction's `"cancelled"` state)
+- **`extra_message_handler`** — allows handlers to intercept custom messages in the `await_child_completion` receive loop (reserved for Transaction's `{:child_pi_cancelled, ...}`)
+- **`fresh_lifecycle_fn`** — callback for handler-specific resume-from-scratch logic
+- **`extra_resume_opts`** — additional options merged into child resume opts
+
+#### Design constraint
+
+`ChildLifecycle` must remain a stateless helper. It never holds references to child processes, never manages OTP supervision, and never accesses persistence directly (all DB operations go through the `PersistenceAdapter` passed in by the caller). Handlers own the orchestration; `ChildLifecycle` provides the building blocks.
+
 ### SubProcess Handler
 
 **Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/sub_process.ex`
 
-Embedded SubProcesses (`<bpmn:subProcess>` with `triggeredByEvent="false"`) execute as **child Process Instances** — the same async-continuation model as Call Activity. The handler parks the shell FNI as `:waiting`, spawns a child PI for the inner scope, monitors it, and completes the shell when the child finishes.
+Embedded SubProcesses (`<bpmn:subProcess>` with `triggeredByEvent="false"`) execute as **child Process Instances** — the same async-continuation model as Call Activity. The handler parks the shell FNI as `:waiting`, spawns a child PI for the inner scope, monitors it, and completes the shell when the child finishes. Shared child-PI lifecycle logic (await, result processing, error/escalation handling, resume, cascade) is delegated to [`ChildLifecycle`](#child-lifecycle-shared-infrastructure).
 
 #### Synthetic process model
 
