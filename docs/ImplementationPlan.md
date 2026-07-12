@@ -98,6 +98,15 @@ Significant design decisions made during implementation. Each entry records the 
 | COMP-D6 | Phase 5 | **State model: only PI terminal `:compensated` ships in v1.** No `compensating` PI state and no new FNI state. "Compensation is active / what got compensated" is expressed via `CompensationTriggered` / `ActivityCompensated` events + `type_properties` markers on the involved FNIs. | Avoids duplicating every `:running` gen_statem clause for a `:compensating` state; preserves the "finished is terminal" FNI invariant that retry/resume rely on. A live `compensating` indicator is a deferred follow-up. |
 | COMP-D7 | Phase 5 | **Responsibility split: thin handlers + `CompensationResolver` + `ProcessInstance.CompensationOrchestrator`.** Handlers return a tuple tag; the resolver does model matching; the orchestrator builds ordered plans (no spawning); the PI stays a thin executor. | Follows the anti-god-module pattern established by `BoundaryOrchestrator` (which documents "does not spawn FNIs — those remain in ProcessInstance"). All matching/ordering logic sits in pure, unit-testable modules. |
 | COMP-D8 | Phase 5 | **Subprocess / Call Activity scope (v1): atomic-unit compensation only.** Embedded subprocesses and call activities are compensated as atomic units via a compensation boundary on the shell + a parent-scope handler. No cross-PI recursion into a child PI's inner completed activities. | Deep hierarchical recursion into embedded-subprocess internals is spec-correct but materially larger, touching child-PI boundary and resume/registry design. Call-activity non-propagation is permanent per BPMN spec. |
+| TX-D1 | Phase 5 | **Transaction is a SubProcess variant, not a separate type.** Parser maps `bpmn:transaction` to `:sub_process` with `is_transaction: true` on `FlowNodeData.SubProcess`. Handler routing branches on this flag to use `TransactionSubProcess`. | Reuses 95% of the embedded subprocess infrastructure (ModelCache, boundary orchestration, resume, retry). Mirrors how ESP was added (`triggered_by_event: true`). |
+| TX-D2 | Phase 5 | **New PI terminal state: `:cancelled`.** When a child PI is cancelled via Cancel End Event, it transitions to `:cancelled`. Distinct from `:aborted` (API kill switch) and `:compensated` (explicit compensation throw/end). | Clean state semantics matching the three Terminal-but-handled states family. |
+| TX-D3 | Phase 5 | **Cancel End fires automatic LIFO compensation within the child PI.** Sequence: (1) Cancel End → child PI interrupts siblings, (2) child PI runs LIFO compensation for completed activities via `CompensationOrchestrator`, (3) child PI transitions to `:cancelled` and notifies parent. | Compensation runs inside the child PI's scope (correct scoping per BPMN §10.4.3). Parent only sees the final `:cancelled` state. |
+| TX-D4 | Phase 5 | **Cancel Boundary is reactive (Error-model), not subscription-based (Timer/Message-model).** The Transaction handler Task awaits `{:child_pi_cancelled, ...}` and routes through `BoundaryResolver.find_matching_cancel_boundary/2`. | Cancel is deterministic and internal — there is no external event source to subscribe to. Same pattern as Error Boundary on Call Activity / Embedded Subprocess. |
+| TX-D5 | Phase 5 | **No nested transactions in v1.** Deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. Embedded subprocesses and call activities inside a transaction are allowed and compensated as atomic units (COMP-D8). | Nested transactions add complexity with little practical value. No mainstream engine supports them well. |
+| TX-D6 | Phase 5 | **`method` attribute parsed and stored but not executed.** No wire-level transaction protocol integration (WS-AT, WS-BA). | Matches Camunda, Flowable, jBPM. The attribute is preserved in the model for BPMN fidelity. |
+| TX-D7 | Phase 5 | **Hazard (uncaught error) does NOT trigger compensation.** An error propagating out of the transaction without an error boundary fatals the child PI. No compensation runs. Parent sees `{:child_pi_fatal, ...}`. | Spec-correct (BPMN 2.0 §13.4.6). Modelers who want compensation on error should wire an Error Boundary inside the transaction that routes to a Compensate Throw before the Cancel End. |
+| TX-D8 | Phase 5 | **Retry restrictions: no checkpoint inside a transaction scope AND no retry of any nested PI below a transaction.** `resetToFlowNodeInstanceId` pointing inside a cancelled transaction → `retry_checkpoint_inside_transaction`. Retrying any PI with a transaction ancestor → `retry_inside_transaction_scope`. Applies transitively to TX → SP → CA chains. | Atomicity: once a transaction exists in the process tree, all nested PIs are part of that atomic scope. The correct approach is always to retry from the transaction shell or further upstream. |
+| TX-D9 | Phase 5 | **`:cancelled` is NOT retryable.** Like `:compensated` and `:escalated`, a `:cancelled` PI represents a handled business outcome, not a failure. The parent continues via the Cancel Boundary. | Consistent with the "terminal-but-handled" family of states. |
 
 ---
 
@@ -1015,9 +1024,13 @@ Resolves the big `AGENT:` marker in concept §BPMN Spec Coverage by Priority.
 
 #### Cancel Events (only inside Transaction Subprocess)
 
-- **Cancel End Event**: Only legal inside a Transaction Subprocess. Triggers the Cancel Boundary on the surrounding Transaction.
-- **Cancel Boundary Event**: Only legal on a Transaction Subprocess.
-- **Transaction Subprocess** (`bpmn:transaction`): Like embedded subprocess but with rollback semantics on Cancel. Cleanup uses Compensation Boundaries of nested activities.
+**Implemented in Phase 5 (TX-D1–TX-D9). See `AGENTS.md` §Transaction Subprocess + Cancel Events for full reference.**
+
+- **Transaction Subprocess** (`bpmn:transaction`): Parsed as `:sub_process` with `is_transaction: true`. Dispatched to `FlowNodes.TransactionSubProcess` handler (TX-D1). Three outcomes: Success (normal subprocess finish), Cancel (Cancel End → LIFO compensation → `:cancelled` child PI → Cancel Boundary fires on shell), Hazard (uncaught error → fatal, no compensation — TX-D7). No nested transactions in v1 (TX-D5).
+- **Cancel End Event**: Only legal inside a Transaction Subprocess (validator rule `:cancel_end_outside_transaction`). Returns `{:cancel, result}` to the child PI. Triggers automatic LIFO compensation of all completed compensable activities via `CompensationOrchestrator` before transitioning to `:cancelled` (TX-D3).
+- **Cancel Boundary Event**: Only legal on a Transaction Subprocess shell (validator rule `:cancel_boundary_not_on_transaction`). Reactive (Error-model): not pre-spawned as a subscription; matched by `BoundaryResolver.find_matching_cancel_boundary/2` after the child PI reports `:cancelled` (TX-D4). Always interrupting; at most one per Transaction.
+- **PI state `:cancelled`**: New terminal state for Transaction child PIs (TX-D2). Not retryable (TX-D9). Parent process continues via Cancel Boundary outgoing flow.
+- **Retry restrictions** (TX-D8): (a) No retry checkpoint inside a cancelled transaction scope — `retry_checkpoint_inside_transaction`. (b) No retry of any PI with a transaction ancestor — `retry_inside_transaction_scope`. Both enforced in `validate_retriable_state` and `execute_retry_reset`.
 
 #### Data Stores
 
@@ -1040,9 +1053,9 @@ All of these are in-scope. Assigned to priorities below:
 | **Receive Task** | High | Semantically equivalent to Intermediate Message Catch Event at task level |
 | **Link Intermediate Throw** | Low | Documentation/diagram concern; at runtime it's a direct "jump" to the matching Link Catch in the same process. Implement as in-memory goto |
 | **Link Intermediate Catch** | Low | Counterpart to Link Throw |
-| **Cancel End Event** | Low | Covered above (tied to Transaction Subprocess) |
-| **Cancel Boundary Event** | Low | See Transaction Subprocess |
-| **Transaction Subprocess** | Low | See above |
+| **Cancel End Event** | Low | **Implemented** — Phase 5 (TX-D3). See §Cancel Events above. |
+| **Cancel Boundary Event** | Low | **Implemented** — Phase 5 (TX-D4). See §Cancel Events above. |
+| **Transaction Subprocess** | Low | **Implemented** — Phase 5 (TX-D1). See §Cancel Events above. |
 | **Text Annotation** | — | Parser-only, ignored at runtime (still surfaced in the deployed model via GraphQL) |
 | **Group** | — | Same as Text Annotation |
 | **Message Flow** | — | Collaboration-level visualization only; at runtime, throw/catch events do the real routing. Engine parses and stores for query/visualization purposes |

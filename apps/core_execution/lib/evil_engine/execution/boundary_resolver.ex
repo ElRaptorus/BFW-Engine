@@ -43,6 +43,34 @@ defmodule EvilEngine.Execution.BoundaryResolver do
     end
   end
 
+  @doc """
+  Scans the transaction shell's `boundary_event_refs` for a Cancel Boundary
+  Event.
+
+  Cancel Boundary Events have no discriminator — any Cancel Boundary on the
+  transaction shell catches the cancel. Returns `{:ok, boundary_flow_node}`
+  for the first Cancel Boundary found, or `:none`.
+  """
+  @spec find_matching_cancel_boundary(FlowNode.t(), struct()) :: {:ok, FlowNode.t()} | :none
+  def find_matching_cancel_boundary(%FlowNode{} = host_node, process_model) do
+    node_index = Map.new(process_model.flow_nodes, &{&1.id, &1})
+
+    host_node.boundary_event_refs
+    |> Enum.map(&Map.get(node_index, &1))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.find(&cancel_boundary?/1)
+    |> case do
+      nil -> :none
+      node -> {:ok, node}
+    end
+  end
+
+  defp cancel_boundary?(%FlowNode{type: :boundary_event, type_data: type_data}) do
+    match?(%EventDefinition.Cancel{}, type_data.event_definition)
+  end
+
+  defp cancel_boundary?(_), do: false
+
   defp error_boundary?(%FlowNode{type: :boundary_event, type_data: type_data}) do
     match?(%EventDefinition.Error{}, type_data.event_definition)
   end

@@ -97,6 +97,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   @pi_state_error "error"
   @pi_state_escalated "escalated"
   @pi_state_compensated "compensated"
+  @pi_state_cancelled "cancelled"
   @shutdown_timeout 5_000
 
   @type start_opts :: %{
@@ -424,6 +425,17 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
       ) do
     data = handle_fni_escalation_throw(data, flow_node_instance_id, result, escalation_info)
+    maybe_finish_or_continue(data)
+  end
+
+  # Cancel End Event: finish FNI, interrupt siblings, run LIFO compensation,
+  # then transition child PI to :cancelled.
+  def running(
+        :info,
+        {:fni_result, flow_node_instance_id, {:cancel, %FlowNodeResult{} = result}},
+        data
+      ) do
+    data = handle_fni_cancel(data, flow_node_instance_id, result)
     maybe_finish_or_continue(data)
   end
 
@@ -1864,6 +1876,54 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
+  # Cancel End Event: (1) finish the FNI, (2) interrupt all remaining FNIs
+  # in the scope, (3) run LIFO compensation for all completed activities,
+  # (4) set cancel_reached for the quiesce check.
+  # Idempotency: if cancel is already in progress, the FNI is already
+  # finished/interrupted — do nothing.
+  defp handle_fni_cancel(data, flow_node_instance_id, %FlowNodeResult{} = result) do
+    if data.cancel_reached do
+      data
+    else
+      case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+        %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
+          data
+
+        nil ->
+          data
+
+        _entry ->
+          data = do_handle_fni_ok(data, flow_node_instance_id, result)
+          data = interrupt_remaining_fnis(data, flow_node_instance_id, :cancelled_by_cancel_end)
+          start_cancel_compensation_run(data, flow_node_instance_id)
+      end
+    end
+  end
+
+  defp start_cancel_compensation_run(data, cancel_fni_id) do
+    targets =
+      data.compensation_registry
+      |> Enum.sort_by(& &1.completion_order, :desc)
+
+    if targets == [] do
+      %{data | cancel_reached: true}
+    else
+      cancel_entry = Map.get(data.flow_node_instance_states, cancel_fni_id)
+      output_payload = if cancel_entry, do: cancel_entry.token.payload, else: %{}
+
+      run =
+        CompensationOrchestrator.build_run(
+          targets,
+          :cancel,
+          [],
+          output_payload
+        )
+
+      data = put_in(data.compensation_runs[cancel_fni_id], run)
+      dispatch_next_compensation_handler(data, cancel_fni_id)
+    end
+  end
+
   defp handle_fni_bpmn_error(data, flow_node_instance_id, %FlowNodeResult{} = result, error_info) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
@@ -2222,6 +2282,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
         _persist = persist_compensation_throw_finished(data, throw_fni_id)
         %{data | compensation_end_reached: true}
+
+      :cancel ->
+        # Cancel End compensation run complete. The Cancel End FNI is already
+        # finished (no FNI state update needed). Set cancel_reached so
+        # finish_quiesced_pi transitions the PI to :cancelled.
+        %{data | cancel_reached: true}
     end
   end
 
@@ -3062,6 +3128,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
         emit_pi_state_changed(data, :running, :error)
         notify_parent(data, {:bpmn_error, data.bpmn_error_info})
 
+      data.cancel_reached ->
+        _persist_result = persist_pi_cancelled(data)
+        emit_pi_state_changed(data, :running, :cancelled)
+        emit_transaction_cancelled(data)
+        notify_parent(data, :cancelled)
+
       data.compensation_end_reached ->
         _persist_result = persist_pi_compensated(data)
         emit_pi_state_changed(data, :running, :compensated)
@@ -3325,6 +3397,51 @@ defmodule EvilEngine.Execution.ProcessInstance do
     )
   end
 
+  defp persist_pi_cancelled(data) do
+    adapter = PersistenceAdapter.adapter()
+
+    PersistenceRetry.with_retry(
+      fn ->
+        adapter.update_process_instance(data.process_instance_id, %{
+          state: @pi_state_cancelled,
+          finished_at: DateTime.utc_now()
+        })
+      end,
+      "PI cancelled #{data.process_instance_id}"
+    )
+  end
+
+  defp emit_transaction_cancelled(data) do
+    transaction_node_id = extract_transaction_node_id(data)
+
+    EngineEventBus.publish(%Event.TransactionCancelled{
+      process_instance_id: data.process_instance_id,
+      root_process_instance_id: data.root_process_instance_id,
+      transaction_node_id: transaction_node_id,
+      compensation_handler_count: length(data.compensation_registry),
+      occurred_at: DateTime.utc_now()
+    })
+
+    :telemetry.execute(
+      [:evil_engine, :transaction, :cancelled],
+      %{system_time: System.system_time()},
+      %{
+        process_instance_id: data.process_instance_id,
+        transaction_node_id: transaction_node_id,
+        compensation_handler_count: length(data.compensation_registry)
+      }
+    )
+  end
+
+  defp extract_transaction_node_id(data) do
+    model_id = (data.process_model && data.process_model.id) || ""
+
+    case String.split(model_id, "__subprocess__") do
+      [_parent, node_id] -> node_id
+      _ -> nil
+    end
+  end
+
   defp persist_fni_create(
          data,
          flow_node_instance_id,
@@ -3460,6 +3577,18 @@ defmodule EvilEngine.Execution.ProcessInstance do
         process_instance_pid = self()
         final_tokens = build_final_tokens(data)
         send(pid, {:child_pi_compensated, process_instance_pid, final_tokens})
+    end
+  end
+
+  defp notify_parent(data, :cancelled) do
+    case data.notify_pid do
+      nil ->
+        :ok
+
+      pid when is_pid(pid) ->
+        process_instance_pid = self()
+        final_tokens = build_final_tokens(data)
+        send(pid, {:child_pi_cancelled, process_instance_pid, final_tokens})
     end
   end
 

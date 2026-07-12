@@ -25,7 +25,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
   alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
 
   @conformance_dir Path.expand("../conformance", __DIR__)
-  @terminal_process_instance_states ["finished", "fatal", "aborted", "escalated"]
+  @terminal_process_instance_states ["finished", "fatal", "aborted", "escalated", "cancelled", "compensated"]
 
   @doc """
   Load and parse a YAML spec file from `test/conformance/`.

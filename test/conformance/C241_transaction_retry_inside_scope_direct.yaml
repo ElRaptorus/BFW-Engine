@@ -1,0 +1,14 @@
+name: "C241: Retry of direct transaction child PI blocked (retry_inside_transaction_scope)"
+fixture: "transaction_hazard_error.bpmn"
+process_model_id: "transaction_hazard_error"
+tier: interactive
+notes: >
+  Transaction subprocess hazards (child PI goes :fatal). Even though :fatal is
+  normally retryable, retrying a PI that was spawned directly by a Transaction
+  subprocess shell is blocked. The engine rejects it with
+  retry_inside_transaction_scope. The correct approach is to retry the parent
+  PI (the one containing the transaction shell FNI).
+start:
+  payload: null
+expected:
+  final_state: "fatal"

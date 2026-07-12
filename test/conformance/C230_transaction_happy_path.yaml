@@ -1,0 +1,14 @@
+name: "C230: Transaction happy path — succeeds normally, Cancel Boundary NOT fired"
+fixture: "transaction_happy_path.bpmn"
+process_model_id: "transaction_happy_path"
+tier: auto
+notes: >
+  Transaction subprocess contains a task followed by a normal End Event.
+  The Cancel End Event is never reached. The parent PI finishes normally via
+  End_Normal. The Cancel Boundary Event must NOT fire.
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Normal"

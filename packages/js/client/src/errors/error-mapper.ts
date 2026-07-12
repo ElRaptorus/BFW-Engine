@@ -41,6 +41,8 @@ import {
   RateLimitedError,
   RetryCheckpointIsEbgLoserError,
   RetryCheckpointIsJoinGatewayError,
+  RetryCheckpointInsideTransactionError,
+  RetryInsideTransactionScopeError,
   StartEventNotFoundError,
   UnauthorizedError,
   ValidationError,
@@ -166,6 +168,10 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
       return new RetryCheckpointIsJoinGatewayError(message, body);
     case 'retry_checkpoint_is_ebg_loser':
       return new RetryCheckpointIsEbgLoserError(message, body);
+    case 'retry_checkpoint_inside_transaction':
+      return new RetryCheckpointInsideTransactionError(message, body);
+    case 'retry_inside_transaction_scope':
+      return new RetryInsideTransactionScopeError(message, body);
     case 'root_process_instance_not_terminal':
       return new ProcessInstanceNotTerminalError(
         message,

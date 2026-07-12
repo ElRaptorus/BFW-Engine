@@ -66,6 +66,17 @@ defmodule EvilEngine.BPMN.ValidatorTest do
     end
   end
 
+  defp assert_violation_code(definitions, code) do
+    case Validator.validate(definitions) do
+      {:ok, _} ->
+        flunk("expected #{inspect(code)} violation but validation passed")
+
+      {:error, violations} ->
+        assert Enum.any?(violations, fn {c, _} -> c == code end),
+               "expected #{inspect(code)} violation, got: #{inspect(violations)}"
+    end
+  end
+
   # -------------------------------------------------------------------------
   # Happy paths
   # -------------------------------------------------------------------------
@@ -2753,5 +2764,290 @@ defmodule EvilEngine.BPMN.ValidatorTest do
     |> esp_definition_xml(globals)
     |> parse_fixture_from_xml()
     |> Validator.validate()
+  end
+
+  defp transaction_node(id, inner_nodes, inner_flows, opts \\ []) do
+    %FlowNode{
+      id: id,
+      type: :sub_process,
+      type_data: %FlowNodeData.SubProcess{
+        triggered_by_event: false,
+        is_transaction: true,
+        transaction_method: Keyword.get(opts, :method),
+        flow_nodes: inner_nodes,
+        sequence_flows: inner_flows
+      }
+    }
+  end
+
+  defp minimal_inner_scope(start_id, end_id, flow_id) do
+    inner_nodes = [
+      %FlowNode{id: start_id, type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+      %FlowNode{id: end_id, type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+    ]
+
+    inner_flows = [%SequenceFlow{id: flow_id, source_ref: start_id, target_ref: end_id}]
+    {inner_nodes, inner_flows}
+  end
+
+  describe "validate/1 — Cancel event transaction scope (E2.1)" do
+    test "Cancel End Event inside a Transaction is valid" do
+      {inner_nodes, inner_flows} = minimal_inner_scope("TX_Start", "TX_End", "TX_F1")
+
+      cancel_end = %FlowNode{
+        id: "TX_Cancel_End",
+        type: :end_event,
+        type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.Cancel{}}
+      }
+
+      tx = transaction_node("TX_1", inner_nodes ++ [cancel_end], inner_flows)
+
+      cancel_boundary = %FlowNode{
+        id: "CB_1",
+        type: :boundary_event,
+        type_data: %FlowNodeData.BoundaryEvent{
+          event_definition: %EventDefinition.Cancel{},
+          attached_to_ref: "TX_1",
+          cancel_activity: true
+        }
+      }
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [tx, cancel_boundary],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "TX_1"},
+            %SequenceFlow{id: "F3", source_ref: "TX_1", target_ref: "E1"},
+            %SequenceFlow{id: "F4", source_ref: "CB_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :cancel_end_outside_transaction)
+      refute_violation_code(definitions, :cancel_boundary_not_on_transaction)
+    end
+
+    test "Cancel End Event outside a Transaction is rejected" do
+      cancel_end = %FlowNode{
+        id: "Cancel_End",
+        type: :end_event,
+        type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.Cancel{}}
+      }
+
+      definitions = minimal_valid_definitions(extra_nodes: [cancel_end])
+
+      assert_violation_code(definitions, :cancel_end_outside_transaction)
+    end
+
+    test "Cancel Boundary Event on non-transaction host is rejected" do
+      regular_task = %FlowNode{
+        id: "Task_1",
+        type: :user_task,
+        type_data: %FlowNodeData.UserTask{}
+      }
+
+      cancel_boundary = %FlowNode{
+        id: "CB_1",
+        type: :boundary_event,
+        type_data: %FlowNodeData.BoundaryEvent{
+          event_definition: %EventDefinition.Cancel{},
+          attached_to_ref: "Task_1",
+          cancel_activity: true
+        }
+      }
+
+      definitions = minimal_valid_definitions(extra_nodes: [regular_task, cancel_boundary])
+
+      assert_violation_code(definitions, :cancel_boundary_not_on_transaction)
+    end
+
+    test "Cancel Boundary Event on a Transaction subprocess is valid" do
+      {inner_nodes, inner_flows} = minimal_inner_scope("TX_Start", "TX_End", "TX_F1")
+      tx = transaction_node("TX_1", inner_nodes, inner_flows)
+
+      cancel_boundary = %FlowNode{
+        id: "CB_1",
+        type: :boundary_event,
+        type_data: %FlowNodeData.BoundaryEvent{
+          event_definition: %EventDefinition.Cancel{},
+          attached_to_ref: "TX_1",
+          cancel_activity: true
+        }
+      }
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [tx, cancel_boundary],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "TX_1"},
+            %SequenceFlow{id: "F3", source_ref: "TX_1", target_ref: "E1"},
+            %SequenceFlow{id: "F4", source_ref: "CB_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :cancel_boundary_not_on_transaction)
+    end
+
+    test "Cancel Boundary Event on a regular SubProcess is rejected" do
+      {inner_nodes, inner_flows} = minimal_inner_scope("SP_Start", "SP_End", "SP_F1")
+
+      regular_sp = %FlowNode{
+        id: "SP_1",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: false,
+          is_transaction: false,
+          flow_nodes: inner_nodes,
+          sequence_flows: inner_flows
+        }
+      }
+
+      cancel_boundary = %FlowNode{
+        id: "CB_1",
+        type: :boundary_event,
+        type_data: %FlowNodeData.BoundaryEvent{
+          event_definition: %EventDefinition.Cancel{},
+          attached_to_ref: "SP_1",
+          cancel_activity: true
+        }
+      }
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [regular_sp, cancel_boundary],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SP_1"},
+            %SequenceFlow{id: "F3", source_ref: "SP_1", target_ref: "E1"},
+            %SequenceFlow{id: "F4", source_ref: "CB_1", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :cancel_boundary_not_on_transaction)
+    end
+  end
+
+  describe "validate/1 — Nested transaction rejection (E2.2)" do
+    test "Transaction directly containing another Transaction is rejected" do
+      {inner_inner_nodes, inner_inner_flows} =
+        minimal_inner_scope("INNER_Start", "INNER_End", "INNER_F1")
+
+      inner_tx = transaction_node("Inner_TX", inner_inner_nodes, inner_inner_flows)
+
+      inner_nodes = [
+        %FlowNode{id: "TX_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        inner_tx,
+        %FlowNode{id: "TX_End", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      inner_flows = [
+        %SequenceFlow{id: "TF1", source_ref: "TX_Start", target_ref: "Inner_TX"},
+        %SequenceFlow{id: "TF2", source_ref: "Inner_TX", target_ref: "TX_End"}
+      ]
+
+      outer_tx = transaction_node("Outer_TX", inner_nodes, inner_flows)
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [outer_tx],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "Outer_TX"},
+            %SequenceFlow{id: "F3", source_ref: "Outer_TX", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :nested_transaction)
+    end
+
+    test "Transaction containing an embedded subprocess (non-transaction) is valid" do
+      {inner_sp_nodes, inner_sp_flows} =
+        minimal_inner_scope("SP_Start", "SP_End", "SP_F1")
+
+      regular_sp = subprocess_node("SP_Inside", inner_sp_nodes, inner_sp_flows)
+
+      tx_inner_nodes = [
+        %FlowNode{id: "TX_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        regular_sp,
+        %FlowNode{id: "TX_End", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      tx_inner_flows = [
+        %SequenceFlow{id: "TF1", source_ref: "TX_Start", target_ref: "SP_Inside"},
+        %SequenceFlow{id: "TF2", source_ref: "SP_Inside", target_ref: "TX_End"}
+      ]
+
+      tx = transaction_node("TX_1", tx_inner_nodes, tx_inner_flows)
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [tx],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "TX_1"},
+            %SequenceFlow{id: "F3", source_ref: "TX_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :nested_transaction)
+    end
+
+    test "top-level process with two sibling Transactions is valid" do
+      {inner1, flows1} = minimal_inner_scope("TX1_Start", "TX1_End", "TX1_F1")
+      {inner2, flows2} = minimal_inner_scope("TX2_Start", "TX2_End", "TX2_F1")
+      tx1 = transaction_node("TX_1", inner1, flows1)
+      tx2 = transaction_node("TX_2", inner2, flows2)
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [tx1, tx2],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "TX_1"},
+            %SequenceFlow{id: "F3", source_ref: "TX_1", target_ref: "TX_2"},
+            %SequenceFlow{id: "F4", source_ref: "TX_2", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :nested_transaction)
+    end
+  end
+
+  describe "validate/1 — Transaction full XML round-trip (E2.4)" do
+    test "valid transaction with Cancel End and Cancel Boundary parses and validates" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_TX_Valid">
+        <bpmn:process id="Process_TX" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:transaction id="TX_1" name="My Transaction">
+            <bpmn:startEvent id="TX_Start"><bpmn:outgoing>TF1</bpmn:outgoing></bpmn:startEvent>
+            <bpmn:task id="TX_Task"><bpmn:incoming>TF1</bpmn:incoming><bpmn:outgoing>TF2</bpmn:outgoing></bpmn:task>
+            <bpmn:endEvent id="TX_Cancel_End">
+              <bpmn:cancelEventDefinition/>
+              <bpmn:incoming>TF2</bpmn:incoming>
+            </bpmn:endEvent>
+            <bpmn:sequenceFlow id="TF1" sourceRef="TX_Start" targetRef="TX_Task"/>
+            <bpmn:sequenceFlow id="TF2" sourceRef="TX_Task" targetRef="TX_Cancel_End"/>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:transaction>
+          <bpmn:boundaryEvent id="Cancel_Boundary" attachedToRef="TX_1" cancelActivity="true">
+            <bpmn:cancelEventDefinition/>
+            <bpmn:outgoing>F3</bpmn:outgoing>
+          </bpmn:boundaryEvent>
+          <bpmn:endEvent id="End_Cancelled"><bpmn:incoming>F3</bpmn:incoming></bpmn:endEvent>
+          <bpmn:endEvent id="End_Success"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="TX_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="TX_1" targetRef="End_Success"/>
+          <bpmn:sequenceFlow id="F3" sourceRef="Cancel_Boundary" targetRef="End_Cancelled"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      definitions = parse_fixture_from_xml(xml)
+
+      refute_violation_code(definitions, :cancel_end_outside_transaction)
+      refute_violation_code(definitions, :cancel_boundary_not_on_transaction)
+      refute_violation_code(definitions, :nested_transaction)
+    end
   end
 end

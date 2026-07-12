@@ -1,0 +1,14 @@
+name: "C235: Transaction cancel with no Cancel Boundary — parent hazards (fatal)"
+fixture: "transaction_no_cancel_boundary.bpmn"
+process_model_id: "transaction_no_cancel_boundary"
+tier: auto
+notes: >
+  Transaction subprocess reaches a Cancel End Event, causing the child PI
+  to transition to :cancelled. However, the transaction shell has no Cancel
+  Boundary Event. The unhandled cancel propagates as a hazard, causing the
+  parent PI to fatal. This is spec-correct: a Cancel End without a matching
+  Cancel Boundary is treated as a hazard.
+start:
+  payload: null
+expected:
+  final_state: "fatal"

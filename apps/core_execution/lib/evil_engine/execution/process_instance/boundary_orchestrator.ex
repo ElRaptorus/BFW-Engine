@@ -141,7 +141,9 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
       boundary_refs
       |> Enum.map(&Map.get(node_index, &1))
-      |> Enum.reject(fn node -> is_nil(node) or compensation_boundary?(node) end)
+      |> Enum.reject(fn node ->
+        is_nil(node) or compensation_boundary?(node) or cancel_boundary?(node)
+      end)
     end
   end
 
@@ -154,6 +156,16 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
        do: true
 
   defp compensation_boundary?(_), do: false
+
+  defp cancel_boundary?(%FlowNode{
+         type: :boundary_event,
+         type_data: %FlowNodeData.BoundaryEvent{
+           event_definition: %EventDefinition.Cancel{}
+         }
+       }),
+       do: true
+
+  defp cancel_boundary?(_), do: false
 
   @doc "Interrupts all active/waiting boundary FNIs attached to the given host FNI."
   @spec cancel_boundary_fnis_for_host(struct(), String.t()) :: struct()

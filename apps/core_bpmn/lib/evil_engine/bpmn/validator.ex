@@ -19,6 +19,8 @@ defmodule EvilEngine.BPMN.Validator do
   - Dangling reference detection (sequence flows, data objects, globals)
   - Invalid event-definition/position combos
   - Event-Based Gateway checks (no boundary events on EBG Receive Task targets)
+  - Cancel event scope enforcement (Cancel End inside transaction; Cancel Boundary on transaction host)
+  - Nested transaction rejection (bpmn:transaction inside bpmn:transaction)
   """
 
   alias EvilEngine.BPMN.ComplexRegionAnalysis
@@ -69,7 +71,9 @@ defmodule EvilEngine.BPMN.Validator do
       check_flow_node_completeness(process, definitions),
       check_cross_boundary_flows(process),
       check_event_subprocess_shell_flows(process),
-      check_unique_flow_node_ids(process)
+      check_unique_flow_node_ids(process),
+      check_cancel_transaction_scope(process),
+      check_nested_transactions(process)
     ])
   end
 
@@ -1592,6 +1596,99 @@ defmodule EvilEngine.BPMN.Validator do
       end
     end)
   end
+
+  # ---------------------------------------------------------------------------
+  # Transaction + Cancel scope checks (E2)
+  # ---------------------------------------------------------------------------
+
+  defp check_cancel_transaction_scope(%BpmnProcess{} = process) do
+    do_check_cancel_scope(process.flow_nodes, false)
+  end
+
+  defp do_check_cancel_scope(flow_nodes, inside_transaction) do
+    node_index = Map.new(flow_nodes, &{&1.id, &1})
+
+    Enum.flat_map(flow_nodes, fn node ->
+      check_cancel_scope_node(node, inside_transaction, node_index)
+    end)
+  end
+
+  defp check_cancel_scope_node(%FlowNode{id: id, type: type, type_data: data}, inside_transaction, node_index) do
+    cancel_end_errors = check_cancel_end_scope(id, type, data, inside_transaction)
+    cancel_boundary_errors = check_cancel_boundary_host(id, type, data, node_index)
+    inner_errors = check_cancel_scope_inner(data)
+
+    cancel_end_errors ++ cancel_boundary_errors ++ inner_errors
+  end
+
+  defp check_cancel_end_scope(id, :end_event, %FlowNodeData.EndEvent{event_definition: %EventDefinition.Cancel{}}, false) do
+    [
+      {:cancel_end_outside_transaction,
+       "EndEvent '#{id}' has a Cancel event definition but is not inside a Transaction subprocess. " <>
+         "Cancel End Events are only valid inside a bpmn:transaction element."}
+    ]
+  end
+
+  defp check_cancel_end_scope(_id, _type, _data, _inside_transaction), do: []
+
+  defp check_cancel_boundary_host(id, :boundary_event, %FlowNodeData.BoundaryEvent{event_definition: %EventDefinition.Cancel{}, attached_to_ref: host_ref}, node_index) do
+    host = Map.get(node_index, host_ref)
+
+    if cancel_boundary_host_valid?(host) do
+      []
+    else
+      [
+        {:cancel_boundary_not_on_transaction,
+         "BoundaryEvent '#{id}' has a Cancel event definition but its host '#{host_ref}' " <>
+           "is not a Transaction subprocess. Cancel Boundary Events must be attached to a bpmn:transaction element."}
+      ]
+    end
+  end
+
+  defp check_cancel_boundary_host(_id, _type, _data, _node_index), do: []
+
+  defp cancel_boundary_host_valid?(nil), do: false
+
+  defp cancel_boundary_host_valid?(%FlowNode{type: :sub_process, type_data: %FlowNodeData.SubProcess{is_transaction: true}}),
+    do: true
+
+  defp cancel_boundary_host_valid?(_), do: false
+
+  defp check_cancel_scope_inner(%FlowNodeData.SubProcess{flow_nodes: inner_nodes, is_transaction: is_tx}) do
+    do_check_cancel_scope(inner_nodes, is_tx)
+  end
+
+  defp check_cancel_scope_inner(_), do: []
+
+  defp check_nested_transactions(%BpmnProcess{} = process) do
+    do_check_nested_transactions(process.flow_nodes)
+  end
+
+  defp do_check_nested_transactions(flow_nodes) do
+    Enum.flat_map(flow_nodes, &check_nested_transactions_node/1)
+  end
+
+  defp check_nested_transactions_node(%FlowNode{id: id, type: :sub_process, type_data: %FlowNodeData.SubProcess{is_transaction: true, flow_nodes: inner_nodes}}) do
+    direct_violations = Enum.flat_map(inner_nodes, &nested_transaction_violation(id, &1))
+    inner_violations = do_check_nested_transactions(inner_nodes)
+    direct_violations ++ inner_violations
+  end
+
+  defp check_nested_transactions_node(%FlowNode{type: :sub_process, type_data: %FlowNodeData.SubProcess{flow_nodes: inner_nodes}}) do
+    do_check_nested_transactions(inner_nodes)
+  end
+
+  defp check_nested_transactions_node(_), do: []
+
+  defp nested_transaction_violation(outer_id, %FlowNode{id: inner_id, type: :sub_process, type_data: %FlowNodeData.SubProcess{is_transaction: true}}) do
+    [
+      {:nested_transaction,
+       "Transaction '#{outer_id}' contains nested Transaction '#{inner_id}'. " <>
+         "Nested transactions are not supported in v1."}
+    ]
+  end
+
+  defp nested_transaction_violation(_outer_id, _node), do: []
 
   # ---------------------------------------------------------------------------
   # Helpers

@@ -356,7 +356,7 @@ defmodule EvilEngine.Execution do
         {:ok, pi_data, []}
 
       parent_id ->
-        walk_ancestors(parent_id, adapter, [])
+        walk_ancestors(parent_id, pi_data.triggerer_flow_node_instance_id, adapter, [])
         |> case do
           {:ok, root_pi_data, ancestors} -> {:ok, root_pi_data, ancestors}
           error -> error
@@ -364,13 +364,34 @@ defmodule EvilEngine.Execution do
     end
   end
 
-  defp walk_ancestors(process_instance_id, adapter, accumulated_chain) do
+  defp walk_ancestors(process_instance_id, child_triggerer_fni_id, adapter, accumulated_chain) do
     case retry_adapter_call(adapter, :get_process_instance_for_retry, [process_instance_id]) do
       {:ok, ancestor_data} ->
-        validate_and_continue_walk(ancestor_data, adapter, accumulated_chain)
+        with :ok <- check_triggerer_not_transaction(child_triggerer_fni_id, adapter) do
+          validate_and_continue_walk(ancestor_data, adapter, accumulated_chain)
+        end
 
       {:error, :not_found} ->
         {:error, :ancestor_not_found, process_instance_id}
+    end
+  end
+
+  defp check_triggerer_not_transaction(nil, _adapter), do: :ok
+
+  defp check_triggerer_not_transaction(triggerer_fni_id, adapter) do
+    case adapter.get_flow_node_instance_by_id(triggerer_fni_id) do
+      {:ok, fni} ->
+        type_props = fni.type_properties || %{}
+
+        if Map.get(type_props, "is_transaction") == true or
+             Map.get(type_props, :is_transaction) == true do
+          {:error, :retry_inside_transaction_scope}
+        else
+          :ok
+        end
+
+      {:error, :not_found} ->
+        :ok
     end
   end
 
@@ -381,8 +402,11 @@ defmodule EvilEngine.Execution do
       chain = accumulated_chain ++ [ancestor_data]
 
       case ancestor_data.parent_process_instance_id do
-        nil -> {:ok, ancestor_data, chain}
-        parent_id -> walk_ancestors(parent_id, adapter, chain)
+        nil ->
+          {:ok, ancestor_data, chain}
+
+        parent_id ->
+          walk_ancestors(parent_id, ancestor_data.triggerer_flow_node_instance_id, adapter, chain)
       end
     else
       {:error, :root_process_instance_not_terminal, ancestor_data.state, ancestor_data.id}
@@ -432,7 +456,8 @@ defmodule EvilEngine.Execution do
     "event_based_gateway_sibling_cancelled",
     "host_completed",
     "sibling_boundary_interrupted",
-    "terminated_by_end_event"
+    "terminated_by_end_event",
+    "cancelled_by_cancel_end"
   ]
 
   defp non_retryable_fni?(fni) do

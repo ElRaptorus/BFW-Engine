@@ -1,0 +1,16 @@
+name: "C232: Transaction cancel with compensation — LIFO ordering (B first, then A)"
+fixture: "transaction_cancel_with_compensation.bpmn"
+process_model_id: "transaction_cancel_with_compensation"
+tier: auto
+notes: >
+  Transaction contains Task A (compensable with handler Tx_CompA) and
+  Task B (compensable with handler Tx_CompB), then a Cancel End.
+  When cancel fires, automatic LIFO compensation runs: Tx_CompB executes
+  first (registered last), then Tx_CompA. The TransactionCancelled event
+  carries compensation_handler_count=2. Parent finishes at End_Cancelled.
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Cancelled"

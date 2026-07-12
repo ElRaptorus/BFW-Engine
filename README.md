@@ -148,7 +148,7 @@ Each of these Elements has full Runtime support.
 | Error        | Finishes Process with `Error`. The error propagates to the parent process and can be caught by an `Error Boundary Event`. |
 | Escalation   | Terminates process scope (`:escalated` state) and propagates escalation to the parent; caught by Escalation Boundary Event on Call Activity or Embedded Subprocess |
 | Compensation | Triggers compensation for completed activities in the current scope, then finishes the PI with `Compensated` state |
-| Cancel       |  Parsed only. Planned: Phase 5                                         |
+| Cancel       | `Transaction` only. Cancels a Transactional Subprocess.                |
 
 
 ### Intermediate Catch Events
@@ -185,7 +185,7 @@ Each of these Elements has full Runtime support.
 | Conditional  | Interrupting + non-interrupting; FEEL condition, fires only once           |
 | Escalation   | Interrupting + non-interrupting; catches escalations from child PIs; specific-code matching beats catch-all regardless of declaration order |
 | Compensation | Passive marker; registers the host activity for compensation upon completion. Linked to a handler activity via Association. |
-| Cancel       | Parsed only. Planned: Phase 5                                              |
+| Cancel       | Transactions only. Catches Cancellations from within a `Cancel End Event`. |
 
 
 ### Flows & Data
@@ -205,10 +205,10 @@ Each of these Elements has full Runtime support.
 
 ### Other
 
-| Element          | Notes                                                                  |
-| -----------------| ---------------------------------------------------------------------- |
-| Event Subprocess | Interrupting + Non-Interrupting, triggered by single typed Start Event |
-| Transaction      | Parsed only. Planned: Phase 5                                          |
+| Element          | Notes                                                                   |
+| -----------------| ----------------------------------------------------------------------- |
+| Event Subprocess | Interrupting + Non-Interrupting, triggered by single typed Start Event  |
+| Transaction      | `All or nothing` style Subprocess. Either succeeds or fails as a whole. Can use `Cancel` Events for premature cancelling and rolling back a transaction, using automatic compensation. |
 
 ### Not Supported and not planned at this time
 

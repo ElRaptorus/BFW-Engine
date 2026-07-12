@@ -1,0 +1,16 @@
+name: "C234: Transaction error boundary inside routes to Cancel End"
+fixture: "transaction_error_boundary_inside.bpmn"
+process_model_id: "transaction_error_boundary_inside"
+tier: auto
+notes: >
+  Transaction contains Task A (compensable) then Task B (always fatals — bad
+  service task handler). An error boundary on Task B catches the failure and
+  routes to a Compensate Throw, then a Cancel End Event. The child PI
+  transitions to :cancelled after compensation runs. Cancel Boundary on
+  the transaction shell fires, parent finishes at End_Cancelled.
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Cancelled"

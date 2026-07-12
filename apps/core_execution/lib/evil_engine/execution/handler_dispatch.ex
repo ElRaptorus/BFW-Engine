@@ -273,8 +273,31 @@ defmodule EvilEngine.Execution.HandlerDispatch do
     :unsupported_event_definition
   end
 
+  defp resolve_handler(%FlowNode{
+         type: :end_event,
+         type_data: %{event_definition: %EventDefinition.Cancel{}}
+       }) do
+    {:ok, FlowNodes.CancelEndEvent}
+  end
+
+  defp resolve_handler(%FlowNode{
+         type: :boundary_event,
+         type_data: %{event_definition: %EventDefinition.Cancel{}}
+       }) do
+    {:ok, FlowNodes.CancelBoundaryEvent}
+  end
+
   defp resolve_handler(%FlowNode{type_data: %{event_definition: %EventDefinition.Cancel{}}}) do
     :unsupported_event_definition
+  end
+
+  # Transaction subprocess — must be checked before the Event Subprocess clause
+  # to ensure `is_transaction: true` takes priority over `triggered_by_event`.
+  defp resolve_handler(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_transaction: true}
+       }) do
+    {:ok, FlowNodes.TransactionSubProcess}
   end
 
   # Event Subprocess shell — triggered by its start event, not by a token enter.

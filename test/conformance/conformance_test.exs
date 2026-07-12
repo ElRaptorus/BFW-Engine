@@ -1693,6 +1693,111 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Process.sleep(3_000)
   end
 
+  # ===================================================================
+  # INTERACTIVE TIER — Transaction Subprocess + Cancel Events (C240–C244)
+  # ===================================================================
+
+  test "C240: Cancelled transaction child PI is not retryable" do
+    spec = Runner.load_spec("C240_transaction_cancelled_not_retryable.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _} = await_process_instance_state(process_instance_id, "finished", timeout: 15_000)
+
+    [child_pi_id] = conformance_find_child_ids(process_instance_id)
+    assert_pi_state!(child_pi_id, "cancelled")
+
+    {422, error_body} = http_retry_process_instance(child_pi_id)
+    assert error_body["error"] == "process_instance_not_retriable"
+
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C241: Retry of direct transaction child PI blocked (retry_inside_transaction_scope)" do
+    spec = Runner.load_spec("C241_transaction_retry_inside_scope_direct.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _} = await_process_instance_state(process_instance_id, "fatal", timeout: 15_000)
+
+    [child_pi_id] = conformance_find_child_ids(process_instance_id)
+    assert_pi_state!(child_pi_id, "fatal")
+
+    {422, error_body} = http_retry_process_instance(child_pi_id)
+    assert error_body["error"] == "retry_inside_transaction_scope"
+
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C242: TX → SP → child fatal — nested SP PI retry blocked by transaction ancestor" do
+    spec = Runner.load_spec("C242_transaction_retry_nested_sp.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _} = await_process_instance_state(process_instance_id, "fatal", timeout: 15_000)
+
+    [tx_child_pi_id] = conformance_find_child_ids(process_instance_id)
+    assert_pi_state!(tx_child_pi_id, "fatal")
+
+    [sp_child_pi_id] = conformance_find_child_ids(tx_child_pi_id)
+    assert_pi_state!(sp_child_pi_id, "fatal")
+
+    {422, error_body} = http_retry_process_instance(sp_child_pi_id)
+    assert error_body["error"] == "retry_inside_transaction_scope"
+
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C243: TX → CA → child fatal — nested CA PI retry blocked by transaction ancestor" do
+    configure_called_element_resolver()
+
+    spec = Runner.load_spec("C243_transaction_retry_nested_ca.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _} = await_process_instance_state(process_instance_id, "fatal", timeout: 15_000)
+
+    [tx_child_pi_id] = conformance_find_child_ids(process_instance_id)
+    assert_pi_state!(tx_child_pi_id, "fatal")
+
+    [ca_child_pi_id] = conformance_find_child_ids(tx_child_pi_id)
+    assert_pi_state!(ca_child_pi_id, "fatal")
+
+    {422, tx_child_error} = http_retry_process_instance(tx_child_pi_id)
+    assert tx_child_error["error"] == "retry_inside_transaction_scope"
+
+    {422, ca_child_error} = http_retry_process_instance(ca_child_pi_id)
+    assert ca_child_error["error"] == "retry_inside_transaction_scope"
+
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C244: TX → SP → CA → grandchild fatal — all nested PI retries blocked, root retry succeeds" do
+    configure_called_element_resolver()
+
+    spec = Runner.load_spec("C244_transaction_retry_nested_deep.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _} = await_process_instance_state(process_instance_id, "fatal", timeout: 15_000)
+
+    [tx_child_pi_id] = conformance_find_child_ids(process_instance_id)
+    assert_pi_state!(tx_child_pi_id, "fatal")
+
+    [sp_child_pi_id] = conformance_find_child_ids(tx_child_pi_id)
+    assert_pi_state!(sp_child_pi_id, "fatal")
+
+    [ca_child_pi_id] = conformance_find_child_ids(sp_child_pi_id)
+    assert_pi_state!(ca_child_pi_id, "fatal")
+
+    {422, grandchild_error} = http_retry_process_instance(ca_child_pi_id)
+    assert grandchild_error["error"] == "retry_inside_transaction_scope"
+
+    {422, sp_error} = http_retry_process_instance(sp_child_pi_id)
+    assert sp_error["error"] == "retry_inside_transaction_scope"
+
+    {204, nil} = http_retry_process_instance(process_instance_id)
+    {:ok, _pid} = poll_pi_alive(process_instance_id, 5_000)
+    wait_for_process_instance(process_instance_id, 15_000)
+
+    assert_pi_state!(process_instance_id, "fatal")
+  end
+
   defp configure_called_element_resolver do
     Application.put_env(
       :core_execution,

@@ -47,6 +47,7 @@ export type EngineEvent =
   | EscalationRaised
   | CompensationTriggered
   | ActivityCompensated
+  | TransactionCancelled
   | EventSubprocessTriggered
   | SinkFailed;
 
@@ -540,6 +541,26 @@ export interface CompensationTriggered {
   throwType: 'throw' | 'end';
   activityRef: string | null;
   targetCount: number;
+  occurredAt: string;
+}
+
+/**
+ * Emitted when a Transaction subprocess child PI transitions to `cancelled`.
+ *
+ * Fires after any automatic compensation run triggered by the Cancel End
+ * Event has completed (or immediately if no compensable activities existed).
+ *
+ * `transactionNodeId` is the BPMN element ID of the `<bpmn:transaction>`
+ * subprocess shell in the parent process. `compensationHandlerCount` is
+ * the number of completed activities that had registered compensation
+ * handlers.
+ */
+export interface TransactionCancelled {
+  type: 'TransactionCancelled';
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  transactionNodeId: string | null;
+  compensationHandlerCount: number;
   occurredAt: string;
 }
 

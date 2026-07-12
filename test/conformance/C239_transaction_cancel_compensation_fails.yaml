@@ -1,0 +1,14 @@
+name: "C239: Transaction cancel — compensation handler fatals, transaction hazards"
+fixture: "transaction_cancel_compensation_fails.bpmn"
+process_model_id: "transaction_cancel_compensation_fails"
+tier: auto
+notes: >
+  Transaction reaches Cancel End, triggering automatic LIFO compensation.
+  However, the compensation handler itself fatals (bad service task handler).
+  This causes the transaction to hazard instead of completing the cancel path.
+  The child PI transitions to :fatal (not :cancelled). The Cancel Boundary
+  does NOT fire. The parent PI also fatals.
+start:
+  payload: null
+expected:
+  final_state: "fatal"

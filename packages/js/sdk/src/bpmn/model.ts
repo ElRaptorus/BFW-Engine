@@ -310,6 +310,10 @@ export interface CallActivityTypeData extends WithMappings {
 export interface SubProcessTypeData extends WithMappings, WithContracts {
   type: 'sub_process';
   triggeredByEvent: boolean;
+  /** True when this subprocess is a `<bpmn:transaction>` element. */
+  isTransaction: boolean;
+  /** Value of the `method` attribute on `<bpmn:transaction>`. Parsed but not executed. */
+  transactionMethod: string | null;
   flowNodes: FlowNode[];
   sequenceFlows: SequenceFlow[];
   dataObjects: DataObject[];

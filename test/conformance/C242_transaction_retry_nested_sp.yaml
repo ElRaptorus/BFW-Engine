@@ -1,0 +1,14 @@
+name: "C242: TX → SP → child fatal — nested SP PI retry blocked by transaction ancestor"
+fixture: "transaction_retry_nested_sp.bpmn"
+process_model_id: "transaction_retry_nested_sp"
+tier: interactive
+notes: >
+  Transaction subprocess contains an embedded subprocess that contains a
+  script task which always fatals. All three PIs go fatal. Retrying the
+  embedded subprocess child PI directly must be rejected with
+  retry_inside_transaction_scope, because a transaction ancestor exists in
+  the process tree. Only retrying from the transaction shell or upstream is valid.
+start:
+  payload: null
+expected:
+  final_state: "fatal"

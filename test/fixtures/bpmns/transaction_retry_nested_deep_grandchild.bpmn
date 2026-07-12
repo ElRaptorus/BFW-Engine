@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_deep_grandchild">
+
+  <bpmn:collaboration id="Collaboration_deep_grandchild">
+    <bpmn:participant id="Participant_deep_grandchild" name="TX Retry Deep Grandchild" processRef="tx_retry_deep_grandchild" />
+  </bpmn:collaboration>
+
+  <!-- Deepest process in the TX → SP → CA chain. Contains a fatal service task.
+       Used by TX-RETRY-NESTED-DEEP to verify retry from grandchild is blocked. -->
+  <bpmn:process id="tx_retry_deep_grandchild" name="TX Retry Deep Grandchild" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_gc1">
+      <bpmn:lane id="Lane_gc1" name="default">
+        <bpmn:flowNodeRef>GcStart_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GcFatalTask_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GcEnd_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="GcStart_1" name="Grandchild Start">
+      <bpmn:outgoing>GcFlow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service task with no handler → fatals -->
+    <bpmn:serviceTask id="GcFatalTask_1" name="Fatal Task" implementation="nonexistent_handler">
+      <bpmn:incoming>GcFlow_1</bpmn:incoming>
+      <bpmn:outgoing>GcFlow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="GcEnd_1" name="Grandchild End">
+      <bpmn:incoming>GcFlow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="GcFlow_1" sourceRef="GcStart_1" targetRef="GcFatalTask_1" />
+    <bpmn:sequenceFlow id="GcFlow_2" sourceRef="GcFatalTask_1" targetRef="GcEnd_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_deep_grandchild">
+    <bpmndi:BPMNPlane id="BPMNPlane_deep_grandchild" bpmnElement="tx_retry_deep_grandchild">
+      <bpmndi:BPMNShape id="Shape_GcStart_1" bpmnElement="GcStart_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GcFatalTask_1" bpmnElement="GcFatalTask_1">
+        <dc:Bounds x="260" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GcEnd_1" bpmnElement="GcEnd_1">
+        <dc:Bounds x="422" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_GcFlow_1" bpmnElement="GcFlow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="260" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_GcFlow_2" bpmnElement="GcFlow_2">
+        <di:waypoint x="360" y="200" />
+        <di:waypoint x="422" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

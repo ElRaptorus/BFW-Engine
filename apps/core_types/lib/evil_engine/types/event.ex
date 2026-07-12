@@ -44,6 +44,9 @@ defmodule EvilEngine.Types.Event do
           | __MODULE__.SignalPublished.t()
           | __MODULE__.SignalArrived.t()
           | __MODULE__.EscalationRaised.t()
+          | __MODULE__.CompensationTriggered.t()
+          | __MODULE__.ActivityCompensated.t()
+          | __MODULE__.TransactionCancelled.t()
           | __MODULE__.EventSubprocessTriggered.t()
 end
 
@@ -1124,6 +1127,45 @@ defmodule EvilEngine.Types.Event.CompensationTriggered do
     :throw_type,
     :activity_ref,
     :target_count,
+    :occurred_at
+  ]
+end
+
+defmodule EvilEngine.Types.Event.TransactionCancelled do
+  @moduledoc """
+  Emitted when a Transaction subprocess child PI transitions to `:cancelled`.
+
+  Fires after any automatic compensation run triggered by the Cancel End
+  Event has completed (or immediately if no compensable activities existed).
+
+  `transaction_node_id` is the BPMN element ID of the `<bpmn:transaction>`
+  subprocess shell in the parent process. `compensation_handler_count` is
+  the number of completed activities that had registered compensation
+  handlers; it may be 0 if the transaction had no compensable activities.
+
+  This event is broadcast to both `process_instance:<process_instance_id>`
+  and `process_instance:<root_process_instance_id>` channels.
+  """
+
+  @type t :: %__MODULE__{
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t() | nil,
+          transaction_node_id: String.t() | nil,
+          compensation_handler_count: non_neg_integer(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :process_instance_id,
+    :compensation_handler_count,
+    :occurred_at
+  ]
+
+  defstruct [
+    :process_instance_id,
+    :root_process_instance_id,
+    :transaction_node_id,
+    :compensation_handler_count,
     :occurred_at
   ]
 end

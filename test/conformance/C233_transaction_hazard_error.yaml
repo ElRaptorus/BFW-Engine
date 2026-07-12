@@ -1,0 +1,13 @@
+name: "C233: Transaction hazard — uncaught error, no compensation, parent fatals"
+fixture: "transaction_hazard_error.bpmn"
+process_model_id: "transaction_hazard_error"
+tier: auto
+notes: >
+  Transaction contains a script task that fatals due to a bad implementation.
+  No error boundary catches it, so the error propagates out of the transaction
+  as a hazard. The child PI goes :fatal (NOT :cancelled — no Cancel End fired).
+  Compensation does NOT run on a hazard. The parent PI also fatals.
+start:
+  payload: null
+expected:
+  final_state: "fatal"

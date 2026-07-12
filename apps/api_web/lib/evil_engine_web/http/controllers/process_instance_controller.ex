@@ -264,6 +264,30 @@ defmodule EvilEngineWeb.Http.ProcessInstanceController do
     )
   end
 
+  defp render_retry_error(conn, _process_instance_id, {:error, :retry_inside_transaction_scope}) do
+    render_error(
+      conn,
+      422,
+      "retry_inside_transaction_scope",
+      "Cannot retry a process instance that is nested inside a Transaction subprocess. " <>
+        "Retry from the Transaction subprocess shell or from a node upstream of it."
+    )
+  end
+
+  defp render_retry_error(
+         conn,
+         _process_instance_id,
+         {:error, :retry_checkpoint_inside_transaction}
+       ) do
+    render_error(
+      conn,
+      422,
+      "retry_checkpoint_inside_transaction",
+      "Cannot checkpoint-retry at a flow node that was cancelled by a Cancel End Event " <>
+        "inside a Transaction subprocess. Select a checkpoint upstream of the transaction."
+    )
+  end
+
   defp render_retry_error(conn, process_instance_id, {:error, :retry_start_failed, reason}) do
     Logger.error("Retry failed for process instance '#{process_instance_id}': #{inspect(reason)}")
 

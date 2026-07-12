@@ -1971,4 +1971,106 @@ defmodule EvilEngine.BPMN.ParserTest do
       assert child_lane.flow_node_refs == ["End_1"]
     end
   end
+
+  describe "bpmn:transaction parsing" do
+    test "parses transaction as :sub_process with is_transaction: true" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_TX">
+        <bpmn:process id="Process_TX" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:transaction id="TX_1" name="My Transaction" method="##WebServiceAT">
+            <bpmn:startEvent id="TX_Start"><bpmn:outgoing>TF1</bpmn:outgoing></bpmn:startEvent>
+            <bpmn:endEvent id="TX_End"><bpmn:incoming>TF1</bpmn:incoming></bpmn:endEvent>
+            <bpmn:sequenceFlow id="TF1" sourceRef="TX_Start" targetRef="TX_End"/>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:transaction>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="TX_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="TX_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+
+      tx_node = find_node(process, "TX_1")
+      assert tx_node.type == :sub_process
+      assert tx_node.name == "My Transaction"
+      assert %FlowNodeData.SubProcess{
+               is_transaction: true,
+               transaction_method: "##WebServiceAT",
+               triggered_by_event: false
+             } = tx_node.type_data
+
+      assert length(tx_node.type_data.flow_nodes) == 2
+      assert Enum.any?(tx_node.type_data.flow_nodes, &(&1.id == "TX_Start"))
+      assert Enum.any?(tx_node.type_data.flow_nodes, &(&1.id == "TX_End"))
+    end
+
+    test "parses transaction without method attribute" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_TX2">
+        <bpmn:process id="Process_TX2" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:transaction id="TX_2">
+            <bpmn:startEvent id="TX_Start"><bpmn:outgoing>TF1</bpmn:outgoing></bpmn:startEvent>
+            <bpmn:endEvent id="TX_End"><bpmn:incoming>TF1</bpmn:incoming></bpmn:endEvent>
+            <bpmn:sequenceFlow id="TF1" sourceRef="TX_Start" targetRef="TX_End"/>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:transaction>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="TX_2"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="TX_2" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      tx_node = find_node(process, "TX_2")
+
+      assert %FlowNodeData.SubProcess{is_transaction: true, transaction_method: nil} = tx_node.type_data
+    end
+
+    test "regular subProcess still has is_transaction: false" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_SP">
+        <bpmn:process id="Process_SP" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:subProcess id="SP_1">
+            <bpmn:startEvent id="SP_Start"><bpmn:outgoing>SF1</bpmn:outgoing></bpmn:startEvent>
+            <bpmn:endEvent id="SP_End"><bpmn:incoming>SF1</bpmn:incoming></bpmn:endEvent>
+            <bpmn:sequenceFlow id="SF1" sourceRef="SP_Start" targetRef="SP_End"/>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:subProcess>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="SP_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="SP_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      sp_node = find_node(process, "SP_1")
+
+      assert %FlowNodeData.SubProcess{is_transaction: false, transaction_method: nil} = sp_node.type_data
+    end
+  end
 end

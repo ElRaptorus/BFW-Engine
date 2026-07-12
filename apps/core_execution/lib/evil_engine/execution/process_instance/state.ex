@@ -90,6 +90,7 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           compensation_runs: %{String.t() => compensation_run()},
           compensation_end_reached: boolean(),
           compensation_esp_throw_map: %{String.t() => String.t()},
+          cancel_reached: boolean(),
           task_supervisor: pid() | nil,
           bpmn_error_info: map() | nil,
           escalation_info: escalation_info() | nil
@@ -120,6 +121,7 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
     compensation_runs: %{},
     compensation_end_reached: false,
     compensation_esp_throw_map: %{},
+    cancel_reached: false,
     task_supervisor: nil,
     bpmn_error_info: nil,
     escalation_info: nil

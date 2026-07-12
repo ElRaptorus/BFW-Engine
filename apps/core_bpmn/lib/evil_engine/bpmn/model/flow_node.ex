@@ -303,10 +303,20 @@ end
 
 defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
   @moduledoc """
-  `<bpmn:subProcess>` — embedded or event subprocess.
+  `<bpmn:subProcess>` or `<bpmn:transaction>` — embedded, event, or transaction subprocess.
 
   When `triggered_by_event` is true, this is an event subprocess
   whose start event(s) determine when it fires.
+
+  When `is_transaction` is true, this subprocess is a BPMN Transaction
+  (`<bpmn:transaction>`). It has three possible outcomes: success (normal
+  subprocess completion), cancel (Cancel End Event fires, triggers LIFO
+  compensation, fires Cancel Boundary on parent), and hazard (uncaught
+  error/fatal propagates without compensation).
+
+  `transaction_method` captures the `method` attribute of `<bpmn:transaction>`.
+  No mainstream engine implements wire-level protocol integration for this
+  attribute — it is preserved for BPMN fidelity but not executed.
 
   `in_mappings` and `out_mappings` are lists of `Mapping` structs
   where `source` is a FEEL expression and `target` is a variable name.
@@ -325,6 +335,8 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
 
   @type t :: %__MODULE__{
           triggered_by_event: boolean(),
+          is_transaction: boolean(),
+          transaction_method: String.t() | nil,
           flow_nodes: [FlowNode.t()],
           sequence_flows: [SequenceFlow.t()],
           in_mappings: [Mapping.t()],
@@ -336,6 +348,8 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
         }
 
   defstruct triggered_by_event: false,
+            is_transaction: false,
+            transaction_method: nil,
             flow_nodes: [],
             sequence_flows: [],
             in_mappings: [],

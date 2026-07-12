@@ -1,0 +1,16 @@
+name: "C244: TX → SP → CA → grandchild fatal — all nested PI retries blocked, root retry succeeds"
+fixture: "transaction_retry_nested_deep.bpmn"
+process_model_id: "transaction_retry_nested_deep"
+child_fixtures:
+  - "transaction_retry_nested_deep_grandchild.bpmn"
+tier: interactive
+notes: >
+  Deep nesting: Transaction → Embedded SubProcess → Call Activity → grandchild
+  fatals. All four PIs go fatal. Retrying the CA grandchild, the SP child, and
+  the direct transaction child must all be rejected with
+  retry_inside_transaction_scope. Only retrying the root PI succeeds and
+  re-runs the entire transaction from scratch.
+start:
+  payload: null
+expected:
+  final_state: "fatal"

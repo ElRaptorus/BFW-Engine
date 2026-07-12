@@ -34,6 +34,7 @@ for module <- [
       EvilEngine.Types.Event.EscalationRaised,
       EvilEngine.Types.Event.CompensationTriggered,
       EvilEngine.Types.Event.ActivityCompensated,
+      EvilEngine.Types.Event.TransactionCancelled,
       EvilEngine.Types.Event.EventSubprocessTriggered,
       EvilEngine.Types.Token,
       EvilEngine.Types.FinalToken,

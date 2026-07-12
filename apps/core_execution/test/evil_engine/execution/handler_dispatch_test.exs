@@ -339,7 +339,7 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
       assert {:ok, FlowNodes.EscalationBoundaryEvent} = HandlerDispatch.handler_for(flow_node)
     end
 
-    test "cancel end event returns unsupported_event_definition error" do
+    test "cancel end event routes to CancelEndEvent handler" do
       flow_node = %FlowNode{
         id: "End_Cancel",
         type: :end_event,
@@ -348,8 +348,21 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
         }
       }
 
-      assert {:error, {:unsupported_event_definition, ^flow_node}} =
-               HandlerDispatch.handler_for(flow_node)
+      assert {:ok, FlowNodes.CancelEndEvent} = HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "cancel boundary event routes to CancelBoundaryEvent handler" do
+      flow_node = %FlowNode{
+        id: "Boundary_Cancel",
+        type: :boundary_event,
+        type_data: %FlowNodeData.BoundaryEvent{
+          event_definition: %EventDefinition.Cancel{},
+          attached_to_ref: "Transaction_1",
+          cancel_activity: true
+        }
+      }
+
+      assert {:ok, FlowNodes.CancelBoundaryEvent} = HandlerDispatch.handler_for(flow_node)
     end
 
     test "conditional catch event routes to ConditionalCatchEvent handler" do

@@ -16,6 +16,8 @@ export enum ProcessInstanceState {
   Escalated = 'escalated',
   /** Terminated by an Error End Event (unhandled or standalone). */
   Error = 'error',
+  /** Cancelled by a Cancel End Event within a Transaction subprocess (Phase 5.4). */
+  Cancelled = 'cancelled',
 }
 
 /**

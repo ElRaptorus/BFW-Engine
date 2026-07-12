@@ -68,16 +68,18 @@ One Erlang process per running PI, registered in `EvilEngine.Execution.Registry`
 | `:error` | An Error End Event was reached — modeled BPMN error outcome (terminal, PI process stops) |
 | `:escalated` | An Escalation End Event reached the root of its scope with no matching boundary catch — modeled BPMN escalation outcome (terminal, PI process stops). **Not retryable.** |
 | `:compensated` | A Compensation End Event was reached and all handlers completed — the PI finished after compensation (terminal, PI process stops). **Not retryable** — compensation is a successful business outcome, not a failure. |
+| `:cancelled` | A Cancel End Event inside a Transaction subprocess fired — automatic LIFO compensation ran, then the child PI transitioned to `:cancelled`. **Not retryable** — cancellation is a handled business outcome. |
 
 Preparation (model fetch, Start Event resolution, Task.Supervisor start) happens synchronously in `init/1`. If preparation fails, `start_link` returns `{:error, reason}` — the PI process never starts.
 
-When the PI reaches a terminal state (`:finished`, `:fatal`, `:aborted`, `:error`, `:escalated`, or `:compensated`), the `:gen_statem` process stops with `:normal` exit reason. There is no lingering process in terminal state.
+When the PI reaches a terminal state (`:finished`, `:fatal`, `:aborted`, `:error`, `:escalated`, `:compensated`, or `:cancelled`), the `:gen_statem` process stops with `:normal` exit reason. There is no lingering process in terminal state.
 
 **FNI cleanup on PI termination:** Each terminal PI state cascades a matching FNI state to all remaining `active`/`waiting` FNIs:
 - `transition_to_fatal` → `fatal_all_fnis` persists all `active`/`waiting` FNIs to `fatal` (with `error_code: "process_fatal"`) and emits `FlowNodeInstanceFinished` events
 - `abort/3` → `abort_all_fnis` persists all `active`/`waiting` FNIs to `aborted` (with `reason: "process_aborted"`)
 - `handle_fni_bpmn_error/4` → `error_all_remaining_fnis/2` persists all remaining `active`/`waiting` FNIs to `error` (with `error_code: "process_error"`) and emits `FlowNodeInstanceFinished` events. The PI finishes as `:error` — a modeled BPMN error outcome triggered by an Error End Event
 - `handle_fni_terminate/3` → `interrupt_remaining_fnis/3` persists all remaining `active`/`waiting` FNIs to `interrupted` (with `reason: :terminated_by_end_event`) and emits `FlowNodeInstanceFinished` events. The PI finishes as `:finished` because termination is a normal BPMN completion path triggered by a Terminate End Event
+- `handle_fni_cancel/3` → `interrupt_remaining_fnis/3` (reason `:cancelled_by_cancel_end`) + automatic LIFO compensation via `CompensationOrchestrator`, then PI finishes as `:cancelled`. Only valid inside a Transaction subprocess scope.
 
 After any of these transitions, no FNI rows remain in `active` or `waiting` state in the database.
 
@@ -1727,6 +1729,64 @@ Compensation logic is deliberately distributed across thin, focused modules to a
 | `EvilEngine.Execution.FlowNodes.CompensateThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensate_throw_event.ex` |
 | `EvilEngine.Execution.FlowNodes.CompensateEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensate_end_event.ex` |
 | `EvilEngine.Execution.FlowNodes.CompensationBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensation_boundary_event.ex` |
+
+---
+
+## Transaction Subprocess
+
+A `<bpmn:transaction>` is executed by `FlowNodes.TransactionSubProcess`, a dedicated handler that extends the embedded subprocess lifecycle with cancel-awareness. Parser maps `bpmn:transaction` to `:sub_process` with `is_transaction: true` on `FlowNodeData.SubProcess`. Handler routing in `SubProcess.handle_enter` branches on this flag.
+
+### Three Outcomes
+
+| Outcome | Trigger | Child PI state | What the handler returns |
+|---------|---------|----------------|--------------------------|
+| Success | All paths reach End Events normally | `:finished` | `{:ok, %FlowNodeResult{next_flow_node_ids: outgoing}}` |
+| Cancel | Cancel End fires + LIFO compensation | `:cancelled` | `{:boundary, cancel_boundary_id, token, true}` (or `{:error, :unhandled_cancel}`) |
+| Hazard | Uncaught error propagates out | `:fatal` | `{:error, error_info}` (or `{:boundary, error_boundary_id, ...}`) |
+
+### Cancel Path — handle_fni_cancel/3
+
+When the PI state machine receives `{:cancel, result}` from `CancelEndEvent.handle_enter/3`:
+
+1. **Finish the Cancel End FNI** via `do_handle_fni_ok` (same as any end event).
+2. **Interrupt remaining FNIs** — `interrupt_remaining_fnis(data, fni_id, :cancelled_by_cancel_end)`. This kills all other active/waiting FNIs in the child scope, cascading to nested child PIs (Call Activities, SubProcesses) via their `handle_aborted/1` callbacks.
+3. **LIFO compensation** — if `compensation_registry` is non-empty, build a `%CompensationRun{}` via `CompensationOrchestrator.build_run/4` (broadcast mode, no `activityRef`) and dispatch handlers sequentially. If a compensation handler fatals, the PI transitions to `:fatal` instead of `:cancelled` (hazard outcome).
+4. **Transition to `:cancelled`** — `persist_pi_cancelled/1`, emit `ProcessInstanceStateChanged` and `TransactionCancelled` events.
+5. **Notify parent** — `notify_parent(data, :cancelled)` sends `{:child_pi_cancelled, pid, final_tokens}` to the parent Transaction handler Task.
+
+**Idempotency:** If a second Cancel End fires on an already-cancelling PI (parallel branches), the second `handle_fni_cancel` is a no-op — the PI is already in cancelling state.
+
+### Cancel Boundary Resolution
+
+The Transaction handler passes an `extra_message_handler` to `ChildLifecycle.await_child_completion/7` that handles `{:child_pi_cancelled, child_pid, final_tokens}`:
+
+1. Call `BoundaryResolver.find_matching_cancel_boundary(transaction_fni, process_model)` — finds any boundary event with `%EventDefinition.Cancel{}` on the transaction shell.
+2. If found: return `{:boundary, cancel_boundary_node_id, cancel_token, true}` — parent PI dispatches outgoing flows from the cancel boundary (always interrupting).
+3. If not found: return `{:error, %{error_code: "unhandled_cancel", ...}}` — parent PI fatals. Cancel without a matching boundary is a hazard.
+
+### Resume Mid-Cancel
+
+`TransactionSubProcess.handle_resume/3` passes `extra_terminal_states: ["cancelled"]` to `ChildLifecycle.resume_existing_child/5`. When the child PI is found in state `"cancelled"`, the resume function routes through the cancel boundary resolution logic (same as real-time cancel handling).
+
+### Retry Restrictions
+
+Two independent restrictions apply to transactions (enforced in `validate_retriable_state` and `execute_retry_reset`):
+
+| Restriction | Check | Error code |
+|-------------|-------|------------|
+| `:cancelled` is not retriable | `validate_retriable_state` rejects any PI in `"cancelled"` state | `process_instance_not_retriable` |
+| No checkpoint inside a transaction scope | `execute_retry_reset` validates that `resetToFlowNodeInstanceId` does not belong to a `:cancelled` (or still-running) transaction's child PI scope | `retry_checkpoint_inside_transaction` |
+| No retry of nested PIs below a transaction | `validate_retriable_state` walks `parent_process_instance_id` chain upward; if any ancestor's triggering FNI belongs to an `is_transaction: true` scope, retry is rejected | `retry_inside_transaction_scope` |
+
+### Files
+
+| Module | Path |
+|--------|------|
+| `EvilEngine.Execution.FlowNodes.TransactionSubProcess` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/transaction_sub_process.ex` |
+| `EvilEngine.Execution.FlowNodes.CancelEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/cancel_end_event.ex` |
+| `EvilEngine.Execution.FlowNodes.CancelBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/cancel_boundary_event.ex` |
+| `EvilEngine.Execution.BoundaryResolver` (find_matching_cancel_boundary) | `apps/core_execution/lib/evil_engine/execution/boundary_resolver.ex` |
+| `EvilEngine.Types.Event.TransactionCancelled` | `apps/core_types/lib/evil_engine/types/event.ex` |
 
 ---
 

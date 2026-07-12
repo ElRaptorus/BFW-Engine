@@ -1,0 +1,16 @@
+name: "C243: TX → CA → child fatal — nested CA PI retry blocked by transaction ancestor"
+fixture: "transaction_retry_nested_ca.bpmn"
+process_model_id: "transaction_retry_nested_ca"
+child_fixtures:
+  - "transaction_retry_nested_ca_child.bpmn"
+tier: interactive
+notes: >
+  Transaction subprocess contains a Call Activity whose child process always
+  fatals. All three PIs go fatal. Retrying the Call Activity child PI directly
+  must be rejected with retry_inside_transaction_scope. Retrying the direct
+  transaction child PI must also be rejected. Only retrying the root PI
+  (containing the transaction shell FNI) is valid.
+start:
+  payload: null
+expected:
+  final_state: "fatal"

@@ -96,6 +96,8 @@ export {
   IncompatibleVersionMigrationError,
   RetryCheckpointIsJoinGatewayError,
   RetryCheckpointIsEbgLoserError,
+  RetryCheckpointInsideTransactionError,
+  RetryInsideTransactionScopeError,
   GraphqlDepthLimitError,
   GraphqlComplexityLimitError,
   GraphqlIntrospectionDisabledError,
@@ -152,6 +154,7 @@ export type {
   EscalationRaised,
   CompensationTriggered,
   ActivityCompensated,
+  TransactionCancelled,
   EventSubprocessTriggered,
   SinkFailed,
 } from './events/index.js';

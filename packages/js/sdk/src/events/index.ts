@@ -35,6 +35,7 @@ export type {
   EscalationRaised,
   CompensationTriggered,
   ActivityCompensated,
+  TransactionCancelled,
   EventSubprocessTriggered,
   SinkFailed,
 } from './engine-events.js';

@@ -436,6 +436,7 @@ defmodule EvilEngine.BPMN.ModelCache do
       name: subprocess_node.name,
       version: parent_process.version,
       is_executable: true,
+      is_transaction_scope: Map.get(subprocess_node.type_data, :is_transaction, false),
       flow_nodes: subprocess_node.type_data.flow_nodes,
       sequence_flows: subprocess_node.type_data.sequence_flows,
       data_objects: subprocess_node.type_data.data_objects,

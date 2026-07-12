@@ -22,7 +22,7 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
           queue: [compensation_target()],
           cursor: non_neg_integer(),
           mode: :broadcast | :single,
-          throw_type: :throw | :end,
+          throw_type: :throw | :end | :cancel,
           outgoing_flow_node_ids: [String.t()],
           token_payload: map()
         }
@@ -35,7 +35,7 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
   """
   @spec build_run(
           [compensation_target()],
-          :throw | :end,
+          :throw | :end | :cancel,
           [String.t()],
           map()
         ) :: compensation_run()

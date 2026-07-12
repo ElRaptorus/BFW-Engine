@@ -341,53 +341,19 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp handle_start("subProcess", attributes, %{current_process: %BpmnProcess{}} = state) do
     type_data = build_initial_type_data(FlowNodeData.SubProcess, attributes)
+    do_handle_start_subprocess("subProcess", type_data, attributes, state)
+  end
 
-    node = %FlowNode{
-      id: attributes["id"],
-      name: attributes["name"],
-      type: :sub_process,
-      type_data: type_data,
-      is_for_compensation: attributes["isForCompensation"] == "true"
+  defp handle_start("transaction", attributes, %{current_process: %BpmnProcess{}} = state) do
+    base_type_data = build_initial_type_data(FlowNodeData.SubProcess, attributes)
+
+    type_data = %{
+      base_type_data
+      | is_transaction: true,
+        transaction_method: attributes["method"]
     }
 
-    defaults =
-      case attributes["default"] do
-        nil -> state.default_flows
-        ref -> Map.put(state.default_flows, attributes["id"], ref)
-      end
-
-    %BpmnProcess{} = process = state.current_process
-
-    saved_context = %{
-      subprocess_node: node,
-      subprocess_data: type_data,
-      saved_flow_nodes: process.flow_nodes,
-      saved_sequence_flows: process.sequence_flows,
-      saved_data_objects: process.data_objects,
-      saved_data_object_references: process.data_object_references,
-      saved_default_flows: state.default_flows
-    }
-
-    cleared_process = %BpmnProcess{
-      process
-      | flow_nodes: [],
-        sequence_flows: [],
-        data_objects: [],
-        data_object_references: []
-    }
-
-    {:ok,
-     %{
-       state
-       | current_node: node,
-         current_node_type: "subProcess",
-         current_node_data: type_data,
-         current_event_def: nil,
-         default_flows: defaults,
-         current_process: cleared_process,
-         subprocess_stack: [saved_context | state.subprocess_stack],
-         stack: [:subprocess | state.stack]
-     }}
+    do_handle_start_subprocess("transaction", type_data, attributes, state)
   end
 
   defp handle_start(name, attributes, %{current_process: %BpmnProcess{}} = state)
@@ -779,57 +745,8 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("subProcess", state) do
-    state = maybe_flush_subprocess_shell(state)
-    [saved | rest_subprocess_stack] = state.subprocess_stack
-
-    %BpmnProcess{} = process = state.current_process
-    child_flow_nodes = Enum.reverse(process.flow_nodes)
-    child_sequence_flows = Enum.reverse(process.sequence_flows)
-    child_data_objects = Enum.reverse(process.data_objects)
-    child_data_object_references = Enum.reverse(process.data_object_references)
-
-    inner_scope = %BpmnProcess{
-      process
-      | flow_nodes: child_flow_nodes,
-        sequence_flows: child_sequence_flows
-    }
-
-    inner_scope = apply_default_flows(inner_scope, state.default_flows)
-    inner_scope = link_boundary_refs(inner_scope)
-    inner_scope = resolve_compensation_handlers(inner_scope)
-
-    subprocess_data = %{
-      saved.subprocess_data
-      | flow_nodes: inner_scope.flow_nodes,
-        sequence_flows: inner_scope.sequence_flows,
-        data_objects: child_data_objects,
-        data_object_references: child_data_object_references
-    }
-
-    node = %{saved.subprocess_node | type_data: subprocess_data}
-
-    restored_process = %BpmnProcess{
-      process
-      | flow_nodes: [node | saved.saved_flow_nodes],
-        sequence_flows: saved.saved_sequence_flows,
-        data_objects: saved.saved_data_objects,
-        data_object_references: saved.saved_data_object_references
-    }
-
-    {:ok,
-     %{
-       state
-       | current_node: nil,
-         current_node_type: nil,
-         current_node_data: nil,
-         current_event_def: nil,
-         default_flows: saved.saved_default_flows,
-         current_process: restored_process,
-         subprocess_stack: rest_subprocess_stack,
-         stack: tl(state.stack)
-     }}
-  end
+  defp handle_end("subProcess", state), do: do_handle_end_subprocess(state)
+  defp handle_end("transaction", state), do: do_handle_end_subprocess(state)
 
   defp handle_end(name, state) when is_map_key(@flow_node_elements, name) do
     %FlowNode{} = node = state.current_node
@@ -1897,4 +1814,106 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
   end
 
   defp maybe_flush_subprocess_shell(state), do: state
+
+  defp do_handle_start_subprocess(element_name, type_data, attributes, state) do
+    node = %FlowNode{
+      id: attributes["id"],
+      name: attributes["name"],
+      type: :sub_process,
+      type_data: type_data,
+      is_for_compensation: attributes["isForCompensation"] == "true"
+    }
+
+    defaults =
+      case attributes["default"] do
+        nil -> state.default_flows
+        ref -> Map.put(state.default_flows, attributes["id"], ref)
+      end
+
+    %BpmnProcess{} = process = state.current_process
+
+    saved_context = %{
+      subprocess_node: node,
+      subprocess_data: type_data,
+      saved_flow_nodes: process.flow_nodes,
+      saved_sequence_flows: process.sequence_flows,
+      saved_data_objects: process.data_objects,
+      saved_data_object_references: process.data_object_references,
+      saved_default_flows: state.default_flows,
+      element_name: element_name
+    }
+
+    cleared_process = %BpmnProcess{
+      process
+      | flow_nodes: [],
+        sequence_flows: [],
+        data_objects: [],
+        data_object_references: []
+    }
+
+    {:ok,
+     %{
+       state
+       | current_node: node,
+         current_node_type: element_name,
+         current_node_data: type_data,
+         current_event_def: nil,
+         default_flows: defaults,
+         current_process: cleared_process,
+         subprocess_stack: [saved_context | state.subprocess_stack],
+         stack: [:subprocess | state.stack]
+     }}
+  end
+
+  defp do_handle_end_subprocess(state) do
+    state = maybe_flush_subprocess_shell(state)
+    [saved | rest_subprocess_stack] = state.subprocess_stack
+
+    %BpmnProcess{} = process = state.current_process
+    child_flow_nodes = Enum.reverse(process.flow_nodes)
+    child_sequence_flows = Enum.reverse(process.sequence_flows)
+    child_data_objects = Enum.reverse(process.data_objects)
+    child_data_object_references = Enum.reverse(process.data_object_references)
+
+    inner_scope = %BpmnProcess{
+      process
+      | flow_nodes: child_flow_nodes,
+        sequence_flows: child_sequence_flows
+    }
+
+    inner_scope = apply_default_flows(inner_scope, state.default_flows)
+    inner_scope = link_boundary_refs(inner_scope)
+    inner_scope = resolve_compensation_handlers(inner_scope)
+
+    subprocess_data = %{
+      saved.subprocess_data
+      | flow_nodes: inner_scope.flow_nodes,
+        sequence_flows: inner_scope.sequence_flows,
+        data_objects: child_data_objects,
+        data_object_references: child_data_object_references
+    }
+
+    node = %{saved.subprocess_node | type_data: subprocess_data}
+
+    restored_process = %BpmnProcess{
+      process
+      | flow_nodes: [node | saved.saved_flow_nodes],
+        sequence_flows: saved.saved_sequence_flows,
+        data_objects: saved.saved_data_objects,
+        data_object_references: saved.saved_data_object_references
+    }
+
+    {:ok,
+     %{
+       state
+       | current_node: nil,
+         current_node_type: nil,
+         current_node_data: nil,
+         current_event_def: nil,
+         default_flows: saved.saved_default_flows,
+         current_process: restored_process,
+         subprocess_stack: rest_subprocess_stack,
+         stack: tl(state.stack)
+     }}
+  end
 end

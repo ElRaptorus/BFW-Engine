@@ -397,6 +397,17 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       "owning subprocess element is executed by its parent process."
   end
 
+  defp humanize_error(:cancel_end_outside_transaction) do
+    "Cancel End Event reached outside a Transaction subprocess scope. " <>
+      "Cancel End Events are only valid inside a bpmn:transaction element."
+  end
+
+  defp humanize_error(:cancel_boundary_not_dispatched) do
+    "Cancel Boundary Event was directly dispatched, which is a bug. " <>
+      "Cancel Boundary Events are reactive — they are resolved by the TransactionSubProcess handler " <>
+      "when the child PI reports cancellation, not dispatched directly."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end

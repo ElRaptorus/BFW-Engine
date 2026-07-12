@@ -219,6 +219,7 @@ const FLOW_NODE_ELEMENTS: ReadonlySet<string> = new Set([
   'receiveTask',
   'callActivity',
   'subProcess',
+  'transaction',
   'exclusiveGateway',
   'parallelGateway',
   'inclusiveGateway',
@@ -242,6 +243,7 @@ const ELEMENT_TO_TYPE: Record<string, FlowNodeType> = {
   receiveTask: FlowNodeType.ReceiveTask,
   callActivity: FlowNodeType.CallActivity,
   subProcess: FlowNodeType.SubProcess,
+  transaction: FlowNodeType.SubProcess,
   exclusiveGateway: FlowNodeType.ExclusiveGateway,
   parallelGateway: FlowNodeType.ParallelGateway,
   inclusiveGateway: FlowNodeType.InclusiveGateway,
@@ -523,7 +525,8 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
 
   collectDataContracts(kids, dataContracts);
 
-  const typeData = buildTypeData(node, kids, type);
+  const tagName = elementName(node) ?? undefined;
+  const typeData = buildTypeData(node, kids, type, tagName);
 
   return {
     id: attr(node, 'id') ?? '',
@@ -550,7 +553,7 @@ function getExtensionChildren(kids: OrderedNode[]): OrderedNode[] {
   return extensionNode ? children(extensionNode) : [];
 }
 
-function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeType): FlowNodeTypeData {
+function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeType, tagName?: string): FlowNodeTypeData {
   const extKids = getExtensionChildren(kids);
 
   switch (type) {
@@ -646,7 +649,7 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
       return buildCallActivityTypeData(node, extKids);
 
     case FlowNodeType.SubProcess:
-      return buildSubProcessTypeData(node, kids, extKids);
+      return buildSubProcessTypeData(node, kids, extKids, tagName === 'transaction');
 
     case FlowNodeType.ExclusiveGateway:
       return {
@@ -770,7 +773,7 @@ function buildBusinessRuleTaskTypeData(node: OrderedNode, extKids: OrderedNode[]
  * nodes, sequence flows, data objects, default flow assignment, and
  * boundary ref linking.
  */
-function buildSubProcessTypeData(node: OrderedNode, kids: OrderedNode[], extKids: OrderedNode[]): FlowNodeTypeData {
+function buildSubProcessTypeData(node: OrderedNode, kids: OrderedNode[], extKids: OrderedNode[], isTransaction = false): FlowNodeTypeData {
   const { inMappings, outMappings } = parseMappings(extKids);
   const innerFlowNodes: FlowNode[] = [];
   const innerSequenceFlows: SequenceFlow[] = [];
@@ -835,6 +838,8 @@ function buildSubProcessTypeData(node: OrderedNode, kids: OrderedNode[], extKids
   return {
     type: 'sub_process',
     triggeredByEvent: attr(node, 'triggeredByEvent') === 'true',
+    isTransaction,
+    transactionMethod: isTransaction ? (attr(node, 'method') ?? null) : null,
     flowNodes: syntheticProcess.flowNodes,
     sequenceFlows: syntheticProcess.sequenceFlows,
     dataObjects: syntheticProcess.dataObjects,

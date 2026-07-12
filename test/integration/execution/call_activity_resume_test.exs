@@ -239,6 +239,8 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
       assert resumed_user_task_fni.process_instance_id == original_child_process_instance_id,
              "The SAME child PI must be resumed from its old version, not a new one"
 
+      {:ok, _child_pid} = poll_pi_alive(resumed_user_task_fni.process_instance_id)
+
       {204, _} = http_finish_user_task(resumed_user_task_fni.id, %{"result" => "done"})
 
       wait_for_process_instance(original_child_process_instance_id, 5_000)

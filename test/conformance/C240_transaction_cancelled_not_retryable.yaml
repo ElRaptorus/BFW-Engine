@@ -1,0 +1,15 @@
+name: "C240: Cancelled transaction child PI is not retryable"
+fixture: "transaction_cancel_basic.bpmn"
+process_model_id: "transaction_cancel_basic"
+tier: interactive
+notes: >
+  A transaction subprocess reaches Cancel End, leaving the child PI in
+  :cancelled state. :cancelled is a handled business outcome (not a failure),
+  so the engine must reject retry attempts with process_instance_not_retriable.
+  The parent PI finishes normally at End_Cancelled.
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Cancelled"

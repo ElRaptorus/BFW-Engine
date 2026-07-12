@@ -1,0 +1,15 @@
+name: "C231: Transaction basic cancel — Cancel End fires, Cancel Boundary fires, parent finishes"
+fixture: "transaction_cancel_basic.bpmn"
+process_model_id: "transaction_cancel_basic"
+tier: auto
+notes: >
+  Transaction subprocess immediately reaches a Cancel End Event.
+  The child PI transitions to :cancelled. The Cancel Boundary on the
+  transaction shell fires, routing the parent PI to End_Cancelled.
+  The TransactionCancelled engine event is emitted.
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Cancelled"

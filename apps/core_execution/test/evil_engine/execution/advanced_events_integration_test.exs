@@ -139,39 +139,6 @@ defmodule EvilEngine.Execution.AdvancedEventsIntegrationTest do
     end
   end
 
-  defp assert_unsupported_event_fatal(
-         process_instance_reference,
-         flow_node_instance_reference,
-         expected_flow_node_id,
-         expected_flow_node_type,
-         expected_event_type
-       ) do
-    assert_receive {:pi_state_change, ^process_instance_reference, :fatal, process_metadata},
-                   2_000
-
-    assert process_metadata.process_instance_id
-
-    fatal_flow_node_events =
-      collect_fni_events(flow_node_instance_reference)
-      |> Enum.filter(fn metadata -> metadata.terminal_state == :fatal end)
-
-    assert Enum.any?(fatal_flow_node_events, fn metadata ->
-             metadata.flow_node_type == expected_flow_node_type
-           end)
-
-    assert_receive {:fatal_flow_node_instance_finished,
-                    %FlowNodeInstanceFinished{} = finished_event},
-                   2_000
-
-    assert finished_event.flow_node_id == expected_flow_node_id
-    assert finished_event.flow_node_type == expected_flow_node_type
-    assert finished_event.event_type == expected_event_type
-    assert finished_event.terminal_state == :fatal
-    assert finished_event.error_info["error_code"] == "unsupported_event_definition"
-    assert finished_event.error_info["message"] =~ expected_flow_node_id
-    assert finished_event.error_info["message"] =~ expected_event_type
-  end
-
   describe "compensation throw event" do
     test "PI finishes normally when compensation throw has no targets" do
       definitions = BpmnFactory.compensation_throw_process()
@@ -216,7 +183,7 @@ defmodule EvilEngine.Execution.AdvancedEventsIntegrationTest do
   end
 
   describe "cancel end event" do
-    test "PI and FNI go fatal when cancel end event is reached" do
+    test "PI and FNI go fatal when cancel end event is reached outside a transaction scope" do
       definitions = BpmnFactory.cancel_end_event_process()
       ModelCache.put_new(@version_id, definitions)
 
@@ -225,13 +192,28 @@ defmodule EvilEngine.Execution.AdvancedEventsIntegrationTest do
 
       assert {:ok, _process_instance_pid} = start_process_instance()
 
-      assert_unsupported_event_fatal(
-        process_instance_reference,
-        flow_node_instance_reference,
-        "End_Cancel",
-        :end_event,
-        "cancel"
-      )
+      assert_receive {:pi_state_change, ^process_instance_reference, :fatal, process_metadata},
+                     2_000
+
+      assert process_metadata.process_instance_id
+
+      fatal_flow_node_events =
+        collect_fni_events(flow_node_instance_reference)
+        |> Enum.filter(fn metadata -> metadata.terminal_state == :fatal end)
+
+      assert Enum.any?(fatal_flow_node_events, fn metadata ->
+               metadata.flow_node_type == :end_event
+             end)
+
+      assert_receive {:fatal_flow_node_instance_finished,
+                      %FlowNodeInstanceFinished{} = finished_event},
+                     2_000
+
+      assert finished_event.flow_node_id == "End_Cancel"
+      assert finished_event.flow_node_type == :end_event
+      assert finished_event.event_type == "cancel"
+      assert finished_event.terminal_state == :fatal
+      assert finished_event.error_info["error_code"] == "cancel_end_outside_transaction"
     end
   end
 

@@ -44,7 +44,7 @@ The user's initial assessment is largely correct, with a few important nuances f
 | P4 | **Cancel Boundary is reactive, not pre-spawned.** Unlike timer/message boundaries, the Cancel Boundary fires only when the Transaction's child PI reports cancellation. It should NOT be pre-spawned as a subscription. | Model it like Error Boundary: the handler awaits child completion, matches the cancel result against the Cancel Boundary, and returns `{:boundary, ...}`. |
 | P5 | **Compensation failure during cancel.** If a compensation handler fatals during the automatic compensation triggered by Cancel End, the transaction hazards (goes fatal) instead of completing the cancel path. | Document this. The compensation orchestrator already handles handler fatals by transitioning to fatal. |
 | P6 | **Cancel propagation to nested scopes.** If the transaction contains running embedded subprocesses or call activities when Cancel End fires, those must be interrupted first (like Terminate End Event), then compensation runs for completed activities. | Reuse `interrupt_remaining_fnis` (already handles child PI cascade via `handle_aborted/1` callbacks). |
-| P7 | **Retry checkpoint restriction.** `resetToFlowNodeInstanceId` must never point to an FNI inside a transaction scope. Retry from within a transaction breaks atomicity. | Add validation in `execute_retry_reset` (or `validate_checkpoint`) that rejects checkpoints inside a transaction. |
+| P7 | **Retry restriction — both checkpoint and nested PI.** (a) `resetToFlowNodeInstanceId` must never point to an FNI inside a transaction scope. (b) No PI that has an ancestor transaction in the process tree may be retried independently, regardless of its own state (`:fatal`, `:error`, `:aborted`). E.g. Transaction → SP → CA: retrying the CA child is forbidden. | (a) Add checkpoint validation in `execute_retry_reset` that rejects checkpoints inside a transaction. (b) Add ancestor-walk validation in `validate_retriable_state` that walks `parent_process_instance_id` upward, checking if any ancestor's triggering FNI belongs to a `is_transaction: true` scope. Both reject with specific error codes. |
 | P8 | **Cancel Boundary Event definition has no fields.** Unlike Error Boundary (which matches by error code), Cancel Boundary has no discriminator — there's only ever one, and it catches any cancel from the transaction. | Simple: if the transaction shell has a Cancel Boundary, the cancel is caught. If not, the cancel propagates as a hazard (fatal). Decision needed: is a Cancel Boundary required on a Transaction? Spec says no, but without one, a Cancel End is pointless. Linter should warn. |
 | P9 | **Multiple Cancel End Events.** A transaction can have Cancel End Events on different branches. Only one can fire (since cancel interrupts all siblings). Second-fire must be a no-op. | Same idempotency pattern as Terminate End Event: the first cancel wins, subsequent cancel attempts on an already-cancelling transaction are absorbed. |
 | P10 | **Resume of mid-cancel transaction.** If the engine restarts while compensation is running during a cancel, the transaction's child PI must resume the compensation run from its persisted cursor. | Already handled by existing compensation resume infrastructure (cursor in `type_properties`). |
@@ -62,7 +62,7 @@ The user's initial assessment is largely correct, with a few important nuances f
 | TX-D5 | **No nested transactions in v1.** Deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. Embedded subprocesses and call activities inside a transaction are fine — they are compensated as atomic units (COMP-D8). | Nested transactions add complexity with little practical value. The spec allows them but no mainstream engine supports them well. |
 | TX-D6 | **`method` attribute parsed and stored but not executed.** No wire-level transaction protocol integration. | Matches Camunda, Flowable, jBPM. The attribute is preserved in the model for BPMN fidelity. |
 | TX-D7 | **Hazard (uncaught error) does NOT trigger compensation.** An error that propagates out of the transaction without being caught by an error boundary fatals the child PI. No compensation runs. The parent sees `{:child_pi_fatal, ...}`, same as any other subprocess fatal. | Spec-correct (BPMN 2.0 §13.4.6). If compensation is desired on error, the modeler should wire an Error Boundary inside the transaction that routes to a Compensate Throw before the Cancel End. |
-| TX-D8 | **Retry restrictions: no checkpoint inside a transaction scope.** `resetToFlowNodeInstanceId` pointing to an FNI inside a `:cancelled` transaction is rejected with `retry_checkpoint_inside_transaction`. | Atomicity: once cancelled and compensated, the transaction's inner state is logically rolled back. Retrying from within would violate that invariant. |
+| TX-D8 | **Retry restrictions: no checkpoint inside a transaction scope AND no retry of any nested PI below a transaction.** `resetToFlowNodeInstanceId` pointing to an FNI inside a `:cancelled` transaction is rejected with `retry_checkpoint_inside_transaction`. Additionally, retrying any PI (regardless of its own state) that has a transaction ancestor in the process tree is rejected with `retry_inside_transaction_scope`. This covers Transaction → SP → CA chains: no PI below the transaction may be retried independently. | Atomicity: once a transaction exists in the process tree, all nested PIs are part of that atomic scope. Retrying a nested PI would violate transactional atomicity by re-executing part of the transaction without re-executing the whole. The correct approach is always to retry from the transaction shell or further upstream. |
 | TX-D9 | **`:cancelled` is NOT retryable.** Like `:compensated` and `:escalated`, a `:cancelled` PI represents a handled business outcome, not a failure. The parent process continues via the Cancel Boundary. | Consistent with the "terminal-but-handled" family of states. The parent can still be retried if IT fails. |
 
 ---
@@ -114,29 +114,28 @@ The user's initial assessment is largely correct, with a few important nuances f
 
 ### Phase E5 — Transaction SubProcess Handler
 
-- [ ] **E5.1** Create `FlowNodes.TransactionSubProcess` handler module, or extend `SubProcess` with a `handle_enter` branch for `is_transaction: true`
+- [ ] **E5.1** Create `FlowNodes.TransactionSubProcess` handler module as a **separate module** (not a branch inside `SubProcess`). The handler delegates all shared child-PI lifecycle logic to `ChildLifecycle` (extracted in the prerequisite refactoring) and adds Transaction-specific concerns: cancel-aware await, Cancel Boundary resolution, and transaction-scope identification.
 
-  **Decision needed from user:** Should Transaction be a separate handler module (`FlowNodes.TransactionSubProcess`) or a branch inside the existing `FlowNodes.SubProcess`?
+- [ ] **E5.2** `handle_enter/3`: Same flow as `SubProcess.handle_enter` but with Transaction-aware child lifecycle:
+  - Runtime validation: same as embedded subprocess (one None Start, at least one End) — reuse `SubProcess.validate_subprocess_contents/2` or extract to shared utility
+  - Input mappings, payload contract, child PI start: delegate to `ChildLifecycle` functions (`resolve_input_payload/3`, `validate_contract/2`)
+  - Child completion await: use `ChildLifecycle.await_child_completion/7` with `extra_message_handler` that handles `{:child_pi_cancelled, ...}`
 
-  *Recommendation:* Separate module. The `SubProcess` module is already complex (1000+ lines) with ESP logic. Adding cancel-compensation orchestration would push it further. A separate module can delegate shared lifecycle functions to a `SubProcess.Shared` helper module (extracted from the current `SubProcess`).
-
-- [ ] **E5.2** `handle_enter/3`: Same as `SubProcess.handle_enter` but with Transaction-aware child lifecycle:
-  - Runtime validation: same as embedded subprocess (one None Start, at least one End)
-  - Input mappings, payload contract, child PI start: identical
-  - Child completion await: extended with `{:child_pi_cancelled, ...}` handling
-
-- [ ] **E5.3** `await_child_completion/6` extension — add clause for `{:child_pi_cancelled, ^child_pid, final_tokens}`:
-  - Find Cancel Boundary on the transaction shell via `BoundaryResolver`
+- [ ] **E5.3** Cancel-aware message handler (passed as `extra_message_handler` to `ChildLifecycle.await_child_completion/7`):
+  - Match `{:child_pi_cancelled, ^child_pid, final_tokens}`
+  - Find Cancel Boundary on the transaction shell via `BoundaryResolver.find_matching_cancel_boundary/2`
   - If found: return `{:boundary, cancel_boundary_node_id, cancel_token, true}` (always interrupting)
   - If not found: return `{:error, %{reason: :unhandled_cancel, ...}}` → parent PI fatals (hazard)
 
-- [ ] **E5.4** `handle_fatal/1`, `handle_aborted/1`: Same cascade as `SubProcess` (kill child)
+- [ ] **E5.4** `handle_fatal/1`, `handle_aborted/1`: Delegate to `ChildLifecycle.cascade_to_child/2` (same as `SubProcess`)
 
-- [ ] **E5.5** `handle_resume/3`: Branch on `is_transaction` to use Transaction-specific lifecycle (same child PI resume logic, but with cancel-aware await)
+- [ ] **E5.5** `handle_resume/3`: Use `ChildLifecycle.resume_existing_child/5` with `extra_terminal_states` including `"cancelled"` (maps to Cancel Boundary resolution), and `extra_message_handler` for cancel-aware await
 
-- [ ] **E5.6** `ModelCache` update: `find_subprocess_node` must also match `is_transaction: true` subprocess nodes for synthetic-model generation (verify current code handles this — it matches on `type: :sub_process` which should already work)
+- [ ] **E5.6** Update `HandlerDispatch` or `SubProcess.handle_enter` routing: when `FlowNodeData.SubProcess` has `is_transaction: true`, route to `TransactionSubProcess` instead of `SubProcess`
 
-- [ ] **E5.7** Unit tests: Transaction handler spawns child PI; Cancel Boundary catches child cancellation; no Cancel Boundary → parent fatal; resume mid-transaction
+- [ ] **E5.7** `ModelCache` update: `find_subprocess_node` must also match `is_transaction: true` subprocess nodes for synthetic-model generation (verify current code handles this — it matches on `type: :sub_process` which should already work)
+
+- [ ] **E5.8** Unit tests: Transaction handler spawns child PI; Cancel Boundary catches child cancellation; no Cancel Boundary → parent fatal; resume mid-transaction
 
 ### Phase E6 — Cancel Boundary Event Handler
 
@@ -152,8 +151,12 @@ The user's initial assessment is largely correct, with a few important nuances f
 
 - [ ] **E7.1** Add `:cancelled` to the non-retriable state list in `api.ex` and `execution.ex` (alongside `:compensated`, `:escalated`, `:finished`)
 - [ ] **E7.2** Add transaction-scope checkpoint validation: `resetToFlowNodeInstanceId` must not point to an FNI whose scope is inside a `:cancelled` Transaction. Error code: `retry_checkpoint_inside_transaction`
-- [ ] **E7.3** Integration test: Attempt to retry a `:cancelled` PI → 422 `process_instance_not_retriable`
-- [ ] **E7.4** Integration test: Attempt to checkpoint-retry inside a transaction → 422 `retry_checkpoint_inside_transaction`
+- [ ] **E7.3** Add **nested retry prohibition**: retrying any PI that has an ancestor transaction in the process tree must be rejected, regardless of the child PI's own state. The invariant is: if any PI further up the call chain (parent, grandparent, etc.) is a Transaction, then no nested PI started by a SubProcess or Call Activity below that transaction may be retried independently. Error code: `retry_inside_transaction_scope`. Implementation: walk the `parent_process_instance_id` chain upward; if any ancestor's triggering FNI belongs to a `is_transaction: true` scope, reject. This check applies even if the nested PI itself is in a retriable state (`:fatal`, `:error`, `:aborted`).
+- [ ] **E7.4** Integration test: Attempt to retry a `:cancelled` PI → 422 `process_instance_not_retriable`
+- [ ] **E7.5** Integration test: Attempt to checkpoint-retry inside a transaction → 422 `retry_checkpoint_inside_transaction`
+- [ ] **E7.6** Integration test: `TX-RETRY-NESTED-SP` — Transaction → Embedded SubProcess → child goes fatal. Attempt to retry the child PI directly → 422 `retry_inside_transaction_scope`. Verify parent transaction is NOT retried either.
+- [ ] **E7.7** Integration test: `TX-RETRY-NESTED-CA` — Transaction → Call Activity → child goes fatal. Attempt to retry the child PI directly → 422 `retry_inside_transaction_scope`.
+- [ ] **E7.8** Integration test: `TX-RETRY-NESTED-DEEP` — Transaction → Embedded SubProcess → Call Activity → grandchild goes fatal. Attempt to retry the grandchild → 422 `retry_inside_transaction_scope`. Attempt to retry the SP child → 422 `retry_inside_transaction_scope`. Only retrying from the transaction shell or upstream of it should succeed.
 
 ### Phase E8 — Events + Observability
 
@@ -176,6 +179,9 @@ The user's initial assessment is largely correct, with a few important nuances f
 - [ ] **E9.8** `transaction_with_embedded_subprocess.bpmn` — Transaction containing an embedded subprocess. Cancel interrupts the subprocess
 - [ ] **E9.9** `transaction_parallel_cancel.bpmn` — Transaction with parallel branches, one reaching Cancel End. Other branch interrupted, compensation runs
 - [ ] **E9.10** `transaction_cancel_compensation_fails.bpmn` — Transaction where a compensation handler fatals. Transaction hazards instead of cancelling
+- [ ] **E9.11** `transaction_retry_nested_sp.bpmn` — Transaction containing an Embedded SubProcess. The subprocess contains a ScriptTask that fatals. Used by TX-RETRY-NESTED-SP to verify nested retry is blocked
+- [ ] **E9.12** `transaction_retry_nested_ca.bpmn` + `transaction_retry_nested_ca_child.bpmn` — Transaction containing a Call Activity whose child process fatals. Used by TX-RETRY-NESTED-CA
+- [ ] **E9.13** `transaction_retry_nested_deep.bpmn` + child BPMNs — Transaction → SP → CA chain where the deepest child fatals. Used by TX-RETRY-NESTED-DEEP
 
 ### Phase E10 — Integration Tests
 
@@ -191,10 +197,13 @@ The user's initial assessment is largely correct, with a few important nuances f
 - [ ] **E10.10** `TX-10`: Compensation handler fatals during cancel → hazard
 - [ ] **E10.11** `TX-11`: `:cancelled` PI is not retryable
 - [ ] **E10.12** `TX-12`: Retry checkpoint inside transaction → rejected
+- [ ] **E10.13** `TX-13`: Transaction → SP → child fatal. Retry child PI directly → 422 `retry_inside_transaction_scope`
+- [ ] **E10.14** `TX-14`: Transaction → CA → child fatal. Retry child PI directly → 422 `retry_inside_transaction_scope`
+- [ ] **E10.15** `TX-15`: Transaction → SP → CA → grandchild fatal. Retry grandchild → 422. Retry SP child → 422. Retry from transaction shell or upstream → succeeds
 
 ### Phase E11 — Conformance Specs (YAML)
 
-- [ ] **E11.1** C230–C241: One YAML spec per fixture (tier: auto for simple, tier: interactive for multi-step)
+- [ ] **E11.1** C230–C244: One YAML spec per fixture (tier: auto for simple, tier: interactive for multi-step)
 
 ### Phase E12 — Documentation
 
@@ -295,8 +304,9 @@ The user's initial assessment is largely correct, with a few important nuances f
 6. `notify_parent` sends `{:child_pi_cancelled, ...}`
 
 ### What the Transaction handler does
-- Runs the SubProcess child lifecycle
-- Awaits `{:child_pi_cancelled, ...}` (in addition to existing finish/fatal/error/abort/escalation messages)
+- Runs the child lifecycle via `ChildLifecycle` functions (same pattern as `SubProcess` and `CallActivity`)
+- Passes `extra_message_handler` to `ChildLifecycle.await_child_completion/7` that handles `{:child_pi_cancelled, ...}`
+- Passes `extra_terminal_states` to `ChildLifecycle.resume_existing_child/5` that handles persisted `"cancelled"` child state
 - On cancel: resolves Cancel Boundary via `BoundaryResolver`, returns `{:boundary, ...}` to parent PI
 - On no Cancel Boundary: returns `{:error, :unhandled_cancel}` → parent PI fatals
 
@@ -379,8 +389,8 @@ All activities in transaction complete normally
 ## Pre-Conditions
 
 1. Phase 5.3 (Compensation) is complete and tested — **verified DONE**
-2. **SubProcess + CallActivity Handler Refactoring** (`subprocess_handler_refactor_028433ff.plan.md`) is complete — extract shared child-PI lifecycle to `ChildLifecycle` module. This is a prerequisite because Transaction introduces a third consumer of the same lifecycle code. Without extraction, the code would be triplicated.
-3. `mix quality` passes on the Engine — **must be verified before starting**
+2. **SubProcess + CallActivity Handler Refactoring** (`subprocess_handler_refactor_028433ff.plan.md`) is complete — shared child-PI lifecycle extracted to `ChildLifecycle` module with parameterization points (`extra_terminal_states`, `extra_message_handler`, `child_label`, `fresh_lifecycle_fn`, `extra_resume_opts`) ready for Transaction consumption. — **verified DONE** (2026-07-11)
+3. `mix quality` passes on the Engine — **verified DONE** (2026-07-11, 0 failures, 82.3% coverage)
 4. Studio builds cleanly — **must be verified before starting**
 
 ---

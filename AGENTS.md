@@ -757,12 +757,19 @@ this list is silently ignored.
 | `<bpmn:receiveTask>` | `:receive_task` | `FlowNodeData.ReceiveTask` |
 | `<bpmn:callActivity>` | `:call_activity` | `FlowNodeData.CallActivity` |
 | `<bpmn:subProcess>` | `:sub_process` | `FlowNodeData.SubProcess` |
+| `<bpmn:transaction>` | `:sub_process` | `FlowNodeData.SubProcess` (`is_transaction: true`) |
 
 `<bpmn:subProcess>` covers both embedded subprocesses (`triggeredByEvent="false"`,
 the default) and **Event Subprocesses** (`triggeredByEvent="true"`) — both are
 supported. The `triggered_by_event` boolean on `FlowNodeData.SubProcess`
 distinguishes them, and the ESP variant is dispatched to the
 `EventSubprocess` handler. See §Event Subprocess Extensions / Semantics.
+
+`<bpmn:transaction>` is parsed as `:sub_process` with `is_transaction: true` on
+`FlowNodeData.SubProcess`. The handler routing in `SubProcess.handle_enter` branches
+on this flag to use `TransactionSubProcess` handler. The optional `method` attribute is
+parsed and stored as `transaction_method` but not executed (no wire-level protocol
+integration). See §Transaction Subprocess + Cancel Events.
 
 All activity types support the standard BPMN `isForCompensation="true"` attribute (default `false`). When set, the activity is a compensation handler — it has no incoming or outgoing sequence flows and is linked to a Compensation Boundary Event via `<bpmn:association>`. Activities with `isForCompensation="true"` are exempt from orphan-node checks. See §Compensation Extensions.
 
@@ -836,6 +843,12 @@ validator rejects invalid combinations.
 | IntermediateCatchEvent | None, Message, Signal, Timer, Conditional, Link |
 | IntermediateThrowEvent | None, Message, Signal, Escalation, Compensation, Link |
 | BoundaryEvent | None, Message, Signal, Error, Timer, Escalation, Conditional, Compensation, Cancel |
+
+**Cancel scope constraints (enforced at deploy time):**
+- A **Cancel End Event** (`<bpmn:cancelEventDefinition>` on an `<bpmn:endEvent>`) is only valid inside a `<bpmn:transaction>` subprocess. Violation: `:cancel_end_outside_transaction`.
+- A **Cancel Boundary Event** (`<bpmn:cancelEventDefinition>` on a `<bpmn:boundaryEvent>`) may only be attached to a `<bpmn:transaction>` subprocess shell. Violation: `:cancel_boundary_not_on_transaction`.
+- At most one Cancel Boundary Event per transaction shell (spec constraint).
+- Nested transactions are rejected at deploy time: `:nested_transaction`.
 
 An **Event Subprocess start event** must carry a typed event definition —
 Error, Escalation, and Compensation are valid there (unlike a top-level
@@ -1148,9 +1161,10 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `caught`, `caughtByFlowNodeInstanceId`, `caughtInProcessInstanceId`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught). `throwType`: `"end_event"` or `"intermediate_throw"`. `caught`: `true` if a matching boundary fired; `false` if the escalation propagated uncaught to root-of-root. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. |
 | `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
 | `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
+| `TransactionCancelled` | `processInstanceId`, `rootProcessInstanceId`, `transactionNodeId`, `compensationHandlerCount`, `occurredAt` | Emitted after all automatic LIFO compensation completes and the transaction child PI is about to transition to `:cancelled`. `compensationHandlerCount` is the number of compensation handlers that ran (0 if no completed compensable activities). Broadcast to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`. |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
 
-**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Nine event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, and `ActivityCompensated`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
+**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Ten event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, `ActivityCompensated`, and `TransactionCancelled`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
 
 **`EngineOverloaded` / `EngineRecovered` detail:** Emitted on load-threshold **crossings** (`normal` ↔ `elevated` ↔ `critical`), not on every poller tick. `EngineOverloaded` fires on upward transitions (normal→elevated, elevated→critical, normal→critical). `EngineRecovered` fires on downward transitions to normal (elevated→normal, critical→normal). Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). Detection lives in `EvilEngine.Telemetry.Measurements`.
 
@@ -1268,12 +1282,14 @@ For implementation details see
 | PI state | Trigger | Retryable |
 |----------|---------|-----------|
 | `:finished` | All tokens consumed via End Events (normal completion) | No |
-| `:compensated` | PI finished after a Compensation End Event triggered handler dispatch | Yes |
-| `:error` | Error End Event (modeled BPMN error) | Yes |
-| `:fatal` | Engine crash / unhandled failure | Yes |
-| `:aborted` | User/API kill switch (tree-wide) | Yes |
+| `:compensated` | PI finished after a Compensation End Event — business outcome, not a failure | No |
+| `:escalated` | PI finished after an uncaught escalation propagated to root — business outcome | No |
+| `:cancelled` | Transaction subprocess PI cancelled via Cancel End Event — business outcome | No |
+| `:error` | Error End Event (modeled BPMN error) — may be retried | Yes |
+| `:fatal` | Engine crash / unhandled failure — may be retried | Yes |
+| `:aborted` | User/API kill switch (tree-wide) — may be retried | Yes |
 
-> `:compensated` — terminal state indicating the PI finished after a Compensation End Event triggered handler dispatch. Retryable.
+> `:compensated`, `:escalated`, and `:cancelled` are **terminal-but-handled** states. They represent intentional business outcomes, not failures. They are not retryable — there is nothing to fix. Only `:error`, `:fatal`, and `:aborted` indicate something went wrong and may be retried.
 
 ---
 
@@ -1654,6 +1670,70 @@ persistence failure, unsupported element). The two must not be confused:
 | Semantics | Modeled business error | Engine failure |
 
 For architecture details see [`docs/architecture/execution.md`](docs/architecture/execution.md).
+
+---
+
+## Transaction Subprocess + Cancel Events
+
+A `<bpmn:transaction>` is parsed and executed as a subprocess variant with
+`is_transaction: true` on `FlowNodeData.SubProcess`. The `TransactionSubProcess`
+handler (routed via `SubProcess.handle_enter`) extends the standard embedded
+subprocess lifecycle with cancel-awareness.
+
+### Three Transaction Outcomes
+
+| Outcome | Trigger | Child PI state | Parent action |
+|---------|---------|----------------|---------------|
+| **Success** | All paths reach End Events normally | `:finished` | Token flows via outgoing sequence flow (same as embedded subprocess) |
+| **Cancel** | Cancel End Event fires → LIFO compensation → Cancel Boundary fires | `:cancelled` | Parent continues via Cancel Boundary outgoing flow |
+| **Hazard** | Uncaught error/fault propagates out | `:fatal` | Same as embedded subprocess fatal — error boundary or parent fatal |
+
+**Compensation is NOT triggered on a Hazard.** Only a Cancel End Event triggers
+automatic LIFO compensation. This is spec-correct (BPMN 2.0 §13.4.6). If
+compensation is desired on error, model an Error Boundary inside the transaction
+routing to a Compensate Throw, then a Cancel End.
+
+### Cancel Sequence (handle_fni_cancel)
+
+1. Cancel End FNI finishes normally
+2. All remaining active/waiting FNIs in the child scope interrupted (`:cancelled_by_cancel_end`)
+3. LIFO compensation runs for all completed compensable activities in the child PI's `compensation_registry`
+4. Child PI transitions to `:cancelled` and notifies the parent Transaction handler
+5. Transaction handler matches Cancel Boundary via `BoundaryResolver.find_matching_cancel_boundary/2`
+6. If found: returns `{:boundary, cancel_boundary_node_id, token, true}` — parent continues
+7. If not found: returns `{:error, :unhandled_cancel}` — parent fatals (hazard)
+
+### Design Decisions (TX-D1 through TX-D9)
+
+| ID | Decision |
+|----|----------|
+| TX-D1 | `bpmn:transaction` maps to `:sub_process` with `is_transaction: true`. Reuses 95% of embedded subprocess infrastructure. |
+| TX-D2 | New PI terminal state `:cancelled`. Distinct from `:aborted` (API kill) and `:compensated` (explicit compensation). |
+| TX-D3 | Cancel End fires automatic LIFO compensation within the child PI before transitioning to `:cancelled`. |
+| TX-D4 | Cancel Boundary is reactive (Error-model), not subscription-based. Matched via `BoundaryResolver.find_matching_cancel_boundary/2`. |
+| TX-D5 | No nested transactions in v1. Deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. |
+| TX-D6 | `method` attribute parsed and stored as `transaction_method` but not executed (no wire-level protocol integration). |
+| TX-D7 | Hazard (uncaught error) does NOT trigger compensation. Error propagates to parent same as any subprocess fatal. |
+| TX-D8 | Retry restrictions: (a) checkpoint must not point inside a transaction scope; (b) no PI below a transaction ancestor may be retried independently. Error codes: `retry_checkpoint_inside_transaction`, `retry_inside_transaction_scope`. |
+| TX-D9 | `:cancelled` is NOT retryable — it is a handled business outcome, not a failure. |
+
+### Events
+
+| Event | Key fields | Notes |
+|-------|-----------|-------|
+| `TransactionCancelled` | `process_instance_id`, `root_process_instance_id`, `transaction_node_id`, `compensation_handler_count`, `occurred_at` | Emitted after all compensation completes and child PI is `:cancelled` |
+| `ProcessInstanceStateChanged` (`:cancelled`) | Standard fields | Emitted when child PI transitions to `:cancelled` |
+
+`TransactionCancelled` is broadcast to both `process_instance:<child_pi_id>` and
+`process_instance:<root_pi_id>` channels via the standard root-PI fan-out (SP-13).
+
+### Retry Restrictions
+
+- Retrying a PI in `:cancelled` state → `process_instance_not_retriable`
+- `resetToFlowNodeInstanceId` pointing inside a transaction's child scope → `retry_checkpoint_inside_transaction`
+- Retrying any PI that has a transaction ancestor in the process tree (TX → SP → CA: any level) → `retry_inside_transaction_scope`. Walk is done via `parent_process_instance_id` chain.
+
+For architecture details see [`docs/architecture/execution.md`](docs/architecture/execution.md) §Transaction Subprocess.
 
 ---
 

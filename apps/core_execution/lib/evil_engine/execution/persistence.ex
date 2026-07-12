@@ -173,6 +173,15 @@ defmodule EvilEngine.Execution.Persistence do
               {:ok, [retry_fni_data()]}
 
   @doc """
+  Fetch a single FNI by its own ID, regardless of which PI it belongs to.
+  Used during retry ancestor-chain walks to inspect the `type_properties`
+  of a triggerer FNI (e.g. to detect `is_transaction: true`).
+  Returns `{:ok, retry_fni_data()}` or `{:error, :not_found}`.
+  """
+  @callback get_flow_node_instance_by_id(fni_id :: String.t()) ::
+              {:ok, retry_fni_data()} | {:error, :not_found}
+
+  @doc """
   Atomically prepare a PI for retry:
   1. If `delete_fni_ids` provided: cascade-delete child PIs of any Call Activity
      FNIs in the set, roll back Data Object writes from deleted FNIs, then
@@ -300,6 +309,9 @@ defmodule EvilEngine.Execution.Persistence.NoOp do
 
   @impl true
   def list_all_flow_node_instances(_process_instance_id), do: {:ok, []}
+
+  @impl true
+  def get_flow_node_instance_by_id(_fni_id), do: {:error, :not_found}
 
   @impl true
   def list_child_process_instances(_parent_process_instance_id), do: {:ok, []}

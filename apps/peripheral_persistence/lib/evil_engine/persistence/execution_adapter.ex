@@ -450,6 +450,16 @@ defmodule EvilEngine.Persistence.ExecutionAdapter do
     end
   end
 
+  @doc "Fetch a single FNI by its own ID (for retry ancestor-chain inspection)."
+  @impl true
+  def get_flow_node_instance_by_id(fni_id) do
+    case Ash.get(FlowNodeInstance, fni_id, domain: @domain, authorize?: false) do
+      {:ok, record} -> {:ok, flow_node_instance_to_retry_map(record)}
+      {:error, %Ash.Error.Query.NotFound{}} -> {:error, :not_found}
+      {:error, _reason} -> {:error, :not_found}
+    end
+  end
+
   @doc "List direct child PIs by parent_process_instance_id (authoritative)."
   @impl true
   def list_child_process_instances(parent_process_instance_id) do
