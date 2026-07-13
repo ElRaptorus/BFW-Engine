@@ -25,7 +25,7 @@ A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blo
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 5 started.** Complex Gateways, Compensation Events and Event Subprocesses implemented.
+> **Status**: **Phase 5 in progress.** Every Element, except Multi Instances, is now fully supported.
 >
 > See tables below for [BPMN](#bpmn-20-element-support) and [DMN](#dmn-15-support) element support.
 
@@ -93,39 +93,39 @@ Each of these Elements has full Runtime support.
 
 ### Activities
 
-| Element                | Notes                                                          |
-| ---------------------- | -------------------------------------------------------------- |
-| Task (Untyped)         |Pass-through                                                    |
-| User Task              |Defines User Forms, Actions and Assignees. Waits for User Input |
-| Manual Task            |Either pass-through, or optional `requires confirmation` to wait for manual user continuation |
-| Service Task           |Plugin-driven Service dispatch; built-in HTTP default handler; always `asynchronous` |
-| Script Task            |Inline FEEL evaluation or plugin dispatch. Always `synchronous`                                  |
-| Business Rule Task     |Either simple FEEL Expression, or full `DMN` execution |
-| Send Task              |Publishes messages for 1:1 and deterministic 1:n communication |
-| Receive Task           |Receives messages, with optional process-level correlation |
-| Call Activity          |Executes a target process and waits for the result |
-| Sub Process (Embedded) |Inline-Subprocess. Semantically similar to Call Activity, but only ever has one Untyped Start Event and no Lanes of its own. |
+| Element                | Notes                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| Task (Untyped)         | Pass-through                                                                                 |
+| User Task              | Defines User Forms, Actions and Assignees. Waits for User Input                              |
+| Manual Task            | Either pass-through, or optional `requires confirmation` to wait for manual user continuation|
+| Service Task           | Plugin-driven Service dispatch; built-in HTTP default handler; always `asynchronous`         |
+| Script Task            | Inline FEEL evaluation or plugin dispatch. Always `synchronous`                              |
+| Business Rule Task     | Either simple FEEL Expression, or full `DMN` execution                                       |
+| Send Task              | Publishes messages for 1:1 and deterministic 1:n communication                               |
+| Receive Task           | Receives messages, with optional process-level correlation                                   |
+| Call Activity          | Executes a target process and waits for the result                                           |
+| Sub Process (Embedded) | Inline-Subprocess. Semantically similar to Call Activity, but restricted to one untyped Start Event. Re-uses the parent's lanes. |
 
 
 ### Gateways
 
-| Element             | Notes                                                               |
-| ------------------- | ------------------------------------------------------------------- |
-| Exclusive Gateway   | Split evaluates FEEL conditions (exactly-one-truthy), default flow fallback, Join is pass-through |
-| Event-Based Gateway | First Intermediate Catch Event to trigger wins, all others get transitioned to `interrupted`    |
-| Parallel Gateway    | Fork activates all outgoing paths unconditionally, Join waits for ALL incoming tokens before continuing |
-| Inclusive Gateway   | Fork activates all outgoing paths with a matching condition; Join waits for all incoming paths that can still reach the gateway, before continuing |
-| Complex Gateway     | Inclusive Gateways with a twist: Splits disallow unconditional flows (deploy error); Joins fire once, when condition is fulfilled; all remaining paths are killed |
+| Element             | Notes                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| Exclusive Gateway   | Split evaluates FEEL conditions with optional default path, Join is pass-through         |
+| Event-Based Gateway | First Catch Event to trigger wins, all others get interrupted.                           |
+| Parallel Gateway    | Split activates all outgoing paths, Join waits for ALL incoming tokens before continuing |
+| Inclusive Gateway   | Split activates all outgoing paths with a matching condition; Join waits for all incoming paths, with dead-path awareness. |
+| Complex Gateway     | Like Inclusive Gateways, but Splits disallow unconditional flows; Joins fire once, when condition is fulfilled and kills all remaining incoming paths. |
 
 
 ### Start Events
 
-| Element                   | Notes                                                 |
-| ------------------------- | ----------------------------------------------------- |
-| Untyped     | Normal Entry Point for a BPMN Process Instance                      |
-| Timer       | Automated Process Start via Cyclic, Date or Duration Timers         |
+| Element     | Notes                                                                   |
+| ----------- | ----------------------------------------------------------------------- |
+| Untyped     | Normal Entry Point for a BPMN Process Instance                          |
+| Timer       | Automated Process Start via Cyclic, Date or Duration Timers             |
 | Message     | Automated Process Start, when a Message is received. Correlation-aware; only triggers if no Message Catch Event in the same process listens for the same message with the same correlation. |
-| Signal      | Automated Process Start, when a Signal is received                  |
+| Signal      | Automated Process Start, when a Signal is received                      |
 
 #### Start Events - Event Subprocess only
 
@@ -136,6 +136,8 @@ Each of these Elements has full Runtime support.
 | Escalation  | Triggers when an Escalation is caught.     |
 | Compensation| Triggers when a Compensation is caught.    |
 
+**Note:** Event Subprocesses can use _all_ Typed Start Events, but _not_ The Untyped Start Event. The exact opposite of Embedded Subprocesses.
+
 
 ### End Events
 
@@ -145,8 +147,8 @@ Each of these Elements has full Runtime support.
 | Terminate    | Terminates all remaining parallel Paths                                |
 | Message      | Publishes message and finishes the process path                        |
 | Signal       | Publishes signal and finishes the process path                         |
-| Error        | Finishes Process with `Error`. The error propagates to the parent process and can be caught by an `Error Boundary Event`. |
-| Escalation   | Terminates process scope (`:escalated` state) and propagates escalation to the parent; caught by Escalation Boundary Event on Call Activity or Embedded Subprocess |
+| Error        | Terminates all remaining paths and throws an `Error`. The error propagates to the parent process and can be caught by an `Error Boundary Event`. |
+| Escalation   | Finishes a single process path and triggers an `Escalation`. The escalation propagates to the parent process and can be caught by an `Escalation Boundary Event`. |
 | Compensation | Triggers compensation for completed activities in the current scope, then finishes the PI with `Compensated` state |
 | Cancel       | `Transaction` only. Cancels a Transactional Subprocess.                |
 
@@ -176,31 +178,28 @@ Each of these Elements has full Runtime support.
 
 ### Boundary Events
 
-| Element      | Notes                                                                      |
-| ------------ | -------------------------------------------------------------------------- |
-| Error        | Matches by error code and/or message; alternative catch-all mode           |
-| Timer        | Interrupting and Non-Interrupting; Cyclic, Date and Duration Timer Support |
-| Message      | Interrupting + non-interrupting;                                           |
-| Signal       | Interrupting + non-interrupting;                                           |
-| Conditional  | Interrupting + non-interrupting; FEEL condition, fires only once           |
-| Escalation   | Interrupting + non-interrupting; catches escalations from child PIs; specific-code matching beats catch-all regardless of declaration order |
-| Compensation | Passive marker; registers the host activity for compensation upon completion. Linked to a handler activity via Association. |
-| Cancel       | Transactions only. Catches Cancellations from within a `Cancel End Event`. |
+| Element      | Notes                                                                           |
+| ------------ | ------------------------------------------------------------------------------- |
+| Error        | Matches by error code and/or message; alternative catch-all mode                |
+| Timer        | Interrupting and Non-Interrupting; Cyclic, Date and Duration Timer Support      |
+| Message      | Interrupting + non-interrupting                                                 |
+| Signal       | Interrupting + non-interrupting                                                 |
+| Conditional  | Interrupting + non-interrupting; FEEL condition, fires only once                |
+| Escalation   | Interrupting + non-interrupting; For Call Activity and Embedded Subprocess only |
+| Compensation | Passive marker; registers the host activity for compensation upon completion    |
+| Cancel       | Catches Cancellations from a `Cancel End Event`. Transaction Subprocesses only  |
 
 
-### Flows & Data
+### Data & Flows
 
-
-| Element                     | Notes                                                         |
-| --------------------------- | ------------------------------------------------------------- |
-| Sequence Flow               | Connects 2 Flow Nodes                                         |
-| Conditional Expression      | FEEL-based condition, used by forking Exclusive- and Inclusive Gateways                 |
+| Element                     | Notes                                                                              |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| Sequence Flow               | Connects 2 Flow Nodes                                                              |
+| Conditional Flow            | FEEL-based condition, used by forking Exclusive- and Inclusive Gateways            |
+| Data Associations           | Input or Output Variants. Links Flow Nodes to a Data Object and vice versa         |
 | Data Object                 | DOA-driven writes, value contracts, FEEL reads, full write history for audit trail |
-| Data Object Reference       | Visual Data Object representation                             |
-| Association                 | Links compensation boundary events to their handler activities|
-| Multi-Instance (Parallel)   | Parsed only. Planned: Phase 5                                 |
-| Multi-Instance (Sequential) | Parsed only. Planned: Phase 5                                 |
-| Multi-Instance (Loop)       | Parsed only. Planned: Phase 5                                 |
+| Data Object Reference       | Visual Data Object representation                                                  |
+| Association                 | Links compensation boundary events to their handler activities                     |
 
 
 ### Other
@@ -208,16 +207,21 @@ Each of these Elements has full Runtime support.
 | Element          | Notes                                                                   |
 | -----------------| ----------------------------------------------------------------------- |
 | Event Subprocess | Interrupting + Non-Interrupting, triggered by single typed Start Event  |
-| Transaction      | `All or nothing` style Subprocess. Either succeeds or fails as a whole. Can use `Cancel` Events for premature cancelling and rolling back a transaction, using automatic compensation. |
+| Transaction      | `All or nothing` style Subprocess. Always succeeds or fails as a whole. Can use `Cancel` Events for premature cancelling and rolling back a transaction, using automatically triggered compensation. |
 
-### Not Supported and not planned at this time
+### Not Supported But Planned
+
+- Multi-Instance (Parallel): **Phase 5**
+- Multi-Instance (Sequential): **Phase 5**
+- Multi-Instance (Loop): **Phase 5**
+
+### Not Supported and currently not planned
 
 - Data Stores
 - Ad Hoc Subprocess
 - Text Annotation
 - Group
 - Message Flow
-
 
 ---
 
