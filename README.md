@@ -33,7 +33,7 @@ A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blo
 
 ## Requirements
 
-This project targets **Elixir 1.19.5 / OTP 28** and **Rust 1.94+** (both
+This project targets **Elixir 1.20.2 / OTP 29** and **Rust 1.97+** (both
 pinned via `.tool-versions` for [asdf](https://asdf-vm.com/) /
 [mise](https://mise.jdx.dev/)). Rust is required because the FEEL
 expression evaluator is a Rust NIF built via Rustler at compile time.

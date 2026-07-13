@@ -358,7 +358,6 @@ defmodule EvilEngine.Timers.StartEventManager do
     {count, count}
   end
 
-  defp cycle_remaining_from_info(nil, _schedule), do: nil
   defp cycle_remaining_from_info(%{repetitions: :infinite}, _schedule), do: nil
 
   defp cycle_remaining_from_info(_cycle_info, schedule) do

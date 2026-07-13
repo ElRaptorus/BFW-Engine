@@ -5,7 +5,7 @@ defmodule FeelNifSpike.MixProject do
     [
       app: :feel_nif_spike,
       version: "0.1.0",
-      elixir: "~> 1.18",
+      elixir: "~> 1.20",
       start_permanent: false,
       deps: deps()
     ]

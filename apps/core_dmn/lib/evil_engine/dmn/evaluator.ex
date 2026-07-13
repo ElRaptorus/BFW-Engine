@@ -9,8 +9,6 @@ defmodule EvilEngine.DMN.Evaluator do
       result.trace   #=> %EvaluationTrace{decisions: [...]}
   """
 
-  require Logger
-
   alias EvilEngine.DMN.EvaluationResult
   alias EvilEngine.DMN.EvaluationTrace
   alias EvilEngine.DMN.EvaluationTrace.BkmTrace

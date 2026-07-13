@@ -30,8 +30,6 @@ defmodule EvilEngine.Execution.ComplexJoinEvaluator do
   it never mutates or sends messages.
   """
 
-  require Logger
-
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.Execution.InclusiveJoinEvaluator
   alias EvilEngine.Expressions

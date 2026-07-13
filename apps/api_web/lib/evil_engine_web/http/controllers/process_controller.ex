@@ -490,13 +490,6 @@ defmodule EvilEngineWeb.Http.ProcessController do
   defp normalize_start_result({:ok, _pid}, process_instance_id),
     do: {:ok, process_instance_id}
 
-  defp normalize_start_result({:error, {{reason, message}, _data}}, _id)
-       when is_atom(reason) and is_binary(message),
-       do: {:error, reason, message}
-
-  defp normalize_start_result({:error, {reason, _data}}, _id) when is_atom(reason),
-    do: {:error, reason}
-
   defp normalize_start_result({:error, :engine_at_capacity, capacity_info}, _id),
     do: {:error, :engine_at_capacity, capacity_info}
 
@@ -507,16 +500,19 @@ defmodule EvilEngineWeb.Http.ProcessController do
   defp normalize_start_result({:error, {:shutdown, shutdown_reason}}, _id),
     do: normalize_start_supervisor_error(shutdown_reason)
 
+  defp normalize_start_result({:error, {{reason, message}, _data}}, _id)
+       when is_atom(reason) and is_binary(message),
+       do: {:error, reason, message}
+
+  defp normalize_start_result({:error, {reason, _data}}, _id) when is_atom(reason),
+    do: {:error, reason}
+
   defp normalize_start_result({:error, reason}, _id),
     do: {:error, reason}
 
   defp normalize_start_supervisor_error({{reason, message}, _state})
        when is_atom(reason) and is_binary(message) do
     {:error, reason, message}
-  end
-
-  defp normalize_start_supervisor_error({reason, _state}) when is_atom(reason) do
-    {:error, reason, default_start_error_message(reason)}
   end
 
   defp normalize_start_supervisor_error({:payload_too_large, details}) do
@@ -526,6 +522,10 @@ defmodule EvilEngineWeb.Http.ProcessController do
   defp normalize_start_supervisor_error({:persistence_failed, reason}) do
     Logger.error("Process start persistence failed: #{inspect(reason)}")
     {:error, :start_failed_unknown}
+  end
+
+  defp normalize_start_supervisor_error({reason, _state}) when is_atom(reason) do
+    {:error, reason, default_start_error_message(reason)}
   end
 
   defp normalize_start_supervisor_error(other) do

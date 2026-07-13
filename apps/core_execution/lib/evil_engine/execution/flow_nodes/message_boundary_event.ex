@@ -31,8 +31,6 @@ defmodule EvilEngine.Execution.FlowNodes.MessageBoundaryEvent do
   alias EvilEngine.Execution.MappingHelper
   alias EvilEngine.Types.Token
 
-  require Logger
-
   # -------------------------------------------------------------------
   # FlowNodeHandler callbacks
   # -------------------------------------------------------------------

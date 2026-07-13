@@ -490,8 +490,6 @@ defmodule EvilEngine.DMN.Validator do
     validate_decision_expression(body)
   end
 
-  defp validate_function_body(_bkm, _function_definition), do: []
-
   defp validate_formal_parameter_uniqueness(bkm, %FunctionDefinition{formal_parameters: parameters}) do
     parameter_names = Enum.map(parameters, & &1.name)
     unique_names = Enum.uniq(parameter_names)

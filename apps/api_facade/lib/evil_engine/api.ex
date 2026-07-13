@@ -1862,11 +1862,6 @@ defmodule EvilEngine.Api do
     decision_version_unique_constraint_message?(error)
   end
 
-  defp decision_version_identity_violation?(%Ash.Error.Unknown.UnknownError{error: error})
-       when is_binary(error) do
-    decision_version_unique_constraint_message?(error)
-  end
-
   defp decision_version_identity_violation?(_), do: false
 
   defp decision_version_unique_constraint_message?(message) do

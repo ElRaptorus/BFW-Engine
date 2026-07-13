@@ -25,8 +25,6 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
   alias EvilEngine.Execution.SequenceFlowResolver
   alias EvilEngine.Types.Token
 
-  require Logger
-
   # -------------------------------------------------------------------
   # FlowNodeHandler callbacks
   # -------------------------------------------------------------------

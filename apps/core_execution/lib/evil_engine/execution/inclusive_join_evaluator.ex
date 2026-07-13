@@ -87,6 +87,7 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluator do
     end)
   end
 
+  @dialyzer {:no_opaque, resolved_with_runtime_bfs: 4}
   defp resolved_with_runtime_bfs(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
     incoming_index = build_incoming_index(process_model.sequence_flows)
 

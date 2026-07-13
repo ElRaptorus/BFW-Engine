@@ -519,8 +519,6 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   # Private: resume helpers
   # -------------------------------------------------------------------
 
-  defp query_child_state(nil), do: :not_found
-
   defp query_child_state(child_process_instance_id) do
     case EvilEngine.Execution.lookup_process_instance(child_process_instance_id) do
       {:ok, pid} -> {:running, pid}
