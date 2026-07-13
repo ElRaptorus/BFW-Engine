@@ -17,7 +17,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "^11.0.8",
+      "version": "^11.12.0",
       "onFail": "download"
     }
   },
@@ -41,15 +41,15 @@
   },
   "dependencies": {
     "@elraptorus/daemonengine_sdk": "workspace:*",
-    "phoenix": "^1.8.6"
+    "phoenix": "^1.8.9"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
-    "eslint": "^10.3.0",
+    "eslint": "^10.7.0",
     "jose": "^6.2.3",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.5",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
-    "vitest": "^4.1.6"
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
   }
 }

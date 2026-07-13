@@ -1,5 +1,6 @@
 {
   "private": true,
+  "packageManager": "pnpm@11.12.0",
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
@@ -11,12 +12,12 @@
     "format": "pnpm -r run format"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "@eslint/js": "^10.0.1",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "eslint": "^10.3.0",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.6.0",
-    "typescript-eslint": "^8.59.3"
+    "globals": "^17.7.0",
+    "typescript-eslint": "^8.63.0"
   }
 }

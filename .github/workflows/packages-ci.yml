@@ -23,17 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: packages/js/pnpm-lock.yaml
+
+      - name: Install pnpm
+        run: npm install -g pnpm@11.12.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -76,17 +72,13 @@ jobs:
           otp-version: "28.5"
           elixir-version: "1.19.5"
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: packages/js/pnpm-lock.yaml
+
+      - name: Install pnpm
+        run: npm install -g pnpm@11.12.0
 
       - name: Cache Elixir deps
         uses: actions/cache@v5
@@ -185,19 +177,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11
-
       - name: Setup Node for GitHub Packages
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: packages/js/pnpm-lock.yaml
           registry-url: https://npm.pkg.github.com
           scope: "@elraptorus"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@11.12.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

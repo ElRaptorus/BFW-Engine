@@ -17,7 +17,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "^11.0.8",
+      "version": "^11.12.0",
       "onFail": "download"
     }
   },
@@ -27,7 +27,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -38,13 +40,13 @@
     "format": "prettier --write --config ../.prettierrc.json src/ test/"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.2.0"
+    "fast-xml-parser": "^5.10.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
-    "eslint": "^10.3.0",
-    "prettier": "^3.8.3",
-    "vitest": "^4.1.6"
+    "typescript-eslint": "^8.63.0",
+    "eslint": "^10.7.0",
+    "prettier": "^3.9.5",
+    "vitest": "^4.1.10"
   }
 }
