@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "SubProcess_Outer",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Outer Sub Process",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -54,9 +59,11 @@
                 "documentation": null,
                 "id": "Outer_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Outer Start",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -72,9 +79,11 @@
                 "documentation": null,
                 "id": "SubProcess_Inner",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Inner Sub Process",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "sub_process",
                 "typeData": {
                   "dataObjectReferences": [],
@@ -88,9 +97,11 @@
                       "documentation": null,
                       "id": "Inner_Start",
                       "incoming": [],
+                      "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Inner Start",
                       "outgoing": [],
+                      "standardLoop": null,
                       "type": "start_event",
                       "typeData": {
                         "eventDefinition": {},
@@ -106,9 +117,11 @@
                       "documentation": null,
                       "id": "Inner_Task",
                       "incoming": [],
+                      "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Dead End Task",
                       "outgoing": [],
+                      "standardLoop": null,
                       "type": "task",
                       "typeData": {}
                     },
@@ -120,9 +133,11 @@
                       "documentation": null,
                       "id": "Inner_End",
                       "incoming": [],
+                      "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Inner End",
                       "outgoing": [],
+                      "standardLoop": null,
                       "type": "end_event",
                       "typeData": {
                         "eventDefinition": {},
@@ -132,6 +147,7 @@
                     }
                   ],
                   "inMappings": [],
+                  "isTransaction": false,
                   "outMappings": [],
                   "payloadContract": null,
                   "resultContract": null,
@@ -145,6 +161,7 @@
                       "targetRef": "Inner_Task"
                     }
                   ],
+                  "transactionMethod": null,
                   "triggeredByEvent": false
                 }
               },
@@ -156,9 +173,11 @@
                 "documentation": null,
                 "id": "End_Outer",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Outer End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -168,6 +187,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -189,6 +209,7 @@
                 "targetRef": "End_Outer"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -200,13 +221,16 @@
           "documentation": null,
           "id": "BE_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
           "outgoing": [],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "SubProcess_Outer",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "errorCode": "CHILD_FATAL",
               "errorMessage": null,
@@ -224,9 +248,11 @@
           "documentation": null,
           "id": "End_OK",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "OK End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -242,9 +268,11 @@
           "documentation": null,
           "id": "End_Error",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Error Handled",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -256,6 +284,7 @@
       "id": "EmbeddedSubprocess2NestedFatalRootBoundary",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "SubProcess_Outer", "BE_1", "End_OK", "End_Error"],

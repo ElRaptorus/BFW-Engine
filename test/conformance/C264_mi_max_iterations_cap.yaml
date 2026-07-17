@@ -1,0 +1,22 @@
+name: "C264: MI — maxIterations caps processing at configured limit"
+wait_timeout_ms: 10000
+fixture: "mi_max_iterations_cap.bpmn"
+process_model_id: "mi-max-iterations-cap"
+tier: auto
+start:
+  payload:
+    items:
+      - v: 1
+      - v: 2
+      - v: 3
+      - v: 4
+      - v: 5
+      - v: 6
+      - v: 7
+      - v: 8
+      - v: 9
+      - v: 10
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

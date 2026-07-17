@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +43,11 @@
           "documentation": null,
           "id": "SubProcess_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Sub Process",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -54,9 +61,13 @@
                 "documentation": null,
                 "id": "SubStart_1",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": ["Sub_Flow_1"],
+                "outgoing": [
+                  "Sub_Flow_1"
+                ],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -71,10 +82,17 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "IncSplit",
-                "incoming": ["Sub_Flow_1"],
+                "incoming": [
+                  "Sub_Flow_1"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Split",
-                "outgoing": ["Sub_Flow_B", "Sub_Flow_A"],
+                "outgoing": [
+                  "Sub_Flow_B",
+                  "Sub_Flow_A"
+                ],
+                "standardLoop": null,
                 "type": "inclusive_gateway",
                 "typeData": {
                   "defaultFlowRef": null
@@ -87,10 +105,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Task_A",
-                "incoming": ["Sub_Flow_A"],
+                "incoming": [
+                  "Sub_Flow_A"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Task A",
-                "outgoing": ["Sub_Flow_A2"],
+                "outgoing": [
+                  "Sub_Flow_A2"
+                ],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -101,10 +125,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Task_B",
-                "incoming": ["Sub_Flow_B"],
+                "incoming": [
+                  "Sub_Flow_B"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Task B",
-                "outgoing": ["Sub_Flow_B2"],
+                "outgoing": [
+                  "Sub_Flow_B2"
+                ],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -115,10 +145,17 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "IncJoin",
-                "incoming": ["Sub_Flow_B2", "Sub_Flow_A2"],
+                "incoming": [
+                  "Sub_Flow_B2",
+                  "Sub_Flow_A2"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Join",
-                "outgoing": ["Sub_Flow_Join"],
+                "outgoing": [
+                  "Sub_Flow_Join"
+                ],
+                "standardLoop": null,
                 "type": "inclusive_gateway",
                 "typeData": {
                   "defaultFlowRef": null
@@ -131,10 +168,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "SubEnd_1",
-                "incoming": ["Sub_Flow_Join"],
+                "incoming": [
+                  "Sub_Flow_Join"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -144,6 +185,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -197,6 +239,7 @@
                 "targetRef": "SubEnd_1"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -207,10 +250,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -222,9 +269,14 @@
       "id": "InclusiveGatewayInSubprocess",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

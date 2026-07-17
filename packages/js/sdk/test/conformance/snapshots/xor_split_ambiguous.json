@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "XOR_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Overlapping Check",
           "outgoing": [],
+          "standardLoop": null,
           "type": "exclusive_gateway",
           "typeData": {
             "defaultFlowRef": null
@@ -54,9 +59,11 @@
           "documentation": null,
           "id": "End_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -72,9 +79,11 @@
           "documentation": null,
           "id": "End_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End B",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -86,9 +95,15 @@
       "id": "XorSplitAmbiguous",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "XOR_1", "End_A", "End_B"],
+          "flowNodeRefs": [
+            "Start_1",
+            "XOR_1",
+            "End_A",
+            "End_B"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -378,8 +378,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
         {:fni_result, flow_node_instance_id, {:ok, %FlowNodeResult{} = result}},
         data
       ) do
-    data = handle_fni_ok(data, flow_node_instance_id, result)
-    maybe_finish_or_continue(data)
+    case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
+      nil ->
+        data = handle_fni_ok(data, flow_node_instance_id, result)
+        maybe_finish_or_continue(data)
+
+      {_shell_fni_id, shell_task_pid} ->
+        data = handle_mi_iteration_ok(data, flow_node_instance_id, result, shell_task_pid)
+        {:keep_state, data}
+    end
   end
 
   # Terminate End Event: finish the FNI normally, then interrupt all siblings
@@ -514,23 +521,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   def running(:info, {:fni_result, flow_node_instance_id, {:error, reason}}, data) do
-    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
-      %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
-        {:keep_state, data}
-
+    case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
       nil ->
+        handle_fni_error_result(data, flow_node_instance_id, reason)
+
+      {_shell_fni_id, shell_task_pid} ->
+        data = handle_mi_iteration_error(data, flow_node_instance_id, reason, shell_task_pid)
         {:keep_state, data}
-
-      _entry ->
-        case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
-          {:caught, data, action} ->
-            data = execute_esp_action(data, action)
-            maybe_finish_or_continue(data)
-
-          :not_caught ->
-            data = handle_fni_fatal(data, flow_node_instance_id, reason)
-            transition_to_fatal(data, reason)
-        end
     end
   end
 
@@ -656,6 +653,26 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
         maybe_finish_or_continue(data)
     end
+  end
+
+  # -------------------------------------------------------------------
+  # Multi-Instance iteration dispatch (called by MI shell Task)
+  # -------------------------------------------------------------------
+
+  def running(
+        {:call, from},
+        {:mi_dispatch_iteration, shell_fni_id, index, item, %Token{} = token,
+         loop_overlay, %FlowNode{} = flow_node},
+        data
+      ) do
+    data = dispatch_mi_iteration_fni(data, from, shell_fni_id, index, item, token, loop_overlay, flow_node)
+    {:keep_state, data}
+  end
+
+  # MI shell requests to interrupt all remaining iterations (completion condition met, error, etc.)
+  def running(:cast, {:mi_interrupt_remaining, shell_fni_id}, data) do
+    data = interrupt_iterations_for_shell(data, shell_fni_id)
+    {:keep_state, data}
   end
 
   def running(
@@ -790,8 +807,16 @@ defmodule EvilEngine.Execution.ProcessInstance do
     case validate_async_fni(data, flow_node_instance_id) do
       {:ok, _entry} ->
         reason = %{error_code: error_code, error_message: error_message}
-        data = handle_fni_fatal(data, flow_node_instance_id, reason)
-        transition_to_fatal_with_reply(data, reason, from)
+
+        case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
+          nil ->
+            data = handle_fni_fatal(data, flow_node_instance_id, reason)
+            transition_to_fatal_with_reply(data, reason, from)
+
+          {_shell_fni_id, shell_task_pid} ->
+            data = handle_mi_iteration_error(data, flow_node_instance_id, reason, shell_task_pid)
+            {:keep_state, data, [{:reply, from, {:error, reason}}]}
+        end
 
       {:error, reason} ->
         {:keep_state, data, [{:reply, from, {:error, reason}}]}
@@ -1771,6 +1796,27 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
+  defp handle_fni_error_result(data, flow_node_instance_id, reason) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
+        {:keep_state, data}
+
+      nil ->
+        {:keep_state, data}
+
+      _entry ->
+        case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
+          {:caught, data, action} ->
+            data = execute_esp_action(data, action)
+            maybe_finish_or_continue(data)
+
+          :not_caught ->
+            data = handle_fni_fatal(data, flow_node_instance_id, reason)
+            transition_to_fatal(data, reason)
+        end
+    end
+  end
+
   defp handle_fni_fatal(data, flow_node_instance_id, reason) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       nil ->
@@ -1855,11 +1901,14 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
     data = unregister_conditional_waiter(data, flow_node_instance_id)
 
-    put_in(data.flow_node_instance_states[flow_node_instance_id], %{
-      entry
-      | state: :interrupted,
-        pid: nil
-    })
+    data =
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+        entry
+        | state: :interrupted,
+          pid: nil
+      })
+
+    interrupt_iterations_for_shell(data, flow_node_instance_id)
   end
 
   defp handle_fni_terminate(data, flow_node_instance_id, %FlowNodeResult{} = result) do
@@ -2741,7 +2790,14 @@ defmodule EvilEngine.Execution.ProcessInstance do
   defp complete_waiting_fni(data, from, flow_node_instance_id, entry, payload) do
     flow_node = find_flow_node(data, entry.flow_node_id)
 
-    case HandlerDispatch.handler_for(flow_node) do
+    handler_lookup =
+      if Map.has_key?(data.mi_shell_tasks, flow_node_instance_id) do
+        HandlerDispatch.inner_handler_for(flow_node)
+      else
+        HandlerDispatch.handler_for(flow_node)
+      end
+
+    case handler_lookup do
       {:ok, handler_module} ->
         context = build_handler_context(data, flow_node_instance_id, flow_node, self())
 
@@ -2791,15 +2847,29 @@ defmodule EvilEngine.Execution.ProcessInstance do
        ) do
     case handler_module.handle_complete(flow_node, entry, payload, context) do
       {:ok, %FlowNodeResult{} = result} ->
-        data = handle_fni_ok(data, flow_node_instance_id, result)
-        maybe_finish_or_continue_with_reply(data, from)
+        case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
+          nil ->
+            data = handle_fni_ok(data, flow_node_instance_id, result)
+            maybe_finish_or_continue_with_reply(data, from)
+
+          {_shell_fni_id, shell_task_pid} ->
+            data = handle_mi_iteration_ok(data, flow_node_instance_id, result, shell_task_pid)
+            {:keep_state, data, [{:reply, from, :ok}]}
+        end
 
       {:error, {:contract_violation, _violations} = reason} ->
         {:keep_state, data, [{:reply, from, {:error, reason}}]}
 
       {:error, reason} ->
-        data = handle_fni_fatal(data, flow_node_instance_id, reason)
-        do_transition_to_fatal(data, reason, [{:reply, from, {:error, reason}}])
+        case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
+          nil ->
+            data = handle_fni_fatal(data, flow_node_instance_id, reason)
+            do_transition_to_fatal(data, reason, [{:reply, from, {:error, reason}}])
+
+          {_shell_fni_id, shell_task_pid} ->
+            data = handle_mi_iteration_error(data, flow_node_instance_id, reason, shell_task_pid)
+            {:keep_state, data, [{:reply, from, {:error, reason}}]}
+        end
     end
   end
 
@@ -3471,6 +3541,303 @@ defmodule EvilEngine.Execution.ProcessInstance do
     )
   end
 
+  # -------------------------------------------------------------------
+  # Multi-Instance iteration helpers
+  # -------------------------------------------------------------------
+
+  defp dispatch_mi_iteration_fni(data, from, shell_fni_id, index, _item, token, loop_overlay, flow_node) do
+    iteration_fni_id = generate_id()
+    lane_name = resolve_lane_name(data.process_model, flow_node)
+    shell_entry = Map.get(data.flow_node_instance_states, shell_fni_id)
+    shell_task_pid = if shell_entry, do: shell_entry.pid
+
+    adapter = PersistenceAdapter.adapter()
+
+    attributes = %{
+      id: iteration_fni_id,
+      process_instance_id: data.process_instance_id,
+      flow_node_id: flow_node.id,
+      flow_node_type: Atom.to_string(flow_node.type),
+      event_type: extract_event_type(flow_node),
+      lane_name: lane_name,
+      state: "active",
+      started_at: DateTime.utc_now(),
+      input_token: token.payload,
+      previous_flow_node_instance_ids: [shell_fni_id],
+      multi_instance_id: shell_fni_id,
+      iteration_index: index
+    }
+
+    iteration_context = %{
+      iteration_fni_id: iteration_fni_id,
+      shell_fni_id: shell_fni_id,
+      shell_task_pid: shell_task_pid,
+      index: index,
+      token: token,
+      loop_overlay: loop_overlay,
+      flow_node: flow_node,
+      lane_name: lane_name
+    }
+
+    case PersistenceRetry.with_retry(
+           fn -> adapter.create_flow_node_instance(attributes) end,
+           "MI iteration FNI create #{iteration_fni_id}"
+         ) do
+      {:ok, _} ->
+        emit_fni_started(data, iteration_fni_id, flow_node, [shell_fni_id],
+          multi_instance_id: shell_fni_id,
+          iteration_index: index
+        )
+        dispatch_mi_iteration_handler(data, from, iteration_context)
+
+      {:error, _reason} ->
+        :gen_statem.reply(from, {:error, :persistence_failed})
+        data
+    end
+  end
+
+  defp dispatch_mi_iteration_handler(data, from, context) do
+    case HandlerDispatch.inner_handler_for(context.flow_node) do
+      {:ok, handler_module} ->
+        start_mi_iteration_task(data, from, context, handler_module)
+
+      {:error, _} ->
+        fatal_mi_iteration_fni(
+          data, from, context,
+          "unsupported_element",
+          "Unsupported inner element type for MI iteration: #{context.flow_node.type}",
+          :unsupported_element
+        )
+    end
+  end
+
+  defp start_mi_iteration_task(data, from, context, handler_module) do
+    process_instance_pid = self()
+
+    handler_context =
+      build_handler_context(data, context.iteration_fni_id, context.flow_node, process_instance_pid)
+
+    handler_context = %{
+      handler_context
+      | loop: context.loop_overlay,
+        multi_instance_id: context.shell_fni_id,
+        iteration_index: context.index
+    }
+
+    case Task.Supervisor.start_child(data.task_supervisor, fn ->
+           result =
+             BoundaryAwareHandler.wrap_enter(
+               handler_module, context.flow_node, context.token, handler_context
+             )
+
+           dispatch_handler_result(process_instance_pid, context.iteration_fni_id, result)
+         end) do
+      {:ok, task_pid} ->
+        Process.monitor(task_pid)
+
+        entry =
+          build_mi_iteration_entry(
+            task_pid, :active, context.flow_node, context.token,
+            context.shell_fni_id, context.index, context.loop_overlay
+          )
+
+        data = put_in(data.flow_node_instance_states[context.iteration_fni_id], entry)
+
+        data =
+          put_in(
+            data.mi_shell_tasks[context.iteration_fni_id],
+            {context.shell_fni_id, context.shell_task_pid}
+          )
+
+        :gen_statem.reply(from, {:ok, context.iteration_fni_id})
+        data
+
+      {:error, reason} ->
+        Logger.error(
+          "Failed to start MI iteration task for #{context.flow_node.id}[#{context.index}]: #{inspect(reason)}"
+        )
+
+        fatal_mi_iteration_fni(
+          data, from, context,
+          "task_start_failed",
+          "Failed to start MI iteration task for '#{context.flow_node.id}' index #{context.index}",
+          :task_start_failed
+        )
+    end
+  end
+
+  defp fatal_mi_iteration_fni(data, from, context, error_code, message, reply_reason) do
+    error_info = %{"error_code" => error_code, "message" => message}
+
+    _persist_result =
+      FniLifecycle.transition_to_fatal(
+        context.iteration_fni_id,
+        data.process_instance_id,
+        error_info,
+        context.flow_node,
+        %{},
+        context.lane_name,
+        data.root_process_instance_id
+      )
+
+    entry =
+      build_mi_iteration_entry(
+        nil, :fatal, context.flow_node, context.token,
+        context.shell_fni_id, context.index, context.loop_overlay
+      )
+
+    data = put_in(data.flow_node_instance_states[context.iteration_fni_id], entry)
+    :gen_statem.reply(from, {:error, reply_reason})
+    data
+  end
+
+  defp build_mi_iteration_entry(pid, state, flow_node, token, shell_fni_id, index, loop_overlay) do
+    %{
+      pid: pid,
+      flow_node_id: flow_node.id,
+      flow_node_type: flow_node.type,
+      event_type: extract_event_type(flow_node),
+      state: state,
+      token: token,
+      previous_flow_node_instance_ids: [shell_fni_id],
+      type_properties: %{},
+      next_flow_node_ids: [],
+      loop_overlay: loop_overlay,
+      multi_instance_id: shell_fni_id,
+      iteration_index: index
+    }
+  end
+
+  defp handle_mi_iteration_ok(data, iteration_fni_id, result, shell_task_pid) do
+    entry = Map.get(data.flow_node_instance_states, iteration_fni_id)
+
+    data =
+      if entry do
+        flow_node = find_flow_node(data, entry.flow_node_id)
+        output_payload = result.output_payload || entry.token.payload
+        type_properties = stringify_keys(result.type_properties || %{})
+
+        _persist_result = persist_mi_iteration_finished(data, iteration_fni_id, output_payload, type_properties)
+        emit_mi_iteration_finished(data, iteration_fni_id, entry, flow_node, :finished, type_properties, nil)
+
+        put_in(data.flow_node_instance_states[iteration_fni_id], %{
+          entry
+          | state: :finished,
+            pid: nil,
+            token: %{entry.token | payload: output_payload}
+        })
+      else
+        data
+      end
+
+    send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:ok, result}})
+    %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+  end
+
+  defp handle_mi_iteration_error(data, iteration_fni_id, reason, shell_task_pid) do
+    entry = Map.get(data.flow_node_instance_states, iteration_fni_id)
+
+    data =
+      if entry && entry.state not in [:finished, :fatal, :aborted, :interrupted, :error] do
+        flow_node = find_flow_node(data, entry.flow_node_id)
+        error_info = build_error_info(reason)
+
+        _transition_result =
+          FniLifecycle.transition_to_fatal(
+            iteration_fni_id,
+            data.process_instance_id,
+            error_info,
+            flow_node,
+            Map.get(entry, :type_properties, %{}),
+            resolve_lane_name(data.process_model, flow_node),
+            data.root_process_instance_id
+          )
+
+        put_in(data.flow_node_instance_states[iteration_fni_id], %{entry | state: :fatal, pid: nil})
+      else
+        data
+      end
+
+    send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:error, reason}})
+    %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+  end
+
+  defp persist_mi_iteration_finished(_data, flow_node_instance_id, output_payload, type_properties) do
+    adapter = PersistenceAdapter.adapter()
+
+    PersistenceRetry.with_retry(
+      fn ->
+        adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+          state: "finished",
+          finished_at: DateTime.utc_now(),
+          output_payload: to_json_safe(output_payload),
+          type_properties: type_properties
+        })
+      end,
+      "MI iteration FNI finished #{flow_node_instance_id}"
+    )
+  end
+
+  defp emit_mi_iteration_finished(data, flow_node_instance_id, entry, flow_node, terminal_state, type_properties, error_info) do
+    EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
+      flow_node_instance_id: flow_node_instance_id,
+      process_instance_id: data.process_instance_id,
+      root_process_instance_id: data.root_process_instance_id,
+      flow_node_id: entry.flow_node_id,
+      flow_node_type: entry.flow_node_type,
+      event_type: if(flow_node, do: extract_event_type(flow_node)),
+      lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
+      terminal_state: terminal_state,
+      triggerer_flow_node_instance_id: nil,
+      type_properties: type_properties,
+      error_info: error_info,
+      multi_instance_id: Map.get(entry, :multi_instance_id),
+      iteration_index: Map.get(entry, :iteration_index),
+      occurred_at: DateTime.utc_now()
+    })
+  end
+
+  defp interrupt_iterations_for_shell(data, shell_fni_id) do
+    iteration_fni_ids =
+      data.mi_shell_tasks
+      |> Enum.filter(fn {_iter_id, {sid, _pid}} -> sid == shell_fni_id end)
+      |> Enum.map(fn {iter_id, _} -> iter_id end)
+
+    Enum.reduce(iteration_fni_ids, data, fn iter_fni_id, accumulator ->
+      interrupt_single_iteration(accumulator, iter_fni_id)
+    end)
+  end
+
+  defp interrupt_single_iteration(data, iteration_fni_id) do
+    entry = Map.get(data.flow_node_instance_states, iteration_fni_id)
+    data = %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+
+    if entry && entry.state in [:active, :waiting] do
+      if entry.pid, do: Process.exit(entry.pid, :kill)
+
+      flow_node = find_flow_node(data, entry.flow_node_id)
+
+      _persist_result =
+        FniLifecycle.transition_to_interrupted(
+          iteration_fni_id,
+          data.process_instance_id,
+          :cancelled_by_mi_shell,
+          flow_node,
+          entry.type_properties,
+          resolve_lane_name(data.process_model, flow_node),
+          data.root_process_instance_id
+        )
+
+      put_in(data.flow_node_instance_states[iteration_fni_id], %{
+        entry
+        | state: :interrupted,
+          pid: nil
+      })
+    else
+      data
+    end
+  end
+
   defp resolve_incoming_sequence_flow_id(data, flow_node, [source_fni_id | _]) when is_binary(source_fni_id) do
     resolve_incoming_sequence_flow_id(data, flow_node, source_fni_id)
   end
@@ -3615,7 +3982,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp emit_fni_started(data, flow_node_instance_id, flow_node, previous_flow_node_instance_ids) do
+  defp emit_fni_started(data, flow_node_instance_id, flow_node, previous_flow_node_instance_ids, opts \\ []) do
     EngineEventBus.publish(%Event.FlowNodeInstanceStarted{
       flow_node_instance_id: flow_node_instance_id,
       process_instance_id: data.process_instance_id,
@@ -3625,6 +3992,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
       event_type: extract_event_type(flow_node),
       lane_name: resolve_lane_name(data.process_model, flow_node),
       triggerer_flow_node_instance_id: nil,
+      multi_instance_id: Keyword.get(opts, :multi_instance_id),
+      iteration_index: Keyword.get(opts, :iteration_index),
       occurred_at: DateTime.utc_now()
     })
 
@@ -3653,6 +4022,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
       lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
       old_state: old_state,
       new_state: new_state,
+      multi_instance_id: Map.get(entry, :multi_instance_id),
+      iteration_index: Map.get(entry, :iteration_index),
       occurred_at: DateTime.utc_now()
     })
 

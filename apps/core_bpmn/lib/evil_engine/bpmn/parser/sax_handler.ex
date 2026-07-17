@@ -27,6 +27,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
   alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
   alias EvilEngine.BPMN.Model.SequenceFlow
   alias EvilEngine.BPMN.Model.SignalDefinition
+  alias EvilEngine.BPMN.Model.StandardLoop
 
   @flow_node_elements %{
     "startEvent" => {:start_event, FlowNodeData.StartEvent},
@@ -83,6 +84,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       parent_lane: nil,
       current_event_def: nil,
       current_mi: nil,
+      current_standard_loop: nil,
       stack: [],
       subprocess_stack: [],
       text_buffer: "",
@@ -327,6 +329,20 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_mi: mi, stack: [:multi_instance | state.stack]}}
   end
 
+  defp handle_start("standardLoopCharacteristics", attributes, state) do
+    standard_loop = %StandardLoop{
+      test_before: attributes["testBefore"] == "true",
+      loop_maximum: parse_int_attr(attributes["loopMaximum"] || "")
+    }
+
+    {:ok,
+     %{state | current_standard_loop: standard_loop, stack: [:standard_loop | state.stack]}}
+  end
+
+  defp handle_start("loopCondition", _attributes, state) do
+    {:ok, %{state | text_buffer: "", stack: [:loop_condition | state.stack]}}
+  end
+
   defp handle_start("loopCardinality", _attributes, state) do
     {:ok, %{state | text_buffer: "", stack: [:loop_cardinality | state.stack]}}
   end
@@ -563,6 +579,44 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: [:evil_max_iterations | state.stack]}}
   end
 
+  defp handle_start("elementVariable", _attributes, state) do
+    {:ok, %{state | text_buffer: "", stack: [:evil_element_variable | state.stack]}}
+  end
+
+  defp handle_start("outputElementVariable", _attributes, state) do
+    {:ok, %{state | text_buffer: "", stack: [:evil_output_element_variable | state.stack]}}
+  end
+
+  defp handle_start("inputDataItem", attributes, %{current_mi: %MultiInstance{}} = state) do
+    name = attributes["name"]
+    mi = if name && name != "" && state.current_mi.element_variable == nil do
+      %MultiInstance{state.current_mi | element_variable: name}
+    else
+      state.current_mi
+    end
+
+    {:ok, %{state | current_mi: mi}}
+  end
+
+  defp handle_start("outputDataItem", attributes, %{current_mi: %MultiInstance{}} = state) do
+    name = attributes["name"]
+    mi = if name && name != "" && state.current_mi.output_element_variable == nil do
+      %MultiInstance{state.current_mi | output_element_variable: name}
+    else
+      state.current_mi
+    end
+
+    {:ok, %{state | current_mi: mi}}
+  end
+
+  defp handle_start("loopDataInput", _attributes, %{current_mi: %MultiInstance{}} = state) do
+    {:ok, %{state | text_buffer: "", stack: [:loop_data_input | state.stack]}}
+  end
+
+  defp handle_start("loopDataOutput", _attributes, %{current_mi: %MultiInstance{}} = state) do
+    {:ok, %{state | text_buffer: "", stack: [:loop_data_output | state.stack]}}
+  end
+
   defp handle_start("startEventId", _attributes, state) do
     {:ok, %{state | text_buffer: "", stack: [:evil_start_event_id | state.stack]}}
   end
@@ -716,11 +770,30 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node: node, current_mi: nil, stack: tl(state.stack)}}
   end
 
-  defp handle_end("loopCardinality", state) do
-    text = String.trim(state.text_buffer)
-    mi = update_mi(state.current_mi, :cardinality_expression, text)
+  defp handle_end("standardLoopCharacteristics", state) do
+    %FlowNode{} = current = state.current_node
+    node = %FlowNode{current | standard_loop: state.current_standard_loop}
 
-    {:ok, %{state | current_mi: mi, text_buffer: "", stack: tl(state.stack)}}
+    {:ok, %{state | current_node: node, current_standard_loop: nil, stack: tl(state.stack)}}
+  end
+
+  defp handle_end("loopCondition", %{stack: [:loop_condition | rest]} = state) do
+    text = String.trim(state.text_buffer)
+
+    standard_loop =
+      case state.current_standard_loop do
+        %StandardLoop{} = sl when text != "" ->
+          %StandardLoop{sl | loop_condition: text}
+
+        other ->
+          other
+      end
+
+    {:ok, %{state | current_standard_loop: standard_loop, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("loopCardinality", state) do
+    {:ok, %{state | text_buffer: "", stack: tl(state.stack)}}
   end
 
   defp handle_end("completionCondition", state) do
@@ -1286,9 +1359,20 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp handle_end("loopInterval", %{stack: [:evil_loop_interval | rest]} = state) do
     text = String.trim(state.text_buffer)
-    mi = update_mi(state.current_mi, :loop_interval, text)
 
-    {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
+    state =
+      cond do
+        state.current_mi != nil ->
+          %{state | current_mi: update_mi(state.current_mi, :loop_interval, text)}
+
+        text != "" ->
+          update_standard_loop_field(state, :loop_interval, text)
+
+        true ->
+          state
+      end
+
+    {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
   defp handle_end("maxIterations", %{stack: [:evil_max_iterations | rest]} = state) do
@@ -1298,6 +1382,66 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       case state.current_mi do
         %MultiInstance{} = m when text != "" ->
           %MultiInstance{m | max_iterations: parse_int_attr(text)}
+
+        other ->
+          other
+      end
+
+    {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("elementVariable", %{stack: [:evil_element_variable | rest]} = state) do
+    text = String.trim(state.text_buffer)
+
+    mi =
+      case state.current_mi do
+        %MultiInstance{} = m when text != "" ->
+          %MultiInstance{m | element_variable: text}
+
+        other ->
+          other
+      end
+
+    {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("outputElementVariable", %{stack: [:evil_output_element_variable | rest]} = state) do
+    text = String.trim(state.text_buffer)
+
+    mi =
+      case state.current_mi do
+        %MultiInstance{} = m when text != "" ->
+          %MultiInstance{m | output_element_variable: text}
+
+        other ->
+          other
+      end
+
+    {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("loopDataInput", %{stack: [:loop_data_input | rest]} = state) do
+    text = String.trim(state.text_buffer)
+
+    mi =
+      case state.current_mi do
+        %MultiInstance{collection_expression: nil} = m when text != "" ->
+          %MultiInstance{m | collection_expression: text}
+
+        other ->
+          other
+      end
+
+    {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("loopDataOutput", %{stack: [:loop_data_output | rest]} = state) do
+    text = String.trim(state.text_buffer)
+
+    mi =
+      case state.current_mi do
+        %MultiInstance{output_collection: nil} = m when text != "" ->
+          %MultiInstance{m | output_collection: text}
 
         other ->
           other
@@ -1712,6 +1856,12 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
   end
 
   defp update_mi(other, _field, _text), do: other
+
+  defp update_standard_loop_field(%{current_standard_loop: %StandardLoop{} = sl} = state, field, value) do
+    %{state | current_standard_loop: Map.put(sl, field, value)}
+  end
+
+  defp update_standard_loop_field(state, _field, _value), do: state
 
   defp set_timer_field(%EventDefinition.Timer{} = timer, field, text) when text != "" do
     Map.put(timer, field, text)

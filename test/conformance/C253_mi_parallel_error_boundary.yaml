@@ -1,0 +1,13 @@
+name: "C253: Parallel MI — error boundary catches iteration failure"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_error_boundary.bpmn"
+process_model_id: "mi-parallel-error-boundary"
+tier: auto
+start:
+  payload:
+    items:
+      - fail: true
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

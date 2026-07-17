@@ -37,6 +37,7 @@
         <bpmn:extensionElements>
           <evil:inputCollection>token.items</evil:inputCollection>
           <evil:outputCollection>processedItems</evil:outputCollection>
+          <evil:elementVariable>item</evil:elementVariable>
           <evil:loopBreakCondition>errorCount &gt; 3</evil:loopBreakCondition>
           <evil:loopInterval>PT1S</evil:loopInterval>
           <evil:maxIterations>100</evil:maxIterations>

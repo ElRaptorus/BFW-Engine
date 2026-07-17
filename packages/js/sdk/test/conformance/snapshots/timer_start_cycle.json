@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "TimerStart_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Cycle Timer Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {
@@ -41,10 +46,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -56,6 +65,7 @@
       "id": "TimerStartCycle",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [],
       "name": "Timer Start Cycle",
       "sequenceFlows": [

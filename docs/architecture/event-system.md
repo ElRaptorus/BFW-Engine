@@ -225,3 +225,56 @@ Selected `EvilEngine.Types.Event.*` structs published via `EngineEventBus`. WebS
 **Messages vs signals.** Messages are routed by `(messageName, correlationValue)` and carry a payload — subscribers match on both name and correlation (see [routing.md](./routing.md) §3.5). Signals are pure broadcast: every subscription registered for the `signalName` receives a copy, with **no correlation key** and **no payload**. `origin` on `MessagePublished` / `SignalPublished` is a map with `source` (`"api"` \| `"pi"` \| `"plugin"`) plus optional `processInstanceId`, `flowNodeInstanceId`, `pluginName`, and `triggeredBy`. `deliveries` is a list of `{processInstanceId, flowNodeInstanceId}` pairs — one entry per recipient. `startedProcessInstanceIds` lists PIs created via Message/Signal Start Events during the same publish. `pending` is `true` when zero subscriptions matched **and** zero Start Events fired, and the publish was buffered for TTL rematch ([routing.md](./routing.md) §3.5.6 for signals).
 
 Message events are paired with `:telemetry.execute/3` on `[:evil_engine, :message, :published]` and `[:evil_engine, :message, :arrived]` respectively. Signal events are paired with `[:evil_engine, :signal, :published]` and `[:evil_engine, :signal, :arrived]`. Struct definitions live in `apps/core_types/lib/evil_engine/types/event.ex`; Jason encoders in `apps/core_events/lib/evil_engine/events/json_encoders.ex`.
+
+## Multi-Instance / Standard Loop Events
+
+Two new event types support MI/Loop observability:
+
+### `MultiInstanceStarted`
+
+Emitted when a Multi-Instance or Standard Loop shell FNI begins execution.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `flowNodeInstanceId` | string | Shell FNI ID |
+| `processInstanceId` | string | Owning PI |
+| `rootProcessInstanceId` | string or null | Root PI in a tree |
+| `flowNodeId` | string | BPMN element ID |
+| `flowNodeType` | atom/string | BPMN element type |
+| `loopType` | string | `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"` |
+| `totalIterations` | integer or null | Planned count (collection length for MI; null for Standard Loop) |
+| `occurredAt` | DateTime | Event timestamp |
+
+### `MultiInstanceCompleted`
+
+Emitted when a Multi-Instance or Standard Loop shell FNI finishes.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `flowNodeInstanceId` | string | Shell FNI ID |
+| `processInstanceId` | string | Owning PI |
+| `rootProcessInstanceId` | string or null | Root PI in a tree |
+| `flowNodeId` | string | BPMN element ID |
+| `flowNodeType` | atom/string | BPMN element type |
+| `loopType` | string | `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"` |
+| `totalIterations` | integer or null | Planned count |
+| `completedIterations` | integer | Number of iterations that completed |
+| `earlyBreak` | boolean | Whether loop terminated before exhausting all iterations |
+| `occurredAt` | DateTime | Event timestamp |
+
+### MI Fields on Existing FNI Events
+
+`FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, and `FlowNodeInstanceStateChanged` now carry two optional fields for MI/Loop iteration FNIs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `multiInstanceId` | string or null | Shell FNI ID (set on iteration FNIs, null on shell FNIs and non-MI nodes) |
+| `iterationIndex` | integer or null | Zero-based iteration position (set on iteration FNIs, null otherwise) |
+
+These fields enable the Studio Debugger to group iteration FNIs under their shell and display iteration progress.
+
+### Wire Format
+
+Both new events are serialized as camelCase JSON by the `Jason.Encoder` implementations in `apps/core_events/lib/evil_engine/events/json_encoders.ex`. The WebSocket sink broadcasts them to `process_instance:<piId>` and `process_instance:<rootPiId>` channels.
+
+**SDK types:** `MultiInstanceStarted` and `MultiInstanceCompleted` in `@elraptorus/daemonengine_sdk` (`events/engine-events.ts`). `loopType` is typed as `'parallel_mi' | 'sequential_mi' | 'standard_loop'`.

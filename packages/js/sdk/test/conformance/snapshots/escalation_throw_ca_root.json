@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Throw Process",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
           "type": "call_activity",
           "typeData": {
             "calledElement": "EscalationThrowStandalone",
@@ -56,10 +67,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -71,9 +86,14 @@
       "id": "EscalationThrowCARoot",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "CA_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "CA_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

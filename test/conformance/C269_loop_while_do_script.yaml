@@ -1,0 +1,12 @@
+name: "C269: Standard Loop — while-do with script task"
+wait_timeout_ms: 10000
+fixture: "loop_while_do_script.bpmn"
+process_model_id: "loop-while-do-script"
+tier: auto
+start:
+  payload:
+    counter: 0
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -12,6 +12,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -26,9 +27,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -43,10 +48,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Escalation",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {
@@ -61,9 +70,13 @@
       "id": "EscalationGrandchild",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "End_Escalation"],
+          "flowNodeRefs": [
+            "Start_1",
+            "End_Escalation"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

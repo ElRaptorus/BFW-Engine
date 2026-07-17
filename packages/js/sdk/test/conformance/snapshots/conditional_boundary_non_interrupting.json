@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
@@ -34,9 +35,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -52,9 +55,11 @@
           "documentation": null,
           "id": "Fork_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
           "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -66,9 +71,11 @@
           "documentation": null,
           "id": "UserTask_LongRunning",
           "incoming": ["Flow_A"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Long Running Task",
           "outgoing": ["Flow_A2"],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": "identity.groups",
@@ -92,13 +99,16 @@
           "documentation": null,
           "id": "ConditionalBoundary",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Trigger Boundary",
           "outgoing": ["Flow_BE"],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "UserTask_LongRunning",
             "cancelActivity": false,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "conditionExpression": "dataObjects.TriggerData.fire = true"
             },
@@ -121,9 +131,11 @@
           "documentation": null,
           "id": "ScriptTask_SetTrigger",
           "incoming": ["Flow_B"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Set Trigger",
           "outgoing": ["Flow_B2"],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -143,9 +155,11 @@
           "documentation": null,
           "id": "Join_1",
           "incoming": ["Flow_B2", "Flow_A2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Join",
           "outgoing": ["Flow_Join"],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -157,9 +171,11 @@
           "documentation": null,
           "id": "End_Normal",
           "incoming": ["Flow_Join"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -175,9 +191,11 @@
           "documentation": null,
           "id": "End_Triggered",
           "incoming": ["Flow_BE"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Triggered End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -189,6 +207,7 @@
       "id": "ConditionalBoundaryNonInterrupting",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": [

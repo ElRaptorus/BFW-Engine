@@ -39,6 +39,10 @@ export interface FlowNodeInstance {
   typeProperties: Record<string, unknown> | null;
   /** Error details when the FNI is in a fatal state. See {@link ErrorInfo}. */
   errorInfo: ErrorInfo | null;
+  /** Shell FNI ID when this is an MI/Loop iteration FNI. `null` otherwise. */
+  multiInstanceId: string | null;
+  /** Zero-based iteration index for MI/Loop iteration FNIs. `null` otherwise. */
+  iterationIndex: number | null;
   /** Populated when loaded via GraphQL relationship. */
   processInstance?: ProcessInstance;
 }

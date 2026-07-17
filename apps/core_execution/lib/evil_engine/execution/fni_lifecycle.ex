@@ -533,7 +533,9 @@ defmodule EvilEngine.Execution.FniLifecycle do
           stringified_type_properties,
           nil,
           lane_name: lane_name,
-          root_process_instance_id: context.root_process_instance_id
+          root_process_instance_id: context.root_process_instance_id,
+          multi_instance_id: context.multi_instance_id,
+          iteration_index: context.iteration_index
         )
 
         cache_updates = Map.new(intents, fn intent -> {intent.data_object_id, intent.value} end)
@@ -613,7 +615,9 @@ defmodule EvilEngine.Execution.FniLifecycle do
           nil,
           lane_name: lane_name,
           root_process_instance_id: context.root_process_instance_id,
-          triggerer_flow_node_instance_id: triggerer_fni_id
+          triggerer_flow_node_instance_id: triggerer_fni_id,
+          multi_instance_id: context.multi_instance_id,
+          iteration_index: context.iteration_index
         )
 
         cache_updates = Map.new(intents, fn intent -> {intent.data_object_id, intent.value} end)
@@ -684,6 +688,8 @@ defmodule EvilEngine.Execution.FniLifecycle do
       triggerer_flow_node_instance_id: triggerer_fni_id,
       type_properties: type_properties,
       error_info: Helpers.sanitize_error_info(error_info),
+      multi_instance_id: Keyword.get(emit_opts, :multi_instance_id),
+      iteration_index: Keyword.get(emit_opts, :iteration_index),
       occurred_at: DateTime.utc_now()
     })
 

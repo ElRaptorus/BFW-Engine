@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "Start_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start B",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -56,9 +61,11 @@
           "documentation": null,
           "id": "Task_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Path A Task",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -70,9 +77,11 @@
           "documentation": null,
           "id": "Task_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Path B Task",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -84,9 +93,11 @@
           "documentation": null,
           "id": "End_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -102,9 +113,11 @@
           "documentation": null,
           "id": "End_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End B",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -116,9 +129,17 @@
       "id": "MultiStartEvents",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_A", "Start_B", "Task_A", "Task_B", "End_A", "End_B"],
+          "flowNodeRefs": [
+            "Start_A",
+            "Start_B",
+            "Task_A",
+            "Task_B",
+            "End_A",
+            "End_B"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -433,6 +433,9 @@ defmodule EvilEngine.Execution do
           join_gateway_fni?(checkpoint_fni, all_fnis) ->
             {:error, :retry_checkpoint_is_join_gateway}
 
+          mi_iteration_fni?(checkpoint_fni) ->
+            {:error, :retry_checkpoint_is_mi_iteration}
+
           non_retryable_fni?(checkpoint_fni) ->
             {:error, :retry_checkpoint_is_non_retryable}
 
@@ -450,6 +453,11 @@ defmodule EvilEngine.Execution do
 
   defp join_gateway_fni?(checkpoint_fni, _all_fnis) do
     checkpoint_fni.flow_node_type in ["parallel_gateway", "inclusive_gateway"]
+  end
+
+  defp mi_iteration_fni?(checkpoint_fni) do
+    multi_instance_id = Map.get(checkpoint_fni, :multi_instance_id)
+    is_binary(multi_instance_id) and multi_instance_id != ""
   end
 
   @non_retryable_reasons [

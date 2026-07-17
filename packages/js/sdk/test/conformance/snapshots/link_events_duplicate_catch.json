@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -51,10 +62,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "LinkThrow_A",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Throw A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
             "eventDefinition": {
@@ -72,9 +87,13 @@
           "documentation": null,
           "id": "LinkCatch_A1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Catch A (1)",
-          "outgoing": ["Flow_3"],
+          "outgoing": [
+            "Flow_3"
+          ],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -92,9 +111,13 @@
           "documentation": null,
           "id": "LinkCatch_A2",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Catch A (2)",
-          "outgoing": ["Flow_4"],
+          "outgoing": [
+            "Flow_4"
+          ],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -111,10 +134,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_3"],
+          "incoming": [
+            "Flow_3"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 1",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -129,10 +156,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_2",
-          "incoming": ["Flow_4"],
+          "incoming": [
+            "Flow_4"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 2",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -144,9 +175,18 @@
       "id": "LinkEventsDuplicateCatchProcess",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_A", "LinkThrow_A", "LinkCatch_A1", "LinkCatch_A2", "End_1", "End_2"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_A",
+            "LinkThrow_A",
+            "LinkCatch_A1",
+            "LinkCatch_A2",
+            "End_1",
+            "End_2"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

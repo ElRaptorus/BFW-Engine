@@ -1,0 +1,15 @@
+name: "C245: Parallel MI — script task iterates over collection"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_script_task.bpmn"
+process_model_id: "mi-parallel-script-task"
+tier: auto
+start:
+  payload:
+    items:
+      - value: 1
+      - value: 2
+      - value: 3
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

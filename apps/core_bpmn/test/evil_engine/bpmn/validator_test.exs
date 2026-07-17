@@ -6,8 +6,10 @@ defmodule EvilEngine.BPMN.ValidatorTest do
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.BPMN.Model.MessageDefinition
+  alias EvilEngine.BPMN.Model.MultiInstance
   alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
   alias EvilEngine.BPMN.Model.SequenceFlow
+  alias EvilEngine.BPMN.Model.StandardLoop
   alias EvilEngine.BPMN.Parser
   alias EvilEngine.BPMN.Validator
 
@@ -3048,6 +3050,216 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       refute_violation_code(definitions, :cancel_end_outside_transaction)
       refute_violation_code(definitions, :cancel_boundary_not_on_transaction)
       refute_violation_code(definitions, :nested_transaction)
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # Standard Loop characteristics
+  # -------------------------------------------------------------------------
+
+  describe "validate/1 — standard loop missing loopCondition" do
+    test "rejects standard loop without loopCondition" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Loop",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script_format: "feel", script: "1 + 1"},
+              standard_loop: %StandardLoop{loop_condition: nil, loop_maximum: 10},
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Loop"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Loop", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :standard_loop_missing_condition)
+    end
+
+    test "error message references the element id" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Loop",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script_format: "feel", script: "1 + 1"},
+              standard_loop: %StandardLoop{loop_condition: nil, loop_maximum: 10},
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Loop"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Loop", target_ref: "E1"}
+          ]
+        )
+
+      {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {code, _} -> code == :standard_loop_missing_condition end)
+
+      assert message =~ "Task_Loop"
+      assert message =~ "loopCondition"
+    end
+  end
+
+  describe "validate/1 — standard loop with valid loopCondition passes" do
+    test "does not reject standard loop with loopCondition present" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Loop",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script_format: "feel", script: "1 + 1"},
+              standard_loop: %StandardLoop{
+                loop_condition: "token.counter < 5",
+                loop_maximum: 10
+              },
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Loop"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Loop", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :standard_loop_missing_condition)
+    end
+  end
+
+  describe "validate/1 — standard loop invalid loopMaximum" do
+    test "rejects loopMaximum of 0" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Loop",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script_format: "feel", script: "1 + 1"},
+              standard_loop: %StandardLoop{
+                loop_condition: "token.counter < 5",
+                loop_maximum: 0
+              },
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Loop"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Loop", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :standard_loop_invalid_maximum)
+    end
+
+    test "rejects negative loopMaximum" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Loop",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script_format: "feel", script: "1 + 1"},
+              standard_loop: %StandardLoop{
+                loop_condition: "token.counter < 5",
+                loop_maximum: -3
+              },
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Loop"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Loop", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :standard_loop_invalid_maximum)
+    end
+  end
+
+  describe "validate/1 — MI and standard loop mutual exclusivity" do
+    test "rejects activity with both multiInstance and standardLoop" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Both",
+              type: :task,
+              type_data: %FlowNodeData.Task{},
+              multi_instance: %MultiInstance{
+                collection_expression: "token.items"
+              },
+              standard_loop: %StandardLoop{
+                loop_condition: "token.counter < 5",
+                loop_maximum: 10
+              },
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Both"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Both", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :loop_mutual_exclusivity)
+    end
+
+    test "error message mentions both loop types" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_Both",
+              type: :task,
+              type_data: %FlowNodeData.Task{},
+              multi_instance: %MultiInstance{
+                collection_expression: "token.items"
+              },
+              standard_loop: %StandardLoop{
+                loop_condition: "token.counter < 5",
+                loop_maximum: 10
+              },
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_Both"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_Both", target_ref: "E1"}
+          ]
+        )
+
+      {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {code, _} -> code == :loop_mutual_exclusivity end)
+
+      assert message =~ "multiInstanceLoopCharacteristics"
+      assert message =~ "standardLoopCharacteristics"
+    end
+  end
+
+  describe "validate/1 — standard loop full XML round-trip" do
+    test "valid standard loop fixture passes loop-related checks" do
+      definitions = parse_fixture("parser_coverage_standard_loop.bpmn")
+
+      refute_violation_code(definitions, :standard_loop_missing_condition)
+      refute_violation_code(definitions, :standard_loop_invalid_maximum)
+      refute_violation_code(definitions, :standard_loop_no_maximum)
+      refute_violation_code(definitions, :loop_mutual_exclusivity)
     end
   end
 end

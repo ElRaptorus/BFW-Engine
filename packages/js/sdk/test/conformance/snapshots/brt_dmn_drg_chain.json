@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "BRT_drg_chain",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Evaluate DRG Chain",
           "outgoing": ["Flow_2"],
+          "standardLoop": null,
           "type": "business_rule_task",
           "typeData": {
             "decisionElementId": "Decision_A",
@@ -64,9 +69,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -78,6 +85,7 @@
       "id": "BrtDmnDrgChainProcess",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "BRT_drg_chain", "End_1"],

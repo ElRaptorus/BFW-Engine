@@ -1,0 +1,13 @@
+name: "C252: Parallel MI — one iteration fatals, MI shell fatals"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_one_fatal.bpmn"
+process_model_id: "mi-parallel-one-fatal"
+tier: error
+start:
+  payload:
+    items:
+      - fail: false
+      - fail: true
+      - fail: false
+expected:
+  final_state: "fatal"

@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InclusiveSplit",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Split",
-          "outgoing": ["Flow_B", "Flow_A"],
+          "outgoing": [
+            "Flow_B",
+            "Flow_A"
+          ],
+          "standardLoop": null,
           "type": "inclusive_gateway",
           "typeData": {
             "defaultFlowRef": null
@@ -53,10 +65,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": ["Flow_A"],
+          "incoming": [
+            "Flow_A"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": ["Flow_A2"],
+          "outgoing": [
+            "Flow_A2"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -67,10 +85,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_B",
-          "incoming": ["Flow_B"],
+          "incoming": [
+            "Flow_B"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": ["Flow_B2"],
+          "outgoing": [
+            "Flow_B2"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -81,10 +105,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InclusiveJoin",
-          "incoming": ["Flow_B2", "Flow_A2"],
+          "incoming": [
+            "Flow_B2",
+            "Flow_A2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Join",
-          "outgoing": ["Flow_Join"],
+          "outgoing": [
+            "Flow_Join"
+          ],
+          "standardLoop": null,
           "type": "inclusive_gateway",
           "typeData": {
             "defaultFlowRef": null
@@ -97,10 +128,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_Join"],
+          "incoming": [
+            "Flow_Join"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -112,9 +147,17 @@
       "id": "InclusiveGatewayUnconditional",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "InclusiveSplit", "Task_A", "Task_B", "InclusiveJoin", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "InclusiveSplit",
+            "Task_A",
+            "Task_B",
+            "InclusiveJoin",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

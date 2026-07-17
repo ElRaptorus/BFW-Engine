@@ -1,0 +1,16 @@
+name: "C265: Nested MI — parallel MI inside sequential MI subprocess"
+wait_timeout_ms: 10000
+fixture: "mi_nested_parallel_in_sequential.bpmn"
+process_model_id: "mi-nested-parallel-in-sequential"
+tier: auto
+start:
+  payload:
+    items:
+      - - 1
+        - 2
+      - - 3
+        - 4
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

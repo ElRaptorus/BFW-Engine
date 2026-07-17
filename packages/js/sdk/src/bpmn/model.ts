@@ -84,6 +84,7 @@ export interface FlowNode {
   dataInputAssociations: DataAssociation[];
   dataOutputAssociations: DataAssociation[];
   multiInstance: MultiInstance | null;
+  standardLoop: StandardLoop | null;
   documentation: string | null;
 }
 
@@ -162,9 +163,17 @@ export interface MultiInstance {
   elementVariable: string | null;
   completionCondition: string | null;
   outputCollection: string | null;
+  outputElementVariable: string | null;
   loopBreakCondition: string | null;
   loopInterval: string | null;
   maxIterations: number | null;
+}
+
+export interface StandardLoop {
+  testBefore: boolean;
+  loopCondition: string | null;
+  loopMaximum: number | null;
+  loopInterval: string | null;
 }
 
 export interface DataContract {

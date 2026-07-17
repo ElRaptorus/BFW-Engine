@@ -302,6 +302,8 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
       add :output_token, :map
       add :type_properties, :map
       add :error_info, :map
+      add :multi_instance_id, :uuid
+      add :iteration_index, :integer
       add :deleted, :boolean, null: false, default: false
       add :deleted_at, :utc_datetime_usec
       add :deleted_by, :map
@@ -329,6 +331,11 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
 
     create index(:flow_node_instances, [:process_instance_id],
              name: "flow_node_instances_process_instance_id_idx"
+           )
+
+    create index(:flow_node_instances, [:multi_instance_id],
+             name: "flow_node_instances_multi_instance_id_idx",
+             where: "multi_instance_id IS NOT NULL"
            )
 
     # ---------------------------------------------------------------
@@ -784,6 +791,10 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
     execute("DROP TABLE IF EXISTS process_instance_events CASCADE")
 
     drop_if_exists constraint(:process_instances, :process_instances_deleted_consistency)
+
+    drop_if_exists index(:flow_node_instances, [:multi_instance_id],
+                     name: "flow_node_instances_multi_instance_id_idx"
+                   )
 
     drop_if_exists index(:flow_node_instances, [:process_instance_id],
                      name: "flow_node_instances_process_instance_id_idx"

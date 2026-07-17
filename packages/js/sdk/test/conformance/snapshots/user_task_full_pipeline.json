@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "UserTask_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Review With Full Pipeline",
           "outgoing": [],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -158,7 +163,9 @@
                   "type": "string"
                 }
               },
-              "required": ["name"],
+              "required": [
+                "name"
+              ],
               "type": "object"
             },
             "priority": null,
@@ -168,7 +175,9 @@
                   "type": "boolean"
                 }
               },
-              "required": ["approved"],
+              "required": [
+                "approved"
+              ],
               "type": "object"
             }
           }
@@ -181,9 +190,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -195,9 +206,14 @@
       "id": "UserTaskFullPipeline",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "UserTask_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

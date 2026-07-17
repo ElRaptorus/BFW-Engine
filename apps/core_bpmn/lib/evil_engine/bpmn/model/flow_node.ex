@@ -12,6 +12,7 @@ defmodule EvilEngine.BPMN.Model.FlowNode do
   alias EvilEngine.BPMN.Model.DataAssociation
   alias EvilEngine.BPMN.Model.DataContract
   alias EvilEngine.BPMN.Model.MultiInstance
+  alias EvilEngine.BPMN.Model.StandardLoop
 
   @type t :: %__MODULE__{
           id: String.t(),
@@ -25,6 +26,7 @@ defmodule EvilEngine.BPMN.Model.FlowNode do
           data_input_associations: [DataAssociation.t()],
           data_output_associations: [DataAssociation.t()],
           multi_instance: MultiInstance.t() | nil,
+          standard_loop: StandardLoop.t() | nil,
           is_for_compensation: boolean(),
           documentation: String.t() | nil
         }
@@ -36,6 +38,7 @@ defmodule EvilEngine.BPMN.Model.FlowNode do
     :type,
     :type_data,
     :multi_instance,
+    :standard_loop,
     :documentation,
     incoming: [],
     outgoing: [],

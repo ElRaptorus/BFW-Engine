@@ -1,0 +1,12 @@
+name: "C273: Standard Loop — interval delay between iterations"
+wait_timeout_ms: 10000
+fixture: "loop_with_interval.bpmn"
+process_model_id: "loop-with-interval"
+tier: auto
+start:
+  payload:
+    counter: 0
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "SubProcess_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Sub Process",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -54,9 +59,11 @@
                 "documentation": null,
                 "id": "Sub_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
                 "outgoing": ["Sub_Flow_1"],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -72,9 +79,11 @@
                 "documentation": null,
                 "id": "Sub_End_Escalation",
                 "incoming": ["Sub_Flow_1"],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Unnamed Escalation End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {
@@ -87,6 +96,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -100,6 +110,7 @@
                 "targetRef": "Sub_End_Escalation"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -111,13 +122,16 @@
           "documentation": null,
           "id": "BE_Catchall",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
           "outgoing": ["Flow_Caught"],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "SubProcess_1",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "escalationCode": null,
               "escalationRef": null
@@ -134,9 +148,11 @@
           "documentation": null,
           "id": "End_Normal",
           "incoming": ["Flow_Normal"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -152,9 +168,11 @@
           "documentation": null,
           "id": "End_Caught",
           "incoming": ["Flow_Caught"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation Caught",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -166,6 +184,7 @@
       "id": "EscalationCatchallBoundary",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Catchall", "End_Normal", "End_Caught"],

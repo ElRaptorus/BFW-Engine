@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
@@ -34,9 +35,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -52,9 +55,11 @@
           "documentation": null,
           "id": "Fork_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
           "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -73,9 +78,11 @@
           "documentation": null,
           "id": "UserTask_WriteData",
           "incoming": ["Flow_A"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Write Order Data",
           "outgoing": ["Flow_A2"],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": "identity.groups",
@@ -104,9 +111,11 @@
           "documentation": null,
           "id": "ConditionalCatch_OrderReady",
           "incoming": ["Flow_B"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Order Ready",
           "outgoing": ["Flow_B2"],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -124,9 +133,11 @@
           "documentation": null,
           "id": "Join_1",
           "incoming": ["Flow_B2", "Flow_A2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Join",
           "outgoing": ["Flow_Join"],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -138,9 +149,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_Join"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -152,6 +165,7 @@
       "id": "ConditionalCatchDataObject",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "Fork_1", "UserTask_WriteData", "ConditionalCatch_OrderReady", "Join_1", "End_1"],

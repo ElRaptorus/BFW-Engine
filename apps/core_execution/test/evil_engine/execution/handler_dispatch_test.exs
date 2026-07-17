@@ -5,6 +5,7 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.BPMN.Model.MultiInstance
+  alias EvilEngine.BPMN.Model.StandardLoop
   alias EvilEngine.Execution.FlowNodes
   alias EvilEngine.Execution.HandlerDispatch
 
@@ -249,7 +250,7 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
       assert {:ok, FlowNodes.ComplexGateway} == HandlerDispatch.handler_for(flow_node)
     end
 
-    test "multi-instance FlowNode returns unsupported_element" do
+    test "multi-instance FlowNode routes to MultiInstanceBody handler" do
       flow_node = %FlowNode{
         id: "task-mi-1",
         type: :task,
@@ -257,7 +258,29 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
         multi_instance: %MultiInstance{is_sequential: false}
       }
 
-      assert {:error, :unsupported_element} == HandlerDispatch.handler_for(flow_node)
+      assert {:ok, FlowNodes.MultiInstanceBody} == HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "sequential multi-instance FlowNode routes to MultiInstanceBody handler" do
+      flow_node = %FlowNode{
+        id: "task-mi-seq",
+        type: :service_task,
+        type_data: %FlowNodeData.ServiceTask{implementation: "http"},
+        multi_instance: %MultiInstance{is_sequential: true}
+      }
+
+      assert {:ok, FlowNodes.MultiInstanceBody} == HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "standard loop FlowNode routes to StandardLoopBody handler" do
+      flow_node = %FlowNode{
+        id: "task-loop-1",
+        type: :script_task,
+        type_data: %FlowNodeData.ScriptTask{script: "1 + 1", script_format: "feel"},
+        standard_loop: %StandardLoop{test_before: true, loop_condition: "token.x < 5"}
+      }
+
+      assert {:ok, FlowNodes.StandardLoopBody} == HandlerDispatch.handler_for(flow_node)
     end
 
     test "compensation throw event routes to CompensateThrowEvent handler" do

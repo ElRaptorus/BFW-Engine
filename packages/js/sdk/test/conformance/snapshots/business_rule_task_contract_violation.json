@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "BRT_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Bad Contract",
           "outgoing": ["Flow_2"],
+          "standardLoop": null,
           "type": "business_rule_task",
           "typeData": {
             "decisionElementId": null,
@@ -72,9 +77,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -86,6 +93,7 @@
       "id": "BrtContractViolation",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "BRT_1", "End_1"],

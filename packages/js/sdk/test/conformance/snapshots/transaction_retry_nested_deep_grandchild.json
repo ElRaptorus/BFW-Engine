@@ -1,0 +1,130 @@
+{
+  "definitionsId": "Definitions_deep_grandchild",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "GcStart_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Grandchild Start",
+          "outgoing": [
+            "GcFlow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "GcFatalTask_1",
+          "incoming": [
+            "GcFlow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fatal Task",
+          "outgoing": [
+            "GcFlow_2"
+          ],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "nonexistent_handler",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "GcEnd_1",
+          "incoming": [
+            "GcFlow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Grandchild End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "tx_retry_deep_grandchild",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "GcStart_1",
+            "GcFatalTask_1",
+            "GcEnd_1"
+          ],
+          "id": "Lane_gc1",
+          "name": "default"
+        }
+      ],
+      "name": "TX Retry Deep Grandchild",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "GcFlow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "GcStart_1",
+          "targetRef": "GcFatalTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "GcFlow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "GcFatalTask_1",
+          "targetRef": "GcEnd_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

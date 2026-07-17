@@ -48,6 +48,8 @@ export type EngineEvent =
   | CompensationTriggered
   | ActivityCompensated
   | TransactionCancelled
+  | MultiInstanceStarted
+  | MultiInstanceCompleted
   | EventSubprocessTriggered
   | SinkFailed;
 
@@ -142,6 +144,10 @@ export interface FlowNodeInstanceStarted {
    * `FlowNodeInstanceFinished`. Present here for schema consistency.
    */
   triggererFlowNodeInstanceId: null;
+  /** Shell FNI ID when this is an MI/Loop iteration FNI. `null` otherwise. */
+  multiInstanceId: string | null;
+  /** Zero-based iteration index for MI/Loop iteration FNIs. `null` otherwise. */
+  iterationIndex: number | null;
   occurredAt: string;
 }
 
@@ -162,6 +168,10 @@ export interface FlowNodeInstanceFinished {
    * states.
    */
   triggererFlowNodeInstanceId: string | null;
+  /** Shell FNI ID when this is an MI/Loop iteration FNI. `null` otherwise. */
+  multiInstanceId: string | null;
+  /** Zero-based iteration index for MI/Loop iteration FNIs. `null` otherwise. */
+  iterationIndex: number | null;
   /**
    * Handler-specific metadata. For BusinessRuleTask FNIs in DMN mode this
    * contains the full evaluation trace (see `DmnFlowNodeTypeProperties`).
@@ -194,6 +204,10 @@ export interface FlowNodeInstanceStateChanged {
   laneName: string | null;
   oldState: FlowNodeInstanceState;
   newState: FlowNodeInstanceState;
+  /** Shell FNI ID when this is an MI/Loop iteration FNI. `null` otherwise. */
+  multiInstanceId: string | null;
+  /** Zero-based iteration index for MI/Loop iteration FNIs. `null` otherwise. */
+  iterationIndex: number | null;
   occurredAt: string;
 }
 
@@ -280,6 +294,47 @@ export interface DataObjectWritten {
   previousValue: unknown | null;
   value: unknown;
   createdAt: string;
+}
+
+/**
+ * Emitted when a Multi-Instance or Standard Loop shell FNI begins execution.
+ *
+ * `loopType` is `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"`.
+ * `totalIterations` is the planned iteration count (collection length for MI,
+ * `null` for Standard Loop where the count is determined by condition evaluation).
+ */
+export interface MultiInstanceStarted {
+  type: 'MultiInstanceStarted';
+  flowNodeInstanceId: string;
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  flowNodeId: string;
+  flowNodeType: FlowNodeType;
+  loopType: 'parallel_mi' | 'sequential_mi' | 'standard_loop';
+  totalIterations: number | null;
+  occurredAt: string;
+}
+
+/**
+ * Emitted when a Multi-Instance or Standard Loop shell FNI finishes.
+ *
+ * `completedIterations` is the number of iterations that ran to completion.
+ * `earlyBreak` indicates whether the loop terminated before exhausting
+ * all iterations (due to `completionCondition`, `loopBreakCondition`,
+ * `maxIterations`, or a loop condition becoming false).
+ */
+export interface MultiInstanceCompleted {
+  type: 'MultiInstanceCompleted';
+  flowNodeInstanceId: string;
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  flowNodeId: string;
+  flowNodeType: FlowNodeType;
+  loopType: 'parallel_mi' | 'sequential_mi' | 'standard_loop';
+  totalIterations: number | null;
+  completedIterations: number;
+  earlyBreak: boolean;
+  occurredAt: string;
 }
 
 /**

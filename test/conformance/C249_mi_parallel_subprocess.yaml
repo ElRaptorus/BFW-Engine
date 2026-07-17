@@ -1,0 +1,14 @@
+name: "C249: Parallel MI — embedded subprocess per collection item"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_subprocess.bpmn"
+process_model_id: "mi-parallel-subprocess"
+tier: auto
+start:
+  payload:
+    items:
+      - x: 1
+      - x: 2
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
@@ -34,9 +35,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -59,9 +62,11 @@
           "documentation": null,
           "id": "ScriptTask_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Extract",
           "outgoing": [],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -81,9 +86,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -95,6 +102,7 @@
       "id": "DataObjectFeelExpression",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "ScriptTask_1", "End_1"],

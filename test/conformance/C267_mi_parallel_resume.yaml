@@ -1,0 +1,14 @@
+name: "C267: Parallel MI — resume after engine restart"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_resume.bpmn"
+process_model_id: "mi-parallel-resume"
+tier: interactive
+start:
+  payload:
+    items:
+      - name: "A"
+      - name: "B"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

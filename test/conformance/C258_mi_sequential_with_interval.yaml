@@ -1,0 +1,14 @@
+name: "C258: Sequential MI — interval delay between iterations"
+wait_timeout_ms: 10000
+fixture: "mi_sequential_with_interval.bpmn"
+process_model_id: "mi-sequential-with-interval"
+tier: auto
+start:
+  payload:
+    items:
+      - v: 1
+      - v: 2
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

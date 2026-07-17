@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "Task_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Splitting Task",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -52,9 +57,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 1",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -70,9 +77,11 @@
           "documentation": null,
           "id": "End_2",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 2",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -84,9 +93,15 @@
       "id": "ImplicitSplit",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_1", "End_1", "End_2"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_1",
+            "End_1",
+            "End_2"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

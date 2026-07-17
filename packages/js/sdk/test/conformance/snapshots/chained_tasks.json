@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "Task_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
           "outgoing": ["Flow_2"],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -52,9 +57,11 @@
           "documentation": null,
           "id": "Task_2",
           "incoming": ["Flow_2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
           "outgoing": ["Flow_3"],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -66,9 +73,11 @@
           "documentation": null,
           "id": "Task_3",
           "incoming": ["Flow_3"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task C",
           "outgoing": ["Flow_4"],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -80,9 +89,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_4"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -94,6 +105,7 @@
       "id": "ChainedTasks",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "Task_1", "Task_2", "Task_3", "End_1"],

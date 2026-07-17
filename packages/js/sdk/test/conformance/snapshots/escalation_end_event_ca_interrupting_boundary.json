@@ -12,6 +12,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -26,9 +27,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -44,9 +47,11 @@
           "documentation": null,
           "id": "CA_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Escalation Child",
           "outgoing": ["Flow_Normal"],
+          "standardLoop": null,
           "type": "call_activity",
           "typeData": {
             "calledElement": "EscalationEndChild",
@@ -63,13 +68,16 @@
           "documentation": null,
           "id": "BE_Escalation",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
           "outgoing": ["Flow_Caught"],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "CA_1",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "escalationCode": null,
               "escalationRef": "Esc_Approval"
@@ -86,9 +94,11 @@
           "documentation": null,
           "id": "End_Normal",
           "incoming": ["Flow_Normal"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -104,9 +114,11 @@
           "documentation": null,
           "id": "End_Caught",
           "incoming": ["Flow_Caught"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation Caught",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -118,6 +130,7 @@
       "id": "EscalationCAInterrupting",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "CA_1", "BE_Escalation", "End_Normal", "End_Caught"],

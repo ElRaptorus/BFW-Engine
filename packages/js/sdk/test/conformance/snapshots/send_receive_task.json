@@ -15,6 +15,7 @@
   ],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -29,9 +30,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -47,9 +50,11 @@
           "documentation": null,
           "id": "SendTask_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Send Request",
           "outgoing": [],
+          "standardLoop": null,
           "type": "send_task",
           "typeData": {
             "inMappings": [],
@@ -66,9 +71,11 @@
           "documentation": null,
           "id": "ReceiveTask_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Receive Response",
           "outgoing": [],
+          "standardLoop": null,
           "type": "receive_task",
           "typeData": {
             "inMappings": [],
@@ -85,9 +92,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -99,9 +108,15 @@
       "id": "SendReceiveTask",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SendTask_1", "ReceiveTask_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SendTask_1",
+            "ReceiveTask_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

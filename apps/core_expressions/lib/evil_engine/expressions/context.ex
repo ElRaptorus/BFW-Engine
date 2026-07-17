@@ -60,7 +60,8 @@ defmodule EvilEngine.Expressions.Context do
       data_objects: ensure_string_keys(handler_context.data_objects || %{}),
       process: stringify_process(handler_context.process),
       process_instance: stringify_process_instance(handler_context.process_instance),
-      identity: stringify_identity(handler_context.identity)
+      identity: stringify_identity(handler_context.identity),
+      loop: Map.get(handler_context, :loop)
     }
   end
 
@@ -111,6 +112,25 @@ defmodule EvilEngine.Expressions.Context do
     base
     |> merge_loop(context.loop)
     |> merge_gateway(context.gateway)
+  end
+
+  @doc """
+  Injects the Multi-Instance / Standard Loop overlay bindings into a context.
+
+  Sets the `loop` binding with per-iteration metadata: `index` (0-based),
+  `total` (collection length or nil for Standard Loops), `completed`
+  (iterations finished so far), `results` (aggregated outputs), and `item`
+  (current collection element or nil for Standard Loops).
+  """
+  @spec put_loop_bindings(t(), non_neg_integer(), non_neg_integer() | nil, non_neg_integer(), list(), term()) :: t()
+  def put_loop_bindings(%__MODULE__{} = context, index, total, completed, results, item) do
+    %{context | loop: %{
+      "index" => index,
+      "total" => total,
+      "completed" => completed,
+      "results" => results || [],
+      "item" => item
+    }}
   end
 
   @doc """

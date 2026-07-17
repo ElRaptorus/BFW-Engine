@@ -12,6 +12,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -26,9 +27,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,16 +40,20 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Error"],
+          "boundaryEventRefs": [
+            "BE_Error"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "SubProcess_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Sub Process",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -60,9 +67,11 @@
                 "documentation": null,
                 "id": "Sub_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -78,9 +87,11 @@
                 "documentation": null,
                 "id": "Sub_UserTask",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub User Task",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "user_task",
                 "typeData": {
                   "assigneesExpression": "identity.groups",
@@ -102,9 +113,11 @@
                 "documentation": null,
                 "id": "Sub_End",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -114,6 +127,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -135,6 +149,7 @@
                 "targetRef": "Sub_End"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -146,13 +161,16 @@
           "documentation": null,
           "id": "BE_Error",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
           "outgoing": [],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "SubProcess_1",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "errorCode": "SUBPROCESS_ERROR",
               "errorMessage": null,
@@ -170,9 +188,11 @@
           "documentation": null,
           "id": "End_OK",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "OK End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -188,9 +208,11 @@
           "documentation": null,
           "id": "End_Error",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Error Handled",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -202,9 +224,16 @@
       "id": "RetryEmbeddedSubprocessWithBoundary",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Error", "End_OK", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "BE_Error",
+            "End_OK",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

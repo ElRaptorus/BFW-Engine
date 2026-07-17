@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -31,16 +34,20 @@
           }
         },
         {
-          "boundaryEventRefs": ["Boundary_1"],
+          "boundaryEventRefs": [
+            "Boundary_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Do Work",
           "outgoing": [],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": "identity.groups",
@@ -64,13 +71,16 @@
           "documentation": null,
           "id": "Boundary_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
           "outgoing": [],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "UserTask_1",
             "cancelActivity": false,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "signalRef": "Sig_notify"
             },
@@ -86,9 +96,11 @@
           "documentation": null,
           "id": "End_normal",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -104,9 +116,11 @@
           "documentation": null,
           "id": "End_notified",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Notified End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -118,9 +132,16 @@
       "id": "SignalBoundaryNonInterrupting",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "UserTask_1", "Boundary_1", "End_normal", "End_notified"],
+          "flowNodeRefs": [
+            "Start_1",
+            "UserTask_1",
+            "Boundary_1",
+            "End_normal",
+            "End_notified"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

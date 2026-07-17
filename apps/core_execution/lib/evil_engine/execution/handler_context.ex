@@ -48,6 +48,9 @@ defmodule EvilEngine.Execution.HandlerContext do
           process: map(),
           process_instance: map(),
           data_objects: map(),
+          loop: map() | nil,
+          multi_instance_id: String.t() | nil,
+          iteration_index: non_neg_integer() | nil,
           host_flow_node_instance_id: String.t() | nil,
           join_metadata: map() | nil
         }
@@ -65,6 +68,9 @@ defmodule EvilEngine.Execution.HandlerContext do
             process: %{},
             process_instance: %{},
             data_objects: %{},
+            loop: nil,
+            multi_instance_id: nil,
+            iteration_index: nil,
             host_flow_node_instance_id: nil,
             join_metadata: nil
 end

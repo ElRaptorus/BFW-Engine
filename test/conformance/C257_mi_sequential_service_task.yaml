@@ -1,0 +1,13 @@
+name: "C257: Sequential MI — async service task per collection item"
+wait_timeout_ms: 10000
+fixture: "mi_sequential_service_task.bpmn"
+process_model_id: "mi-sequential-service-task"
+tier: interactive
+start:
+  payload:
+    items:
+      - url: "http://example.com"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "OuterSplit",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Outer Split",
           "outgoing": ["Flow_OuterRight", "Flow_OuterLeft"],
+          "standardLoop": null,
           "type": "complex_gateway",
           "typeData": {
             "activationCondition": null
@@ -54,9 +59,11 @@
           "documentation": null,
           "id": "InnerSplit",
           "incoming": ["Flow_OuterLeft"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Inner Split",
           "outgoing": ["Flow_InnerB", "Flow_InnerA"],
+          "standardLoop": null,
           "type": "complex_gateway",
           "typeData": {
             "activationCondition": null
@@ -70,9 +77,11 @@
           "documentation": null,
           "id": "UserTask_InnerA",
           "incoming": ["Flow_InnerA"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "User Task Inner A",
           "outgoing": ["Flow_InnerA2"],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -94,9 +103,11 @@
           "documentation": null,
           "id": "UserTask_InnerB",
           "incoming": ["Flow_InnerB"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "User Task Inner B",
           "outgoing": ["Flow_InnerB2"],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -118,9 +129,11 @@
           "documentation": null,
           "id": "InnerJoin",
           "incoming": ["Flow_InnerB2", "Flow_InnerA2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Inner Join",
           "outgoing": ["Flow_InnerJoin"],
+          "standardLoop": null,
           "type": "complex_gateway",
           "typeData": {
             "activationCondition": "activatedCount >= 1"
@@ -134,9 +147,11 @@
           "documentation": null,
           "id": "UserTask_Outer",
           "incoming": ["Flow_OuterRight"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "User Task Outer",
           "outgoing": ["Flow_OuterRight2"],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -158,9 +173,11 @@
           "documentation": null,
           "id": "OuterJoin",
           "incoming": ["Flow_OuterRight2", "Flow_InnerJoin"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Outer Join",
           "outgoing": ["Flow_OuterJoin"],
+          "standardLoop": null,
           "type": "complex_gateway",
           "typeData": {
             "activationCondition": "activatedCount >= 2"
@@ -174,9 +191,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_OuterJoin"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -188,6 +207,7 @@
       "id": "ComplexGatewayNestedRegions",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": [

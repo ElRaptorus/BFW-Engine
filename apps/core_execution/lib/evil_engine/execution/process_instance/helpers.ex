@@ -408,6 +408,14 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       "when the child PI reports cancellation, not dispatched directly."
   end
 
+  defp humanize_error(
+         {:collection_exceeds_max_iterations,
+          %{collection_size: size, max_iterations: max}}
+       ) do
+    "Parallel Multi-Instance input collection has #{size} items but maxIterations is #{max}. " <>
+      "Increase maxIterations, reduce the collection, or use Sequential Multi-Instance."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end
@@ -607,6 +615,14 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
           %{id: process_model.id, name: process_model.name, version: process_model.version}
       end
 
+    fni_entry = Map.get(data.flow_node_instance_states, flow_node_instance_id, %{})
+
+    loop_overlay =
+      case fni_entry do
+        %{loop_overlay: overlay} when is_map(overlay) -> overlay
+        _ -> nil
+      end
+
     %HandlerContext{
       flow_node_instance_id: flow_node_instance_id,
       process_instance_id: data.process_instance_id,
@@ -624,7 +640,10 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
         started_at: data.started_at,
         started_by: identity_map[:id]
       },
-      data_objects: data.data_object_cache
+      data_objects: data.data_object_cache,
+      loop: loop_overlay,
+      multi_instance_id: Map.get(fni_entry, :multi_instance_id),
+      iteration_index: Map.get(fni_entry, :iteration_index)
     }
   end
 

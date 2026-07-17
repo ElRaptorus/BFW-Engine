@@ -12,6 +12,7 @@ defmodule EvilEngine.BPMN.ParserTest do
   alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
   alias EvilEngine.BPMN.Model.SequenceFlow
   alias EvilEngine.BPMN.Model.SignalDefinition
+  alias EvilEngine.BPMN.Model.StandardLoop
   alias EvilEngine.BPMN.Parser
 
   @fixtures_dir Path.join([__DIR__, "..", "..", "fixtures", "bpmns"])
@@ -1493,9 +1494,44 @@ defmodule EvilEngine.BPMN.ParserTest do
                loop_break_condition: "errorCount > 3",
                loop_interval: "PT1S",
                max_iterations: 100,
-               cardinality_expression: "5",
                completion_condition: "done = true"
              } = user_task.multi_instance
+    end
+
+    test "multi-instance maps evil:elementVariable to element_variable", %{process: process} do
+      user_task = find_node(process, "UT_MI")
+      assert %MultiInstance{element_variable: "item"} = user_task.multi_instance
+    end
+
+    test "multi-instance element_variable is nil when not specified" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:task id="Task_1">
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+            <bpmn:multiInstanceLoopCharacteristics isSequential="false">
+              <bpmn:extensionElements>
+                <evil:inputCollection>token.items</evil:inputCollection>
+              </bpmn:extensionElements>
+            </bpmn:multiInstanceLoopCharacteristics>
+          </bpmn:task>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Task_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="Task_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      task = find_node(process, "Task_1")
+      assert task.multi_instance.element_variable == nil
     end
 
     test "link throw maps name attribute to link_name", %{process: process} do
@@ -1514,6 +1550,100 @@ defmodule EvilEngine.BPMN.ParserTest do
       assert %FlowNodeData.IntermediateCatchEvent{
                event_definition: %EventDefinition.Link{link_name: "jump-target"}
              } = link_catch.type_data
+    end
+  end
+
+  describe "parse/1 — parser_coverage_standard_loop.bpmn" do
+    setup do
+      {:ok, definitions} = Parser.parse(read_fixture("parser_coverage_standard_loop.bpmn"))
+      [process] = definitions.processes
+      %{process: process}
+    end
+
+    test "standard loop maps testBefore attribute", %{process: process} do
+      script_task = find_node(process, "Script_Loop")
+      assert script_task.standard_loop != nil
+      assert script_task.standard_loop.test_before == true
+    end
+
+    test "standard loop maps loopMaximum attribute", %{process: process} do
+      script_task = find_node(process, "Script_Loop")
+      assert script_task.standard_loop.loop_maximum == 10
+    end
+
+    test "standard loop maps loopCondition child element", %{process: process} do
+      script_task = find_node(process, "Script_Loop")
+      assert script_task.standard_loop.loop_condition == "token.counter < 5"
+    end
+
+    test "standard loop maps evil:loopInterval extension", %{process: process} do
+      script_task = find_node(process, "Script_Loop")
+      assert script_task.standard_loop.loop_interval == "PT1S"
+    end
+
+    test "standard loop is nil on nodes without loop characteristics", %{process: process} do
+      start_event = find_node(process, "Start_1")
+      assert start_event.standard_loop == nil
+    end
+
+    test "standard loop defaults testBefore to false when attribute absent" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:scriptTask id="Script_1" scriptFormat="feel">
+            <bpmn:script>{ counter: loop.completed + 1 }</bpmn:script>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+            <bpmn:standardLoopCharacteristics loopMaximum="5">
+              <bpmn:loopCondition>token.counter &lt; 3</bpmn:loopCondition>
+            </bpmn:standardLoopCharacteristics>
+          </bpmn:scriptTask>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Script_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="Script_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      script_task = find_node(process, "Script_1")
+      assert %StandardLoop{test_before: false, loop_maximum: 5} = script_task.standard_loop
+    end
+
+    test "standard loop without loopMaximum leaves field nil" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:scriptTask id="Script_1" scriptFormat="feel">
+            <bpmn:script>{ counter: loop.completed + 1 }</bpmn:script>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+            <bpmn:standardLoopCharacteristics>
+              <bpmn:loopCondition>token.counter &lt; 3</bpmn:loopCondition>
+            </bpmn:standardLoopCharacteristics>
+          </bpmn:scriptTask>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Script_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="Script_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      script_task = find_node(process, "Script_1")
+      assert script_task.standard_loop.loop_maximum == nil
     end
   end
 

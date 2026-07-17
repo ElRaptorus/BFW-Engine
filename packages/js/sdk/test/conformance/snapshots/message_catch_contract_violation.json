@@ -11,6 +11,7 @@
   ],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -25,9 +26,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -43,9 +46,11 @@
           "documentation": null,
           "id": "Catch_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Contract Message",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -56,7 +61,9 @@
             },
             "outMappings": [],
             "resultContract": {
-              "required": ["orderId"],
+              "required": [
+                "orderId"
+              ],
               "type": "object"
             }
           }
@@ -69,9 +76,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -83,9 +92,14 @@
       "id": "MessageCatchContractViolation",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Catch_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Catch_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -1,0 +1,16 @@
+name: "C266: Nested MI — call activity with MI child process"
+wait_timeout_ms: 10000
+fixture: "mi_nested_ca_with_mi_child.bpmn"
+process_model_id: "mi-nested-ca-with-mi-child"
+child_fixtures:
+  - "mi_nested_ca_mi_child.bpmn"
+tier: auto
+start:
+  payload:
+    items:
+      - orderId: 1
+      - orderId: 2
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

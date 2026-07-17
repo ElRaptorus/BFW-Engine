@@ -1,0 +1,14 @@
+name: "C256: Sequential MI — user task per collection item"
+wait_timeout_ms: 10000
+fixture: "mi_sequential_user_task.bpmn"
+process_model_id: "mi-sequential-user-task"
+tier: interactive
+start:
+  payload:
+    items:
+      - name: "A"
+      - name: "B"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

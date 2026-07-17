@@ -21,7 +21,8 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           token: EvilEngine.Types.Token.t(),
           previous_flow_node_instance_ids: [String.t()],
           type_properties: map(),
-          next_flow_node_ids: [String.t()]
+          next_flow_node_ids: [String.t()],
+          loop_overlay: map() | nil
         }
 
   @type escalation_info :: %{
@@ -90,6 +91,7 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           compensation_runs: %{String.t() => compensation_run()},
           compensation_end_reached: boolean(),
           compensation_esp_throw_map: %{String.t() => String.t()},
+          mi_shell_tasks: %{String.t() => {String.t(), pid()}},
           cancel_reached: boolean(),
           task_supervisor: pid() | nil,
           bpmn_error_info: map() | nil,
@@ -121,6 +123,7 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
     compensation_runs: %{},
     compensation_end_reached: false,
     compensation_esp_throw_map: %{},
+    mi_shell_tasks: %{},
     cancel_reached: false,
     task_supervisor: nil,
     bpmn_error_info: nil,

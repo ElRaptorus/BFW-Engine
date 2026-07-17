@@ -92,8 +92,8 @@ defmodule EvilEngine.Execution.MultiInstanceSubprocessIntegrationTest do
     end
   end
 
-  describe "multi-instance Task — sequential — unsupported element" do
-    test "PI goes fatal when a sequential multi-instance task is reached" do
+  describe "multi-instance Task — sequential" do
+    test "PI completes when a sequential multi-instance task iterates over the collection" do
       definitions =
         BpmnFactory.multi_instance_task_process(
           is_sequential: true,
@@ -104,26 +104,18 @@ defmodule EvilEngine.Execution.MultiInstanceSubprocessIntegrationTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_reference = attach_pi_telemetry("multi-instance-sequential")
-      flow_node_instance_reference = attach_fni_telemetry("multi-instance-sequential-fni")
+      _flow_node_instance_reference = attach_fni_telemetry("multi-instance-sequential-fni")
 
       assert {:ok, _process_instance_pid} =
                start_process_instance(@version_id, payload: %{"items" => [1, 2, 3]})
 
-      assert_receive {:pi_state_change, ^process_instance_reference, :fatal, metadata}, 2_000
+      assert_receive {:pi_state_change, ^process_instance_reference, :finished, metadata}, 5_000
       assert metadata.process_instance_id
-
-      fatal_flow_node_events =
-        collect_fni_events(flow_node_instance_reference)
-        |> Enum.filter(fn metadata -> metadata.terminal_state == :fatal end)
-
-      assert Enum.any?(fatal_flow_node_events, fn metadata ->
-               metadata.flow_node_type == :task
-             end)
     end
   end
 
-  describe "multi-instance Task — parallel — unsupported element" do
-    test "PI goes fatal when a parallel multi-instance task is reached" do
+  describe "multi-instance Task — parallel" do
+    test "PI stays running when parallel multi-instance user tasks are waiting" do
       definitions =
         BpmnFactory.multi_instance_task_process(
           is_sequential: false,
@@ -135,38 +127,14 @@ defmodule EvilEngine.Execution.MultiInstanceSubprocessIntegrationTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_reference = attach_pi_telemetry("multi-instance-parallel")
-      flow_node_instance_reference = attach_fni_telemetry("multi-instance-parallel-fni")
+      _flow_node_instance_reference = attach_fni_telemetry("multi-instance-parallel-fni")
 
       assert {:ok, _process_instance_pid} =
                start_process_instance(@version_id, payload: %{"items" => ["alpha", "beta"]})
 
-      assert_receive {:pi_state_change, ^process_instance_reference, :fatal, metadata}, 2_000
-      assert metadata.process_instance_id
-
-      fatal_flow_node_events =
-        collect_fni_events(flow_node_instance_reference)
-        |> Enum.filter(fn metadata -> metadata.terminal_state == :fatal end)
-
-      assert Enum.any?(fatal_flow_node_events, fn metadata ->
-               metadata.flow_node_type == :user_task
-             end)
+      assert_receive {:pi_state_change, ^process_instance_reference, :running, _metadata}, 5_000
+      refute_receive {:pi_state_change, ^process_instance_reference, :fatal, _metadata}, 1_000
     end
   end
 
-  defp collect_fni_events(reference, timeout \\ 200) do
-    collect_fni_events(reference, timeout, [])
-  end
-
-  defp collect_fni_events(reference, timeout, accumulated_events) do
-    receive do
-      {:fni_state_change, ^reference, metadata} ->
-        if Map.has_key?(metadata, :terminal_state) do
-          collect_fni_events(reference, timeout, [metadata | accumulated_events])
-        else
-          collect_fni_events(reference, timeout, accumulated_events)
-        end
-    after
-      timeout -> Enum.reverse(accumulated_events)
-    end
-  end
 end

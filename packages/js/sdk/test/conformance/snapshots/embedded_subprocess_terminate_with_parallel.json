@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "SubProcess_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Sub Process",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -54,9 +59,11 @@
                 "documentation": null,
                 "id": "Sub_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -72,9 +79,11 @@
                 "documentation": null,
                 "id": "ParallelGW_Split",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Split",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "parallel_gateway",
                 "typeData": {}
               },
@@ -86,9 +95,11 @@
                 "documentation": null,
                 "id": "Sub_TaskA",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Task A",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -100,9 +111,11 @@
                 "documentation": null,
                 "id": "Sub_TaskB",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Task B",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -114,9 +127,11 @@
                 "documentation": null,
                 "id": "ParallelGW_Join",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Join",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "parallel_gateway",
                 "typeData": {}
               },
@@ -128,9 +143,11 @@
                 "documentation": null,
                 "id": "Sub_TerminateEnd",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Terminate",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -140,6 +157,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -193,6 +211,7 @@
                 "targetRef": "Sub_TerminateEnd"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -204,9 +223,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -218,6 +239,7 @@
       "id": "EmbeddedSubprocessTerminateParallel",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],

@@ -65,6 +65,10 @@ defmodule EvilEngine.Persistence.Resources.FlowNodeInstance do
 
       index [:flow_node_type, :state],
         name: "flow_node_instances_type_state_idx"
+
+      index [:multi_instance_id],
+        where: "multi_instance_id IS NOT NULL",
+        name: "flow_node_instances_multi_instance_id_idx"
     end
 
     check_constraints do
@@ -108,7 +112,9 @@ defmodule EvilEngine.Persistence.Resources.FlowNodeInstance do
         :previous_flow_node_instance_ids,
         :triggerer_flow_node_instance_id,
         :input_token,
-        :type_properties
+        :type_properties,
+        :multi_instance_id,
+        :iteration_index
       ]
     end
 
@@ -179,6 +185,9 @@ defmodule EvilEngine.Persistence.Resources.FlowNodeInstance do
     attribute :output_token, :map, public?: true
     attribute :type_properties, :map, public?: true
     attribute :error_info, :map, public?: true
+
+    attribute :multi_instance_id, :uuid, public?: true
+    attribute :iteration_index, :integer, public?: true
 
     attribute :deleted, :boolean do
       allow_nil? false

@@ -1,0 +1,12 @@
+name: "C263: MI — empty collection skips iterations, completes immediately"
+wait_timeout_ms: 10000
+fixture: "mi_empty_collection.bpmn"
+process_model_id: "mi-empty-collection"
+tier: auto
+start:
+  payload:
+    items: []
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

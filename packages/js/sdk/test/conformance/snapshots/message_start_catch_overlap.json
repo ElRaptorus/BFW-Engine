@@ -11,6 +11,7 @@
   ],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": "token.correlationId",
       "dataObjectReferences": [],
@@ -25,9 +26,11 @@
           "documentation": null,
           "id": "Start_regular",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Regular Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -43,9 +46,11 @@
           "documentation": null,
           "id": "Start_message",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Message Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {
@@ -66,9 +71,11 @@
           "documentation": null,
           "id": "Catch_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Shared Message",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -89,9 +96,11 @@
           "documentation": null,
           "id": "End_catch_path",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End Catch Path",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -107,9 +116,11 @@
           "documentation": null,
           "id": "End_message_start",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End Message Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -121,9 +132,16 @@
       "id": "MessageStartCatchOverlap",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_regular", "Start_message", "Catch_1", "End_catch_path", "End_message_start"],
+          "flowNodeRefs": [
+            "Start_regular",
+            "Start_message",
+            "Catch_1",
+            "End_catch_path",
+            "End_message_start"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

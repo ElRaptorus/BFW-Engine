@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +43,11 @@
           "documentation": null,
           "id": "SubProcess_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "SP1",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -54,9 +61,13 @@
                 "documentation": null,
                 "id": "Sub_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": ["Sub_Flow_1"],
+                "outgoing": [
+                  "Sub_Flow_1"
+                ],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -71,10 +82,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "CA2",
-                "incoming": ["Sub_Flow_1"],
+                "incoming": [
+                  "Sub_Flow_1"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Call Leaf",
-                "outgoing": ["Sub_Flow_2"],
+                "outgoing": [
+                  "Sub_Flow_2"
+                ],
+                "standardLoop": null,
                 "type": "call_activity",
                 "typeData": {
                   "calledElement": "EscalationMixedLeaf",
@@ -90,10 +107,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End",
-                "incoming": ["Sub_Flow_2"],
+                "incoming": [
+                  "Sub_Flow_2"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -103,6 +124,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -124,6 +146,7 @@
                 "targetRef": "Sub_End"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -134,10 +157,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -149,9 +176,14 @@
       "id": "EscalationMixedMiddle",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

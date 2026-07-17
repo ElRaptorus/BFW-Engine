@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -31,16 +36,24 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Timer"],
+          "boundaryEventRefs": [
+            "BE_Timer"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Complete Me",
-          "outgoing": ["Flow_ToDeadEnd"],
+          "outgoing": [
+            "Flow_ToDeadEnd"
+          ],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -62,13 +75,18 @@
           "documentation": null,
           "id": "BE_Timer",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Timer Boundary",
-          "outgoing": ["Flow_ToBoundaryEnd"],
+          "outgoing": [
+            "Flow_ToBoundaryEnd"
+          ],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "UserTask_1",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "timeCycle": null,
               "timeDate": null,
@@ -85,10 +103,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_DeadEnd",
-          "incoming": ["Flow_ToDeadEnd"],
+          "incoming": [
+            "Flow_ToDeadEnd"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Dead End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -99,10 +121,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Happy",
-          "incoming": ["Flow_Unreachable"],
+          "incoming": [
+            "Flow_Unreachable"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Happy End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -117,10 +143,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Boundary",
-          "incoming": ["Flow_ToBoundaryEnd"],
+          "incoming": [
+            "Flow_ToBoundaryEnd"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -132,9 +162,17 @@
       "id": "RetryBoundaryGuard",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "UserTask_1", "BE_Timer", "Task_DeadEnd", "End_Happy", "End_Boundary"],
+          "flowNodeRefs": [
+            "Start_1",
+            "UserTask_1",
+            "BE_Timer",
+            "Task_DeadEnd",
+            "End_Happy",
+            "End_Boundary"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

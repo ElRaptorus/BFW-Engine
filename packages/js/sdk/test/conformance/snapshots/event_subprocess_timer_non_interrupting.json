@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Main_Flow_1"],
+          "outgoing": [
+            "Main_Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_UserTask",
-          "incoming": ["Main_Flow_1"],
+          "incoming": [
+            "Main_Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Work",
-          "outgoing": ["Main_Flow_2"],
+          "outgoing": [
+            "Main_Flow_2"
+          ],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -61,10 +72,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Main_Flow_2"],
+          "incoming": [
+            "Main_Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -80,9 +95,11 @@
           "documentation": null,
           "id": "ESP_Timer",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Timer Event Subprocess",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -96,9 +113,13 @@
                 "documentation": null,
                 "id": "ESP_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Timer Elapsed",
-                "outgoing": ["ESP_Flow_1"],
+                "outgoing": [
+                  "ESP_Flow_1"
+                ],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {
@@ -117,10 +138,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": ["ESP_Flow_1"],
+                "incoming": [
+                  "ESP_Flow_1"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Reminder",
-                "outgoing": ["ESP_Flow_2"],
+                "outgoing": [
+                  "ESP_Flow_2"
+                ],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -131,10 +158,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": ["ESP_Flow_2"],
+                "incoming": [
+                  "ESP_Flow_2"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -144,6 +175,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -165,6 +197,7 @@
                 "targetRef": "ESP_End"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": true
           }
         }
@@ -172,9 +205,15 @@
       "id": "EventSubprocessTimerNonInterrupting",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Timer"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Main_UserTask",
+            "End_1",
+            "ESP_Timer"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

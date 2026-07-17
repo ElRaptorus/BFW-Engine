@@ -1,0 +1,13 @@
+name: "C254: Parallel MI — timer boundary interrupts MI user task"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_timer_boundary.bpmn"
+process_model_id: "mi-parallel-timer-boundary"
+tier: interactive
+start:
+  payload:
+    items:
+      - name: "A"
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_Timeout"

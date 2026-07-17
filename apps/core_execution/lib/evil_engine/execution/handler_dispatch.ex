@@ -19,6 +19,7 @@ defmodule EvilEngine.Execution.HandlerDispatch do
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.BPMN.Model.MultiInstance
+  alias EvilEngine.BPMN.Model.StandardLoop
   alias EvilEngine.Execution.FlowNodes
 
   @handler_map %{
@@ -58,7 +59,11 @@ defmodule EvilEngine.Execution.HandlerDispatch do
           | {:error, :unsupported_element}
           | {:error, {:unsupported_event_definition, FlowNode.t()}}
   def handler_for(%FlowNode{multi_instance: %MultiInstance{}}) do
-    {:error, :unsupported_element}
+    {:ok, FlowNodes.MultiInstanceBody}
+  end
+
+  def handler_for(%FlowNode{standard_loop: %StandardLoop{}}) do
+    {:ok, FlowNodes.StandardLoopBody}
   end
 
   def handler_for(%FlowNode{} = flow_node) do
@@ -76,6 +81,26 @@ defmodule EvilEngine.Execution.HandlerDispatch do
 
   def handler_for(flow_node_type) when is_atom(flow_node_type) do
     handler_for_type(flow_node_type)
+  end
+
+  @doc """
+  Look up the handler module for the inner activity of an MI/Loop flow node.
+
+  Strips the MI/StandardLoop wrapping and resolves the handler for the
+  underlying activity type. Used by the PI when dispatching iteration FNIs.
+  """
+  @spec inner_handler_for(FlowNode.t()) ::
+          {:ok, module()}
+          | {:error, :unsupported_element}
+          | {:error, {:unsupported_event_definition, FlowNode.t()}}
+  def inner_handler_for(%FlowNode{} = flow_node) do
+    stripped = %{flow_node | multi_instance: nil, standard_loop: nil}
+
+    case resolve_handler(stripped) do
+      {:ok, _} = ok -> ok
+      :unsupported_event_definition -> {:error, {:unsupported_event_definition, flow_node}}
+      :fallback -> handler_for_type(stripped.type)
+    end
   end
 
   # -- Event-definition-aware dispatch for intermediate events ---------------

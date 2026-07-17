@@ -1,0 +1,12 @@
+name: "C272: Standard Loop — testBefore=true with false condition yields zero iterations"
+wait_timeout_ms: 10000
+fixture: "loop_zero_iterations.bpmn"
+process_model_id: "loop-zero-iterations"
+tier: auto
+start:
+  payload:
+    done: true
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

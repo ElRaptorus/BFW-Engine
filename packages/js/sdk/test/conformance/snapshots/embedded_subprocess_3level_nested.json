@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "SubProcess_L1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Level 1 Sub Process",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -54,9 +59,11 @@
                 "documentation": null,
                 "id": "L1_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "L1 Start",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -72,9 +79,11 @@
                 "documentation": null,
                 "id": "SubProcess_L2",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Level 2 Sub Process",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "sub_process",
                 "typeData": {
                   "dataObjectReferences": [],
@@ -88,9 +97,11 @@
                       "documentation": null,
                       "id": "L2_Start",
                       "incoming": [],
+                      "isForCompensation": false,
                       "multiInstance": null,
                       "name": "L2 Start",
                       "outgoing": [],
+                      "standardLoop": null,
                       "type": "start_event",
                       "typeData": {
                         "eventDefinition": {},
@@ -106,9 +117,11 @@
                       "documentation": null,
                       "id": "SubProcess_L3",
                       "incoming": [],
+                      "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Level 3 Sub Process",
                       "outgoing": [],
+                      "standardLoop": null,
                       "type": "sub_process",
                       "typeData": {
                         "dataObjectReferences": [],
@@ -122,9 +135,11 @@
                             "documentation": null,
                             "id": "L3_Start",
                             "incoming": [],
+                            "isForCompensation": false,
                             "multiInstance": null,
                             "name": "L3 Start",
                             "outgoing": [],
+                            "standardLoop": null,
                             "type": "start_event",
                             "typeData": {
                               "eventDefinition": {},
@@ -140,9 +155,11 @@
                             "documentation": null,
                             "id": "L3_Task",
                             "incoming": [],
+                            "isForCompensation": false,
                             "multiInstance": null,
                             "name": "L3 Task",
                             "outgoing": [],
+                            "standardLoop": null,
                             "type": "task",
                             "typeData": {}
                           },
@@ -154,9 +171,11 @@
                             "documentation": null,
                             "id": "L3_End",
                             "incoming": [],
+                            "isForCompensation": false,
                             "multiInstance": null,
                             "name": "L3 End",
                             "outgoing": [],
+                            "standardLoop": null,
                             "type": "end_event",
                             "typeData": {
                               "eventDefinition": {},
@@ -166,6 +185,7 @@
                           }
                         ],
                         "inMappings": [],
+                        "isTransaction": false,
                         "outMappings": [],
                         "payloadContract": null,
                         "resultContract": null,
@@ -187,6 +207,7 @@
                             "targetRef": "L3_End"
                           }
                         ],
+                        "transactionMethod": null,
                         "triggeredByEvent": false
                       }
                     },
@@ -198,9 +219,11 @@
                       "documentation": null,
                       "id": "L2_End",
                       "incoming": [],
+                      "isForCompensation": false,
                       "multiInstance": null,
                       "name": "L2 End",
                       "outgoing": [],
+                      "standardLoop": null,
                       "type": "end_event",
                       "typeData": {
                         "eventDefinition": {},
@@ -210,6 +233,7 @@
                     }
                   ],
                   "inMappings": [],
+                  "isTransaction": false,
                   "outMappings": [],
                   "payloadContract": null,
                   "resultContract": null,
@@ -231,6 +255,7 @@
                       "targetRef": "L2_End"
                     }
                   ],
+                  "transactionMethod": null,
                   "triggeredByEvent": false
                 }
               },
@@ -242,9 +267,11 @@
                 "documentation": null,
                 "id": "L1_End",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "L1 End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -254,6 +281,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -275,6 +303,7 @@
                 "targetRef": "L1_End"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -286,9 +315,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -300,6 +331,7 @@
       "id": "EmbeddedSubprocess3LevelNested",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "SubProcess_L1", "End_1"],

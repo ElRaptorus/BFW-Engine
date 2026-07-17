@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
@@ -34,9 +35,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -52,9 +55,11 @@
           "documentation": null,
           "id": "Fork_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
           "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -66,9 +71,11 @@
           "documentation": null,
           "id": "UserTask_LongRunning",
           "incoming": ["Flow_A"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Long Running Task",
           "outgoing": ["Flow_A2"],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": "identity.groups",
@@ -92,13 +99,16 @@
           "documentation": null,
           "id": "Boundary_Critical",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Critical Boundary",
           "outgoing": ["Flow_BE_Critical"],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "UserTask_LongRunning",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "conditionExpression": "dataObjects.TriggerData.critical = true"
             },
@@ -114,13 +124,16 @@
           "documentation": null,
           "id": "Boundary_Warning",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Warning Boundary",
           "outgoing": ["Flow_BE_Warning"],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "UserTask_LongRunning",
             "cancelActivity": false,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "conditionExpression": "dataObjects.TriggerData.warning = true"
             },
@@ -143,9 +156,11 @@
           "documentation": null,
           "id": "ScriptTask_SetTrigger",
           "incoming": ["Flow_B"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Set Trigger",
           "outgoing": ["Flow_B2"],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -165,9 +180,11 @@
           "documentation": null,
           "id": "End_Normal",
           "incoming": ["Flow_A2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -183,9 +200,11 @@
           "documentation": null,
           "id": "End_B",
           "incoming": ["Flow_B2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Branch B End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -201,9 +220,11 @@
           "documentation": null,
           "id": "End_Critical",
           "incoming": ["Flow_BE_Critical"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Critical End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -219,9 +240,11 @@
           "documentation": null,
           "id": "End_Warning",
           "incoming": ["Flow_BE_Warning"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Warning End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -233,6 +256,7 @@
       "id": "ConditionalBoundaryMultiple",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": [

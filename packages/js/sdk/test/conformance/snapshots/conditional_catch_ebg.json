@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
@@ -34,9 +35,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -52,9 +55,11 @@
           "documentation": null,
           "id": "EBG_1",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Event",
           "outgoing": ["Flow_Timer", "Flow_Conditional"],
+          "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
         },
@@ -66,9 +71,11 @@
           "documentation": null,
           "id": "ConditionalCatch_DataReady",
           "incoming": ["Flow_Conditional"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Data Ready",
           "outgoing": ["Flow_Conditional_End"],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -86,9 +93,11 @@
           "documentation": null,
           "id": "TimerCatch_Timeout",
           "incoming": ["Flow_Timer"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout",
           "outgoing": ["Flow_Timer_End"],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -108,9 +117,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_Timer_End", "Flow_Conditional_End"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -122,6 +133,7 @@
       "id": "ConditionalCatchEbg",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "EBG_1", "ConditionalCatch_DataReady", "TimerCatch_Timeout", "End_1"],

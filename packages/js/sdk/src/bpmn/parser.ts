@@ -31,6 +31,7 @@ import type {
   SequenceFlow,
   ServiceTaskTypeData,
   SignalDefinition,
+  StandardLoop,
 } from './model.js';
 
 // ---------------------------------------------------------------------------
@@ -483,6 +484,7 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
   const outgoing: string[] = [];
   let documentation: string | null = null;
   let multiInstance: MultiInstance | null = null;
+  let standardLoop: StandardLoop | null = null;
   const dataContracts: DataContract[] = [];
   const dataInputAssociations: DataAssociation[] = [];
   const dataOutputAssociations: DataAssociation[] = [];
@@ -514,6 +516,9 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
       case 'multiInstanceLoopCharacteristics':
         multiInstance = parseMultiInstance(child);
         break;
+      case 'standardLoopCharacteristics':
+        standardLoop = parseStandardLoop(child);
+        break;
       case 'dataInputAssociation':
         dataInputAssociations.push(parseAssociation(child, 'dia'));
         break;
@@ -540,6 +545,7 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
     dataInputAssociations,
     dataOutputAssociations,
     multiInstance,
+    standardLoop,
     documentation,
   };
 }
@@ -773,7 +779,12 @@ function buildBusinessRuleTaskTypeData(node: OrderedNode, extKids: OrderedNode[]
  * nodes, sequence flows, data objects, default flow assignment, and
  * boundary ref linking.
  */
-function buildSubProcessTypeData(node: OrderedNode, kids: OrderedNode[], extKids: OrderedNode[], isTransaction = false): FlowNodeTypeData {
+function buildSubProcessTypeData(
+  node: OrderedNode,
+  kids: OrderedNode[],
+  extKids: OrderedNode[],
+  isTransaction = false,
+): FlowNodeTypeData {
   const { inMappings, outMappings } = parseMappings(extKids);
   const innerFlowNodes: FlowNode[] = [];
   const innerSequenceFlows: SequenceFlow[] = [];
@@ -1070,16 +1081,35 @@ function parseMultiInstance(node: OrderedNode): MultiInstance {
 
   const maxIterationsText = childText(extKids, 'maxIterations');
 
+  const elementVariable = childText(extKids, 'elementVariable') || childText(kids, 'inputDataItem') || null;
+
+  const outputElementVariable =
+    childText(extKids, 'outputElementVariable') || childText(kids, 'outputDataItem') || null;
+
   return {
     isSequential: attr(node, 'isSequential') === 'true',
     cardinalityExpression: childText(kids, 'loopCardinality') || null,
     collectionExpression: childText(extKids, 'inputCollection') || null,
-    elementVariable: null,
+    elementVariable,
     completionCondition: childText(kids, 'completionCondition') || null,
     outputCollection: childText(extKids, 'outputCollection') || null,
+    outputElementVariable,
     loopBreakCondition: childText(extKids, 'loopBreakCondition') || null,
     loopInterval: childText(extKids, 'loopInterval') || null,
     maxIterations: maxIterationsText !== '' ? parseIntValue(maxIterationsText) : null,
+  };
+}
+
+function parseStandardLoop(node: OrderedNode): StandardLoop {
+  const kids = children(node);
+  const extKids = getExtensionChildren(kids);
+  const loopMaxAttr = attr(node, 'loopMaximum');
+
+  return {
+    testBefore: attr(node, 'testBefore') === 'true',
+    loopCondition: childText(kids, 'loopCondition') || null,
+    loopMaximum: loopMaxAttr !== null ? parseIntValue(loopMaxAttr) : null,
+    loopInterval: childText(extKids, 'loopInterval') || null,
   };
 }
 

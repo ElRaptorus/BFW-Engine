@@ -697,6 +697,14 @@ and diagram rendering; at runtime, reads happen via FEEL `dataObjects.*`.
 These live inside `<bpmn:extensionElements>` of a
 `<bpmn:multiInstanceLoopCharacteristics>` element.
 
+**Iteration scope model:** Multi-Instance uses a **lightweight iteration scope**
+— iteration FNIs are created within the same process instance as the shell FNI,
+grouped by `multi_instance_id` (a UUID column on `flow_node_instances`). No child
+PIs are spawned. See the execution architecture docs for details.
+
+**`loopCardinality` is NOT supported.** Iteration count is exclusively
+determined by the input collection length (or `evil:maxIterations` cap).
+
 #### `evil:inputCollection` / `evil:outputCollection`
 
 FEEL expressions for the input collection to iterate over and the output
@@ -709,6 +717,27 @@ collection to aggregate results into.
     <evil:outputCollection>processedItems</evil:outputCollection>
   </bpmn:extensionElements>
 </bpmn:multiInstanceLoopCharacteristics>
+```
+
+#### `evil:elementVariable`
+
+Name of the variable bound to the current collection item in each iteration.
+When set, the item is accessible as `loop.item` in FEEL expressions. Falls
+back to `<bpmn:inputDataItem>` if the extension is absent.
+
+```xml
+<evil:elementVariable>item</evil:elementVariable>
+```
+
+#### `evil:outputElementVariable`
+
+Name of the variable used to collect the output of each iteration into the
+output collection. Falls back to `<bpmn:outputDataItem>` if the extension
+is absent. When set, the engine uses this variable name as the key for
+aggregating per-iteration results.
+
+```xml
+<evil:outputElementVariable>processedItem</evil:outputElementVariable>
 ```
 
 #### `evil:loopBreakCondition`
@@ -730,11 +759,51 @@ Interval between sequential loop iterations (e.g. rate-limiting).
 
 #### `evil:maxIterations`
 
-Hard cap on the number of iterations (safety guard).
+Safety cap on the number of iterations. Behavior differs by MI mode:
+
+- **Sequential MI:** caps the collection — items beyond the limit are silently
+  skipped (truncation).
+- **Parallel MI:** fails with `collection_exceeds_max_iterations` if the input
+  collection size exceeds the limit (fail-fast). This prevents accidentally
+  spawning an unbounded number of parallel iterations.
 
 ```xml
 <evil:maxIterations>100</evil:maxIterations>
 ```
+
+### Standard Loop Extensions
+
+Standard loop characteristics (`<bpmn:standardLoopCharacteristics>`) use
+standard BPMN attributes and one `evil:*` extension.
+
+**Standard BPMN properties:**
+
+| Property | XML location | Description |
+|----------|-------------|-------------|
+| `testBefore` | XML attribute | `true` = while-do (check before first iteration); `false` (default) = do-while |
+| `loopMaximum` | XML attribute | Optional hard cap on iteration count |
+| `<bpmn:loopCondition>` | Child element | FEEL expression; loop continues while `true` |
+
+**Engine extension:**
+
+| Extension | Description |
+|-----------|-------------|
+| `evil:loopInterval` | ISO 8601 duration between iterations (polling/healthcheck pattern) |
+
+```xml
+<bpmn:scriptTask id="Task_poll" name="Poll Status" scriptFormat="feel">
+  <bpmn:script>{ counter: loop.completed + 1 }</bpmn:script>
+  <bpmn:standardLoopCharacteristics testBefore="true" loopMaximum="10">
+    <bpmn:loopCondition>loop.completed &lt; 5</bpmn:loopCondition>
+    <bpmn:extensionElements>
+      <evil:loopInterval>PT1S</evil:loopInterval>
+    </bpmn:extensionElements>
+  </bpmn:standardLoopCharacteristics>
+</bpmn:scriptTask>
+```
+
+Standard Loop uses the same lightweight iteration scope as Multi-Instance:
+iteration FNIs in the same PI, grouped by `multi_instance_id`.
 
 ---
 
@@ -1081,7 +1150,7 @@ to the string-keyed format required by the Rust NIF.
 | `process` | Process metadata (`id`, `name`, `version`) — string-keyed |
 | `processInstance` | Instance metadata (`id`, `startedAt`, `startedBy`) — camelCase string-keyed |
 | `identity` | Caller identity (`id`, `roles`, `groups`, `claims`) — string-keyed |
-| `loop` | Iteration-scoped overlay (Multi-Instance / standard-loop; nil when not in a loop) |
+| `loop` | Iteration-scoped overlay (Multi-Instance / Standard Loop; `nil` when not in a loop). Sub-keys: `loop.index` (0-based), `loop.total` (collection length or `nil` for Standard Loop), `loop.completed` (count of finished iterations so far), `loop.results` (list of prior iteration results), `loop.item` (current collection element for MI; `nil` for Standard Loop) |
 | `activatedCount` | Complex-Join overlay: number of incoming branches that have delivered a token so far. Present **only** while evaluating a Complex Gateway join's `<bpmn:activationCondition>` |
 | `incomingCount` | Complex-Join overlay: total number of incoming sequence flows into the Complex Join. Present **only** while evaluating a Complex Gateway join's `<bpmn:activationCondition>` |
 
@@ -1094,7 +1163,8 @@ to the string-keyed format required by the Rust NIF.
 - `<bpmn:timeDuration>`, `<bpmn:timeDate>`, `<bpmn:timeCycle>` (expression-based)
 - `evil:assignees`, `evil:dueDate`, `evil:payload`, `evil:eventMapping`,
   `evil:correlationRetrievalExpression`, `evil:correlationKey`,
-  `evil:inputCollection`, `evil:outputCollection`, `evil:loopBreakCondition`
+  `evil:inputCollection`, `evil:outputCollection`, `evil:loopBreakCondition`,
+  `<bpmn:completionCondition>` (MI), `<bpmn:loopCondition>` (Standard Loop)
 - `evil:httpBody`, `evil:httpAuthHeader`, `evil:httpResponseHeaders` on Service Tasks with `implementation` `"http"` (built-in HTTP handler)
 - `evil:inputMapping` / `evil:outputMapping` `source` attributes
 - `evil:dataContract` / `evil:payloadContract` / `evil:resultContract` do
@@ -1135,9 +1205,11 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `EngineRecovered` | `previousLevel`, `activeProcessInstances`, `limit` | Symmetric counterpart to `EngineOverloaded`; emitted when load drops back to normal |
 | `PluginQuarantined` | `pluginName`, `reason` | |
 | `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `parentProcessInstanceId`, `rootProcessInstanceId`, `oldState`, `newState` | `processModelId` is the BPMN process ID string; `version` is the `evil:version` string. `rootProcessInstanceId` equals `processInstanceId` for root PIs; inherited from parent for child PIs (SP-13) |
-| `FlowNodeInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType` | `flowNodeType` uses `FlowNodeType` enum values; `eventType` is the event definition subtype (`message`, `timer`, `error`, etc.) or `null` for non-event nodes and plain events |
-| `FlowNodeInstanceFinished` | Same + `terminalState`, `typeProperties`, `errorInfo` | `terminalState` uses `FlowNodeInstanceState` enum values; `typeProperties` carries handler-specific metadata (e.g. DMN trace, hit policy, matched rules for BRTs); defaults to `%{}` for non-success states; `errorInfo` is a normalized `%{error_code, message, detail?}` map for fatal FNIs, `null` otherwise |
-| `FlowNodeInstanceStateChanged` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `laneName`, `oldState`, `newState` | Emitted on non-terminal state transitions (currently `active` → `waiting`). Enables the Studio Debugger to track FNI state without polling. |
+| `FlowNodeInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `multiInstanceId`, `iterationIndex` | `flowNodeType` uses `FlowNodeType` enum values; `eventType` is the event definition subtype (`message`, `timer`, `error`, etc.) or `null` for non-event nodes and plain events. `multiInstanceId` / `iterationIndex` are set on MI/Loop iteration FNIs, `null` otherwise |
+| `FlowNodeInstanceFinished` | Same + `terminalState`, `typeProperties`, `errorInfo`, `multiInstanceId`, `iterationIndex` | `terminalState` uses `FlowNodeInstanceState` enum values; `typeProperties` carries handler-specific metadata (e.g. DMN trace, hit policy, matched rules for BRTs); defaults to `%{}` for non-success states; `errorInfo` is a normalized `%{error_code, message, detail?}` map for fatal FNIs, `null` otherwise |
+| `FlowNodeInstanceStateChanged` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `laneName`, `oldState`, `newState`, `multiInstanceId`, `iterationIndex` | Emitted on non-terminal state transitions (currently `active` → `waiting`). Enables the Studio Debugger to track FNI state without polling. |
+| `MultiInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `loopType`, `totalIterations`, `occurredAt` | Emitted when an MI or Standard Loop shell FNI begins execution. `loopType`: `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"`. `totalIterations` is the collection length for MI, `null` for Standard Loop |
+| `MultiInstanceCompleted` | Same + `completedIterations`, `earlyBreak` | Emitted when an MI or Standard Loop shell FNI finishes. `earlyBreak` is `true` when the loop terminated before exhausting all iterations (e.g. `evil:loopBreakCondition` or `completionCondition`) |
 | `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId` | |
 | `UserTaskFinished` | Same + `outcome` | `outcome`: `completed` or `aborted` |
 | `UserTaskValidationFailed` | Same + `violations` | `violations`: array of `{message, path}` |
@@ -1164,7 +1236,7 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `TransactionCancelled` | `processInstanceId`, `rootProcessInstanceId`, `transactionNodeId`, `compensationHandlerCount`, `occurredAt` | Emitted after all automatic LIFO compensation completes and the transaction child PI is about to transition to `:cancelled`. `compensationHandlerCount` is the number of compensation handlers that ran (0 if no completed compensable activities). Broadcast to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`. |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
 
-**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Ten event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, `ActivityCompensated`, and `TransactionCancelled`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
+**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Twelve event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, `ActivityCompensated`, `TransactionCancelled`, `MultiInstanceStarted`, and `MultiInstanceCompleted`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
 
 **`EngineOverloaded` / `EngineRecovered` detail:** Emitted on load-threshold **crossings** (`normal` ↔ `elevated` ↔ `critical`), not on every poller tick. `EngineOverloaded` fires on upward transitions (normal→elevated, elevated→critical, normal→critical). `EngineRecovered` fires on downward transitions to normal (elevated→normal, critical→normal). Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). Detection lives in `EvilEngine.Telemetry.Measurements`.
 
@@ -1233,6 +1305,7 @@ checkpoint reset (`resetToFlowNodeInstanceId`) are supported.
 | Error code | Message |
 |------------|---------|
 | `retry_checkpoint_is_join_gateway` | Cannot retry at a parallel join gateway. Retry at the fork gateway or at a node upstream of it. |
+| `retry_checkpoint_is_mi_iteration` | Cannot retry at an MI/Loop iteration FNI. Retry at the shell activity or at a node upstream of it. |
 
 For implementation details see
 [`docs/architecture/execution.md`](docs/architecture/execution.md) §Retry

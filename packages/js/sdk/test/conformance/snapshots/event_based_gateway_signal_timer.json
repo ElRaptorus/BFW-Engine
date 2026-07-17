@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EBG_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Event",
-          "outgoing": ["Flow_Timer", "Flow_Signal"],
+          "outgoing": [
+            "Flow_Timer",
+            "Flow_Signal"
+          ],
+          "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
         },
@@ -51,10 +63,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "SignalCatch_1",
-          "incoming": ["Flow_Signal"],
+          "incoming": [
+            "Flow_Signal"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal Catch",
-          "outgoing": ["Flow_Signal_End"],
+          "outgoing": [
+            "Flow_Signal_End"
+          ],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -71,10 +89,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "TimerCatch_1",
-          "incoming": ["Flow_Timer"],
+          "incoming": [
+            "Flow_Timer"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Timer Catch",
-          "outgoing": ["Flow_Timer_End"],
+          "outgoing": [
+            "Flow_Timer_End"
+          ],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -93,10 +117,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_Timer_End", "Flow_Signal_End"],
+          "incoming": [
+            "Flow_Timer_End",
+            "Flow_Signal_End"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -108,9 +137,16 @@
       "id": "EbgSignalTimer",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "EBG_1", "SignalCatch_1", "TimerCatch_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "EBG_1",
+            "SignalCatch_1",
+            "TimerCatch_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

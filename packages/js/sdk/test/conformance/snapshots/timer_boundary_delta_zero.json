@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -31,16 +36,24 @@
           }
         },
         {
-          "boundaryEventRefs": ["TimerBE_1"],
+          "boundaryEventRefs": [
+            "TimerBE_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Do Work",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -62,13 +75,18 @@
           "documentation": null,
           "id": "TimerBE_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_BE"],
+          "outgoing": [
+            "Flow_BE"
+          ],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "UserTask_1",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "timeCycle": null,
               "timeDate": "2020-01-01T00:00:00Z",
@@ -85,10 +103,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -103,10 +125,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Timeout",
-          "incoming": ["Flow_BE"],
+          "incoming": [
+            "Flow_BE"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -118,6 +144,7 @@
       "id": "TimerBoundaryDeltaZero",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [],
       "name": "Timer Boundary Delta Zero",
       "sequenceFlows": [

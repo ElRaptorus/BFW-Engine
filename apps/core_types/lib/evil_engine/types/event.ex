@@ -209,7 +209,12 @@ defmodule EvilEngine.Types.Event.ProcessInstanceStateChanged do
 end
 
 defmodule EvilEngine.Types.Event.FlowNodeInstanceStarted do
-  @moduledoc "Emitted when a flow node instance is created and its handler begins."
+  @moduledoc """
+  Emitted when a flow node instance is created and its handler begins.
+
+  `multi_instance_id` and `iteration_index` are populated for MI/Loop
+  iteration FNIs. Both are `nil` for shell FNIs and non-MI nodes.
+  """
 
   @type t :: %__MODULE__{
           flow_node_instance_id: String.t(),
@@ -220,6 +225,8 @@ defmodule EvilEngine.Types.Event.FlowNodeInstanceStarted do
           event_type: String.t() | nil,
           lane_name: String.t() | nil,
           triggerer_flow_node_instance_id: String.t() | nil,
+          multi_instance_id: String.t() | nil,
+          iteration_index: non_neg_integer() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -239,6 +246,8 @@ defmodule EvilEngine.Types.Event.FlowNodeInstanceStarted do
     :event_type,
     :lane_name,
     :triggerer_flow_node_instance_id,
+    :multi_instance_id,
+    :iteration_index,
     :occurred_at
   ]
 end
@@ -267,6 +276,8 @@ defmodule EvilEngine.Types.Event.FlowNodeInstanceFinished do
           lane_name: String.t() | nil,
           terminal_state: atom(),
           triggerer_flow_node_instance_id: String.t() | nil,
+          multi_instance_id: String.t() | nil,
+          iteration_index: non_neg_integer() | nil,
           type_properties: map(),
           error_info: map() | nil,
           occurred_at: DateTime.t()
@@ -291,6 +302,8 @@ defmodule EvilEngine.Types.Event.FlowNodeInstanceFinished do
     :lane_name,
     :terminal_state,
     :triggerer_flow_node_instance_id,
+    :multi_instance_id,
+    :iteration_index,
     :occurred_at,
     type_properties: %{},
     error_info: nil
@@ -315,6 +328,8 @@ defmodule EvilEngine.Types.Event.FlowNodeInstanceStateChanged do
           lane_name: String.t() | nil,
           old_state: atom(),
           new_state: atom(),
+          multi_instance_id: String.t() | nil,
+          iteration_index: non_neg_integer() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -337,6 +352,95 @@ defmodule EvilEngine.Types.Event.FlowNodeInstanceStateChanged do
     :lane_name,
     :old_state,
     :new_state,
+    :multi_instance_id,
+    :iteration_index,
+    :occurred_at
+  ]
+end
+
+defmodule EvilEngine.Types.Event.MultiInstanceStarted do
+  @moduledoc """
+  Emitted when a Multi-Instance or Standard Loop shell FNI begins execution.
+
+  `loop_type` is `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"`.
+  `total_iterations` is the planned iteration count (collection length for MI,
+  nil for Standard Loop where the count is determined by condition evaluation).
+  """
+
+  @type t :: %__MODULE__{
+          flow_node_instance_id: String.t(),
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t() | nil,
+          flow_node_id: String.t(),
+          flow_node_type: atom(),
+          loop_type: String.t(),
+          total_iterations: non_neg_integer() | nil,
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :flow_node_instance_id,
+    :process_instance_id,
+    :flow_node_id,
+    :flow_node_type,
+    :loop_type,
+    :occurred_at
+  ]
+  defstruct [
+    :flow_node_instance_id,
+    :process_instance_id,
+    :root_process_instance_id,
+    :flow_node_id,
+    :flow_node_type,
+    :loop_type,
+    :total_iterations,
+    :occurred_at
+  ]
+end
+
+defmodule EvilEngine.Types.Event.MultiInstanceCompleted do
+  @moduledoc """
+  Emitted when a Multi-Instance or Standard Loop shell FNI finishes.
+
+  `completed_iterations` is the number of iterations that ran to completion.
+  `early_break` indicates whether the loop terminated before exhausting
+  all iterations (due to `completionCondition`, `loopBreakCondition`,
+  `maxIterations`, or a loop condition becoming false).
+  """
+
+  @type t :: %__MODULE__{
+          flow_node_instance_id: String.t(),
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t() | nil,
+          flow_node_id: String.t(),
+          flow_node_type: atom(),
+          loop_type: String.t(),
+          total_iterations: non_neg_integer() | nil,
+          completed_iterations: non_neg_integer(),
+          early_break: boolean(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :flow_node_instance_id,
+    :process_instance_id,
+    :flow_node_id,
+    :flow_node_type,
+    :loop_type,
+    :completed_iterations,
+    :early_break,
+    :occurred_at
+  ]
+  defstruct [
+    :flow_node_instance_id,
+    :process_instance_id,
+    :root_process_instance_id,
+    :flow_node_id,
+    :flow_node_type,
+    :loop_type,
+    :total_iterations,
+    :completed_iterations,
+    :early_break,
     :occurred_at
   ]
 end

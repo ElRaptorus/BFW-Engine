@@ -17,6 +17,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -31,9 +32,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_Start_SP"],
+          "outgoing": [
+            "Flow_Start_SP"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -42,16 +47,25 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_B", "BE_A"],
+          "boundaryEventRefs": [
+            "BE_B",
+            "BE_A"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "SP_1",
-          "incoming": ["Flow_Start_SP"],
+          "incoming": [
+            "Flow_Start_SP"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Parallel Subprocess",
-          "outgoing": ["Flow_SP_End"],
+          "outgoing": [
+            "Flow_SP_End"
+          ],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -65,9 +79,13 @@
                 "documentation": null,
                 "id": "SP_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "SP Start",
-                "outgoing": ["Flow_SP_PG"],
+                "outgoing": [
+                  "Flow_SP_PG"
+                ],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -82,10 +100,17 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "PG_Split",
-                "incoming": ["Flow_SP_PG"],
+                "incoming": [
+                  "Flow_SP_PG"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Split",
-                "outgoing": ["Flow_PG_B", "Flow_PG_A"],
+                "outgoing": [
+                  "Flow_PG_B",
+                  "Flow_PG_A"
+                ],
+                "standardLoop": null,
                 "type": "parallel_gateway",
                 "typeData": {}
               },
@@ -96,10 +121,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Throw_EscA",
-                "incoming": ["Flow_PG_A"],
+                "incoming": [
+                  "Flow_PG_A"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Throw A",
-                "outgoing": ["Flow_A_End"],
+                "outgoing": [
+                  "Flow_A_End"
+                ],
+                "standardLoop": null,
                 "type": "intermediate_throw_event",
                 "typeData": {
                   "eventDefinition": {
@@ -117,10 +148,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "End_BranchA",
-                "incoming": ["Flow_A_End"],
+                "incoming": [
+                  "Flow_A_End"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Branch A End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -135,10 +170,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Throw_EscB",
-                "incoming": ["Flow_PG_B"],
+                "incoming": [
+                  "Flow_PG_B"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Throw B",
-                "outgoing": ["Flow_B_End"],
+                "outgoing": [
+                  "Flow_B_End"
+                ],
+                "standardLoop": null,
                 "type": "intermediate_throw_event",
                 "typeData": {
                   "eventDefinition": {
@@ -156,10 +197,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "End_BranchB",
-                "incoming": ["Flow_B_End"],
+                "incoming": [
+                  "Flow_B_End"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Branch B End",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -169,6 +214,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -214,6 +260,7 @@
                 "targetRef": "End_BranchB"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": false
           }
         },
@@ -225,13 +272,18 @@
           "documentation": null,
           "id": "BE_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Catch A",
-          "outgoing": ["Flow_BE_A"],
+          "outgoing": [
+            "Flow_BE_A"
+          ],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "SP_1",
             "cancelActivity": false,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "escalationCode": null,
               "escalationRef": "Esc_A"
@@ -248,13 +300,18 @@
           "documentation": null,
           "id": "BE_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Catch B",
-          "outgoing": ["Flow_BE_B"],
+          "outgoing": [
+            "Flow_BE_B"
+          ],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "SP_1",
             "cancelActivity": false,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "escalationCode": null,
               "escalationRef": "Esc_B"
@@ -270,10 +327,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_BoundaryA",
-          "incoming": ["Flow_BE_A"],
+          "incoming": [
+            "Flow_BE_A"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -288,10 +349,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_BoundaryB",
-          "incoming": ["Flow_BE_B"],
+          "incoming": [
+            "Flow_BE_B"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done B",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -306,10 +371,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_SP_End"],
+          "incoming": [
+            "Flow_SP_End"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done Normal",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -321,9 +390,18 @@
       "id": "EscalationParallelBranches",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SP_1", "BE_A", "BE_B", "End_BoundaryA", "End_BoundaryB", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SP_1",
+            "BE_A",
+            "BE_B",
+            "End_BoundaryA",
+            "End_BoundaryB",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

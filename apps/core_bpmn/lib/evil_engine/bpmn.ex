@@ -6,6 +6,7 @@ defmodule EvilEngine.BPMN do
 
   alias EvilEngine.BPMN.Model.Definitions
   alias EvilEngine.BPMN.Parser
+  alias EvilEngine.BPMN.Precompiler
   alias EvilEngine.BPMN.Validator
 
   @doc "Parse a BPMN XML binary into a `%Definitions{}` AST."
@@ -17,15 +18,26 @@ defmodule EvilEngine.BPMN do
   defdelegate validate(definitions), to: Validator
 
   @doc """
-  Parse a BPMN XML binary and then validate the result.
+  Precompile FEEL expressions on MI/Loop structs within a Definitions AST.
 
-  Returns `{:ok, %Definitions{}}` when both steps succeed, or
-  `{:error, reason}` on the first failure.
+  Best-effort: expressions that fail to compile are left as `nil`.
+  Called automatically by `parse_and_validate/1`.
+  """
+  @spec precompile(Definitions.t()) :: Definitions.t()
+  defdelegate precompile(definitions), to: Precompiler
+
+  @doc """
+  Parse a BPMN XML binary, validate, and precompile FEEL expressions.
+
+  Returns `{:ok, %Definitions{}}` when parse and validation succeed, or
+  `{:error, reason}` on the first failure. Precompilation is best-effort
+  and never causes this function to return an error.
   """
   @spec parse_and_validate(String.t()) :: {:ok, Definitions.t()} | {:error, term()}
   def parse_and_validate(xml) do
-    with {:ok, definitions} <- Parser.parse(xml) do
-      Validator.validate(definitions)
+    with {:ok, definitions} <- Parser.parse(xml),
+         {:ok, definitions} <- Validator.validate(definitions) do
+      {:ok, Precompiler.precompile(definitions)}
     end
   end
 end

@@ -1,0 +1,130 @@
+{
+  "definitionsId": "Definitions_child_retry_ca",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CStart_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Child Start",
+          "outgoing": [
+            "CFlow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CFatalTask_1",
+          "incoming": [
+            "CFlow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fatal Task",
+          "outgoing": [
+            "CFlow_2"
+          ],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "nonexistent_handler",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "CEnd_1",
+          "incoming": [
+            "CFlow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Child End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "tx_retry_ca_child",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "CStart_1",
+            "CFatalTask_1",
+            "CEnd_1"
+          ],
+          "id": "Lane_c1",
+          "name": "default"
+        }
+      ],
+      "name": "TX Retry CA Child",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "CFlow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CStart_1",
+          "targetRef": "CFatalTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "CFlow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "CFatalTask_1",
+          "targetRef": "CEnd_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

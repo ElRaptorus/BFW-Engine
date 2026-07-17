@@ -1,0 +1,12 @@
+name: "C271: Standard Loop — loopMaximum caps iterations"
+wait_timeout_ms: 10000
+fixture: "loop_with_maximum.bpmn"
+process_model_id: "loop-with-maximum"
+tier: auto
+start:
+  payload:
+    counter: 0
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

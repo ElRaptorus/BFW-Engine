@@ -1,0 +1,374 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Msg_Outer",
+      "name": "esp-outer-message"
+    }
+  ],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Main_Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Main_UserTask",
+          "incoming": [
+            "Main_Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Main Work",
+          "outgoing": [
+            "Main_Flow_2"
+          ],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [
+            "Main_Flow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ESP_Outer",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Outer Message Event Subprocess",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Outer_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Message Received",
+                "outgoing": [
+                  "ESP_Outer_Flow_1"
+                ],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "correlationRetrievalExpression": null,
+                    "eventMapping": null,
+                    "messageRef": "Msg_Outer",
+                    "payloadExpression": null
+                  },
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Outer_UserTask",
+                "incoming": [
+                  "ESP_Outer_Flow_1"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Outer ESP Work",
+                "outgoing": [
+                  "ESP_Outer_Flow_2"
+                ],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Outer_End",
+                "incoming": [
+                  "ESP_Outer_Flow_2"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Outer ESP Done",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Inner",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Inner Timer Event Subprocess",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Inner_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Timer Elapsed",
+                      "outgoing": [
+                        "ESP_Inner_Flow_1"
+                      ],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {
+                          "timeCycle": null,
+                          "timeDate": null,
+                          "timeDuration": "PT1S"
+                        },
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Inner_Task",
+                      "incoming": [
+                        "ESP_Inner_Flow_1"
+                      ],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Inner ESP Work",
+                      "outgoing": [
+                        "ESP_Inner_Flow_2"
+                      ],
+                      "standardLoop": null,
+                      "type": "task",
+                      "typeData": {}
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "ESP_Inner_End",
+                      "incoming": [
+                        "ESP_Inner_Flow_2"
+                      ],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Inner ESP Done",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "inMappings": [],
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Inner_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "ESP_Inner_Start",
+                      "targetRef": "ESP_Inner_Task"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "ESP_Inner_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "ESP_Inner_Task",
+                      "targetRef": "ESP_Inner_End"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": true
+                }
+              }
+            ],
+            "inMappings": [],
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "ESP_Outer_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Outer_Start",
+                "targetRef": "ESP_Outer_UserTask"
+              },
+              {
+                "conditionExpression": null,
+                "id": "ESP_Outer_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Outer_UserTask",
+                "targetRef": "ESP_Outer_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "EventSubprocessNestedESP",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Main_UserTask",
+            "End_1",
+            "ESP_Outer"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Event Subprocess Nested ESP",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Main_UserTask"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Main_UserTask",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

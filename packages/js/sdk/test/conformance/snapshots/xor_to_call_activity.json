@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,25 +41,31 @@
           "documentation": null,
           "id": "XOR_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Check Amount",
           "outgoing": [],
+          "standardLoop": null,
           "type": "exclusive_gateway",
           "typeData": {
             "defaultFlowRef": null
           }
         },
         {
-          "boundaryEventRefs": ["BE_1"],
+          "boundaryEventRefs": [
+            "BE_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Child",
           "outgoing": [],
+          "standardLoop": null,
           "type": "call_activity",
           "typeData": {
             "calledElement": "ChildProcess",
@@ -73,13 +82,16 @@
           "documentation": null,
           "id": "BE_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": null,
           "outgoing": [],
+          "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
             "attachedToRef": "CA_1",
             "cancelActivity": true,
+            "compensationHandlerId": null,
             "eventDefinition": {
               "errorCode": null,
               "errorMessage": null,
@@ -97,9 +109,11 @@
           "documentation": null,
           "id": "Task_Direct",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Direct Path",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -111,9 +125,11 @@
           "documentation": null,
           "id": "End_CA",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "CA Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -129,9 +145,11 @@
           "documentation": null,
           "id": "End_Direct",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Direct Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -147,9 +165,11 @@
           "documentation": null,
           "id": "End_Error",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Error Handled",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -161,9 +181,19 @@
       "id": "XorToCallActivity",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "XOR_1", "CA_1", "BE_1", "Task_Direct", "End_CA", "End_Direct", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "XOR_1",
+            "CA_1",
+            "BE_1",
+            "Task_Direct",
+            "End_CA",
+            "End_Direct",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -27,6 +27,7 @@ export { ProcessInstanceNotRetriableError } from './process-instance-not-retriab
 export { IncompatibleVersionMigrationError } from './incompatible-version-migration-error.js';
 export { RetryCheckpointIsJoinGatewayError } from './retry-checkpoint-is-join-gateway-error.js';
 export { RetryCheckpointIsEbgLoserError } from './retry-checkpoint-is-ebg-loser-error.js';
+export { RetryCheckpointIsMiIterationError } from './retry-checkpoint-is-mi-iteration-error.js';
 export { RetryCheckpointInsideTransactionError } from './retry-checkpoint-inside-transaction-error.js';
 export { RetryInsideTransactionScopeError } from './retry-inside-transaction-scope-error.js';
 export { GraphqlDepthLimitError } from './graphql-depth-limit-error.js';

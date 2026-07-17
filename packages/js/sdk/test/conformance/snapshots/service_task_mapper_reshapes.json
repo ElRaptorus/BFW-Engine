@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "ServiceTask_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Reshape Before Contract",
           "outgoing": [],
+          "standardLoop": null,
           "type": "service_task",
           "typeData": {
             "httpAuthHeader": null,
@@ -62,7 +67,9 @@
                   "type": "string"
                 }
               },
-              "required": ["id"],
+              "required": [
+                "id"
+              ],
               "type": "object"
             },
             "resultContract": null
@@ -76,9 +83,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -90,9 +99,14 @@
       "id": "ServiceTaskMapperReshapes",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "ServiceTask_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "ServiceTask_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

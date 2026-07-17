@@ -1,0 +1,13 @@
+name: "C268: MI — retry after fatal iteration recovers whole MI"
+wait_timeout_ms: 10000
+fixture: "mi_retry_whole.bpmn"
+process_model_id: "mi-retry-whole"
+tier: interactive
+start:
+  payload:
+    items:
+      - fail: true
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

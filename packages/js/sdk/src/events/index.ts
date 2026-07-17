@@ -36,6 +36,8 @@ export type {
   CompensationTriggered,
   ActivityCompensated,
   TransactionCancelled,
+  MultiInstanceStarted,
+  MultiInstanceCompleted,
   EventSubprocessTriggered,
   SinkFailed,
 } from './engine-events.js';

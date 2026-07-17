@@ -6,15 +6,13 @@
   <img src="./assets/ThomasTheDaemonEngine.png" alt="" width="400">
 </div>
 
-## Related
-
-Used to run awesome stuff created with the [Forge World Studio](https://github.com/ElRaptorus/BFW-Studio)
+> **Still an early Access Alpha Build. No guarantees.**
 
 ## What is this Heresy?
 
 A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blood dedicated to the Blood God Khorne.
 
-**Still in an Alpha Stage. Consider it as early-access.**
+Used to run awesome stuff created with the [Forge World Studio](https://github.com/ElRaptorus/BFW-Studio)
 
 - **User Manual & API Reference**: see [Documentation](#documentation) below.
 - **Philosophy**: see [docs/Philosophy.md](./docs/Philosophy.md).
@@ -25,9 +23,8 @@ A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blo
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 5 in progress.** Every Element, except Multi Instances, is now fully supported.
->
-> See tables below for [BPMN](#bpmn-20-element-support) and [DMN](#dmn-15-support) element support.
+> **Status**: **Phase 5 of 7 completed.** Full BPMN Spec Coverage achieved (yes, including Complex Gateways).
+> **Phase 6 Next:** API Polish & Sidecar Plugin Support.
 
 ---
 

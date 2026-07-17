@@ -1,0 +1,14 @@
+name: "C250: Parallel MI — business rule task per collection item"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_brt.bpmn"
+process_model_id: "mi-parallel-brt"
+tier: auto
+start:
+  payload:
+    items:
+      - amount: 100
+      - amount: 200
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

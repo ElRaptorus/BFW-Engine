@@ -2006,3 +2006,122 @@ The `TimerStartListener` uses a dedicated system identity (`system:timer-start`)
 | `EvilEngine.Execution.ResumeRunner` | `apps/core_execution/lib/evil_engine/execution/resume_runner.ex` |
 | `EvilEngine.Execution.TimerStartListener` | `apps/core_execution/lib/evil_engine/execution/timer_start_listener.ex` |
 | Execution Application (hidden) | `apps/core_execution/lib/evil_engine/execution/application.ex` |
+
+---
+
+## Multi-Instance and Standard Loop
+
+### Overview
+
+Multi-Instance (MI) and Standard Loop activities execute their inner body multiple times. The engine uses a **lightweight iteration scope** model: iteration FNIs are created within the same process instance as the shell, grouped by `multi_instance_id`, rather than spawning child process instances. This keeps the PI state machine simple and avoids the overhead of cross-PI communication.
+
+Unlike Call Activity or Embedded SubProcess, MI and Standard Loop do **not** spawn child process instances. This design:
+
+- Avoids the overhead of child PI creation/teardown per iteration
+- Keeps all iteration state queryable via a single PI ID
+- Enables the Studio Debugger to group iteration FNIs under their shell
+
+### Shell and Iteration FNIs
+
+When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopCharacteristics>` is dispatched, the PI creates a **shell FNI** that orchestrates the loop. The shell parks as `:waiting` while a `Task` manages the lifecycle:
+
+- **Parallel MI** — All iteration FNIs are dispatched concurrently. Each runs through `HandlerDispatch` as if it were a normal FNI. Results are collected via `Task.async_stream`.
+- **Sequential MI** — Iteration FNIs are dispatched one at a time. The shell Task awaits each result before dispatching the next.
+- **Standard Loop** — The same flow node body is executed repeatedly. In `while-do` mode (`testBefore=true`), the condition is checked before the first iteration. In `do-while` mode (`testBefore=false`), the first iteration runs unconditionally.
+
+### Execution Flow
+
+#### Multi-Instance (Parallel)
+
+1. Shell FNI enters → evaluate `evil:inputCollection` → determine iteration count
+2. Shell parks as `:waiting`; emits `MultiInstanceStarted`
+3. All iteration FNIs are dispatched concurrently via `dispatch_mi_iteration_fni`
+4. Each iteration FNI runs the underlying activity handler with a `loop.*` overlay in the FEEL context
+5. As results arrive via `{:fni_result, iteration_fni_id, result}`:
+   - On success: persist iteration FNI as `:finished`, check `completionCondition` / `evil:loopBreakCondition`
+   - On failure: persist iteration FNI as `:fatal`; remaining iterations continue (unless break condition)
+6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI
+
+#### Multi-Instance (Sequential)
+
+Same as parallel but iterations are dispatched one at a time. After each iteration completes, the next is dispatched. `evil:loopInterval` adds an optional delay between iterations.
+
+#### Standard Loop (while-do / do-while)
+
+1. Shell FNI enters → evaluate `loopCondition` (if `testBefore=true`, check before first iteration)
+2. Shell parks as `:waiting`; emits `MultiInstanceStarted` (with `loopType: "standard_loop"`)
+3. Each iteration creates an iteration FNI, runs the activity handler
+4. After each iteration: evaluate `loopCondition`; if still `true` and under `loopMaximum`, dispatch next iteration
+5. When condition becomes `false` or max reached: emit `MultiInstanceCompleted`, finish shell FNI
+
+### Database Columns
+
+Two columns on `flow_node_instances` support MI grouping:
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `multi_instance_id` | UUID, nullable | Links iteration FNIs to their shell FNI (shell FNI ID) |
+| `iteration_index` | integer, nullable | Zero-based position of the iteration |
+
+Shell FNIs have both columns as `nil`. Non-MI FNIs also have both as `nil`.
+
+### FEEL Context Overlay
+
+Iteration FNIs receive a `loop` overlay in their FEEL context via `FeelContext.put_loop_bindings/6`:
+
+| Binding | Type | Description |
+|---------|------|-------------|
+| `loop.index` | integer | Zero-based iteration index |
+| `loop.total` | integer or nil | Total iterations (collection length for MI; nil for Standard Loop) |
+| `loop.completed` | integer | Number of completed iterations so far |
+| `loop.results` | list | Results from completed iterations |
+| `loop.item` | any | Current collection item (MI only; nil for Standard Loop) |
+
+### Early Termination
+
+Several mechanisms can terminate a loop before all iterations complete:
+
+- **`completionCondition`** (MI) — Standard BPMN element; FEEL expression evaluated after each iteration. When true, remaining iterations are not started (parallel: in-flight iterations are awaited but no new ones dispatch).
+- **`evil:loopBreakCondition`** (MI) — Engine extension; same semantics as `completionCondition`.
+- **`evil:maxIterations`** (MI) — Hard cap on iteration count.
+- **`loopMaximum`** (Standard Loop) — Hard cap on loop passes.
+- **Loop condition becomes false** (Standard Loop) — Normal termination for while-do.
+
+### Engine Events
+
+Two dedicated events bracket MI/Loop execution:
+
+| Event | Key Fields |
+|-------|------------|
+| `MultiInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `loopType` (`parallel_mi` / `sequential_mi` / `standard_loop`), `totalIterations` |
+| `MultiInstanceCompleted` | Same + `completedIterations`, `earlyBreak` |
+
+Existing FNI events (`FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`) carry `multiInstanceId` and `iterationIndex` for iteration FNIs.
+
+### Resumption
+
+On engine restart, MI shell FNIs are reactivated specially by `Resumption.reactivate_mi_shell_fni/4`:
+
+1. Any previously active/waiting iteration FNIs are marked as `:interrupted` (their in-memory tasks are gone).
+2. The shell FNI itself is reactivated, re-evaluating its collection and re-dispatching iterations from scratch.
+
+This effectively retries the MI as a whole upon resume, which is the simplest correct strategy.
+
+### Retry
+
+- Retry at a **shell FNI** is allowed — it re-runs the entire MI/Loop.
+- Retry at an **iteration FNI** (`multi_instance_id != nil`) is rejected with error code `retry_checkpoint_is_mi_iteration`.
+- Individual iteration failures make the shell FNI fatal, which is the retry target.
+
+### Abort / Fatal / Error Cascading
+
+PI-level cascading (`abort_all_fnis`, `fatal_all_fnis`, `error_all_remaining_fnis`) naturally covers iteration FNIs because they live in the same PI. The shell FNI's `handle_aborted/1` callback also kills in-flight iteration tasks.
+
+### Handler Modules
+
+| Module | Purpose |
+|--------|---------|
+| `EvilEngine.Execution.FlowNodes.MultiInstanceBody` | Parallel and sequential MI orchestration |
+| `EvilEngine.Execution.FlowNodes.StandardLoopBody` | While-do and do-while loop orchestration |
+
+Both are dispatched by `HandlerDispatch` when the flow node carries `multiInstanceLoopCharacteristics` or `standardLoopCharacteristics` respectively.

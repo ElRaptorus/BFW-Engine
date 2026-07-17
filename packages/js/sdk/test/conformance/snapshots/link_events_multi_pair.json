@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -51,10 +62,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "LinkThrow_A",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Throw A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
             "eventDefinition": {
@@ -72,9 +87,13 @@
           "documentation": null,
           "id": "LinkCatch_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Catch A",
-          "outgoing": ["Flow_3"],
+          "outgoing": [
+            "Flow_3"
+          ],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -91,10 +110,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_B",
-          "incoming": ["Flow_3"],
+          "incoming": [
+            "Flow_3"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": ["Flow_4"],
+          "outgoing": [
+            "Flow_4"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -105,10 +130,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "LinkThrow_B",
-          "incoming": ["Flow_4"],
+          "incoming": [
+            "Flow_4"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Throw B",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
             "eventDefinition": {
@@ -126,9 +155,13 @@
           "documentation": null,
           "id": "LinkCatch_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Catch B",
-          "outgoing": ["Flow_5"],
+          "outgoing": [
+            "Flow_5"
+          ],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -145,10 +178,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_C",
-          "incoming": ["Flow_5"],
+          "incoming": [
+            "Flow_5"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task C",
-          "outgoing": ["Flow_6"],
+          "outgoing": [
+            "Flow_6"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -159,10 +198,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_6"],
+          "incoming": [
+            "Flow_6"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -174,6 +217,7 @@
       "id": "LinkEventsMultiPairProcess",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": [

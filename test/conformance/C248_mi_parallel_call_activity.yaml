@@ -1,0 +1,16 @@
+name: "C248: Parallel MI — call activity per collection item"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_call_activity.bpmn"
+process_model_id: "mi-parallel-call-activity"
+child_fixtures:
+  - "mi_parallel_ca_child.bpmn"
+tier: auto
+start:
+  payload:
+    items:
+      - orderId: 1
+      - orderId: 2
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

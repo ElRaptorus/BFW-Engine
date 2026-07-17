@@ -201,27 +201,78 @@ defmodule EvilEngine.BPMN.Model.MultiInstance do
   The parser supports both standard BPMN `<bpmn:multiInstanceLoopCharacteristics>`
   attributes and `evil:*` extensions, preferring the extension when both
   are present.
+
+  `loopCardinality` is intentionally not supported — iteration count is
+  exclusively determined by the input collection length.
+
+  The `compiled_*` fields are reserved for future precompilation support.
+  They are currently always `nil` because MI/Loop FEEL expressions
+  reference runtime context variables (`token.*`, `loop.*`) whose shape
+  is unknown at deploy time. The handlers use `Expressions.eval/2`
+  (one-shot parse+evaluate) instead.
   """
 
   @type t :: %__MODULE__{
           is_sequential: boolean(),
-          cardinality_expression: String.t() | nil,
           collection_expression: String.t() | nil,
           element_variable: String.t() | nil,
           completion_condition: String.t() | nil,
           output_collection: String.t() | nil,
+          output_element_variable: String.t() | nil,
           loop_break_condition: String.t() | nil,
           loop_interval: String.t() | nil,
-          max_iterations: non_neg_integer() | nil
+          max_iterations: non_neg_integer() | nil,
+          compiled_collection: reference() | nil,
+          compiled_output_collection: reference() | nil,
+          compiled_completion_condition: reference() | nil,
+          compiled_loop_break_condition: reference() | nil
         }
 
   defstruct is_sequential: false,
-            cardinality_expression: nil,
             collection_expression: nil,
             element_variable: nil,
             completion_condition: nil,
             output_collection: nil,
+            output_element_variable: nil,
             loop_break_condition: nil,
             loop_interval: nil,
-            max_iterations: nil
+            max_iterations: nil,
+            compiled_collection: nil,
+            compiled_output_collection: nil,
+            compiled_completion_condition: nil,
+            compiled_loop_break_condition: nil
+end
+
+defmodule EvilEngine.BPMN.Model.StandardLoop do
+  @moduledoc """
+  Standard loop characteristics (`<bpmn:standardLoopCharacteristics>`) for
+  a flow node.
+
+  When `test_before` is `true`, the loop evaluates `loop_condition` before
+  the first iteration (while-do). When `false` (default), the first iteration
+  runs unconditionally and the condition is checked afterwards (do-while).
+
+  `loop_maximum` is an optional hard cap on iteration count.
+  `loop_interval` is an optional ISO 8601 duration between iterations,
+  essential for polling/healthcheck patterns.
+
+  `compiled_loop_condition` is reserved for future precompilation support.
+  It is currently always `nil` — the handler uses `Expressions.eval/2`
+  (one-shot parse+evaluate) because the expression references runtime
+  context variables (`token.*`, `loop.*`).
+  """
+
+  @type t :: %__MODULE__{
+          test_before: boolean(),
+          loop_condition: String.t() | nil,
+          loop_maximum: non_neg_integer() | nil,
+          loop_interval: String.t() | nil,
+          compiled_loop_condition: reference() | nil
+        }
+
+  defstruct test_before: false,
+            loop_condition: nil,
+            loop_maximum: nil,
+            loop_interval: nil,
+            compiled_loop_condition: nil
 end

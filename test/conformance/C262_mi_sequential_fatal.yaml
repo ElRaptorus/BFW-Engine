@@ -1,0 +1,11 @@
+name: "C262: Sequential MI — iteration fatals, MI shell fatals"
+wait_timeout_ms: 10000
+fixture: "mi_sequential_fatal.bpmn"
+process_model_id: "mi-sequential-fatal"
+tier: error
+start:
+  payload:
+    items:
+      - fail: true
+expected:
+  final_state: "fatal"

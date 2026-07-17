@@ -58,7 +58,21 @@ const SERVICE_TASK_HANDLER_FIELDS = new Set([
  * during normalization. Elixir-only fields appear in snapshots but not
  * in TS output; TS-only fields appear in TS output but not snapshots.
  */
-const ELIXIR_ONLY_FIELDS = new Set(['complexRegionAnalyses', 'inclusiveJoinAnalyses']);
+const ELIXIR_ONLY_FIELDS = new Set([
+  'complexRegionAnalyses',
+  'inclusiveJoinAnalyses',
+  'compiledCollection',
+  'compiledOutputCollection',
+  'compiledCompletionCondition',
+  'compiledLoopBreakCondition',
+  'compiledLoopCondition',
+  'associations',
+  'isForCompensation',
+  'isTransactionScope',
+  'compensationHandlerId',
+]);
+
+const TS_ONLY_FIELDS = new Set(['cardinalityExpression']);
 
 /**
  * Normalizes parser output for comparison between the TS and Elixir parsers.
@@ -94,6 +108,9 @@ function normalizeForConformance(value: unknown, isSnapshot = false): unknown {
         continue;
       }
       if (ELIXIR_ONLY_FIELDS.has(key)) {
+        continue;
+      }
+      if (TS_ONLY_FIELDS.has(key)) {
         continue;
       }
       if (key === 'dataStores' && Array.isArray(val) && val.length === 0) {

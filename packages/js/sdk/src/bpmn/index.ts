@@ -16,6 +16,7 @@ export type {
   Extension,
   LinterRulesetScore,
   MultiInstance,
+  StandardLoop,
   Mapping,
   WithMappings,
   WithContracts,

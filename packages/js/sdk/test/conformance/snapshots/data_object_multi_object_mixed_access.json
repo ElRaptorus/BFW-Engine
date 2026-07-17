@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [
@@ -46,9 +47,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -71,9 +74,11 @@
           "documentation": null,
           "id": "ScriptTask_Init",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Init Config",
           "outgoing": [],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -100,9 +105,11 @@
           "documentation": null,
           "id": "ScriptTask_Compute",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Compute",
           "outgoing": [],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -129,9 +136,11 @@
           "documentation": null,
           "id": "ScriptTask_Finalize",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Finalize",
           "outgoing": [],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -151,9 +160,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -165,6 +176,7 @@
       "id": "DataObjectMultiMixed",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "ScriptTask_Init", "ScriptTask_Compute", "ScriptTask_Finalize", "End_1"],

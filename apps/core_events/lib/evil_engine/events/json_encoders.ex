@@ -9,6 +9,8 @@ for module <- [
       EvilEngine.Types.Event.FlowNodeInstanceStarted,
       EvilEngine.Types.Event.FlowNodeInstanceFinished,
       EvilEngine.Types.Event.FlowNodeInstanceStateChanged,
+      EvilEngine.Types.Event.MultiInstanceStarted,
+      EvilEngine.Types.Event.MultiInstanceCompleted,
       EvilEngine.Types.Event.UserTaskCreated,
       EvilEngine.Types.Event.UserTaskFinished,
       EvilEngine.Types.Event.UserTaskValidationFailed,

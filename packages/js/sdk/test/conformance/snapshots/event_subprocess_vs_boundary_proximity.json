@@ -1,0 +1,431 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_PROX",
+      "id": "Esc_Proximity",
+      "name": "proximity-escalation"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Main_Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [
+            "Boundary_Escalation"
+          ],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EmbSub_Escalating",
+          "incoming": [
+            "Main_Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Escalating Subprocess",
+          "outgoing": [
+            "Main_Flow_2"
+          ],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "EmbSub_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub Start",
+                "outgoing": [
+                  "EmbSub_Flow_1"
+                ],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "EmbSub_Throw",
+                "incoming": [
+                  "EmbSub_Flow_1"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Throw Escalation",
+                "outgoing": [
+                  "EmbSub_Flow_2"
+                ],
+                "standardLoop": null,
+                "type": "intermediate_throw_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "escalationCode": null,
+                    "escalationRef": "Esc_Proximity"
+                  },
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "EmbSub_End",
+                "incoming": [
+                  "EmbSub_Flow_2"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub End",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "EmbSub_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "EmbSub_Start",
+                "targetRef": "EmbSub_Throw"
+              },
+              {
+                "conditionExpression": null,
+                "id": "EmbSub_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "EmbSub_Throw",
+                "targetRef": "EmbSub_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Escalation",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Catch Escalation",
+          "outgoing": [
+            "Boundary_Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "EmbSub_Escalating",
+            "cancelActivity": false,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_Proximity"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": [
+            "Main_Flow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_BoundaryPath",
+          "incoming": [
+            "Boundary_Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Boundary Caught",
+          "outgoing": [
+            "Boundary_Flow_2"
+          ],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_BoundaryCaught",
+          "incoming": [
+            "Boundary_Flow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Boundary End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ESP_Escalation",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Escalation Event Subprocess",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "ESP Escalation Caught",
+                "outgoing": [
+                  "ESP_Flow_1"
+                ],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "escalationCode": null,
+                    "escalationRef": "Esc_Proximity"
+                  },
+                  "isInterrupting": false,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Task",
+                "incoming": [
+                  "ESP_Flow_1"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "ESP Handle Escalation",
+                "outgoing": [
+                  "ESP_Flow_2"
+                ],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_End",
+                "incoming": [
+                  "ESP_Flow_2"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "ESP Done",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Start",
+                "targetRef": "ESP_Task"
+              },
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Task",
+                "targetRef": "ESP_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "EventSubprocessVsBoundaryProximity",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "EmbSub_Escalating",
+            "End_Normal",
+            "Boundary_Escalation",
+            "Task_BoundaryPath",
+            "End_BoundaryCaught",
+            "ESP_Escalation"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Event Subprocess Vs Boundary Proximity",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "EmbSub_Escalating"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EmbSub_Escalating",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Boundary_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Escalation",
+          "targetRef": "Task_BoundaryPath"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Boundary_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_BoundaryPath",
+          "targetRef": "End_BoundaryCaught"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

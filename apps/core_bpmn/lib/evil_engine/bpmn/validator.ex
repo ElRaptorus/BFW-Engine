@@ -28,8 +28,10 @@ defmodule EvilEngine.BPMN.Validator do
   alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
+  alias EvilEngine.BPMN.Model.MultiInstance
   alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
   alias EvilEngine.BPMN.Model.SequenceFlow
+  alias EvilEngine.BPMN.Model.StandardLoop
 
   @type violation :: {atom(), String.t()}
 
@@ -73,7 +75,8 @@ defmodule EvilEngine.BPMN.Validator do
       check_event_subprocess_shell_flows(process),
       check_unique_flow_node_ids(process),
       check_cancel_transaction_scope(process),
-      check_nested_transactions(process)
+      check_nested_transactions(process),
+      check_loop_characteristics(process)
     ])
   end
 
@@ -1689,6 +1692,159 @@ defmodule EvilEngine.BPMN.Validator do
   end
 
   defp nested_transaction_violation(_outer_id, _node), do: []
+
+  # ---------------------------------------------------------------------------
+  # Loop characteristics checks (MI + Standard Loop)
+  # ---------------------------------------------------------------------------
+
+  @activity_types [
+    :task,
+    :user_task,
+    :service_task,
+    :manual_task,
+    :script_task,
+    :business_rule_task,
+    :send_task,
+    :receive_task,
+    :call_activity,
+    :sub_process
+  ]
+
+  defp check_loop_characteristics(%BpmnProcess{} = process) do
+    all_flow_nodes = collect_all_flow_nodes_flat(process.flow_nodes)
+    Enum.flat_map(all_flow_nodes, &check_node_loop_characteristics/1)
+  end
+
+  defp collect_all_flow_nodes_flat(flow_nodes) do
+    Enum.flat_map(flow_nodes, fn %FlowNode{type_data: type_data} = node ->
+      nested =
+        case type_data do
+          %FlowNodeData.SubProcess{flow_nodes: inner} -> collect_all_flow_nodes_flat(inner)
+          _ -> []
+        end
+
+      [node | nested]
+    end)
+  end
+
+  defp check_node_loop_characteristics(%FlowNode{
+         id: id,
+         type: type,
+         multi_instance: mi,
+         standard_loop: sl
+       }) do
+    mutual_exclusivity_errors = check_loop_mutual_exclusivity(id, type, mi, sl)
+    mi_errors = check_multi_instance_rules(id, type, mi)
+    sl_errors = check_standard_loop_rules(id, type, sl)
+    mutual_exclusivity_errors ++ mi_errors ++ sl_errors
+  end
+
+  defp check_loop_mutual_exclusivity(id, type, %MultiInstance{}, %StandardLoop{}) do
+    [
+      {:loop_mutual_exclusivity,
+       "#{type_label(type)} '#{id}' has both multiInstanceLoopCharacteristics and " <>
+         "standardLoopCharacteristics. Only one loop type is allowed per activity."}
+    ]
+  end
+
+  defp check_loop_mutual_exclusivity(_id, _type, _mi, _sl), do: []
+
+  defp check_multi_instance_rules(_id, _type, nil), do: []
+
+  defp check_multi_instance_rules(id, type, %MultiInstance{} = mi) do
+    position_errors = check_loop_on_valid_element(id, type, "multiInstanceLoopCharacteristics")
+
+    collection_errors =
+      if blank?(mi.collection_expression) do
+        [
+          {:mi_missing_collection,
+           "#{type_label(type)} '#{id}' has multiInstanceLoopCharacteristics but no resolvable " <>
+             "collection (evil:inputCollection or loopDataInput is required)"}
+        ]
+      else
+        []
+      end
+
+    max_iterations_errors =
+      case mi.max_iterations do
+        n when is_integer(n) and n <= 0 ->
+          [
+            {:mi_invalid_max_iterations,
+             "#{type_label(type)} '#{id}' has evil:maxIterations=#{n}; must be > 0"}
+          ]
+
+        _ ->
+          []
+      end
+
+    completion_condition_errors =
+      if is_binary(mi.completion_condition) and blank?(mi.completion_condition) do
+        [
+          {:mi_blank_completion_condition,
+           "#{type_label(type)} '#{id}' has an empty completionCondition; " <>
+             "remove it or provide a valid FEEL expression"}
+        ]
+      else
+        []
+      end
+
+    break_condition_errors =
+      if is_binary(mi.loop_break_condition) and blank?(mi.loop_break_condition) do
+        [
+          {:mi_blank_break_condition,
+           "#{type_label(type)} '#{id}' has an empty evil:loopBreakCondition; " <>
+             "remove it or provide a valid FEEL expression"}
+        ]
+      else
+        []
+      end
+
+    position_errors ++
+      collection_errors ++ max_iterations_errors ++ completion_condition_errors ++ break_condition_errors
+  end
+
+  defp check_standard_loop_rules(_id, _type, nil), do: []
+
+  defp check_standard_loop_rules(id, type, %StandardLoop{} = sl) do
+    position_errors = check_loop_on_valid_element(id, type, "standardLoopCharacteristics")
+
+    condition_errors =
+      if blank?(sl.loop_condition) do
+        [
+          {:standard_loop_missing_condition,
+           "#{type_label(type)} '#{id}' has standardLoopCharacteristics but no loopCondition " <>
+             "(required for execution)"}
+        ]
+      else
+        []
+      end
+
+    max_errors =
+      case sl.loop_maximum do
+        n when is_integer(n) and n <= 0 ->
+          [
+            {:standard_loop_invalid_maximum,
+             "#{type_label(type)} '#{id}' has loopMaximum=#{n}; must be > 0"}
+          ]
+
+        _ ->
+          []
+      end
+
+    position_errors ++ condition_errors ++ max_errors
+  end
+
+  defp check_loop_on_valid_element(_id, type, _characteristics_name)
+       when type in @activity_types,
+       do: []
+
+  defp check_loop_on_valid_element(id, type, characteristics_name) do
+    [
+      {:loop_on_invalid_element,
+       "#{type_label(type)} '#{id}' has #{characteristics_name} but loop characteristics " <>
+         "are only valid on activity elements (tasks, call activities, subprocesses)"}
+    ]
+  end
 
   # ---------------------------------------------------------------------------
   # Helpers

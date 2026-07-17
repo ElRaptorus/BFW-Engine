@@ -27,6 +27,7 @@
   ],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -41,9 +42,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -58,10 +63,16 @@
           "dataOutputAssociations": [],
           "documentation": "Some docs",
           "id": "MT_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Manual Task",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
           "type": "manual_task",
           "typeData": {
             "requireConfirmation": true
@@ -74,10 +85,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ST_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Send Task",
-          "outgoing": ["Flow_3"],
+          "outgoing": [
+            "Flow_3"
+          ],
+          "standardLoop": null,
           "type": "send_task",
           "typeData": {
             "inMappings": [],
@@ -93,10 +110,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "RT_1",
-          "incoming": ["Flow_3"],
+          "incoming": [
+            "Flow_3"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Receive Task",
-          "outgoing": ["Flow_4"],
+          "outgoing": [
+            "Flow_4"
+          ],
+          "standardLoop": null,
           "type": "receive_task",
           "typeData": {
             "inMappings": [],
@@ -112,10 +135,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EBG_1",
-          "incoming": ["Flow_4"],
+          "incoming": [
+            "Flow_4"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for event",
-          "outgoing": ["Flow_5"],
+          "outgoing": [
+            "Flow_5"
+          ],
+          "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
         },
@@ -126,10 +155,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CG_1",
-          "incoming": ["Flow_5"],
+          "incoming": [
+            "Flow_5"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Complex",
-          "outgoing": ["Flow_6"],
+          "outgoing": [
+            "Flow_6"
+          ],
+          "standardLoop": null,
           "type": "complex_gateway",
           "typeData": {
             "activationCondition": "activatedCount >= 2"
@@ -142,10 +177,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_1",
-          "incoming": ["Flow_6"],
+          "incoming": [
+            "Flow_6"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Child",
-          "outgoing": ["Flow_7"],
+          "outgoing": [
+            "Flow_7"
+          ],
+          "standardLoop": null,
           "type": "call_activity",
           "typeData": {
             "calledElement": "child-process",
@@ -171,10 +212,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_7"],
+          "incoming": [
+            "Flow_7"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -186,9 +231,19 @@
       "id": "Process_TasksGateways",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "MT_1", "ST_1", "RT_1", "EBG_1", "CG_1", "CA_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "MT_1",
+            "ST_1",
+            "RT_1",
+            "EBG_1",
+            "CG_1",
+            "CA_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

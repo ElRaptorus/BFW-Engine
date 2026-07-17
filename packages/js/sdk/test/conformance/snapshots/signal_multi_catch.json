@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "Fork_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
           "outgoing": [],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -52,9 +57,11 @@
           "documentation": null,
           "id": "Catch_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait 1",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -72,9 +79,11 @@
           "documentation": null,
           "id": "Catch_2",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait 2",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -92,9 +101,11 @@
           "documentation": null,
           "id": "Catch_3",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait 3",
           "outgoing": [],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -112,9 +123,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 1",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -130,9 +143,11 @@
           "documentation": null,
           "id": "End_2",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 2",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -148,9 +163,11 @@
           "documentation": null,
           "id": "End_3",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End 3",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -162,9 +179,19 @@
       "id": "SignalMultiCatch",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Fork_1", "Catch_1", "Catch_2", "Catch_3", "End_1", "End_2", "End_3"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Fork_1",
+            "Catch_1",
+            "Catch_2",
+            "Catch_3",
+            "End_1",
+            "End_2",
+            "End_3"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

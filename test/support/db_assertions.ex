@@ -61,8 +61,6 @@ defmodule EvilEngine.Test.DbAssertions do
     end)
   end
 
-  defp sandbox_ownership_error?(_), do: false
-
   @doc "Assert a PI row exists with the expected state."
   def assert_pi_state!(process_instance_id, expected_state) do
     process_instance = fetch_process_instance!(process_instance_id)

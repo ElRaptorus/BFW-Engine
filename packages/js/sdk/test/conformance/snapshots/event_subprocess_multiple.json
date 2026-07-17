@@ -11,6 +11,7 @@
   ],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -25,9 +26,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Main_Flow_1"],
+          "outgoing": [
+            "Main_Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -42,10 +47,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_UserTask",
-          "incoming": ["Main_Flow_1"],
+          "incoming": [
+            "Main_Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Work",
-          "outgoing": ["Main_Flow_2"],
+          "outgoing": [
+            "Main_Flow_2"
+          ],
+          "standardLoop": null,
           "type": "user_task",
           "typeData": {
             "assigneesExpression": null,
@@ -66,10 +77,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Main_Flow_2"],
+          "incoming": [
+            "Main_Flow_2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -85,9 +100,11 @@
           "documentation": null,
           "id": "ESP_Message",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Message Event Subprocess",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -101,9 +118,13 @@
                 "documentation": null,
                 "id": "ESP_Msg_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Message Received",
-                "outgoing": ["ESP_Msg_Flow_1"],
+                "outgoing": [
+                  "ESP_Msg_Flow_1"
+                ],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {
@@ -123,10 +144,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Msg_Task",
-                "incoming": ["ESP_Msg_Flow_1"],
+                "incoming": [
+                  "ESP_Msg_Flow_1"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Message",
-                "outgoing": ["ESP_Msg_Flow_2"],
+                "outgoing": [
+                  "ESP_Msg_Flow_2"
+                ],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -137,10 +164,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Msg_End",
-                "incoming": ["ESP_Msg_Flow_2"],
+                "incoming": [
+                  "ESP_Msg_Flow_2"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Message Done",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -150,6 +181,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -171,6 +203,7 @@
                 "targetRef": "ESP_Msg_End"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": true
           }
         },
@@ -182,9 +215,11 @@
           "documentation": null,
           "id": "ESP_Signal",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal Event Subprocess",
           "outgoing": [],
+          "standardLoop": null,
           "type": "sub_process",
           "typeData": {
             "dataObjectReferences": [],
@@ -198,9 +233,13 @@
                 "documentation": null,
                 "id": "ESP_Sig_Start",
                 "incoming": [],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Signal Received",
-                "outgoing": ["ESP_Sig_Flow_1"],
+                "outgoing": [
+                  "ESP_Sig_Flow_1"
+                ],
+                "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
                   "eventDefinition": {
@@ -217,10 +256,16 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Sig_Task",
-                "incoming": ["ESP_Sig_Flow_1"],
+                "incoming": [
+                  "ESP_Sig_Flow_1"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Signal",
-                "outgoing": ["ESP_Sig_Flow_2"],
+                "outgoing": [
+                  "ESP_Sig_Flow_2"
+                ],
+                "standardLoop": null,
                 "type": "task",
                 "typeData": {}
               },
@@ -231,10 +276,14 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Sig_End",
-                "incoming": ["ESP_Sig_Flow_2"],
+                "incoming": [
+                  "ESP_Sig_Flow_2"
+                ],
+                "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Signal Done",
                 "outgoing": [],
+                "standardLoop": null,
                 "type": "end_event",
                 "typeData": {
                   "eventDefinition": {},
@@ -244,6 +293,7 @@
               }
             ],
             "inMappings": [],
+            "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
             "resultContract": null,
@@ -265,6 +315,7 @@
                 "targetRef": "ESP_Sig_End"
               }
             ],
+            "transactionMethod": null,
             "triggeredByEvent": true
           }
         }
@@ -272,9 +323,16 @@
       "id": "EventSubprocessMultiple",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Message", "ESP_Signal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Main_UserTask",
+            "End_1",
+            "ESP_Message",
+            "ESP_Signal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

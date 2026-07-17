@@ -1,0 +1,454 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [
+            "Boundary_Cancel"
+          ],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Tx_1",
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "My Transaction",
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "TX Start",
+                "outgoing": [
+                  "TxFlow_1"
+                ],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_Fork",
+                "incoming": [
+                  "TxFlow_1"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Fork",
+                "outgoing": [
+                  "TxFlow_3",
+                  "TxFlow_2"
+                ],
+                "standardLoop": null,
+                "type": "parallel_gateway",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_SP",
+                "incoming": [
+                  "TxFlow_2"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Inner Subprocess",
+                "outgoing": [
+                  "TxFlow_4"
+                ],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "SP_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "SP Start",
+                      "outgoing": [
+                        "SpFlow_1"
+                      ],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "SP_UserTask",
+                      "incoming": [
+                        "SpFlow_1"
+                      ],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Wait (user task)",
+                      "outgoing": [
+                        "SpFlow_2"
+                      ],
+                      "standardLoop": null,
+                      "type": "user_task",
+                      "typeData": {
+                        "assigneesExpression": null,
+                        "dueDate": null,
+                        "formActions": null,
+                        "formSchema": null,
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "priority": null,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "SP_End",
+                      "incoming": [
+                        "SpFlow_2"
+                      ],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "SP End",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "inMappings": [],
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "SpFlow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "SP_Start",
+                      "targetRef": "SP_UserTask"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "SpFlow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "SP_UserTask",
+                      "targetRef": "SP_End"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_CancelEnd",
+                "incoming": [
+                  "TxFlow_3"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Cancel",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_End",
+                "incoming": [
+                  "TxFlow_4"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "TX End",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "inMappings": [],
+            "isTransaction": true,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_Start",
+                "targetRef": "Tx_Fork"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_Fork",
+                "targetRef": "Tx_SP"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_3",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_Fork",
+                "targetRef": "Tx_CancelEnd"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_4",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_SP",
+                "targetRef": "Tx_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Cancel",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [
+            "Flow_Cancel"
+          ],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Tx_1",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {},
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Cancelled",
+          "incoming": [
+            "Flow_Cancel"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Order Cancelled",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End Normal",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "transaction_with_embedded_subprocess",
+      "inclusiveJoinAnalyses": {},
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Tx_1",
+            "Boundary_Cancel",
+            "End_Cancelled",
+            "End_Normal"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        },
+        {
+          "flowNodeRefs": [
+            "Tx_Start",
+            "Tx_Fork",
+            "Tx_SP",
+            "Tx_CancelEnd"
+          ],
+          "id": "Lane_Tx",
+          "name": "default"
+        },
+        {
+          "flowNodeRefs": [
+            "SP_Start",
+            "SP_UserTask",
+            "SP_End"
+          ],
+          "id": "Lane_SP",
+          "name": "default"
+        }
+      ],
+      "name": "Transaction With Embedded Subprocess",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Tx_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Tx_1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Cancel",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Cancel",
+          "targetRef": "End_Cancelled"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

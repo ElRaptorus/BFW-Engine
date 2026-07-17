@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": [],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "Task_A",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -52,9 +57,11 @@
           "documentation": null,
           "id": "Task_B",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -66,9 +73,11 @@
           "documentation": null,
           "id": "Task_DeadEnd",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Dead End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -80,9 +89,11 @@
           "documentation": null,
           "id": "End_Unreachable",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Unreachable End",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -94,9 +105,16 @@
       "id": "RetryCheckpointLinear",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_A", "Task_B", "Task_DeadEnd", "End_Unreachable"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_A",
+            "Task_B",
+            "Task_DeadEnd",
+            "End_Unreachable"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

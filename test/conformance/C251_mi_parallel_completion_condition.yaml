@@ -1,0 +1,17 @@
+name: "C251: Parallel MI — completion condition stops early"
+wait_timeout_ms: 10000
+fixture: "mi_parallel_completion_condition.bpmn"
+process_model_id: "mi-parallel-completion-condition"
+tier: auto
+start:
+  payload:
+    items:
+      - v: 1
+      - v: 2
+      - v: 3
+      - v: 4
+      - v: 5
+expected:
+  final_state: "finished"
+  final_tokens:
+    - endEventId: "End_1"

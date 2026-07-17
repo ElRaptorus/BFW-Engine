@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,11 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
           "outgoing": ["Flow_1"],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -38,9 +41,11 @@
           "documentation": null,
           "id": "ScriptTask_Init",
           "incoming": ["Flow_1"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Init Ready Flag",
           "outgoing": ["Flow_2"],
+          "standardLoop": null,
           "type": "script_task",
           "typeData": {
             "inMappings": [],
@@ -60,9 +65,11 @@
           "documentation": null,
           "id": "ConditionalCatch_Ready",
           "incoming": ["Flow_2"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Ready",
           "outgoing": ["Flow_3"],
+          "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
             "eventDefinition": {
@@ -80,9 +87,11 @@
           "documentation": null,
           "id": "End_1",
           "incoming": ["Flow_3"],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -94,6 +103,7 @@
       "id": "ConditionalCatchAlreadyTrue",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": ["Start_1", "ScriptTask_Init", "ConditionalCatch_Ready", "End_1"],

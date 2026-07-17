@@ -6,6 +6,7 @@
   "messages": [],
   "processes": [
     {
+      "associations": [],
       "complexRegionAnalyses": {},
       "correlationKey": null,
       "dataObjectReferences": [],
@@ -20,9 +21,13 @@
           "documentation": null,
           "id": "Start_1",
           "incoming": [],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
           "type": "start_event",
           "typeData": {
             "eventDefinition": {},
@@ -37,10 +42,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "OuterFork",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Outer Fork",
-          "outgoing": ["Flow_B", "Flow_Inner"],
+          "outgoing": [
+            "Flow_B",
+            "Flow_Inner"
+          ],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -51,10 +63,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InnerFork",
-          "incoming": ["Flow_Inner"],
+          "incoming": [
+            "Flow_Inner"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Inner Fork",
-          "outgoing": ["Flow_A2", "Flow_A1"],
+          "outgoing": [
+            "Flow_A2",
+            "Flow_A1"
+          ],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -65,10 +84,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A1",
-          "incoming": ["Flow_A1"],
+          "incoming": [
+            "Flow_A1"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A1",
-          "outgoing": ["Flow_A1_Out"],
+          "outgoing": [
+            "Flow_A1_Out"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -79,10 +104,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A2",
-          "incoming": ["Flow_A2"],
+          "incoming": [
+            "Flow_A2"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A2",
-          "outgoing": ["Flow_A2_Out"],
+          "outgoing": [
+            "Flow_A2_Out"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -93,10 +124,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InnerJoin",
-          "incoming": ["Flow_A2_Out", "Flow_A1_Out"],
+          "incoming": [
+            "Flow_A2_Out",
+            "Flow_A1_Out"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Inner Join",
-          "outgoing": ["Flow_Inner_Out"],
+          "outgoing": [
+            "Flow_Inner_Out"
+          ],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -107,10 +145,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_B",
-          "incoming": ["Flow_B"],
+          "incoming": [
+            "Flow_B"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": ["Flow_B_Out"],
+          "outgoing": [
+            "Flow_B_Out"
+          ],
+          "standardLoop": null,
           "type": "task",
           "typeData": {}
         },
@@ -121,10 +165,17 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "OuterJoin",
-          "incoming": ["Flow_B_Out", "Flow_Inner_Out"],
+          "incoming": [
+            "Flow_B_Out",
+            "Flow_Inner_Out"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Outer Join",
-          "outgoing": ["Flow_Final"],
+          "outgoing": [
+            "Flow_Final"
+          ],
+          "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
         },
@@ -135,10 +186,14 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_Final"],
+          "incoming": [
+            "Flow_Final"
+          ],
+          "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
           "outgoing": [],
+          "standardLoop": null,
           "type": "end_event",
           "typeData": {
             "eventDefinition": {},
@@ -150,6 +205,7 @@
       "id": "ParallelGatewayNested",
       "inclusiveJoinAnalyses": {},
       "isExecutable": true,
+      "isTransactionScope": false,
       "lanes": [
         {
           "flowNodeRefs": [
