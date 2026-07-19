@@ -65,6 +65,9 @@ export type {
   CoercionTrace,
 } from './types/index.js';
 
+// --- Ad-hoc subprocess types ---
+export type { AdHocActivity, AdHocActivateResult, AdHocStatus, AdHocCompleteResult } from './types/index.js';
+
 // --- Error classes (runtime values) ---
 export {
   DaemonEngineError,
@@ -159,6 +162,8 @@ export type {
   MultiInstanceStarted,
   MultiInstanceCompleted,
   EventSubprocessTriggered,
+  AdHocActivityActivated,
+  AdHocSubProcessCompleted,
   SinkFailed,
 } from './events/index.js';
 
@@ -194,6 +199,7 @@ export type {
   FacadeDataObjects,
   FacadeMessages,
   FacadeSignals,
+  FacadeAdHocSubprocesses,
   FacadeGraphql,
   RegistrationResult,
 } from './plugin/index.js';

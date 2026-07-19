@@ -55,3 +55,4 @@ export type {
   ImportTrace,
   CoercionTrace,
 } from './dmn-evaluate.js';
+export type { AdHocActivity, AdHocActivateResult, AdHocStatus, AdHocCompleteResult } from './adhoc-subprocess.js';

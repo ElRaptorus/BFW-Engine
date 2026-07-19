@@ -325,6 +325,14 @@ defmodule EvilEngine.Execution.HandlerDispatch do
     {:ok, FlowNodes.TransactionSubProcess}
   end
 
+  # Ad-hoc subprocess — must be checked before the Event Subprocess clause.
+  defp resolve_handler(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_ad_hoc: true}
+       }) do
+    {:ok, FlowNodes.AdHocSubProcess}
+  end
+
   # Event Subprocess shell — triggered by its start event, not by a token enter.
   # Firing is orchestrated by the scope PI, which dispatches the shell FNI
   # through this handler.

@@ -1790,6 +1790,52 @@ Two independent restrictions apply to transactions (enforced in `validate_retria
 
 ---
 
+## Ad-hoc Subprocess
+
+An ad-hoc subprocess (`<bpmn:adHocSubProcess>`) contains activities that are not connected by sequence flows. Activities are activated on demand (plugin-managed) or by the engine (engine-managed).
+
+**Handler:** `EvilEngine.Execution.FlowNodes.AdHocSubProcess`
+**PI Mode:** `EvilEngine.Execution.ProcessInstance.AdHocMode`
+
+### Lifecycle
+
+1. Handler validates contents (no start/end events, at least one activity)
+2. Spawns child PI in `AdHocMode` with ad-hoc configuration propagated to PI state
+3. In engine-managed mode: activates initial activities per `evil:activeElements` or all inner activities
+4. In plugin-managed mode: waits for plugin to activate activities via facade
+5. Child PI completes when completion condition is met or all activities drain naturally
+
+### Two Completion Mechanisms
+
+- `adhoc_completion_signaled`: Explicit completion signal from REST/plugin (`POST /adhoc-subprocesses/:id/complete`)
+- `adhoc_natural_drain_enabled`: Engine-managed mode — all activities dispatched, PI completes when no active/waiting FNIs remain
+
+### Ordering Enforcement (Sequential)
+
+- Only one FNI may be `:active` or `:waiting` at a time
+- `maybe_auto_chain_sequential_adhoc` dispatches the next unperformed activity when the current one finishes
+- Manual activation via REST/plugin returns `:adhoc_sequential_busy` if an FNI is already active
+
+### `cancelRemainingInstances` Enforcement
+
+When the completion condition is met and `cancelRemainingInstances=true` (default), `maybe_cancel_remaining_for_adhoc` interrupts all remaining `:active`/`:waiting` FNIs with reason `:adhoc_completion_cancelled`.
+
+### Retry Restrictions
+
+| Restriction | Error code |
+|-------------|------------|
+| Cannot retry a PI that is a child of an ad-hoc subprocess scope | `retry_inside_adhoc_subprocess` |
+| Cannot set a retry checkpoint inside an ad-hoc scope | `retry_checkpoint_inside_adhoc_subprocess` |
+
+### Files
+
+| Module | Path |
+|--------|------|
+| `EvilEngine.Execution.FlowNodes.AdHocSubProcess` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/adhoc_sub_process.ex` |
+| `EvilEngine.Execution.ProcessInstance.AdHocMode` | `apps/core_execution/lib/evil_engine/execution/process_instance/adhoc_mode.ex` |
+
+---
+
 ## Data Object Write Path
 
 When an FNI completes successfully, the engine uses a two-phase approach: **pure evaluation** followed by **atomic persistence**.

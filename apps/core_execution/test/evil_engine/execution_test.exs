@@ -46,4 +46,29 @@ defmodule EvilEngine.ExecutionTest do
                EvilEngine.Execution.start_process_instance(opts)
     end
   end
+
+  describe "ad-hoc subprocess operations — lookup failures" do
+    test "activate_adhoc_activity returns :not_found for unregistered PI" do
+      assert {:error, :not_found} =
+               EvilEngine.Execution.activate_adhoc_activity(
+                 "nonexistent-pi-id",
+                 "Task_1"
+               )
+    end
+
+    test "signal_adhoc_completion returns :not_found for unregistered PI" do
+      assert {:error, :not_found} =
+               EvilEngine.Execution.signal_adhoc_completion("nonexistent-pi-id")
+    end
+
+    test "get_adhoc_enabled_activities returns :not_found for unregistered PI" do
+      assert {:error, :not_found} =
+               EvilEngine.Execution.get_adhoc_enabled_activities("nonexistent-pi-id")
+    end
+
+    test "get_adhoc_status returns :not_found for unregistered PI" do
+      assert {:error, :not_found} =
+               EvilEngine.Execution.get_adhoc_status("nonexistent-pi-id")
+    end
+  end
 end

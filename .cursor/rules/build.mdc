@@ -29,9 +29,29 @@ The root `mix.exs` defines `mix quality` which runs the full verification pipeli
 mix quality
 ```
 
-### Database prerequisite
+### Database prerequisite — MANDATORY, NO EXCEPTIONS
 
-`mix quality`, `mix test.integration`, `mix test.full`, and any test that touches PostgreSQL require a running test database container. **Before running these commands**, follow the `ensure-test-db` skill to verify that `evil-engine-postgres-test` is up and accepting connections. If it is not running, start it — do NOT skip tests or report "DB unavailable" as an acceptable outcome.
+`mix quality`, `mix test.integration`, `mix test.full`, and any test that touches PostgreSQL require a running test database container. **You MUST start the container yourself** — do NOT skip tests, do NOT defer them, do NOT report "DB unavailable" as an acceptable outcome, and do NOT mark integration tests as "deferred" in any plan or checklist.
+
+**Run these commands before any test command** (from the project root):
+
+```bash
+# 1. Check if container is running
+docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+# If "true" → skip to step 3
+# If "false" → run: docker start evil-engine-postgres-test
+# If error/empty → run: bash scripts/create-test-db.sh
+
+# 2. Verify readiness (retry up to 3 times with 2s sleep)
+docker exec evil-engine-postgres-test pg_isready -U evil_engine
+
+# 3. Run pending migrations
+MIX_ENV=test mix ecto.migrate
+```
+
+Container details: `evil-engine-postgres-test`, port `5543`, user `evil_engine`, password `evil_engine`, image `postgres:16-alpine`.
+
+**VIOLATION**: Any agent response that says "integration tests deferred — requires running engine/database" is a rule violation. The agent has the tools to start Docker containers. Use them.
 
 ## Test coverage requirements
 

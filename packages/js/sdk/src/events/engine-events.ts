@@ -51,6 +51,8 @@ export type EngineEvent =
   | MultiInstanceStarted
   | MultiInstanceCompleted
   | EventSubprocessTriggered
+  | AdHocActivityActivated
+  | AdHocSubProcessCompleted
   | SinkFailed;
 
 export interface EngineStarted {
@@ -277,6 +279,7 @@ export interface SubProcessChildStarted {
   childProcessModelId: string;
   childVersion: string;
   isEventSubprocess: boolean;
+  isAdHocSubprocess: boolean;
   occurredAt: string;
 }
 
@@ -334,6 +337,34 @@ export interface MultiInstanceCompleted {
   totalIterations: number | null;
   completedIterations: number;
   earlyBreak: boolean;
+  occurredAt: string;
+}
+
+/**
+ * Emitted when an inner activity is activated inside an ad-hoc subprocess.
+ */
+export interface AdHocActivityActivated {
+  type: 'AdHocActivityActivated';
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  adhocFlowNodeInstanceId: string;
+  activatedFlowNodeInstanceId: string;
+  activatedFlowNodeId: string;
+  activationSource: string;
+  occurredAt: string;
+}
+
+/**
+ * Emitted when an ad-hoc subprocess completes.
+ */
+export interface AdHocSubProcessCompleted {
+  type: 'AdHocSubProcessCompleted';
+  processInstanceId: string;
+  rootProcessInstanceId: string | null;
+  adhocFlowNodeInstanceId: string;
+  adhocNodeId: string;
+  completionReason: 'condition_met' | 'all_performed' | 'plugin_completed' | 'cancelled';
+  totalActivations: number;
   occurredAt: string;
 }
 

@@ -599,6 +599,44 @@ defmodule EvilEngine.Execution.ProcessInstance.HelpersTest do
     end
   end
 
+  describe "ad-hoc subprocess error humanization" do
+    test "not_adhoc_subprocess" do
+      result = Helpers.build_error_info(:not_adhoc_subprocess)
+      assert result["error_code"] == "not_adhoc_subprocess"
+      assert result["message"] =~ "not an ad-hoc subprocess"
+    end
+
+    test "adhoc_activity_not_found" do
+      result = Helpers.build_error_info(:adhoc_activity_not_found)
+      assert result["error_code"] == "adhoc_activity_not_found"
+      assert result["message"] =~ "not found"
+    end
+
+    test "adhoc_already_completing" do
+      result = Helpers.build_error_info(:adhoc_already_completing)
+      assert result["error_code"] == "adhoc_already_completing"
+      assert result["message"] =~ "already been signaled"
+    end
+
+    test "dispatch_failed" do
+      result = Helpers.build_error_info(:dispatch_failed)
+      assert result["error_code"] == "dispatch_failed"
+      assert result["message"] =~ "dispatch"
+    end
+
+    test "adhoc_subprocess_empty" do
+      result = Helpers.build_error_info({:adhoc_subprocess_empty, "No inner activities"})
+      assert result["error_code"] == "adhoc_subprocess_empty"
+      assert result["message"] == "No inner activities"
+    end
+
+    test "retry_inside_adhoc_subprocess" do
+      result = Helpers.build_error_info(:retry_inside_adhoc_subprocess)
+      assert result["error_code"] == "retry_inside_adhoc_subprocess"
+      assert result["message"] =~ "ad-hoc subprocess"
+    end
+  end
+
   describe "stringify_keys/1" do
     test "nil" do
       assert Helpers.stringify_keys(nil) == nil

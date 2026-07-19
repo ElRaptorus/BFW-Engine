@@ -80,10 +80,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
   alias EvilEngine.Execution.PayloadCap
   alias EvilEngine.Execution.Persistence, as: PersistenceAdapter
   alias EvilEngine.Execution.PersistenceRetry
+  alias EvilEngine.Execution.ProcessInstance.AdHocMode
   alias EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator
   alias EvilEngine.Execution.ProcessInstance.CompensationOrchestrator
   alias EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator
   alias EvilEngine.Execution.ProcessInstance.Resumption
+  alias EvilEngine.Execution.ProcessInstance.StandardMode
   alias EvilEngine.Execution.ProcessInstance.State
   alias EvilEngine.Timers.Scheduler
   alias EvilEngine.Types.Event
@@ -113,7 +115,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
           optional(:triggerer_flow_node_instance_id) => String.t() | nil,
           optional(:notify_pid) => pid() | nil,
           optional(:subprocess_node_id) => String.t() | nil,
-          optional(:esp_start_passthrough) => boolean()
+          optional(:esp_start_passthrough) => boolean(),
+          optional(:mode) => module(),
+          optional(:adhoc_completion_condition) => String.t() | nil,
+          optional(:adhoc_completion_condition_compiled) => reference() | nil,
+          optional(:adhoc_cancel_remaining_instances) => boolean(),
+          optional(:adhoc_ordering) => :parallel | :sequential
         }
 
   # -------------------------------------------------------------------
@@ -243,9 +250,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
   @impl true
   def init(%{resume: true} = opts) do
+    mode = opts[:mode] || StandardMode
+
     data = %State{
       process_instance_id: opts.process_instance_id,
       process_version_id: opts.process_version_id,
+      mode: mode,
       identity: Resumption.rebuild_identity(opts[:started_by]),
       business_key: opts[:business_key],
       parent_process_instance_id: opts[:parent_process_instance_id],
@@ -288,23 +298,31 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   def init(opts) do
+    mode = opts[:mode] || StandardMode
+
     data = %State{
       process_instance_id: opts.process_instance_id,
       process_version_id: opts.process_version_id,
+      mode: mode,
       identity: opts.identity,
       business_key: opts[:business_key],
       parent_process_instance_id: opts[:parent_process_instance_id],
       root_process_instance_id:
         opts[:root_process_instance_id] || opts.process_instance_id,
       triggerer_flow_node_instance_id: opts[:triggerer_flow_node_instance_id],
-      notify_pid: opts[:notify_pid]
+      notify_pid: opts[:notify_pid],
+      adhoc_completion_condition: opts[:adhoc_completion_condition],
+      adhoc_completion_condition_compiled: opts[:adhoc_completion_condition_compiled],
+      adhoc_cancel_remaining_instances: Map.get(opts, :adhoc_cancel_remaining_instances, true),
+      adhoc_ordering: opts[:adhoc_ordering] || :parallel
     }
 
     with :ok <- PayloadCap.check(opts[:payload], field: :start_payload),
          :ok <- PayloadCap.check(opts[:context], field: :start_context),
          {:ok, process_model, definitions} <-
            fetch_process_model(data.process_version_id, opts[:subprocess_node_id]),
-         {:ok, start_event} <- resolve_start_event(process_model, opts[:start_event_id]),
+         {:ok, start_event} <-
+           mode.resolve_initial_state(process_model, opts[:start_event_id], process_model.id),
          {:ok, task_sup} <- Task.Supervisor.start_link(strategy: :one_for_one) do
       now = DateTime.utc_now()
 
@@ -320,21 +338,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       case persist_pi_create(data) do
         {:ok, _} ->
           emit_pi_state_changed(data, nil, :running)
-
-          initial_token = %Token{
-            id: generate_id(),
-            process_instance_id: data.process_instance_id,
-            payload: opts[:payload],
-            originating_flow_node_instance_id: nil,
-            created_at: now
-          }
-
-          dispatch_start_event =
-            EspScope.passthrough_start_event(start_event, opts[:esp_start_passthrough])
-
-          data = dispatch_flow_node_instance(data, dispatch_start_event, initial_token, [])
-          data = EspScope.register_triggers(data)
-          {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
+          init_after_persist(data, start_event, opts, now)
 
         {:error, reason} ->
           Logger.error(
@@ -361,6 +365,28 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
+  defp init_after_persist(data, nil, _opts, _now) do
+    data = EspScope.register_triggers(data)
+    {:ok, :running, data}
+  end
+
+  defp init_after_persist(data, start_event, opts, now) do
+    initial_token = %Token{
+      id: generate_id(),
+      process_instance_id: data.process_instance_id,
+      payload: opts[:payload],
+      originating_flow_node_instance_id: nil,
+      created_at: now
+    }
+
+    dispatch_start_event =
+      EspScope.passthrough_start_event(start_event, opts[:esp_start_passthrough])
+
+    data = dispatch_flow_node_instance(data, dispatch_start_event, initial_token, [])
+    data = EspScope.register_triggers(data)
+    {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
+  end
+
   # -------------------------------------------------------------------
   # :running state
   # -------------------------------------------------------------------
@@ -381,6 +407,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
     case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
       nil ->
         data = handle_fni_ok(data, flow_node_instance_id, result)
+        data = maybe_evaluate_adhoc_completion_condition(data)
+        data = maybe_cancel_remaining_for_adhoc(data)
+        data = maybe_auto_chain_sequential_adhoc(data)
         maybe_finish_or_continue(data)
 
       {_shell_fni_id, shell_task_pid} ->
@@ -705,7 +734,36 @@ defmodule EvilEngine.Execution.ProcessInstance do
       subprocess_node_id,
       child_process_model_id,
       child_version,
+      is_event_subprocess,
+      false
+    )
+
+    EspScope.maybe_emit_triggered(
+      data,
+      subprocess_node_id,
+      child_process_instance_id,
       is_event_subprocess
+    )
+
+    {:keep_state, data}
+  end
+
+  def running(
+        :info,
+        {:subprocess_child_started, flow_node_instance_id, child_process_instance_id,
+         subprocess_node_id, child_process_model_id, child_version, is_event_subprocess,
+         is_ad_hoc_subprocess},
+        data
+      ) do
+    emit_subprocess_child_started(
+      data,
+      flow_node_instance_id,
+      child_process_instance_id,
+      subprocess_node_id,
+      child_process_model_id,
+      child_version,
+      is_event_subprocess,
+      is_ad_hoc_subprocess
     )
 
     EspScope.maybe_emit_triggered(
@@ -737,6 +795,99 @@ defmodule EvilEngine.Execution.ProcessInstance do
     data = EspScope.rearm_timer(data, subprocess_node_id, metadata)
     data = execute_esp_action(data, EspScope.resolve_trigger(data, subprocess_node_id, %{}))
     maybe_finish_or_continue(data)
+  end
+
+  # Ad-hoc mode: activate an inner activity on demand from the parent handler
+  def running(
+        :cast,
+        {:activate_adhoc_activity, flow_node_id, %Token{} = activation_token, reply_to},
+        data
+      ) do
+    case Enum.find(data.process_model.flow_nodes, &(&1.id == flow_node_id)) do
+      nil ->
+        send(reply_to, {:adhoc_activation_result, flow_node_id, {:error, :activity_not_found}})
+        {:keep_state, data}
+
+      flow_node ->
+        old_fni_ids = MapSet.new(Map.keys(data.flow_node_instance_states))
+        data = dispatch_flow_node_instance(data, flow_node, activation_token, [])
+
+        new_fni_ids =
+          data.flow_node_instance_states
+          |> Map.keys()
+          |> Enum.reject(&MapSet.member?(old_fni_ids, &1))
+
+        case new_fni_ids do
+          [fni_id] ->
+            emit_adhoc_activity_activated(data, flow_node_id, fni_id, "engine")
+
+          _ ->
+            :ok
+        end
+
+        send(reply_to, {:adhoc_activation_result, flow_node_id, :ok})
+        {:keep_state, data}
+    end
+  end
+
+  # Ad-hoc mode: parent handler signals that all initial activities have been
+  # dispatched and no FEEL completion condition exists. The PI can finish
+  # when all FNIs drain naturally. This does NOT set adhoc_completion_signaled
+  # (which is reserved for FEEL conditions and explicit REST/plugin signals)
+  # and does NOT trigger cancelRemainingInstances.
+  def running(:cast, :adhoc_natural_drain_enabled, data) do
+    data = %{data | adhoc_natural_drain_enabled: true}
+    maybe_finish_or_continue(data)
+  end
+
+  # Ad-hoc mode: synchronous activity activation (REST/plugin facade)
+  def running(
+        {:call, from},
+        {:activate_adhoc_activity_sync, flow_node_id},
+        %{mode: AdHocMode} = data
+      ) do
+    result = do_activate_adhoc_activity(data, flow_node_id)
+    {:keep_state, elem(result, 1), [{:reply, from, elem(result, 0)}]}
+  end
+
+  # Non-ad-hoc PI: reject ad-hoc operations
+  def running({:call, from}, {:activate_adhoc_activity_sync, _flow_node_id}, data) do
+    {:keep_state, data, [{:reply, from, {:error, :not_adhoc_subprocess}}]}
+  end
+
+  # Ad-hoc mode: synchronous completion signal (REST/plugin facade)
+  def running({:call, from}, :signal_adhoc_completion_sync, %{mode: AdHocMode} = data) do
+    if data.adhoc_completion_signaled do
+      {:keep_state, data, [{:reply, from, {:error, :adhoc_already_completing}}]}
+    else
+      data = %{data | adhoc_completion_signaled: true}
+      data = maybe_cancel_remaining_for_adhoc(data)
+      maybe_finish_or_continue_with_reply(data, from)
+    end
+  end
+
+  def running({:call, from}, :signal_adhoc_completion_sync, data) do
+    {:keep_state, data, [{:reply, from, {:error, :not_adhoc_subprocess}}]}
+  end
+
+  # Ad-hoc mode: query inner activities with their enabled/performed status
+  def running({:call, from}, :get_adhoc_enabled_activities, %{mode: AdHocMode} = data) do
+    activities = build_adhoc_activities_list(data)
+    {:keep_state, data, [{:reply, from, {:ok, activities}}]}
+  end
+
+  def running({:call, from}, :get_adhoc_enabled_activities, data) do
+    {:keep_state, data, [{:reply, from, {:error, :not_adhoc_subprocess}}]}
+  end
+
+  # Ad-hoc mode: query current ad-hoc subprocess status
+  def running({:call, from}, :get_adhoc_status, %{mode: AdHocMode} = data) do
+    status = build_adhoc_status(data)
+    {:keep_state, data, [{:reply, from, {:ok, status}}]}
+  end
+
+  def running({:call, from}, :get_adhoc_status, data) do
+    {:keep_state, data, [{:reply, from, {:error, :not_adhoc_subprocess}}]}
   end
 
   # FNI Task process crashed (crash isolation)
@@ -897,99 +1048,6 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   def terminate(_reason, _state, _data), do: :ok
-
-  # -------------------------------------------------------------------
-  # Internal: Start Event resolution
-  # -------------------------------------------------------------------
-
-  # ISOLATION INVARIANT — DO NOT WEAKEN.
-  #
-  # Start Event resolution is strictly scoped to `process_model.flow_nodes`.
-  # `process_model` is whichever model `fetch_process_model/2` returned:
-  #
-  #   * the top-level executable process, when `subprocess_node_id` is nil; or
-  #   * the synthetic inner-scope model of a single embedded/event/transactional
-  #     subprocess, when `subprocess_node_id` is set (and only reachable when a
-  #     parent PI exists — see `Execution.start_process_instance/1`).
-  #
-  # `flow_nodes` for a subprocess model contains only that subprocess's own inner
-  # nodes; a top-level model's `flow_nodes` never includes nodes nested inside a
-  # subprocess (those live under `type_data.flow_nodes`). Consequently a Start
-  # Event living inside a subprocess can NEVER be resolved from a top-level
-  # start, and vice versa. Any refactor that broadens this lookup (e.g. recursing
-  # into `type_data.flow_nodes`) would make inner Start Events externally
-  # addressable and MUST be rejected.
-  defp resolve_start_event(process_model, start_event_id) do
-    case resolve_typed_start_event(process_model, start_event_id) do
-      {:ok, _node} = result ->
-        result
-
-      :not_typed ->
-        untyped_starts =
-          Enum.filter(process_model.flow_nodes, fn node ->
-            node.type == :start_event and
-              match?(
-                %EvilEngine.BPMN.Model.EventDefinition.None{},
-                node.type_data.event_definition
-              )
-          end)
-
-        do_resolve_start_event(untyped_starts, start_event_id, process_model.id)
-    end
-  end
-
-  defp resolve_typed_start_event(_process_model, nil), do: :not_typed
-
-  defp resolve_typed_start_event(process_model, start_event_id) do
-    case Enum.find(process_model.flow_nodes, fn node ->
-           node.type == :start_event and node.id == start_event_id and
-             not match?(
-               %EvilEngine.BPMN.Model.EventDefinition.None{},
-               node.type_data.event_definition
-             )
-         end) do
-      nil -> :not_typed
-      typed_start -> {:ok, typed_start}
-    end
-  end
-
-  defp do_resolve_start_event([], _start_event_id, process_id) do
-    {:error, :no_start_event, "Process '#{process_id}' has no untyped Start Event."}
-  end
-
-  defp do_resolve_start_event([single], nil, _process_id) do
-    {:ok, single}
-  end
-
-  defp do_resolve_start_event([single], id, _process_id) when id == single.id do
-    {:ok, single}
-  end
-
-  defp do_resolve_start_event([single], id, process_id) do
-    {:error, :start_event_not_found,
-     "Start Event '#{id}' not found in process '#{process_id}'. Available: #{single.id}"}
-  end
-
-  defp do_resolve_start_event(starts, nil, process_id) when length(starts) > 1 do
-    ids = Enum.map_join(starts, ", ", & &1.id)
-
-    {:error, :ambiguous_start_event,
-     "Process '#{process_id}' has #{length(starts)} start events, " <>
-       "but no startEventId was provided. Available: #{ids}"}
-  end
-
-  defp do_resolve_start_event(starts, id, process_id) do
-    case Enum.find(starts, &(&1.id == id)) do
-      nil ->
-        ids = Enum.map_join(starts, ", ", & &1.id)
-
-        {:error, :start_event_not_found,
-         "Start Event '#{id}' not found in process '#{process_id}'. Available: #{ids}"}
-
-      found ->
-        {:ok, found}
-    end
-  end
 
   # -------------------------------------------------------------------
   # Internal: FNI dispatch cycle
@@ -3166,12 +3224,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   defp maybe_finish(data) do
-    active_count =
-      Enum.count(data.flow_node_instance_states, fn {_id, entry} ->
-        entry.state in [:active, :waiting]
-      end)
-
-    if active_count == 0 do
+    if data.mode.should_complete?(data) do
       finish_quiesced_pi(data)
     else
       {:continue, data}
@@ -4110,7 +4163,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
          subprocess_node_id,
          child_process_model_id,
          child_version,
-         is_event_subprocess
+         is_event_subprocess,
+         is_ad_hoc_subprocess
        ) do
     EngineEventBus.publish(%Event.SubProcessChildStarted{
       subprocess_flow_node_instance_id: flow_node_instance_id,
@@ -4120,6 +4174,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       child_process_model_id: child_process_model_id,
       child_version: child_version,
       is_event_subprocess: is_event_subprocess,
+      is_ad_hoc_subprocess: is_ad_hoc_subprocess,
       occurred_at: DateTime.utc_now()
     })
 
@@ -4239,4 +4294,297 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
   defp identity_to_map(%{id: id, roles: roles, groups: groups}),
     do: %{"id" => id, "roles" => roles, "groups" => groups}
+
+  # -------------------------------------------------------------------
+  # Ad-hoc subprocess: completion condition evaluation
+  # -------------------------------------------------------------------
+
+  defp maybe_evaluate_adhoc_completion_condition(
+         %{mode: AdHocMode, adhoc_completion_condition: condition, adhoc_completion_signaled: false} =
+           data
+       )
+       when is_binary(condition) and condition != "" do
+    bindings = build_adhoc_completion_bindings(data)
+
+    result =
+      if data.adhoc_completion_condition_compiled do
+        EvilEngine.Expressions.evaluate(data.adhoc_completion_condition_compiled, bindings)
+      else
+        EvilEngine.Expressions.eval(condition, bindings)
+      end
+
+    case result do
+      {:ok, true} ->
+        %{data | adhoc_completion_signaled: true}
+
+      {:ok, _falsy} ->
+        data
+
+      {:error, reason} ->
+        Logger.warning(
+          "Ad-hoc completion condition evaluation failed: #{inspect(reason)}"
+        )
+
+        data
+    end
+  end
+
+  defp maybe_evaluate_adhoc_completion_condition(data), do: data
+
+  defp build_adhoc_completion_bindings(data) do
+    inner_activities =
+      Enum.filter(data.process_model.flow_nodes, fn node ->
+        node.type not in [:start_event, :end_event, :boundary_event]
+      end)
+
+    performed_count =
+      inner_activities
+      |> Enum.count(fn activity ->
+        Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+          entry.flow_node_id == activity.id and entry.state == :finished
+        end)
+      end)
+
+    active_count =
+      Enum.count(data.flow_node_instance_states, fn {_id, entry} ->
+        entry.state in [:active, :waiting]
+      end)
+
+    %{
+      "performedActivities" => performed_count,
+      "activeCount" => active_count,
+      "totalActivities" => length(inner_activities)
+    }
+  end
+
+  # -------------------------------------------------------------------
+  # Ad-hoc subprocess: sequential auto-chaining
+  # -------------------------------------------------------------------
+
+  defp maybe_auto_chain_sequential_adhoc(
+         %{mode: AdHocMode, adhoc_ordering: :sequential, adhoc_completion_signaled: false} = data
+       ) do
+    has_active =
+      Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+        entry.state in [:active, :waiting]
+      end)
+
+    if has_active do
+      data
+    else
+      inner_activities =
+        Enum.filter(data.process_model.flow_nodes, fn node ->
+          node.type not in [:start_event, :end_event, :boundary_event]
+        end)
+
+      performed_ids =
+        data.flow_node_instance_states
+        |> Enum.filter(fn {_id, entry} -> entry.state == :finished end)
+        |> Enum.map(fn {_id, entry} -> entry.flow_node_id end)
+        |> MapSet.new()
+
+      next_activity =
+        Enum.find(inner_activities, fn activity ->
+          not MapSet.member?(performed_ids, activity.id)
+        end)
+
+      case next_activity do
+        nil ->
+          data
+
+        activity ->
+          activation_token = %Token{
+            id: generate_id(),
+            process_instance_id: data.process_instance_id,
+            payload: adhoc_current_token_payload(data.flow_node_instance_states),
+            originating_flow_node_instance_id: nil,
+            created_at: DateTime.utc_now()
+          }
+
+          dispatch_flow_node_instance(data, activity, activation_token, [])
+      end
+    end
+  end
+
+  defp maybe_auto_chain_sequential_adhoc(data), do: data
+
+  # -------------------------------------------------------------------
+  # Ad-hoc subprocess: cancel remaining instances after completion
+  # -------------------------------------------------------------------
+
+  defp maybe_cancel_remaining_for_adhoc(
+         %{mode: AdHocMode, adhoc_completion_signaled: true, adhoc_cancel_remaining_instances: true} =
+           data
+       ) do
+    interrupt_remaining_fnis(data, nil, :adhoc_completion_cancelled)
+  end
+
+  defp maybe_cancel_remaining_for_adhoc(data), do: data
+
+  # -------------------------------------------------------------------
+  # Ad-hoc subprocess helpers (used by :call handlers)
+  # -------------------------------------------------------------------
+
+  defp do_activate_adhoc_activity(data, flow_node_id) do
+    case Enum.find(data.process_model.flow_nodes, &(&1.id == flow_node_id)) do
+      nil ->
+        {{:error, :adhoc_activity_not_found}, data}
+
+      _flow_node when data.adhoc_completion_signaled ->
+        {{:error, :adhoc_already_completing}, data}
+
+      _flow_node when data.adhoc_ordering == :sequential ->
+        has_active =
+          Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+            entry.state in [:active, :waiting]
+          end)
+
+        if has_active do
+          {{:error, :adhoc_sequential_busy}, data}
+        else
+          do_dispatch_adhoc_activity(data, flow_node_id)
+        end
+
+      _flow_node ->
+        do_dispatch_adhoc_activity(data, flow_node_id)
+    end
+  end
+
+  defp do_dispatch_adhoc_activity(data, flow_node_id, activation_source \\ "rest") do
+    flow_node = Enum.find(data.process_model.flow_nodes, &(&1.id == flow_node_id))
+    old_fni_ids = MapSet.new(Map.keys(data.flow_node_instance_states))
+
+    activation_token = %Token{
+      id: generate_id(),
+      process_instance_id: data.process_instance_id,
+      payload: data.flow_node_instance_states |> adhoc_current_token_payload(),
+      originating_flow_node_instance_id: nil,
+      created_at: DateTime.utc_now()
+    }
+
+    data = dispatch_flow_node_instance(data, flow_node, activation_token, [])
+
+    new_fni_ids =
+      data.flow_node_instance_states
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(old_fni_ids, &1))
+
+    case new_fni_ids do
+      [fni_id] ->
+        emit_adhoc_activity_activated(data, flow_node_id, fni_id, activation_source)
+        {{:ok, %{flow_node_instance_id: fni_id}}, data}
+
+      _ ->
+        {{:error, :dispatch_failed}, data}
+    end
+  end
+
+  defp adhoc_current_token_payload(fni_states) do
+    fni_states
+    |> Enum.filter(fn {_id, entry} -> entry.state == :finished end)
+    |> Enum.sort_by(fn {id, _entry} -> id end)
+    |> Enum.reduce(%{}, fn {_id, entry}, accumulator ->
+      Map.merge(accumulator, entry.token.payload)
+    end)
+  end
+
+  defp build_adhoc_activities_list(data) do
+    inner_activities =
+      Enum.filter(data.process_model.flow_nodes, fn node ->
+        node.type not in [:start_event, :end_event, :boundary_event]
+      end)
+
+    fni_states_by_flow_node_id = group_fni_states_by_flow_node_id(data)
+
+    has_any_active =
+      Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+        entry.state in [:active, :waiting]
+      end)
+
+    Enum.map(inner_activities, fn activity ->
+      fni_entries = Map.get(fni_states_by_flow_node_id, activity.id, [])
+      performed_count = Enum.count(fni_entries, fn {_id, entry} -> entry.state == :finished end)
+      active_count = Enum.count(fni_entries, fn {_id, entry} -> entry.state in [:active, :waiting] end)
+
+      enabled =
+        cond do
+          data.adhoc_completion_signaled -> false
+          data.adhoc_ordering == :sequential and has_any_active -> false
+          true -> true
+        end
+
+      %{
+        id: activity.id,
+        name: activity.name,
+        type: Atom.to_string(activity.type),
+        enabled: enabled,
+        performed_count: performed_count,
+        active_count: active_count
+      }
+    end)
+  end
+
+  defp build_adhoc_status(data) do
+    inner_activities =
+      Enum.filter(data.process_model.flow_nodes, fn node ->
+        node.type not in [:start_event, :end_event, :boundary_event]
+      end)
+
+    fni_states_by_flow_node_id = group_fni_states_by_flow_node_id(data)
+
+    total_active =
+      data.flow_node_instance_states
+      |> Enum.count(fn {_id, entry} -> entry.state in [:active, :waiting] end)
+
+    performed_activity_ids =
+      inner_activities
+      |> Enum.filter(fn activity ->
+        fni_entries = Map.get(fni_states_by_flow_node_id, activity.id, [])
+        Enum.any?(fni_entries, fn {_id, entry} -> entry.state == :finished end)
+      end)
+      |> Enum.map(& &1.id)
+
+    has_any_active =
+      Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+        entry.state in [:active, :waiting]
+      end)
+
+    enabled_activity_ids =
+      inner_activities
+      |> Enum.filter(fn _activity ->
+        cond do
+          data.adhoc_completion_signaled -> false
+          data.adhoc_ordering == :sequential and has_any_active -> false
+          true -> true
+        end
+      end)
+      |> Enum.map(& &1.id)
+
+    %{
+      active_count: total_active,
+      performed_activities: performed_activity_ids,
+      enabled_activities: enabled_activity_ids,
+      completion_signaled: data.adhoc_completion_signaled
+    }
+  end
+
+  defp group_fni_states_by_flow_node_id(data) do
+    Enum.reduce(data.flow_node_instance_states, %{}, fn {fni_id, entry}, accumulator ->
+      flow_node_id = entry.flow_node_id
+      Map.update(accumulator, flow_node_id, [{fni_id, entry}], &[{fni_id, entry} | &1])
+    end)
+  end
+
+  defp emit_adhoc_activity_activated(data, flow_node_id, flow_node_instance_id, source) do
+    EngineEventBus.publish(%Event.AdHocActivityActivated{
+      process_instance_id: data.process_instance_id,
+      root_process_instance_id: data.root_process_instance_id,
+      adhoc_flow_node_instance_id: data.triggerer_flow_node_instance_id || "",
+      activated_flow_node_id: flow_node_id,
+      activated_flow_node_instance_id: flow_node_instance_id,
+      activation_source: source,
+      occurred_at: DateTime.utc_now()
+    })
+  end
+
 end

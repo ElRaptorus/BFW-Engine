@@ -25,7 +25,7 @@ defmodule EvilEngineWeb.Ws.Sinks.WebSocket do
     payload = event_payload(event)
 
     _result =
-      case Map.get(event, :process_instance_id) do
+      case Map.get(event, :process_instance_id) || Map.get(event, :scope_process_instance_id) do
         nil ->
           _parent = maybe_broadcast_to_parent_pi_channel(pubsub, event, payload)
           Phoenix.PubSub.broadcast(pubsub, "engine:events", {:engine_event, payload})

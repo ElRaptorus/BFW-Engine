@@ -23,7 +23,7 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 5 of 7 completed.** Full BPMN Spec Coverage achieved (yes, including Complex Gateways).
+> **Status**: **Phase 5 of 7 completed.** Full BPMN Spec Coverage achieved.
 > **Phase 6 Next:** API Polish & Sidecar Plugin Support.
 
 ---
@@ -201,24 +201,12 @@ Each of these Elements has full Runtime support.
 
 ### Other
 
-| Element          | Notes                                                                   |
-| -----------------| ----------------------------------------------------------------------- |
-| Event Subprocess | Interrupting + Non-Interrupting, triggered by single typed Start Event  |
+| Element          | Notes                                                                          |
+| -----------------| ------------------------------------------------------------------------------ |
+| Event Subprocess | Interrupting + Non-Interrupting, triggered by single typed Start Event         |
 | Transaction      | `All or nothing` style Subprocess. Always succeeds or fails as a whole. Can use `Cancel` Events for premature cancelling and rolling back a transaction, using automatically triggered compensation. |
-
-### Not Supported But Planned
-
-- Multi-Instance (Parallel): **Phase 5**
-- Multi-Instance (Sequential): **Phase 5**
-- Multi-Instance (Loop): **Phase 5**
-
-### Not Supported and currently not planned
-
-- Data Stores
-- Ad Hoc Subprocess
-- Text Annotation
-- Group
-- Message Flow
+| Multi-Instance   | Includes Standard Loop, Sequential and Parallel MI                             |
+| Ad Hoc Subprocess| An unstructured Activity "Menu", where users can pick the tasks to execute.    |
 
 ---
 

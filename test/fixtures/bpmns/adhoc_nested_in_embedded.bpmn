@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="AdHocNestedInEmbedded" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="AdHocNestedInEmbedded" name="Ad-hoc Nested in Embedded Subprocess" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:subProcess id="SubProcess_1" name="Embedded Subprocess">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:adHocSubProcess id="AdHoc_Inner" name="Inner Ad-hoc">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
+        <bpmn:scriptTask id="ScriptTask_A" name="Script A" scriptFormat="feel">
+          <bpmn:script>{ result_a: "done_a" }</bpmn:script>
+        </bpmn:scriptTask>
+        <bpmn:scriptTask id="ScriptTask_B" name="Script B" scriptFormat="feel">
+          <bpmn:script>{ result_b: "done_b" }</bpmn:script>
+        </bpmn:scriptTask>
+      </bpmn:adHocSubProcess>
+
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="AdHoc_Inner" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="AdHoc_Inner" targetRef="Sub_End" />
+    </bpmn:subProcess>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_1" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="30" width="956" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="30" width="926" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="270" y="50" width="620" height="350" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
+        <dc:Bounds x="300" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AdHoc_Inner" bpmnElement="AdHoc_Inner" isExpanded="true">
+        <dc:Bounds x="390" y="80" width="340" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_A" bpmnElement="ScriptTask_A">
+        <dc:Bounds x="420" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_B" bpmnElement="ScriptTask_B">
+        <dc:Bounds x="580" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End" bpmnElement="Sub_End">
+        <dc:Bounds x="800" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="950" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="220" />
+        <di:waypoint x="270" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="890" y="220" />
+        <di:waypoint x="950" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="336" y="220" />
+        <di:waypoint x="390" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_2" bpmnElement="Sub_Flow_2">
+        <di:waypoint x="730" y="220" />
+        <di:waypoint x="800" y="220" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

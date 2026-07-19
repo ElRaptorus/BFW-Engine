@@ -983,3 +983,46 @@ Fatal PIs, aborted PIs, escalated PIs, and error PIs do **not** trigger compensa
 
 **Correct approach:** Use `EvilEngine.Execution.FlowNodes.ChildLifecycle`. This module contains all shared child-PI lifecycle functions and is parameterized via options (`child_label`, `extra_terminal_states`, `extra_message_handler`, `fresh_lifecycle_fn`) to accommodate handler-specific differences. Both `SubProcess` and `CallActivity` already delegate to it. New handlers should do the same and add handler-specific concerns through the parameterization points.
 
+---
+
+## P59: Ad-hoc inner activities have no Start/End Events
+
+**Mistake:** Modeling Start Events or End Events inside an `<bpmn:adHocSubProcess>`, or expecting the engine to resolve a start event for the ad-hoc child PI.
+
+**Why it happens:** Ad-hoc subprocesses look like embedded subprocesses in the modeler, and embedded subprocesses require exactly one None Start Event. But ad-hoc subprocesses have fundamentally different semantics — their inner activities are not connected by sequence flows and are activated on demand.
+
+**Correct approach:** The deploy-time validator rejects ad-hoc subprocesses that contain Start Events (`:adhoc_subprocess_has_start_event`) or End Events (`:adhoc_subprocess_has_end_event`). At runtime, `AdHocMode.resolve_initial_state/3` returns `{:ok, nil}` (no start event resolution), and `initial_dispatch/4` is a no-op — the handler manages activation directly. The child PI completes via completion signal or natural drain, not via End Event token consumption.
+
+---
+
+## P60: `cancelRemainingInstances=false` requires `Map.get`, not `||`
+
+**Mistake:** Using `opts[:adhoc_cancel_remaining_instances] || true` when propagating `cancelRemainingInstances` from `start_opts` to PI state.
+
+**Why it happens:** The `||` operator in Elixir treats `false` as falsy. When the BPMN model sets `cancelRemainingInstances="false"`, the option value is `false`, and `false || true` evaluates to `true` — silently overriding the intended behavior and always cancelling remaining instances.
+
+**Correct approach:** Use `Map.get(opts, :adhoc_cancel_remaining_instances, true)`, which correctly distinguishes `false` (explicitly set) from absent (use default `true`):
+
+```elixir
+# Wrong — false || true == true, overriding the BPMN attribute
+cancel_remaining = opts[:adhoc_cancel_remaining_instances] || true
+
+# Correct — Map.get preserves explicit false
+cancel_remaining = Map.get(opts, :adhoc_cancel_remaining_instances, true)
+```
+
+---
+
+## P61: Ad-hoc completion condition vs natural drain
+
+**Mistake:** Conflating `adhoc_completion_signaled` with `adhoc_natural_drain_enabled`, or expecting the ad-hoc child PI to complete without either flag being set.
+
+**Why it happens:** Two distinct completion mechanisms exist for ad-hoc subprocesses, and they are easy to confuse because both cause the PI to finish when no active/waiting FNIs remain.
+
+**Correct approach:** Both flags are checked in `AdHocMode.should_complete?/1`:
+
+- `adhoc_completion_signaled` — set by an explicit REST/plugin call (`POST /adhoc-subprocesses/:id/complete`). User-triggered. Checked first.
+- `adhoc_natural_drain_enabled` — set by engine-managed mode after dispatching all inner activities. Engine-triggered. The PI completes when all dispatched activities finish without manual intervention.
+
+If neither flag is set, the PI never completes — it waits indefinitely for an activation or completion signal. This is the correct behavior for plugin-managed mode where the plugin decides when to activate activities and when to signal completion. Do not set `adhoc_natural_drain_enabled` in plugin-managed mode.
+

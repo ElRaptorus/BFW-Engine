@@ -177,6 +177,70 @@ defmodule EvilEngine.Events.JsonEncodersTest do
       assert decoded["processInstanceId"] == "pi-1"
       assert decoded["violations"] == [%{"path" => "$.amount", "message" => "required"}]
     end
+
+    test "AdHocActivityActivated produces camelCase keys" do
+      event = %Event.AdHocActivityActivated{
+        process_instance_id: "pi-1",
+        root_process_instance_id: "root-pi-1",
+        adhoc_flow_node_instance_id: "fni-adhoc",
+        activated_flow_node_id: "Task_1",
+        activated_flow_node_instance_id: "fni-task-1",
+        activation_source: "engine",
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["processInstanceId"] == "pi-1"
+      assert decoded["rootProcessInstanceId"] == "root-pi-1"
+      assert decoded["adhocFlowNodeInstanceId"] == "fni-adhoc"
+      assert decoded["activatedFlowNodeId"] == "Task_1"
+      assert decoded["activatedFlowNodeInstanceId"] == "fni-task-1"
+      assert decoded["activationSource"] == "engine"
+      refute Map.has_key?(decoded, "process_instance_id")
+      refute Map.has_key?(decoded, "adhoc_flow_node_instance_id")
+    end
+
+    test "AdHocSubProcessCompleted produces camelCase keys" do
+      event = %Event.AdHocSubProcessCompleted{
+        process_instance_id: "pi-1",
+        root_process_instance_id: "root-pi-1",
+        adhoc_flow_node_instance_id: "fni-adhoc",
+        adhoc_node_id: "AdHoc_1",
+        completion_reason: :all_done,
+        total_activations: 5,
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["processInstanceId"] == "pi-1"
+      assert decoded["adhocFlowNodeInstanceId"] == "fni-adhoc"
+      assert decoded["adhocNodeId"] == "AdHoc_1"
+      assert decoded["completionReason"] == "all_done"
+      assert decoded["totalActivations"] == 5
+      refute Map.has_key?(decoded, "adhoc_node_id")
+    end
+
+    test "SubProcessChildStarted with is_ad_hoc_subprocess produces camelCase" do
+      event = %Event.SubProcessChildStarted{
+        subprocess_flow_node_instance_id: "fni-1",
+        parent_process_instance_id: "pi-parent",
+        child_process_instance_id: "pi-child",
+        subprocess_node_id: "AdHoc_1",
+        child_process_model_id: "model__subprocess__AdHoc_1",
+        child_version: "1.0.0",
+        is_event_subprocess: false,
+        is_ad_hoc_subprocess: true,
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["isAdHocSubprocess"] == true
+      assert decoded["isEventSubprocess"] == false
+      refute Map.has_key?(decoded, "is_ad_hoc_subprocess")
+    end
   end
 
   describe "Token encoding" do

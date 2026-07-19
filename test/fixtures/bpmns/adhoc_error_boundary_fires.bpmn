@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="AdHocErrorBoundaryFires" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="AdHocErrorBoundaryFires" name="Ad-hoc Error Boundary Fires" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>AdHoc_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BoundaryError_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Happy</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_AfterError</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Error</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:adHocSubProcess id="AdHoc_1" name="Ad-hoc with Failing Task">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Happy</bpmn:outgoing>
+      <bpmn:serviceTask id="ServiceTask_Fail" name="Failing Service" implementation="nonexistent_handler_xyz">
+        <bpmn:extensionElements>
+          <evil:payloadContract>{"type":"object"}</evil:payloadContract>
+        </bpmn:extensionElements>
+      </bpmn:serviceTask>
+    </bpmn:adHocSubProcess>
+
+    <bpmn:boundaryEvent id="BoundaryError_1" name="Catch Error" attachedToRef="AdHoc_1">
+      <bpmn:outgoing>Flow_Error</bpmn:outgoing>
+      <bpmn:errorEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:endEvent id="End_Happy" name="Happy End">
+      <bpmn:incoming>Flow_Happy</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:scriptTask id="ScriptTask_AfterError" name="After Error" scriptFormat="feel">
+      <bpmn:script>{ error_handled: true }</bpmn:script>
+      <bpmn:incoming>Flow_Error</bpmn:incoming>
+      <bpmn:outgoing>Flow_AfterError</bpmn:outgoing>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_Error" name="Error End">
+      <bpmn:incoming>Flow_AfterError</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="AdHoc_1" />
+    <bpmn:sequenceFlow id="Flow_Happy" sourceRef="AdHoc_1" targetRef="End_Happy" />
+    <bpmn:sequenceFlow id="Flow_Error" sourceRef="BoundaryError_1" targetRef="ScriptTask_AfterError" />
+    <bpmn:sequenceFlow id="Flow_AfterError" sourceRef="ScriptTask_AfterError" targetRef="End_Error" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="856" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="826" height="400" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AdHoc_1" bpmnElement="AdHoc_1" isExpanded="true">
+        <dc:Bounds x="290" y="80" width="300" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Fail" bpmnElement="ServiceTask_Fail">
+        <dc:Bounds x="370" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BoundaryError_1" bpmnElement="BoundaryError_1">
+        <dc:Bounds x="452" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Happy" bpmnElement="End_Happy">
+        <dc:Bounds x="680" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_AfterError" bpmnElement="ScriptTask_AfterError">
+        <dc:Bounds x="550" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Error" bpmnElement="End_Error">
+        <dc:Bounds x="730" y="372" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Happy" bpmnElement="Flow_Happy">
+        <di:waypoint x="590" y="200" />
+        <di:waypoint x="680" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Error" bpmnElement="Flow_Error">
+        <di:waypoint x="470" y="318" />
+        <di:waypoint x="470" y="390" />
+        <di:waypoint x="550" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AfterError" bpmnElement="Flow_AfterError">
+        <di:waypoint x="650" y="390" />
+        <di:waypoint x="730" y="390" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

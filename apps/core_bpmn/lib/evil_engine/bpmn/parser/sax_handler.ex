@@ -372,6 +372,32 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     do_handle_start_subprocess("transaction", type_data, attributes, state)
   end
 
+  defp handle_start("adHocSubProcess", attributes, %{current_process: %BpmnProcess{}} = state) do
+    base_type_data = build_initial_type_data(FlowNodeData.SubProcess, attributes)
+
+    ordering =
+      case attributes["ordering"] do
+        "Sequential" -> :sequential
+        _ -> :parallel
+      end
+
+    cancel_remaining =
+      case attributes["cancelRemainingInstances"] do
+        "false" -> false
+        _ -> true
+      end
+
+    type_data = %{
+      base_type_data
+      | is_ad_hoc: true,
+        adhoc_ordering: ordering,
+        cancel_remaining_instances: cancel_remaining,
+        implementation: attributes["implementation"]
+    }
+
+    do_handle_start_subprocess("adHocSubProcess", type_data, attributes, state)
+  end
+
   defp handle_start(name, attributes, %{current_process: %BpmnProcess{}} = state)
        when is_map_key(@flow_node_elements, name) do
     state = maybe_flush_subprocess_shell(state)
@@ -497,6 +523,10 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp handle_start("payloadContract", _attributes, state) do
     {:ok, %{state | text_buffer: "", stack: [:evil_payload_contract | state.stack]}}
+  end
+
+  defp handle_start("activeElements", _attributes, state) do
+    {:ok, %{state | text_buffer: "", stack: [:evil_active_elements | state.stack]}}
   end
 
   defp handle_start("implementation", _attributes, state) do
@@ -796,11 +826,57 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: tl(state.stack)}}
   end
 
-  defp handle_end("completionCondition", state) do
+  defp handle_end("completionCondition", %{current_mi: %MultiInstance{}} = state) do
     text = String.trim(state.text_buffer)
     mi = update_mi(state.current_mi, :completion_condition, text)
 
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: tl(state.stack)}}
+  end
+
+  defp handle_end("completionCondition", %{
+         current_mi: nil,
+         current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
+       } = state) do
+    text = String.trim(state.text_buffer)
+
+    data =
+      if text != "" do
+        %FlowNodeData.SubProcess{sp_data | adhoc_completion_condition: text}
+      else
+        sp_data
+      end
+
+    {:ok, %{state | current_node_data: data, text_buffer: "", stack: tl(state.stack)}}
+  end
+
+  defp handle_end("completionCondition", %{
+         current_mi: nil,
+         current_node_data: nil,
+         subprocess_stack: [
+           %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
+           | rest_subprocess
+         ]
+       } = state) do
+    text = String.trim(state.text_buffer)
+
+    data =
+      if text != "" do
+        %FlowNodeData.SubProcess{sp_data | adhoc_completion_condition: text}
+      else
+        sp_data
+      end
+
+    {:ok,
+     %{
+       state
+       | subprocess_stack: [%{saved | subprocess_data: data} | rest_subprocess],
+         text_buffer: "",
+         stack: tl(state.stack)
+     }}
+  end
+
+  defp handle_end("completionCondition", state) do
+    {:ok, %{state | text_buffer: "", stack: tl(state.stack)}}
   end
 
   defp handle_end("activationCondition", %{stack: [:activation_condition | rest]} = state) do
@@ -820,6 +896,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp handle_end("subProcess", state), do: do_handle_end_subprocess(state)
   defp handle_end("transaction", state), do: do_handle_end_subprocess(state)
+  defp handle_end("adHocSubProcess", state), do: do_handle_end_subprocess(state)
 
   defp handle_end(name, state) when is_map_key(@flow_node_elements, name) do
     %FlowNode{} = node = state.current_node
@@ -1127,6 +1204,52 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     schema = parse_json_text(text)
     data = apply_payload_contract(state.current_node_data, schema)
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("activeElements", %{
+         stack: [:evil_active_elements | rest],
+         current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
+       } = state) do
+    text = String.trim(state.text_buffer)
+
+    data =
+      if text != "" do
+        %FlowNodeData.SubProcess{sp_data | active_elements_expression: text}
+      else
+        sp_data
+      end
+
+    {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("activeElements", %{
+         stack: [:evil_active_elements | rest],
+         current_node_data: nil,
+         subprocess_stack: [
+           %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
+           | rest_subprocess
+         ]
+       } = state) do
+    text = String.trim(state.text_buffer)
+
+    data =
+      if text != "" do
+        %FlowNodeData.SubProcess{sp_data | active_elements_expression: text}
+      else
+        sp_data
+      end
+
+    {:ok,
+     %{
+       state
+       | subprocess_stack: [%{saved | subprocess_data: data} | rest_subprocess],
+         text_buffer: "",
+         stack: rest
+     }}
+  end
+
+  defp handle_end("activeElements", %{stack: [:evil_active_elements | rest]} = state) do
+    {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
   defp handle_end("implementation", %{stack: [:evil_implementation | rest]} = state) do

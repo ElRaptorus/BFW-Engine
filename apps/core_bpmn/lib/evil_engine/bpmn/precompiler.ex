@@ -17,6 +17,14 @@ defmodule EvilEngine.BPMN.Precompiler do
   `Expressions.eval/2` (one-shot parse+evaluate). The performance
   cost is negligible since these expressions are evaluated at most a
   handful of times per PI.
+
+  Ad-hoc subprocess FEEL expressions (`adhoc_completion_condition`,
+  `active_elements_expression`) are precompiled when their context
+  shapes are known at deploy time. The completion condition uses
+  fixed bindings (`performedActivities`, `activeCount`,
+  `totalActivities`). The active elements expression may reference
+  `token.*` but the compile step still succeeds — unknown variables
+  resolve at evaluation time.
   """
 
   alias EvilEngine.BPMN.Model.Definitions
@@ -49,8 +57,53 @@ defmodule EvilEngine.BPMN.Precompiler do
          %FlowNode{type_data: %FlowNodeData.SubProcess{} = sp_data} = node
        ) do
     inner_flow_nodes = Enum.map(sp_data.flow_nodes, &precompile_flow_node/1)
-    %{node | type_data: %{sp_data | flow_nodes: inner_flow_nodes}}
+    sp_data = precompile_adhoc_expressions(%{sp_data | flow_nodes: inner_flow_nodes})
+    %{node | type_data: sp_data}
   end
 
   defp precompile_subprocess_children(node), do: node
+
+  @adhoc_completion_shape %{
+    "performedActivities" => 0,
+    "activeCount" => 0,
+    "totalActivities" => 0
+  }
+
+  defp precompile_adhoc_expressions(%FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data) do
+    sp_data
+    |> maybe_compile_completion_condition()
+    |> maybe_compile_active_elements()
+  end
+
+  defp precompile_adhoc_expressions(sp_data), do: sp_data
+
+  defp maybe_compile_completion_condition(
+         %{adhoc_completion_condition: condition} = sp_data
+       )
+       when is_binary(condition) and condition != "" do
+    case EvilEngine.Expressions.compile(condition, @adhoc_completion_shape) do
+      {:ok, compiled} ->
+        %{sp_data | adhoc_completion_condition_compiled: compiled}
+
+      {:error, _reason} ->
+        sp_data
+    end
+  end
+
+  defp maybe_compile_completion_condition(sp_data), do: sp_data
+
+  defp maybe_compile_active_elements(
+         %{active_elements_expression: expression} = sp_data
+       )
+       when is_binary(expression) and expression != "" do
+    case EvilEngine.Expressions.compile(expression) do
+      {:ok, compiled} ->
+        %{sp_data | active_elements_compiled: compiled}
+
+      {:error, _reason} ->
+        sp_data
+    end
+  end
+
+  defp maybe_compile_active_elements(sp_data), do: sp_data
 end

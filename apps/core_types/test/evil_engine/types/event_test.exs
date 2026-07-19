@@ -585,4 +585,104 @@ defmodule EvilEngine.Types.EventTest do
       end
     end
   end
+
+  describe "AdHocActivityActivated" do
+    test "builds with all required keys" do
+      now = DateTime.utc_now()
+
+      event = %Event.AdHocActivityActivated{
+        process_instance_id: "pi-1",
+        root_process_instance_id: "root-pi-1",
+        adhoc_flow_node_instance_id: "fni-adhoc",
+        activated_flow_node_id: "Task_1",
+        activated_flow_node_instance_id: "fni-task-1",
+        activation_source: "engine",
+        occurred_at: now
+      }
+
+      assert event.process_instance_id == "pi-1"
+      assert event.root_process_instance_id == "root-pi-1"
+      assert event.adhoc_flow_node_instance_id == "fni-adhoc"
+      assert event.activated_flow_node_id == "Task_1"
+      assert event.activated_flow_node_instance_id == "fni-task-1"
+      assert event.activation_source == "engine"
+      assert event.occurred_at == now
+    end
+
+    test "raises when required key is missing" do
+      assert_raise ArgumentError, ~r/the following keys must also be given/, fn ->
+        struct!(Event.AdHocActivityActivated, %{
+          process_instance_id: "pi-1",
+          root_process_instance_id: "root-pi-1"
+        })
+      end
+    end
+  end
+
+  describe "AdHocSubProcessCompleted" do
+    test "builds with all required keys" do
+      now = DateTime.utc_now()
+
+      event = %Event.AdHocSubProcessCompleted{
+        process_instance_id: "pi-1",
+        root_process_instance_id: "root-pi-1",
+        adhoc_flow_node_instance_id: "fni-adhoc",
+        adhoc_node_id: "AdHoc_1",
+        completion_reason: :all_activities_completed,
+        total_activations: 3,
+        occurred_at: now
+      }
+
+      assert event.process_instance_id == "pi-1"
+      assert event.adhoc_node_id == "AdHoc_1"
+      assert event.completion_reason == :all_activities_completed
+      assert event.total_activations == 3
+      assert event.occurred_at == now
+    end
+
+    test "raises when required key is missing" do
+      assert_raise ArgumentError, ~r/the following keys must also be given/, fn ->
+        struct!(Event.AdHocSubProcessCompleted, %{
+          process_instance_id: "pi-1"
+        })
+      end
+    end
+  end
+
+  describe "SubProcessChildStarted with is_ad_hoc_subprocess" do
+    test "defaults is_ad_hoc_subprocess to false" do
+      now = DateTime.utc_now()
+
+      event = %Event.SubProcessChildStarted{
+        subprocess_flow_node_instance_id: "fni-1",
+        parent_process_instance_id: "pi-parent",
+        child_process_instance_id: "pi-child",
+        subprocess_node_id: "SubProcess_1",
+        child_process_model_id: "model__subprocess__SubProcess_1",
+        child_version: "1.0.0",
+        is_event_subprocess: false,
+        occurred_at: now
+      }
+
+      assert event.is_ad_hoc_subprocess == false
+    end
+
+    test "can be set to true" do
+      now = DateTime.utc_now()
+
+      event = %Event.SubProcessChildStarted{
+        subprocess_flow_node_instance_id: "fni-1",
+        parent_process_instance_id: "pi-parent",
+        child_process_instance_id: "pi-child",
+        subprocess_node_id: "AdHoc_1",
+        child_process_model_id: "model__subprocess__AdHoc_1",
+        child_version: "1.0.0",
+        is_event_subprocess: false,
+        is_ad_hoc_subprocess: true,
+        occurred_at: now
+      }
+
+      assert event.is_ad_hoc_subprocess == true
+    end
+  end
 end

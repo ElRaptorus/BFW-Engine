@@ -243,6 +243,18 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
         Array.isArray(body['conflicts']) ? (body['conflicts'] as DecisionVersionExistsError['conflicts']) : [],
         body,
       );
+    case 'not_adhoc_subprocess':
+      return new ValidationError(message, [], body);
+    case 'adhoc_activity_not_found':
+      return new NotFoundError(message, body);
+    case 'adhoc_already_completing':
+      return new ValidationError(message, [], body);
+    case 'adhoc_sequential_busy':
+      return new ValidationError(message, [], body);
+    case 'adhoc_not_active':
+      return new ValidationError(message, [], body);
+    case 'retry_inside_adhoc_subprocess':
+      return new ValidationError(message, [], body);
     case 'internal_error':
       return new InternalEngineError(message, body);
     default:

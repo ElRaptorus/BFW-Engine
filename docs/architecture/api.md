@@ -144,6 +144,23 @@ Body: empty or `{}`. Returns `200` with `{triggered: true}`. Errors: `404` (FNI 
 
 TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client` (`packages/js/client/src/rest/event-client.ts`). SDK type: `TimerTriggerResult` (`packages/js/sdk/src/types/trigger.ts`).
 
+#### 10.1.6 Ad-hoc subprocess control (`AdhocSubprocessController` — implemented)
+
+| Method | Path | Purpose | Required Claim |
+|---|---|---|---|
+| `GET` | `/adhoc-subprocesses/{id}/activities` | List enabled/performed inner activities | `manage_adhoc_subprocess` |
+| `POST` | `/adhoc-subprocesses/{id}/activities/{activity_id}/activate` | Activate an inner activity | `manage_adhoc_subprocess` |
+| `POST` | `/adhoc-subprocesses/{id}/complete` | Signal completion | `manage_adhoc_subprocess` |
+| `GET` | `/adhoc-subprocesses/{id}/status` | Query runtime status | `manage_adhoc_subprocess` |
+
+The `{id}` path parameter is the **child process instance ID** spawned by the ad-hoc subprocess handler — not the parent PI or the shell FNI ID.
+
+**List activities** returns `{data: [{id, name, type, enabled, performedCount, activeCount}]}`. **Activate** returns `{flowNodeInstanceId: "..."}`. **Complete** returns `{completed: true}`. **Status** returns `{activeCount, performedActivities: [id], enabledActivities: [id], completionSignaled: boolean}`.
+
+Errors: `404` (PI not found or activity not found in scope), `422` (`not_adhoc_subprocess` — PI is not an ad-hoc subprocess child), `409` (`adhoc_already_completing` — completion already signaled), `403` (missing claim), `500` (`dispatch_failed`). Controller: `EvilEngineWeb.Http.AdhocSubprocessController` (`apps/api_web/lib/evil_engine_web/http/controllers/adhoc_subprocess_controller.ex`). Delegates to `EvilEngine.Api.{get_adhoc_enabled_activities,activate_adhoc_activity,complete_adhoc_subprocess,get_adhoc_status}/3-4`.
+
+Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activity,complete,get_status}` — same operations with `skip_claims: true`.
+
 **Async Service Tasks:** completion is **plugin-side** only — call `engine_facade.finish_async_service_task/2` or `fail_async_service_task/3` (or the matching `EvilEngine.Api.*` actions / GraphQL mutations when exposed). There is **no** first-class `POST /async-flow-nodes/...` REST surface.
 
 ##### 10.1.1 Payload size limits
@@ -611,6 +628,19 @@ These `EvilEngine.Api` functions centralize claim checks previously scattered ac
 `persist_deploy_batch/3` remains available for plugins that supply pre-parsed data.
 
 `trigger_timer_event/3` validation pipeline: `get_flow_node_instance/1` → `validate_timer_event_type/1` (position + `event_type: "timer"`) → `validate_fni_active_or_waiting/1` → `Validation.check_lane_access/3` → `Execution.trigger_timer_event/2`.
+
+## Ad-hoc Subprocess Facade Functions
+
+| Function | Signature | Required Claim | Notes |
+|----------|-----------|----------------|-------|
+| `get_adhoc_enabled_activities/3` | `(pi_id, Identity.t(), keyword())` | `manage_adhoc_subprocess` | Returns list of inner activities with enabled/performed status |
+| `activate_adhoc_activity/4` | `(pi_id, flow_node_id, Identity.t(), keyword())` | `manage_adhoc_subprocess` | Activates an inner activity, returns `{:ok, %{flow_node_instance_id: id}}` |
+| `complete_adhoc_subprocess/3` | `(pi_id, Identity.t(), keyword())` | `manage_adhoc_subprocess` | Signals completion; child PI finishes when all active FNIs complete |
+| `get_adhoc_status/3` | `(pi_id, Identity.t(), keyword())` | `manage_adhoc_subprocess` | Returns active count, performed/enabled activities, completion signal state |
+
+The `pi_id` parameter is the **child PI ID** — the process instance spawned by the ad-hoc subprocess handler, not the parent PI.
+
+Plugin facade closures (`facade.adhoc_subprocesses.*`) call the same functions with `skip_claims: true`.
 
 ## DMN (Decision) Facade Functions
 

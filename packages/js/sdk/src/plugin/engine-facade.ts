@@ -37,6 +37,7 @@ import type { ProcessModel } from '../types/process-model.js';
 import type { ProcessVersion } from '../types/process-version.js';
 import type { StartResult } from '../types/start.js';
 import type { MessageTriggerResult, SignalTriggerResult } from '../types/trigger.js';
+import type { AdHocActivateResult, AdHocActivity, AdHocCompleteResult, AdHocStatus } from '../types/adhoc-subprocess.js';
 import type { AuthProviderHandler } from './auth-provider.js';
 import type { DataStoreAdapterHandler } from './data-store-adapter.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
@@ -91,6 +92,7 @@ export interface EngineFacade {
   messages: FacadeMessages;
   signals: FacadeSignals;
   graphql: FacadeGraphql;
+  adHocSubprocesses: FacadeAdHocSubprocesses;
 }
 
 /** Options for starting a process instance via the facade. */
@@ -156,6 +158,13 @@ export interface FacadeMessages {
 export interface FacadeSignals {
   /** Broadcast a named signal (no payload, no correlation). */
   publish(signalName: string): Promise<SignalTriggerResult>;
+}
+
+export interface FacadeAdHocSubprocesses {
+  getEnabledActivities(processInstanceId: string): Promise<AdHocActivity[]>;
+  activateActivity(processInstanceId: string, activityId: string): Promise<AdHocActivateResult>;
+  complete(processInstanceId: string): Promise<AdHocCompleteResult>;
+  getStatus(processInstanceId: string): Promise<AdHocStatus>;
 }
 
 /**

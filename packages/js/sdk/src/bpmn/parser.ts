@@ -221,6 +221,7 @@ const FLOW_NODE_ELEMENTS: ReadonlySet<string> = new Set([
   'callActivity',
   'subProcess',
   'transaction',
+  'adHocSubProcess',
   'exclusiveGateway',
   'parallelGateway',
   'inclusiveGateway',
@@ -245,6 +246,7 @@ const ELEMENT_TO_TYPE: Record<string, FlowNodeType> = {
   callActivity: FlowNodeType.CallActivity,
   subProcess: FlowNodeType.SubProcess,
   transaction: FlowNodeType.SubProcess,
+  adHocSubProcess: FlowNodeType.SubProcess,
   exclusiveGateway: FlowNodeType.ExclusiveGateway,
   parallelGateway: FlowNodeType.ParallelGateway,
   inclusiveGateway: FlowNodeType.InclusiveGateway,
@@ -655,7 +657,7 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
       return buildCallActivityTypeData(node, extKids);
 
     case FlowNodeType.SubProcess:
-      return buildSubProcessTypeData(node, kids, extKids, tagName === 'transaction');
+      return buildSubProcessTypeData(node, kids, extKids, tagName);
 
     case FlowNodeType.ExclusiveGateway:
       return {
@@ -783,8 +785,11 @@ function buildSubProcessTypeData(
   node: OrderedNode,
   kids: OrderedNode[],
   extKids: OrderedNode[],
-  isTransaction = false,
+  tagName?: string,
 ): FlowNodeTypeData {
+  const isTransaction = tagName === 'transaction';
+  const isAdHoc = tagName === 'adHocSubProcess';
+
   const { inMappings, outMappings } = parseMappings(extKids);
   const innerFlowNodes: FlowNode[] = [];
   const innerSequenceFlows: SequenceFlow[] = [];
@@ -846,11 +851,43 @@ function buildSubProcessTypeData(
   applyDefaultFlows(syntheticProcess, innerDefaults);
   linkBoundaryRefs(syntheticProcess);
 
+  let adHocOrdering: 'Parallel' | 'Sequential' | null = null;
+  let cancelRemainingInstances: boolean | null = null;
+  let adHocCompletionCondition: string | null = null;
+  let activeElementsExpression: string | null = null;
+
+  if (isAdHoc) {
+    const orderingAttr = attr(node, 'ordering');
+    if (orderingAttr === 'Sequential') {
+      adHocOrdering = 'Sequential';
+    } else {
+      adHocOrdering = 'Parallel';
+    }
+
+    const cancelAttr = attr(node, 'cancelRemainingInstances');
+    cancelRemainingInstances = cancelAttr !== null ? cancelAttr !== 'false' : true;
+
+    const completionConditionNode = findElement(kids, 'completionCondition');
+    if (completionConditionNode) {
+      const text = textContent(completionConditionNode);
+      adHocCompletionCondition = text !== '' ? text : null;
+    }
+
+    const activeElementsText = childText(extKids, 'activeElements');
+    activeElementsExpression = activeElementsText !== '' ? activeElementsText : null;
+  }
+
   return {
     type: 'sub_process',
     triggeredByEvent: attr(node, 'triggeredByEvent') === 'true',
     isTransaction,
     transactionMethod: isTransaction ? (attr(node, 'method') ?? null) : null,
+    isAdHoc,
+    adHocOrdering,
+    cancelRemainingInstances,
+    adHocCompletionCondition,
+    implementation: isAdHoc ? (attr(node, 'implementation') ?? null) : null,
+    activeElementsExpression,
     flowNodes: syntheticProcess.flowNodes,
     sequenceFlows: syntheticProcess.sequenceFlows,
     dataObjects: syntheticProcess.dataObjects,

@@ -3,6 +3,49 @@
 > **Use when**: writing integration tests, adding test scenarios, extending test fixtures,
 > or debugging test failures in the Evil Engine project.
 
+## MANDATORY: Start the Test Database First
+
+**Before doing ANYTHING else in this skill, run this one-liner to ensure the DB is up:**
+
+```bash
+(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+```
+
+**This is not optional. Do not skip this. Do not defer this.**
+
+If the one-liner fails, run the steps individually:
+
+```bash
+# Check if container exists and is running
+docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+
+# If output is "true" → container is running, skip to migration step
+# If output is "false" → start it:
+docker start evil-engine-postgres-test
+
+# If error or empty → create it from scratch:
+bash scripts/create-test-db.sh
+
+# Verify readiness (retry up to 3 times with 2s sleep between attempts)
+docker exec evil-engine-postgres-test pg_isready -U evil_engine
+
+# Run pending migrations
+MIX_ENV=test mix ecto.migrate
+```
+
+**If you skip this step and later report "tests deferred because DB is not running", you have violated this skill's contract and the project's build rules.**
+
+## For Parent Agents Delegating to Subagents
+
+When launching a subagent to run integration tests, you MUST include this instruction in the Task prompt:
+
+> Before running any tests, ensure the PostgreSQL test container is running:
+> `(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate`
+
+Subagents do not inherit workspace rules. The parent agent is responsible for including DB startup instructions in the subagent's prompt.
+
+---
+
 ## Overview
 
 Integration tests exercise the full engine stack end-to-end. They verify that all

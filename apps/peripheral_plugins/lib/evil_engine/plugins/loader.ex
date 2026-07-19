@@ -330,6 +330,7 @@ defmodule EvilEngine.Plugins.Loader do
       decisions: build_decisions_namespace(identity, plugin_name),
       messages: build_messages_namespace(plugin_name),
       signals: build_signals_namespace(plugin_name),
+      adhoc_subprocesses: build_adhoc_subprocesses_namespace(identity),
       graphql: build_graphql_namespace(identity)
     }
   end
@@ -583,6 +584,40 @@ defmodule EvilEngine.Plugins.Loader do
     %EngineFacade.Signals{
       publish: fn signal_name ->
         EvilEngine.Api.publish_signal(signal_name, plugin_identity, skip_claims: true)
+      end
+    }
+  end
+
+  defp build_adhoc_subprocesses_namespace(identity) do
+    %EngineFacade.AdhocSubprocesses{
+      get_enabled_activities: fn process_instance_id ->
+        EvilEngine.Api.get_adhoc_enabled_activities(
+          process_instance_id,
+          identity,
+          skip_claims: true
+        )
+      end,
+      activate_activity: fn process_instance_id, flow_node_id ->
+        EvilEngine.Api.activate_adhoc_activity(
+          process_instance_id,
+          flow_node_id,
+          identity,
+          skip_claims: true
+        )
+      end,
+      complete: fn process_instance_id ->
+        EvilEngine.Api.complete_adhoc_subprocess(
+          process_instance_id,
+          identity,
+          skip_claims: true
+        )
+      end,
+      get_status: fn process_instance_id ->
+        EvilEngine.Api.get_adhoc_status(
+          process_instance_id,
+          identity,
+          skip_claims: true
+        )
       end
     }
   end

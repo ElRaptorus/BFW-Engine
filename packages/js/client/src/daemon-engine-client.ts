@@ -1,6 +1,7 @@
 import { GraphqlClient } from './graphql/graphql-client.js';
 import { HttpTransport } from './http/transport.js';
 import type { JwtFactory } from './identity/types.js';
+import { AdHocSubprocessClient } from './rest/adhoc-subprocess-client.js';
 import { DecisionClient } from './rest/decision-client.js';
 import { EngineClient } from './rest/engine-client.js';
 import { EventClient } from './rest/event-client.js';
@@ -38,6 +39,7 @@ export class DaemonEngineClient {
   public readonly decisions: DecisionClient;
   public readonly graphql: GraphqlClient;
   public readonly notifications: NotificationClient;
+  public readonly adHocSubprocesses: AdHocSubprocessClient;
 
   private readonly transport: HttpTransport;
 
@@ -51,6 +53,7 @@ export class DaemonEngineClient {
     this.events = new EventClient(this.transport);
     this.decisions = new DecisionClient(this.transport);
     this.graphql = new GraphqlClient(this.transport);
+    this.adHocSubprocesses = new AdHocSubprocessClient(this.transport);
 
     const wsUrl = options?.wsUrl ?? url.replace(/^http/, 'ws') + '/socket';
     this.notifications = new NotificationClient(wsUrl, jwtFactory);

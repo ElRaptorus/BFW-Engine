@@ -55,10 +55,12 @@ defmodule EvilEngine.EngineFacade do
   | `decisions` | `EngineFacade.Decisions.t()` | Decision Model catalog reads + writes + evaluation |
   | `messages` | `EngineFacade.Messages.t()` | Message publish (`publish/3`) |
   | `signals` | `EngineFacade.Signals.t()` | Signal broadcast publish (`publish/1`; no payload, no correlation) |
+  | `adhoc_subprocesses` | `EngineFacade.AdhocSubprocesses.t()` | Ad-hoc subprocess control (activate, complete, status) |
   | `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution |
   """
 
   alias __MODULE__.{
+    AdhocSubprocesses,
     DataObjects,
     Decisions,
     FlowNodeInstances,
@@ -107,6 +109,7 @@ defmodule EvilEngine.EngineFacade do
           decisions: Decisions.t(),
           messages: Messages.t(),
           signals: Signals.t(),
+          adhoc_subprocesses: AdhocSubprocesses.t(),
           graphql: Graphql.t()
         }
 
@@ -135,6 +138,7 @@ defmodule EvilEngine.EngineFacade do
     decisions: %Decisions{},
     messages: %Messages{},
     signals: %Signals{},
+    adhoc_subprocesses: %AdhocSubprocesses{},
     graphql: %Graphql{}
   ]
 

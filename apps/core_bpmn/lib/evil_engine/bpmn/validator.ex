@@ -21,6 +21,8 @@ defmodule EvilEngine.BPMN.Validator do
   - Event-Based Gateway checks (no boundary events on EBG Receive Task targets)
   - Cancel event scope enforcement (Cancel End inside transaction; Cancel Boundary on transaction host)
   - Nested transaction rejection (bpmn:transaction inside bpmn:transaction)
+  - Ad-hoc subprocess structural checks (inner activities, no start/end events, ordering constraints)
+  - Ad-hoc subprocess nesting restrictions (no ad-hoc inside ad-hoc, no ad-hoc inside event subprocess)
   """
 
   alias EvilEngine.BPMN.ComplexRegionAnalysis
@@ -32,6 +34,19 @@ defmodule EvilEngine.BPMN.Validator do
   alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
   alias EvilEngine.BPMN.Model.SequenceFlow
   alias EvilEngine.BPMN.Model.StandardLoop
+
+  @activity_types [
+    :task,
+    :user_task,
+    :service_task,
+    :manual_task,
+    :script_task,
+    :business_rule_task,
+    :send_task,
+    :receive_task,
+    :call_activity,
+    :sub_process
+  ]
 
   @type violation :: {atom(), String.t()}
 
@@ -76,6 +91,7 @@ defmodule EvilEngine.BPMN.Validator do
       check_unique_flow_node_ids(process),
       check_cancel_transaction_scope(process),
       check_nested_transactions(process),
+      check_nested_adhoc_subprocesses(process),
       check_loop_characteristics(process)
     ])
   end
@@ -642,7 +658,8 @@ defmodule EvilEngine.BPMN.Validator do
          subprocess_id,
          %FlowNodeData.SubProcess{} = data,
          %Definitions{} = definitions,
-         scope_label
+         scope_label,
+         opts \\ []
        ) do
     inner_node_ids = MapSet.new(data.flow_nodes, & &1.id)
 
@@ -652,10 +669,15 @@ defmodule EvilEngine.BPMN.Validator do
       sequence_flows: data.sequence_flows
     }
 
+    orphan_check =
+      if Keyword.get(opts, :skip_orphan_check, false),
+        do: [],
+        else: check_subprocess_orphan_nodes(scope_label, data.flow_nodes, data.sequence_flows)
+
     List.flatten([
       check_subprocess_essential_properties(scope_label, data),
       check_subprocess_sequence_flow_refs(scope_label, data.sequence_flows, inner_node_ids),
-      check_subprocess_orphan_nodes(scope_label, data.flow_nodes, data.sequence_flows),
+      orphan_check,
       check_event_based_gateways(inner_scope_as_process),
       Enum.flat_map(data.flow_nodes, fn %FlowNode{id: id, type: type, type_data: type_data} ->
         validate_type_data(id, type, type_data, inner_node_ids, definitions, scope_label)
@@ -1227,6 +1249,22 @@ defmodule EvilEngine.BPMN.Validator do
   defp validate_type_data(
          id,
          _type,
+         %FlowNodeData.SubProcess{triggered_by_event: false, is_ad_hoc: true} = data,
+         _node_ids,
+         definitions,
+         _scope_label
+       ) do
+    scope_label = "[in AdHocSubProcess '#{id}'] "
+
+    validate_inner_scope_structure(id, data, definitions, scope_label,
+      skip_orphan_check: true
+    ) ++
+      validate_adhoc_subprocess_structure(id, data)
+  end
+
+  defp validate_type_data(
+         id,
+         _type,
          %FlowNodeData.SubProcess{triggered_by_event: false} = data,
          _node_ids,
          definitions,
@@ -1694,21 +1732,171 @@ defmodule EvilEngine.BPMN.Validator do
   defp nested_transaction_violation(_outer_id, _node), do: []
 
   # ---------------------------------------------------------------------------
-  # Loop characteristics checks (MI + Standard Loop)
+  # Ad-hoc SubProcess structural checks
   # ---------------------------------------------------------------------------
 
-  @activity_types [
-    :task,
-    :user_task,
-    :service_task,
-    :manual_task,
-    :script_task,
-    :business_rule_task,
-    :send_task,
-    :receive_task,
-    :call_activity,
-    :sub_process
-  ]
+  defp validate_adhoc_subprocess_structure(
+         subprocess_id,
+         %FlowNodeData.SubProcess{} = data
+       ) do
+    List.flatten([
+      check_adhoc_has_activities(subprocess_id, data),
+      check_adhoc_no_start_events(subprocess_id, data),
+      check_adhoc_no_end_events(subprocess_id, data),
+      check_adhoc_sequential_active_elements(subprocess_id, data),
+      check_adhoc_empty_implementation(subprocess_id, data)
+    ])
+  end
+
+  defp check_adhoc_has_activities(subprocess_id, %FlowNodeData.SubProcess{flow_nodes: flow_nodes}) do
+    has_activity = Enum.any?(flow_nodes, &activity_type?(&1.type))
+
+    if has_activity do
+      []
+    else
+      [
+        {:adhoc_subprocess_empty,
+         "AdHocSubProcess '#{subprocess_id}' must contain at least one activity."}
+      ]
+    end
+  end
+
+  defp check_adhoc_no_start_events(subprocess_id, %FlowNodeData.SubProcess{flow_nodes: flow_nodes}) do
+    if Enum.any?(flow_nodes, &(&1.type == :start_event)) do
+      [
+        {:adhoc_subprocess_has_start_event,
+         "AdHocSubProcess '#{subprocess_id}' must not contain Start Events."}
+      ]
+    else
+      []
+    end
+  end
+
+  defp check_adhoc_no_end_events(subprocess_id, %FlowNodeData.SubProcess{flow_nodes: flow_nodes}) do
+    if Enum.any?(flow_nodes, &(&1.type == :end_event)) do
+      [
+        {:adhoc_subprocess_has_end_event,
+         "AdHocSubProcess '#{subprocess_id}' must not contain End Events."}
+      ]
+    else
+      []
+    end
+  end
+
+  defp check_adhoc_sequential_active_elements(
+         subprocess_id,
+         %FlowNodeData.SubProcess{
+           adhoc_ordering: :sequential,
+           implementation: implementation,
+           active_elements_expression: active_elements_expression
+         }
+       )
+       when is_nil(implementation) and is_nil(active_elements_expression) do
+    [
+      {:adhoc_sequential_missing_active_elements,
+       "AdHocSubProcess '#{subprocess_id}' has sequential ordering without an implementation " <>
+         "or evil:ActiveElements expression. The engine has no deterministic basis for " <>
+         "choosing the next activity."}
+    ]
+  end
+
+  defp check_adhoc_sequential_active_elements(_subprocess_id, _data), do: []
+
+  defp check_adhoc_empty_implementation(
+         subprocess_id,
+         %FlowNodeData.SubProcess{implementation: implementation}
+       )
+       when is_binary(implementation) do
+    if String.trim(implementation) == "" do
+      [
+        {:adhoc_subprocess_empty_implementation,
+         "AdHocSubProcess '#{subprocess_id}' has an empty 'implementation' attribute."}
+      ]
+    else
+      []
+    end
+  end
+
+  defp check_adhoc_empty_implementation(_subprocess_id, _data), do: []
+
+  defp activity_type?(type),
+    do: type in @activity_types
+
+  # ---------------------------------------------------------------------------
+  # Ad-hoc SubProcess nesting checks
+  # ---------------------------------------------------------------------------
+
+  defp check_nested_adhoc_subprocesses(%BpmnProcess{} = process) do
+    do_check_nested_adhoc(process.flow_nodes, nil)
+  end
+
+  defp do_check_nested_adhoc(flow_nodes, enclosing_context) do
+    Enum.flat_map(flow_nodes, &check_nested_adhoc_node(&1, enclosing_context))
+  end
+
+  defp check_nested_adhoc_node(
+         %FlowNode{
+           id: id,
+           type: :sub_process,
+           type_data: %FlowNodeData.SubProcess{
+             is_ad_hoc: true,
+             flow_nodes: inner_nodes
+           }
+         },
+         enclosing_context
+       ) do
+    nesting_violation =
+      case enclosing_context do
+        {:adhoc, outer_id} ->
+          [
+            {:nested_adhoc_subprocess,
+             "AdHocSubProcess '#{outer_id}' contains nested AdHocSubProcess '#{id}'. " <>
+               "Nesting ad-hoc subprocesses is not supported."}
+          ]
+
+        {:event_subprocess, esp_id} ->
+          [
+            {:adhoc_inside_event_subprocess,
+             "Event SubProcess '#{esp_id}' contains AdHocSubProcess '#{id}'. " <>
+               "Ad-hoc subprocesses are not supported inside event subprocesses."}
+          ]
+
+        _ ->
+          []
+      end
+
+    nesting_violation ++ do_check_nested_adhoc(inner_nodes, {:adhoc, id})
+  end
+
+  defp check_nested_adhoc_node(
+         %FlowNode{
+           id: id,
+           type: :sub_process,
+           type_data: %FlowNodeData.SubProcess{
+             triggered_by_event: true,
+             flow_nodes: inner_nodes
+           }
+         },
+         _enclosing_context
+       ) do
+    do_check_nested_adhoc(inner_nodes, {:event_subprocess, id})
+  end
+
+  defp check_nested_adhoc_node(
+         %FlowNode{
+           type: :sub_process,
+           type_data: %FlowNodeData.SubProcess{flow_nodes: inner_nodes}
+         },
+         enclosing_context
+       ) do
+    do_check_nested_adhoc(inner_nodes, enclosing_context)
+  end
+
+  defp check_nested_adhoc_node(_node, _enclosing_context), do: []
+
+  # ---------------------------------------------------------------------------
+  # Loop characteristics checks (MI + Standard Loop)
+  # ---------------------------------------------------------------------------
 
   defp check_loop_characteristics(%BpmnProcess{} = process) do
     all_flow_nodes = collect_all_flow_nodes_flat(process.flow_nodes)

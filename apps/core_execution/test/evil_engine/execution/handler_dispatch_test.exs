@@ -402,5 +402,45 @@ defmodule EvilEngine.Execution.HandlerDispatchTest do
       assert {:ok, EvilEngine.Execution.FlowNodes.ConditionalCatchEvent} =
                HandlerDispatch.handler_for(flow_node)
     end
+
+    test "ad-hoc subprocess routes to AdHocSubProcess handler" do
+      flow_node = %FlowNode{
+        id: "adhoc-sp-1",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: false,
+          is_ad_hoc: true
+        }
+      }
+
+      assert {:ok, FlowNodes.AdHocSubProcess} == HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "ad-hoc takes priority over event subprocess flag" do
+      flow_node = %FlowNode{
+        id: "adhoc-sp-2",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: false,
+          is_ad_hoc: true,
+          is_transaction: false
+        }
+      }
+
+      assert {:ok, FlowNodes.AdHocSubProcess} == HandlerDispatch.handler_for(flow_node)
+    end
+
+    test "transaction takes priority over ad-hoc flag" do
+      flow_node = %FlowNode{
+        id: "tx-adhoc",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          is_transaction: true,
+          is_ad_hoc: true
+        }
+      }
+
+      assert {:ok, FlowNodes.TransactionSubProcess} == HandlerDispatch.handler_for(flow_node)
+    end
   end
 end

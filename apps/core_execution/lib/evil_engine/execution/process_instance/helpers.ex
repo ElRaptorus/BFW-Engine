@@ -416,6 +416,30 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       "Increase maxIterations, reduce the collection, or use Sequential Multi-Instance."
   end
 
+  defp humanize_error({:adhoc_subprocess_empty, message}) when is_binary(message) do
+    message
+  end
+
+  defp humanize_error(:retry_inside_adhoc_subprocess) do
+    "Cannot retry a process instance inside an ad-hoc subprocess scope"
+  end
+
+  defp humanize_error(:not_adhoc_subprocess) do
+    "Process instance is not an ad-hoc subprocess"
+  end
+
+  defp humanize_error(:adhoc_activity_not_found) do
+    "Activity not found in ad-hoc subprocess scope"
+  end
+
+  defp humanize_error(:adhoc_already_completing) do
+    "Ad-hoc subprocess completion has already been signaled"
+  end
+
+  defp humanize_error(:dispatch_failed) do
+    "Failed to dispatch ad-hoc activity flow node instance"
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end

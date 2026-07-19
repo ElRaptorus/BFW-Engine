@@ -49,7 +49,8 @@ defmodule EvilEngine.Execution.SequenceFlowResolver do
            outgoing_count: outgoing_count
          }}
 
-      not is_end_event and outgoing_count == 0 and not completed_node.is_for_compensation ->
+      not is_end_event and outgoing_count == 0 and not completed_node.is_for_compensation and
+          not process.is_ad_hoc_scope ->
         {:error, :dead_end,
          %{
            flow_node_id: completed_node.id,

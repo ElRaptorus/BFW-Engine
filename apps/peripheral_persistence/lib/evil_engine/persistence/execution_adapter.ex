@@ -450,6 +450,20 @@ defmodule EvilEngine.Persistence.ExecutionAdapter do
     end
   end
 
+  @doc "Count ALL FNIs for a PI (all states). Lightweight alternative to list_all_flow_node_instances."
+  @impl true
+  def count_all_flow_node_instances(process_instance_id) do
+    count_sql = """
+    SELECT COUNT(*) FROM flow_node_instances
+    WHERE process_instance_id = $1 AND deleted = false
+    """
+
+    case EctoSQL.query(Repo, count_sql, [dump_uuid!(process_instance_id)]) do
+      {:ok, %{rows: [[count]]}} -> {:ok, count}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @doc "Fetch a single FNI by its own ID (for retry ancestor-chain inspection)."
   @impl true
   def get_flow_node_instance_by_id(fni_id) do

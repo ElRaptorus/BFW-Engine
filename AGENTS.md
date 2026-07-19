@@ -1,16 +1,68 @@
 # ThomasTheDaemonEngine — Agent & Contributor Guide
 
+> **TEST DATABASE — NON-NEGOTIABLE:** Before running ANY test command (`mix quality`, `mix test`, `mix test.integration`, etc.), you MUST ensure the PostgreSQL container is running. Copy-paste this one-liner:
+>
+> ```bash
+> (docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+> ```
+>
+> **"Integration tests deferred because the database is not running" is a rule violation. Start the container yourself. No exceptions.**
+
 This document is the domain knowledge reference for ThomasTheDaemonEngine,
 a BPMN 2.0 Workflow Engine built with Elixir/OTP and oceans of sacrificial blood collected from all over the false emperors rotting domain in honor of the [Blood God](https://wh40k.lexicanum.com/wiki/Khorne).
 It covers the engine's custom BPMN extension vocabulary, parser expectations, validator rules, FEEL expression conventions, and project structure.
 
-**Scope:** This reference covers Phase 0 through Phase 8 capabilities (BPMN
+**Scope:** This reference covers Phase 0 through Phase 9 capabilities (BPMN
 execution engine + DMN CL3 DRG decision engine + DMN observability traces +
-BPMN compensation). It will be extended as new phases land.
+BPMN compensation + ad-hoc subprocesses). It will be extended as new phases land.
 
 **Coding conventions, build verification, test conventions, and review
 checklists** are maintained in the Cursor-specific `.cursor/rules/` and
 `.cursor/skills/` directories. This document does not duplicate that content.
+
+---
+
+## Test Database Container — MANDATORY
+
+**Every agent MUST start the PostgreSQL test container before running any tests.** This is non-negotiable. "Integration tests deferred because the database is not running" is a rule violation.
+
+### One-liner (copy-paste)
+
+```bash
+(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+```
+
+### Step-by-step (if the one-liner fails)
+
+```bash
+# Check container status
+docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+# "true" → running, skip to migrations
+# "false" → docker start evil-engine-postgres-test
+# error/empty → bash scripts/create-test-db.sh
+
+# Verify readiness
+docker exec evil-engine-postgres-test pg_isready -U evil_engine
+
+# Run pending migrations
+MIX_ENV=test mix ecto.migrate
+```
+
+Container: `evil-engine-postgres-test` | Port: `5543` | User: `evil_engine` | Image: `postgres:16-alpine`
+
+### Prohibited behaviors
+
+- DO NOT write "deferred: requires running engine" in any plan, checklist, or TODO
+- DO NOT mark integration tests as "N/A" or "skipped"
+- DO NOT report "DB not available" without first attempting to start it
+- DO NOT ask the user whether to start the container — just start it
+- DO NOT treat integration tests as optional — they are part of the quality gate
+
+**Relevant rules and skills:**
+- `.cursor/rules/build.mdc` — Build verification pipeline (always-applied)
+- `.cursor/rules/test-db-mandatory.mdc` — Zero-tolerance DB policy (always-applied)
+- `.cursor/skills/ensure-test-db/SKILL.md` — Detailed troubleshooting steps
+- `.cursor/skills/integration-testing/SKILL.md` — Full integration test guide
 
 ---
 
@@ -549,6 +601,41 @@ JSON Schema contracts on the subprocess shell's input and output, validated at r
 
 Boundary events may be attached to the subprocess shell or to activities inside the inner scope; error boundaries on the shell receive BPMN errors bubbled up from the child PI.
 
+### Ad-hoc Subprocess Extensions
+
+Standard BPMN attributes on `<bpmn:adHocSubProcess>`:
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ordering` | `Parallel` or `Sequential` | `Parallel` | Whether inner activities execute in parallel or one-at-a-time |
+| `cancelRemainingInstances` | `true` or `false` | `true` | If true, remaining active/waiting FNIs are interrupted when the completion condition is met |
+
+Standard BPMN child element:
+
+#### `<bpmn:completionCondition>`
+
+FEEL expression evaluated after each inner activity completes. The expression
+receives special bindings: `performedActivities` (integer count of finished
+inner FNIs), `activeCount` (currently active/waiting FNIs), `totalActivities`
+(total inner activities in the model). When the expression evaluates to `true`,
+the ad-hoc subprocess completes.
+
+#### `evil:activeElements`
+
+FEEL expression that returns a list of flow node IDs to activate initially.
+Evaluated against the standard FEEL bindings (`token`, `this`, `context`, etc.).
+Required when `ordering="Sequential"` and no `implementation` is set.
+
+#### `implementation` attribute
+
+Optional. When set, the ad-hoc subprocess operates in plugin-managed mode —
+the plugin controls which activities are activated via the facade. When absent,
+the engine manages activation based on `evil:activeElements` or activates all
+inner activities.
+
+Also supports: `evil:inputMapping`, `evil:outputMapping`, `evil:payloadContract`,
+`evil:resultContract` — same semantics as embedded SubProcess.
+
 ### Event Subprocess Extensions / Semantics
 
 An **Event Subprocess (ESP)** is a `<bpmn:subProcess triggeredByEvent="true">`
@@ -827,6 +914,7 @@ this list is silently ignored.
 | `<bpmn:callActivity>` | `:call_activity` | `FlowNodeData.CallActivity` |
 | `<bpmn:subProcess>` | `:sub_process` | `FlowNodeData.SubProcess` |
 | `<bpmn:transaction>` | `:sub_process` | `FlowNodeData.SubProcess` (`is_transaction: true`) |
+| `<bpmn:adHocSubProcess>` | `:sub_process` | `FlowNodeData.SubProcess` (`is_ad_hoc: true`) |
 
 `<bpmn:subProcess>` covers both embedded subprocesses (`triggeredByEvent="false"`,
 the default) and **Event Subprocesses** (`triggeredByEvent="true"`) — both are
@@ -839,6 +927,14 @@ distinguishes them, and the ESP variant is dispatched to the
 on this flag to use `TransactionSubProcess` handler. The optional `method` attribute is
 parsed and stored as `transaction_method` but not executed (no wire-level protocol
 integration). See §Transaction Subprocess + Cancel Events.
+
+`<bpmn:adHocSubProcess>` is parsed as `:sub_process` with `is_ad_hoc: true` on
+`FlowNodeData.SubProcess`. The handler routing dispatches to
+`FlowNodes.AdHocSubProcess`. Standard BPMN attributes `ordering` (`Parallel` /
+`Sequential`), `cancelRemainingInstances` (`true` / `false`), and optional
+`implementation` are parsed from the XML element. Inner activities have no
+sequence flows — they are activated on demand or by the engine. See §Ad-hoc
+Subprocess Extensions.
 
 All activity types support the standard BPMN `isForCompensation="true"` attribute (default `false`). When set, the activity is a compensation handler — it has no incoming or outgoing sequence flows and is linked to a Compensation Boundary Event via `<bpmn:association>`. Activities with `isForCompensation="true"` are exempt from orphan-node checks. See §Compensation Extensions.
 
@@ -1058,6 +1154,27 @@ inner-scope structural checks as embedded subprocesses (messages prefixed
 | `:event_subprocess_untyped_start` | The ESP start event carries no event definition (a None start is not a valid trigger) |
 | `:event_subprocess_error_start_must_interrupt` | The ESP start event is an Error start with `isInterrupting="false"` (Error must interrupt, ESP-D7) |
 
+### Ad-hoc SubProcess structural checks (deploy-time)
+
+Ad-hoc subprocesses (`<bpmn:adHocSubProcess>`, parsed as `:sub_process` with
+`is_ad_hoc: true`) are validated at deploy time. Standard inner-scope validation
+runs first, then ad-hoc-specific checks are applied on top:
+
+| Atom | Rejected condition |
+|------|--------------------|
+| `:adhoc_subprocess_empty` | The ad-hoc subprocess contains no activities (tasks, call activities, subprocesses) |
+| `:adhoc_subprocess_has_start_event` | The ad-hoc subprocess contains a Start Event |
+| `:adhoc_subprocess_has_end_event` | The ad-hoc subprocess contains an End Event |
+| `:adhoc_sequential_missing_active_elements` | `adhoc_ordering == :sequential` with no `implementation` and no `evil:ActiveElements` expression |
+| `:adhoc_subprocess_empty_implementation` | `implementation` attribute is present but blank (whitespace-only) |
+
+Nesting restrictions (checked recursively across all subprocess scopes):
+
+| Atom | Rejected condition |
+|------|--------------------|
+| `:nested_adhoc_subprocess` | An ad-hoc subprocess is nested inside another ad-hoc subprocess |
+| `:adhoc_inside_event_subprocess` | An ad-hoc subprocess is nested inside an event subprocess |
+
 ### Compensation-specific checks
 
 - Activities with `isForCompensation="true"` are **exempt from orphan-node checks** — they intentionally have no incoming or outgoing sequence flows. They are linked to their host activity's Compensation Boundary Event via `<bpmn:association>`, not via sequence flows.
@@ -1153,6 +1270,9 @@ to the string-keyed format required by the Rust NIF.
 | `loop` | Iteration-scoped overlay (Multi-Instance / Standard Loop; `nil` when not in a loop). Sub-keys: `loop.index` (0-based), `loop.total` (collection length or `nil` for Standard Loop), `loop.completed` (count of finished iterations so far), `loop.results` (list of prior iteration results), `loop.item` (current collection element for MI; `nil` for Standard Loop) |
 | `activatedCount` | Complex-Join overlay: number of incoming branches that have delivered a token so far. Present **only** while evaluating a Complex Gateway join's `<bpmn:activationCondition>` |
 | `incomingCount` | Complex-Join overlay: total number of incoming sequence flows into the Complex Join. Present **only** while evaluating a Complex Gateway join's `<bpmn:activationCondition>` |
+| `performedActivities` | Ad-hoc overlay: integer count of inner FNIs in `:finished` state. Present only while evaluating an ad-hoc subprocess's `<bpmn:completionCondition>` |
+| `activeCount` | Ad-hoc overlay: integer count of inner FNIs in `:active` or `:waiting` state. Present only during ad-hoc completion condition evaluation |
+| `totalActivities` | Ad-hoc overlay: total number of inner activities in the ad-hoc subprocess model. Present only during ad-hoc completion condition evaluation |
 
 ### Where FEEL appears
 
@@ -1167,6 +1287,8 @@ to the string-keyed format required by the Rust NIF.
   `<bpmn:completionCondition>` (MI), `<bpmn:loopCondition>` (Standard Loop)
 - `evil:httpBody`, `evil:httpAuthHeader`, `evil:httpResponseHeaders` on Service Tasks with `implementation` `"http"` (built-in HTTP handler)
 - `evil:inputMapping` / `evil:outputMapping` `source` attributes
+- `<bpmn:completionCondition>` on ad-hoc subprocess — FEEL expression evaluated after each inner activity completion
+- `evil:activeElements` — FEEL expression returning list of element IDs for initial activation
 - `evil:dataContract` / `evil:payloadContract` / `evil:resultContract` do
   **not** contain FEEL — they contain JSON Schema
 
@@ -1215,7 +1337,7 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `UserTaskValidationFailed` | Same + `violations` | `violations`: array of `{message, path}` |
 | `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName` | `pluginName` may be `null` |
 | `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `evil:version` string |
-| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `occurredAt` | Emitted when an Embedded SubProcess **or** Event Subprocess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` (mandatory, ESP-D16) is `true` when the child is an Event Subprocess spawn, `false` for an embedded subprocess. Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. Does not carry `rootProcessInstanceId` — use `parentProcessInstanceId` or subscribe to the root PI channel |
+| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `occurredAt` | Emitted when an Embedded SubProcess, Event Subprocess, or Ad-hoc SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` (mandatory, ESP-D16) is `true` when the child is an Event Subprocess spawn, `false` otherwise. `isAdHocSubprocess` is `true` when the child is an Ad-hoc SubProcess spawn, `false` otherwise. Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. Does not carry `rootProcessInstanceId` — use `parentProcessInstanceId` or subscribe to the root PI channel |
 | `EventSubprocessTriggered` | `scopeProcessInstanceId`, `rootProcessInstanceId`, `subprocessNodeId`, `childProcessInstanceId`, `triggerKind`, `isInterrupting`, `occurredAt` | Emitted by the scope PI when an Event Subprocess trigger fires and spawns an ESP child PI. `triggerKind` is one of `message`, `signal`, `timer`, `error`, `escalation`, `conditional`. `isInterrupting` reflects the ESP start event's `isInterrupting` attribute. The Studio debugger primarily consumes `SubProcessChildStarted` (with `isEventSubprocess`); this event additionally exposes the trigger kind |
 | `DataObjectWritten` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `dataObjectId`, `writeId`, `previousValue`, `value`, `createdAt` | Emitted after each successful DOA write. `previousValue` is computed from the in-memory cache (not stored in DB). |
 | `ProcessDefinitionDeployed` | `processModelId`, `version`, `source` | Emitted per deployed version from `persist_deploy_batch/3` |
@@ -1234,6 +1356,8 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
 | `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
 | `TransactionCancelled` | `processInstanceId`, `rootProcessInstanceId`, `transactionNodeId`, `compensationHandlerCount`, `occurredAt` | Emitted after all automatic LIFO compensation completes and the transaction child PI is about to transition to `:cancelled`. `compensationHandlerCount` is the number of compensation handlers that ran (0 if no completed compensable activities). Broadcast to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`. |
+| `AdHocActivityActivated` | `processInstanceId`, `rootProcessInstanceId`, `adhocFlowNodeInstanceId`, `activatedFlowNodeInstanceId`, `activatedFlowNodeId`, `activationSource`, `occurredAt` | `activationSource`: `engine` or `api` or `plugin` |
+| `AdHocSubProcessCompleted` | `processInstanceId`, `rootProcessInstanceId`, `adhocFlowNodeInstanceId`, `adhocNodeId`, `completionReason`, `totalActivations`, `occurredAt` | `completionReason`: `completed`, `fatal`, `error`, `aborted`, `crashed`, `escalation`, `unknown` |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
 
 **`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Twelve event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, `ActivityCompensated`, `TransactionCancelled`, `MultiInstanceStarted`, and `MultiInstanceCompleted`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
@@ -1306,6 +1430,8 @@ checkpoint reset (`resetToFlowNodeInstanceId`) are supported.
 |------------|---------|
 | `retry_checkpoint_is_join_gateway` | Cannot retry at a parallel join gateway. Retry at the fork gateway or at a node upstream of it. |
 | `retry_checkpoint_is_mi_iteration` | Cannot retry at an MI/Loop iteration FNI. Retry at the shell activity or at a node upstream of it. |
+| `retry_inside_adhoc_subprocess` | Cannot retry a PI that is a child of an ad-hoc subprocess scope |
+| `retry_checkpoint_inside_adhoc_subprocess` | Cannot set a retry checkpoint to an FNI inside an ad-hoc subprocess scope |
 
 For implementation details see
 [`docs/architecture/execution.md`](docs/architecture/execution.md) §Retry
@@ -2000,6 +2126,33 @@ Body: empty or `{}`. Response `200`: `TimerTriggerResult` — `{ "triggered": tr
 TypeScript SDK type: `TimerTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult` alongside `MessageTriggerResult` and `SignalTriggerResult`). Client method: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client`.
 
 Eligible FNIs: Intermediate Catch or Boundary events with `event_type: "timer"`. Delegates to `EvilEngine.Api.trigger_timer_event/3`.
+
+---
+
+## Ad-hoc Subprocess REST Endpoints
+
+The `AdhocSubprocessController` (`apps/api_web/lib/evil_engine_web/http/controllers/adhoc_subprocess_controller.ex`)
+exposes ad-hoc subprocess control via REST. JWT authentication required.
+
+| Method | Path | Purpose | Required Claim |
+|--------|------|---------|----------------|
+| `GET` | `/adhoc-subprocesses/{id}/activities` | List enabled/performed inner activities | `manage_adhoc_subprocess` |
+| `POST` | `/adhoc-subprocesses/{id}/activities/{activity_id}/activate` | Activate an inner activity | `manage_adhoc_subprocess` |
+| `POST` | `/adhoc-subprocesses/{id}/complete` | Signal completion | `manage_adhoc_subprocess` |
+| `GET` | `/adhoc-subprocesses/{id}/status` | Query runtime status | `manage_adhoc_subprocess` |
+
+The `{id}` path parameter is the **child process instance ID** spawned by the ad-hoc subprocess handler — not the parent PI or the shell FNI ID.
+
+**List activities** returns `{data: [{id, name, type, enabled, performedCount, activeCount}]}`.
+**Activate** returns `{flowNodeInstanceId: "..."}`.
+**Complete** returns `{completed: true}`.
+**Status** returns `{activeCount, performedActivities, enabledActivities, completionSignaled}`.
+
+Errors: `404` (PI not found or activity not found), `422` (`not_adhoc_subprocess`), `409` (`adhoc_already_completing`), `403` (forbidden), `500` (`dispatch_failed`).
+
+The `zeeky_boogie_doog` admin override claim bypasses all ad-hoc authorization checks.
+
+Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities, activate_activity, complete, get_status}` — same operations with `skip_claims: true`.
 
 ---
 

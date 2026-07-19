@@ -875,6 +875,18 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
        }),
        do: FlowNodes.EventSubprocess
 
+  defp subprocess_resume_module(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_transaction: true}
+       }),
+       do: FlowNodes.TransactionSubProcess
+
+  defp subprocess_resume_module(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_ad_hoc: true}
+       }),
+       do: FlowNodes.AdHocSubProcess
+
   defp subprocess_resume_module(_flow_node), do: FlowNodes.SubProcess
 
   defp spawn_resume_task(

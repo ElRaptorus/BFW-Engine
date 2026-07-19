@@ -965,6 +965,90 @@ defmodule EvilEngine.ExecutionCase do
     decode_response(conn)
   end
 
+  # ---------------------------------------------------------------------------
+  # Ad-hoc subprocess HTTP helpers
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  List enabled activities of an ad-hoc subprocess child PI via
+  `GET /adhoc-subprocesses/{id}/activities` (authenticated HTTP).
+
+  Automatically includes `manage_adhoc_subprocess: true` unless overridden.
+  Returns `{status, body}`.
+  """
+  def http_adhoc_list_activities(process_instance_id, claims \\ %{}) do
+    merged = Map.merge(%{"manage_adhoc_subprocess" => true}, claims)
+
+    conn =
+      Plug.Test.conn(:get, "/adhoc-subprocesses/#{process_instance_id}/activities")
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(merged)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
+  @doc """
+  Activate an inner activity in an ad-hoc subprocess child PI via
+  `POST /adhoc-subprocesses/{id}/activities/{activityId}/activate` (authenticated HTTP).
+
+  Automatically includes `manage_adhoc_subprocess: true` unless overridden.
+  Returns `{status, body}`.
+  """
+  def http_adhoc_activate(process_instance_id, activity_id, claims \\ %{}) do
+    merged = Map.merge(%{"manage_adhoc_subprocess" => true}, claims)
+
+    conn =
+      Plug.Test.conn(
+        :post,
+        "/adhoc-subprocesses/#{process_instance_id}/activities/#{activity_id}/activate",
+        "{}"
+      )
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(merged)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
+  @doc """
+  Signal completion of an ad-hoc subprocess child PI via
+  `POST /adhoc-subprocesses/{id}/complete` (authenticated HTTP).
+
+  Automatically includes `manage_adhoc_subprocess: true` unless overridden.
+  Returns `{status, body}`.
+  """
+  def http_adhoc_complete(process_instance_id, claims \\ %{}) do
+    merged = Map.merge(%{"manage_adhoc_subprocess" => true}, claims)
+
+    conn =
+      Plug.Test.conn(:post, "/adhoc-subprocesses/#{process_instance_id}/complete", "{}")
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(merged)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
+  @doc """
+  Query ad-hoc subprocess status via
+  `GET /adhoc-subprocesses/{id}/status` (authenticated HTTP).
+
+  Automatically includes `manage_adhoc_subprocess: true` unless overridden.
+  Returns `{status, body}`.
+  """
+  def http_adhoc_status(process_instance_id, claims \\ %{}) do
+    merged = Map.merge(%{"manage_adhoc_subprocess" => true}, claims)
+
+    conn =
+      Plug.Test.conn(:get, "/adhoc-subprocesses/#{process_instance_id}/status")
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(merged)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
   @doc "Sign a test JWT with HS256."
   def sign_jwt(claims \\ %{}) do
     secret = Application.get_env(:api_auth, :hs256_secret) || @test_secret

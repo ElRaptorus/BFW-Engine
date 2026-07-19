@@ -2203,4 +2203,517 @@ defmodule EvilEngine.BPMN.ParserTest do
       assert %FlowNodeData.SubProcess{is_transaction: false, transaction_method: nil} = sp_node.type_data
     end
   end
+
+  describe "bpmn:adHocSubProcess parsing" do
+    @adhoc_full_xml """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                      xmlns:evil="https://evilengine.dev/schema/bpmn"
+                      id="Defs_AH">
+      <bpmn:process id="Process_AH" isExecutable="true">
+        <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+        <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+        <bpmn:adHocSubProcess id="AH_1" name="Toolbox" ordering="Sequential"
+                              cancelRemainingInstances="false" implementation="ai-agent">
+          <bpmn:extensionElements>
+            <evil:activeElements>["Task_A", "Task_B"]</evil:activeElements>
+          </bpmn:extensionElements>
+          <bpmn:completionCondition>performedActivities.size() >= 2</bpmn:completionCondition>
+          <bpmn:task id="Task_A" name="Lookup Order">
+            <bpmn:outgoing>AH_Flow_1</bpmn:outgoing>
+          </bpmn:task>
+          <bpmn:task id="Task_B" name="Send Email">
+            <bpmn:incoming>AH_Flow_1</bpmn:incoming>
+          </bpmn:task>
+          <bpmn:sequenceFlow id="AH_Flow_1" sourceRef="Task_A" targetRef="Task_B"/>
+          <bpmn:incoming>F1</bpmn:incoming>
+          <bpmn:outgoing>F2</bpmn:outgoing>
+        </bpmn:adHocSubProcess>
+        <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+        <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="AH_1"/>
+        <bpmn:sequenceFlow id="F2" sourceRef="AH_1" targetRef="End_1"/>
+      </bpmn:process>
+    </bpmn:definitions>
+    """
+
+    test "parses as :sub_process with is_ad_hoc: true" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.type == :sub_process
+      assert adhoc_node.name == "Toolbox"
+
+      assert %FlowNodeData.SubProcess{
+               is_ad_hoc: true,
+               is_transaction: false,
+               triggered_by_event: false
+             } = adhoc_node.type_data
+    end
+
+    test "maps ordering='Sequential' to :sequential" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.type_data.adhoc_ordering == :sequential
+    end
+
+    test "maps cancelRemainingInstances='false' to false" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.type_data.cancel_remaining_instances == false
+    end
+
+    test "maps implementation attribute to implementation field" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.type_data.implementation == "ai-agent"
+    end
+
+    test "maps completionCondition child text to adhoc_completion_condition" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.type_data.adhoc_completion_condition ==
+               ~s[performedActivities.size() >= 2]
+    end
+
+    test "maps evil:activeElements body to active_elements_expression" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.type_data.active_elements_expression == ~s(["Task_A", "Task_B"])
+    end
+
+    test "parses inner flow nodes into type_data.flow_nodes" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert length(adhoc_node.type_data.flow_nodes) == 2
+      inner_ids = Enum.map(adhoc_node.type_data.flow_nodes, & &1.id) |> Enum.sort()
+      assert inner_ids == ["Task_A", "Task_B"]
+    end
+
+    test "parses inner sequence flows into type_data.sequence_flows" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert [flow] = adhoc_node.type_data.sequence_flows
+      assert flow.id == "AH_Flow_1"
+      assert flow.source_ref == "Task_A"
+      assert flow.target_ref == "Task_B"
+    end
+
+    test "inner flow nodes are not added to parent process" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+
+      parent_ids = MapSet.new(Enum.map(process.flow_nodes, & &1.id))
+      refute MapSet.member?(parent_ids, "Task_A")
+      refute MapSet.member?(parent_ids, "Task_B")
+    end
+
+    test "shell has incoming and outgoing refs" do
+      {:ok, definitions} = Parser.parse(@adhoc_full_xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_1")
+
+      assert adhoc_node.incoming == ["F1"]
+      assert adhoc_node.outgoing == ["F2"]
+    end
+
+    test "defaults ordering to :parallel when attribute absent" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH2">
+        <bpmn:process id="Process_AH2" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_2">
+            <bpmn:task id="Task_X" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_2")
+
+      assert adhoc_node.type_data.adhoc_ordering == :parallel
+    end
+
+    test "defaults ordering to :parallel for ordering='Parallel'" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH3">
+        <bpmn:process id="Process_AH3" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_3" ordering="Parallel">
+            <bpmn:task id="Task_Y" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_3")
+
+      assert adhoc_node.type_data.adhoc_ordering == :parallel
+    end
+
+    test "unrecognized ordering value defaults to :parallel" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH4">
+        <bpmn:process id="Process_AH4" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_4" ordering="Garbled">
+            <bpmn:task id="Task_Z" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_4")
+
+      assert adhoc_node.type_data.adhoc_ordering == :parallel
+    end
+
+    test "defaults cancelRemainingInstances to true when attribute absent" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH5">
+        <bpmn:process id="Process_AH5" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_5">
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_5")
+
+      assert adhoc_node.type_data.cancel_remaining_instances == true
+    end
+
+    test "leaves adhoc_completion_condition nil when no completionCondition child" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH6">
+        <bpmn:process id="Process_AH6" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_6">
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_6")
+
+      assert adhoc_node.type_data.adhoc_completion_condition == nil
+    end
+
+    test "ignores blank completionCondition" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH7">
+        <bpmn:process id="Process_AH7" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_7">
+            <bpmn:completionCondition>   </bpmn:completionCondition>
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_7")
+
+      assert adhoc_node.type_data.adhoc_completion_condition == nil
+    end
+
+    test "leaves active_elements_expression nil when evil:activeElements absent" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH8">
+        <bpmn:process id="Process_AH8" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_8">
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_8")
+
+      assert adhoc_node.type_data.active_elements_expression == nil
+    end
+
+    test "leaves implementation nil when attribute absent" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH9">
+        <bpmn:process id="Process_AH9" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_9">
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_9")
+
+      assert adhoc_node.type_data.implementation == nil
+    end
+
+    test "completionCondition inside MI within ad-hoc goes to MI, not ad-hoc" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH_MI">
+        <bpmn:process id="Process_AH_MI" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_MI">
+            <bpmn:completionCondition>all_done</bpmn:completionCondition>
+            <bpmn:task id="MI_Task">
+              <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+                <bpmn:completionCondition>loop_done</bpmn:completionCondition>
+                <bpmn:extensionElements>
+                  <evil:inputCollection>token.items</evil:inputCollection>
+                </bpmn:extensionElements>
+              </bpmn:multiInstanceLoopCharacteristics>
+            </bpmn:task>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_MI")
+
+      assert adhoc_node.type_data.adhoc_completion_condition == "all_done"
+
+      mi_task = Enum.find(adhoc_node.type_data.flow_nodes, &(&1.id == "MI_Task"))
+      assert mi_task.multi_instance.completion_condition == "loop_done"
+    end
+
+    test "ad-hoc shell captures evil:payloadContract and evil:resultContract" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH_Contracts">
+        <bpmn:process id="Process_AH_C" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_C">
+            <bpmn:extensionElements>
+              <evil:payloadContract>{"type":"object","required":["orderId"]}</evil:payloadContract>
+              <evil:resultContract>{"type":"object","required":["status"]}</evil:resultContract>
+            </bpmn:extensionElements>
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_C")
+
+      assert adhoc_node.type_data.payload_contract == %{
+               "type" => "object",
+               "required" => ["orderId"]
+             }
+
+      assert adhoc_node.type_data.result_contract == %{
+               "type" => "object",
+               "required" => ["status"]
+             }
+    end
+
+    test "ad-hoc shell captures evil:inputMapping and evil:outputMapping" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH_Mappings">
+        <bpmn:process id="Process_AH_M" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_M">
+            <bpmn:extensionElements>
+              <evil:inputMapping source="token.orderId" target="orderId"/>
+              <evil:outputMapping source="result.summary" target="summary"/>
+            </bpmn:extensionElements>
+            <bpmn:task id="Task_1" name="Something"/>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_M")
+
+      assert [%Mapping{source: "token.orderId", target: "orderId"}] =
+               adhoc_node.type_data.in_mappings
+
+      assert [%Mapping{source: "result.summary", target: "summary"}] =
+               adhoc_node.type_data.out_mappings
+    end
+
+    test "regular subProcess does not have is_ad_hoc: true" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_SP_Check">
+        <bpmn:process id="Process_SP_Check" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:subProcess id="SP_Check">
+            <bpmn:startEvent id="SP_Start"/>
+          </bpmn:subProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      sp_node = find_node(process, "SP_Check")
+
+      assert sp_node.type_data.is_ad_hoc == false
+      assert sp_node.type_data.adhoc_ordering == :parallel
+      assert sp_node.type_data.cancel_remaining_instances == true
+      assert sp_node.type_data.adhoc_completion_condition == nil
+    end
+
+    test "ad-hoc inside embedded subprocess parses nested scope" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_Nested_AH">
+        <bpmn:process id="Process_Nested" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:subProcess id="Outer_SP">
+            <bpmn:adHocSubProcess id="Inner_AH" ordering="Sequential">
+              <bpmn:task id="Inner_Task_1" name="Tool A"/>
+              <bpmn:task id="Inner_Task_2" name="Tool B"/>
+            </bpmn:adHocSubProcess>
+            <bpmn:startEvent id="Outer_Start"/>
+          </bpmn:subProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      outer = find_node(process, "Outer_SP")
+
+      assert outer.type_data.is_ad_hoc == false
+
+      inner_adhoc = Enum.find(outer.type_data.flow_nodes, &(&1.id == "Inner_AH"))
+      assert inner_adhoc.type_data.is_ad_hoc == true
+      assert inner_adhoc.type_data.adhoc_ordering == :sequential
+      assert length(inner_adhoc.type_data.flow_nodes) == 2
+    end
+
+    test "completionCondition and activeElements parsed when placed after child nodes" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AH_After">
+        <bpmn:process id="Process_AH_After" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:adHocSubProcess id="AH_After" ordering="Sequential" implementation="my-plugin">
+            <bpmn:task id="Task_First" name="First"/>
+            <bpmn:task id="Task_Second" name="Second"/>
+            <bpmn:extensionElements>
+              <evil:activeElements>["Task_First"]</evil:activeElements>
+            </bpmn:extensionElements>
+            <bpmn:completionCondition>performedActivities >= 1</bpmn:completionCondition>
+          </bpmn:adHocSubProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      adhoc_node = find_node(process, "AH_After")
+
+      assert adhoc_node.type_data.is_ad_hoc == true
+      assert adhoc_node.type_data.adhoc_completion_condition == "performedActivities >= 1"
+      assert adhoc_node.type_data.active_elements_expression == ~s(["Task_First"])
+      assert length(adhoc_node.type_data.flow_nodes) == 2
+    end
+
+    test "evil:activeElements on non-ad-hoc subprocess is silently ignored" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_AE_Ignore">
+        <bpmn:process id="Process_AE_Ignore" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:subProcess id="SP_AE">
+            <bpmn:extensionElements>
+              <evil:activeElements>["Task_1"]</evil:activeElements>
+            </bpmn:extensionElements>
+            <bpmn:startEvent id="Sub_Start"/>
+          </bpmn:subProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      sp_node = find_node(process, "SP_AE")
+
+      assert sp_node.type_data.active_elements_expression == nil
+    end
+  end
 end

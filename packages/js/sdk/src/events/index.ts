@@ -39,5 +39,7 @@ export type {
   MultiInstanceStarted,
   MultiInstanceCompleted,
   EventSubprocessTriggered,
+  AdHocActivityActivated,
+  AdHocSubProcessCompleted,
   SinkFailed,
 } from './engine-events.js';

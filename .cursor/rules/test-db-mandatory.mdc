@@ -1,0 +1,38 @@
+---
+description: NEVER skip integration tests. Start the test database container yourself.
+alwaysApply: true
+---
+
+# Test Database Container — Zero-Tolerance Policy
+
+**"Integration tests deferred because the database is not running" is NEVER an acceptable outcome.**
+
+You have `docker` available. You can start containers. There is no legitimate reason to skip integration tests.
+
+## Before ANY test command
+
+Before running `mix quality`, `mix test`, `mix test.integration`, `mix test.full`, `mix test.conformance`, or any test that touches the database, run this one-liner:
+
+```bash
+(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+```
+
+## When delegating to subagents
+
+Subagents do NOT inherit workspace rules. When launching a subagent (via the Task tool) that will run tests, you MUST include this instruction in the Task prompt:
+
+> Before running any tests, ensure the PostgreSQL test container is running:
+> `(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate`
+
+## Prohibited behaviors
+
+- DO NOT write "deferred: requires running engine" in any plan, checklist, or TODO
+- DO NOT mark integration test items as "N/A" or "skipped"
+- DO NOT report "DB not available" without first attempting to start it
+- DO NOT ask the user whether to start the container — just start it
+- DO NOT treat integration tests as optional — they are part of the quality gate
+- DO NOT launch a subagent for testing without including the DB startup one-liner in the prompt
+
+## If Docker itself is unavailable
+
+If `docker` is genuinely not installed or the daemon is not running (not just the container), report this as a **blocker** with the exact error message. Do not silently skip tests.

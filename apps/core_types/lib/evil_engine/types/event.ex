@@ -48,6 +48,8 @@ defmodule EvilEngine.Types.Event do
           | __MODULE__.ActivityCompensated.t()
           | __MODULE__.TransactionCancelled.t()
           | __MODULE__.EventSubprocessTriggered.t()
+          | __MODULE__.AdHocActivityActivated.t()
+          | __MODULE__.AdHocSubProcessCompleted.t()
 end
 
 defmodule EvilEngine.Types.Event.SinkFailed do
@@ -595,6 +597,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
           child_process_model_id: String.t(),
           child_version: String.t(),
           is_event_subprocess: boolean(),
+          is_ad_hoc_subprocess: boolean(),
           occurred_at: DateTime.t()
         }
 
@@ -617,7 +620,8 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
     :child_process_model_id,
     :child_version,
     :is_event_subprocess,
-    :occurred_at
+    :occurred_at,
+    is_ad_hoc_subprocess: false
   ]
 end
 
@@ -1270,6 +1274,78 @@ defmodule EvilEngine.Types.Event.TransactionCancelled do
     :root_process_instance_id,
     :transaction_node_id,
     :compensation_handler_count,
+    :occurred_at
+  ]
+end
+
+# ---------------------------------------------------------------------------
+# Ad-hoc subprocess events
+# ---------------------------------------------------------------------------
+
+defmodule EvilEngine.Types.Event.AdHocActivityActivated do
+  @moduledoc "Emitted when an inner activity within an ad-hoc subprocess is activated."
+
+  @type t :: %__MODULE__{
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t(),
+          adhoc_flow_node_instance_id: String.t(),
+          activated_flow_node_id: String.t(),
+          activated_flow_node_instance_id: String.t(),
+          activation_source: String.t(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :process_instance_id,
+    :root_process_instance_id,
+    :adhoc_flow_node_instance_id,
+    :activated_flow_node_id,
+    :activated_flow_node_instance_id,
+    :activation_source,
+    :occurred_at
+  ]
+
+  defstruct [
+    :process_instance_id,
+    :root_process_instance_id,
+    :adhoc_flow_node_instance_id,
+    :activated_flow_node_id,
+    :activated_flow_node_instance_id,
+    :activation_source,
+    :occurred_at
+  ]
+end
+
+defmodule EvilEngine.Types.Event.AdHocSubProcessCompleted do
+  @moduledoc "Emitted when an ad-hoc subprocess finishes execution."
+
+  @type t :: %__MODULE__{
+          process_instance_id: String.t(),
+          root_process_instance_id: String.t(),
+          adhoc_flow_node_instance_id: String.t(),
+          adhoc_node_id: String.t(),
+          completion_reason: atom() | String.t(),
+          total_activations: non_neg_integer(),
+          occurred_at: DateTime.t()
+        }
+
+  @enforce_keys [
+    :process_instance_id,
+    :root_process_instance_id,
+    :adhoc_flow_node_instance_id,
+    :adhoc_node_id,
+    :completion_reason,
+    :total_activations,
+    :occurred_at
+  ]
+
+  defstruct [
+    :process_instance_id,
+    :root_process_instance_id,
+    :adhoc_flow_node_instance_id,
+    :adhoc_node_id,
+    :completion_reason,
+    :total_activations,
     :occurred_at
   ]
 end

@@ -38,6 +38,8 @@ for module <- [
       EvilEngine.Types.Event.ActivityCompensated,
       EvilEngine.Types.Event.TransactionCancelled,
       EvilEngine.Types.Event.EventSubprocessTriggered,
+      EvilEngine.Types.Event.AdHocActivityActivated,
+      EvilEngine.Types.Event.AdHocSubProcessCompleted,
       EvilEngine.Types.Token,
       EvilEngine.Types.FinalToken,
       EvilEngine.Types.Identity

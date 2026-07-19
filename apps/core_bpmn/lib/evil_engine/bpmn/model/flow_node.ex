@@ -306,7 +306,8 @@ end
 
 defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
   @moduledoc """
-  `<bpmn:subProcess>` or `<bpmn:transaction>` — embedded, event, or transaction subprocess.
+  `<bpmn:subProcess>`, `<bpmn:transaction>`, or `<bpmn:adHocSubProcess>` —
+  embedded, event, transaction, or ad-hoc subprocess.
 
   When `triggered_by_event` is true, this is an event subprocess
   whose start event(s) determine when it fires.
@@ -316,6 +317,12 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
   subprocess completion), cancel (Cancel End Event fires, triggers LIFO
   compensation, fires Cancel Boundary on parent), and hazard (uncaught
   error/fatal propagates without compensation).
+
+  When `is_ad_hoc` is true, this subprocess is a BPMN Ad-hoc Subprocess
+  (`<bpmn:adHocSubProcess>`). Inner activities are activated on demand
+  rather than by token flow from a Start Event. Two execution models:
+  engine-managed (FEEL expression determines active elements) and
+  plugin-managed (`implementation` attribute delegates to plugin handler).
 
   `transaction_method` captures the `method` attribute of `<bpmn:transaction>`.
   No mainstream engine implements wire-level protocol integration for this
@@ -340,6 +347,14 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
           triggered_by_event: boolean(),
           is_transaction: boolean(),
           transaction_method: String.t() | nil,
+          is_ad_hoc: boolean(),
+          adhoc_ordering: :parallel | :sequential,
+          cancel_remaining_instances: boolean(),
+          adhoc_completion_condition: String.t() | nil,
+          adhoc_completion_condition_compiled: reference() | nil,
+          implementation: String.t() | nil,
+          active_elements_expression: String.t() | nil,
+          active_elements_compiled: reference() | nil,
           flow_nodes: [FlowNode.t()],
           sequence_flows: [SequenceFlow.t()],
           in_mappings: [Mapping.t()],
@@ -353,6 +368,14 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do
   defstruct triggered_by_event: false,
             is_transaction: false,
             transaction_method: nil,
+            is_ad_hoc: false,
+            adhoc_ordering: :parallel,
+            cancel_remaining_instances: true,
+            adhoc_completion_condition: nil,
+            adhoc_completion_condition_compiled: nil,
+            implementation: nil,
+            active_elements_expression: nil,
+            active_elements_compiled: nil,
             flow_nodes: [],
             sequence_flows: [],
             in_mappings: [],

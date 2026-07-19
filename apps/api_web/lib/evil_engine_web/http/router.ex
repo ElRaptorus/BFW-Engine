@@ -104,6 +104,15 @@ defmodule EvilEngineWeb.Http.Router do
 
     post "/messages/:message_name/trigger", MessageController, :publish
     post "/signals/:signal_name/trigger", SignalController, :publish
+
+    get "/adhoc-subprocesses/:id/activities", AdhocSubprocessController, :list_activities
+
+    post "/adhoc-subprocesses/:id/activities/:activity_id/activate",
+         AdhocSubprocessController,
+         :activate_activity
+
+    post "/adhoc-subprocesses/:id/complete", AdhocSubprocessController, :complete
+    get "/adhoc-subprocesses/:id/status", AdhocSubprocessController, :status
   end
 
   scope "/api" do

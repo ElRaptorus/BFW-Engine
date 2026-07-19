@@ -3262,4 +3262,401 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       refute_violation_code(definitions, :loop_mutual_exclusivity)
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Ad-hoc SubProcess validation
+  # ---------------------------------------------------------------------------
+
+  defp adhoc_subprocess_node(id, inner_nodes, inner_flows, opts \\ []) do
+    %FlowNode{
+      id: id,
+      type: :sub_process,
+      type_data: %FlowNodeData.SubProcess{
+        triggered_by_event: false,
+        is_ad_hoc: true,
+        adhoc_ordering: Keyword.get(opts, :adhoc_ordering, :parallel),
+        cancel_remaining_instances: Keyword.get(opts, :cancel_remaining_instances, true),
+        implementation: Keyword.get(opts, :implementation),
+        active_elements_expression: Keyword.get(opts, :active_elements_expression),
+        flow_nodes: inner_nodes,
+        sequence_flows: inner_flows
+      }
+    }
+  end
+
+  describe "validate/1 — Ad-hoc SubProcess structural checks" do
+    test "valid ad-hoc subprocess with activities and no start/end events passes" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      adhoc = adhoc_subprocess_node("AdHoc_1", [inner_task], [])
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :adhoc_subprocess_empty)
+      refute_violation_code(definitions, :adhoc_subprocess_has_start_event)
+      refute_violation_code(definitions, :adhoc_subprocess_has_end_event)
+      refute_violation_code(definitions, :adhoc_sequential_missing_active_elements)
+      refute_violation_code(definitions, :adhoc_subprocess_empty_implementation)
+      refute_violation_code(definitions, :nested_adhoc_subprocess)
+      refute_violation_code(definitions, :adhoc_inside_event_subprocess)
+    end
+
+    test "ad-hoc subprocess with no activities is rejected" do
+      gateway = %FlowNode{
+        id: "AH_GW",
+        type: :exclusive_gateway,
+        type_data: %FlowNodeData.ExclusiveGateway{}
+      }
+
+      adhoc = adhoc_subprocess_node("AdHoc_1", [gateway], [])
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :adhoc_subprocess_empty)
+    end
+
+    test "ad-hoc subprocess containing a start event is rejected" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      inner_start = %FlowNode{
+        id: "AH_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{}
+      }
+
+      adhoc = adhoc_subprocess_node("AdHoc_1", [inner_task, inner_start], [])
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :adhoc_subprocess_has_start_event)
+    end
+
+    test "ad-hoc subprocess containing an end event is rejected" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      inner_end = %FlowNode{
+        id: "AH_End",
+        type: :end_event,
+        type_data: %FlowNodeData.EndEvent{}
+      }
+
+      adhoc = adhoc_subprocess_node("AdHoc_1", [inner_task, inner_end], [])
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :adhoc_subprocess_has_end_event)
+    end
+
+    test "sequential ad-hoc without implementation or activeElements is rejected" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      adhoc =
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
+          adhoc_ordering: :sequential
+        )
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :adhoc_sequential_missing_active_elements)
+    end
+
+    test "sequential ad-hoc with implementation passes" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      adhoc =
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
+          adhoc_ordering: :sequential,
+          implementation: "my-plugin"
+        )
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :adhoc_sequential_missing_active_elements)
+    end
+
+    test "sequential ad-hoc with activeElements expression passes" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      adhoc =
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
+          adhoc_ordering: :sequential,
+          active_elements_expression: "[\"AH_Task_1\"]"
+        )
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :adhoc_sequential_missing_active_elements)
+    end
+
+    test "ad-hoc subprocess with empty implementation string is rejected" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      adhoc =
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
+          implementation: "   "
+        )
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :adhoc_subprocess_empty_implementation)
+    end
+
+    test "parallel ad-hoc without implementation or activeElements passes" do
+      inner_task = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      adhoc =
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
+          adhoc_ordering: :parallel
+        )
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :adhoc_sequential_missing_active_elements)
+    end
+
+    test "ad-hoc inner activities are not flagged as orphan nodes" do
+      inner_task_1 = %FlowNode{
+        id: "AH_Task_1",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      inner_task_2 = %FlowNode{
+        id: "AH_Task_2",
+        type: :service_task,
+        type_data: %FlowNodeData.ServiceTask{implementation: "http"}
+      }
+
+      adhoc = adhoc_subprocess_node("AdHoc_1", [inner_task_1, inner_task_2], [])
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "AdHoc_1"},
+            %SequenceFlow{id: "F3", source_ref: "AdHoc_1", target_ref: "E1"}
+          ]
+        )
+
+      case Validator.validate(definitions) do
+        {:ok, _} ->
+          :ok
+
+        {:error, violations} ->
+          orphan_violations =
+            Enum.filter(violations, fn {code, _message} -> code == :orphan_node end)
+
+          assert orphan_violations == [],
+                 "Expected no orphan-node violations for ad-hoc inner activities, " <>
+                   "but got: #{inspect(orphan_violations)}"
+      end
+    end
+  end
+
+  describe "validate/1 — Ad-hoc SubProcess nesting restrictions" do
+    test "ad-hoc inside ad-hoc is rejected" do
+      inner_task = %FlowNode{
+        id: "Inner_Task",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      inner_adhoc = adhoc_subprocess_node("Inner_AdHoc", [inner_task], [])
+
+      outer_adhoc =
+        adhoc_subprocess_node("Outer_AdHoc", [inner_adhoc], [])
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [outer_adhoc],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "Outer_AdHoc"},
+            %SequenceFlow{id: "F3", source_ref: "Outer_AdHoc", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :nested_adhoc_subprocess)
+    end
+
+    test "ad-hoc inside event subprocess is rejected" do
+      inner_task = %FlowNode{
+        id: "AH_Task",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      inner_adhoc = adhoc_subprocess_node("Inner_AdHoc", [inner_task], [])
+
+      esp_start = %FlowNode{
+        id: "ESP_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{
+          event_definition: %EventDefinition.Timer{time_duration: "PT1H"},
+          is_interrupting: true
+        }
+      }
+
+      esp = %FlowNode{
+        id: "ESP_1",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: true,
+          flow_nodes: [esp_start, inner_adhoc],
+          sequence_flows: [
+            %SequenceFlow{id: "ESP_F1", source_ref: "ESP_Start", target_ref: "Inner_AdHoc"}
+          ]
+        }
+      }
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [esp],
+          extra_flows: []
+        )
+
+      assert_violation_code(definitions, :adhoc_inside_event_subprocess)
+    end
+
+    test "ad-hoc inside regular subprocess is allowed" do
+      inner_task = %FlowNode{
+        id: "AH_Task",
+        type: :task,
+        type_data: %FlowNodeData.Task{}
+      }
+
+      inner_adhoc = adhoc_subprocess_node("Inner_AdHoc", [inner_task], [])
+
+      sp_start = %FlowNode{
+        id: "SP_Start",
+        type: :start_event,
+        type_data: %FlowNodeData.StartEvent{}
+      }
+
+      sp_end = %FlowNode{
+        id: "SP_End",
+        type: :end_event,
+        type_data: %FlowNodeData.EndEvent{}
+      }
+
+      regular_sp = %FlowNode{
+        id: "SP_1",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: false,
+          flow_nodes: [sp_start, inner_adhoc, sp_end],
+          sequence_flows: [
+            %SequenceFlow{id: "SP_F1", source_ref: "SP_Start", target_ref: "Inner_AdHoc"},
+            %SequenceFlow{id: "SP_F2", source_ref: "Inner_AdHoc", target_ref: "SP_End"}
+          ]
+        }
+      }
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [regular_sp],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SP_1"},
+            %SequenceFlow{id: "F3", source_ref: "SP_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :nested_adhoc_subprocess)
+      refute_violation_code(definitions, :adhoc_inside_event_subprocess)
+    end
+  end
 end

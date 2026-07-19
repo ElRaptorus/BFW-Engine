@@ -323,6 +323,18 @@ export interface SubProcessTypeData extends WithMappings, WithContracts {
   isTransaction: boolean;
   /** Value of the `method` attribute on `<bpmn:transaction>`. Parsed but not executed. */
   transactionMethod: string | null;
+  /** True when this subprocess is a `<bpmn:adHocSubProcess>` element. */
+  isAdHoc: boolean;
+  /** 'Parallel' or 'Sequential'. Only set when `isAdHoc` is true. */
+  adHocOrdering: 'Parallel' | 'Sequential' | null;
+  /** BPMN `cancelRemainingInstances` attribute. Only set when `isAdHoc` is true. */
+  cancelRemainingInstances: boolean | null;
+  /** FEEL expression from `<completionCondition>`. Only set when `isAdHoc` is true. */
+  adHocCompletionCondition: string | null;
+  /** Plugin dispatch key for plugin-managed ad-hoc execution. Only set when `isAdHoc` is true. */
+  implementation: string | null;
+  /** FEEL expression from `evil:activeElements`. Returns list of element IDs to auto-activate. */
+  activeElementsExpression: string | null;
   flowNodes: FlowNode[];
   sequenceFlows: SequenceFlow[];
   dataObjects: DataObject[];

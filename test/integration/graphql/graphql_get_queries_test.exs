@@ -231,7 +231,9 @@ defmodule EvilEngine.Integration.Graphql.GraphqlGetQueriesTest do
 
       found =
         Enum.find(results, fn version ->
-          version["version"] == deployed["version"]
+          version["version"] == deployed["version"] and
+            is_binary(version["bpmnXml"]) and
+            String.contains?(version["bpmnXml"], @process_model_id)
         end)
 
       assert found != nil
@@ -389,7 +391,9 @@ defmodule EvilEngine.Integration.Graphql.GraphqlGetQueriesTest do
 
       found =
         Enum.find(results, fn version ->
-          version["version"] == deployed["version"]
+          version["version"] == deployed["version"] and
+            is_binary(version["dmnXml"]) and
+            String.contains?(version["dmnXml"], @decision_definition_id)
         end)
 
       assert found != nil

@@ -278,3 +278,41 @@ These fields enable the Studio Debugger to group iteration FNIs under their shel
 Both new events are serialized as camelCase JSON by the `Jason.Encoder` implementations in `apps/core_events/lib/evil_engine/events/json_encoders.ex`. The WebSocket sink broadcasts them to `process_instance:<piId>` and `process_instance:<rootPiId>` channels.
 
 **SDK types:** `MultiInstanceStarted` and `MultiInstanceCompleted` in `@elraptorus/daemonengine_sdk` (`events/engine-events.ts`). `loopType` is typed as `'parallel_mi' | 'sequential_mi' | 'standard_loop'`.
+
+## Ad-hoc Subprocess Events
+
+Two event types support ad-hoc subprocess observability:
+
+### `AdHocActivityActivated`
+
+Emitted when an inner activity of an ad-hoc subprocess is activated.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `processInstanceId` | string | Ad-hoc child PI ID |
+| `rootProcessInstanceId` | string or null | Root PI in a tree |
+| `adhocFlowNodeInstanceId` | string | Shell FNI ID of the ad-hoc subprocess |
+| `activatedFlowNodeInstanceId` | string | FNI ID of the activated inner activity |
+| `activatedFlowNodeId` | string | BPMN element ID of the activated inner activity |
+| `activationSource` | string | `"engine"`, `"api"`, or `"plugin"` |
+| `occurredAt` | DateTime | Event timestamp |
+
+### `AdHocSubProcessCompleted`
+
+Emitted when the ad-hoc child PI terminates.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `processInstanceId` | string | Ad-hoc child PI ID |
+| `rootProcessInstanceId` | string or null | Root PI in a tree |
+| `adhocFlowNodeInstanceId` | string | Shell FNI ID of the ad-hoc subprocess |
+| `adhocNodeId` | string | BPMN element ID of the ad-hoc subprocess |
+| `completionReason` | string | Why the ad-hoc PI completed (e.g. `"completion_signaled"`, `"natural_drain"`) |
+| `totalActivations` | integer | Count of persisted FNIs in the ad-hoc child PI |
+| `occurredAt` | DateTime | Event timestamp |
+
+Both events carry `rootProcessInstanceId` and are broadcast to both `process_instance:<piId>` and `process_instance:<rootPiId>` channels via the standard root-PI fan-out (SP-13).
+
+### `SubProcessChildStarted` — ad-hoc flag
+
+`SubProcessChildStarted` now carries `isAdHocSubprocess: boolean` (default `false`) alongside the existing `isEventSubprocess` flag. This enables the Studio debugger to distinguish ad-hoc child PI spawns from embedded subprocess and event subprocess spawns.

@@ -172,6 +172,10 @@ defmodule EvilEngine.Execution.Persistence do
   @callback list_all_flow_node_instances(process_instance_id :: String.t()) ::
               {:ok, [retry_fni_data()]}
 
+  @doc "Count ALL FNIs for a PI (all states). Lightweight alternative to list_all_flow_node_instances."
+  @callback count_all_flow_node_instances(process_instance_id :: String.t()) ::
+              {:ok, non_neg_integer()}
+
   @doc """
   Fetch a single FNI by its own ID, regardless of which PI it belongs to.
   Used during retry ancestor-chain walks to inspect the `type_properties`
@@ -309,6 +313,9 @@ defmodule EvilEngine.Execution.Persistence.NoOp do
 
   @impl true
   def list_all_flow_node_instances(_process_instance_id), do: {:ok, []}
+
+  @impl true
+  def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
 
   @impl true
   def get_flow_node_instance_by_id(_fni_id), do: {:error, :not_found}

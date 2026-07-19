@@ -20,6 +20,7 @@ export type {
   FacadeDataObjects,
   FacadeMessages,
   FacadeSignals,
+  FacadeAdHocSubprocesses,
   FacadeGraphql,
   RegistrationResult,
 } from './engine-facade.js';

@@ -3,6 +3,7 @@ export { DaemonEngineClient } from './daemon-engine-client.js';
 export type { DaemonEngineClientOptions } from './daemon-engine-client.js';
 
 // Sub-clients
+export { AdHocSubprocessClient } from './rest/adhoc-subprocess-client.js';
 export { DecisionClient } from './rest/decision-client.js';
 export { ProcessClient } from './rest/process-client.js';
 export { ProcessInstanceClient } from './rest/process-instance-client.js';

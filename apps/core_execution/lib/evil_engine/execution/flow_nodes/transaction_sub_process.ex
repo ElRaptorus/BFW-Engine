@@ -353,7 +353,7 @@ defmodule EvilEngine.Execution.FlowNodes.TransactionSubProcess do
         send(
           process_instance_pid,
           {:subprocess_child_started, context.flow_node_instance_id, child_process_instance_id,
-           flow_node.id, subprocess_model_id, context.process_model.version, false}
+           flow_node.id, subprocess_model_id, context.process_model.version, false, false}
         )
 
         ref = Process.monitor(child_pid)

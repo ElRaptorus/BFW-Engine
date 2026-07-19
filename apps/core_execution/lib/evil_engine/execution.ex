@@ -275,6 +275,64 @@ defmodule EvilEngine.Execution do
   end
 
   # ---------------------------------------------------------------------------
+  # Ad-hoc subprocess operations
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Activate an inner activity within a running ad-hoc subprocess child PI.
+
+  Returns `{:ok, %{flow_node_instance_id: id}}` on success.
+  """
+  @spec activate_adhoc_activity(String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  def activate_adhoc_activity(child_process_instance_id, flow_node_id) do
+    with {:ok, pid} <- lookup_process_instance(child_process_instance_id) do
+      :gen_statem.call(pid, {:activate_adhoc_activity_sync, flow_node_id})
+    end
+  catch
+    :exit, _ -> {:error, :adhoc_not_active}
+  end
+
+  @doc """
+  Signal the completion of an ad-hoc subprocess child PI.
+
+  The child PI will finish once all active/waiting FNIs complete.
+  """
+  @spec signal_adhoc_completion(String.t()) :: :ok | {:error, term()}
+  def signal_adhoc_completion(child_process_instance_id) do
+    with {:ok, pid} <- lookup_process_instance(child_process_instance_id) do
+      :gen_statem.call(pid, :signal_adhoc_completion_sync)
+    end
+  catch
+    :exit, _ -> {:error, :adhoc_not_active}
+  end
+
+  @doc """
+  Query the enabled/performed inner activities of an ad-hoc child PI.
+  """
+  @spec get_adhoc_enabled_activities(String.t()) ::
+          {:ok, [map()]} | {:error, term()}
+  def get_adhoc_enabled_activities(child_process_instance_id) do
+    with {:ok, pid} <- lookup_process_instance(child_process_instance_id) do
+      :gen_statem.call(pid, :get_adhoc_enabled_activities)
+    end
+  catch
+    :exit, _ -> {:error, :not_found}
+  end
+
+  @doc """
+  Query the runtime status of an ad-hoc subprocess child PI.
+  """
+  @spec get_adhoc_status(String.t()) :: {:ok, map()} | {:error, term()}
+  def get_adhoc_status(child_process_instance_id) do
+    with {:ok, pid} <- lookup_process_instance(child_process_instance_id) do
+      :gen_statem.call(pid, :get_adhoc_status)
+    end
+  catch
+    :exit, _ -> {:error, :not_found}
+  end
+
+  # ---------------------------------------------------------------------------
   # Retry orchestration
   # ---------------------------------------------------------------------------
 
@@ -367,7 +425,7 @@ defmodule EvilEngine.Execution do
   defp walk_ancestors(process_instance_id, child_triggerer_fni_id, adapter, accumulated_chain) do
     case retry_adapter_call(adapter, :get_process_instance_for_retry, [process_instance_id]) do
       {:ok, ancestor_data} ->
-        with :ok <- check_triggerer_not_transaction(child_triggerer_fni_id, adapter) do
+        with :ok <- check_triggerer_scope_restrictions(child_triggerer_fni_id, adapter) do
           validate_and_continue_walk(ancestor_data, adapter, accumulated_chain)
         end
 
@@ -376,18 +434,23 @@ defmodule EvilEngine.Execution do
     end
   end
 
-  defp check_triggerer_not_transaction(nil, _adapter), do: :ok
+  defp check_triggerer_scope_restrictions(nil, _adapter), do: :ok
 
-  defp check_triggerer_not_transaction(triggerer_fni_id, adapter) do
+  defp check_triggerer_scope_restrictions(triggerer_fni_id, adapter) do
     case adapter.get_flow_node_instance_by_id(triggerer_fni_id) do
       {:ok, fni} ->
         type_props = fni.type_properties || %{}
 
-        if Map.get(type_props, "is_transaction") == true or
-             Map.get(type_props, :is_transaction) == true do
-          {:error, :retry_inside_transaction_scope}
-        else
-          :ok
+        cond do
+          Map.get(type_props, "is_transaction") == true or
+              Map.get(type_props, :is_transaction) == true ->
+            {:error, :retry_inside_transaction_scope}
+
+          Map.get(type_props, "is_ad_hoc") == true ->
+            {:error, :retry_inside_adhoc_subprocess}
+
+          true ->
+            :ok
         end
 
       {:error, :not_found} ->
@@ -439,6 +502,9 @@ defmodule EvilEngine.Execution do
           non_retryable_fni?(checkpoint_fni) ->
             {:error, :retry_checkpoint_is_non_retryable}
 
+          adhoc_scope_fni?(checkpoint_fni) ->
+            {:error, :retry_checkpoint_inside_adhoc_subprocess}
+
           true ->
             do_apply_checkpoint(all_fnis, checkpoint_fni_id)
         end
@@ -465,7 +531,8 @@ defmodule EvilEngine.Execution do
     "host_completed",
     "sibling_boundary_interrupted",
     "terminated_by_end_event",
-    "cancelled_by_cancel_end"
+    "cancelled_by_cancel_end",
+    "adhoc_completion_cancelled"
   ]
 
   defp non_retryable_fni?(fni) do
@@ -474,6 +541,11 @@ defmodule EvilEngine.Execution do
         Map.get(fni.type_properties || %{}, :reason)
 
     reason in @non_retryable_reasons
+  end
+
+  defp adhoc_scope_fni?(fni) do
+    type_props = fni.type_properties || %{}
+    Map.get(type_props, "is_ad_hoc") == true
   end
 
   defp do_apply_checkpoint(all_fnis, checkpoint_fni_id) do

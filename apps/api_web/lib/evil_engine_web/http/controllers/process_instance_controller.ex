@@ -298,6 +298,29 @@ defmodule EvilEngineWeb.Http.ProcessInstanceController do
     )
   end
 
+  defp render_retry_error(conn, _process_instance_id, {:error, :retry_inside_adhoc_subprocess}) do
+    render_error(
+      conn,
+      422,
+      "retry_inside_adhoc_subprocess",
+      "Cannot retry a process instance inside an ad-hoc subprocess scope."
+    )
+  end
+
+  defp render_retry_error(
+         conn,
+         _process_instance_id,
+         {:error, :retry_checkpoint_inside_adhoc_subprocess}
+       ) do
+    render_error(
+      conn,
+      422,
+      "retry_checkpoint_inside_adhoc_subprocess",
+      "Cannot set a retry checkpoint to an ad-hoc subprocess shell. " <>
+        "Select a checkpoint upstream of the ad-hoc subprocess."
+    )
+  end
+
   defp render_retry_error(conn, process_instance_id, {:error, :retry_start_failed, reason}) do
     Logger.error("Retry failed for process instance '#{process_instance_id}': #{inspect(reason)}")
 
