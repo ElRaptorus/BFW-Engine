@@ -119,6 +119,30 @@ await client.decisions.deleteVersion('my-definitions-id', '1.0.0');
 await client.decisions.undeploy('my-definitions-id');
 ```
 
+## Ad-hoc Sub-Process Control
+
+`client.adHocSubprocesses` drives plugin-managed Ad-hoc Sub-Processes (a `bpmn:AdHocSubProcess` with an `implementation` attribute set). All methods take the ad-hoc shell's **child process instance ID**, not the parent process instance or the shell flow node instance ID.
+
+```typescript
+// List inner activities with their enablement / activation state
+const activities = await client.adHocSubprocesses.getActivities(childProcessInstanceId);
+// [{ id, name, type, enabled, performedCount, activeCount }, ...]
+
+// Activate a specific inner activity
+const { flowNodeInstanceId } = await client.adHocSubprocesses.activate(
+  childProcessInstanceId,
+  'AdHocTask_1',
+);
+
+// Signal that no further activities should be started; waits for in-flight activities to finish
+const { completed } = await client.adHocSubprocesses.complete(childProcessInstanceId);
+
+// Poll current status (active count, performed/enabled activity IDs, completion signal)
+const status = await client.adHocSubprocesses.getStatus(childProcessInstanceId);
+```
+
+Engine-managed Ad-hoc Sub-Processes (no `implementation` attribute) do not require any of these calls — the engine drives activation and completion itself based on `ordering`, `completionCondition`, and `evil:ActiveElements`. Real-time notifications for both modes (`AdHocActivityActivated`, `AdHocSubProcessCompleted`) arrive over `client.notifications`, not this REST sub-client — see [WebSocket Event Subscriptions](#websocket-event-subscriptions).
+
 ## GraphQL Typed Queries
 
 The GraphQL client provides fully typed field selection, filtering, sorting, pagination, and relationship loading -- no raw GraphQL strings needed:

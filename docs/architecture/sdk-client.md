@@ -36,7 +36,7 @@ The SDK never imports from the client. All contracts (types, error classes, even
 | `http/` | `HttpTransport` -- shared fetch-based transport with JWT injection and error delegation |
 | `errors/` | `mapResponseError()` -- maps engine JSON responses to SDK error subclasses (domain code first, then HTTP status fallback) |
 | `identity/` | `JwtFactory` type and `resolveToken()` -- resolves static or async token factories |
-| `rest/` | Sub-clients: `ProcessClient`, `ProcessInstanceClient`, `UserTaskClient`, `EngineClient`, `EventClient`, `DecisionClient` (includes `evaluateService()` for Decision Service endpoints) |
+| `rest/` | Sub-clients: `ProcessClient`, `ProcessInstanceClient`, `UserTaskClient`, `EngineClient`, `EventClient`, `DecisionClient` (includes `evaluateService()` for Decision Service endpoints), `AdHocSubprocessClient` (ad-hoc activity control) |
 | `graphql/` | `GraphqlClient` -- typed query builder methods for all resources (`queryProcessModels`, `queryProcessVersions`, `queryProcessInstances`, `queryFlowNodeInstances`, `queryDecisionDefinitions`, `queryDecisionVersions`); `QueryBuilder` -- generates GraphQL strings from typed options with offset pagination fields (`limit`, `offset`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`), `ilike` filter support, and nested include arguments |
 | `ws/` | `NotificationClient` -- Phoenix Channel WebSocket client for real-time events |
 
@@ -52,12 +52,28 @@ client.userTasks       // UserTaskClient
 client.engine          // EngineClient
 client.events          // EventClient
 client.decisions       // DecisionClient (DMN)
+client.adHocSubprocesses // AdHocSubprocessClient
 client.graphql         // GraphqlClient
 client.notifications   // NotificationClient
 client.dispose()       // disconnect WebSocket
 ```
 
 The WebSocket URL is derived from the HTTP URL by replacing `http` with `ws` and appending `/socket`.
+
+## Ad-hoc Sub-Process Client
+
+`AdHocSubprocessClient` (`client/src/rest/adhoc-subprocess-client.ts`) wraps the four ad-hoc control endpoints. All methods take the ad-hoc shell's **child process instance ID** (not the parent/shell FNI ID):
+
+| Method | Endpoint | Returns |
+|--------|----------|---------|
+| `getActivities(processInstanceId)` | `GET /adhoc-subprocesses/{id}/activities` | `AdHocActivity[]` |
+| `activate(processInstanceId, activityId)` | `POST /adhoc-subprocesses/{id}/activities/{activityId}/activate` | `AdHocActivateResult` |
+| `complete(processInstanceId)` | `POST /adhoc-subprocesses/{id}/complete` | `AdHocCompleteResult` |
+| `getStatus(processInstanceId)` | `GET /adhoc-subprocesses/{id}/status` | `AdHocStatus` |
+
+`AdHocActivity`, `AdHocActivateResult`, `AdHocCompleteResult`, and `AdHocStatus` are defined in `sdk/src/types/adhoc-subprocess.ts` and re-exported from `@elraptorus/daemonengine_sdk`. The same four types back the `EngineFacade` plugin methods (`getEnabledActivities`, `activateActivity`, `complete`, `getStatus` in `sdk/src/plugin/engine-facade.ts`) — REST and plugin callers share one contract. `activate()` and `complete()` are used for plugin-managed ad-hoc sub-processes (`implementation` set on the `bpmn:AdHocSubProcess`, AH-D-series); engine-managed mode (no `implementation`) drives the same underlying PI-level operations internally without requiring a caller to invoke this client.
+
+Real-time ad-hoc events (`AdHocActivityActivated`, `AdHocSubProcessCompleted`) are delivered through `client.notifications` (the existing `NotificationClient` WebSocket channel), not through this REST sub-client — see `EvilEngine.Types.Event.AdHoc*` on the engine side and the "Engine Events" table in `AGENTS.md`.
 
 ## Error Mapping Pipeline
 

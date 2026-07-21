@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_AiToolbox">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="AI Agent Toolbox" processRef="ai-toolbox-process" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ai-toolbox-process" name="AI Agent Toolbox" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>AdHocSubprocess_Toolbox</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Inquiry received">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:adHocSubProcess id="AdHocSubprocess_Toolbox" name="Resolve Inquiry" implementation="ai-toolbox">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:task id="LookupOrder" name="Look Up Order" />
+      <bpmn:task id="CheckInventory" name="Check Inventory" />
+      <bpmn:task id="CreateTicket" name="Create Ticket" />
+      <bpmn:task id="SendEmail" name="Send Email" />
+      <bpmn:task id="EscalateToHuman" name="Escalate To Human" />
+    </bpmn:adHocSubProcess>
+
+    <bpmn:endEvent id="End_1" name="Inquiry resolved">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="AdHocSubprocess_Toolbox" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="AdHocSubprocess_Toolbox" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="620" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="590" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="202" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="180" y="225" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AdHocSubprocess_Toolbox" bpmnElement="AdHocSubprocess_Toolbox" isExpanded="false">
+        <dc:Bounds x="330" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="522" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="500" y="225" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="238" y="200" />
+        <di:waypoint x="330" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="430" y="200" />
+        <di:waypoint x="522" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_AdHocSubprocess_Toolbox">
+    <bpmndi:BPMNPlane id="BPMNPlane_AdHocSubprocess_Toolbox" bpmnElement="AdHocSubprocess_Toolbox">
+      <bpmndi:BPMNShape id="Shape_LookupOrder" bpmnElement="LookupOrder">
+        <dc:Bounds x="140" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CheckInventory" bpmnElement="CheckInventory">
+        <dc:Bounds x="300" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CreateTicket" bpmnElement="CreateTicket">
+        <dc:Bounds x="460" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SendEmail" bpmnElement="SendEmail">
+        <dc:Bounds x="140" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EscalateToHuman" bpmnElement="EscalateToHuman">
+        <dc:Bounds x="300" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

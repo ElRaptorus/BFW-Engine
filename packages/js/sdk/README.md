@@ -90,6 +90,10 @@ import type {
   InputTrace,
   RuleTrace,
   InputEntryTrace,
+  AdHocActivity,
+  AdHocActivateResult,
+  AdHocStatus,
+  AdHocCompleteResult,
 } from '@elraptorus/daemonengine_sdk';
 ```
 
@@ -166,8 +170,12 @@ import type {
   UserTaskFinished,
   CallActivityChildStarted,
   DataObjectWritten,
+  AdHocActivityActivated,
+  AdHocSubProcessCompleted,
 } from '@elraptorus/daemonengine_sdk';
 ```
+
+`SubProcessChildStarted` also carries an `isAdHocSubprocess` boolean discriminating ad-hoc sub-process children from embedded/transaction/event sub-process children.
 
 ## License
 
