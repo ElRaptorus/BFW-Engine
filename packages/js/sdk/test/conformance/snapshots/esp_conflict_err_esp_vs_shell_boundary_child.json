@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -70,9 +68,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Inner Start",
-                "outgoing": [
-                  "Inner_Flow_1"
-                ],
+                "outgoing": ["Inner_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -88,9 +84,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Inner_ErrorEnd",
-                "incoming": [
-                  "Inner_Flow_1"
-                ],
+                "incoming": ["Inner_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Inner Error End",
@@ -134,9 +128,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -178,9 +170,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Error Start",
-                "outgoing": [
-                  "ESP_Err_Flow_1"
-                ],
+                "outgoing": ["ESP_Err_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -200,9 +190,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Err_End",
-                "incoming": [
-                  "ESP_Err_Flow_1"
-                ],
+                "incoming": ["ESP_Err_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Error End",
@@ -242,11 +230,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "SubProcess_Inner",
-            "End_Normal"
-          ],
+          "flowNodeRefs": ["Start_1", "SubProcess_Inner", "End_Normal"],
           "id": "Lane_default",
           "name": "default"
         }

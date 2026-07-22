@@ -60,9 +60,7 @@
                   "type": "integer"
                 }
               },
-              "required": [
-                "mandatory_field"
-              ],
+              "required": ["mandatory_field"],
               "type": "object"
             },
             "priority": null,
@@ -96,11 +94,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "UserTask_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

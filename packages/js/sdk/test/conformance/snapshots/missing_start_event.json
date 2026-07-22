@@ -40,9 +40,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "End_1"
-          ],
+          "flowNodeRefs": ["End_1"],
           "id": "Lane_default",
           "name": "default"
         }

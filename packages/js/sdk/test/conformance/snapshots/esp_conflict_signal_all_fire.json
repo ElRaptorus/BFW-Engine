@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,15 +40,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Catch_Signal",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Signal",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -68,9 +62,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Caught",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal Caught",
@@ -112,9 +104,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Signal Start",
-                "outgoing": [
-                  "ESP_Sig_Flow_1"
-                ],
+                "outgoing": ["ESP_Sig_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -132,9 +122,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Sig_End",
-                "incoming": [
-                  "ESP_Sig_Flow_1"
-                ],
+                "incoming": ["ESP_Sig_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Signal End",
@@ -174,11 +162,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Catch_Signal",
-            "End_Caught"
-          ],
+          "flowNodeRefs": ["Start_1", "Catch_Signal", "End_Caught"],
           "id": "Lane_default",
           "name": "default"
         }

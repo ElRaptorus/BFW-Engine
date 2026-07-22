@@ -29,9 +29,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Main_Flow_1"
-          ],
+          "outgoing": ["Main_Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -47,15 +45,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_UserTask",
-          "incoming": [
-            "Main_Flow_1"
-          ],
+          "incoming": ["Main_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Work",
-          "outgoing": [
-            "Main_Flow_2"
-          ],
+          "outgoing": ["Main_Flow_2"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -77,9 +71,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Main_Flow_2"
-          ],
+          "incoming": ["Main_Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -121,9 +113,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Message Received",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -144,15 +134,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Embedded",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Embedded Work",
-                "outgoing": [
-                  "ESP_Flow_2"
-                ],
+                "outgoing": ["ESP_Flow_2"],
                 "standardLoop": null,
                 "type": "sub_process",
                 "typeData": {
@@ -170,9 +156,7 @@
                       "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Embedded Start",
-                      "outgoing": [
-                        "Emb_Flow_1"
-                      ],
+                      "outgoing": ["Emb_Flow_1"],
                       "standardLoop": null,
                       "type": "start_event",
                       "typeData": {
@@ -188,15 +172,11 @@
                       "dataOutputAssociations": [],
                       "documentation": null,
                       "id": "Emb_Task",
-                      "incoming": [
-                        "Emb_Flow_1"
-                      ],
+                      "incoming": ["Emb_Flow_1"],
                       "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Embedded Task",
-                      "outgoing": [
-                        "Emb_Flow_2"
-                      ],
+                      "outgoing": ["Emb_Flow_2"],
                       "standardLoop": null,
                       "type": "task",
                       "typeData": {}
@@ -208,9 +188,7 @@
                       "dataOutputAssociations": [],
                       "documentation": null,
                       "id": "Emb_End",
-                      "incoming": [
-                        "Emb_Flow_2"
-                      ],
+                      "incoming": ["Emb_Flow_2"],
                       "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Embedded End",
@@ -258,9 +236,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_2"
-                ],
+                "incoming": ["ESP_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",
@@ -308,12 +284,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Main_UserTask",
-            "End_1",
-            "ESP_Nested"
-          ],
+          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Nested"],
           "id": "Lane_default",
           "name": "default"
         }

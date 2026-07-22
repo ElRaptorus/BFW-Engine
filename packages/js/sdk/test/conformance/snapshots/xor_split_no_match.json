@@ -78,11 +78,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "XOR_1",
-            "End_A"
-          ],
+          "flowNodeRefs": ["Start_1", "XOR_1", "End_A"],
           "id": "Lane_default",
           "name": "default"
         }

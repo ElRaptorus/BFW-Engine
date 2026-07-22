@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Main_Flow_1"
-          ],
+          "outgoing": ["Main_Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,23 +40,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "Boundary_Escalation"
-          ],
+          "boundaryEventRefs": ["Boundary_Escalation"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EmbSub_Escalating",
-          "incoming": [
-            "Main_Flow_1"
-          ],
+          "incoming": ["Main_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalating Subprocess",
-          "outgoing": [
-            "Main_Flow_2"
-          ],
+          "outgoing": ["Main_Flow_2"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -76,9 +68,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "EmbSub_Flow_1"
-                ],
+                "outgoing": ["EmbSub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -94,15 +84,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "EmbSub_Throw",
-                "incoming": [
-                  "EmbSub_Flow_1"
-                ],
+                "incoming": ["EmbSub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Throw Escalation",
-                "outgoing": [
-                  "EmbSub_Flow_2"
-                ],
+                "outgoing": ["EmbSub_Flow_2"],
                 "standardLoop": null,
                 "type": "intermediate_throw_event",
                 "typeData": {
@@ -121,9 +107,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "EmbSub_End",
-                "incoming": [
-                  "EmbSub_Flow_2"
-                ],
+                "incoming": ["EmbSub_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
@@ -175,9 +159,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Catch Escalation",
-          "outgoing": [
-            "Boundary_Flow_1"
-          ],
+          "outgoing": ["Boundary_Flow_1"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -199,9 +181,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Main_Flow_2"
-          ],
+          "incoming": ["Main_Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -221,15 +201,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_BoundaryPath",
-          "incoming": [
-            "Boundary_Flow_1"
-          ],
+          "incoming": ["Boundary_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary Caught",
-          "outgoing": [
-            "Boundary_Flow_2"
-          ],
+          "outgoing": ["Boundary_Flow_2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -241,9 +217,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_BoundaryCaught",
-          "incoming": [
-            "Boundary_Flow_2"
-          ],
+          "incoming": ["Boundary_Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary End",
@@ -285,9 +259,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Escalation Caught",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -306,15 +278,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Handle Escalation",
-                "outgoing": [
-                  "ESP_Flow_2"
-                ],
+                "outgoing": ["ESP_Flow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -326,9 +294,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_2"
-                ],
+                "incoming": ["ESP_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",

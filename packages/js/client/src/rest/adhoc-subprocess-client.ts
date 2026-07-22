@@ -40,8 +40,6 @@ export class AdHocSubprocessClient {
   }
 
   async getStatus(processInstanceId: string): Promise<AdHocStatus> {
-    return this.transport.get<AdHocStatus>(
-      `/adhoc-subprocesses/${encodeURIComponent(processInstanceId)}/status`,
-    );
+    return this.transport.get<AdHocStatus>(`/adhoc-subprocesses/${encodeURIComponent(processInstanceId)}/status`);
   }
 }

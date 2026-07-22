@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,9 +40,7 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Escalation"
-          ],
+          "boundaryEventRefs": ["BE_Escalation"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -72,9 +68,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "Sub_Flow_1"
-                ],
+                "outgoing": ["Sub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -90,15 +84,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "CA1",
-                "incoming": [
-                  "Sub_Flow_1"
-                ],
+                "incoming": ["Sub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Call Middle",
-                "outgoing": [
-                  "Sub_Flow_2"
-                ],
+                "outgoing": ["Sub_Flow_2"],
                 "standardLoop": null,
                 "type": "call_activity",
                 "typeData": {
@@ -115,9 +105,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End",
-                "incoming": [
-                  "Sub_Flow_2"
-                ],
+                "incoming": ["Sub_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
@@ -169,9 +157,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_Boundary"
-          ],
+          "outgoing": ["Flow_Boundary"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -193,9 +179,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_Normal"
-          ],
+          "incoming": ["Flow_Normal"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -215,9 +199,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Boundary",
-          "incoming": [
-            "Flow_Boundary"
-          ],
+          "incoming": ["Flow_Boundary"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary End",
@@ -237,13 +219,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "SubProcess_1",
-            "BE_Escalation",
-            "End_Normal",
-            "End_Boundary"
-          ],
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Escalation", "End_Normal", "End_Boundary"],
           "id": "Lane_default",
           "name": "default"
         }

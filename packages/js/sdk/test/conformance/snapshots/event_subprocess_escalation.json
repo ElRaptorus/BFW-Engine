@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Main_Flow_1"
-          ],
+          "outgoing": ["Main_Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -48,15 +46,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_Throw",
-          "incoming": [
-            "Main_Flow_1"
-          ],
+          "incoming": ["Main_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Raise Escalation",
-          "outgoing": [
-            "Main_Flow_2"
-          ],
+          "outgoing": ["Main_Flow_2"],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -75,9 +69,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Main_Flow_2"
-          ],
+          "incoming": ["Main_Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -119,9 +111,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Escalation Caught",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -140,15 +130,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Escalation",
-                "outgoing": [
-                  "ESP_Flow_2"
-                ],
+                "outgoing": ["ESP_Flow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -160,9 +146,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_2"
-                ],
+                "incoming": ["ESP_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",
@@ -210,12 +194,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Main_Throw",
-            "End_1",
-            "ESP_Escalation"
-          ],
+          "flowNodeRefs": ["Start_1", "Main_Throw", "End_1", "ESP_Escalation"],
           "id": "Lane_default",
           "name": "default"
         }

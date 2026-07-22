@@ -26,6 +26,12 @@ import type {
 } from '../graphql/includes.js';
 import type { PaginatedResult } from '../graphql/pagination.js';
 import type { GetQueryOptions, ListQueryOptions } from '../graphql/query-options.js';
+import type {
+  AdHocActivateResult,
+  AdHocActivity,
+  AdHocCompleteResult,
+  AdHocStatus,
+} from '../types/adhoc-subprocess.js';
 import type { DataObjectValue } from '../types/data-object-value.js';
 import type { DecisionDefinition } from '../types/decision-definition.js';
 import type { DecisionVersion } from '../types/decision-version.js';
@@ -37,7 +43,6 @@ import type { ProcessModel } from '../types/process-model.js';
 import type { ProcessVersion } from '../types/process-version.js';
 import type { StartResult } from '../types/start.js';
 import type { MessageTriggerResult, SignalTriggerResult } from '../types/trigger.js';
-import type { AdHocActivateResult, AdHocActivity, AdHocCompleteResult, AdHocStatus } from '../types/adhoc-subprocess.js';
 import type { AuthProviderHandler } from './auth-provider.js';
 import type { DataStoreAdapterHandler } from './data-store-adapter.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';

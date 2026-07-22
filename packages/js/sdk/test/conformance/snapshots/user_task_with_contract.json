@@ -62,9 +62,7 @@
                   "type": "boolean"
                 }
               },
-              "required": [
-                "approved"
-              ],
+              "required": ["approved"],
               "type": "object"
             }
           }
@@ -96,11 +94,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "UserTask_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -48,9 +46,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Escalation",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation End",
@@ -73,10 +69,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "End_Escalation"
-          ],
+          "flowNodeRefs": ["Start_1", "End_Escalation"],
           "id": "Lane_default",
           "name": "default"
         }

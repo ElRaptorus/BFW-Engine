@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,16 +40,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InclusiveSplit",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Inclusive Split",
-          "outgoing": [
-            "Flow_B",
-            "Flow_A"
-          ],
+          "outgoing": ["Flow_B", "Flow_A"],
           "standardLoop": null,
           "type": "inclusive_gateway",
           "typeData": {
@@ -65,15 +58,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": [
-            "Flow_A"
-          ],
+          "incoming": ["Flow_A"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": [
-            "Flow_A_to_Join"
-          ],
+          "outgoing": ["Flow_A_to_Join"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -85,15 +74,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_B",
-          "incoming": [
-            "Flow_B"
-          ],
+          "incoming": ["Flow_B"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": [
-            "Flow_B_to_Xor"
-          ],
+          "outgoing": ["Flow_B_to_Xor"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -105,16 +90,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ExclusiveSplit",
-          "incoming": [
-            "Flow_B_to_Xor"
-          ],
+          "incoming": ["Flow_B_to_Xor"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Route Split",
-          "outgoing": [
-            "Flow_B_to_Join",
-            "Flow_B_to_End"
-          ],
+          "outgoing": ["Flow_B_to_Join", "Flow_B_to_End"],
           "standardLoop": null,
           "type": "exclusive_gateway",
           "typeData": {
@@ -128,9 +108,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_B",
-          "incoming": [
-            "Flow_B_to_End"
-          ],
+          "incoming": ["Flow_B_to_End"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Branch End",
@@ -150,16 +128,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InclusiveJoin",
-          "incoming": [
-            "Flow_B_to_Join",
-            "Flow_A_to_Join"
-          ],
+          "incoming": ["Flow_B_to_Join", "Flow_A_to_Join"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Inclusive Join",
-          "outgoing": [
-            "Flow_Join"
-          ],
+          "outgoing": ["Flow_Join"],
           "standardLoop": null,
           "type": "inclusive_gateway",
           "typeData": {
@@ -173,9 +146,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_Join"
-          ],
+          "incoming": ["Flow_Join"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",

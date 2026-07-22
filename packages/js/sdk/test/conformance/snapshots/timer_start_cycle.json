@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Cycle Timer Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -46,9 +44,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
