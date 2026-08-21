@@ -48,6 +48,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -113,7 +119,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -163,11 +171,16 @@
       ],
       "id": "EmbeddedSubprocessWithCallActivity",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

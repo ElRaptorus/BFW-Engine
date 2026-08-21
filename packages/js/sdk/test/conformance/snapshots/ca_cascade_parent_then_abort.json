@@ -103,11 +103,17 @@
       ],
       "id": "CaCascadeParentThenAbort",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "CA_1", "UserTask_Wait", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "CA_1",
+            "UserTask_Wait",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -1,4 +1,4 @@
-import type { PaginationOptions, SortClause } from '@elraptorus/daemonengine_sdk';
+import type { PaginationOptions, SelectionField, SortClause } from '@elraptorus/daemonengine_sdk';
 
 /**
  * Builds a GraphQL query string and variables object for a list or
@@ -10,7 +10,7 @@ interface BuildListQueryParams {
   resourceName: string;
   /** The AshGraphql type prefix used for filter/sort input types (e.g. "ProcessInstance" → ProcessInstanceFilterInput). */
   ashTypeName: string;
-  fields: string[];
+  fields: SelectionField[];
   filter?: Record<string, unknown> | undefined;
   sort?: SortClause<string>[] | undefined;
   include?:
@@ -20,7 +20,7 @@ interface BuildListQueryParams {
 
 interface BuildGetQueryParams {
   resourceName: string;
-  fields: string[];
+  fields: SelectionField[];
   include?:
     Record<string, { fields: string[]; filter?: Record<string, unknown>; sort?: SortClause<string>[] }> | undefined;
 }
@@ -126,12 +126,12 @@ ${selectionSet}
 }
 
 function buildSelectionSet(
-  fields: string[],
+  fields: SelectionField[],
   include?: Record<string, { fields: string[]; filter?: Record<string, unknown>; sort?: SortClause<string>[] }>,
   indent: number = 6,
 ): string {
   const prefix = ' '.repeat(indent);
-  const lines: string[] = fields.map((field) => `${prefix}${toSnakeCase(field)}`);
+  const lines: string[] = fields.flatMap((field) => renderSelectionField(field, prefix));
 
   if (include) {
     for (const [relation, config] of Object.entries(include)) {
@@ -146,6 +146,45 @@ function buildSelectionSet(
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Renders a single `SelectionField` (see `@elraptorus/daemonengine_sdk`) —
+ * either a bare scalar field name, or a nested object/interface/union field
+ * with its own sub-selection and optional inline fragments (`... on Type`).
+ * Used to render the polymorphic Model graph (`flowNode`, `eventDefinition`,
+ * ...), where a flat `string[]` cannot express "these fields, plus these
+ * extra fields only for concrete type X".
+ */
+function renderSelectionField(field: SelectionField, prefix: string): string[] {
+  if (typeof field === 'string') {
+    return [`${prefix}${toSnakeCase(field)}`];
+  }
+
+  const name = toSnakeCase(field.name);
+  const body: string[] = [];
+
+  for (const child of field.fields ?? []) {
+    body.push(...renderSelectionField(child, `${prefix}  `));
+  }
+
+  if (field.on) {
+    for (const [typeName, fragmentFields] of Object.entries(field.on)) {
+      body.push(`${prefix}  ... on ${typeName} {`);
+      for (const fragmentField of fragmentFields) {
+        body.push(...renderSelectionField(fragmentField, `${prefix}    `));
+      }
+      body.push(`${prefix}  }`);
+    }
+  }
+
+  if (body.length === 0) {
+    // A nested field with no sub-selection is meaningless in GraphQL —
+    // always request at least `__typename` so the query stays valid.
+    body.push(`${prefix}  __typename`);
+  }
+
+  return [`${prefix}${name} {`, ...body, `${prefix}}`];
 }
 
 function buildNestedIncludeArgs(config: {

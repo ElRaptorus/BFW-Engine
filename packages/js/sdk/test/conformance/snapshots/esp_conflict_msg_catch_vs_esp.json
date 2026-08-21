@@ -29,7 +29,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -45,11 +47,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Catch_Msg",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Message",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -70,7 +76,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Caught",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Message Caught",
@@ -98,6 +106,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -112,7 +126,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Message Start",
-                "outgoing": ["ESP_Msg_Flow_1"],
+                "outgoing": [
+                  "ESP_Msg_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -133,7 +149,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Msg_End",
-                "incoming": ["ESP_Msg_Flow_1"],
+                "incoming": [
+                  "ESP_Msg_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP End",
@@ -147,7 +165,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -169,11 +189,16 @@
       ],
       "id": "EspConflictMsgCatchVsEsp",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Catch_Msg", "End_Caught"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Catch_Msg",
+            "End_Caught"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

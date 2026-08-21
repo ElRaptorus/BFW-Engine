@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -46,11 +48,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Esc",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw Escalation",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -69,7 +75,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -97,6 +105,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -111,7 +125,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Start",
-                "outgoing": ["ESP_Inner_Flow_1"],
+                "outgoing": [
+                  "ESP_Inner_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -130,7 +146,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Inner_End",
-                "incoming": ["ESP_Inner_Flow_1"],
+                "incoming": [
+                  "ESP_Inner_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP End",
@@ -144,7 +162,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -166,11 +186,16 @@
       ],
       "id": "EspConflictEscEspVsShellChild",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Throw_Esc", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Throw_Esc",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

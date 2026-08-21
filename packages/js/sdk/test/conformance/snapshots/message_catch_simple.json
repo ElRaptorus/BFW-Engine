@@ -86,11 +86,16 @@
       ],
       "id": "MessageCatchSimple",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Catch_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Catch_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

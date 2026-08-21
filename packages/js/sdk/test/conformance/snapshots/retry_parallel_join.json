@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "PG_Split",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Split",
-          "outgoing": ["Flow_ToHoldB", "Flow_ToEcho"],
+          "outgoing": [
+            "Flow_ToHoldB",
+            "Flow_ToEcho"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -56,11 +63,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_Echo",
-          "incoming": ["Flow_ToEcho"],
+          "incoming": [
+            "Flow_ToEcho"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Echo",
-          "outgoing": ["Flow_EchoToJoin"],
+          "outgoing": [
+            "Flow_EchoToJoin"
+          ],
           "standardLoop": null,
           "type": "script_task",
           "typeData": {
@@ -80,11 +91,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_HoldB",
-          "incoming": ["Flow_ToHoldB"],
+          "incoming": [
+            "Flow_ToHoldB"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Hold B",
-          "outgoing": ["Flow_HoldToDeadEnd"],
+          "outgoing": [
+            "Flow_HoldToDeadEnd"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -106,11 +121,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_DeadEnd",
-          "incoming": ["Flow_HoldToDeadEnd"],
+          "incoming": [
+            "Flow_HoldToDeadEnd"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Dead End",
-          "outgoing": ["Flow_DeadEndToJoin"],
+          "outgoing": [
+            "Flow_DeadEndToJoin"
+          ],
           "standardLoop": null,
           "type": "service_task",
           "typeData": {
@@ -133,11 +152,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "PG_Join",
-          "incoming": ["Flow_DeadEndToJoin", "Flow_EchoToJoin"],
+          "incoming": [
+            "Flow_DeadEndToJoin",
+            "Flow_EchoToJoin"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Join",
-          "outgoing": ["Flow_ToEnd"],
+          "outgoing": [
+            "Flow_ToEnd"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -149,7 +173,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_ToEnd"],
+          "incoming": [
+            "Flow_ToEnd"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -165,11 +191,20 @@
       ],
       "id": "RetryParallelJoin",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "PG_Split", "Task_Echo", "Task_HoldB", "Task_DeadEnd", "PG_Join", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "PG_Split",
+            "Task_Echo",
+            "Task_HoldB",
+            "Task_DeadEnd",
+            "PG_Join",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

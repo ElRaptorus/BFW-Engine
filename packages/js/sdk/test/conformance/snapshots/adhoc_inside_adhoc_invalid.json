@@ -1,0 +1,226 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "OuterAdHoc",
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Outer Ad-hoc",
+          "outgoing": [
+            "Flow_2"
+          ],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "InnerAdHoc",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Inner Ad-hoc (Invalid)",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataContracts": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "InnerScript",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Inner Script",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "script_task",
+                      "typeData": {
+                        "inMappings": [],
+                        "outMappings": [],
+                        "payloadContract": null,
+                        "resultContract": null,
+                        "script": "{ inner: \"done\" }",
+                        "scriptFormat": "feel",
+                        "scriptRef": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": true,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [],
+                  "transactionMethod": null,
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "OuterScript",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Outer Script",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "script_task",
+                "typeData": {
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "script": "{ outer: \"done\" }",
+                  "scriptFormat": "feel",
+                  "scriptRef": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": true,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [
+            "Flow_2"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "AdHocInsideAdHocInvalid",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "OuterAdHoc",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Ad-hoc Inside Ad-hoc Invalid",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "OuterAdHoc"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "OuterAdHoc",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

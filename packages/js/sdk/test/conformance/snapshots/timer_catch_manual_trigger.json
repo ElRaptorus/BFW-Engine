@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_Catch_1"],
+          "outgoing": [
+            "Flow_Catch_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "TimerCatch_1",
-          "incoming": ["Flow_Catch_1"],
+          "incoming": [
+            "Flow_Catch_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait One Hour",
-          "outgoing": ["Flow_Catch_2"],
+          "outgoing": [
+            "Flow_Catch_2"
+          ],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -64,7 +70,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Catch",
-          "incoming": ["Flow_Catch_2"],
+          "incoming": [
+            "Flow_Catch_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -80,11 +88,16 @@
       ],
       "id": "TimerCatchManualTrigger",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_Catch", "TimerCatch_1", "End_Catch"],
+          "flowNodeRefs": [
+            "Start_Catch",
+            "TimerCatch_1",
+            "End_Catch"
+          ],
           "id": "Lane_default_catch",
           "name": "default"
         }
@@ -129,7 +142,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_Boundary_1"],
+          "outgoing": [
+            "Flow_Boundary_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -139,17 +154,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["TimerBE_1"],
+          "boundaryEventRefs": [
+            "TimerBE_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
-          "incoming": ["Flow_Boundary_1"],
+          "incoming": [
+            "Flow_Boundary_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Do Work",
-          "outgoing": ["Flow_Boundary_2"],
+          "outgoing": [
+            "Flow_Boundary_2"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -182,7 +203,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_Boundary_BE"],
+          "outgoing": [
+            "Flow_Boundary_BE"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -205,7 +228,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Boundary",
-          "incoming": ["Flow_Boundary_2"],
+          "incoming": [
+            "Flow_Boundary_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -225,7 +250,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Timeout",
-          "incoming": ["Flow_Boundary_BE"],
+          "incoming": [
+            "Flow_Boundary_BE"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout End",
@@ -241,11 +268,18 @@
       ],
       "id": "TimerBoundaryManualTrigger",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_Boundary", "UserTask_1", "End_Boundary", "TimerBE_1", "End_Timeout"],
+          "flowNodeRefs": [
+            "Start_Boundary",
+            "UserTask_1",
+            "End_Boundary",
+            "TimerBE_1",
+            "End_Timeout"
+          ],
           "id": "Lane_default_boundary",
           "name": "default"
         }

@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,7 +42,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Error"],
+          "boundaryEventRefs": [
+            "BE_Error"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -54,6 +58,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -68,7 +78,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": ["Sub_Flow_1"],
+                "outgoing": [
+                  "Sub_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -84,7 +96,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_ErrorEnd",
-                "incoming": ["Sub_Flow_1"],
+                "incoming": [
+                  "Sub_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Error End",
@@ -102,7 +116,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -132,7 +148,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_BE"],
+          "outgoing": [
+            "Flow_BE"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -155,7 +173,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -175,7 +195,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_BoundaryCaught",
-          "incoming": ["Flow_BE"],
+          "incoming": [
+            "Flow_BE"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary Caught",
@@ -203,6 +225,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -217,7 +245,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Error Start",
-                "outgoing": ["ESP_Error_Flow_1"],
+                "outgoing": [
+                  "ESP_Error_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -237,7 +267,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Error_End",
-                "incoming": ["ESP_Error_Flow_1"],
+                "incoming": [
+                  "ESP_Error_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Error End",
@@ -251,7 +283,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -273,11 +307,18 @@
       ],
       "id": "EspConflictErrBoundaryVsEsp",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_A", "BE_Error", "End_Normal", "End_BoundaryCaught"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_A",
+            "BE_Error",
+            "End_Normal",
+            "End_BoundaryCaught"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

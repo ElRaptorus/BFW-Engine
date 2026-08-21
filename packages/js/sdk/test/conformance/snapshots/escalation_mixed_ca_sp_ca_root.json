@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,17 +42,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Escalation"],
+          "boundaryEventRefs": [
+            "BE_Escalation"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Middle",
-          "outgoing": ["Flow_Normal"],
+          "outgoing": [
+            "Flow_Normal"
+          ],
           "standardLoop": null,
           "type": "call_activity",
           "typeData": {
@@ -71,7 +79,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_Caught"],
+          "outgoing": [
+            "Flow_Caught"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -93,7 +103,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_Normal"],
+          "incoming": [
+            "Flow_Normal"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -113,7 +125,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Caught",
-          "incoming": ["Flow_Caught"],
+          "incoming": [
+            "Flow_Caught"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation Caught",
@@ -129,11 +143,18 @@
       ],
       "id": "EscalationMixedCASPCARoot",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "CA1", "BE_Escalation", "End_Normal", "End_Caught"],
+          "flowNodeRefs": [
+            "Start_1",
+            "CA1",
+            "BE_Escalation",
+            "End_Normal",
+            "End_Caught"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

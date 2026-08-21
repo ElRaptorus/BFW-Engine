@@ -56,6 +56,10 @@ export interface BpmnProcess {
   name: string | null;
   version: string | null;
   isExecutable: boolean;
+  /** True when this process is the inner scope of a `<bpmn:transaction>`. */
+  isTransactionScope: boolean;
+  /** True when this process is the inner scope of a `<bpmn:adHocSubProcess>`. */
+  isAdHocScope: boolean;
   correlationKey: string | null;
   flowNodes: FlowNode[];
   sequenceFlows: SequenceFlow[];
@@ -64,6 +68,8 @@ export interface BpmnProcess {
   dataObjectReferences: DataObjectReference[];
   dataStores: DataStore[];
   dataStoreReferences: DataStoreReference[];
+  /** `<bpmn:association>` elements, primarily compensation boundary → handler links. */
+  associations: Association[];
   extensions: Extension[];
   linterScores: LinterRulesetScore[];
 }
@@ -85,6 +91,12 @@ export interface FlowNode {
   dataOutputAssociations: DataAssociation[];
   multiInstance: MultiInstance | null;
   standardLoop: StandardLoop | null;
+  /**
+   * `isForCompensation="true"` — the activity is a compensation handler. It has
+   * no sequence flows and is reached only via a Compensation Boundary Event's
+   * `<bpmn:association>`.
+   */
+  isForCompensation: boolean;
   documentation: string | null;
 }
 
@@ -105,6 +117,18 @@ export interface Lane {
   id: string;
   name: string | null;
   flowNodeRefs: string[];
+}
+
+/**
+ * A `<bpmn:association>` linking two elements. Used for compensation: a
+ * directed association connects a Compensation Boundary Event (`sourceRef`) to
+ * an `isForCompensation` handler activity (`targetRef`).
+ */
+export interface Association {
+  id: string;
+  sourceRef: string | null;
+  targetRef: string | null;
+  associationDirection: string | null;
 }
 
 export interface DataObject {
@@ -156,9 +180,14 @@ export interface LinterRulesetScore {
   checks: Record<string, unknown>;
 }
 
+/**
+ * `<bpmn:loopCardinality>` is intentionally absent. The engine parses the
+ * element and discards it: iteration count comes exclusively from the input
+ * collection, capped by `evil:maxIterations`. Exposing it here would advertise
+ * a feature the engine refuses and the Studio linter rejects (EXR-010).
+ */
 export interface MultiInstance {
   isSequential: boolean;
-  cardinalityExpression: string | null;
   collectionExpression: string | null;
   elementVariable: string | null;
   completionCondition: string | null;
@@ -241,6 +270,11 @@ export interface BoundaryEventTypeData {
   eventDefinition: EventDefinition;
   attachedToRef: string | null;
   cancelActivity: boolean;
+  /**
+   * For a Compensation Boundary Event, the ID of the handler activity resolved
+   * from the `<bpmn:association>` whose `sourceRef` is this event.
+   */
+  compensationHandlerId: string | null;
   outMappings: Mapping[];
   resultContract: Record<string, unknown> | null;
 }
@@ -265,8 +299,16 @@ export interface UserTaskTypeData extends WithMappings, WithContracts {
 export interface ServiceTaskTypeData extends WithMappings, WithContracts {
   type: 'service_task';
   implementation: string | null;
-  /** Handler-specific extension elements as a flat key/value bag. */
-  serviceTaskTypeConfig: Record<string, unknown>;
+  /** `evil:httpUrl` — target URL. Static text, not FEEL. */
+  httpUrl: string | null;
+  /** `evil:httpMethod` — HTTP verb. Static text, not FEEL. */
+  httpMethod: string | null;
+  /** `evil:httpBody` — FEEL expression for the request body. */
+  httpBody: string | null;
+  /** `evil:httpAuthHeader` — FEEL expression for the Authorization header. */
+  httpAuthHeader: string | null;
+  /** `evil:httpResponseHeaders` — FEEL expression mapping response headers into the output. */
+  httpResponseHeaders: string | null;
 }
 
 export interface ManualTaskTypeData {
@@ -281,24 +323,37 @@ export interface ScriptTaskTypeData extends WithMappings, WithContracts {
   scriptRef: string | null;
 }
 
-export interface BusinessRuleTaskTypeData {
+/**
+ * `implementation` selects the execution mode: `"feel"` evaluates the inline
+ * `script`, `"dmn"` resolves `decisionRef` against a deployed DMN model.
+ */
+export interface BusinessRuleTaskTypeData extends WithMappings, WithContracts {
   type: 'business_rule_task';
   implementation: string | null;
+  /** Inline FEEL expression from `<bpmn:script>`. Used when `implementation` is `"feel"`. */
+  script: string | null;
+  /** Legacy `evil:ruleRef`. Retained for XML fidelity; plugin delegation was removed. */
   ruleRef: string | null;
+  /** `evil:decisionRef` — DMN model reference. Used when `implementation` is `"dmn"`. */
+  decisionRef: string | null;
+  /** `evil:decisionElementId` — which `<decision>` to evaluate in a multi-decision model. */
+  decisionElementId: string | null;
+  /** `evil:resultVariable` — output variable name for the decision result. */
+  resultVariable: string | null;
+  /** `evil:traceUnmatchedRules` — include unmatched rule detail in the DMN trace. */
+  traceUnmatchedRules: boolean;
 }
 
-export interface SendTaskTypeData {
+export interface SendTaskTypeData extends WithMappings {
   type: 'send_task';
   messageRef: string | null;
   payloadContract: Record<string, unknown> | null;
-  inMappings: Mapping[];
 }
 
-export interface ReceiveTaskTypeData {
+export interface ReceiveTaskTypeData extends WithMappings {
   type: 'receive_task';
   messageRef: string | null;
   resultContract: Record<string, unknown> | null;
-  outMappings: Mapping[];
 }
 
 export interface CallActivityTypeData extends WithMappings {
@@ -325,12 +380,12 @@ export interface SubProcessTypeData extends WithMappings, WithContracts {
   transactionMethod: string | null;
   /** True when this subprocess is a `<bpmn:adHocSubProcess>` element. */
   isAdHoc: boolean;
-  /** 'Parallel' or 'Sequential'. Only set when `isAdHoc` is true. */
-  adHocOrdering: 'Parallel' | 'Sequential' | null;
-  /** BPMN `cancelRemainingInstances` attribute. Only set when `isAdHoc` is true. */
-  cancelRemainingInstances: boolean | null;
+  /** Ad-hoc execution ordering. Defaults to `'parallel'`, matching BPMN's default. */
+  adhocOrdering: 'parallel' | 'sequential';
+  /** BPMN `cancelRemainingInstances` attribute. Defaults to `true`, matching BPMN's default. */
+  cancelRemainingInstances: boolean;
   /** FEEL expression from `<completionCondition>`. Only set when `isAdHoc` is true. */
-  adHocCompletionCondition: string | null;
+  adhocCompletionCondition: string | null;
   /** Plugin dispatch key for plugin-managed ad-hoc execution. Only set when `isAdHoc` is true. */
   implementation: string | null;
   /** FEEL expression from `evil:activeElements`. Returns list of element IDs to auto-activate. */

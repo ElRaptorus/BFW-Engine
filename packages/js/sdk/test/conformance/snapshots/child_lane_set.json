@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,7 +42,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -56,16 +60,21 @@
       ],
       "id": "ChildLaneSetProcess",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["End_1"],
+          "flowNodeRefs": [
+            "End_1"
+          ],
           "id": "Lane_Child",
           "name": "Child"
         },
         {
-          "flowNodeRefs": ["Start_1"],
+          "flowNodeRefs": [
+            "Start_1"
+          ],
           "id": "Lane_Parent",
           "name": "Parent"
         }

@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Fork_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
-          "outgoing": ["Flow_B", "Flow_End_A"],
+          "outgoing": [
+            "Flow_B",
+            "Flow_End_A"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -56,7 +63,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_A",
-          "incoming": ["Flow_End_A"],
+          "incoming": [
+            "Flow_End_A"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Quick End",
@@ -76,11 +85,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_B",
-          "incoming": ["Flow_B"],
+          "incoming": [
+            "Flow_B"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": ["Flow_B2"],
+          "outgoing": [
+            "Flow_B2"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -92,7 +105,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_B",
-          "incoming": ["Flow_B2"],
+          "incoming": [
+            "Flow_B2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Slow End",
@@ -108,11 +123,18 @@
       ],
       "id": "ParallelGatewayOneBranchToEnd",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Fork_1", "End_A", "Task_B", "End_B"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Fork_1",
+            "End_A",
+            "Task_B",
+            "End_B"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

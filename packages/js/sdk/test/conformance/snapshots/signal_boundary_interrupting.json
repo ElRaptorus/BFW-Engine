@@ -34,7 +34,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["Boundary_1"],
+          "boundaryEventRefs": [
+            "Boundary_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -129,11 +131,18 @@
       ],
       "id": "SignalBoundaryInterrupting",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "UserTask_1", "Boundary_1", "End_normal", "End_cancelled"],
+          "flowNodeRefs": [
+            "Start_1",
+            "UserTask_1",
+            "Boundary_1",
+            "End_normal",
+            "End_cancelled"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

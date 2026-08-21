@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InclusiveSplit",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Inclusive Split",
-          "outgoing": ["Flow_B", "Flow_A"],
+          "outgoing": [
+            "Flow_B",
+            "Flow_A"
+          ],
           "standardLoop": null,
           "type": "inclusive_gateway",
           "typeData": {
@@ -58,11 +65,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ParallelSplit",
-          "incoming": ["Flow_A"],
+          "incoming": [
+            "Flow_A"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Parallel Split",
-          "outgoing": ["Flow_P2", "Flow_P1"],
+          "outgoing": [
+            "Flow_P2",
+            "Flow_P1"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -74,11 +86,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_P1",
-          "incoming": ["Flow_P1"],
+          "incoming": [
+            "Flow_P1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task P1",
-          "outgoing": ["Flow_P1_Out"],
+          "outgoing": [
+            "Flow_P1_Out"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -90,11 +106,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_P2",
-          "incoming": ["Flow_P2"],
+          "incoming": [
+            "Flow_P2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task P2",
-          "outgoing": ["Flow_P2_Out"],
+          "outgoing": [
+            "Flow_P2_Out"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -106,11 +126,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ParallelJoin",
-          "incoming": ["Flow_P2_Out", "Flow_P1_Out"],
+          "incoming": [
+            "Flow_P2_Out",
+            "Flow_P1_Out"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Parallel Join",
-          "outgoing": ["Flow_Parallel_Out"],
+          "outgoing": [
+            "Flow_Parallel_Out"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -122,11 +147,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_B",
-          "incoming": ["Flow_B"],
+          "incoming": [
+            "Flow_B"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task B",
-          "outgoing": ["Flow_B_Out"],
+          "outgoing": [
+            "Flow_B_Out"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -138,11 +167,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "InclusiveJoin",
-          "incoming": ["Flow_B_Out", "Flow_Parallel_Out"],
+          "incoming": [
+            "Flow_B_Out",
+            "Flow_Parallel_Out"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Inclusive Join",
-          "outgoing": ["Flow_Final"],
+          "outgoing": [
+            "Flow_Final"
+          ],
           "standardLoop": null,
           "type": "inclusive_gateway",
           "typeData": {
@@ -156,7 +190,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_Final"],
+          "incoming": [
+            "Flow_Final"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -172,6 +208,7 @@
       ],
       "id": "InclusiveGatewayNestedParallel",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [

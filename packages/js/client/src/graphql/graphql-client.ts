@@ -32,7 +32,9 @@ import type {
   ProcessVersion,
   ProcessVersionField,
   ProcessVersionFilter,
+  SelectionField,
 } from '@elraptorus/daemonengine_sdk';
+import { buildFlowNodeSelection, buildProcessModelSelection } from '@elraptorus/daemonengine_sdk';
 
 import { mapResponseError } from '../errors/error-mapper.js';
 import type { HttpTransport } from '../http/transport.js';
@@ -151,6 +153,115 @@ export class GraphqlClient {
     options: GetQueryOptions<F, FlowNodeInstanceInclude>,
   ): Promise<Pick<FlowNodeInstance, F>> {
     return this.executeGetQuery<FlowNodeInstance, F, FlowNodeInstanceInclude>('flowNodeInstance', id, options);
+  }
+
+  /**
+   * Get a single process version together with its parsed BPMN Model graph
+   * (`ProcessVersion.processModel` — Phase 6.1, WP-6). Unlike the flat
+   * scalar-field methods above, `processModel` is polymorphic (the
+   * `FlowNode` interface has 21 concrete types), so its selection set is
+   * built from `SelectionField`s rather than a flat field-name union.
+   *
+   * @param id - The `ProcessVersion` UUID.
+   * @param options.fields - Scalar `ProcessVersion` fields to select.
+   * @param options.flowNodeDepth - How many nested `SubProcessNode.flowNodes`
+   *   levels to include under `processModel.flowNodes`. Defaults to `4`.
+   *   `processModel.allFlowNodes` is always flat (never recursive) — it is
+   *   the canonical every-scope index and does not need depth.
+   */
+  async getProcessVersionWithModel<F extends ProcessVersionField>(
+    id: string,
+    options: { fields: F[]; flowNodeDepth?: number },
+  ): Promise<(Pick<ProcessVersion, F> & { processModel: Record<string, unknown> | null }) | null> {
+    const selection: SelectionField[] = [...options.fields, buildProcessModelSelection(options.flowNodeDepth ?? 4)];
+    return this.executeGetQuerySelection('processVersion', id, selection) as Promise<
+      (Pick<ProcessVersion, F> & { processModel: Record<string, unknown> | null }) | null
+    >;
+  }
+
+  /**
+   * Get a single flow node instance together with its resolved BPMN Model
+   * node (`FlowNodeInstance.flowNode`) and, optionally, its `ProcessVersion`
+   * (Phase 6.1, WP-6). `flowNode` is polymorphic — see
+   * `getProcessVersionWithModel` for why this uses `SelectionField`s.
+   *
+   * @param options.flowNodeDepth - How many nested `SubProcessNode.flowNodes`
+   *   levels to include on the resolved node itself (only relevant when the
+   *   flow node instance's `flowNode` is itself a SubProcess). Defaults to `0`.
+   * @param options.includeProcessVersion - When `true`, also selects
+   *   `processVersion` with the given `processVersionFields` (default: `['id']`).
+   */
+  async getFlowNodeInstanceWithModel<F extends FlowNodeInstanceField>(
+    id: string,
+    options: {
+      fields: F[];
+      flowNodeDepth?: number;
+      includeProcessVersion?: boolean;
+      processVersionFields?: ProcessVersionField[];
+    },
+  ): Promise<
+    | (Pick<FlowNodeInstance, F> & {
+        flowNode: Record<string, unknown> | null;
+        processVersion?: Record<string, unknown> | null;
+      })
+    | null
+  > {
+    const selection: SelectionField[] = [...options.fields, buildFlowNodeSelection(options.flowNodeDepth ?? 0)];
+    if (options.includeProcessVersion) {
+      selection.push({
+        name: 'processVersion',
+        fields: options.processVersionFields ?? ['id'],
+      });
+    }
+    return this.executeGetQuerySelection('flowNodeInstance', id, selection) as Promise<
+      | (Pick<FlowNodeInstance, F> & {
+          flowNode: Record<string, unknown> | null;
+          processVersion?: Record<string, unknown> | null;
+        })
+      | null
+    >;
+  }
+
+  /**
+   * Get a single process instance together with its process version's
+   * parsed BPMN Model graph and every flow node instance's resolved
+   * `flowNode` (Phase 6.1, WP-6 — the Studio debugger open query).
+   *
+   * `ProcessInstance.flowNodeInstances` is a relationship list (not the
+   * top-level offset-paginated `flowNodeInstances { results }` connection).
+   *
+   * @param options.flowNodeDepth - Nested `SubProcessNode.flowNodes` levels
+   *   under `processVersion.processModel.flowNodes`. Defaults to `4`.
+   *   Per-FNI `flowNode` selections stay flat (depth 0) — they resolve
+   *   against the every-scope index and do not recurse.
+   */
+  async getProcessInstanceWithModel<F extends ProcessInstanceField>(
+    id: string,
+    options: {
+      fields: F[];
+      flowNodeDepth?: number;
+      flowNodeInstanceFields?: FlowNodeInstanceField[];
+      processVersionFields?: ProcessVersionField[];
+    },
+  ): Promise<Record<string, unknown> | null> {
+    const selection: SelectionField[] = [
+      ...options.fields,
+      {
+        name: 'processVersion',
+        fields: [
+          ...(options.processVersionFields ?? ['id', 'version', 'bpmnXml']),
+          buildProcessModelSelection(options.flowNodeDepth ?? 4),
+        ],
+      },
+      {
+        name: 'flowNodeInstances',
+        fields: [
+          ...(options.flowNodeInstanceFields ?? ['id', 'flowNodeId', 'flowNodeType', 'state']),
+          buildFlowNodeSelection(0),
+        ],
+      },
+    ];
+    return this.executeGetQuerySelection('processInstance', id, selection);
   }
 
   /** Query current data object values (latest value per Data Object per PI). */
@@ -333,6 +444,33 @@ export class GraphqlClient {
       return null as unknown as Pick<Resource, F & keyof Resource>;
     }
     return camelizeKeys(resourceData as Record<string, unknown>) as Pick<Resource, F & keyof Resource>;
+  }
+
+  /**
+   * Like `executeGetQuery`, but accepts an arbitrary `SelectionField[]`
+   * (nested fields + inline fragments) instead of a flat `F[]` field-name
+   * union. Used for the polymorphic Model graph, whose response shape
+   * cannot be expressed as `Pick<Resource, F>`.
+   */
+  private async executeGetQuerySelection(
+    resourceName: string,
+    id: string,
+    fields: SelectionField[],
+  ): Promise<Record<string, unknown> | null> {
+    const built = buildGetQuery(id, { resourceName, fields });
+
+    const response = await this.transport.post<GraphqlResponse<Record<string, unknown>>>(GRAPHQL_PATH, {
+      query: built.query,
+      variables: built.variables,
+    });
+    this.throwOnGraphqlErrors(response);
+
+    const responseKey = built.getFieldName ?? resourceName;
+    const resourceData = response.data?.[responseKey];
+    if (resourceData === null || resourceData === undefined) {
+      return null;
+    }
+    return camelizeKeys(resourceData as Record<string, unknown>);
   }
 
   private buildPageInfo(

@@ -35,7 +35,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -45,7 +47,10 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Catchall", "BE_Specific"],
+          "boundaryEventRefs": [
+            "BE_Catchall",
+            "BE_Specific"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -59,6 +64,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -73,7 +84,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": ["Sub_Flow_1"],
+                "outgoing": [
+                  "Sub_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -89,7 +102,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End_Escalation",
-                "incoming": ["Sub_Flow_1"],
+                "incoming": [
+                  "Sub_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Throw ESC_42",
@@ -106,7 +121,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -136,7 +153,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_Specific"],
+          "outgoing": [
+            "Flow_Specific"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -162,7 +181,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_Catchall"],
+          "outgoing": [
+            "Flow_Catchall"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -184,7 +205,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_Normal"],
+          "incoming": [
+            "Flow_Normal"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -204,7 +227,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Specific",
-          "incoming": ["Flow_Specific"],
+          "incoming": [
+            "Flow_Specific"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Specific Caught",
@@ -224,7 +249,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Catchall",
-          "incoming": ["Flow_Catchall"],
+          "incoming": [
+            "Flow_Catchall"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Catch-all Caught",
@@ -240,6 +267,7 @@
       ],
       "id": "EscalationCodeMatching",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [

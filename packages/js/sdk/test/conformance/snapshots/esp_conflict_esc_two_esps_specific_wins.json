@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -46,11 +48,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Esc",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw VALIDATION_FAILED",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -69,7 +75,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -97,6 +105,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -111,7 +125,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Specific Esc Start",
-                "outgoing": ["ESP_Specific_Flow_1"],
+                "outgoing": [
+                  "ESP_Specific_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -130,7 +146,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Specific_End",
-                "incoming": ["ESP_Specific_Flow_1"],
+                "incoming": [
+                  "ESP_Specific_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Specific ESP End",
@@ -144,7 +162,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -178,6 +198,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -192,7 +218,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "CatchAll Esc Start",
-                "outgoing": ["ESP_CatchAll_Flow_1"],
+                "outgoing": [
+                  "ESP_CatchAll_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -211,7 +239,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_CatchAll_End",
-                "incoming": ["ESP_CatchAll_Flow_1"],
+                "incoming": [
+                  "ESP_CatchAll_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "CatchAll ESP End",
@@ -225,7 +255,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -247,11 +279,16 @@
       ],
       "id": "EspConflictEscTwoEspsSpecificWins",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Throw_Esc", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Throw_Esc",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

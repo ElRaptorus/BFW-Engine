@@ -40,7 +40,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Error"],
+          "boundaryEventRefs": [
+            "BE_Error"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -54,6 +56,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -124,7 +132,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -221,11 +231,18 @@
       ],
       "id": "RetryEmbeddedSubprocessWithBoundary",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Error", "End_OK", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "BE_Error",
+            "End_OK",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

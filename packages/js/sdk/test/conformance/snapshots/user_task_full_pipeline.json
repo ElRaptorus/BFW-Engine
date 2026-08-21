@@ -163,7 +163,9 @@
                   "type": "string"
                 }
               },
-              "required": ["name"],
+              "required": [
+                "name"
+              ],
               "type": "object"
             },
             "priority": null,
@@ -173,7 +175,9 @@
                   "type": "boolean"
                 }
               },
-              "required": ["approved"],
+              "required": [
+                "approved"
+              ],
               "type": "object"
             }
           }
@@ -201,11 +205,16 @@
       ],
       "id": "UserTaskFullPipeline",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "UserTask_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

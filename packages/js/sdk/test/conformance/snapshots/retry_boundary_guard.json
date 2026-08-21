@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -34,17 +36,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Timer"],
+          "boundaryEventRefs": [
+            "BE_Timer"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Complete Me",
-          "outgoing": ["Flow_ToDeadEnd"],
+          "outgoing": [
+            "Flow_ToDeadEnd"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -70,7 +78,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timer Boundary",
-          "outgoing": ["Flow_ToBoundaryEnd"],
+          "outgoing": [
+            "Flow_ToBoundaryEnd"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -93,7 +103,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_DeadEnd",
-          "incoming": ["Flow_ToDeadEnd"],
+          "incoming": [
+            "Flow_ToDeadEnd"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Dead End",
@@ -109,7 +121,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Happy",
-          "incoming": ["Flow_Unreachable"],
+          "incoming": [
+            "Flow_Unreachable"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Happy End",
@@ -129,7 +143,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Boundary",
-          "incoming": ["Flow_ToBoundaryEnd"],
+          "incoming": [
+            "Flow_ToBoundaryEnd"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary End",
@@ -145,11 +161,19 @@
       ],
       "id": "RetryBoundaryGuard",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "UserTask_1", "BE_Timer", "Task_DeadEnd", "End_Happy", "End_Boundary"],
+          "flowNodeRefs": [
+            "Start_1",
+            "UserTask_1",
+            "BE_Timer",
+            "Task_DeadEnd",
+            "End_Happy",
+            "End_Boundary"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

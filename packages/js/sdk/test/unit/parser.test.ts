@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { parseBpmn } from '../../src/index.js';
 import type {
   BoundaryEventTypeData,
+  BusinessRuleTaskTypeData,
   CallActivityTypeData,
+  ComplexGatewayTypeData,
   CompensationEventDefinition,
   EndEventTypeData,
   ErrorEventDefinition,
@@ -24,6 +26,7 @@ import type {
   ServiceTaskTypeData,
   SignalEventDefinition,
   StartEventTypeData,
+  SubProcessTypeData,
   TimerEventDefinition,
   UserTaskTypeData,
 } from '../../src/index.js';
@@ -811,12 +814,11 @@ describe('parseBpmn', () => {
 
       const result = parseBpmn(xml);
       const typeData = result.processes[0]!.flowNodes[0]!.typeData as ServiceTaskTypeData;
-      const config = typeData.serviceTaskTypeConfig;
-      expect(config['httpUrl']).toBe('https://api.example.com/v1/echo');
-      expect(config['httpMethod']).toBe('POST');
-      expect(config['httpBody']).toBe('{ "message": token.message }');
-      expect(config['httpAuthHeader']).toBe('"Bearer " + token.apiToken');
-      expect(config['httpResponseHeaders']).toBe('response.headers');
+      expect(typeData.httpUrl).toBe('https://api.example.com/v1/echo');
+      expect(typeData.httpMethod).toBe('POST');
+      expect(typeData.httpBody).toBe('{ "message": token.message }');
+      expect(typeData.httpAuthHeader).toBe('"Bearer " + token.apiToken');
+      expect(typeData.httpResponseHeaders).toBe('response.headers');
     });
 
     it('parses mappings and contracts on service task', () => {
@@ -1085,7 +1087,6 @@ describe('parseBpmn', () => {
       const result = parseBpmn(xml);
       const mi = result.processes[0]!.flowNodes[0]!.multiInstance!;
       expect(mi.isSequential).toBe(true);
-      expect(mi.cardinalityExpression).toBe('5');
       expect(mi.completionCondition).toBe('done');
       expect(mi.collectionExpression).toBe('token.items');
       expect(mi.outputCollection).toBe('processedItems');
@@ -1121,6 +1122,250 @@ describe('parseBpmn', () => {
         required: ['orderId'],
       });
       expect(contract.compiledSchema).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Elixir parity — fields and orderings the conformance corpus pins down.
+  // These assert the *intent* behind each rule so a failure names the contract
+  // rather than dumping a 400-line snapshot diff.
+  // -------------------------------------------------------------------------
+
+  describe('Elixir parity', () => {
+    it('keeps incoming and outgoing in reverse document order', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:task id="T1">
+          <bpmn:incoming>In_A</bpmn:incoming>
+          <bpmn:incoming>In_B</bpmn:incoming>
+          <bpmn:outgoing>Out_A</bpmn:outgoing>
+          <bpmn:outgoing>Out_B</bpmn:outgoing>
+        </bpmn:task>
+      `,
+      );
+
+      const flowNode = parseBpmn(xml).processes[0]!.flowNodes[0]!;
+      expect(flowNode.incoming).toEqual(['In_B', 'In_A']);
+      expect(flowNode.outgoing).toEqual(['Out_B', 'Out_A']);
+    });
+
+    it('flattens lanes from nested childLaneSet, innermost first', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:laneSet>
+          <bpmn:lane id="Lane_Parent" name="Parent">
+            <bpmn:flowNodeRef>T1</bpmn:flowNodeRef>
+            <bpmn:childLaneSet>
+              <bpmn:lane id="Lane_Child" name="Child">
+                <bpmn:flowNodeRef>T2</bpmn:flowNodeRef>
+              </bpmn:lane>
+            </bpmn:childLaneSet>
+          </bpmn:lane>
+        </bpmn:laneSet>
+        <bpmn:task id="T1"/>
+        <bpmn:task id="T2"/>
+      `,
+      );
+
+      const lanes = parseBpmn(xml).processes[0]!.lanes;
+      expect(lanes.map((lane) => lane.id)).toEqual(['Lane_Child', 'Lane_Parent']);
+    });
+
+    it('hoists associations declared inside a subprocess to the process level', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:subProcess id="Sub_1">
+          <bpmn:task id="Inner_Task"/>
+          <bpmn:association id="Assoc_1" sourceRef="Inner_Task" targetRef="Inner_Handler" associationDirection="One"/>
+        </bpmn:subProcess>
+      `,
+      );
+
+      const associations = parseBpmn(xml).processes[0]!.associations;
+      expect(associations).toEqual([
+        {
+          id: 'Assoc_1',
+          sourceRef: 'Inner_Task',
+          targetRef: 'Inner_Handler',
+          associationDirection: 'One',
+        },
+      ]);
+    });
+
+    it('resolves compensationHandlerId from the boundary event association', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:task id="Task_Book"/>
+        <bpmn:task id="Task_Undo" isForCompensation="true"/>
+        <bpmn:boundaryEvent id="BE_Comp" attachedToRef="Task_Book" cancelActivity="false">
+          <bpmn:compensateEventDefinition/>
+        </bpmn:boundaryEvent>
+        <bpmn:association id="Assoc_1" sourceRef="BE_Comp" targetRef="Task_Undo"/>
+      `,
+      );
+
+      const process = parseBpmn(xml).processes[0]!;
+      const boundary = process.flowNodes.find((node) => node.id === 'BE_Comp')!;
+      const handler = process.flowNodes.find((node) => node.id === 'Task_Undo')!;
+
+      expect((boundary.typeData as BoundaryEventTypeData).compensationHandlerId).toBe('Task_Undo');
+      expect(handler.isForCompensation).toBe(true);
+      expect(process.flowNodes.find((node) => node.id === 'Task_Book')!.isForCompensation).toBe(
+        false,
+      );
+    });
+
+    it('does not expose loopCardinality, which the engine discards (D-12)', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:task id="T1">
+          <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+            <bpmn:loopCardinality>5</bpmn:loopCardinality>
+          </bpmn:multiInstanceLoopCharacteristics>
+        </bpmn:task>
+      `,
+      );
+
+      const multiInstance = parseBpmn(xml).processes[0]!.flowNodes[0]!.multiInstance!;
+      expect(multiInstance.isSequential).toBe(true);
+      expect(multiInstance).not.toHaveProperty('cardinalityExpression');
+    });
+
+    it('parses the complex gateway activation condition', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:complexGateway id="CG_1">
+          <bpmn:activationCondition>activatedCount &gt;= 2</bpmn:activationCondition>
+        </bpmn:complexGateway>
+      `,
+      );
+
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!
+        .typeData as ComplexGatewayTypeData;
+      expect(typeData.activationCondition).toBe('activatedCount >= 2');
+    });
+
+    it('parses the full BusinessRuleTask DMN field set', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:businessRuleTask id="BRT_1" implementation="dmn">
+          <bpmn:extensionElements>
+            <evil:decisionRef>discount-rules</evil:decisionRef>
+            <evil:decisionElementId>Decision_Risk</evil:decisionElementId>
+            <evil:resultVariable>discount</evil:resultVariable>
+            <evil:traceUnmatchedRules>true</evil:traceUnmatchedRules>
+            <evil:inputMapping source="token.amount" target="amount"/>
+            <evil:outputMapping source="result.discount" target="discount"/>
+            <evil:resultContract>{"type":"object"}</evil:resultContract>
+          </bpmn:extensionElements>
+        </bpmn:businessRuleTask>
+      `,
+      );
+
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!
+        .typeData as BusinessRuleTaskTypeData;
+      expect(typeData.implementation).toBe('dmn');
+      expect(typeData.decisionRef).toBe('discount-rules');
+      expect(typeData.decisionElementId).toBe('Decision_Risk');
+      expect(typeData.resultVariable).toBe('discount');
+      expect(typeData.traceUnmatchedRules).toBe(true);
+      expect(typeData.inMappings).toEqual([{ source: 'token.amount', target: 'amount' }]);
+      expect(typeData.outMappings).toEqual([{ source: 'result.discount', target: 'discount' }]);
+      expect(typeData.resultContract).toEqual({ type: 'object' });
+    });
+
+    it('parses the inline FEEL script on a BusinessRuleTask', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:businessRuleTask id="BRT_1" implementation="feel">
+          <bpmn:script>{ discount: 0.1 }</bpmn:script>
+        </bpmn:businessRuleTask>
+      `,
+      );
+
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!
+        .typeData as BusinessRuleTaskTypeData;
+      expect(typeData.implementation).toBe('feel');
+      expect(typeData.script).toBe('{ discount: 0.1 }');
+      expect(typeData.decisionRef).toBeNull();
+    });
+
+    it('parses inMappings and outMappings on send and receive tasks', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:sendTask id="Send_1" messageRef="Msg_1">
+          <bpmn:extensionElements>
+            <evil:inputMapping source="token.id" target="id"/>
+          </bpmn:extensionElements>
+        </bpmn:sendTask>
+        <bpmn:receiveTask id="Receive_1" messageRef="Msg_1">
+          <bpmn:extensionElements>
+            <evil:outputMapping source="event.ack" target="ack"/>
+          </bpmn:extensionElements>
+        </bpmn:receiveTask>
+      `,
+      );
+
+      const nodes = parseBpmn(xml).processes[0]!.flowNodes;
+      const send = nodes.find((node) => node.id === 'Send_1')!.typeData as SendTaskTypeData;
+      const receive = nodes.find((node) => node.id === 'Receive_1')!
+        .typeData as ReceiveTaskTypeData;
+
+      expect(send.inMappings).toEqual([{ source: 'token.id', target: 'id' }]);
+      expect(receive.outMappings).toEqual([{ source: 'event.ack', target: 'ack' }]);
+    });
+
+    it('applies BPMN defaults for an ad-hoc subprocess', () => {
+      const xml = processWrap('P', `<bpmn:adHocSubProcess id="AdHoc_1"><bpmn:task id="T1"/></bpmn:adHocSubProcess>`);
+
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!.typeData as SubProcessTypeData;
+      expect(typeData.isAdHoc).toBe(true);
+      expect(typeData.adhocOrdering).toBe('parallel');
+      expect(typeData.cancelRemainingInstances).toBe(true);
+      expect(typeData.adhocCompletionCondition).toBeNull();
+    });
+
+    it('honours explicit ad-hoc ordering and cancelRemainingInstances=false', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:adHocSubProcess id="AdHoc_1" ordering="Sequential" cancelRemainingInstances="false">
+          <bpmn:task id="T1"/>
+          <bpmn:completionCondition>performedActivities &gt; 1</bpmn:completionCondition>
+        </bpmn:adHocSubProcess>
+      `,
+      );
+
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!.typeData as SubProcessTypeData;
+      expect(typeData.adhocOrdering).toBe('sequential');
+      expect(typeData.cancelRemainingInstances).toBe(false);
+      expect(typeData.adhocCompletionCondition).toBe('performedActivities > 1');
+    });
+
+    it('marks a transaction subprocess and leaves the enclosing process unscoped', () => {
+      const xml = processWrap(
+        'P',
+        `<bpmn:transaction id="Tx_1" method="##Compensate"><bpmn:task id="T1"/></bpmn:transaction>`,
+      );
+
+      const process = parseBpmn(xml).processes[0]!;
+      const typeData = process.flowNodes[0]!.typeData as SubProcessTypeData;
+
+      expect(typeData.isTransaction).toBe(true);
+      expect(typeData.transactionMethod).toBe('##Compensate');
+      // The scope flags describe the process a node lives *in*, so a top-level
+      // process is never itself a transaction or ad-hoc scope.
+      expect(process.isTransactionScope).toBe(false);
+      expect(process.isAdHocScope).toBe(false);
     });
   });
 });

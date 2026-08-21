@@ -34,7 +34,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_1"],
+          "boundaryEventRefs": [
+            "BE_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -124,11 +126,18 @@
       ],
       "id": "CallActivityErrorBoundary",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "CA_1", "BE_1", "End_1", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "CA_1",
+            "BE_1",
+            "End_1",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -246,6 +246,19 @@ export type {
   DecisionDefinitionInclude,
 } from './graphql/index.js';
 export type { ListQueryOptions, GetQueryOptions } from './graphql/index.js';
+export type { SelectionField, NestedSelectionField } from './graphql/index.js';
+export {
+  FLOW_NODE_COMMON_FIELDS,
+  MAPPING_FIELDS,
+  EVENT_DEFINITION_FRAGMENTS,
+  FLOW_NODE_TYPE_FIELDS,
+  buildFlowNodeSelection,
+  buildProcessModelSelection,
+} from './graphql/index.js';
+
+// --- Extension vocabulary manifest (generated, WP-5) ---
+export { extensionManifest } from './generated/extension-manifest.js';
+export type { ExtensionManifest, ExtensionManifestEntry, ExtensionValueKind, ExtensionCarrier } from './generated/extension-manifest.js';
 
 // --- BPMN parser (runtime value) ---
 export { parseBpmn } from './bpmn/index.js';

@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -36,17 +38,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["Boundary_Signal"],
+          "boundaryEventRefs": [
+            "Boundary_Signal"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_Host",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Host Task",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -68,11 +76,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Catch_Signal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Catch Signal",
-          "outgoing": ["Flow_3"],
+          "outgoing": [
+            "Flow_3"
+          ],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -90,11 +102,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Signal",
-          "incoming": ["Flow_3"],
+          "incoming": [
+            "Flow_3"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw Signal",
-          "outgoing": ["Flow_4"],
+          "outgoing": [
+            "Flow_4"
+          ],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -112,7 +128,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Signal",
-          "incoming": ["Flow_4"],
+          "incoming": [
+            "Flow_4"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal End",
@@ -138,7 +156,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal Boundary",
-          "outgoing": ["Flow_5"],
+          "outgoing": [
+            "Flow_5"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -159,7 +179,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Boundary",
-          "incoming": ["Flow_5"],
+          "incoming": [
+            "Flow_5"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary End",
@@ -175,6 +197,7 @@
       ],
       "id": "Process_Signals",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [

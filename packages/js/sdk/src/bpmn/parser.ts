@@ -8,9 +8,11 @@ import { XMLParser } from 'fast-xml-parser';
 
 import { FlowNodeType } from '../types/enums.js';
 import type {
+  Association,
   BoundaryEventTypeData,
   BpmnDefinitions,
   BpmnProcess,
+  BusinessRuleTaskTypeData,
   DataAssociation,
   DataContract,
   DataObject,
@@ -341,6 +343,7 @@ function parseProcess(node: OrderedNode): BpmnProcess {
   const flowNodes: FlowNode[] = [];
   const sequenceFlows: SequenceFlow[] = [];
   const lanes: Lane[] = [];
+  const associations: Association[] = [];
   const dataObjects: DataObject[] = [];
   const dataObjectReferences: DataObjectReference[] = [];
   const dataStores: DataStore[] = [];
@@ -370,12 +373,6 @@ function parseProcess(node: OrderedNode): BpmnProcess {
     switch (tag) {
       case 'sequenceFlow':
         sequenceFlows.push(parseSequenceFlow(child));
-        break;
-
-      case 'laneSet':
-        for (const laneNode of findAllElements(children(child), 'lane')) {
-          lanes.push(parseLane(laneNode));
-        }
         break;
 
       case 'dataObject':
@@ -419,11 +416,19 @@ function parseProcess(node: OrderedNode): BpmnProcess {
     }
   }
 
+  collectLanesDeep(node, lanes);
+  collectAssociationsDeep(node, associations);
+  linkCompensationHandlers(flowNodes, associations);
+
   const process: BpmnProcess = {
     id: attr(node, 'id') ?? '',
     name: attr(node, 'name'),
     version,
     isExecutable: attr(node, 'isExecutable') !== 'false',
+    // Only ever true for the synthetic inner-scope processes the engine derives
+    // from a transaction / ad-hoc subprocess, never for a parsed `<bpmn:process>`.
+    isTransactionScope: false,
+    isAdHocScope: false,
     correlationKey,
     flowNodes,
     sequenceFlows,
@@ -432,6 +437,7 @@ function parseProcess(node: OrderedNode): BpmnProcess {
     dataObjectReferences,
     dataStores,
     dataStoreReferences,
+    associations,
     extensions: [],
     linterScores,
   };
@@ -540,14 +546,19 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
     name: attr(node, 'name'),
     type,
     typeData,
-    incoming,
-    outgoing,
+    // The engine accumulates these by prepending and never reverses them, so
+    // its lists are in reverse document order. Match that exactly: outgoing
+    // order determines gateway evaluation order, and a consumer that disagreed
+    // with the engine here would reason about the wrong branch first.
+    incoming: incoming.reverse(),
+    outgoing: outgoing.reverse(),
     boundaryEventRefs: [],
     dataContracts,
     dataInputAssociations,
     dataOutputAssociations,
     multiInstance,
     standardLoop,
+    isForCompensation: attr(node, 'isForCompensation') === 'true',
     documentation,
   };
 }
@@ -610,6 +621,8 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
         eventDefinition: parseEventDefinition(kids),
         attachedToRef: attr(node, 'attachedToRef'),
         cancelActivity: attr(node, 'cancelActivity') !== 'false',
+        // Resolved in a later pass, once the process's associations are known.
+        compensationHandlerId: null,
         outMappings,
         resultContract: parseJsonText(childText(extKids, 'resultContract')),
       } satisfies BoundaryEventTypeData;
@@ -631,24 +644,26 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
       return buildScriptTaskTypeData(node, kids, extKids);
 
     case FlowNodeType.BusinessRuleTask:
-      return buildBusinessRuleTaskTypeData(node, extKids);
+      return buildBusinessRuleTaskTypeData(node, kids, extKids);
 
     case FlowNodeType.SendTask: {
-      const { inMappings } = parseMappings(extKids);
+      const { inMappings, outMappings } = parseMappings(extKids);
       return {
         type: 'send_task',
         messageRef: attr(node, 'messageRef'),
         payloadContract: parseJsonText(childText(extKids, 'payloadContract')),
         inMappings,
+        outMappings,
       };
     }
 
     case FlowNodeType.ReceiveTask: {
-      const { outMappings } = parseMappings(extKids);
+      const { inMappings, outMappings } = parseMappings(extKids);
       return {
         type: 'receive_task',
         messageRef: attr(node, 'messageRef'),
         resultContract: parseJsonText(childText(extKids, 'resultContract')),
+        inMappings,
         outMappings,
       };
     }
@@ -675,7 +690,10 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
       return { type: 'event_based_gateway' };
 
     case FlowNodeType.ComplexGateway:
-      return { type: 'complex_gateway', activationCondition: null };
+      return {
+        type: 'complex_gateway',
+        activationCondition: childText(kids, 'activationCondition') || null,
+      };
   }
 }
 
@@ -702,43 +720,22 @@ function buildUserTaskTypeData(extKids: OrderedNode[]): FlowNodeTypeData {
 function buildServiceTaskTypeData(node: OrderedNode, extKids: OrderedNode[]): FlowNodeTypeData {
   const { inMappings, outMappings } = parseMappings(extKids);
 
-  const implementation = attr(node, 'implementation');
-
-  const serviceTaskTypeConfig: Record<string, unknown> = {};
-
-  const httpUrl = childText(extKids, 'httpUrl') || null;
-  if (httpUrl) {
-    serviceTaskTypeConfig['httpUrl'] = httpUrl;
-  }
-
-  const httpMethodRaw = childText(extKids, 'httpMethod');
-  if (httpMethodRaw !== '') {
-    serviceTaskTypeConfig['httpMethod'] = httpMethodRaw.toUpperCase();
-  }
-
-  const httpBody = childText(extKids, 'httpBody') || null;
-  if (httpBody) {
-    serviceTaskTypeConfig['httpBody'] = httpBody;
-  }
-
-  const httpAuthHeader = childText(extKids, 'httpAuthHeader') || null;
-  if (httpAuthHeader) {
-    serviceTaskTypeConfig['httpAuthHeader'] = httpAuthHeader;
-  }
-
-  const httpResponseHeaders = childText(extKids, 'httpResponseHeaders') || null;
-  if (httpResponseHeaders) {
-    serviceTaskTypeConfig['httpResponseHeaders'] = httpResponseHeaders;
-  }
-
   return {
     type: 'service_task',
-    implementation,
+    implementation: attr(node, 'implementation'),
     payloadContract: parseJsonText(childText(extKids, 'payloadContract')),
     resultContract: parseJsonText(childText(extKids, 'resultContract')),
     inMappings,
     outMappings,
-    serviceTaskTypeConfig,
+    // Verbatim, no normalisation: the engine stores these as-is and the HTTP
+    // handler is what interprets them. Upper-casing the method here — as an
+    // earlier revision did — would make the SDK disagree with the engine about
+    // what the diagram says.
+    httpUrl: childText(extKids, 'httpUrl') || null,
+    httpMethod: childText(extKids, 'httpMethod').toUpperCase() || null,
+    httpBody: childText(extKids, 'httpBody') || null,
+    httpAuthHeader: childText(extKids, 'httpAuthHeader') || null,
+    httpResponseHeaders: childText(extKids, 'httpResponseHeaders') || null,
   } satisfies ServiceTaskTypeData;
 }
 
@@ -764,15 +761,29 @@ function buildScriptTaskTypeData(node: OrderedNode, kids: OrderedNode[], extKids
   };
 }
 
-function buildBusinessRuleTaskTypeData(node: OrderedNode, extKids: OrderedNode[]): FlowNodeTypeData {
+function buildBusinessRuleTaskTypeData(
+  node: OrderedNode,
+  kids: OrderedNode[],
+  extKids: OrderedNode[],
+): FlowNodeTypeData {
   const bpmnImpl = attr(node, 'implementation');
   const extImpl = childText(extKids, 'implementation') || null;
+  const { inMappings, outMappings } = parseMappings(extKids);
 
   return {
     type: 'business_rule_task',
     implementation: bpmnImpl ?? extImpl,
-    ruleRef: null,
-  };
+    script: childText(kids, 'script') || null,
+    ruleRef: childText(extKids, 'ruleRef') || null,
+    decisionRef: childText(extKids, 'decisionRef') || null,
+    decisionElementId: childText(extKids, 'decisionElementId') || null,
+    resultVariable: childText(extKids, 'resultVariable') || null,
+    traceUnmatchedRules: childText(extKids, 'traceUnmatchedRules') === 'true',
+    payloadContract: parseJsonText(childText(extKids, 'payloadContract')),
+    resultContract: parseJsonText(childText(extKids, 'resultContract')),
+    inMappings,
+    outMappings,
+  } satisfies BusinessRuleTaskTypeData;
 }
 
 /**
@@ -836,6 +847,8 @@ function buildSubProcessTypeData(
     name: attr(node, 'name'),
     version: null,
     isExecutable: false,
+    isTransactionScope: isTransaction,
+    isAdHocScope: isAdHoc,
     correlationKey: null,
     flowNodes: innerFlowNodes,
     sequenceFlows: innerSequenceFlows,
@@ -844,6 +857,7 @@ function buildSubProcessTypeData(
     dataObjectReferences: innerDataObjectRefs,
     dataStores: [],
     dataStoreReferences: [],
+    associations: [],
     extensions: [],
     linterScores: [],
   };
@@ -851,18 +865,16 @@ function buildSubProcessTypeData(
   applyDefaultFlows(syntheticProcess, innerDefaults);
   linkBoundaryRefs(syntheticProcess);
 
-  let adHocOrdering: 'Parallel' | 'Sequential' | null = null;
-  let cancelRemainingInstances: boolean | null = null;
-  let adHocCompletionCondition: string | null = null;
+  // These carry BPMN's defaults on every subprocess, not just ad-hoc ones —
+  // the engine's struct defaults them unconditionally, so leaving them null
+  // for a plain subprocess would disagree with it.
+  let adhocOrdering: 'parallel' | 'sequential' = 'parallel';
+  let cancelRemainingInstances = true;
+  let adhocCompletionCondition: string | null = null;
   let activeElementsExpression: string | null = null;
 
   if (isAdHoc) {
-    const orderingAttr = attr(node, 'ordering');
-    if (orderingAttr === 'Sequential') {
-      adHocOrdering = 'Sequential';
-    } else {
-      adHocOrdering = 'Parallel';
-    }
+    adhocOrdering = attr(node, 'ordering') === 'Sequential' ? 'sequential' : 'parallel';
 
     const cancelAttr = attr(node, 'cancelRemainingInstances');
     cancelRemainingInstances = cancelAttr !== null ? cancelAttr !== 'false' : true;
@@ -870,7 +882,7 @@ function buildSubProcessTypeData(
     const completionConditionNode = findElement(kids, 'completionCondition');
     if (completionConditionNode) {
       const text = textContent(completionConditionNode);
-      adHocCompletionCondition = text !== '' ? text : null;
+      adhocCompletionCondition = text !== '' ? text : null;
     }
 
     const activeElementsText = childText(extKids, 'activeElements');
@@ -883,9 +895,9 @@ function buildSubProcessTypeData(
     isTransaction,
     transactionMethod: isTransaction ? (attr(node, 'method') ?? null) : null,
     isAdHoc,
-    adHocOrdering,
+    adhocOrdering,
     cancelRemainingInstances,
-    adHocCompletionCondition,
+    adhocCompletionCondition,
     implementation: isAdHoc ? (attr(node, 'implementation') ?? null) : null,
     activeElementsExpression,
     flowNodes: syntheticProcess.flowNodes,
@@ -1027,6 +1039,91 @@ function parseLane(node: OrderedNode): Lane {
   };
 }
 
+/**
+ * Collects every `<bpmn:association>` inside a process, including those
+ * declared within a subprocess or transaction. The engine hoists all of them
+ * onto the owning process, so a compensation association inside a transaction
+ * still belongs to the process's `associations`.
+ *
+ * Emitted in document order, matching the engine.
+ */
+function collectAssociationsDeep(node: OrderedNode, associations: Association[]): void {
+  for (const child of children(node)) {
+    const tag = elementName(child);
+    if (tag === null) {
+      continue;
+    }
+    if (tag === 'association') {
+      associations.push({
+        id: attr(child, 'id') ?? '',
+        sourceRef: attr(child, 'sourceRef'),
+        targetRef: attr(child, 'targetRef'),
+        associationDirection: attr(child, 'associationDirection'),
+      });
+      continue;
+    }
+    collectAssociationsDeep(child, associations);
+  }
+}
+
+/**
+ * Resolves each Compensation Boundary Event's handler activity from the
+ * `<bpmn:association>` whose `sourceRef` is that boundary event, mirroring the
+ * engine's model-build step. Recurses into subprocess scopes, since a boundary
+ * event inside a subprocess is linked by an association on the owning process.
+ */
+function linkCompensationHandlers(flowNodes: FlowNode[], associations: Association[]): void {
+  if (associations.length === 0) {
+    return;
+  }
+
+  const handlerBySource = new Map<string, string>();
+  for (const association of associations) {
+    if (association.sourceRef !== null && association.targetRef !== null) {
+      handlerBySource.set(association.sourceRef, association.targetRef);
+    }
+  }
+
+  const visit = (nodes: FlowNode[]): void => {
+    for (const flowNode of nodes) {
+      if (flowNode.typeData.type === 'boundary_event') {
+        const handler = handlerBySource.get(flowNode.id);
+        if (handler !== undefined) {
+          flowNode.typeData.compensationHandlerId = handler;
+        }
+      } else if (flowNode.typeData.type === 'sub_process') {
+        visit(flowNode.typeData.flowNodes);
+      }
+    }
+  };
+
+  visit(flowNodes);
+}
+
+/**
+ * Flattens every lane anywhere inside a process into that process's `lanes`,
+ * including lanes under `<bpmn:childLaneSet>` and lane sets declared inside
+ * subprocesses. The engine hoists all of them onto the owning process rather
+ * than scoping them to the subprocess.
+ *
+ * The engine appends each lane as its closing tag is handled, so a nested lane
+ * lands before its parent. Emitting post-order reproduces that exactly.
+ */
+function collectLanesDeep(node: OrderedNode, lanes: Lane[]): void {
+  for (const child of children(node)) {
+    const tag = elementName(child);
+    if (tag === null) {
+      continue;
+    }
+    if (tag === 'lane') {
+      collectLanesDeep(child, lanes);
+      lanes.push(parseLane(child));
+      continue;
+    }
+    collectLanesDeep(child, lanes);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Data objects
 // ---------------------------------------------------------------------------
@@ -1125,7 +1222,6 @@ function parseMultiInstance(node: OrderedNode): MultiInstance {
 
   return {
     isSequential: attr(node, 'isSequential') === 'true',
-    cardinalityExpression: childText(kids, 'loopCardinality') || null,
     collectionExpression: childText(extKids, 'inputCollection') || null,
     elementVariable,
     completionCondition: childText(kids, 'completionCondition') || null,
@@ -1214,7 +1310,9 @@ function applyDefaultToTypeData(node: FlowNode, defaultRef: string): void {
 function linkBoundaryRefs(process: BpmnProcess): void {
   const boundaryMap = new Map<string, string[]>();
 
-  for (const node of process.flowNodes) {
+  // Reverse document order: the engine groups boundary events while its flow
+  // node list is still in prepend order, so its refs come out reversed.
+  for (const node of [...process.flowNodes].reverse()) {
     if (node.type === FlowNodeType.BoundaryEvent) {
       const attachedTo = (node.typeData as BoundaryEventTypeData).attachedToRef;
       if (attachedTo !== null) {

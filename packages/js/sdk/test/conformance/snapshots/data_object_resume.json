@@ -151,11 +151,18 @@
       ],
       "id": "DataObjectResume",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "ScriptTask_Write", "UserTask_1", "ScriptTask_Read", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "ScriptTask_Write",
+            "UserTask_1",
+            "ScriptTask_Read",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

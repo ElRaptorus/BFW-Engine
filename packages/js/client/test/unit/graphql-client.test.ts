@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HttpTransport } from '../../src/http/transport.js';
-import { GraphqlClient } from '../../src/graphql/graphql-client.js';
 import { GraphqlDepthLimitError } from '@elraptorus/daemonengine_sdk';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { GraphqlClient } from '../../src/graphql/graphql-client.js';
+import { HttpTransport } from '../../src/http/transport.js';
 
 function createMockTransport(responseData: unknown = {}): HttpTransport {
   return {
@@ -281,9 +282,7 @@ describe('GraphqlClient', () => {
       });
       const client = new GraphqlClient(transport);
 
-      const result = await client.raw<{ customQuery: { result: number } }>(
-        'query { customQuery { result } }',
-      );
+      const result = await client.raw<{ customQuery: { result: number } }>('query { customQuery { result } }');
 
       expect(result).toEqual({ customQuery: { result: 42 } });
     });
@@ -298,11 +297,9 @@ describe('GraphqlClient', () => {
         headers: { 'X-Trace-Id': 'abc-123' },
       });
 
-      expect(transport.post).toHaveBeenCalledWith(
-        '/api/v1/graphql',
-        expect.any(Object),
-        { headers: { 'X-Trace-Id': 'abc-123' } },
-      );
+      expect(transport.post).toHaveBeenCalledWith('/api/v1/graphql', expect.any(Object), {
+        headers: { 'X-Trace-Id': 'abc-123' },
+      });
     });
 
     it('sends no request options when no headers are provided', async () => {
@@ -313,11 +310,7 @@ describe('GraphqlClient', () => {
 
       await client.raw('query { x }');
 
-      expect(transport.post).toHaveBeenCalledWith(
-        '/api/v1/graphql',
-        expect.any(Object),
-        undefined,
-      );
+      expect(transport.post).toHaveBeenCalledWith('/api/v1/graphql', expect.any(Object), undefined);
     });
   });
 
@@ -326,11 +319,13 @@ describe('GraphqlClient', () => {
       const transport = createMockTransport({
         data: {
           processInstances: {
-            results: [{
-              id: 'pi-1',
-              state: 'fatal',
-              error_info: '{"reason":"process_fatal","message":"something broke"}',
-            }],
+            results: [
+              {
+                id: 'pi-1',
+                state: 'fatal',
+                error_info: '{"reason":"process_fatal","message":"something broke"}',
+              },
+            ],
             count: 1,
           },
         },
@@ -349,11 +344,13 @@ describe('GraphqlClient', () => {
       const transport = createMockTransport({
         data: {
           processInstances: {
-            results: [{
-              id: 'pi-1',
-              state: 'running',
-              started_by: '[{"id":"user-1"}]',
-            }],
+            results: [
+              {
+                id: 'pi-1',
+                state: 'running',
+                started_by: '[{"id":"user-1"}]',
+              },
+            ],
             count: 1,
           },
         },
@@ -371,10 +368,12 @@ describe('GraphqlClient', () => {
       const transport = createMockTransport({
         data: {
           processInstances: {
-            results: [{
-              id: 'pi-1',
-              state: 'running',
-            }],
+            results: [
+              {
+                id: 'pi-1',
+                state: 'running',
+              },
+            ],
             count: 1,
           },
         },
@@ -408,19 +407,54 @@ describe('GraphqlClient', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('throws a typed error when GraphQL response contains errors with a code', async () => {
+  describe('getProcessInstanceWithModel', () => {
+    it('selects processVersion.processModel and flowNodeInstances.flowNode', async () => {
       const transport = createMockTransport({
-        errors: [{
-          message: 'Query too deep',
-          extensions: { code: 'graphql_depth_limit' },
-        }],
+        data: {
+          getProcessInstance: {
+            id: 'pi-1',
+            process_version: { id: 'pv-1', process_model: { id: 'order-process' } },
+            flow_node_instances: [{ id: 'fni-1', flow_node: { id: 'Start_1', type: 'START_EVENT' } }],
+          },
+        },
       });
       const client = new GraphqlClient(transport);
 
-      await expect(
-        client.queryProcessModels({ fields: ['id'] }),
-      ).rejects.toThrow(GraphqlDepthLimitError);
+      const result = await client.getProcessInstanceWithModel('pi-1', {
+        fields: ['id'],
+        flowNodeDepth: 0,
+      });
+
+      expect(transport.post).toHaveBeenCalledWith(
+        '/api/v1/graphql',
+        expect.objectContaining({
+          query: expect.stringMatching(
+            /process_version[\s\S]*process_model[\s\S]*flow_node_instances\s*\{[\s\S]*flow_node/,
+          ),
+        }),
+      );
+      const [, body] = vi.mocked(transport.post).mock.calls[0] as [string, { query: string }];
+      expect(body.query).not.toMatch(/flow_node_instances\s*\{\s*results/);
+      expect(body.query).toMatch(/SendTaskNode/);
+      expect(body.query).toMatch(/out_mappings/);
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('pi-1');
+    });
+  });
+
+  describe('error handling', () => {
+    it('throws a typed error when GraphQL response contains errors with a code', async () => {
+      const transport = createMockTransport({
+        errors: [
+          {
+            message: 'Query too deep',
+            extensions: { code: 'graphql_depth_limit' },
+          },
+        ],
+      });
+      const client = new GraphqlClient(transport);
+
+      await expect(client.queryProcessModels({ fields: ['id'] })).rejects.toThrow(GraphqlDepthLimitError);
     });
 
     it('throws a generic Error when GraphQL error has no code', async () => {
@@ -429,9 +463,9 @@ describe('GraphqlClient', () => {
       });
       const client = new GraphqlClient(transport);
 
-      await expect(
-        client.queryProcessModels({ fields: ['id'] }),
-      ).rejects.toThrow('GraphQL error: Something went wrong');
+      await expect(client.queryProcessModels({ fields: ['id'] })).rejects.toThrow(
+        'GraphQL error: Something went wrong',
+      );
     });
   });
 });

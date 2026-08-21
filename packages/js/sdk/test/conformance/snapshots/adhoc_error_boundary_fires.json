@@ -1,0 +1,270 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [
+            "BoundaryError_1"
+          ],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "AdHoc_1",
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Ad-hoc with Failing Task",
+          "outgoing": [
+            "Flow_Happy"
+          ],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ServiceTask_Fail",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Failing Service",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "service_task",
+                "typeData": {
+                  "httpAuthHeader": null,
+                  "httpBody": null,
+                  "httpMethod": null,
+                  "httpResponseHeaders": null,
+                  "httpUrl": null,
+                  "implementation": "nonexistent_handler_xyz",
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": {
+                    "type": "object"
+                  },
+                  "resultContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": true,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BoundaryError_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Catch Error",
+          "outgoing": [
+            "Flow_Error"
+          ],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "AdHoc_1",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Happy",
+          "incoming": [
+            "Flow_Happy"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Happy End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ScriptTask_AfterError",
+          "incoming": [
+            "Flow_Error"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "After Error",
+          "outgoing": [
+            "Flow_AfterError"
+          ],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ error_handled: true }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": [
+            "Flow_AfterError"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Error End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "AdHocErrorBoundaryFires",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "AdHoc_1",
+            "BoundaryError_1",
+            "End_Happy",
+            "ScriptTask_AfterError",
+            "End_Error"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Ad-hoc Error Boundary Fires",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "AdHoc_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Happy",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "AdHoc_1",
+          "targetRef": "End_Happy"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Error",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BoundaryError_1",
+          "targetRef": "ScriptTask_AfterError"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_AfterError",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_AfterError",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

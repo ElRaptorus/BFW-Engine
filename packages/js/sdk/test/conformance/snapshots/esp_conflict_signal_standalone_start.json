@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Signal Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,7 +44,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Started",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -58,11 +62,15 @@
       ],
       "id": "EspConflictSignalStandaloneStart",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["SigStart_1", "End_Started"],
+          "flowNodeRefs": [
+            "SigStart_1",
+            "End_Started"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

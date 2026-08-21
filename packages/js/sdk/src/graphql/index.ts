@@ -39,3 +39,12 @@ export type {
   DecisionDefinitionInclude,
 } from './includes.js';
 export type { ListQueryOptions, GetQueryOptions } from './query-options.js';
+export type { SelectionField, NestedSelectionField } from './model-fields.js';
+export {
+  FLOW_NODE_COMMON_FIELDS,
+  MAPPING_FIELDS,
+  EVENT_DEFINITION_FRAGMENTS,
+  FLOW_NODE_TYPE_FIELDS,
+  buildFlowNodeSelection,
+  buildProcessModelSelection,
+} from './model-fields.js';

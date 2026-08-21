@@ -34,7 +34,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_1"],
+          "boundaryEventRefs": [
+            "BE_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -48,6 +50,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -86,6 +94,12 @@
                 "standardLoop": null,
                 "type": "sub_process",
                 "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
                   "dataObjectReferences": [],
                   "dataObjects": [],
                   "flowNodes": [
@@ -146,7 +160,9 @@
                       }
                     }
                   ],
+                  "implementation": null,
                   "inMappings": [],
+                  "isAdHoc": false,
                   "isTransaction": false,
                   "outMappings": [],
                   "payloadContract": null,
@@ -186,7 +202,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -283,11 +301,18 @@
       ],
       "id": "EmbeddedSubprocess2NestedFatalRootBoundary",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_Outer", "BE_1", "End_OK", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_Outer",
+            "BE_1",
+            "End_OK",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

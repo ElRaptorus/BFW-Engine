@@ -92,11 +92,17 @@
       ],
       "id": "ImplicitSplit",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_1", "End_1", "End_2"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_1",
+            "End_1",
+            "End_2"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

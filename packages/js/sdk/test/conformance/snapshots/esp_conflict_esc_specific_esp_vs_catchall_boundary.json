@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,7 +42,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_CatchAll"],
+          "boundaryEventRefs": [
+            "BE_CatchAll"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -54,6 +58,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -68,7 +78,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": ["Sub_Flow_1"],
+                "outgoing": [
+                  "Sub_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -84,11 +96,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_Throw",
-                "incoming": ["Sub_Flow_1"],
+                "incoming": [
+                  "Sub_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Throw ESC_X",
-                "outgoing": ["Sub_Flow_2"],
+                "outgoing": [
+                  "Sub_Flow_2"
+                ],
                 "standardLoop": null,
                 "type": "intermediate_throw_event",
                 "typeData": {
@@ -107,7 +123,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End",
-                "incoming": ["Sub_Flow_2"],
+                "incoming": [
+                  "Sub_Flow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
@@ -121,7 +139,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -159,7 +179,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_BE"],
+          "outgoing": [
+            "Flow_BE"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -181,7 +203,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -201,7 +225,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_BoundaryCaught",
-          "incoming": ["Flow_BE"],
+          "incoming": [
+            "Flow_BE"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary Caught",
@@ -229,6 +255,12 @@
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -243,7 +275,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Escalation Start",
-                "outgoing": ["ESP_Flow_1"],
+                "outgoing": [
+                  "ESP_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -262,7 +296,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": ["ESP_Flow_1"],
+                "incoming": [
+                  "ESP_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP End",
@@ -276,7 +312,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": false,
             "outMappings": [],
             "payloadContract": null,
@@ -298,11 +336,18 @@
       ],
       "id": "EspConflictEscSpecificEspVsCatchall",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_A", "BE_CatchAll", "End_Normal", "End_BoundaryCaught"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_A",
+            "BE_CatchAll",
+            "End_Normal",
+            "End_BoundaryCaught"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

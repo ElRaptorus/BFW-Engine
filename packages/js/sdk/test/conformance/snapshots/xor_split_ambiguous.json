@@ -94,11 +94,17 @@
       ],
       "id": "XorSplitAmbiguous",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "XOR_1", "End_A", "End_B"],
+          "flowNodeRefs": [
+            "Start_1",
+            "XOR_1",
+            "End_A",
+            "End_B"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

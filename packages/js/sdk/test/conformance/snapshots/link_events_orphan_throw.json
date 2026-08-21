@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -56,7 +62,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "LinkThrow_X",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Link Throw X",
@@ -94,11 +102,17 @@
       ],
       "id": "LinkEventsOrphanThrowProcess",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_A", "LinkThrow_X", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_A",
+            "LinkThrow_X",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

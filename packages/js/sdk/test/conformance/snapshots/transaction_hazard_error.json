@@ -31,7 +31,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -47,14 +49,24 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Tx_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "My Transaction",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
             "flowNodes": [
@@ -69,7 +81,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "TX Start",
-                "outgoing": ["TxFlow_1"],
+                "outgoing": [
+                  "TxFlow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -79,17 +93,23 @@
                 }
               },
               {
-                "boundaryEventRefs": ["Tx_CompBoundaryA"],
+                "boundaryEventRefs": [
+                  "Tx_CompBoundaryA"
+                ],
                 "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_TaskA",
-                "incoming": ["TxFlow_1"],
+                "incoming": [
+                  "TxFlow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Task A",
-                "outgoing": ["TxFlow_2"],
+                "outgoing": [
+                  "TxFlow_2"
+                ],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -143,11 +163,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_FatalTask",
-                "incoming": ["TxFlow_2"],
+                "incoming": [
+                  "TxFlow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Fatal Service Task",
-                "outgoing": ["TxFlow_3"],
+                "outgoing": [
+                  "TxFlow_3"
+                ],
                 "standardLoop": null,
                 "type": "service_task",
                 "typeData": {
@@ -170,7 +194,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_End",
-                "incoming": ["TxFlow_3"],
+                "incoming": [
+                  "TxFlow_3"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "TX End",
@@ -184,7 +210,9 @@
                 }
               }
             ],
+            "implementation": null,
             "inMappings": [],
+            "isAdHoc": false,
             "isTransaction": true,
             "outMappings": [],
             "payloadContract": null,
@@ -226,7 +254,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End Normal",
@@ -242,16 +272,28 @@
       ],
       "id": "transaction_hazard_error",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Tx_1", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Tx_1",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         },
         {
-          "flowNodeRefs": ["Tx_Start", "Tx_TaskA", "Tx_CompBoundaryA", "Tx_CompHandlerA", "Tx_FatalTask", "Tx_End"],
+          "flowNodeRefs": [
+            "Tx_Start",
+            "Tx_TaskA",
+            "Tx_CompBoundaryA",
+            "Tx_CompHandlerA",
+            "Tx_FatalTask",
+            "Tx_End"
+          ],
           "id": "Lane_Tx",
           "name": "default"
         }

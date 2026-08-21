@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_ToSplit"],
+          "outgoing": [
+            "Flow_ToSplit"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "PG_Split",
-          "incoming": ["Flow_ToSplit"],
+          "incoming": [
+            "Flow_ToSplit"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_ToCaSimple", "Flow_ToCaSp"],
+          "outgoing": [
+            "Flow_ToCaSimple",
+            "Flow_ToCaSp"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -56,11 +63,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_SubprocessChild",
-          "incoming": ["Flow_ToCaSp"],
+          "incoming": [
+            "Flow_ToCaSp"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Subprocess Child",
-          "outgoing": ["Flow_CaSpToJoin"],
+          "outgoing": [
+            "Flow_CaSpToJoin"
+          ],
           "standardLoop": null,
           "type": "call_activity",
           "typeData": {
@@ -77,11 +88,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_SimpleChild",
-          "incoming": ["Flow_ToCaSimple"],
+          "incoming": [
+            "Flow_ToCaSimple"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Simple Child",
-          "outgoing": ["Flow_CaSimpleToJoin"],
+          "outgoing": [
+            "Flow_CaSimpleToJoin"
+          ],
           "standardLoop": null,
           "type": "call_activity",
           "typeData": {
@@ -98,11 +113,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "PG_Join",
-          "incoming": ["Flow_CaSimpleToJoin", "Flow_CaSpToJoin"],
+          "incoming": [
+            "Flow_CaSimpleToJoin",
+            "Flow_CaSpToJoin"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_ToEnd"],
+          "outgoing": [
+            "Flow_ToEnd"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -114,7 +134,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_ToEnd"],
+          "incoming": [
+            "Flow_ToEnd"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -130,11 +152,19 @@
       ],
       "id": "RetryMultiCaRoot",
       "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
       "isExecutable": true,
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "PG_Split", "CA_SubprocessChild", "CA_SimpleChild", "PG_Join", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "PG_Split",
+            "CA_SubprocessChild",
+            "CA_SimpleChild",
+            "PG_Join",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

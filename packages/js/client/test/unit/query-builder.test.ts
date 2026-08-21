@@ -258,3 +258,82 @@ describe('buildGetQuery', () => {
     expect(query).toContain('flow_node_instances');
   });
 });
+
+describe('SelectionField support (Phase 6.1, WP-6 — polymorphic Model graph)', () => {
+  it('renders a plain nested object field with a sub-selection', () => {
+    const { query } = buildGetQuery('pv-1', {
+      resourceName: 'processVersion',
+      fields: ['id', { name: 'processModel', fields: ['id', 'name'] }],
+    });
+
+    expect(query).toContain('process_model {');
+    expect(query).toContain('id');
+    expect(query).toContain('name');
+  });
+
+  it('renders inline fragments for interface/union fields via `on`', () => {
+    const { query } = buildGetQuery('fni-1', {
+      resourceName: 'flowNodeInstance',
+      fields: [
+        'id',
+        {
+          name: 'flowNode',
+          fields: ['id', 'type'],
+          on: {
+            ServiceTaskNode: ['implementation', 'httpUrl'],
+            UserTaskNode: ['assigneesExpression'],
+          },
+        },
+      ],
+    });
+
+    expect(query).toContain('flow_node {');
+    expect(query).toContain('... on ServiceTaskNode {');
+    expect(query).toContain('implementation');
+    expect(query).toContain('http_url');
+    expect(query).toContain('... on UserTaskNode {');
+    expect(query).toContain('assignees_expression');
+  });
+
+  it('renders recursively nested selections (nested object inside a fragment)', () => {
+    const { query } = buildGetQuery('fni-1', {
+      resourceName: 'flowNodeInstance',
+      fields: [
+        {
+          name: 'flowNode',
+          fields: ['id'],
+          on: {
+            StartEventNode: [{ name: 'eventDefinition', on: { MessageEventDefinition: ['messageRef'] } }],
+          },
+        },
+      ],
+    });
+
+    expect(query).toContain('... on StartEventNode {');
+    expect(query).toContain('event_definition {');
+    expect(query).toContain('... on MessageEventDefinition {');
+    expect(query).toContain('message_ref');
+  });
+
+  it('falls back to __typename for a nested field with no sub-selection', () => {
+    const { query } = buildGetQuery('pv-1', {
+      resourceName: 'processVersion',
+      fields: [{ name: 'processModel' }],
+    });
+
+    expect(query).toContain('process_model {');
+    expect(query).toContain('__typename');
+  });
+
+  it('still accepts a flat string[] fields array (backward compatible)', () => {
+    const { query } = buildListQuery({
+      resourceName: 'processModels',
+      ashTypeName: 'Process',
+      fields: ['id', 'name'],
+    });
+
+    expect(query).toContain('id');
+    expect(query).toContain('name');
+    expect(query).not.toContain('__typename');
+  });
+});
