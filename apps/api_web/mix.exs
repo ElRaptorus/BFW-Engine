@@ -35,6 +35,7 @@ defmodule ApiWeb.MixProject do
   defp deps do
     [
       {:core_types, in_umbrella: true},
+      {:core_bpmn, in_umbrella: true},
       {:core_events, in_umbrella: true},
       {:core_execution, in_umbrella: true},
       {:peripheral_persistence, in_umbrella: true},

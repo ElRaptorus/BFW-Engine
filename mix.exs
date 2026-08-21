@@ -233,6 +233,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       # :cover session and exports .coverdata; coveralls.html merges it.
       quality: [
         "compile --warnings-as-errors",
+        "evil.gen.extension_manifest --check",
         "credo --strict",
         "dialyzer",
         "sobelow",

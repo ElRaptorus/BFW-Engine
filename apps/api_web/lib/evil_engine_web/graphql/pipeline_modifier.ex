@@ -12,7 +12,7 @@ defmodule EvilEngineWeb.Graphql.PipelineModifier do
   ## Phases added (both inserted after `Phase.Document.Validation.Result`)
 
   - `EvilEngineWeb.Graphql.Phases.DepthLimit` — rejects queries exceeding
-    `EVIL_GRAPHQL_MAX_DEPTH` (default 10 levels of field nesting).
+    `EVIL_GRAPHQL_MAX_DEPTH` (default 16 levels of field nesting).
   - `EvilEngineWeb.Graphql.Phases.BlockIntrospection` — rejects `__schema`
     and `__type` root fields when `EVIL_GRAPHQL_INTROSPECTION_DISABLED=true`.
   """

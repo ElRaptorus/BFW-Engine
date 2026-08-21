@@ -157,8 +157,14 @@ The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/
 
 ## CI/CD
 
-`.github/workflows/packages-ci.yml` runs:
-1. **lint-build-unit**: `pnpm install`, `pnpm -r run lint`, `pnpm -r run build`, `pnpm -r run test:unit`
-2. **integration** (needs #1): Starts engine via `docker compose -f docker-compose.dev.yml`, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration`
+`.github/workflows/packages-ci.yml` publishes `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry).
 
-The workflow is `workflow_dispatch` only (manual trigger).
+Jobs, in order:
+
+| Job | What it does |
+|-----|----------------|
+| **lint-build-unit** | `pnpm install --frozen-lockfile`, then lint / build / `test:unit` for the SDK and client packages only (`--filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client`) |
+| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.3, Elixir 1.20.2, Rust 1.97.0 for the FEEL NIF), migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration` |
+| **publish** (needs integration) | Resolves version from the release tag or by incrementing the GitHub Packages `pnpm view` result, then `pnpm publish` of SDK then client (`workspace:*` is rewritten to the published SDK version) |
+
+The integration job must install a Rust toolchain. `mix compile` of `core_expressions` builds the Rustler NIF; without `rustc` the release (and therefore publish) fails.

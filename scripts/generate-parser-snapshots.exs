@@ -3,7 +3,12 @@
 #
 # Walks BPMN fixture directories, parses each file with
 # EvilEngine.BPMN.Parser.parse/1, and writes camelCase JSON snapshots
-# to packages/sdk/test/conformance/snapshots/.
+# to packages/js/sdk/test/conformance/snapshots/.
+#
+# Snapshots whose fixture no longer exists are deleted, so the output
+# directory always mirrors the fixture corpus exactly. The conformance suite
+# asserts every snapshot it finds; a stale one would be compared against a
+# fixture that is gone.
 #
 # Re-run whenever the engine parser changes.
 
@@ -30,7 +35,26 @@ defmodule SnapshotGenerator do
         end
       end)
 
-    IO.puts("\nDone: #{ok} snapshots written, #{errors} parse errors (skipped)")
+    pruned = prune_orphaned_snapshots(bpmn_files)
+
+    IO.puts(
+      "\nDone: #{ok} snapshots written, #{errors} parse errors (skipped), #{pruned} orphans pruned"
+    )
+  end
+
+  # Only top-level `*.json` — `snapshots/dmn/` is owned by the DMN generator.
+  defp prune_orphaned_snapshots(bpmn_files) do
+    expected = MapSet.new(bpmn_files, &Path.basename(&1, ".bpmn"))
+
+    @output_dir
+    |> Path.join("*.json")
+    |> Path.wildcard()
+    |> Enum.reject(&MapSet.member?(expected, Path.basename(&1, ".json")))
+    |> Enum.map(fn orphan ->
+      IO.puts("  Pruning orphaned snapshot: #{Path.basename(orphan)}")
+      File.rm!(orphan)
+    end)
+    |> length()
   end
 
   defp collect_bpmn_files do

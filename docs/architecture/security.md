@@ -413,7 +413,7 @@ reference when commissioning a penetration test.
 | **Timeout and resource exhaustion** | Bandit `idle_timeout` + `request_timeout`; Ecto pool checkout timeout; GenServer call timeouts on engine internals |
 | **Directory traversal** | Not applicable — the engine does not serve static files from user-supplied paths; BPMN upload is parsed as XML, not stored as a file |
 | **WebSocket abuse** | Channel authentication via JWT on connect; topic-level authorization (lane filtering); idle connection timeout |
-| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: EVIL_GRAPHQL_MAX_COMPLEXITY` (default 1000) on `Absinthe.Plug`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `EVIL_GRAPHQL_MAX_DEPTH` (default 10); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `EVIL_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). All limits configurable at runtime without recompiling. |
+| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: EVIL_GRAPHQL_MAX_COMPLEXITY` (default 1000) on `Absinthe.Plug`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `EVIL_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `EVIL_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). All limits configurable at runtime without recompiling. |
 
 ---
 

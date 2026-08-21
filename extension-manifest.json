@@ -1,0 +1,464 @@
+{
+  "extensible": [
+    "Properties",
+    "Property"
+  ],
+  "elements": [
+    {
+      "element": "version",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "Process"
+      ],
+      "model_field": "Process.version"
+    },
+    {
+      "element": "correlationKey",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "Process"
+      ],
+      "model_field": "Process.correlation_key"
+    },
+    {
+      "element": "LinterRulesetScore",
+      "value_kind": "static_string",
+      "carrier": "attributes",
+      "attributes": [
+        "rulesetId",
+        "scorePercent",
+        "complianceStatus",
+        "computedAtIso",
+        "schemaVersion",
+        "maxPoints",
+        "penaltyPoints",
+        "rawErrorFindings",
+        "rawWarningFindings"
+      ],
+      "applicable_to": [
+        "Definitions"
+      ],
+      "model_field": "Definitions.linter_scores"
+    },
+    {
+      "element": "payloadContract",
+      "value_kind": "json_schema",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask",
+        "ScriptTask",
+        "BusinessRuleTask",
+        "SendTask",
+        "SubProcess",
+        "IntermediateThrowEvent",
+        "EndEvent"
+      ],
+      "model_field": "*.payload_contract"
+    },
+    {
+      "element": "resultContract",
+      "value_kind": "json_schema",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask",
+        "ScriptTask",
+        "BusinessRuleTask",
+        "UserTask",
+        "ReceiveTask",
+        "SubProcess",
+        "StartEvent",
+        "IntermediateCatchEvent",
+        "BoundaryEvent"
+      ],
+      "model_field": "*.result_contract"
+    },
+    {
+      "element": "inputMapping",
+      "value_kind": "mapping",
+      "carrier": "attributes",
+      "attributes": [
+        "source",
+        "target"
+      ],
+      "applicable_to": [
+        "ServiceTask",
+        "ScriptTask",
+        "BusinessRuleTask",
+        "UserTask",
+        "SendTask",
+        "ReceiveTask",
+        "CallActivity",
+        "SubProcess",
+        "IntermediateThrowEvent",
+        "EndEvent"
+      ],
+      "model_field": "*.in_mappings"
+    },
+    {
+      "element": "outputMapping",
+      "value_kind": "mapping",
+      "carrier": "attributes",
+      "attributes": [
+        "source",
+        "target"
+      ],
+      "applicable_to": [
+        "ServiceTask",
+        "ScriptTask",
+        "BusinessRuleTask",
+        "UserTask",
+        "SendTask",
+        "ReceiveTask",
+        "CallActivity",
+        "SubProcess",
+        "IntermediateCatchEvent",
+        "BoundaryEvent"
+      ],
+      "model_field": "*.out_mappings"
+    },
+    {
+      "element": "dataContract",
+      "value_kind": "json_schema",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "FlowNode (any type)"
+      ],
+      "model_field": "FlowNode.data_contracts"
+    },
+    {
+      "element": "valueContract",
+      "value_kind": "json_schema",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "DataObject"
+      ],
+      "model_field": "DataObject.value_contract"
+    },
+    {
+      "element": "httpUrl",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask"
+      ],
+      "model_field": "FlowNodeData.ServiceTask.http_url"
+    },
+    {
+      "element": "httpMethod",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask"
+      ],
+      "model_field": "FlowNodeData.ServiceTask.http_method"
+    },
+    {
+      "element": "httpBody",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask"
+      ],
+      "model_field": "FlowNodeData.ServiceTask.http_body"
+    },
+    {
+      "element": "httpAuthHeader",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask"
+      ],
+      "model_field": "FlowNodeData.ServiceTask.http_auth_header"
+    },
+    {
+      "element": "httpResponseHeaders",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ServiceTask"
+      ],
+      "model_field": "FlowNodeData.ServiceTask.http_response_headers"
+    },
+    {
+      "element": "scriptRef",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ScriptTask"
+      ],
+      "model_field": "FlowNodeData.ScriptTask.script_ref"
+    },
+    {
+      "element": "decisionRef",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
+      "model_field": "FlowNodeData.BusinessRuleTask.decision_ref"
+    },
+    {
+      "element": "decisionElementId",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
+      "model_field": "FlowNodeData.BusinessRuleTask.decision_element_id"
+    },
+    {
+      "element": "resultVariable",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
+      "model_field": "FlowNodeData.BusinessRuleTask.result_variable"
+    },
+    {
+      "element": "traceUnmatchedRules",
+      "value_kind": "boolean",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
+      "model_field": "FlowNodeData.BusinessRuleTask.trace_unmatched_rules"
+    },
+    {
+      "element": "ruleRef",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
+      "model_field": "FlowNodeData.BusinessRuleTask.rule_ref"
+    },
+    {
+      "element": "assignees",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "UserTask"
+      ],
+      "model_field": "FlowNodeData.UserTask.assignees_expression"
+    },
+    {
+      "element": "formFields",
+      "value_kind": "json_schema",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "UserTask"
+      ],
+      "model_field": "FlowNodeData.UserTask.form_schema"
+    },
+    {
+      "element": "formActions",
+      "value_kind": "json_schema",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "UserTask"
+      ],
+      "model_field": "FlowNodeData.UserTask.form_actions"
+    },
+    {
+      "element": "dueDate",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "UserTask"
+      ],
+      "model_field": "FlowNodeData.UserTask.due_date"
+    },
+    {
+      "element": "priority",
+      "value_kind": "integer",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "UserTask"
+      ],
+      "model_field": "FlowNodeData.UserTask.priority"
+    },
+    {
+      "element": "requireConfirmation",
+      "value_kind": "boolean",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "ManualTask"
+      ],
+      "model_field": "FlowNodeData.ManualTask.require_confirmation"
+    },
+    {
+      "element": "correlationRetrievalExpression",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "IntermediateThrowEvent",
+        "EndEvent",
+        "SendTask"
+      ],
+      "model_field": "EventDefinition.Message.correlation_retrieval_expression"
+    },
+    {
+      "element": "payload",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "IntermediateThrowEvent",
+        "EndEvent"
+      ],
+      "model_field": "EventDefinition.Message.payload_expression"
+    },
+    {
+      "element": "eventMapping",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "StartEvent",
+        "IntermediateCatchEvent",
+        "BoundaryEvent"
+      ],
+      "model_field": "EventDefinition.Message.event_mapping"
+    },
+    {
+      "element": "errorCode",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "EndEvent",
+        "BoundaryEvent"
+      ],
+      "model_field": "EventDefinition.Error.error_code"
+    },
+    {
+      "element": "errorMessage",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "EndEvent",
+        "BoundaryEvent"
+      ],
+      "model_field": "EventDefinition.Error.error_message"
+    },
+    {
+      "element": "startEventId",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "CallActivity"
+      ],
+      "model_field": "FlowNodeData.CallActivity.start_event_id"
+    },
+    {
+      "element": "activeElements",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "SubProcess (adHocSubProcess)"
+      ],
+      "model_field": "FlowNodeData.SubProcess.active_elements_expression"
+    },
+    {
+      "element": "inputCollection",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.collection_expression"
+    },
+    {
+      "element": "outputCollection",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.output_collection"
+    },
+    {
+      "element": "elementVariable",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.element_variable"
+    },
+    {
+      "element": "outputElementVariable",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.output_element_variable"
+    },
+    {
+      "element": "loopBreakCondition",
+      "value_kind": "feel",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.loop_break_condition"
+    },
+    {
+      "element": "loopInterval",
+      "value_kind": "static_string",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics",
+        "StandardLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.loop_interval / StandardLoop.loop_interval"
+    },
+    {
+      "element": "maxIterations",
+      "value_kind": "integer",
+      "carrier": "body",
+      "attributes": [],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
+      "model_field": "MultiInstance.max_iterations"
+    }
+  ]
+}

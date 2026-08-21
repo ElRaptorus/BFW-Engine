@@ -104,7 +104,7 @@ config :peripheral_telemetry,
 # --- GraphQL safety limits (S-4) -----------------------------------------
 # Runtime overrides are read from EVIL_GRAPHQL_* in runtime.exs.
 config :api_web,
-  graphql_max_depth: 10,
+  graphql_max_depth: 16,
   graphql_max_complexity: 1000,
   graphql_introspection_disabled: false
 

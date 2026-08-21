@@ -187,6 +187,73 @@ query FilteredInstances($offset: Int) {
 }
 ```
 
+## Process Model graph
+
+Alongside the persistence resources above, the deployed BPMN process definition itself is queryable as a structured GraphQL graph — no client-side XML parsing required. Full type reference: [`architecture/api.md`](../../architecture/api.md) §10.2.2.
+
+Two new fields tie into the existing resources:
+
+| Field | On | Returns |
+|-------|----|---------|
+| `processModel` | `ProcessVersion` | The parsed process (`ProcessModel`) — `null` if `ModelCache.fetch/1` returns `:not_found` (source XML gone). Zero or multiple executable processes in the document is a GraphQL error, not null. |
+| `flowNode` | `FlowNodeInstance` | The BPMN model node this instance ran (`FlowNode`) — `null` if the FNI's owning PI is invisible to the caller, or if the node id is not in the version's flat index |
+| `processVersion` | `FlowNodeInstance` | The `ProcessVersion` this instance's process was deployed from |
+
+`FlowNode` is a GraphQL **interface** with one concrete type per BPMN element kind (`UserTaskNode`, `ServiceTaskNode`, `CallActivityNode`, `SubProcessNode`, ...). Selecting element-specific fields requires an inline fragment:
+
+```graphql
+query DebuggerView($piId: ID!) {
+  getProcessInstance(id: $piId) {
+    id
+    state
+    processVersion {
+      id
+      bpmnXml                      # still fed to bpmn-js for the canvas
+      processModel { id name correlationKey }
+    }
+    flowNodeInstances {
+      id
+      state
+      flowNode {
+        id
+        name
+        type
+        ... on UserTaskNode    { formSchema resultContract }
+        ... on ServiceTaskNode { implementation httpUrl httpMethod }
+        ... on CallActivityNode { calledElement }
+      }
+    }
+  }
+}
+```
+
+`ProcessModel.flowNodes` returns the top-level tree (nested `SubProcessNode.flowNodes` recurses into embedded/event/ad-hoc/transaction subprocess scopes); `ProcessModel.allFlowNodes` returns every flow node across every scope as a flat list, each entry carrying `parentSubProcessId` — use this when you need to look up a node by ID without walking the tree yourself.
+
+**Batching:** requesting `flowNode` for many `FlowNodeInstance`s that share one `ProcessVersion` (e.g. every FNI of a single process instance, the debugger's access pattern) issues exactly one lookup for that version, not one per FNI.
+
+**TypeScript client.** `@elraptorus/daemonengine_client`'s `GraphqlClient` exposes dedicated methods that pre-build the field selection for you:
+
+```typescript
+const version = await client.graphql.getProcessVersionWithModel(versionId, { fields: ['id', 'version'] });
+const fni = await client.graphql.getFlowNodeInstanceWithModel(fniId, { fields: ['id', 'state'] });
+const instance = await client.graphql.getProcessInstanceWithModel(processInstanceId, { fields: ['id', 'state'] });
+```
+
+Building your own selection set for the `FlowNode` interface (rather than using the methods above) requires the `SelectionField` type from `@elraptorus/daemonengine_sdk`, which supports inline fragments via an `on` key:
+
+```typescript
+import type { SelectionField } from '@elraptorus/daemonengine_sdk';
+
+const flowNodeSelection: SelectionField = {
+  name: 'flowNode',
+  fields: ['id', 'name', 'type'],
+  on: {
+    UserTaskNode: ['formSchema', 'resultContract'],
+    ServiceTaskNode: ['implementation', 'httpUrl', 'httpMethod'],
+  },
+};
+```
+
 ## Mutations
 
 No GraphQL mutations are currently implemented. Process operations and user task interactions are available exclusively via the [REST API](rest-reference.md).
@@ -204,3 +271,4 @@ All response keys use **camelCase** (Absinthe `LanguageConventions` adapter). Gr
 - [REST API Reference](rest-reference.md) -- process operations, user task actions
 - [Authentication](authentication.md) -- JWT requirements
 - [WebSocket API](websocket.md) -- real-time event streaming
+- [`architecture/api.md`](../../architecture/api.md) §10.2.2 -- full Process Model graph type reference and implementation invariants

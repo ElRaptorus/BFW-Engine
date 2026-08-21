@@ -2089,6 +2089,11 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
   defp maybe_flush_subprocess_shell(state), do: state
 
   defp do_handle_start_subprocess(element_name, type_data, attributes, state) do
+    # Opening a nested subprocess replaces current_node. Sync the enclosing
+    # shell's accumulated state (incoming/outgoing refs, type data) back onto
+    # the stack first, otherwise it is lost when the nested scope pops.
+    state = maybe_flush_subprocess_shell(state)
+
     node = %FlowNode{
       id: attributes["id"],
       name: attributes["name"],

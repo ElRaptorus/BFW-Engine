@@ -36,6 +36,7 @@ defmodule CoreBpmn.MixProject do
     [
       {:core_types, in_umbrella: true},
       {:core_expressions, in_umbrella: true},
+      {:telemetry, "~> 1.0"},
       {:saxy, "~> 1.6"},
       {:ex_json_schema, "~> 0.11"},
       {:jason, "~> 1.4"}

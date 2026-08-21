@@ -31,7 +31,7 @@ flowchart TB
   %% ============ Row 1: External actors (top) ============
   subgraph EXT["External actors & systems"]
     direction LR
-    Studio["Evil Studio (React · @evil/engine-client)"]
+    Studio["Bifrost Forge World Studio (React · @elraptorus/daemonengine_client)"]
     OtherClients["CLI · dashboards · 3rd-party clients"]
     Obs["External observability · Prometheus · Datadog · OTel · Kafka"]
     Sidecars["gRPC plugin sidecars · Go · Rust · Python · Node"]
@@ -248,8 +248,9 @@ internal buffering + retry for at-least-once delivery.
 
 ### 3.6 External surface
 
-- **Evil Studio** depends exclusively on `@evil/engine-client`. No SQL,
-  no PubSub, no gRPC coupling.
+- **The Studio** depends on `@elraptorus/daemonengine_client` (which
+  depends on `@elraptorus/daemonengine_sdk`). No SQL, no PubSub, no gRPC
+  coupling.
 - **Other clients** (CLIs, 3rd-party dashboards) use the same REST + GraphQL +
   WebSocket surfaces.
 - **PostgreSQL** is the sole persistent backend. The engine owns its schema

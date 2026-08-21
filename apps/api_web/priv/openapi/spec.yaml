@@ -3,7 +3,7 @@ openapi: "3.0.3"
 x-graphql-limits:
   description: >
     GraphQL operational configuration (environment variables):
-    - EVIL_GRAPHQL_MAX_DEPTH (default 10) — max query field nesting depth
+    - EVIL_GRAPHQL_MAX_DEPTH (default 16) — max query field nesting depth
     - EVIL_GRAPHQL_MAX_COMPLEXITY (default 1000) — max query complexity score
     - EVIL_GRAPHQL_INTROSPECTION_DISABLED (default false) — blocks __schema/__type queries when true
 

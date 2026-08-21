@@ -21,4 +21,4 @@ pnpm --filter @daemonengine/example-sdk-parse-bpmn run test
 
 ## Expected output
 
-A text tree listing global message/signal/error definitions, the executable process (`evil:version`, `evil:correlationKey`), each flow node with type-specific fields (including service task `implementation` and handler-specific extensions in `serviceTaskTypeConfig`), and sequence flows with conditions where present.
+A text tree listing global message/signal/error definitions, the executable process (`evil:version`, `evil:correlationKey`), each flow node with type-specific fields (including service task `implementation` and the typed HTTP handler fields such as `httpUrl` and `httpMethod`), and sequence flows with conditions where present.

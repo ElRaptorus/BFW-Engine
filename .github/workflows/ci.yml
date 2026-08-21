@@ -66,6 +66,9 @@ jobs:
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
 
+      - name: Extension manifest up to date
+        run: mix evil.gen.extension_manifest --check
+
       - name: Format check
         run: mix format --check-formatted
 

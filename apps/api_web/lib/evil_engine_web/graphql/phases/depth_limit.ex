@@ -10,9 +10,11 @@ defmodule EvilEngineWeb.Graphql.Phases.DepthLimit do
   by the time this phase runs). Inline fragments and spread boundaries do
   not add depth; only `Field` selections do.
 
-  Reads `Application.get_env(:api_web, :graphql_max_depth, 10)` at
+  Reads `Application.get_env(:api_web, :graphql_max_depth, 16)` at
   runtime so the limit is configurable via `EVIL_GRAPHQL_MAX_DEPTH` without
-  recompiling.
+  recompiling. Default 16 is sized for the Process Model graph's recursive
+  `SubProcessNode.flowNodes` (WP-7); the previous default of 10 was sized
+  for the flat persistence graph.
   """
 
   use Absinthe.Phase
@@ -28,7 +30,7 @@ defmodule EvilEngineWeb.Graphql.Phases.DepthLimit do
 
   @impl Absinthe.Phase
   def run(%Blueprint{} = blueprint, options) do
-    max_depth = Application.get_env(:api_web, :graphql_max_depth, 10)
+    max_depth = Application.get_env(:api_web, :graphql_max_depth, 16)
     frag_index = Map.new(blueprint.fragments, &{&1.name, &1})
 
     depth_exceeded? =

@@ -72,16 +72,33 @@ defmodule EvilEngine.BPMN.ModelCache do
   Uses single-flight semantics: if multiple callers miss ETS for the
   same `process_version_id` concurrently, only one backend load is
   performed and all callers receive the same result.
+
+  Emits `[:evil_engine, :model_cache, :fetch]` on every call (hit or
+  miss) via `:telemetry.execute/3`, measurements `%{}`, metadata
+  `%{process_version_id: process_version_id, cache_hit: boolean()}`.
+  Used by tests to assert Dataloader batching collapses N GraphQL
+  requests for the same version into a single `fetch/1` call (Phase
+  6.1, WP-7 test (v)).
   """
   @spec fetch(String.t()) :: {:ok, Definitions.t()} | {:error, :not_found | term()}
   def fetch(process_version_id) do
     case :ets.lookup(@table, process_version_id) do
       [{^process_version_id, definitions}] ->
+        emit_fetch_telemetry(process_version_id, true)
         {:ok, definitions}
 
       [] ->
+        emit_fetch_telemetry(process_version_id, false)
         GenServer.call(__MODULE__, {:load_and_cache, process_version_id})
     end
+  end
+
+  defp emit_fetch_telemetry(process_version_id, cache_hit?) do
+    :telemetry.execute(
+      [:evil_engine, :model_cache, :fetch],
+      %{},
+      %{process_version_id: process_version_id, cache_hit: cache_hit?}
+    )
   end
 
   @doc "Same as `fetch/1` but returns `nil` on miss instead of an error tuple."

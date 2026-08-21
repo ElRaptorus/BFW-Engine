@@ -33,7 +33,7 @@ function formatFlowNodeDetails(flowNode: FlowNode): string {
       return `assigneesExpression=${data.assigneesExpression ?? 'null'}`;
     }
     case 'service_task': {
-      return `implementation=${data.implementation ?? 'null'}, serviceTaskTypeConfig=${JSON.stringify(data.serviceTaskTypeConfig)}`;
+      return `implementation=${data.implementation ?? 'null'}, httpUrl=${data.httpUrl ?? 'null'}, httpMethod=${data.httpMethod ?? 'null'}`;
     }
     case 'manual_task':
       return `requireConfirmation=${data.requireConfirmation}`;

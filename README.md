@@ -23,8 +23,7 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 5 of 7 completed.** Full BPMN Spec Coverage achieved.
-> **Phase 6 Next:** API Polish & Sidecar Plugin Support.
+> **Status**: **Phase 6 in progress** GraphQL polish and Sidecar plugin support.
 
 ---
 

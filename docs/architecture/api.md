@@ -233,148 +233,218 @@ Resolver implementation: for `ProcessInstance.finalTokens` on a single-PI query,
 
 #### 10.2.2 Process Model graph
 
-Alongside the persistence resources, the GraphQL layer (`api_web`) projects the parsed `EvilEngine.BPMN.Model.*` AST into GraphQL as a **first-class structured graph** so external consumers can read the deployed process definition without re-parsing XML. These types are **not** Ash-resource-backed; their resolvers are ETS reads against `EvilEngine.BPMN.ModelCache.fetch/1`.
+Alongside the persistence resources, the GraphQL layer (`api_web`) projects the parsed `EvilEngine.BPMN.Model.*` AST into GraphQL as a **first-class structured graph** (Phase 6.1) so external consumers can read the deployed process definition without re-parsing XML. These types are **not** Ash-resource-backed; their resolvers read `EvilEngine.BPMN.ModelCache` (warm path: ETS lookup; cold path: DB-backed loader — see the cold-cache pitfall below). Defined in `apps/api_web/lib/evil_engine_web/graphql/model_types.ex`, `model_resolvers.ex`, and `dataloader/model_cache_source.ex`; wired into `schema.ex`.
 
-**Shape:**
+**As-built shape** (abbreviated — the full struct-aligned field list lives in `model_types.ex` and is enforced at compile time, see below):
 
 ```graphql
 # --- Process Model graph (resolved from ModelCache, not Ash) ---
 
 enum FlowNodeType {
-  START_EVENT
-  END_EVENT
+  TASK
   USER_TASK
   SERVICE_TASK
   MANUAL_TASK
   SCRIPT_TASK
+  BUSINESS_RULE_TASK
   SEND_TASK
   RECEIVE_TASK
   CALL_ACTIVITY
-  EMBEDDED_SUBPROCESS
-  EVENT_SUBPROCESS
+  SUB_PROCESS               # embedded / event / ad-hoc / transaction — distinguished by SubProcessNode booleans, not by enum value
   EXCLUSIVE_GATEWAY
   PARALLEL_GATEWAY
   INCLUSIVE_GATEWAY
   EVENT_BASED_GATEWAY
-  MESSAGE_CATCH_EVENT
-  MESSAGE_THROW_EVENT
-  SIGNAL_CATCH_EVENT
-  SIGNAL_THROW_EVENT
-  TIMER_CATCH_EVENT
-  ESCALATION_EVENT
-  ERROR_EVENT
-  COMPENSATION_EVENT
-  CONDITIONAL_CATCH_EVENT
-  TERMINATE_EVENT
-  # …one value per FlowNodeData.* struct
+  COMPLEX_GATEWAY
+  START_EVENT
+  END_EVENT
+  INTERMEDIATE_CATCH_EVENT
+  INTERMEDIATE_THROW_EVENT
+  BOUNDARY_EVENT
+  UNKNOWN
 }
+# 21 values total, one per FlowNodeData.* struct (D-1 = A). Event *kind*
+# (message/timer/error/...) is NOT folded into this enum — it is exposed
+# separately via the `EventDefinition` union on the five event-position
+# node types (StartEventNode, EndEventNode, IntermediateCatchEventNode,
+# IntermediateThrowEventNode, BoundaryEventNode).
+
+union EventDefinition =
+    NoneEventDefinition
+  | MessageEventDefinition
+  | SignalEventDefinition
+  | TimerEventDefinition
+  | ErrorEventDefinition
+  | EscalationEventDefinition
+  | ConditionalEventDefinition
+  | CompensationEventDefinition
+  | TerminateEventDefinition
+  | CancelEventDefinition
+  | LinkEventDefinition
+# 11 members, one per EventDefinition.* struct.
 
 interface FlowNode {
-  id: String!                      # bpmn:flowNode/@id
-  type: FlowNodeType!
+  id: ID!
   name: String
-  laneId: String
-  incoming: [String!]!             # sequence-flow ids
-  outgoing: [String!]!             # sequence-flow ids
-  boundaryEvents: [BoundaryEvent!]!
+  type: FlowNodeType!
+  incoming: [String!]!             # sequence-flow ids, document order
+  outgoing: [String!]!             # sequence-flow ids, document order
+  boundaryEventRefs: [String!]!
+  dataContracts: [DataContract!]!
+  dataInputAssociations: [DataAssociation!]!
+  dataOutputAssociations: [DataAssociation!]!
   multiInstance: MultiInstance
-  extensions: [BpmnExtension!]!    # raw `<bpmn:extensionElements>` content not otherwise modelled
+  standardLoop: StandardLoop
+  isForCompensation: Boolean!
+  documentation: String
+  parentSubProcessId: String        # only populated on ProcessModel.allFlowNodes entries (D-2 = C)
 }
 
-# One concrete type per FlowNodeData.* Elixir struct. Examples:
-
-type UserTaskNode implements FlowNode {
-  formSchema: JSON                 # JSON Schema source (uncompiled)
-  resultContract: JSON             # JSON Schema source
-  assignableClaims: [String!]!
-  # … all UserTask-specific fields
-}
+# One concrete type per FlowNodeData.* struct (21 total). Selected examples:
 
 type ServiceTaskNode implements FlowNode {
-  implementation: String!            # handler key (e.g. "http", plugin-registered key)
-  http: HttpConfig
+  implementation: String
+  payloadContract: JSON
+  resultContract: JSON
+  httpUrl: String
+  httpMethod: String
+  httpBody: String                  # FEEL source
+  httpAuthHeader: String            # FEEL source
+  httpResponseHeaders: String       # FEEL source
+  inMappings: [Mapping!]!
+  outMappings: [Mapping!]!
+  # ...common FlowNode fields above
 }
 
 type CallActivityNode implements FlowNode {
-  calledProcessModelId: String!
-  inputMappings: [Mapping!]        # FEEL source/target pairs
-  outputMappings: [Mapping!]       # FEEL source/target pairs
+  calledElement: String
+  startEventId: String
+  inMappings: [Mapping!]!
+  outMappings: [Mapping!]!
 }
 
-type MessageCatchEventNode implements FlowNode {
-  messageName: String!
-  correlationRetrievalExpression: String    # FEEL source
+type SubProcessNode implements FlowNode {
+  triggeredByEvent: Boolean!
+  isTransaction: Boolean!
+  isAdHoc: Boolean!
+  adhocOrdering: MultiInstanceOrdering
+  cancelRemainingInstances: Boolean!
+  flowNodes: [FlowNode!]!           # recurses — nested tree, D-2 option B half
+  sequenceFlows: [SequenceFlow!]!
+  dataObjects: [DataObjectModel!]!
+  dataObjectReferences: [DataObjectReferenceModel!]!
 }
 
-# … one concrete type per remaining FlowNodeData.* struct.
+type StartEventNode implements FlowNode {
+  eventDefinition: EventDefinition!
+  resultContract: JSON
+  isInterrupting: Boolean!
+}
+
+# ... one concrete type per remaining FlowNodeData.* struct: TaskNode,
+# UserTaskNode, ManualTaskNode, ScriptTaskNode, BusinessRuleTaskNode,
+# SendTaskNode, ReceiveTaskNode, ExclusiveGatewayNode, ParallelGatewayNode,
+# InclusiveGatewayNode, EventBasedGatewayNode, ComplexGatewayNode,
+# EndEventNode, IntermediateCatchEventNode, IntermediateThrowEventNode,
+# BoundaryEventNode, UnknownNode.
 
 type ProcessModel {
-  id: String!                      # bpmn:process/@id
+  id: ID!
   name: String
-  version: String!                 # <evil:version>
-  correlationKey: String           # FEEL source
+  version: String
+  isExecutable: Boolean!
+  isTransactionScope: Boolean!
+  isAdHocScope: Boolean!
+  correlationKey: String            # FEEL source
+
+  "Top-level flow nodes only; nested subprocess scopes recurse via SubProcessNode.flowNodes."
   flowNodes: [FlowNode!]!
+
+  "Every flow node across every scope, flattened, each carrying parentSubProcessId. What FlowNodeInstance.flowNode resolves against (D-2 = C)."
+  allFlowNodes: [FlowNode!]!
+
   sequenceFlows: [SequenceFlow!]!
   lanes: [Lane!]!
-  dataObjects: [DataObjectModel!]! # BPMN-model Data Object declarations (NOT the runtime `DataObject` resource)
-  linterScores: [LinterRulesetScore!]!
+  dataObjects: [DataObjectModel!]!
+  dataObjectReferences: [DataObjectReferenceModel!]!
+  associations: [Association!]!
   extensions: [BpmnExtension!]!
+
+  "Copied from the parent Definitions — catalogs are not on Model.Process but are exposed here so clients do not need a second type."
+  definitionsId: ID
+  messages: [MessageDefinition!]!
+  signals: [SignalDefinition!]!
+  errors: [ErrorDefinition!]!
+  escalations: [EscalationDefinition!]!
+  linterScores: [LinterRulesetScore!]!
 }
 
 # --- Existing Ash-backed types gain Model hooks ---
 
 extend type ProcessVersion {
-  bpmnXml: String!                 # kept — authoritative + required for bpmn-js diagram rendering
-  processModel: ProcessModel!      # ← resolver: ModelCache.fetch(self.id)
+  processModel: ProcessModel        # ← resolver: ModelCache.fetch(self.id), pick the executable Process
 }
 
 extend type FlowNodeInstance {
-  flowNode: FlowNode!              # ← resolver: ModelCache.fetch(pi.process_version_id).flowNodes[self.flowNodeId]
-  processVersion: ProcessVersion!
+  flowNode: FlowNode                # ← resolver: ModelCache.fetch(pi.process_version_id) → processModel.allFlowNodes[self.flowNodeId]
+  processVersion: ProcessVersion    # ← resolver: PI → process_version_id → Ash.get
 }
 ```
 
-**Implementation invariants:**
+**Implementation invariants (as built):**
 
-- **Compile-time derivation.** The Absinthe types (`ProcessModel`, `FlowNode`, every concrete `*Node`, `SequenceFlow`, `Lane`, `DataObjectModel`, `BoundaryEvent`, `MultiInstance`, `LinterRulesetScore`, `BpmnExtension`) are generated by a macro in `api_web/lib/evil_engine_web/graphql/model_schema.ex` from the `%EvilEngine.BPMN.Model.*{}` Elixir struct definitions. Adding a field to a struct **automatically** adds a GraphQL field on the next compile — the Model graph is guaranteed to stay in sync with the parser.
-- **Zero re-parse, zero DB read.** Every resolver is an ETS lookup on `EvilEngine.BPMN.ModelCache`. No lazy parsing from `bpmn_xml` at query time.
-- **Dataloader batching.** All `FlowNodeInstance.flowNode` resolutions within a single GraphQL request that share the same `process_version_id` — i.e. all FNIs of a single PI, which is the Studio-debugger access pattern — collapse to exactly one `ModelCache.fetch/1` call. Cross-PI list queries batch by distinct `process_version_id`.
-- **Compiled artifacts are not exposed.** `DataContract.precompiled` (an `ExJsonSchema.Schema.Root.t()`) and compiled FEEL ASTs live only on the engine side. GraphQL exposes the **source** JSON Schema / FEEL strings — these are what clients need for display and for any client-side validation they choose to run.
-- **Authorization.** Ash policies continue to gate access to the persistence parents (`ProcessVersion`, `FlowNodeInstance`, `ProcessInstance`). A caller authorized to read a given `ProcessVersion` or `FlowNodeInstance` is authorized to read the attached Model graph — Model data is identical for every authorized reader of that version.
-- **`ProcessVersion.bpmnXml` is retained.** The raw XML is still the authoritative persistent form and still the input that `bpmn-js` / `diagram-js` need for diagram rendering. Clients are free to use either surface independently or in combination (typical Studio-debugger pattern: XML → diagram, Model graph → per-FNI detail panels and live overlays).
+- **Declarative field table, not typespec introspection (D-3 = B).** `EvilEngineWeb.Graphql.ModelSchema.FieldTable` registers every `EvilEngine.BPMN.Model.*` struct field as `exposed` (with the GraphQL field it maps to) or `excluded` (with a reason). `FieldTable.verify!/0` runs at the top of `model_types.ex` and **fails the build** if any struct key is neither mapped nor excluded — this is the enforcement mechanism, not automatic derivation from `@type t`. A field added to an Elixir struct without a matching `FieldTable` entry is a compile error, not a silent gap. `verify!/0` does **not** inspect Absinthe types: a row marked `exposed` that was never declared as a GraphQL field would still compile. `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest` closes that hole by asserting every `exposed` atom exists on the mapped Absinthe type (`FieldTable.graphql_identifier/1`) and that every `Model.*` struct module is registered.
+- **`:json` scalar is reused, not redefined.** AshGraphql already registers a `:json` scalar on the same schema; `model_types.ex` imports it rather than declaring a second one (Absinthe requires globally unique type identifiers).
+- **Compiled artifacts are never exposed.** `DataContract.compiled_schema`, the four `MultiInstance.compiled_*` fields, `StandardLoop.compiled_loop_condition`, the two `SubProcess.*_compiled` fields, `Process.inclusive_join_analyses`, `Process.complex_region_analyses`, and `Definitions.raw_xml` are all `excluded` entries in the `FieldTable` — enforced by `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest`, which scans the entire introspected schema for any identifier matching `compiled`, `precompiled`, or `raw_xml` and fails if one is reachable.
+- **Dataloader batching.** `EvilEngineWeb.Graphql.Dataloader.ModelCacheSource` batches `ModelCache.fetch/1` calls keyed by `process_version_id` via `Dataloader.KV`, registered in `Schema.context/1` with `get_policy: :tuples` (required — the default `:raise_on_error` would turn the ordinary `{:error, :not_found}` cold-cache-miss outcome into a raised exception). All `FlowNodeInstance.flowNode` resolutions in one request that share a `process_version_id` — e.g. every FNI of one PI, the Studio-debugger access pattern — collapse to exactly one `ModelCache.fetch/1` call, verified in `graphql_model_graph_wp7_test.exs` via `:telemetry` instrumentation on `[:evil_engine, :model_cache, :fetch]`.
+- **`process_instance_id` / `flow_node_id` reload guard.** AshGraphql only loads attributes the client's query selected. `ModelResolvers.ensure_required_ids_loaded/2` reloads these two `FlowNodeInstance` attributes via `Ash.load/3` whenever the resolver needs them but the client didn't select them as scalar fields — otherwise the resolver would crash on `%Ash.NotLoaded{}`.
+- **Authorization.** No new policy layer — resolvers read the persistence parent (`ProcessVersion` or, via `FlowNodeInstance → ProcessInstance`, the owning PI) through `Ash.get/2` with the request's `actor`, so the same Ash policies that gate `ProcessVersion`/`FlowNodeInstance`/`ProcessInstance` visibility gate the attached Model data. A caller who cannot see the `FlowNodeInstance` at all gets `flowNode`/`processVersion` as unreachable fields on a `null` parent — never a separate authorization error. `ProcessVersion` read policy is `actor_present()`: any authenticated JWT can read `processModel` (the same bar as `bpmnXml`); an unauthenticated caller is rejected at the HTTP plug (401/403) before Absinthe runs.
+- **`ProcessVersion.bpmnXml` is retained.** The raw XML remains the authoritative persistent form and the required input for `bpmn-js` diagram rendering. `processModel` is additive, not a replacement.
 
-**Studio-debugger example query** (single round-trip for the full debugger view):
+**Studio-debugger example query** (single round-trip for the full debugger view; mirrors `getProcessInstanceWithModel()` in the TS client):
 
 ```graphql
 query OpenDebugger($piId: ID!) {
-  processInstance(id: $piId) {
-    id state startedAt finishedAt startedWithContext
-    finalTokens                   # derived via Ash calc — [Json!] for `finished` PIs, null otherwise
+  getProcessInstance(id: $piId) {
+    id
+    state
+    startedAt
+    finishedAt
+    startedWithContext
+    finalTokens
     processVersion {
-      id version
-      bpmnXml                       # fed to bpmn-js
+      id
+      version
+      bpmnXml
       processModel { id correlationKey }
     }
-    flowNodeInstances(first: 500) {
-      edges { node {
-        id state startedAt finishedAt inputToken outputToken typeProperties errorInfo
-        flowNode {                  # ← Model data, resolved from ModelCache
-          id type name laneId
-          ... on UserTaskNode      { formSchema resultContract }
-          ... on ServiceTaskNode   { implementation http { url method } }
-          ... on CallActivityNode  { calledProcessModelId inputMappings { source target } outputMappings { source target } }
-        }
-      }}
+    flowNodeInstances {
+      id
+      state
+      startedAt
+      finishedAt
+      inputToken
+      outputToken
+      typeProperties
+      errorInfo
+      flowNode {
+        id
+        type
+        name
+        ... on UserTaskNode      { formSchema resultContract }
+        ... on ServiceTaskNode   { implementation httpUrl httpMethod }
+        ... on CallActivityNode  { calledElement inMappings { source target } outMappings { source target } }
+        ... on SendTaskNode      { messageRef inMappings { source target } outMappings { source target } }
+      }
     }
-    activeTokens { id flowNodeInstanceId payload }
-    dataObjectValues  { edges { node { dataObjectId flowNodeInstanceId value createdAt } } }
+    dataObjectValues { dataObjectId flowNodeInstanceId value createdAt }
   }
 }
-
-subscription LiveFnis($piId: ID!) {
-  flowNodeInstance(processInstanceId: $piId) { /* same shape; Studio applies deltas */ }
-}
 ```
+
+Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subscriptions.
+
+**TypeScript client support (WP-6).** `packages/js/client/src/graphql/query-builder.ts` accepts a `SelectionField[]` — a recursive union type (`packages/js/sdk/src/graphql/model-fields.ts`) that can express nested selections and inline fragments (`{ name: 'flowNode', on: { UserTaskNode: [...], ServiceTaskNode: [...] } }`), not just flat `string[]`. The SDK ships `buildFlowNodeSelection(depth)` and `buildProcessModelSelection(depth)` helpers that pre-build the canonical debugger-shaped selection (default recursion depth 4 for nested `SubProcessNode.flowNodes`), consumed via `GraphqlClient.getProcessVersionWithModel()`, `GraphqlClient.getFlowNodeInstanceWithModel()`, and `GraphqlClient.getProcessInstanceWithModel()`.
 
 #### 10.2.3 Retention + manual purge
 

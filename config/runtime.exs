@@ -200,10 +200,10 @@ config :api_web,
   pi_start_rate_window_ms: Env.get_int("EVIL_PI_START_RATE_WINDOW_MS", 1000)
 
 # --- GraphQL safety limits (S-4) -----------------------------------------
-# EVIL_GRAPHQL_MAX_DEPTH        — max field nesting depth (default 10)
+# EVIL_GRAPHQL_MAX_DEPTH        — max field nesting depth (default 16, sized for Process Model recursion)
 # EVIL_GRAPHQL_MAX_COMPLEXITY   — max query complexity score (default 1000)
 # EVIL_GRAPHQL_INTROSPECTION_DISABLED — "true" to block __schema / __type
-graphql_max_depth = Env.get_int("EVIL_GRAPHQL_MAX_DEPTH", 10)
+graphql_max_depth = Env.get_int("EVIL_GRAPHQL_MAX_DEPTH", 16)
 
 if graphql_max_depth < 1 do
   raise "EVIL_GRAPHQL_MAX_DEPTH must be a positive integer (got #{inspect(graphql_max_depth)})"

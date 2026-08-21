@@ -1026,3 +1026,52 @@ cancel_remaining = Map.get(opts, :adhoc_cancel_remaining_instances, true)
 
 If neither flag is set, the PI never completes — it waits indefinitely for an activation or completion signal. This is the correct behavior for plugin-managed mode where the plugin decides when to activate activities and when to signal completion. Do not set `adhoc_natural_drain_enabled` in plugin-managed mode.
 
+## P62: Nested subprocess start must flush the enclosing shell back onto `subprocess_stack`
+
+**Mistake:** Mutating the enclosing subprocess shell through `state.current_node` in `SaxHandler` and assuming the mutation survives a nested subprocess.
+
+**Why it happens:** `do_handle_start_subprocess/4` overwrites `state.current_node` with the newly opened shell. The enclosing shell's accumulated state lives only in `current_node` at that moment — `subprocess_stack` still holds the snapshot taken when that shell was *pushed*. `maybe_flush_subprocess_shell/1` is the only function that syncs `current_node` back onto the stack head, and it was originally called only from `do_handle_end_subprocess/1`. Any mutation applied between the enclosing shell's start tag and the nested shell's start tag was therefore silently discarded when the nested scope popped and restored the stale snapshot.
+
+Concretely this dropped `<bpmn:incoming>` / `<bpmn:outgoing>` refs from any embedded subprocess, transaction, or ad-hoc subprocess whose flow refs are declared *before* a nested subprocess — a valid and common serialization order. At runtime the outer shell then had no outgoing flow and its token dead-ended.
+
+**Correct approach:** `do_handle_start_subprocess/4` calls `maybe_flush_subprocess_shell/1` on entry, before building the nested node:
+
+```elixir
+defp do_handle_start_subprocess(element_name, type_data, attributes, state) do
+  state = maybe_flush_subprocess_shell(state)
+  node = %FlowNode{...}
+```
+
+Any new state that is accumulated on the shell node (not on the inner scope's `current_process`) is subject to the same hazard. Route such mutations through `current_node` and rely on the flush, or write directly to the `subprocess_stack` head as the `handle_end("incoming", %{current_node: nil, ...})` clause does.
+
+## P63: A `ModelCache` cold-miss inside a GraphQL resolver triggers a full DB read + re-parse, not a cache lookup
+
+**Mistake:** Assuming `ProcessVersion.processModel` / `FlowNodeInstance.flowNode` resolvers are always O(1) ETS reads because "GraphQL Model graph resolvers read `ModelCache`".
+
+**Why it happens:** `ModelCache.fetch/1` only returns instantly on a **warm** entry (`:ets.lookup/2` hit). On a miss — most commonly after `ModelCache.delete/1` (explicit eviction, used by tests and possibly by future retention tooling) or a cold engine restart before the version is re-primed — `fetch/1` falls through to `GenServer.call(__MODULE__, {:load_and_cache, process_version_id})`, which invokes the configured `:model_cache_loader` (`{EvilEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}` in production). That is a DB read of `bpmn_xml` followed by a full `EvilEngine.BPMN.Parser.parse/1` — the same cost as a fresh deploy, executed synchronously inside the GraphQL request.
+
+**Correct approach:** The Model graph resolvers still return the correct result on a cold miss (`graphql_model_graph_wp7_test.exs` "cold-cache behaviour" pins this), so correctness is not at risk — but latency is. Do not assume a `processModel` query is always cheap; if profiling shows repeated cold misses on hot process versions, address it by warming the cache at deploy time (already the case — `persist_deploy_batch/3` primes `ModelCache` on a successful commit) or by monitoring `[:evil_engine, :model_cache, :fetch]` telemetry (`metadata.cache_hit`) rather than by changing resolver code. The resolver contract is "correct on both warm and cold paths"; performance tuning belongs in cache-warming policy, not in the GraphQL layer.
+
+## P64: The GraphQL depth limit was sized for the flat persistence graph — recursive `SubProcessNode.flowNodes` needs headroom
+
+**Mistake:** Treating `EVIL_GRAPHQL_MAX_DEPTH` (default 16) as generous for the Process Model graph because it was generous for `processInstance { flowNodeInstances { ... } }`.
+
+**Why it happens:** `SubProcessNode.flowNodes` is genuinely recursive (`SubProcessNode implements FlowNode`, and `flowNodes: [FlowNode!]!` can itself contain `SubProcessNode`s). A debugger-shaped query selecting `flowNode { ... on SubProcessNode { flowNodes { ... on SubProcessNode { flowNodes { ... } } } } }` for a diagram with embedded subprocesses nested a few levels deep can hit a persistence-graph-sized limit well before it hits any genuinely excessive query.
+
+**Correct approach:** The default is **16**, sized for `getProcessInstance → processVersion → processModel → flowNodes` plus the SDK helper's default recursion depth of 4. `graphql_model_graph_wp7_test.exs` pins a regression test asserting the canonical `buildProcessModelSelection(4)`-shaped query returns data with no errors, and that the configured limit stays at least 16. If `EVIL_GRAPHQL_MAX_DEPTH` is ever lowered, or a client raises its recursion depth past what the SDK helper defaults to, re-run that test before assuming the change is safe.
+
+## P65: `FieldTable.verify!/0` does not prove a GraphQL field exists
+
+**Mistake:** Treating a FieldTable row marked `exposed` as proof that clients can query that field.
+
+**Why it happens:** `FieldTable.verify!/0` compares Elixir struct keys against the `exposed`/`excluded` lists. It never looks at Absinthe type definitions. `SendTask.out_mappings` was a concrete case: the table (and the struct, and the TS `FLOW_NODE_TYPE_FIELDS` after the fact) said the field was exposed, while `:send_task_node` omitted it and the GraphQL query simply could not select it.
+
+**Correct approach:** After adding or renaming a Model-graph field, update **both** the FieldTable row and the `field :...` declaration in `model_types.ex` (plus the TS `FLOW_NODE_TYPE_FIELDS` / `buildProcessModelSelection` helpers). `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest` asserts every `exposed` atom exists on the Absinthe type `FieldTable.graphql_identifier/1` names, and that every `EvilEngine.BPMN.Model.*` struct module is registered. Do not rely on `verify!/0` alone.
+
+## P66: Packages CI must install Rust before `mix release`
+
+**Mistake:** Compiling a `MIX_ENV=prod` OTP release in `.github/workflows/packages-ci.yml` with only `erlef/setup-beam`, then expecting `mix compile` / `mix release` to succeed.
+
+**Why it happens:** `core_expressions` builds a Rustler NIF (dsntk FEEL). The Dockerfile already installs rustup; the Packages workflow did not. Cargo cache keys in the same job are not a substitute for `rustc`. Without a toolchain the integration job fails and the SDK/client publish job never runs.
+
+**Correct approach:** Install native build deps (`build-essential`, `pkg-config`, `libssl-dev`) and pin Rust to the version in `.tool-versions` (`dtolnay/rust-toolchain` with `1.97.0`) before `mix deps.get --only prod`. Keep lint/build/unit and publish `pnpm` invocations filtered to `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` — `pnpm -r` also walks example packages that have no `lint` / `test:unit` scripts. Query GitHub Packages explicitly (`pnpm view … --registry https://npm.pkg.github.com`) when auto-incrementing the publish version; the public npm registry does not host `@elraptorus/*`.

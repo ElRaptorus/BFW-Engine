@@ -666,6 +666,44 @@ defmodule EvilEngine.BPMN.ParserTest do
       assert MapSet.member?(flow_ids, "Flow_2")
     end
 
+    @nested_subprocess_flow_refs_xml """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                      xmlns:evil="https://evilengine.dev/schema/bpmn"
+                      id="Definitions_1">
+      <bpmn:process id="Process_1" isExecutable="true">
+        <bpmn:extensionElements>
+          <evil:version>1.0.0</evil:version>
+        </bpmn:extensionElements>
+        <bpmn:startEvent id="Start_1">
+          <bpmn:outgoing>Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+        <bpmn:subProcess id="Outer">
+          <bpmn:incoming>Flow_1</bpmn:incoming>
+          <bpmn:outgoing>Flow_2</bpmn:outgoing>
+          <bpmn:subProcess id="Inner">
+            <bpmn:task id="Inner_Task" />
+          </bpmn:subProcess>
+        </bpmn:subProcess>
+        <bpmn:endEvent id="End_1">
+          <bpmn:incoming>Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+        <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Outer" />
+        <bpmn:sequenceFlow id="Flow_2" sourceRef="Outer" targetRef="End_1" />
+      </bpmn:process>
+    </bpmn:definitions>
+    """
+
+    test "outer subprocess keeps its flow refs when they precede a nested subprocess" do
+      assert {:ok, %Definitions{} = definitions} = Parser.parse(@nested_subprocess_flow_refs_xml)
+      [process] = definitions.processes
+
+      outer = Enum.find(process.flow_nodes, &(&1.id == "Outer"))
+
+      assert outer.incoming == ["Flow_1"]
+      assert outer.outgoing == ["Flow_2"]
+    end
+
     test "event subprocess sets triggered_by_event flag" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
@@ -699,7 +737,10 @@ defmodule EvilEngine.BPMN.ParserTest do
 
     test "ESP start event with isInterrupting=\"true\" parses as interrupting" do
       xml =
-        esp_start_xml(~s(<bpmn:messageEventDefinition id="D" messageRef="M" />), ~s(isInterrupting="true"))
+        esp_start_xml(
+          ~s(<bpmn:messageEventDefinition id="D" messageRef="M" />),
+          ~s(isInterrupting="true")
+        )
 
       {:ok, definitions} = Parser.parse(xml)
       assert esp_start_event(definitions).type_data.is_interrupting == true
@@ -707,7 +748,10 @@ defmodule EvilEngine.BPMN.ParserTest do
 
     test "ESP start event with isInterrupting=\"false\" parses as non-interrupting" do
       xml =
-        esp_start_xml(~s(<bpmn:messageEventDefinition id="D" messageRef="M" />), ~s(isInterrupting="false"))
+        esp_start_xml(
+          ~s(<bpmn:messageEventDefinition id="D" messageRef="M" />),
+          ~s(isInterrupting="false")
+        )
 
       {:ok, definitions} = Parser.parse(xml)
       assert esp_start_event(definitions).type_data.is_interrupting == false
@@ -738,7 +782,10 @@ defmodule EvilEngine.BPMN.ParserTest do
 
     test "ESP error start event definition parses" do
       xml =
-        esp_start_xml(~s(<bpmn:errorEventDefinition id="D" errorRef="E" />), ~s(isInterrupting="true"))
+        esp_start_xml(
+          ~s(<bpmn:errorEventDefinition id="D" errorRef="E" />),
+          ~s(isInterrupting="true")
+        )
 
       {:ok, definitions} = Parser.parse(xml)
       assert %EventDefinition.Error{} = esp_start_event(definitions).type_data.event_definition
@@ -2132,6 +2179,7 @@ defmodule EvilEngine.BPMN.ParserTest do
       tx_node = find_node(process, "TX_1")
       assert tx_node.type == :sub_process
       assert tx_node.name == "My Transaction"
+
       assert %FlowNodeData.SubProcess{
                is_transaction: true,
                transaction_method: "##WebServiceAT",
@@ -2170,7 +2218,8 @@ defmodule EvilEngine.BPMN.ParserTest do
       [process] = definitions.processes
       tx_node = find_node(process, "TX_2")
 
-      assert %FlowNodeData.SubProcess{is_transaction: true, transaction_method: nil} = tx_node.type_data
+      assert %FlowNodeData.SubProcess{is_transaction: true, transaction_method: nil} =
+               tx_node.type_data
     end
 
     test "regular subProcess still has is_transaction: false" do
@@ -2200,7 +2249,8 @@ defmodule EvilEngine.BPMN.ParserTest do
       [process] = definitions.processes
       sp_node = find_node(process, "SP_1")
 
-      assert %FlowNodeData.SubProcess{is_transaction: false, transaction_method: nil} = sp_node.type_data
+      assert %FlowNodeData.SubProcess{is_transaction: false, transaction_method: nil} =
+               sp_node.type_data
     end
   end
 

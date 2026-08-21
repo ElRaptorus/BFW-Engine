@@ -35,13 +35,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm -r run lint
+        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run lint
 
       - name: Build
-        run: pnpm -r run build
+        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run build
 
       - name: Unit tests
-        run: pnpm -r run test:unit
+        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run test:unit
 
   integration:
     name: Integration Tests
@@ -66,11 +66,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install native build deps
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev
+
       - name: Install Erlang / Elixir
         uses: erlef/setup-beam@v1
         with:
           otp-version: "29.0.3"
           elixir-version: "1.20.2"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.97.0"
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -152,7 +160,7 @@ jobs:
 
       - name: Build JS packages
         working-directory: packages/js
-        run: pnpm -r run build
+        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run build
 
       - name: Run integration tests
         working-directory: packages/js
@@ -191,7 +199,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm -r run build
+        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run build
 
       - name: Version from release tag
         id: version-release
@@ -212,7 +220,7 @@ jobs:
           echo "Querying registry for latest published version of $PACKAGE_NAME..."
 
           set +e
-          QUERY_OUTPUT=$(pnpm view "$PACKAGE_NAME" version 2>&1)
+          QUERY_OUTPUT=$(pnpm view "$PACKAGE_NAME" version --registry https://npm.pkg.github.com 2>&1)
           QUERY_EXIT=$?
           set -e
 
