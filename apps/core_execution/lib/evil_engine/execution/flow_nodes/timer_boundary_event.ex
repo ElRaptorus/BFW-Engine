@@ -55,6 +55,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
   alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerContext
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Expressions
   alias EvilEngine.Expressions.Context, as: FeelContext
   alias EvilEngine.Timers.ISO8601
@@ -385,6 +386,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
       flow_node_instance_id: context.flow_node_instance_id,
       flow_node_id: flow_node.id,
       kind: :boundary,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

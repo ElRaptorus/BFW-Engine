@@ -39,7 +39,8 @@ defmodule EvilEngine.Events.SignalSubscriptions do
             signal_name: String.t(),
             kind: kind(),
             registered_at: DateTime.t(),
-            via_pid: pid()
+            via_pid: pid(),
+            lane_name: String.t() | nil
           }
 
     @enforce_keys [
@@ -61,7 +62,8 @@ defmodule EvilEngine.Events.SignalSubscriptions do
       :signal_name,
       :kind,
       :registered_at,
-      :via_pid
+      :via_pid,
+      :lane_name
     ]
   end
 
@@ -89,7 +91,8 @@ defmodule EvilEngine.Events.SignalSubscriptions do
       signal_name: params.signal_name,
       kind: params.kind,
       registered_at: DateTime.utc_now(),
-      via_pid: params.via_pid
+      via_pid: params.via_pid,
+      lane_name: Map.get(params, :lane_name)
     }
 
     :ets.insert(@table_name, {subscription.signal_name, subscription})
@@ -267,6 +270,7 @@ defmodule EvilEngine.Events.SignalSubscriptions do
             signal_name: subscription.signal_name,
             process_instance_id: subscription.process_instance_id,
             flow_node_instance_id: subscription.flow_node_instance_id,
+            lane_name: subscription.lane_name,
             occurred_at: DateTime.utc_now()
           })
 

@@ -8,8 +8,9 @@ defmodule EvilEngineWeb.Ws.UserSocket do
 
   ## Topics
 
-  - `engine:events` — all engine-level events
+  - `engine:events` — all engine-level events (PI-scoped events are filtered at dispatch)
   - `process_instance:<process_instance_id>` — events for a specific process instance
+  - `user_tasks:pending` — pending user-task inbox (`UserTaskCreated` / `UserTaskFinished`)
   """
 
   use Phoenix.Socket
@@ -20,6 +21,7 @@ defmodule EvilEngineWeb.Ws.UserSocket do
 
   channel "engine:*", EvilEngineWeb.Ws.EngineChannel
   channel "process_instance:*", EvilEngineWeb.Ws.EngineChannel
+  channel "user_tasks:*", EvilEngineWeb.Ws.EngineChannel
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do

@@ -32,6 +32,7 @@ defmodule EvilEngine.Execution.FlowNodes.SignalBoundaryEvent do
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerContext
   alias EvilEngine.Execution.MappingHelper
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Types.Token
 
   @impl true
@@ -83,7 +84,8 @@ defmodule EvilEngine.Execution.FlowNodes.SignalBoundaryEvent do
           flow_node_id: flow_node.id,
           signal_name: signal_name,
           kind: :boundary,
-          via_pid: self()
+          via_pid: self(),
+          lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
         })
 
       if cancel_activity do
@@ -121,7 +123,8 @@ defmodule EvilEngine.Execution.FlowNodes.SignalBoundaryEvent do
         flow_node_id: flow_node.id,
         signal_name: signal_name,
         kind: :boundary,
-        via_pid: self()
+        via_pid: self(),
+        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
       })
 
     type_properties = %{
@@ -234,7 +237,8 @@ defmodule EvilEngine.Execution.FlowNodes.SignalBoundaryEvent do
                 flow_node_id: flow_node.id,
                 signal_name: signal_name,
                 kind: :boundary,
-                via_pid: self()
+                via_pid: self(),
+                lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
               })
 
             signal_receive_loop(

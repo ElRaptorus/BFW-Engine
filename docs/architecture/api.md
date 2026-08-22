@@ -500,10 +500,10 @@ Semantic invariants:
 
 ### 10.3 WebSocket (Phoenix Channels)
 
-- **Implemented** topic shape: `engine:*`, `process_instance:<id>`. Planned but not yet wired: `process:<model_id>`, `user_tasks:pending`.
+- **Implemented** topic shape: `engine:*`, `process_instance:<id>`, `user_tasks:pending`. Planned but not yet wired: `process:<model_id>`.
 - Subscriptions require the same JWT as HTTP.
-- `process_instance:<id>` join enforces §5.1 PI visibility; events are lane-filtered at dispatch time.
-- GraphQL Subscriptions are **not** currently implemented. Real-time events use the Phoenix Channel push model.
+- `process_instance:<id>` join enforces §5.1 PI visibility. Dispatch-time filtering (`EventDelivery.should_deliver?/2`) then applies the FNI lane gate and, on `engine:events`, §5.1 PI visibility from emit-time stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`). `user_tasks:pending` is a lane-filtered inbox of `UserTaskCreated` / `UserTaskFinished`.
+- GraphQL Subscriptions are **not** currently implemented. Real-time events use the Phoenix Channel push model. GraphQL FNI **reads** remain PI-scoped (§5.2); WebSocket FNI dispatch is the stricter lane gate.
 
 ### 10.4 OpenAPI + GraphQL SDL
 

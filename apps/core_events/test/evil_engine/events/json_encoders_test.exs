@@ -40,6 +40,8 @@ defmodule EvilEngine.Events.JsonEncodersTest do
       assert decoded["version"] == "1.0.0"
       assert decoded["oldState"] == "running"
       assert decoded["newState"] == "finished"
+      assert decoded["hasLanelessFlowNode"] == false
+      assert decoded["laneNames"] == []
       refute Map.has_key?(decoded, "process_instance_id")
     end
 
@@ -58,6 +60,44 @@ defmodule EvilEngine.Events.JsonEncodersTest do
       assert decoded["flowNodeInstanceId"] == "fni-1"
       assert decoded["flowNodeId"] == "task-1"
       assert decoded["flowNodeType"] == "user_task"
+      assert decoded["laneName"] == nil
+    end
+
+    test "FNI-originating events encode laneName" do
+      for module <- [
+            Event.FlowNodeInstanceStarted,
+            Event.FlowNodeInstanceFinished,
+            Event.FlowNodeInstanceStateChanged,
+            Event.MultiInstanceStarted,
+            Event.MultiInstanceCompleted,
+            Event.UserTaskCreated,
+            Event.UserTaskFinished,
+            Event.UserTaskValidationFailed,
+            Event.PluginAsyncFlowNodeRehydrated,
+            Event.CallActivityChildStarted,
+            Event.SubProcessChildStarted,
+            Event.EventSubprocessTriggered,
+            Event.DataObjectWritten,
+            Event.TimerArmed,
+            Event.TimerFired,
+            Event.TimerCancelled,
+            Event.MessageArrived,
+            Event.SignalArrived,
+            Event.EscalationRaised,
+            Event.CompensationTriggered,
+            Event.ActivityCompensated,
+            Event.TransactionCancelled,
+            Event.AdHocActivityActivated,
+            Event.AdHocSubProcessCompleted
+          ] do
+        decoded =
+          module
+          |> struct(lane_name: "Management")
+          |> encode_and_decode()
+
+        assert decoded["laneName"] == "Management",
+               "#{inspect(module)} must encode lane_name as laneName"
+      end
     end
 
     test "SinkFailed produces camelCase keys" do
@@ -197,6 +237,7 @@ defmodule EvilEngine.Events.JsonEncodersTest do
       assert decoded["activatedFlowNodeId"] == "Task_1"
       assert decoded["activatedFlowNodeInstanceId"] == "fni-task-1"
       assert decoded["activationSource"] == "engine"
+      assert decoded["laneName"] == nil
       refute Map.has_key?(decoded, "process_instance_id")
       refute Map.has_key?(decoded, "adhoc_flow_node_instance_id")
     end
@@ -219,6 +260,7 @@ defmodule EvilEngine.Events.JsonEncodersTest do
       assert decoded["adhocNodeId"] == "AdHoc_1"
       assert decoded["completionReason"] == "all_done"
       assert decoded["totalActivations"] == 5
+      assert decoded["laneName"] == nil
       refute Map.has_key?(decoded, "adhoc_node_id")
     end
 

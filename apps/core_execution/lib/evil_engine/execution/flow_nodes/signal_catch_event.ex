@@ -23,6 +23,7 @@ defmodule EvilEngine.Execution.FlowNodes.SignalCatchEvent do
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerContext
   alias EvilEngine.Execution.MappingHelper
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Execution.SequenceFlowResolver
   alias EvilEngine.Types.Token
 
@@ -62,7 +63,8 @@ defmodule EvilEngine.Execution.FlowNodes.SignalCatchEvent do
           flow_node_id: flow_node.id,
           signal_name: signal_name,
           kind: :intermediate_catch,
-          via_pid: self()
+          via_pid: self(),
+          lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
         })
 
       wait_for_signal(flow_node, context, subscription_id, resume_payload)
@@ -81,7 +83,8 @@ defmodule EvilEngine.Execution.FlowNodes.SignalCatchEvent do
         flow_node_id: flow_node.id,
         signal_name: signal_name,
         kind: :intermediate_catch,
-        via_pid: self()
+        via_pid: self(),
+        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
       })
 
     type_properties = %{

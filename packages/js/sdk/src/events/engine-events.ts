@@ -108,6 +108,12 @@ export interface ProcessInstanceStateChanged {
   triggererFlowNodeInstanceId: string | null;
   oldState: ProcessInstanceState | null;
   newState: ProcessInstanceState;
+  /** Identity id of the caller that started this process instance. */
+  startedById: string | null;
+  /** True when any created FNI has no lane (always-visible flow nodes). */
+  hasLanelessFlowNode: boolean;
+  /** Distinct non-nil lane names of FNIs created so far. */
+  laneNames: string[];
   occurredAt: string;
 }
 
@@ -128,6 +134,9 @@ export interface ProcessInstanceRetried {
   newVersion: string | null;
   resetToFlowNodeInstanceId: string | null;
   retriedBy: string;
+  startedById: string | null;
+  hasLanelessFlowNode: boolean;
+  laneNames: string[];
   occurredAt: string;
 }
 
@@ -220,6 +229,7 @@ export interface UserTaskCreated {
   rootProcessInstanceId: string | null;
   flowNodeId: string;
   assignees: string[];
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -230,6 +240,7 @@ export interface UserTaskFinished {
   rootProcessInstanceId: string | null;
   flowNodeId: string;
   outcome: 'completed' | 'aborted';
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -239,6 +250,7 @@ export interface UserTaskValidationFailed {
   processInstanceId: string;
   flowNodeId: string;
   violations: { message: string; path: string[] }[];
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -247,6 +259,7 @@ export interface PluginAsyncFlowNodeRehydrated {
   flowNodeInstanceId: string;
   processInstanceId: string;
   pluginName: string | null;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -257,6 +270,7 @@ export interface CallActivityChildStarted {
   childProcessInstanceId: string;
   childProcessModelId: string;
   childVersion: string;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -280,6 +294,7 @@ export interface SubProcessChildStarted {
   childVersion: string;
   isEventSubprocess: boolean;
   isAdHocSubprocess: boolean;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -297,6 +312,7 @@ export interface DataObjectWritten {
   previousValue: unknown | null;
   value: unknown;
   createdAt: string;
+  laneName: string | null;
 }
 
 /**
@@ -315,6 +331,7 @@ export interface MultiInstanceStarted {
   flowNodeType: FlowNodeType;
   loopType: 'parallel_mi' | 'sequential_mi' | 'standard_loop';
   totalIterations: number | null;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -337,6 +354,7 @@ export interface MultiInstanceCompleted {
   totalIterations: number | null;
   completedIterations: number;
   earlyBreak: boolean;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -351,6 +369,7 @@ export interface AdHocActivityActivated {
   activatedFlowNodeInstanceId: string;
   activatedFlowNodeId: string;
   activationSource: string;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -365,6 +384,7 @@ export interface AdHocSubProcessCompleted {
   adhocNodeId: string;
   completionReason: 'condition_met' | 'all_performed' | 'plugin_completed' | 'cancelled';
   totalActivations: number;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -490,6 +510,7 @@ export interface TimerArmed {
   flowNodeId: string;
   fireAt: string;
   kind: 'catch' | 'boundary' | 'start';
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -501,6 +522,7 @@ export interface TimerFired {
   flowNodeInstanceId: string | null;
   flowNodeId: string;
   kind: 'catch' | 'boundary' | 'start';
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -511,6 +533,7 @@ export interface TimerCancelled {
   processInstanceId: string | null;
   flowNodeInstanceId: string | null;
   reason: string;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -543,6 +566,7 @@ export interface MessageArrived {
   flowNodeInstanceId: string;
   /** The message payload delivered to the subscriber. Opaque — keys are not camelCased. */
   payload: Record<string, unknown>;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -571,6 +595,7 @@ export interface SignalArrived {
   signalName: string;
   processInstanceId: string;
   flowNodeInstanceId: string;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -589,6 +614,7 @@ export interface EscalationRaised {
   flowNodeId: string;
   /** Whether this is a terminal throw (end event) or a pass-through throw (intermediate). */
   throwType: 'end_event' | 'intermediate_throw';
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -606,6 +632,7 @@ export interface EventSubprocessTriggered {
   childProcessInstanceId: string;
   triggerKind: 'message' | 'signal' | 'timer' | 'error' | 'escalation' | 'conditional' | 'compensation';
   isInterrupting: boolean;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -627,6 +654,7 @@ export interface CompensationTriggered {
   throwType: 'throw' | 'end';
   activityRef: string | null;
   targetCount: number;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -647,6 +675,7 @@ export interface TransactionCancelled {
   rootProcessInstanceId: string | null;
   transactionNodeId: string | null;
   compensationHandlerCount: number;
+  laneName: string | null;
   occurredAt: string;
 }
 
@@ -667,5 +696,6 @@ export interface ActivityCompensated {
   throwFniId: string;
   flowNodeId: string;
   handlerActivityId: string;
+  laneName: string | null;
   occurredAt: string;
 }

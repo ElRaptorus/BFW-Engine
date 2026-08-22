@@ -82,10 +82,11 @@ For real-time monitoring, the engine pushes events via Phoenix Channels:
 
 | Topic | Content |
 |-------|---------|
-| `engine:events` | Engine-level events (startup, shutdown, plugin quarantine) |
-| `process_instance:<id>` | All events for a specific PI (state changes, FNI lifecycle, user tasks) |
+| `engine:events` | Engine-level events plus PI-scoped events filtered by §5.1 visibility and lane |
+| `process_instance:<id>` | Events for a specific PI (state changes, FNI lifecycle, user tasks), FNI events lane-filtered |
+| `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` inbox, lane-filtered |
 
-Events with a `process_instance_id` are broadcast exclusively to `process_instance:<id>` — they do **not** appear on `engine:events`.
+PI-scoped events are broadcast to `process_instance:<id>` **and** `engine:events`. Dispatch then drops FNI events whose `laneName` the subscriber cannot access, and on `engine:events` drops PI-level events the subscriber cannot see.
 
 Joining `process_instance:<id>` requires the PI to be visible to the caller. See [WebSocket API](../api/websocket.md) for connection details, event types, and authorization rules.
 

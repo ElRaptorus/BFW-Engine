@@ -114,6 +114,21 @@ describe('NotificationClient', () => {
     expect(mockChannel.off).toHaveBeenCalledWith('engine_event', 42);
   });
 
+  it('joins the user_tasks:pending channel on subscribePendingUserTasks', async () => {
+    await client.connect();
+    await client.subscribePendingUserTasks(vi.fn());
+    expect(mockSocket.channel).toHaveBeenCalledWith('user_tasks:pending');
+  });
+
+  it('subscribePendingUserTasks dispose uses the ref returned by channel.on', async () => {
+    mockChannel.on.mockReturnValueOnce(7);
+    await client.connect();
+    const subscription = await client.subscribePendingUserTasks(vi.fn());
+    subscription.dispose();
+    expect(mockChannel.off).toHaveBeenCalledWith('engine_event', 7);
+    expect(mockChannel.leave).not.toHaveBeenCalled();
+  });
+
   it('joins a process-instance-specific channel', async () => {
     await client.connect();
     await client.subscribeProcessInstance('pi-123', vi.fn());

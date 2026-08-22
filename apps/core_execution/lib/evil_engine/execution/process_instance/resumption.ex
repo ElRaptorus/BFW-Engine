@@ -800,6 +800,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       EngineEventBus.publish(%Event.PluginAsyncFlowNodeRehydrated{
         flow_node_instance_id: flow_node_instance_id,
         process_instance_id: data.process_instance_id,
+        lane_name: resolve_lane_name(data.process_model, find_flow_node(data, entry.flow_node_id)),
         occurred_at: DateTime.utc_now()
       })
     end

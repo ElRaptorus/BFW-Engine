@@ -22,6 +22,7 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerContext
   alias EvilEngine.Execution.MappingHelper
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Execution.SequenceFlowResolver
   alias EvilEngine.Types.Token
 
@@ -88,7 +89,8 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
           message_name: message_name,
           expected_correlation_value: expected_correlation_value,
           kind: :receive_task,
-          via_pid: self()
+          via_pid: self(),
+          lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
         })
 
       wait_for_message(flow_node, context, subscription_id)
@@ -108,7 +110,8 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
         message_name: message_name,
         expected_correlation_value: expected_correlation_value,
         kind: :receive_task,
-        via_pid: self()
+        via_pid: self(),
+        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
       })
 
     type_properties = %{

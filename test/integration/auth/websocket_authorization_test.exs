@@ -12,7 +12,11 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
 
   import Phoenix.ChannelTest
 
+  alias EvilEngine.Events.EngineEventBus
+  alias EvilEngineWeb.Ws.Sinks.WebSocket, as: WebSocketSink
+
   @endpoint EvilEngineWeb.Http.Endpoint
+  @moduletag :integration
 
   # -------------------------------------------------------------------------
   # Helpers
@@ -130,20 +134,54 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
   end
 
   # -------------------------------------------------------------------------
-  # Event filtering
+  # Event filtering — synthetic envelopes
   # -------------------------------------------------------------------------
 
-  describe "event filtering: lane-based dispatch" do
-    test "laneless events always delivered" do
+  describe "event filtering: synthetic envelopes" do
+    test "laneless FNI envelope is always delivered" do
       process_instance_id = start_laned_process()
 
       identity = make_identity(%{id: "starter-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, socket} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
 
-      send(socket.channel_pid, {:engine_event, %{"type" => "pi_state_changed", "process_instance_id" => process_instance_id}})
+      {:ok, _, socket} =
+        subscribe_and_join(
+          socket,
+          EvilEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
 
-      assert_push "engine_event", %{"type" => "pi_state_changed"}
+      send(socket.channel_pid, {:engine_event, fni_started_envelope(nil)})
+
+      assert_push "engine_event", %{"type" => "FlowNodeInstanceStarted"}
+    end
+
+    test "PI-level envelope is always delivered on process_instance:* after a successful join" do
+      process_instance_id = start_laned_process()
+
+      identity = make_identity(%{id: "starter-user", claims: %{}})
+      socket = connect_socket(identity)
+
+      {:ok, _, socket} =
+        subscribe_and_join(
+          socket,
+          EvilEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      send(
+        socket.channel_pid,
+        {:engine_event,
+         pi_state_envelope(process_instance_id, %{
+           "startedById" => "starter-user",
+           "hasLanelessFlowNode" => false,
+           "laneNames" => ["Management"]
+         })}
+      )
+
+      assert_push "engine_event", %{"type" => "ProcessInstanceStateChanged"}
     end
 
     test "laned FNI event delivered when subscriber has matching lane" do
@@ -151,13 +189,16 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
 
       identity = make_identity(%{id: "lane-user", claims: %{"lane:Management" => true}})
       socket = connect_socket(identity)
-      {:ok, _, socket} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
 
-      send(socket.channel_pid, {:engine_event, %{
-        "type" => "FlowNodeInstanceStarted",
-        "data" => %{"laneName" => "Management", "flowNodeInstanceId" => "test-fni"},
-        "occurredAt" => DateTime.utc_now() |> DateTime.to_iso8601()
-      }})
+      {:ok, _, socket} =
+        subscribe_and_join(
+          socket,
+          EvilEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      send(socket.channel_pid, {:engine_event, fni_started_envelope("Management")})
 
       assert_push "engine_event", %{"type" => "FlowNodeInstanceStarted"}
     end
@@ -167,29 +208,339 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
 
       identity = make_identity(%{id: "starter-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, socket} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
 
-      send(socket.channel_pid, {:engine_event, %{
-        "type" => "FlowNodeInstanceStarted",
-        "data" => %{"laneName" => "Management", "flowNodeInstanceId" => "test-fni"},
-        "occurredAt" => DateTime.utc_now() |> DateTime.to_iso8601()
-      }})
+      {:ok, _, socket} =
+        subscribe_and_join(
+          socket,
+          EvilEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      send(socket.channel_pid, {:engine_event, fni_started_envelope("Management")})
 
       refute_push "engine_event", %{"type" => "FlowNodeInstanceStarted"}, 300
     end
   end
 
-  # -------------------------------------------------------------------------
-  # engine:events — remains open (no PI-specific filtering)
-  # -------------------------------------------------------------------------
-
-  describe "engine:events topic" do
-    test "any authenticated user can join" do
+  describe "engine:events and user_tasks:* join" do
+    test "any authenticated user can join engine:events" do
       identity = make_identity(%{id: "any-user", claims: %{}})
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
                subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+    end
+
+    test "any authenticated user can join user_tasks:pending" do
+      identity = make_identity(%{id: "any-user", claims: %{}})
+      socket = connect_socket(identity)
+
+      assert {:ok, _, _socket} =
+               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+    end
+
+    test "unknown user_tasks subtopic is rejected" do
+      identity = make_identity(%{id: "any-user", claims: %{}})
+      socket = connect_socket(identity)
+
+      assert {:error, %{reason: "not_found"}} =
+               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:other", %{})
+    end
+  end
+
+  # -------------------------------------------------------------------------
+  # Live dispatch (WebSocket sink registered)
+  # -------------------------------------------------------------------------
+
+  describe "live lane-filtered dispatch" do
+    setup do
+      :ok = EngineEventBus.register_sink("websocket", WebSocketSink, [])
+      :ok
+    end
+
+    test "subscriber without Management never receives live Management FlowNodeInstanceStarted on engine:events" do
+      identity = make_identity(%{id: "starter-user", claims: %{}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+
+      process_instance_id = deploy_and_start_laned()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      assert management_fni_events(events) == []
+    end
+
+    test "subscriber without Management never receives live Management FlowNodeInstanceStarted on process_instance:*" do
+      process_instance_id = deploy_and_start_laned()
+      {:ok, user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+
+      identity = make_identity(%{id: "starter-user", claims: %{}})
+      socket = connect_socket(identity)
+
+      {:ok, _, _} =
+        subscribe_and_join(
+          socket,
+          EvilEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      wait_for_process_instance(process_instance_id)
+      events = collect_pushes(400)
+
+      assert management_fni_events(events) == []
+    end
+
+    test "live laneless FlowNodeInstanceStarted is delivered on engine:events" do
+      identity = make_identity(%{id: "stranger-user", claims: %{}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+
+      process_instance_id = deploy_and_start_laneless()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      laneless_started =
+        events
+        |> filter_type("FlowNodeInstanceStarted")
+        |> Enum.filter(fn event -> event["data"]["laneName"] == nil end)
+
+      assert laneless_started != [],
+             "Expected a live FlowNodeInstanceStarted with laneName null. Types: #{inspect(Enum.map(events, & &1["type"]))}"
+
+      assert management_fni_events(events) == []
+    end
+
+    test "starter without a lane claim receives live ProcessInstanceStateChanged on process_instance:*" do
+      process_instance_id = deploy_and_start_laned()
+      {:ok, user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+
+      identity = make_identity(%{id: "starter-user", claims: %{}})
+      socket = connect_socket(identity)
+
+      {:ok, _, _} =
+        subscribe_and_join(
+          socket,
+          EvilEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      wait_for_process_instance(process_instance_id)
+      events = collect_pushes(800)
+
+      pi_events =
+        events
+        |> filter_type("ProcessInstanceStateChanged")
+        |> Enum.filter(fn event -> event["data"]["processInstanceId"] == process_instance_id end)
+
+      assert pi_events != [],
+             "Expected live ProcessInstanceStateChanged for the starter. Types: #{inspect(Enum.map(events, & &1["type"]))}"
+
+      assert management_fni_events(events) == []
+    end
+
+    test "stranger on engine:events does not receive ProcessInstanceStateChanged for LanedUserTask" do
+      identity = make_identity(%{id: "stranger-user", claims: %{}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+
+      process_instance_id = deploy_and_start_laned()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      pi_events =
+        events
+        |> filter_type("ProcessInstanceStateChanged")
+        |> Enum.filter(fn event -> event["data"]["processInstanceId"] == process_instance_id end)
+
+      assert pi_events == []
+      assert management_fni_events(events) == []
+    end
+
+    test "starter on engine:events receives ProcessInstanceStateChanged via startedById" do
+      identity = make_identity(%{id: "starter-user", claims: %{}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+
+      process_instance_id = deploy_and_start_laned()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      pi_events =
+        events
+        |> filter_type("ProcessInstanceStateChanged")
+        |> Enum.filter(fn event -> event["data"]["processInstanceId"] == process_instance_id end)
+
+      assert pi_events != [],
+             "Expected the starter to receive PI-level events on engine:events. Types: #{inspect(Enum.map(events, & &1["type"]))}"
+
+      assert Enum.any?(pi_events, fn event -> event["data"]["startedById"] == "starter-user" end)
+      assert management_fni_events(events) == []
+    end
+
+    test "subscriber with Management receives live Management FNI events on engine:events" do
+      identity = make_identity(%{id: "lane-observer", claims: %{"lane:Management" => true}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+
+      process_instance_id = deploy_and_start_laned()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      management_events = management_fni_events(events)
+      types = Enum.map(management_events, & &1["type"]) |> Enum.uniq() |> Enum.sort()
+
+      assert "FlowNodeInstanceStarted" in types
+      assert "FlowNodeInstanceStateChanged" in types
+      assert "UserTaskCreated" in types
+
+      assert Enum.all?(management_events, fn event -> event["data"]["laneName"] == "Management" end),
+             "Expected Management FNI events. Types: #{inspect(Enum.map(events, & &1["type"]))}"
+    end
+
+    test "user_tasks:pending delivers Management UserTaskCreated with lane:Management" do
+      identity = make_identity(%{id: "inbox-lane-user", claims: %{"lane:Management" => true}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+
+      process_instance_id = deploy_and_start_laned()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      created = filter_type(events, "UserTaskCreated")
+      assert created != [], "Expected UserTaskCreated on user_tasks:pending with Management claim"
+      assert Enum.all?(created, fn event -> event["data"]["laneName"] == "Management" end)
+    end
+
+    test "user_tasks:pending drops Management UserTaskCreated without lane:Management" do
+      identity = make_identity(%{id: "inbox-no-lane-user", claims: %{}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+
+      process_instance_id = deploy_and_start_laned()
+      {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+      events = collect_pushes(400)
+
+      assert filter_type(events, "UserTaskCreated") == []
+    end
+
+    test "user_tasks:pending delivers Management UserTaskFinished with lane:Management" do
+      identity = make_identity(%{id: "inbox-finish-user", claims: %{"lane:Management" => true}})
+      process_instance_id = deploy_and_start_laned()
+      {:ok, user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+
+      {:ok, _, _} =
+        subscribe_and_join(
+          connect_socket(identity),
+          EvilEngineWeb.Ws.EngineChannel,
+          "user_tasks:pending",
+          %{}
+        )
+
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      wait_for_process_instance(process_instance_id)
+      events = collect_pushes(800)
+
+      finished = filter_type(events, "UserTaskFinished")
+      assert finished != [], "Expected UserTaskFinished on user_tasks:pending with Management claim"
+      assert Enum.all?(finished, fn event -> event["data"]["laneName"] == "Management" end)
+    end
+
+    test "user_tasks:pending drops Management UserTaskFinished without lane:Management" do
+      process_instance_id = deploy_and_start_laned()
+      {:ok, user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+
+      identity = make_identity(%{id: "inbox-no-lane-finish", claims: %{}})
+      socket = connect_socket(identity)
+      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      wait_for_process_instance(process_instance_id)
+      events = collect_pushes(800)
+
+      assert filter_type(events, "UserTaskFinished") == []
+    end
+  end
+
+  defp deploy_and_start_laned do
+    deploy_unique("user_task_with_lane.bpmn")
+
+    {201, body} =
+      http_start("LanedUserTask", %{}, %{"sub" => "starter-user", "lane:Management" => true})
+
+    body["processInstanceId"]
+  end
+
+  defp deploy_and_start_laneless do
+    deploy_unique("laneless_start_management_task.bpmn")
+
+    {201, body} =
+      http_start(
+        "LanelessStartManagementTask",
+        %{},
+        %{"sub" => "starter-user", "lane:Management" => true}
+      )
+
+    body["processInstanceId"]
+  end
+
+  defp deploy_unique(fixture_name) do
+    xml = File.read!(Path.join("test/fixtures/bpmns", fixture_name))
+    unique_version = "lane-filter-#{System.unique_integer([:positive])}.0.0"
+    {201, _} = http_deploy_xml(String.replace(xml, "1.0.0", unique_version))
+  end
+
+  defp fni_started_envelope(lane_name) do
+    %{
+      "type" => "FlowNodeInstanceStarted",
+      "data" => %{"laneName" => lane_name, "flowNodeInstanceId" => "test-fni"},
+      "occurredAt" => DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
+  defp pi_state_envelope(process_instance_id, extra) do
+    %{
+      "type" => "ProcessInstanceStateChanged",
+      "data" =>
+        Map.merge(
+          %{
+            "processInstanceId" => process_instance_id,
+            "newState" => "running"
+          },
+          extra
+        ),
+      "occurredAt" => DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
+  defp management_fni_events(events) do
+    Enum.filter(events, fn event -> event["data"]["laneName"] == "Management" end)
+  end
+
+  defp filter_type(events, type), do: Enum.filter(events, &(&1["type"] == type))
+
+  defp collect_pushes(timeout_ms) do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms
+    do_collect_pushes([], deadline)
+  end
+
+  defp do_collect_pushes(accumulated, deadline) do
+    remaining = deadline - System.monotonic_time(:millisecond)
+
+    if remaining <= 0 do
+      accumulated
+    else
+      receive do
+        %Phoenix.Socket.Message{event: "engine_event", payload: payload} ->
+          do_collect_pushes(accumulated ++ [payload], deadline)
+      after
+        min(remaining, 100) ->
+          do_collect_pushes(accumulated, deadline)
+      end
     end
   end
 end

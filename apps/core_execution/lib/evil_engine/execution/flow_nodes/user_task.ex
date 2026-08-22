@@ -26,6 +26,7 @@ defmodule EvilEngine.Execution.FlowNodes.UserTask do
   alias EvilEngine.Execution.HandlerContext
   alias EvilEngine.Execution.MappingHelper
   alias EvilEngine.Execution.PayloadCap
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Execution.SequenceFlowResolver
   alias EvilEngine.Expressions
   alias EvilEngine.Expressions.Context, as: FeelContext
@@ -59,6 +60,7 @@ defmodule EvilEngine.Execution.FlowNodes.UserTask do
             root_process_instance_id: context.root_process_instance_id,
             flow_node_id: flow_node.id,
             assignees: assignees,
+            lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
             occurred_at: DateTime.utc_now()
           })
 
@@ -157,6 +159,7 @@ defmodule EvilEngine.Execution.FlowNodes.UserTask do
       root_process_instance_id: context.root_process_instance_id,
       flow_node_id: flow_node.id,
       outcome: outcome,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end
@@ -167,6 +170,7 @@ defmodule EvilEngine.Execution.FlowNodes.UserTask do
       process_instance_id: context.process_instance_id,
       flow_node_id: flow_node.id,
       violations: violations,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

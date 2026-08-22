@@ -4,8 +4,9 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
 
   ## Topics
 
-  - `engine:events` — broadcasts all engine-level events
-  - `process_instance:<process_instance_id>` — broadcasts events scoped to a specific process instance
+  - `engine:events` — engine-level events plus PI-scoped events filtered by §5.1 visibility and lane
+  - `process_instance:<process_instance_id>` — events scoped to a specific process instance
+  - `user_tasks:pending` — `UserTaskCreated` / `UserTaskFinished` inbox, lane-filtered
 
   Events arrive via the `WebSocket` EventSink, which broadcasts
   `{:engine_event, payload}` to the corresponding PubSub topic.
@@ -15,22 +16,18 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
   ## Authorization
 
   - `process_instance:*` join requires process-instance visibility (starter match, lane match, or admin override)
-  - Flow node instance events are lane-filtered: events on inaccessible lanes are silently dropped
-  - Process-instance-level events (`pi_state_changed`, etc.) always delivered if the join succeeded
+  - Dispatch filtering is delegated to `EvilEngineWeb.Ws.EventDelivery`
+  - `admin_override` is zeeky-only (not a future observe-all flag)
   """
 
   use Phoenix.Channel
 
   alias EvilEngine.Api
+  alias EvilEngineWeb.Ws.EventDelivery
 
   @impl true
   def join("engine:" <> _subtopic, _payload, socket) do
-    identity = socket.assigns[:identity]
-    lanes = extract_lane_names(identity)
-    is_admin = admin_override?(identity)
-    socket = assign(socket, :accessible_lanes, lanes)
-    socket = assign(socket, :admin_override, is_admin)
-    {:ok, socket}
+    {:ok, assign_identity_filters(socket)}
   end
 
   def join("process_instance:" <> process_instance_id, _payload, socket) do
@@ -38,20 +35,26 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
 
     case check_process_instance_visibility(process_instance_id, identity) do
       :ok ->
-        lanes = extract_lane_names(identity)
-        is_admin = admin_override?(identity)
-        socket = assign(socket, :accessible_lanes, lanes)
-        socket = assign(socket, :admin_override, is_admin)
-        {:ok, socket}
+        {:ok, assign_identity_filters(socket)}
 
       :not_visible ->
         {:error, %{reason: "not_found"}}
     end
   end
 
+  def join("user_tasks:pending", _payload, socket) do
+    {:ok, assign_identity_filters(socket)}
+  end
+
+  def join("user_tasks:" <> _other, _payload, _socket) do
+    {:error, %{reason: "not_found"}}
+  end
+
   @impl true
   def handle_info({:engine_event, payload}, socket) do
-    if should_deliver?(payload, socket) do
+    assigns = Map.put(socket.assigns, :topic, socket.topic)
+
+    if EventDelivery.should_deliver?(payload, assigns) do
       push(socket, "engine_event", payload)
     end
 
@@ -91,25 +94,17 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
   end
 
   # ---------------------------------------------------------------------------
-  # Event filtering
-  # ---------------------------------------------------------------------------
-
-  defp should_deliver?(payload, socket) do
-    if socket.assigns[:admin_override] do
-      true
-    else
-      lane_name = get_in(payload, ["data", "laneName"])
-
-      case lane_name do
-        nil -> true
-        name -> name in (socket.assigns[:accessible_lanes] || [])
-      end
-    end
-  end
-
-  # ---------------------------------------------------------------------------
   # Identity helpers
   # ---------------------------------------------------------------------------
+
+  defp assign_identity_filters(socket) do
+    identity = socket.assigns[:identity]
+
+    socket
+    |> assign(:accessible_lanes, extract_lane_names(identity))
+    |> assign(:admin_override, admin_override?(identity))
+    |> assign(:identity_id, identity && identity.id)
+  end
 
   defp admin_override?(identity) do
     identity && identity.claims["zeeky_boogie_doog"] == true

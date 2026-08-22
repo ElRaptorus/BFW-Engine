@@ -393,31 +393,43 @@ endpoints. Authorization is applied at two points:
 
 ### 9.1 Join-time validation
 
-The engine currently implements two channel topics:
+Implemented channel topics:
 
-- **`engine:*`**: valid JWT only (same as `/stats` — no specific claim)
-- **`process_instance:<id>`**: caller must be able to see the PI per §5.1. Join is
-  rejected with `{:error, %{reason: "not_found"}}` if the PI is invisible.
+| Topic | Join rule |
+|-------|-----------|
+| `engine:*` | Valid JWT only (same as `/stats` — no specific claim) |
+| `process_instance:<id>` | Caller must be able to see the PI per §5.1. Join is rejected with `{:error, %{reason: "not_found"}}` if the PI is invisible. |
+| `user_tasks:pending` | Valid JWT only. Dispatch then applies the FNI lane rule to `UserTaskCreated` / `UserTaskFinished`. Unknown `user_tasks:*` subtopics are rejected with `not_found`. |
 
-> **Planned (not yet implemented):** `process:<model_id>` and `user_tasks:pending`
-> topics are specified but not yet wired in `UserSocket`.
+> **Planned (not yet implemented):** `process:<model_id>` needs a multi-PI visibility design of its own and is deferred.
 
 ### 9.2 Dispatch-time lane filtering
 
-For channels that carry per-FNI events (`process_instance:<id>`), the engine filters
-events at dispatch time:
+**Path:** `apps/api_web/lib/evil_engine_web/ws/event_delivery.ex`
 
-- Events relating to FNIs on a lane the subscriber **cannot** access are
-  **silently dropped** for that subscriber (not errored, not logged)
-- Events relating to FNIs on no lane are always delivered
-- Events relating to PI-level state changes (`ProcessInstanceStateChanged`,
-  `PiFinished`, etc.) are delivered if the PI is visible per §5.1
+Filtering runs in the channel process after PubSub broadcast so each subscriber applies its own join-cached identity (`accessible_lanes`, `admin_override`, `identity_id`). Classification uses the envelope `type` string (explicit allow-lists), not field presence — JSON `null` and a missing `laneName` are indistinguishable via `get_in/2`.
+
+`admin_override` is `zeeky_boogie_doog` only. A future read-only observe-all claim must be a separate assign so write bypass stays locked.
+
+| Subscriber | Event class | Rule |
+|---|---|---|
+| `zeeky_boogie_doog` | any | always deliver |
+| any topic | engine-level (`Engine*`, `PluginQuarantined`, `ProcessDefinition*`, `Decision*`, `MessagePublished`, `SignalPublished`) | always deliver |
+| `process_instance:*` | PI-level (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) | always deliver (join already proved §5.1) |
+| `engine:events` | PI-level | deliver iff `startedById` matches the subscriber **or** `hasLanelessFlowNode` **or** any `laneNames` entry is in `accessible_lanes` |
+| any topic | FNI-originating (explicit allow-list, including `TimerArmed` / `TimerFired` / `TimerCancelled` even when those events are not currently published) | deliver if `laneName` is `nil`; else iff `laneName` is in `accessible_lanes` |
+| `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` only | same FNI lane rule; other types are dropped |
+| any topic | unknown `type` | drop (`admin_override` still delivers) |
+
+PI-level events are stamped at emit time (`startedById`, `hasLanelessFlowNode`, `laneNames`) so `engine:events` never queries the database. There is no `PiFinished` event — PI terminal transitions are `ProcessInstanceStateChanged`. Classification uses three explicit allow-lists in `EventDelivery`; a missing or unknown envelope type is dropped rather than treated as a laneless FNI.
 
 The subscriber's lane-claim set is resolved **at join time** and cached for
 the lifetime of the socket. A JWT refresh mid-connection does not change
 the cached claims — the client must disconnect and rejoin to pick up new
 claims. This is acceptable because JWT claim changes are rare operational
 events, not request-to-request variability.
+
+GraphQL FNI reads stay PI-scoped (§5.2: if you see the PI, you see all FNIs). WebSocket FNI dispatch is stricter (action-style lane gate). That split is intentional.
 
 ---
 

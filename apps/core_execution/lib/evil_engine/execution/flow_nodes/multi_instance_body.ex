@@ -20,6 +20,7 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
   alias EvilEngine.Execution.FlowNodeResult
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerContext
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Execution.SequenceFlowResolver
   alias EvilEngine.Expressions
   alias EvilEngine.Expressions.Context, as: FeelContext
@@ -440,6 +441,7 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
       flow_node_type: flow_node.type,
       loop_type: loop_type(mi),
       total_iterations: total,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end
@@ -455,6 +457,7 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
       total_iterations: total,
       completed_iterations: completed,
       early_break: early_break,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

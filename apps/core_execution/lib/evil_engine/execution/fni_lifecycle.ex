@@ -516,14 +516,15 @@ defmodule EvilEngine.Execution.FniLifecycle do
            "FNI finish_as_error+DO atomic #{context.flow_node_instance_id}"
          ) do
       {:ok, %{writes: write_results}} ->
+        lane_name = resolve_lane_name(context.process_model, flow_node)
+
         emit_data_object_written_events(
           context.process_instance_id,
           intents,
           write_results,
-          context.root_process_instance_id
+          context.root_process_instance_id,
+          lane_name
         )
-
-        lane_name = resolve_lane_name(context.process_model, flow_node)
 
         emit_fni_finished(
           context.process_instance_id,
@@ -596,14 +597,16 @@ defmodule EvilEngine.Execution.FniLifecycle do
            "FNI finish+DO atomic #{context.flow_node_instance_id}"
          ) do
       {:ok, %{writes: write_results}} ->
+        lane_name = resolve_lane_name(context.process_model, flow_node)
+
         emit_data_object_written_events(
           context.process_instance_id,
           intents,
           write_results,
-          context.root_process_instance_id
+          context.root_process_instance_id,
+          lane_name
         )
 
-        lane_name = resolve_lane_name(context.process_model, flow_node)
         triggerer_fni_id = Keyword.get(opts, :triggerer_flow_node_instance_id)
 
         emit_fni_finished(
@@ -709,7 +712,8 @@ defmodule EvilEngine.Execution.FniLifecycle do
          process_instance_id,
          intents,
          write_results,
-         root_process_instance_id
+         root_process_instance_id,
+         lane_name
        ) do
     intents
     |> Enum.zip(write_results)
@@ -722,7 +726,8 @@ defmodule EvilEngine.Execution.FniLifecycle do
         write_id: write_result.write_id,
         previous_value: intent.previous_value,
         value: intent.value,
-        created_at: write_result.created_at
+        created_at: write_result.created_at,
+        lane_name: lane_name
       })
     end)
   end

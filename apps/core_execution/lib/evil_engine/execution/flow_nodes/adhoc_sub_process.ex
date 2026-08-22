@@ -412,6 +412,7 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
         adhoc_node_id: flow_node.id,
         completion_reason: completion_reason,
         total_activations: total_activations,
+        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
         occurred_at: DateTime.utc_now()
       }
     )

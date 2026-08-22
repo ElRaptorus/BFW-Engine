@@ -306,6 +306,7 @@ defmodule EvilEngine.Events.MessagePublisher do
         process_instance_id: subscription.process_instance_id,
         flow_node_instance_id: subscription.flow_node_instance_id,
         payload: payload,
+        lane_name: subscription.lane_name,
         occurred_at: DateTime.utc_now()
       })
 
@@ -354,6 +355,7 @@ defmodule EvilEngine.Events.MessagePublisher do
         process_instance_id: subscription.process_instance_id,
         flow_node_instance_id: subscription.flow_node_instance_id,
         payload: payload,
+        lane_name: subscription.lane_name,
         occurred_at: DateTime.utc_now()
       })
 

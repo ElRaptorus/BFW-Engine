@@ -177,6 +177,23 @@ export class NotificationClient {
     };
   }
 
+  /**
+   * Subscribe to pending user-task inbox events on `user_tasks:pending`.
+   * Delivers `UserTaskCreated` and `UserTaskFinished` envelopes, filtered
+   * by the subscriber's accessible lanes on the server.
+   * @param handler - Called for every pending-task event received.
+   * @returns A subscription whose `dispose()` removes only this listener.
+   */
+  async subscribePendingUserTasks(handler: (event: EngineEventEnvelope) => void): Promise<Subscription> {
+    const channel = await this.joinChannel('user_tasks:pending');
+    const ref = channel.on('engine_event', handler);
+    return {
+      dispose: () => {
+        channel.off('engine_event', ref);
+      },
+    };
+  }
+
   /** Close all channels and disconnect the underlying WebSocket. */
   disconnect(): void {
     for (const channel of this.channels.values()) {

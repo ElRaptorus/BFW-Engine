@@ -3542,6 +3542,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       root_process_instance_id: data.root_process_instance_id,
       transaction_node_id: transaction_node_id,
       compensation_handler_count: length(data.compensation_registry),
+      lane_name: resolve_lane_for_flow_node_id(data, transaction_node_id),
       occurred_at: DateTime.utc_now()
     })
 
@@ -3918,6 +3919,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # -------------------------------------------------------------------
 
   defp emit_pi_state_changed(data, old_state, new_state) do
+    {started_by_id, has_laneless_flow_node, lane_names} =
+      process_instance_visibility_fields(data)
+
     EngineEventBus.publish(%Event.ProcessInstanceStateChanged{
       process_instance_id: data.process_instance_id,
       process_model_id: data.process_model.id,
@@ -3927,6 +3931,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
       triggerer_flow_node_instance_id: data.triggerer_flow_node_instance_id,
       old_state: old_state,
       new_state: new_state,
+      started_by_id: started_by_id,
+      has_laneless_flow_node: has_laneless_flow_node,
+      lane_names: lane_names,
       occurred_at: DateTime.utc_now()
     })
 
@@ -3940,6 +3947,38 @@ defmodule EvilEngine.Execution.ProcessInstance do
         new_state: new_state
       }
     )
+  end
+
+  defp process_instance_visibility_fields(data) do
+    lane_names =
+      data.flow_node_instance_states
+      |> Map.values()
+      |> Enum.map(fn entry ->
+        resolve_lane_for_flow_node_id(data, entry.flow_node_id)
+      end)
+
+    has_laneless_flow_node = Enum.any?(lane_names, &is_nil/1)
+    distinct_lane_names = lane_names |> Enum.reject(&is_nil/1) |> Enum.uniq() |> Enum.sort()
+
+    started_by_id =
+      case data.identity do
+        %{id: identity_id} -> identity_id
+        _ -> nil
+      end
+
+    {started_by_id, has_laneless_flow_node, distinct_lane_names}
+  end
+
+  defp resolve_lane_for_flow_node_id(data, flow_node_id) do
+    flow_node = find_flow_node(data, flow_node_id)
+    resolve_lane_name(data.process_model, flow_node)
+  end
+
+  defp resolve_lane_for_flow_node_instance(data, flow_node_instance_id) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      nil -> nil
+      entry -> resolve_lane_for_flow_node_id(data, entry.flow_node_id)
+    end
   end
 
   defp notify_parent(data, :finished) do
@@ -4106,6 +4145,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       child_process_instance_id: child_process_instance_id,
       child_process_model_id: child_process_model_id,
       child_version: child_version,
+      lane_name: resolve_lane_for_flow_node_instance(data, flow_node_instance_id),
       occurred_at: DateTime.utc_now()
     })
 
@@ -4175,6 +4215,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       child_version: child_version,
       is_event_subprocess: is_event_subprocess,
       is_ad_hoc_subprocess: is_ad_hoc_subprocess,
+      lane_name: resolve_lane_for_flow_node_id(data, subprocess_node_id),
       occurred_at: DateTime.utc_now()
     })
 
@@ -4202,6 +4243,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       flow_node_instance_id: flow_node_instance_id,
       flow_node_id: flow_node_id,
       throw_type: throw_type,
+      lane_name: resolve_lane_for_flow_node_id(data, flow_node_id),
       occurred_at: DateTime.utc_now()
     })
 
@@ -4244,6 +4286,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       throw_type: run_spec.throw_type,
       activity_ref: get_in(run_spec, [:event_definition, Access.key(:activity_ref)]),
       target_count: target_count,
+      lane_name: resolve_lane_for_flow_node_instance(data, flow_node_instance_id),
       occurred_at: DateTime.utc_now()
     })
 
@@ -4276,6 +4319,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       throw_fni_id: throw_fni_id,
       flow_node_id: handler_activity_id,
       handler_activity_id: handler_activity_id,
+      lane_name: resolve_lane_for_flow_node_id(data, handler_activity_id),
       occurred_at: DateTime.utc_now()
     })
 
@@ -4583,6 +4627,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       activated_flow_node_id: flow_node_id,
       activated_flow_node_instance_id: flow_node_instance_id,
       activation_source: source,
+      lane_name: resolve_lane_for_flow_node_id(data, flow_node_id),
       occurred_at: DateTime.utc_now()
     })
   end

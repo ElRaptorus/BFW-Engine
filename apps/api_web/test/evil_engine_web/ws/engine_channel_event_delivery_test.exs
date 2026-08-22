@@ -75,7 +75,12 @@ defmodule EvilEngineWeb.Ws.EngineChannelEventDeliveryTest do
 
   describe "engine:events channel event delivery" do
     test "delivers ProcessInstanceStateChanged with camelCase envelope after starting a linear process" do
-      identity = %Identity{id: "ws-delivery-user", roles: [], groups: [], claims: %{}}
+      identity = %Identity{
+        id: "test-user",
+        roles: [],
+        groups: [],
+        claims: %{"lane:default" => true}
+      }
 
       socket =
         socket(UserSocket, "user:#{identity.id}", %{identity: identity})

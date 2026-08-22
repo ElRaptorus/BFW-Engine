@@ -1027,7 +1027,8 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
             message_name: message_name,
             expected_correlation_value: correlation,
             kind: :event_subprocess_start,
-            via_pid: self()
+            via_pid: self(),
+            lane_name: resolve_esp_lane_name(data, base.subprocess_node_id)
           })
 
         {:ok,
@@ -1067,7 +1068,8 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
             flow_node_id: base.subprocess_node_id,
             signal_name: signal_name,
             kind: :event_subprocess_start,
-            via_pid: self()
+            via_pid: self(),
+            lane_name: resolve_esp_lane_name(data, base.subprocess_node_id)
           })
 
         {:ok,
@@ -1308,6 +1310,13 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   # §B private: event emission
   # -------------------------------------------------------------------
 
+  defp resolve_esp_lane_name(data, subprocess_node_id) do
+    PiHelpers.resolve_lane_name(
+      data.process_model,
+      PiHelpers.find_flow_node(data, subprocess_node_id)
+    )
+  end
+
   defp do_emit_triggered(
          data,
          subprocess_node_id,
@@ -1322,6 +1331,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
       child_process_instance_id: child_process_instance_id,
       trigger_kind: trigger_kind,
       is_interrupting: is_interrupting,
+      lane_name: resolve_esp_lane_name(data, subprocess_node_id),
       occurred_at: DateTime.utc_now()
     })
 

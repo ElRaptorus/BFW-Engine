@@ -21,6 +21,8 @@ defmodule EvilEngine.Types.Event do
           | __MODULE__.FlowNodeInstanceStarted.t()
           | __MODULE__.FlowNodeInstanceFinished.t()
           | __MODULE__.FlowNodeInstanceStateChanged.t()
+          | __MODULE__.MultiInstanceStarted.t()
+          | __MODULE__.MultiInstanceCompleted.t()
           | __MODULE__.UserTaskCreated.t()
           | __MODULE__.UserTaskFinished.t()
           | __MODULE__.UserTaskValidationFailed.t()
@@ -193,6 +195,9 @@ defmodule EvilEngine.Types.Event.ProcessInstanceStateChanged do
           triggerer_flow_node_instance_id: String.t() | nil,
           old_state: atom() | nil,
           new_state: atom(),
+          started_by_id: String.t() | nil,
+          has_laneless_flow_node: boolean(),
+          lane_names: [String.t()],
           occurred_at: DateTime.t()
         }
 
@@ -206,7 +211,10 @@ defmodule EvilEngine.Types.Event.ProcessInstanceStateChanged do
     :triggerer_flow_node_instance_id,
     :old_state,
     :new_state,
-    :occurred_at
+    :started_by_id,
+    :occurred_at,
+    has_laneless_flow_node: false,
+    lane_names: []
   ]
 end
 
@@ -377,6 +385,7 @@ defmodule EvilEngine.Types.Event.MultiInstanceStarted do
           flow_node_type: atom(),
           loop_type: String.t(),
           total_iterations: non_neg_integer() | nil,
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -396,6 +405,7 @@ defmodule EvilEngine.Types.Event.MultiInstanceStarted do
     :flow_node_type,
     :loop_type,
     :total_iterations,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -420,6 +430,7 @@ defmodule EvilEngine.Types.Event.MultiInstanceCompleted do
           total_iterations: non_neg_integer() | nil,
           completed_iterations: non_neg_integer(),
           early_break: boolean(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -443,6 +454,7 @@ defmodule EvilEngine.Types.Event.MultiInstanceCompleted do
     :total_iterations,
     :completed_iterations,
     :early_break,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -456,6 +468,7 @@ defmodule EvilEngine.Types.Event.UserTaskCreated do
           root_process_instance_id: String.t() | nil,
           flow_node_id: String.t(),
           assignees: [String.t()],
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -465,6 +478,7 @@ defmodule EvilEngine.Types.Event.UserTaskCreated do
     :process_instance_id,
     :root_process_instance_id,
     :flow_node_id,
+    :lane_name,
     :occurred_at,
     assignees: []
   ]
@@ -479,6 +493,7 @@ defmodule EvilEngine.Types.Event.UserTaskFinished do
           root_process_instance_id: String.t() | nil,
           flow_node_id: String.t(),
           outcome: :completed | :aborted,
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -495,6 +510,7 @@ defmodule EvilEngine.Types.Event.UserTaskFinished do
     :root_process_instance_id,
     :flow_node_id,
     :outcome,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -507,6 +523,7 @@ defmodule EvilEngine.Types.Event.UserTaskValidationFailed do
           process_instance_id: String.t(),
           flow_node_id: String.t(),
           violations: list(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -522,6 +539,7 @@ defmodule EvilEngine.Types.Event.UserTaskValidationFailed do
     :process_instance_id,
     :flow_node_id,
     :violations,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -539,11 +557,12 @@ defmodule EvilEngine.Types.Event.PluginAsyncFlowNodeRehydrated do
           flow_node_instance_id: String.t(),
           process_instance_id: String.t(),
           plugin_name: String.t() | nil,
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
   @enforce_keys [:flow_node_instance_id, :process_instance_id, :occurred_at]
-  defstruct [:flow_node_instance_id, :process_instance_id, :plugin_name, :occurred_at]
+  defstruct [:flow_node_instance_id, :process_instance_id, :plugin_name, :lane_name, :occurred_at]
 end
 
 defmodule EvilEngine.Types.Event.CallActivityChildStarted do
@@ -558,6 +577,7 @@ defmodule EvilEngine.Types.Event.CallActivityChildStarted do
           child_process_instance_id: String.t(),
           child_process_model_id: String.t(),
           child_version: String.t(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -576,6 +596,7 @@ defmodule EvilEngine.Types.Event.CallActivityChildStarted do
     :child_process_instance_id,
     :child_process_model_id,
     :child_version,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -598,6 +619,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
           child_version: String.t(),
           is_event_subprocess: boolean(),
           is_ad_hoc_subprocess: boolean(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -620,6 +642,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
     :child_process_model_id,
     :child_version,
     :is_event_subprocess,
+    :lane_name,
     :occurred_at,
     is_ad_hoc_subprocess: false
   ]
@@ -642,6 +665,7 @@ defmodule EvilEngine.Types.Event.EventSubprocessTriggered do
           child_process_instance_id: String.t(),
           trigger_kind: trigger_kind(),
           is_interrupting: boolean(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -662,6 +686,7 @@ defmodule EvilEngine.Types.Event.EventSubprocessTriggered do
     :child_process_instance_id,
     :trigger_kind,
     :is_interrupting,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -683,7 +708,8 @@ defmodule EvilEngine.Types.Event.DataObjectWritten do
           write_id: String.t(),
           previous_value: term(),
           value: term(),
-          created_at: DateTime.t()
+          created_at: DateTime.t(),
+          lane_name: String.t() | nil
         }
 
   @enforce_keys [
@@ -703,7 +729,8 @@ defmodule EvilEngine.Types.Event.DataObjectWritten do
     :write_id,
     :previous_value,
     :value,
-    :created_at
+    :created_at,
+    :lane_name
   ]
 end
 
@@ -881,6 +908,9 @@ defmodule EvilEngine.Types.Event.ProcessInstanceRetried do
           new_version: String.t() | nil,
           reset_to_flow_node_instance_id: String.t() | nil,
           retried_by: String.t(),
+          started_by_id: String.t() | nil,
+          has_laneless_flow_node: boolean(),
+          lane_names: [String.t()],
           occurred_at: DateTime.t()
         }
 
@@ -903,7 +933,10 @@ defmodule EvilEngine.Types.Event.ProcessInstanceRetried do
     :new_version,
     :reset_to_flow_node_instance_id,
     :retried_by,
-    :occurred_at
+    :started_by_id,
+    :occurred_at,
+    has_laneless_flow_node: false,
+    lane_names: []
   ]
 end
 
@@ -927,6 +960,7 @@ defmodule EvilEngine.Types.Event.TimerArmed do
           flow_node_id: String.t(),
           fire_at: DateTime.t(),
           kind: :catch | :boundary | :start,
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -938,6 +972,7 @@ defmodule EvilEngine.Types.Event.TimerArmed do
     :flow_node_id,
     :fire_at,
     :kind,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -956,6 +991,7 @@ defmodule EvilEngine.Types.Event.TimerFired do
           flow_node_instance_id: String.t() | nil,
           flow_node_id: String.t(),
           kind: :catch | :boundary | :start,
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -966,6 +1002,7 @@ defmodule EvilEngine.Types.Event.TimerFired do
     :flow_node_instance_id,
     :flow_node_id,
     :kind,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -983,6 +1020,7 @@ defmodule EvilEngine.Types.Event.TimerCancelled do
           process_instance_id: String.t() | nil,
           flow_node_instance_id: String.t() | nil,
           reason: String.t(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -992,6 +1030,7 @@ defmodule EvilEngine.Types.Event.TimerCancelled do
     :process_instance_id,
     :flow_node_instance_id,
     :reason,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1049,6 +1088,7 @@ defmodule EvilEngine.Types.Event.MessageArrived do
           process_instance_id: String.t(),
           flow_node_instance_id: String.t(),
           payload: map(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1066,6 +1106,7 @@ defmodule EvilEngine.Types.Event.MessageArrived do
     :correlation_value,
     :process_instance_id,
     :flow_node_instance_id,
+    :lane_name,
     :occurred_at,
     payload: %{}
   ]
@@ -1123,6 +1164,7 @@ defmodule EvilEngine.Types.Event.SignalArrived do
           signal_name: String.t(),
           process_instance_id: String.t(),
           flow_node_instance_id: String.t(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1139,6 +1181,7 @@ defmodule EvilEngine.Types.Event.SignalArrived do
     :signal_name,
     :process_instance_id,
     :flow_node_instance_id,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1170,6 +1213,7 @@ defmodule EvilEngine.Types.Event.EscalationRaised do
           flow_node_instance_id: String.t(),
           flow_node_id: String.t(),
           throw_type: throw_type(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1189,6 +1233,7 @@ defmodule EvilEngine.Types.Event.EscalationRaised do
     :flow_node_instance_id,
     :flow_node_id,
     :throw_type,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1215,6 +1260,7 @@ defmodule EvilEngine.Types.Event.CompensationTriggered do
           throw_type: throw_type(),
           activity_ref: String.t() | nil,
           target_count: non_neg_integer(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1235,6 +1281,7 @@ defmodule EvilEngine.Types.Event.CompensationTriggered do
     :throw_type,
     :activity_ref,
     :target_count,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1260,6 +1307,7 @@ defmodule EvilEngine.Types.Event.TransactionCancelled do
           root_process_instance_id: String.t() | nil,
           transaction_node_id: String.t() | nil,
           compensation_handler_count: non_neg_integer(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1274,6 +1322,7 @@ defmodule EvilEngine.Types.Event.TransactionCancelled do
     :root_process_instance_id,
     :transaction_node_id,
     :compensation_handler_count,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1292,6 +1341,7 @@ defmodule EvilEngine.Types.Event.AdHocActivityActivated do
           activated_flow_node_id: String.t(),
           activated_flow_node_instance_id: String.t(),
           activation_source: String.t(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1312,6 +1362,7 @@ defmodule EvilEngine.Types.Event.AdHocActivityActivated do
     :activated_flow_node_id,
     :activated_flow_node_instance_id,
     :activation_source,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1326,6 +1377,7 @@ defmodule EvilEngine.Types.Event.AdHocSubProcessCompleted do
           adhoc_node_id: String.t(),
           completion_reason: atom() | String.t(),
           total_activations: non_neg_integer(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1346,6 +1398,7 @@ defmodule EvilEngine.Types.Event.AdHocSubProcessCompleted do
     :adhoc_node_id,
     :completion_reason,
     :total_activations,
+    :lane_name,
     :occurred_at
   ]
 end
@@ -1368,6 +1421,7 @@ defmodule EvilEngine.Types.Event.ActivityCompensated do
           throw_fni_id: String.t(),
           flow_node_id: String.t(),
           handler_activity_id: String.t(),
+          lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
@@ -1389,6 +1443,7 @@ defmodule EvilEngine.Types.Event.ActivityCompensated do
     :throw_fni_id,
     :flow_node_id,
     :handler_activity_id,
+    :lane_name,
     :occurred_at
   ]
 end

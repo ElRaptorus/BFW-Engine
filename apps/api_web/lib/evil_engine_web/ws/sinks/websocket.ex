@@ -39,6 +39,7 @@ defmodule EvilEngineWeb.Ws.Sinks.WebSocket do
             )
 
           _root = maybe_broadcast_to_root_pi_channel(pubsub, event, payload, process_instance_id)
+          _pending = maybe_broadcast_pending_user_tasks(pubsub, event, payload)
           Phoenix.PubSub.broadcast(pubsub, "engine:events", {:engine_event, payload})
       end
 
@@ -76,6 +77,19 @@ defmodule EvilEngineWeb.Ws.Sinks.WebSocket do
           "process_instance:#{root_process_instance_id}",
           {:engine_event, payload}
         )
+    end
+  end
+
+  defp maybe_broadcast_pending_user_tasks(pubsub, event, payload) do
+    case event do
+      %EvilEngine.Types.Event.UserTaskCreated{} ->
+        Phoenix.PubSub.broadcast(pubsub, "user_tasks:pending", {:engine_event, payload})
+
+      %EvilEngine.Types.Event.UserTaskFinished{} ->
+        Phoenix.PubSub.broadcast(pubsub, "user_tasks:pending", {:engine_event, payload})
+
+      _other ->
+        :ok
     end
   end
 

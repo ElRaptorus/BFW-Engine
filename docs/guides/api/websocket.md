@@ -22,10 +22,15 @@ When `EVIL_AUTH_DISABLED=true`, the token is not required and a synthetic anonym
 
 | Topic | Content | Authorization |
 |-------|---------|---------------|
-| `engine:events` | Engine-level events (startup, shutdown, plugin) | Any authenticated user |
-| `process_instance:<id>` | All events for a specific process instance | PI visibility check |
+| `engine:events` | Engine-level events plus PI-scoped events filtered at dispatch | Any authenticated user may join. PI-level events require §5.1 visibility (starter match, laneless FNI, or a matching lane). FNI-originating events require `laneName` to be `null` or in the subscriber's lanes. |
+| `process_instance:<id>` | Events for one process instance | Join requires §5.1 PI visibility. PI-level events always deliver after a successful join. FNI events are lane-filtered. |
+| `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` inbox | Any authenticated user may join. Dispatch applies the same FNI lane rule. |
 
-**Note:** Events with a `process_instance_id` are only broadcast to the `process_instance:<id>` topic — they do **not** appear on `engine:events`. Engine-level events without a PI are broadcast to `engine:events` only.
+`process:<model_id>` is not implemented.
+
+The WebSocket sink broadcasts PI-scoped events to **both** `process_instance:<id>` (and the root PI channel when it differs) **and** `engine:events`. `UserTaskCreated` / `UserTaskFinished` are also published to `user_tasks:pending`.
+
+TypeScript clients can call `NotificationClient.subscribePendingUserTasks(handler)` to join the inbox topic.
 
 ### Engine Events
 
@@ -38,7 +43,7 @@ back-pressure (on `EngineOverloaded`) and release it (on `EngineRecovered`).
 
 Joining a `process_instance:<id>` channel requires that the PI is **visible** to the caller. Visibility follows the same rules as GraphQL:
 
-- **Starter match** — the caller started the PI (`started_by.id == sub`)
+- **Starter match** — the caller started the PI (`startedById == sub`)
 - **Lane access** — the PI has at least one FNI on a lane the caller holds (`lane:<name>=true`), or FNIs without any lane
 - **Admin override** — `zeeky_boogie_doog=true` bypasses all checks
 
@@ -46,12 +51,17 @@ If the PI is not visible, join returns `{:error, %{reason: "not_found"}}`.
 
 ### Lane-Filtered Event Dispatch
 
-After joining a `process_instance:*` channel, events are further filtered by lane:
+After join, `EventDelivery.should_deliver?/2` filters each envelope:
 
-- Events with no `lane_name` — always delivered
-- Events with a `lane_name` — only delivered if the subscriber holds the matching `lane:<name>` claim
+- FNI-originating events with `laneName: null` — always delivered
+- FNI-originating events with a `laneName` — only if the subscriber holds `lane:<name>`
+- Unknown envelope types — dropped (`zeeky_boogie_doog` still receives them)
+- PI-level events (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) on `process_instance:*` — always delivered (join already proved visibility)
+- PI-level events on `engine:events` — delivered when `startedById` matches, `hasLanelessFlowNode` is true, or any `laneNames` entry is accessible
 
 The subscriber's accessible lanes are cached at join time.
+
+GraphQL FNI reads stay PI-scoped: if you can see the PI, you can read every FNI. WebSocket FNI dispatch is the stricter lane gate.
 
 ### Joining a Channel
 
@@ -74,40 +84,44 @@ All events are pushed as `"engine_event"` messages with this shape:
 {
   "type": "ProcessInstanceStateChanged",
   "data": {
-    "process_instance_id": "...",
-    "process_version_id": "...",
-    "old_state": "running",
-    "new_state": "finished",
-    "occurred_at": "2026-05-03T15:30:00Z"
+    "processInstanceId": "...",
+    "processModelId": "order-process",
+    "version": "1.0.0",
+    "oldState": "running",
+    "newState": "finished",
+    "startedById": "user-1",
+    "hasLanelessFlowNode": false,
+    "laneNames": ["Management"],
+    "occurredAt": "2026-05-03T15:30:00Z"
   },
-  "occurred_at": "2026-05-03T15:30:00Z"
+  "occurredAt": "2026-05-03T15:30:00Z"
 }
 ```
 
 - **`type`** — event struct name (e.g. `"ProcessInstanceStateChanged"`, `"FlowNodeInstanceStarted"`)
-- **`data`** — all fields from the event struct
-- **`occurred_at`** — timestamp (duplicated at top level for convenience)
+- **`data`** — all fields from the event struct (camelCase structural keys)
+- **`occurredAt`** — timestamp (duplicated at top level for convenience)
 
 ## Event Types
 
-### Engine-level (broadcast to `engine:events`)
+### Engine-level (always delivered on `engine:events`)
 
 | Type | Fields | Description |
 |------|--------|-------------|
-| `EngineStarted` | `engine_id`, `engine_name`, `version`, `started_at` | Boot complete |
-| `EngineShutdown` | `engine_id`, `reason`, `occurred_at` | Graceful shutdown |
-| `PluginQuarantined` | `plugin_name`, `tier`, `reason`, `occurred_at` | Plugin load failure |
+| `EngineStarted` | `engineId`, `engineName`, `version`, `startedAt` | Boot complete |
+| `EngineShutdown` | `engineId`, `reason`, `occurredAt` | Graceful shutdown |
+| `PluginQuarantined` | `pluginName`, `tier`, `reason`, `occurredAt` | Plugin load failure |
 
-### PI-scoped (broadcast to `process_instance:<id>`)
+### PI-scoped (broadcast to `process_instance:<id>` and `engine:events`)
 
 | Type | Fields | Description |
 |------|--------|-------------|
-| `ProcessInstanceStateChanged` | `process_instance_id`, `process_version_id`, `old_state`, `new_state`, `occurred_at` | PI state transition |
-| `FlowNodeInstanceStarted` | `flow_node_instance_id`, `process_instance_id`, `flow_node_id`, `flow_node_type`, `occurred_at` | FNI begins execution |
-| `FlowNodeInstanceFinished` | `flow_node_instance_id`, `process_instance_id`, `flow_node_id`, `flow_node_type`, `terminal_state`, `occurred_at` | FNI reaches terminal state |
-| `UserTaskCreated` | `flow_node_instance_id`, `process_instance_id`, `flow_node_id`, `assignees`, `occurred_at` | User task enters waiting |
-| `UserTaskFinished` | `flow_node_instance_id`, `process_instance_id`, `flow_node_id`, `outcome`, `occurred_at` | User task completed/aborted |
-| `PluginAsyncFlowNodeRehydrated` | `flow_node_instance_id`, `process_instance_id`, `plugin_name`, `occurred_at` | Async FNI resumed after restart |
+| `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `oldState`, `newState`, `startedById`, `hasLanelessFlowNode`, `laneNames`, `occurredAt` | PI state transition |
+| `FlowNodeInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `flowNodeType`, `laneName`, `occurredAt` | FNI begins execution |
+| `FlowNodeInstanceFinished` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `flowNodeType`, `terminalState`, `laneName`, `occurredAt` | FNI reaches terminal state |
+| `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `assignees`, `laneName`, `occurredAt` | User task enters waiting (also `user_tasks:pending`) |
+| `UserTaskFinished` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `outcome`, `laneName`, `occurredAt` | User task completed/aborted (also `user_tasks:pending`) |
+| `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName`, `laneName`, `occurredAt` | Async FNI resumed after restart |
 
 ## Event Sink Configuration
 

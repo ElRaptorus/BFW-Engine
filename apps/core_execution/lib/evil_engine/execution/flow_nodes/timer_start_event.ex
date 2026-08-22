@@ -36,6 +36,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerStartEvent do
   alias EvilEngine.Execution.FlowNodeResult
   alias EvilEngine.Execution.FniLifecycle
   alias EvilEngine.Execution.HandlerContext
+  alias EvilEngine.Execution.ProcessInstance.Helpers
   alias EvilEngine.Execution.SequenceFlowResolver
   alias EvilEngine.Expressions
   alias EvilEngine.Expressions.Context, as: FeelContext
@@ -324,6 +325,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerStartEvent do
       flow_node_instance_id: context.flow_node_instance_id,
       flow_node_id: flow_node.id,
       kind: :start,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

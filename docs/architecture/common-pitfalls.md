@@ -467,13 +467,38 @@ See [`routing.md`](./routing.md) §3.5.6.
 
 ---
 
-## P26: `engine:events` WebSocket topic has no claim gate
+## P26: `engine:events` join stays open; visibility is enforced at dispatch
 
-**Current state:** Any authenticated user can join the `engine:events` WebSocket topic and receive all engine-wide events (PI state changes, FNI events, plugin events, etc.). No claim-based filtering is applied.
+**Mistake:** Treating an open `engine:events` join as "this subscriber may see every PI and FNI event", or adding a join-time claim gate such as `monitor` / `engine:events`.
 
-**Why it exists:** The initial WebSocket implementation focused on PI-scoped channels (`process_instance:*`) with full visibility enforcement. The global `engine:events` topic was added for admin/monitoring use cases without a gating mechanism.
+**Why it happens:** The topic is joinable with any valid JWT (same as `/stats`). Early drafts of Phase 4/6 speculated about a join gate. P26 originally recorded that gap as unfixed.
 
-**Phase 4 fix:** Phase 4 item 7 specifies full WebSocket authorization including a claim gate on `engine:events` (e.g., requiring an `engine:events` or `monitor` claim).
+**Current approach:** Join stays open. `EventDelivery.should_deliver?/2` filters each envelope after PubSub:
+
+- Engine-level events (`Engine*`, definition lifecycle, `MessagePublished`, `SignalPublished`) are always delivered.
+- PI-level events (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) are delivered on `engine:events` only when §5.1 holds from emit-time stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`).
+- FNI-originating events (explicit allow-list) are delivered when `laneName` is `nil` or the subscriber holds `lane:<name>`.
+- Unknown envelope types are dropped. Do not treat a missing `laneName` on an unclassified type as "always deliver".
+- `zeeky_boogie_doog` bypasses the filter (write-capable admin). A future read-only observe-all claim is a separate assign, not folded into `admin_override`.
+
+`process:<model_id>` is still deferred. There is no `PiFinished` event.
+
+---
+
+## P67: WebSocket FNI dispatch is lane-gated; GraphQL FNI reads are not
+
+**Mistake:** Assuming that hiding an FNI from a WebSocket subscriber also hides it from GraphQL (`flowNodeInstances` on a visible PI), or tightening GraphQL FNI reads to match the WS lane gate.
+
+**Why it happens:** Both surfaces talk about lanes and §5.1 PI visibility. It is easy to treat them as one authorization model.
+
+**Correct approach:** Keep the split:
+
+| Surface | PI visibility | FNI visibility |
+|---|---|---|
+| GraphQL reads | §5.1 (starter, laneless FNI, any matching lane, zeeky) | If you see the PI, you see **all** of its FNIs (§5.2) |
+| WebSocket FNI dispatch | Join of `process_instance:*` uses §5.1; `engine:events` uses the same stamps at dispatch | Each FNI-originating event is dropped unless `laneName` is `nil` or in `accessible_lanes` |
+
+A starter without `lane:Management` can query the Management User Task via GraphQL and still receive PI-level WS events, but will not receive live `FlowNodeInstanceStarted` / `UserTaskCreated` for that task. Do not "fix" GraphQL to match WS; the WS gate is action-style (you should not watch work you cannot act on).
 
 ---
 

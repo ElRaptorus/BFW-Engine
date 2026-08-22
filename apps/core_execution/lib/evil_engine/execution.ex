@@ -394,7 +394,7 @@ defmodule EvilEngine.Execution do
              {ProcessInstance, start_opts}
            ) do
         {:ok, _pid} ->
-          emit_retry_event(root_pi_data, pi_data, resolved_version_id, identity, opts)
+          emit_retry_event(root_pi_data, pi_data, resolved_version_id, identity, opts, root_fnis)
           :ok
 
         {:error, {:already_started, _existing_pid}} ->
@@ -838,13 +838,19 @@ defmodule EvilEngine.Execution do
     }
   end
 
-  defp emit_retry_event(root_pi_data, targeted_pi_data, resolved_version_id, identity, opts) do
+  defp emit_retry_event(root_pi_data, targeted_pi_data, resolved_version_id, identity, opts, root_fnis) do
     is_version_migration = resolved_version_id != targeted_pi_data.process_version_id
 
     previous_version = if is_version_migration, do: targeted_pi_data.process_version_id
     new_version = if is_version_migration, do: resolved_version_id
 
     process_model_id = resolve_process_model_id(resolved_version_id)
+    lane_names = Enum.map(root_fnis, & &1.lane_name)
+    has_laneless_flow_node = Enum.any?(lane_names, &is_nil/1)
+    distinct_lane_names = lane_names |> Enum.reject(&is_nil/1) |> Enum.uniq() |> Enum.sort()
+
+    started_by_id =
+      get_in(root_pi_data.started_by, ["id"]) || get_in(root_pi_data.started_by, [:id])
 
     event = %Event.ProcessInstanceRetried{
       process_instance_id: root_pi_data.id,
@@ -856,6 +862,9 @@ defmodule EvilEngine.Execution do
       new_version: new_version,
       reset_to_flow_node_instance_id: Keyword.get(opts, :reset_to_flow_node_instance_id),
       retried_by: identity.id,
+      started_by_id: started_by_id,
+      has_laneless_flow_node: has_laneless_flow_node,
+      lane_names: distinct_lane_names,
       occurred_at: DateTime.utc_now()
     }
 
