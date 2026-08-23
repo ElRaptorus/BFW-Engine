@@ -44,7 +44,7 @@ back-pressure (on `EngineOverloaded`) and release it (on `EngineRecovered`).
 Joining a `process_instance:<id>` channel requires that the PI is **visible** to the caller. Visibility follows the same rules as GraphQL:
 
 - **Starter match** — the caller started the PI (`startedById == sub`)
-- **Lane access** — the PI has at least one FNI on a lane the caller holds (`lane:<name>=true`), or FNIs without any lane
+- **Lane access** — the PI has at least one FNI on a lane the caller holds as `"read"` or `"write"`, or FNIs without any lane, or `observe_all`
 - **Admin override** — `zeeky_boogie_doog=true` bypasses all checks
 
 If the PI is not visible, join returns `{:error, %{reason: "not_found"}}`.
@@ -54,7 +54,7 @@ If the PI is not visible, join returns `{:error, %{reason: "not_found"}}`.
 After join, `EventDelivery.should_deliver?/2` filters each envelope:
 
 - FNI-originating events with `laneName: null` — always delivered
-- FNI-originating events with a `laneName` — only if the subscriber holds `lane:<name>`
+- FNI-originating events with a `laneName` — only if the subscriber holds `lane:<name>` as `"read"` or `"write"`, or `observe_all` / zeeky
 - Unknown envelope types — dropped (`zeeky_boogie_doog` still receives them)
 - PI-level events (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) on `process_instance:*` — always delivered (join already proved visibility)
 - PI-level events on `engine:events` — delivered when `startedById` matches, `hasLanelessFlowNode` is true, or any `laneNames` entry is accessible

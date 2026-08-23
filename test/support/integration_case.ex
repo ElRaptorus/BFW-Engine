@@ -65,7 +65,7 @@ defmodule EvilEngine.IntegrationCase do
     defaults = %{
       "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix(),
       "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-      "lane:default" => true
+      "lane:default" => "write"
     }
 
     merged = Map.merge(defaults, claims)

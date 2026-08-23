@@ -70,7 +70,7 @@ defmodule EvilEngine.Test.ProcessInteractions do
       "sub" => "test-user",
       "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix(),
       "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-      "lane:default" => true
+      "lane:default" => "write"
     }
 
     {_, compact} = JOSE.JWT.sign(jwk, %{"alg" => "HS256"}, claims) |> JOSE.JWS.compact()

@@ -39,7 +39,8 @@ defmodule EvilEngine.Auth.JwtVerifierTest do
       custom = %{
         "sub" => "user-2",
         "deploy_bpmn" => true,
-        "lane:accounting" => true,
+        "lane:accounting" => "write",
+        "observe_all" => true,
         "custom_field" => "hello"
       }
 
@@ -47,7 +48,8 @@ defmodule EvilEngine.Auth.JwtVerifierTest do
       assert {:ok, claims} = JwtVerifier.verify(token)
 
       assert claims["deploy_bpmn"] == true
-      assert claims["lane:accounting"] == true
+      assert claims["lane:accounting"] == "write"
+      assert claims["observe_all"] == true
       assert claims["custom_field"] == "hello"
     end
   end

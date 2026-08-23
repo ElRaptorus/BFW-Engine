@@ -147,7 +147,8 @@ Start a new process instance. Body:
 | Status | Meaning |
 |--------|---------|
 | `201` | PI started |
-| `403` | Process disabled, or caller lacks `lane:<name>` claim for the Start Event's lane |
+| `403` | Process disabled, or caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
+| `404` | Process not found, or caller has no observe claim on the Start Event's lane |
 | `404` | Not found / no active version |
 | `413` | Payload too large |
 | `422` | Ambiguous start event |
@@ -189,12 +190,13 @@ Complete a User Task with result. Body:
 | Status | Meaning |
 |--------|---------|
 | `204`  | Task completed (no body) |
-| `404`  | FNI not found or invisible (lane check) |
+| `403`  | Visible but not writable (`"read"` / `observe_all`) |
+| `404`  | FNI not found or invisible (no observe of that lane) |
 | `413`  | Result payload exceeds cap |
 | `422`  | Not in `waiting` state or contract violation |
 
-Authorization: caller needs `lane:<lane_name>=true` for the task's lane.
-Invisible tasks return `404` (not `403`).
+Authorization: caller needs `lane:<lane_name>="write"` for the task's lane.
+`"read"` / `observe_all` → **403**. Invisible tasks return **404**.
 See [User Tasks](../handbook/user-tasks.md).
 
 ### `PUT /user-tasks/{fniId}/cancel`
@@ -210,7 +212,8 @@ are stopped and the PI transitions to `aborted`. Body (optional):
 | Status | Meaning |
 |--------|---------|
 | `204`  | Task cancelled, PI aborted (no body) |
-| `404`  | FNI not found or invisible (lane check) |
+| `403`  | Visible but not writable (`"read"` / `observe_all`) |
+| `404`  | FNI not found or invisible (no observe of that lane) |
 | `422`  | Not in `waiting` state |
 
 Same lane-based authorization as finish.

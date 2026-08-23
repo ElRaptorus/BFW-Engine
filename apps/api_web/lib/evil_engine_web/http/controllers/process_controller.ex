@@ -183,6 +183,10 @@ defmodule EvilEngineWeb.Http.ProcessController do
     )
   end
 
+  defp render_start_error(conn, {:error, :forbidden, details}) do
+    forbidden(conn, details[:required_claim] || "lane", details)
+  end
+
   defp render_start_error(conn, {:error, reason}) do
     Logger.error("Process start failed with unrecognized error: #{inspect(reason)}")
 
@@ -492,6 +496,9 @@ defmodule EvilEngineWeb.Http.ProcessController do
 
   defp normalize_start_result({:error, :engine_at_capacity, capacity_info}, _id),
     do: {:error, :engine_at_capacity, capacity_info}
+
+  defp normalize_start_result({:error, :forbidden, details}, _id) when is_map(details),
+    do: {:error, :forbidden, details}
 
   defp normalize_start_result({:error, reason, message}, _id)
        when is_atom(reason) and is_binary(message),

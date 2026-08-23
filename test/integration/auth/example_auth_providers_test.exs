@@ -154,9 +154,9 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
       assert identity.claims["abort_process_instance"] == "all"
       assert identity.claims["retry_process_instance"] == "all"
       assert identity.claims["zeeky_boogie_doog"] == true
-      assert identity.claims["lane:Engineering"] == true
-      assert identity.claims["lane:Operations"] == true
-      assert identity.claims["lane:Management"] == true
+      assert identity.claims["lane:Engineering"] == "write"
+      assert identity.claims["lane:Operations"] == "write"
+      assert identity.claims["lane:Management"] == "write"
     end
 
     test "deployer token produces deploy + limited lane claims" do
@@ -171,7 +171,7 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
       assert identity.claims["deploy_dmn"] == true
       assert identity.claims["abort_process_instance"] == "own"
       assert identity.claims["retry_process_instance"] == "none"
-      assert identity.claims["lane:Engineering"] == true
+      assert identity.claims["lane:Engineering"] == "write"
 
       refute Map.has_key?(identity.claims, "delete_dmn")
       refute Map.has_key?(identity.claims, "zeeky_boogie_doog")
@@ -187,7 +187,7 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
       assert identity.roles == ["viewer"]
       assert identity.groups == ["operations"]
 
-      assert identity.claims["lane:Operations"] == true
+      assert identity.claims["lane:Operations"] == "read"
       assert identity.claims["abort_process_instance"] == "none"
       assert identity.claims["retry_process_instance"] == "none"
 

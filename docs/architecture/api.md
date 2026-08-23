@@ -138,9 +138,9 @@ Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `
 
 | Method | Path | Purpose | Required Claim |
 |---|---|---|---|
-| `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | Lane access only (`lane:<name>` or `zeeky_boogie_doog`) |
+| `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | `lane:<name>="write"` for the FNI's lane, or laneless FNI, or `zeeky_boogie_doog`. `"read"` / `observe_all` → **403**; invisible → **404** |
 
-Body: empty or `{}`. Returns `200` with `{triggered: true}`. Errors: `404` (FNI not found or lane-invisible — indistinguishable), `403` (lane claim missing), `409` (FNI not active/waiting or already terminal), `422` (`not_a_timer_event` — FNI is not an Intermediate Catch or Boundary timer event). Controller: `EvilEngineWeb.Http.TimerEventController` (`apps/api_web/lib/evil_engine_web/http/controllers/timer_event_controller.ex`). Delegates to `EvilEngine.Api.trigger_timer_event/3`.
+Body: empty or `{}`. Returns `200` with `{triggered: true}`. Errors: `404` (FNI not found or lane-invisible — indistinguishable), `403` (visible but not writable: `"read"` or `observe_all`), `409` (FNI not active/waiting or already terminal), `422` (`not_a_timer_event` — FNI is not an Intermediate Catch or Boundary timer event). Boolean `true` is not a write alias. Controller: `EvilEngineWeb.Http.TimerEventController` (`apps/api_web/lib/evil_engine_web/http/controllers/timer_event_controller.ex`). Delegates to `EvilEngine.Api.trigger_timer_event/3`.
 
 TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client` (`packages/js/client/src/rest/event-client.ts`). SDK type: `TimerTriggerResult` (`packages/js/sdk/src/types/trigger.ts`).
 

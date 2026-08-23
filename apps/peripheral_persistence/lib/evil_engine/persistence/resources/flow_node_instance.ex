@@ -32,6 +32,7 @@ defmodule EvilEngine.Persistence.Resources.FlowNodeInstance do
 
     bypass action_type(:read) do
       authorize_if {EvilEngine.Persistence.Checks.ZeekyBoogieDoog, []}
+      authorize_if {EvilEngine.Persistence.Checks.ObserveAll, []}
     end
 
     policy action_type(:read) do

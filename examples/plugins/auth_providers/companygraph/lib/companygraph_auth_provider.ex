@@ -140,7 +140,7 @@ defmodule MyCompany.CompanyGraphAuthProvider do
   #   deploy_bpmn:              boolean   — can deploy / enable / disable BPMN processes
   #   deploy_dmn:               boolean   — can deploy DMN decisions
   #   delete_dmn:               boolean   — can delete DMN decisions
-  #   lane:<Name>:              boolean   — can access flow nodes on that BPMN lane
+  #   lane:<Name>:              "read" | "write"  — observe or act on flow nodes on that BPMN lane
   #   abort_process_instance:   "none" | "own" | "all"
   #   retry_process_instance:   "none" | "own" | "all"
   #   zeeky_boogie_doog:        boolean   — admin override (sees everything)
@@ -159,9 +159,9 @@ defmodule MyCompany.CompanyGraphAuthProvider do
       "abort_process_instance" => "all",
       "retry_process_instance" => "all",
       "zeeky_boogie_doog" => true,
-      "lane:Engineering" => true,
-      "lane:Operations" => true,
-      "lane:Management" => true
+      "lane:Engineering" => "write",
+      "lane:Operations" => "write",
+      "lane:Management" => "write"
     }
   end
 
@@ -171,7 +171,7 @@ defmodule MyCompany.CompanyGraphAuthProvider do
       "deploy_dmn" => true,
       "abort_process_instance" => "own",
       "retry_process_instance" => "none",
-      "lane:Engineering" => true
+      "lane:Engineering" => "write"
     }
   end
 
@@ -179,17 +179,23 @@ defmodule MyCompany.CompanyGraphAuthProvider do
     %{
       "abort_process_instance" => "none",
       "retry_process_instance" => "none",
-      "lane:Operations" => true
+      "lane:Operations" => "read"
     }
   end
 
   defp claims_for_role(_unknown_role), do: %{}
 
   @scope_hierarchy %{"none" => 0, "own" => 1, "all" => 2}
+  @lane_rank %{"write" => 2, "read" => 1}
 
   defp merge_claims(new, accumulated) do
-    Map.merge(accumulated, new, fn _key, existing, incoming ->
+    Map.merge(accumulated, new, fn key, existing, incoming ->
       cond do
+        lane_claim?(key) ->
+          if Map.get(@lane_rank, incoming, 0) > Map.get(@lane_rank, existing, 0),
+            do: incoming,
+            else: existing
+
         is_binary(existing) and Map.has_key?(@scope_hierarchy, existing) ->
           if Map.get(@scope_hierarchy, incoming, 0) > Map.get(@scope_hierarchy, existing, 0),
             do: incoming,
@@ -203,4 +209,7 @@ defmodule MyCompany.CompanyGraphAuthProvider do
       end
     end)
   end
+
+  defp lane_claim?(key) when is_binary(key), do: String.starts_with?(key, "lane:")
+  defp lane_claim?(_), do: false
 end

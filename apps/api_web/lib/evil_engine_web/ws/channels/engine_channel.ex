@@ -15,14 +15,15 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
 
   ## Authorization
 
-  - `process_instance:*` join requires process-instance visibility (starter match, lane match, or admin override)
+  - `process_instance:*` join requires process-instance visibility (starter match, `read`/`write` lane, `observe_all`, or admin override)
   - Dispatch filtering is delegated to `EvilEngineWeb.Ws.EventDelivery`
-  - `admin_override` is zeeky-only (not a future observe-all flag)
+  - `admin_override` is zeeky-only; `observe_all` is a separate unbounded-read assign
   """
 
   use Phoenix.Channel
 
   alias EvilEngine.Api
+  alias EvilEngine.Api.Validation
   alias EvilEngineWeb.Ws.EventDelivery
 
   @impl true
@@ -83,8 +84,9 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
 
   defp evaluate_process_instance_visibility(process_instance, identity) do
     cond do
+      Validation.observe_all?(identity) -> :ok
       starter_match?(process_instance, identity) -> :ok
-      Api.check_lane_access(process_instance.id, extract_lane_names(identity)) -> :ok
+      Api.check_lane_access(process_instance.id, Validation.accessible_lanes(identity)) -> :ok
       true -> :not_visible
     end
   end
@@ -101,22 +103,14 @@ defmodule EvilEngineWeb.Ws.EngineChannel do
     identity = socket.assigns[:identity]
 
     socket
-    |> assign(:accessible_lanes, extract_lane_names(identity))
+    |> assign(:accessible_lanes, Validation.accessible_lanes(identity || %{}))
+    |> assign(:writable_lanes, Validation.writable_lanes(identity || %{}))
     |> assign(:admin_override, admin_override?(identity))
+    |> assign(:observe_all, Validation.observe_all?(identity || %{}))
     |> assign(:identity_id, identity && identity.id)
   end
 
   defp admin_override?(identity) do
     identity && identity.claims["zeeky_boogie_doog"] == true
-  end
-
-  defp extract_lane_names(nil), do: []
-
-  defp extract_lane_names(identity) do
-    (identity.claims || %{})
-    |> Enum.filter(fn {key, value} ->
-      is_binary(key) and String.starts_with?(key, "lane:") and value == true
-    end)
-    |> Enum.map(fn {key, _} -> String.trim_leading(key, "lane:") end)
   end
 end

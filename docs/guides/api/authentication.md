@@ -74,19 +74,20 @@ Engine-specific claims:
 | `abort_process_instance` | `"none"`, `"own"`, `"all"` | Scope for aborting process instances |
 | `retry_process_instance` | `"none"`, `"own"`, `"all"` | Scope for retrying terminal process instances via `PUT /process-instances/{id}/retry` |
 | `delete_process_instance` | `"none"`, `"own"`, `"all"` | Scope for soft-deleting terminal process instances via `DELETE /process-instances/{id}` |
-| `lane:<name>` | `true` | Lane-scoped access. Grants visibility to user tasks and FNIs on that lane. Example: `"lane:accounting": true` |
-| `zeeky_boogie_doog` | `true` | Admin override — bypasses all visibility and lane restrictions |
+| `lane:<name>` | `"read"` \| `"write"` | `"write"`: act. `"read"`: observe only. Boolean `true` is rejected. Example: `"lane:accounting": "write"` |
+| `observe_all` | `true` | Unbounded read/observe. Never a write bypass. |
+| `zeeky_boogie_doog` | `true` | Admin override — bypasses visibility **and** write restrictions |
 | `roles` | `[string]` | Role list (reserved for future use) |
 | `groups` | `[string]` | Group memberships (extracted from JWT) |
 
 ### Lane Claims
 
-Lane claims follow the pattern `lane:<lane_name>` with a boolean `true` value. They control:
+Lane claims follow the pattern `lane:<lane_name>` with value `"read"` or `"write"`:
 
-- **User Task visibility** — only tasks on a lane the caller holds appear in queries and can be finished/cancelled (invisible tasks return `404`)
-- **Start Event authorization** — starting a process requires a lane claim matching the start event's lane (if laned)
-- **Process Instance visibility** — in GraphQL and WebSocket channels, PIs are visible if the caller has lane access to at least one FNI within, or started the PI
-- **WebSocket event filtering** — events on `process_instance:*` channels are filtered by lane
+- **User Task visibility** — `"read"` or `"write"` can see tasks; only `"write"` can finish/cancel (otherwise **403** if visible, **404** if not)
+- **Start Event authorization** — starting requires `"write"` on the start event's lane (`"read"` / `observe_all` → **403**; absent → **404**)
+- **Process Instance visibility** — GraphQL and WebSocket joins succeed with `"read"`, `"write"`, starter match, or `observe_all`
+- **WebSocket event filtering** — `"read"` and `"write"` both receive FNI events for that lane; `observe_all` receives every envelope
 
 See [Authorization Architecture](../../architecture/authorization.md) for the full specification.
 

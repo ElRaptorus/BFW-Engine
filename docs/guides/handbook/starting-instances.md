@@ -38,7 +38,8 @@ All fields in the body are optional:
 |--------|---------|
 | `201` | PI started |
 | `401` | Missing or invalid JWT |
-| `403` | Process is disabled, or caller lacks the required `lane:<name>` claim for the Start Event's lane |
+| `403` | Process is disabled, or caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
+| `404` | Process not found, or caller has no observe claim on the Start Event's lane (existence hidden) |
 | `404` | Process not found or no active version |
 | `413` | Payload exceeds `EVIL_TOKEN_MAX_BYTES` (see [Error Handling](error-handling.md)) |
 | `422` | Ambiguous or non-matching start event |

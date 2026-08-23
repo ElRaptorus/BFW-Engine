@@ -15,10 +15,10 @@ defmodule EvilEngine.Integration.Security.ClaimScopedVisibilityTest do
 
   @moduletag :integration
 
-  @starter_a_claims %{"sub" => "starter-a", "lane:default" => true, "lane:Management" => true}
-  @starter_b_claims %{"sub" => "starter-b", "lane:default" => true}
-  @lane_mgmt_claims %{"sub" => "lane-mgmt-user", "lane:Management" => true}
-  @lane_eng_claims %{"sub" => "lane-eng-user", "lane:Engineering" => true}
+  @starter_a_claims %{"sub" => "starter-a", "lane:default" => "write", "lane:Management" => "write"}
+  @starter_b_claims %{"sub" => "starter-b", "lane:default" => "write"}
+  @lane_mgmt_claims %{"sub" => "lane-mgmt-user", "lane:Management" => "write"}
+  @lane_eng_claims %{"sub" => "lane-eng-user", "lane:Engineering" => "write"}
   @no_claims %{"sub" => "bare-user", "lane:default" => nil}
   @admin_claims %{"sub" => "admin-user", "zeeky_boogie_doog" => true}
 

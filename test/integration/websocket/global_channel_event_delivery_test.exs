@@ -30,7 +30,7 @@ defmodule EvilEngine.Integration.Websocket.GlobalChannelEventDeliveryTest do
       id: "ws-test-user",
       roles: [],
       groups: [],
-      claims: %{"lane:default" => true, "zeeky_boogie_doog" => true}
+      claims: %{"lane:default" => "write", "zeeky_boogie_doog" => true}
     }
 
     socket = socket(UserSocket, "user:#{identity.id}", %{identity: identity})

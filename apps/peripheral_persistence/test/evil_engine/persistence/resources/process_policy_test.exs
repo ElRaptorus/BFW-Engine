@@ -31,6 +31,7 @@ defmodule EvilEngine.Persistence.Resources.ProcessPolicyTest do
       %{
         id: "test-user",
         accessible_lanes: [],
+        observe_all: false,
         zeeky_boogie_doog: false,
         deploy_bpmn: false,
         delete_bpmn: false
@@ -129,6 +130,16 @@ defmodule EvilEngine.Persistence.Resources.ProcessPolicyTest do
                  name: "Admin"
                })
                |> Ash.create(domain: Domain, actor: admin())
+    end
+
+    test "observe_all does not allow process create" do
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Process
+               |> Ash.Changeset.for_create(:create, %{
+                 process_model_id: "observe_create_#{:rand.uniform(999_999)}",
+                 name: "Observer"
+               })
+               |> Ash.create(domain: Domain, actor: actor(%{observe_all: true}))
     end
 
     test "creating a process without an actor is denied" do

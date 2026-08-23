@@ -50,6 +50,13 @@ defmodule EvilEngineWeb.Http.TimerEventController do
   defp render_trigger_error(conn, {:error, reason}) when reason in @conflict_reasons,
     do: render_error(conn, 409, "conflict", "Timer event is not in a triggerable state")
 
+  defp render_trigger_error(conn, {:error, :forbidden, details}) do
+    render_error(conn, 403, "forbidden", "Insufficient permissions",
+      required_claim: details[:required_claim],
+      required_value: details[:required_value]
+    )
+  end
+
   defp render_trigger_error(conn, {:error, reason}) do
     Logger.error("Timer trigger failed: #{inspect(reason)}")
     render_error(conn, 500, "internal_error", "Failed to trigger timer event")

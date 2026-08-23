@@ -16,6 +16,12 @@ export interface IdentityClaims {
   trigger_signal?: 'none' | 'all';
   trigger_escalation?: boolean;
   zeeky_boogie_doog?: boolean;
+  /** Unbounded read/observe. Never grants write. */
+  observe_all?: boolean;
+  /**
+   * Lane access. Keys are `lane:<name>`; values must be `"read"` or `"write"`.
+   * Boolean `true` is rejected (fail closed).
+   */
   [customClaim: string]: unknown;
 }
 

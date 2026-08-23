@@ -60,7 +60,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlAuthMatrixTest do
       http_start(
         "LanedUserTask",
         %{},
-        %{"sub" => "starter", "lane:Management" => true}
+        %{"sub" => "starter", "lane:Management" => "write"}
       )
 
     process_instance_id = body["processInstanceId"]

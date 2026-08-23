@@ -9,8 +9,9 @@ defmodule EvilEngineWeb.Http.UserTaskController do
 
   ## Authorization
 
-  Both actions enforce lane-based visibility via `EvilEngine.Api` — tasks
-  invisible to the caller return 404 (not 403) to prevent existence probing.
+  Both actions enforce lane-based visibility via `EvilEngine.Api`.
+  Invisible tasks return 404. Visible but not writable (`\"read\"` or
+  `observe_all`) return 403.
   """
 
   use Phoenix.Controller, formats: [:json]
@@ -41,6 +42,9 @@ defmodule EvilEngineWeb.Http.UserTaskController do
       {:error, :payload_too_large, details} ->
         render_finish_error(conn, {:payload_too_large, details})
 
+      {:error, :forbidden, details} ->
+        render_finish_error(conn, {:forbidden, details})
+
       {:error, reason} ->
         render_finish_error(conn, reason)
     end
@@ -62,6 +66,9 @@ defmodule EvilEngineWeb.Http.UserTaskController do
       :ok ->
         send_resp(conn, 204, "")
 
+      {:error, :forbidden, details} ->
+        render_cancel_error(conn, {:forbidden, details})
+
       {:error, reason} ->
         render_cancel_error(conn, reason)
     end
@@ -77,6 +84,13 @@ defmodule EvilEngineWeb.Http.UserTaskController do
 
   defp render_finish_error(conn, :not_found), do: render_fni_not_found(conn)
   defp render_finish_error(conn, :not_a_user_task), do: render_fni_not_found(conn)
+
+  defp render_finish_error(conn, {:forbidden, details}) do
+    render_error(conn, 403, "forbidden", "Insufficient permissions",
+      required_claim: details[:required_claim],
+      required_value: details[:required_value]
+    )
+  end
 
   defp render_finish_error(conn, {:payload_too_large, details}) do
     render_error(conn, 413, "payload_too_large", "Result payload exceeds size limit",
@@ -103,6 +117,13 @@ defmodule EvilEngineWeb.Http.UserTaskController do
 
   defp render_cancel_error(conn, :not_found), do: render_fni_not_found(conn)
   defp render_cancel_error(conn, :not_a_user_task), do: render_fni_not_found(conn)
+
+  defp render_cancel_error(conn, {:forbidden, details}) do
+    render_error(conn, 403, "forbidden", "Insufficient permissions",
+      required_claim: details[:required_claim],
+      required_value: details[:required_value]
+    )
+  end
 
   defp render_cancel_error(conn, reason) when reason in @terminal_fni_reasons do
     render_error(conn, 422, to_string(reason), "User task cancellation failed")

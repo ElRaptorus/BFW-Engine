@@ -5,7 +5,9 @@
 #
 # Usage:
 #   ./scripts/mint-token.sh                          # default dev-user / admin / 24h
-#   ./scripts/mint-token.sh '{"sub":"op-1","roles":["viewer"]}'   # custom claims
+#   ./scripts/mint-token.sh '{"sub":"op-1","lane:default":"write"}'   # clerk
+#   ./scripts/mint-token.sh '{"observe_all":true}'                    # observer
+#   # Lane values MUST be "read" or "write" — boolean true grants nothing.
 #   EVIL_JWT_HS256_SECRET=my-secret ./scripts/mint-token.sh
 #
 # The output is a single JWT string, ready for:

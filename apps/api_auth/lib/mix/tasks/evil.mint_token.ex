@@ -40,12 +40,23 @@ defmodule Mix.Tasks.Evil.MintToken do
   claims (e.g. `identity.claims["deploy_bpmn"] == true`). All other values
   remain strings.
 
+  Lane claims **must** be the strings `"read"` or `"write"`:
+
+      mix evil.mint_token --claim lane:Management=write
+
+  `--claim lane:Management=true` is coerced to boolean `true`, which the
+  engine treats as garbage (fail closed — no observe, no act).
+
+  `--full` does **not** include `observe_all`. Mint an observer with:
+
+      mix evil.mint_token --claim observe_all=true
+
   ## Examples
 
       # Quick admin token (24h, the default)
       mix evil.mint_token
 
-      # Full-privilege token with every supported claim
+      # Full-privilege token with every supported *write* claim (Studio operator)
       mix evil.mint_token --full
 
       # Token valid for 7 days
@@ -62,6 +73,12 @@ defmodule Mix.Tasks.Evil.MintToken do
 
       # Boolean claim (correctly stored as boolean true, not string "true")
       mix evil.mint_token --claim deploy_bpmn=true
+
+      # Lane write (Studio clerk on Management)
+      mix evil.mint_token --claim lane:default=write --claim lane:Management=write
+
+      # Unbounded observer (see everything, act on nothing)
+      mix evil.mint_token --claim observe_all=true
   """
 
   use Mix.Task
@@ -83,7 +100,8 @@ defmodule Mix.Tasks.Evil.MintToken do
     "delete_process_instance" => "all",
     "trigger_message" => "all",
     "trigger_signal" => "all",
-    "zeeky_boogie_doog" => true
+    "zeeky_boogie_doog" => true,
+    "lane:default" => "write"
   }
 
   @switches [
@@ -229,4 +247,10 @@ defmodule Mix.Tasks.Evil.MintToken do
   defp coerce_value("true"), do: true
   defp coerce_value("false"), do: false
   defp coerce_value(value), do: value
+
+  @doc false
+  def full_privilege_claims, do: @full_privilege_claims
+
+  @doc false
+  def coerce_claim_value(value), do: coerce_value(value)
 end

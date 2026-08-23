@@ -53,12 +53,16 @@ tags:
     description: >-
       Timer Start Event schedule management — list, inspect, enable, and
       disable cycle-based timer start schedules created at deploy time
+  - name: Timer Events
+    description: Manual trigger of waiting timer catch / boundary FNIs
   - name: Decisions
     description: DMN decision deployment, catalog, evaluation, and Decision Service invocation
   - name: Messages
     description: Message publish and trigger operations
   - name: Signals
     description: Signal broadcast and trigger operations
+  - name: Ad-hoc Subprocesses
+    description: Runtime control of ad-hoc subprocess inner activities
 
 paths:
   # ---------------------------------------------------------------------------
@@ -359,7 +363,9 @@ paths:
         passes an initial payload, and sets immutable context variables.
 
         **Authorization:** If the target Start Event sits on a lane, the
-        caller must hold `lane:<lane_name>=true` (D43 §4.3).
+        caller must hold `lane:<lane_name>="write"`. `"read"` or
+        `observe_all` (visible, not writable) returns **403**. No observe
+        of that lane returns **404**. Boolean `true` is not a write alias.
       parameters:
         - $ref: "#/components/parameters/ProcessModelId"
       requestBody:
@@ -730,8 +736,9 @@ paths:
       description: >-
         Cancels a waiting User Task or Manual Task and aborts the entire
         process instance (same effect as PUT /process-instances/{id}/abort).
-        All parallel branches are stopped. Authorization: same lane
-        visibility rules as finish (D43 §6.3).
+        All parallel branches are stopped. Authorization: same as finish —
+        `"write"` on the task lane. `"read"` / `observe_all` → **403**.
+        Invisible → **404**.
       parameters:
         - $ref: "#/components/parameters/FlowNodeInstanceId"
       requestBody:
@@ -749,6 +756,14 @@ paths:
           description: Task cancelled and process instance aborted (no body)
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >-
+            Caller can observe the task (`"read"` or `observe_all`) but
+            lacks `lane:<name>="write"`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
         "404":
           description: FNI not found or invisible to caller
           content:
@@ -769,8 +784,10 @@ paths:
       operationId: finishUserTask
       description: >-
         Completes a waiting User Task or Manual Task with the given result
-        payload. Authorization: caller must hold `lane:<lane_name>=true`
-        for the task's lane (D43 §6.3). Invisible tasks return 404.
+        payload. Authorization: caller must hold `lane:<lane_name>="write"`
+        for the task's lane. `"read"` or `observe_all` (visible, not
+        writable) returns **403**. Invisible tasks return **404**.
+        Boolean `true` is not a write alias.
       parameters:
         - $ref: "#/components/parameters/FlowNodeInstanceId"
       requestBody:
@@ -789,6 +806,14 @@ paths:
           description: Task finished successfully (no body)
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >-
+            Caller can observe the task (`"read"` or `observe_all`) but
+            lacks `lane:<name>="write"`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
         "404":
           description: FNI not found or invisible to caller
           content:
@@ -959,6 +984,62 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           description: Not applicable (schedule is not a cycle timer)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ---------------------------------------------------------------------------
+  # Timer Events (authenticated)
+  # ---------------------------------------------------------------------------
+  /timer-events/{flowNodeInstanceId}/trigger:
+    post:
+      tags: [Timer Events]
+      summary: Manually trigger a waiting timer
+      operationId: triggerTimerEvent
+      description: >-
+        Manually fires a waiting Intermediate Catch or Boundary timer FNI.
+        No dedicated JWT trigger claim — gated like user-task finish.
+
+        **Authorization:** `lane:<name>="write"` on the FNI's lane, or
+        laneless FNI, or `zeeky_boogie_doog`. `"read"` / `observe_all`
+        (visible, not writable) → **403**. Invisible lane → **404**.
+      parameters:
+        - $ref: "#/components/parameters/FlowNodeInstanceId"
+      responses:
+        "200":
+          description: Timer triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [triggered]
+                properties:
+                  triggered:
+                    type: boolean
+                    example: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Visible but not writable (`"read"` / `observe_all`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
+        "404":
+          description: FNI not found or invisible to caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Timer FNI is not in a triggerable state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: FNI is not a timer event
           content:
             application/json:
               schema:
@@ -1549,6 +1630,175 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  # ---------------------------------------------------------------------------
+  # Ad-hoc Subprocesses (authenticated)
+  # ---------------------------------------------------------------------------
+  /adhoc-subprocesses/{id}/activities:
+    get:
+      tags: [Ad-hoc Subprocesses]
+      summary: List ad-hoc inner activities
+      operationId: listAdhocActivities
+      description: >-
+        Lists enabled/performed inner activities of an ad-hoc subprocess.
+        `{id}` is the **child process instance ID** spawned by the ad-hoc
+        shell. Requires `manage_adhoc_subprocess` (or `zeeky_boogie_doog`).
+        `observe_all` does **not** grant this claim.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Activity list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Process instance is not an ad-hoc subprocess
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /adhoc-subprocesses/{id}/activities/{activity_id}/activate:
+    post:
+      tags: [Ad-hoc Subprocesses]
+      summary: Activate an ad-hoc inner activity
+      operationId: activateAdhocActivity
+      description: >-
+        Activates an inner activity of an ad-hoc subprocess. Requires
+        `manage_adhoc_subprocess`. `observe_all` does not grant activation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: activity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Activity activated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Ad-hoc subprocess is completing or no longer active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Sequential ad-hoc is busy, or PI is not ad-hoc
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /adhoc-subprocesses/{id}/complete:
+    post:
+      tags: [Ad-hoc Subprocesses]
+      summary: Signal ad-hoc subprocess completion
+      operationId: completeAdhocSubprocess
+      description: >-
+        Signals completion of an ad-hoc subprocess. Requires
+        `manage_adhoc_subprocess`. `observe_all` does not grant this.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Completion signaled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [completed]
+                properties:
+                  completed:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Completion already signaled or subprocess not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Process instance is not an ad-hoc subprocess
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /adhoc-subprocesses/{id}/status:
+    get:
+      tags: [Ad-hoc Subprocesses]
+      summary: Query ad-hoc subprocess status
+      operationId: getAdhocStatus
+      description: >-
+        Returns runtime status of an ad-hoc subprocess child PI.
+        Requires `manage_adhoc_subprocess`. `observe_all` does not grant this.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Status payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Process instance is not an ad-hoc subprocess
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 # =============================================================================
 # Reusable components
 # =============================================================================
@@ -1559,8 +1809,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: >-
-        HS256/RS256/ES256 JWT. Mint dev tokens with `mix evil.mint_token`.
-        See `docs/guides/api/authentication.md` for claim dictionary.
+        HS256/RS256/ES256 JWT. Mint Studio operator tokens with
+        `mix evil.mint_token --full` (includes `lane:default="write"`,
+        not `observe_all`). Observer: `--claim observe_all=true`.
+        Lane claims are `"read"` | `"write"` — boolean `true` is rejected.
+        See `docs/guides/api/authentication.md`.
 
   parameters:
     ProcessModelId:
@@ -1677,7 +1930,7 @@ components:
           description: Claim name the caller must satisfy (e.g. deploy_bpmn, lane:Review).
         requiredValue:
           type: string
-          description: Expected claim value when applicable (e.g. "true", "own or all").
+          description: Expected claim value when applicable (e.g. "write", "true", "own or all").
         resource:
           type: string
           enum: [process, process_instance, decision]

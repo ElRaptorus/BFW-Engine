@@ -2120,7 +2120,7 @@ exposes manual timer trigger via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Access |
 |--------|------|---------|-----------------|
-| `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | `lane:<laneName>` for the FNI's lane, or laneless FNI, or `zeeky_boogie_doog` |
+| `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | `lane:<laneName>="write"` for the FNI's lane, or laneless FNI, or `zeeky_boogie_doog`. `"read"` / `observe_all` → 403; invisible → 404 |
 
 Body: empty or `{}`. Response `200`: `TimerTriggerResult` — `{ "triggered": true }` (camelCase on wire). Errors: `404` (not found / lane-invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
 

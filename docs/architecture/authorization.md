@@ -82,12 +82,13 @@ access. The engine matches lanes to JWT claims using a **namespaced claim
 key**:
 
 ```
-lane:<LANE_NAME> = true
+lane:<LANE_NAME> = "read" | "write"
 ```
 
 Where `<LANE_NAME>` is the **user-facing `name` attribute** of the
-`<bpmn:lane>` element, **not** its internal BPMN `id`. This is the value
-modelers see in their diagram tool and reason about.
+`<bpmn:lane>` element, **not** its internal BPMN `id`. `"write"` observes
+and acts. `"read"` observes only (GraphQL/WS). Absent, `true`, `false`,
+and any other value are **none** (fail closed — HTTP 404 on writes).
 
 **Namespace rationale:** a lane called `exp`, `iss`, `sub`, or `aud` would
 collide with reserved JWT registered claims (RFC 7519 §4.1). The `lane:`
@@ -98,8 +99,8 @@ prefix eliminates this entirely. Example JWT payload:
   "sub": "user-42",
   "name": "Jane Doe",
   "roles": ["reviewer"],
-  "lane:Management": true,
-  "lane:Engineering": true,
+  "lane:Management": "write",
+  "lane:Engineering": "write",
   "deploy_bpmn": true,
   "abort_process_instance": "own"
 }
@@ -124,8 +125,9 @@ use.
 | `deploy_bpmn` | boolean | Allows: `POST /processes` (BPMN upload), `PUT /processes/{model_id}/enable`, `PUT /processes/{model_id}/disable` — all catalog-mutation operations | `false` |
 | `delete_bpmn` | boolean | Allows: `DELETE /processes/{model_id}/versions/{version}`, `DELETE /processes/{model_id}` (version/process deletion ) | `false` |
 | `purge_audit_data` | boolean | Allows: `purgeProcessInstances` GraphQL mutation and its CLI equivalent | `false` |
-| `lane:<name>` | boolean | Grants access to flow nodes and process instances associated with the named BPMN lane (§3.1, §5). Includes Websocket Notifications for Flow Node Instance Events. | `false` |
-| `zeeky_boogie_doog` | boolean | Admin override: Grats full reading rights, regardless of which claims the user may otherwise have. | `false` |
+| `lane:<name>` | `"read"` \| `"write"` | `"write"`: act on flow nodes on that lane. `"read"`: observe only. Boolean `true` is rejected. | none |
+| `observe_all` | boolean | Unbounded read/observe of PIs, FNIs, data objects, and WS events. **Never** grants write. | `false` |
+| `zeeky_boogie_doog` | boolean | Admin override: full read **and** write bypass. Distinct from `observe_all`. | `false` |
 | `trigger_message` | `"none"`, `"all"` | Allows: Triggering any Message Event Instance on the Engine via `POST /messages/{message_name}/trigger`. | `"none"` |
 | `trigger_signal` | `"none"`, `"all"` | Allows: Broadcasting any Signal on the Engine via `POST /signals/{signal_name}/trigger`. | `"none"` |
 | `trigger_escalation` | boolean | Allows: Triggering any Escalation Event Instance on the Engine. | `false` |
@@ -176,14 +178,16 @@ A caller can see a Process Instance if **any** of the following is true:
 1. **Starter match:** `process_instances.started_by.id == caller.sub`
 2. **Lane match (any FNI, any state):** the PI has **at least one FNI
    (in any state, including finished/fatal/aborted)** whose owning lane the
-   caller can access (i.e. the caller's JWT has `lane:<lane_name> = true`
-   for that FNI's lane)
+   caller can access (i.e. the caller's JWT has `lane:<lane_name>` set to
+   `"read"` or `"write"` for that FNI's lane), **or** the caller has
+   `observe_all=true`
 3. **No-lane escape hatch:** the PI has at least one FNI that sits on **no
    lane at all** (process has lanes, but this particular element is outside
    them)
 4. **No-lanes-in-process:** the process definition has zero `<bpmn:lane>`
    elements — the PI is visible to every authenticated caller
 5. **Admin override:** caller has `zeeky_boogie_doog=true`
+6. **Unbounded observe:** caller has `observe_all=true` (read/observe only — never write)
 
 For terminal PIs (`finished`, `fatal`, `aborted`, `error`, `escalated`,
 `compensated`), **rule 2 evaluates against the historical FNI set** (all FNIs
@@ -234,6 +238,8 @@ WHERE (
 ```
 
 The `zeeky_boogie_doog=true` override short-circuits the entire filter.
+`observe_all=true` is a **separate** read-only short-circuit (Ash `ObserveAll`
+check on PI / FNI / Data Object reads). It does **not** grant write.
 
 This requires a `lane_name` column on `flow_node_instances` — see §5.6.
 
@@ -271,7 +277,7 @@ authenticated list request runs it).
 
 | Action | Rule | Notes |
 |---|---|---|
-| **Start PI** (`POST /processes/{model_id}/start`) | **Lane check against the chosen Start Event.** If the process has lanes and the Start Event resides on a lane, the caller must have `lane:<lane_name>=true`. If the process has no lanes, or the Start Event is not in any lane, any authenticated caller may start. Lane denial returns HTTP 404 (not 403) to prevent existence probing — consistent with FNI lane checks | Enforced in `EvilEngine.Api.start_process_instance/3` via `Validation.check_lane_access`. The starting user's identity is recorded as `started_by` and never re-checked during execution |
+| **Start PI** (`POST /processes/{model_id}/start`) | **Lane check against the chosen Start Event.** If the process has lanes and the Start Event resides on a lane, the caller must have `lane:<lane_name>="write"`. `"read"` or `observe_all` on a visible start event returns **403**. Absent / leftover `true` / garbage / wrong lane returns **404**. If the process has no lanes, or the Start Event is not in any lane, any authenticated caller may start | Enforced in `EvilEngine.Api.start_process_instance/3` via `Validation.check_lane_access`. The starting user's identity is recorded as `started_by` and never re-checked during execution |
 | **Resume** | *(engine-internal, always automatic )* | No user-initiated Resume in v1. The engine's resume path runs with the PI's original `started_by` context — no JWT involved |
 | **Restart** (`POST /process-instances/{id}/restart`) | Same as Start: lane check against the new PI's Start Event | Restart is semantically a new PI, not a retry. Does NOT require `retry_process_instance` |
 | **Abort** (`PUT /process-instances/{id}/abort`) | `abort_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `abort_process_instance=all` (any PI) | `abort_process_instance=none` or absent → `403` |
@@ -294,7 +300,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 | Action | Rule | Notes |
 |---|---|---|
-| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>=true` for the User Task's lane. If the User Task is not on any lane, any authenticated caller may finish it. `<evil:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` per §7 User Task in `ImplementationPlan.md` — both checks must pass | Lane check + assignee check are AND-combined |
+| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<evil:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` per §7 User Task in `ImplementationPlan.md` — both checks must pass | Lane check + assignee check are AND-combined |
 | **Cancel User Task** (`PUT /user-tasks/{fniId}/cancel`) | Same as Finish | |
 | **Complete async Service Task** (`PUT /async-flow-nodes/{fniId}/complete`) | Same lane-match rule as User Task: caller must have the FNI's lane claim (or FNI is laneless). The async dispatch is the dual of a User Task wait — the completing agent is a service-side counterpart of an assignee | In practice, plugins call this through `engine_facade` with the privileged plugin identity (§7), bypassing this check |
 | **Fail async Service Task** (`PUT /async-flow-nodes/{fniId}/fail`) | Same as Complete | |
@@ -306,7 +312,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 | `POST /messages/{message_name}/trigger` | `trigger_message` | `trigger_message` not `"all"` or absent → 403 |
 | `POST /signals/{signal_name}/trigger` | `trigger_signal` | `trigger_signal` not `"all"` or absent → 403 |
 | `POST /triggers/escalations` | `trigger_escalation` | trigger_escalation=false or absent → 403 |
-| `POST /timer-events/{flow_node_instance_id}/trigger` | Lane access (`lane:<lane_name>=true` for the FNI's lane, or FNI is laneless, or `zeeky_boogie_doog=true`) | No dedicated trigger claim. Enforced in `EvilEngine.Api.trigger_timer_event/3` via `Validation.check_lane_access/3`. Invisible lane → `404` (not `403`) |
+| `POST /timer-events/{flow_node_instance_id}/trigger` | Lane access (`lane:<lane_name>="write"` for the FNI's lane, or FNI is laneless, or `zeeky_boogie_doog=true`) | No dedicated trigger claim. Enforced in `EvilEngine.Api.trigger_timer_event/3` via `Validation.check_lane_access/3`. Visible but not writable (`"read"` / `observe_all`) → `403`. Invisible lane → `404` |
 
 ### 6.5 Observability / admin endpoints
 
@@ -458,7 +464,7 @@ probing.
 ```elixir
 EvilEngine.SDK.Test.MintTestToken.mint(%{
   sub: "test-user-1",
-  "lane:Management" => true,
+  "lane:Management" => "write",
   deploy_bpmn: true,
   abort_process_instance: "own"
 })
@@ -494,9 +500,9 @@ All JWT claim checks, lane access checks, and admin override logic are centraliz
 | `check_claim/3` | `(Identity.t(), claim_name :: String.t(), opts :: keyword())` | Boolean claims: `deploy_bpmn`, `delete_bpmn`, `deploy_dmn`, `delete_dmn` |
 | `check_scoped_claim/4` | `(Identity.t(), claim_name, resource_owner_id, opts)` | Scoped enum claims: `abort_process_instance`, `retry_process_instance`, `delete_process_instance` (`"none"` / `"own"` / `"all"`) |
 | `check_required_claim/4` | `(Identity.t(), claim_name, required_value, opts)` | Value claims: `trigger_message`, `trigger_signal` (require `"all"`) |
-| `check_lane_access/3` | `(record_with_lane_name, Identity.t(), opts)` | FNI lane gate; returns `{:error, :not_found}` (not `:forbidden`) to prevent existence probing |
+| `check_lane_access/3` | `(record_with_lane_name, Identity.t(), opts)` | FNI **write** gate. `:ok` for `"write"` / zeeky / laneless / `skip_claims`. `{:error, :forbidden, details}` when the caller can observe (`"read"` or `observe_all`) but not write. `{:error, :not_found}` when the caller cannot observe that lane |
 | `admin_override?/1` | `(Identity.t()) :: boolean()` | True when `zeeky_boogie_doog=true` in claims |
-| `has_lane_claim?/2` | `(Identity.t(), lane_name :: String.t()) :: boolean()` | True when `lane:<lane_name>=true` in claims |
+| `has_lane_claim?/2` | `(Identity.t(), lane_name :: String.t()) :: boolean()` | True when `lane:<lane_name>="write"` (act). `"read"` is **not** a write grant |
 
 Private `skip_claims?/1` reads `Keyword.get(opts, :skip_claims, false)`. When true, all claim and lane helpers short-circuit to `:ok`.
 
@@ -535,7 +541,8 @@ sub: "<unique user id>"
 deploy_bpmn: true|false       Deploy, enable/disable processes
 delete_bpmn: true|false       Delete process versions / undeploy processes
 purge_audit_data: true|false   Run retention purge mutations
-zeeky_boogie_doog: true|false See all PIs regardless of lane/starter
+zeeky_boogie_doog: true|false Admin read+write override
+observe_all: true|false       Unbounded read/observe; never write
 trigger_escalation: true|false
 
 # Enum claims (default: "none" if absent)
@@ -545,6 +552,7 @@ abort_process_instance: "none"|"own"|"all"
 retry_process_instance: "none"|"own"|"all"
 delete_process_instance: "none"|"own"|"all"
 
-# Lane claims (dynamic, one per BPMN lane name: false if absent)
-lane:<LaneName>: true          Access flow nodes on that lane
+# Lane claims (dynamic, one per BPMN lane name: none if absent)
+# Values: "read" (observe) | "write" (observe+act). Boolean true is garbage.
+lane:<LaneName>: "read"|"write"
 ```

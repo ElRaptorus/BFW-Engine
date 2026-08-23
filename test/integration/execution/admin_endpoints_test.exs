@@ -178,8 +178,42 @@ defmodule EvilEngine.Integration.Execution.AdminEndpointsTest do
       flow_node_instance = waiting_user_task_fni!(process_instance_id)
       lane_name = flow_node_instance.lane_name
 
-      claims_with_lane = %{"sub" => "lane-user", "lane:#{lane_name}" => true}
+      claims_with_lane = %{"sub" => "lane-user", "lane:#{lane_name}" => "write"}
       {204, nil} = http_finish_user_task(flow_node_instance.id, %{}, claims_with_lane)
+    end
+
+    test "403 when caller has a read claim on the task lane" do
+      process_instance_id = deploy_and_start_laned_user_task()
+      Process.sleep(200)
+
+      flow_node_instance = waiting_user_task_fni!(process_instance_id)
+      lane_name = flow_node_instance.lane_name
+
+      {403, body} =
+        http_finish_user_task(flow_node_instance.id, %{}, %{
+          "sub" => "reader",
+          "lane:#{lane_name}" => "read"
+        })
+
+      assert body["error"] == "forbidden"
+      assert body["requiredClaim"] == "lane:#{lane_name}"
+      assert body["requiredValue"] == "write"
+    end
+
+    test "404 when leftover boolean true is not a write alias" do
+      process_instance_id = deploy_and_start_laned_user_task()
+      Process.sleep(200)
+
+      flow_node_instance = waiting_user_task_fni!(process_instance_id)
+      lane_name = flow_node_instance.lane_name
+
+      {404, body} =
+        http_finish_user_task(flow_node_instance.id, %{}, %{
+          "sub" => "legacy-true",
+          "lane:#{lane_name}" => true
+        })
+
+      assert body["error"] == "not_found"
     end
 
     test "204 when caller has matching default lane claim" do
@@ -190,6 +224,24 @@ defmodule EvilEngine.Integration.Execution.AdminEndpointsTest do
       assert flow_node_instance.lane_name == "default"
 
       {204, nil} = http_finish_user_task(flow_node_instance.id, %{"done" => true})
+    end
+
+    test "cancel returns 403 when caller has a read claim on the task lane" do
+      process_instance_id = deploy_and_start_laned_user_task()
+      Process.sleep(200)
+
+      flow_node_instance = waiting_user_task_fni!(process_instance_id)
+      lane_name = flow_node_instance.lane_name
+
+      {403, body} =
+        http_cancel_user_task(flow_node_instance.id, "reason", %{
+          "sub" => "reader",
+          "lane:#{lane_name}" => "read"
+        })
+
+      assert body["error"] == "forbidden"
+      assert body["requiredClaim"] == "lane:#{lane_name}"
+      assert body["requiredValue"] == "write"
     end
 
     test "cancel returns 404 when caller lacks lane claim" do
@@ -255,7 +307,9 @@ defmodule EvilEngine.Integration.Execution.AdminEndpointsTest do
       process_instance_id = http_deploy_and_start("linear_start_end.bpmn", "LinearStartEnd")
       wait_for_process_instance(process_instance_id)
 
-      {403, body} = http_delete_process_instance(process_instance_id, %{"delete_process_instance" => "none"})
+      {403, body} =
+        http_delete_process_instance(process_instance_id, %{"delete_process_instance" => "none"})
+
       assert body["error"] == "forbidden"
       assert body["requiredClaim"] == "delete_process_instance"
     end
@@ -308,13 +362,15 @@ defmodule EvilEngine.Integration.Execution.AdminEndpointsTest do
           flow_node_instance_candidate.state == "waiting"
       end)
 
-    assert flow_node_instance != nil, "Expected a waiting user/manual task FNI for PI #{process_instance_id}"
+    assert flow_node_instance != nil,
+           "Expected a waiting user/manual task FNI for PI #{process_instance_id}"
+
     flow_node_instance
   end
 
   defp deploy_and_start_laned_user_task do
     {201, _} = http_deploy("user_task_with_lane.bpmn")
-    {201, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => true})
+    {201, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => "write"})
     body["processInstanceId"]
   end
 end

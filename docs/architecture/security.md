@@ -74,9 +74,9 @@ token and must return `{:ok, %Identity{}}` or `{:error, reason}`.
 Key design choices (summary only — authorization.md is the source of truth):
 
 - **Default-deny.** Every endpoint requires a valid JWT except `/health`, `/info`, the OpenAPI spec, and non-production admin UIs.
-- **Lane-as-claim.** BPMN lanes map to `lane:<name>=true` JWT claims.
-- **Engine claims**: `deploy_bpmn`, `delete_bpmn`, `purge_audit_data`, `zeeky_boogie_doog` (admin read-all), `trigger_message`, `trigger_signal`, `trigger_escalation` (boolean); `abort_process_instance`, `retry_process_instance`, `delete_process_instance` (`none|own|all`).
-- **PI visibility (Option B)**: a caller sees a PI if they started it, OR if any FNI ever on the PI sits on an accessible lane (or no lane), OR `zeeky_boogie_doog=true`.
+- **Lane-as-claim.** BPMN lanes map to `lane:<name>` JWT claims (`"read"` or `"write"`). Boolean `true` is not a write alias.
+- **Engine claims**: `deploy_bpmn`, `delete_bpmn`, `purge_audit_data`, `zeeky_boogie_doog` (admin read+write), `observe_all` (unbounded read, never write), `trigger_message`, `trigger_signal`, `trigger_escalation` (boolean); `abort_process_instance`, `retry_process_instance`, `delete_process_instance` (`none|own|all`); `lane:<name>` (`"read"` \| `"write"`).
+- **PI visibility (Option B)**: a caller sees a PI if they started it, OR if any FNI ever on the PI sits on an accessible `"read"`/`"write"` lane (or no lane), OR `zeeky_boogie_doog=true`, OR `observe_all=true`.
 - **Execution-detached.** Once a PI starts, the starting user's claims are never re-checked.
 - **Plugins bypass claim checks** with a privileged `plugin:<name>` identity; audit is preserved.
 - **Triggers claim-gated.** Message / signal / escalation publish endpoints require `trigger_message` / `trigger_signal` / `trigger_escalation` respectively.

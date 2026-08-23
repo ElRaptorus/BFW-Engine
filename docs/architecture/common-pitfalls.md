@@ -477,9 +477,9 @@ See [`routing.md`](./routing.md) §3.5.6.
 
 - Engine-level events (`Engine*`, definition lifecycle, `MessagePublished`, `SignalPublished`) are always delivered.
 - PI-level events (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) are delivered on `engine:events` only when §5.1 holds from emit-time stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`).
-- FNI-originating events (explicit allow-list) are delivered when `laneName` is `nil` or the subscriber holds `lane:<name>`.
+- FNI-originating events (explicit allow-list) are delivered when `laneName` is `nil` or the subscriber holds `lane:<name>` as `"read"` or `"write"`.
 - Unknown envelope types are dropped. Do not treat a missing `laneName` on an unclassified type as "always deliver".
-- `zeeky_boogie_doog` bypasses the filter (write-capable admin). A future read-only observe-all claim is a separate assign, not folded into `admin_override`.
+- `zeeky_boogie_doog` bypasses the filter (write-capable admin). `observe_all` is a **separate** unbounded-read assign — it delivers every envelope but never implies write.
 
 `process:<model_id>` is still deferred. There is no `PiFinished` event.
 
@@ -495,10 +495,10 @@ See [`routing.md`](./routing.md) §3.5.6.
 
 | Surface | PI visibility | FNI visibility |
 |---|---|---|
-| GraphQL reads | §5.1 (starter, laneless FNI, any matching lane, zeeky) | If you see the PI, you see **all** of its FNIs (§5.2) |
-| WebSocket FNI dispatch | Join of `process_instance:*` uses §5.1; `engine:events` uses the same stamps at dispatch | Each FNI-originating event is dropped unless `laneName` is `nil` or in `accessible_lanes` |
+| GraphQL reads | §5.1 (starter, laneless FNI, any matching `"read"`/`"write"` lane, zeeky, `observe_all`) | If you see the PI, you see **all** of its FNIs (§5.2) |
+| WebSocket FNI dispatch | Join of `process_instance:*` uses §5.1 (`read`/`write`/`observe_all`/zeeky); `engine:events` uses the same stamps at dispatch | Each FNI-originating event is delivered when `laneName` is `nil`, in `accessible_lanes` (`read` or `write`), or the subscriber has `observe_all` / zeeky |
 
-A starter without `lane:Management` can query the Management User Task via GraphQL and still receive PI-level WS events, but will not receive live `FlowNodeInstanceStarted` / `UserTaskCreated` for that task. Do not "fix" GraphQL to match WS; the WS gate is action-style (you should not watch work you cannot act on).
+A starter without `lane:Management` can query the Management User Task via GraphQL and still receive PI-level WS events, but will not receive live `FlowNodeInstanceStarted` / `UserTaskCreated` for that task unless they hold `"read"` or `"write"` on Management (or `observe_all` / zeeky). GraphQL FNI reads stay §5.2 (all FNIs on a visible PI). `"read"` **does** deliver Management FNI events on WebSocket.
 
 ---
 

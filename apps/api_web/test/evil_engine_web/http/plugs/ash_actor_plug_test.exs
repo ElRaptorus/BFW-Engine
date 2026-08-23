@@ -46,15 +46,18 @@ defmodule EvilEngineWeb.Http.Plugs.AshActorPlugTest do
       assert is_list(actor.accessible_lanes)
     end
 
-    test "extracts lane names from claims into accessible_lanes" do
+    test "extracts read and write lanes; leftover true/false/garbage are omitted" do
       identity = %Identity{
         id: "user-99",
         roles: [],
         groups: [],
         claims: %{
-          "lane:finance" => true,
-          "lane:ops" => true,
+          "lane:finance" => "write",
+          "lane:ops" => "read",
           "lane:disabled" => false,
+          "lane:legacy" => true,
+          "lane:garbage" => "admin",
+          "observe_all" => true,
           "deploy_bpmn" => false
         }
       }
@@ -66,6 +69,11 @@ defmodule EvilEngineWeb.Http.Plugs.AshActorPlugTest do
       assert "finance" in actor.accessible_lanes
       assert "ops" in actor.accessible_lanes
       refute "disabled" in actor.accessible_lanes
+      refute "legacy" in actor.accessible_lanes
+      refute "garbage" in actor.accessible_lanes
+      assert "finance" in actor.writable_lanes
+      refute "ops" in actor.writable_lanes
+      assert actor.observe_all == true
     end
 
     test "coerces missing claim keys to false" do

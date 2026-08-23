@@ -122,6 +122,74 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
           },
           %{
             endpoint: @graphql_endpoint,
+            name: "Get Flow Node Instance",
+            query: """
+            query GetFlowNodeInstance($id: ID!) {
+              getFlowNodeInstance(id: $id) {
+                id
+                flowNodeId
+                flowNodeType
+                state
+                laneName
+                processInstanceId
+              }
+            }
+            """,
+            variables: ~s({"id": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "List Data Object Values",
+            query: """
+            query ListDataObjectValues($processInstanceId: ID!) {
+              dataObjectValues(filter: {processInstanceId: {eq: $processInstanceId}}) {
+                results {
+                  id
+                  dataObjectId
+                  processInstanceId
+                  value
+                }
+              }
+            }
+            """,
+            variables: ~s({"processInstanceId": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "List Data Object History",
+            query: """
+            query ListDataObjectHistory($processInstanceId: ID!) {
+              dataObjectHistory(filter: {processInstanceId: {eq: $processInstanceId}}) {
+                results {
+                  id
+                  dataObjectId
+                  processInstanceId
+                  value
+                  createdAt
+                }
+              }
+            }
+            """,
+            variables: ~s({"processInstanceId": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "List Decision Definitions",
+            query: """
+            {
+              decisionDefinitions {
+                results {
+                  id
+                  decisionDefinitionId
+                  name
+                  enabled
+                }
+              }
+            }
+            """
+          },
+          %{
+            endpoint: @graphql_endpoint,
             name: "Schema Introspection",
             query: """
             {

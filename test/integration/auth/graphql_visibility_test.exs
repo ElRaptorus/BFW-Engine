@@ -62,11 +62,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
   defp start_laned_process do
     {201, _} = http_deploy("user_task_with_lane.bpmn")
 
-    {201, body} = http_start(
-      "LanedUserTask",
-      %{},
-      %{"sub" => "starter-user", "lane:Management" => true}
-    )
+    {201, body} =
+      http_start(
+        "LanedUserTask",
+        %{},
+        %{"sub" => "starter-user", "lane:Management" => "write"}
+      )
 
     process_instance_id = body["processInstanceId"]
     Process.sleep(200)
@@ -91,11 +92,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
     test "starter can see their own PI" do
       {process_instance_id, _} = start_laned_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "starter-user", "lane:Management" => true}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "starter-user", "lane:Management" => "write"}
+        )
 
       assert body["data"]["getProcessInstance"]["id"] == process_instance_id
     end
@@ -103,11 +105,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
     test "non-starter without lane claim cannot see PI" do
       {process_instance_id, _} = start_laned_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "other-user"}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "other-user"}
+        )
 
       assert body["data"]["getProcessInstance"] == nil
     end
@@ -117,23 +120,71 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
     test "user with matching lane claim can see PI" do
       {process_instance_id, _} = start_laned_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "lane-user", "lane:Management" => true}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "lane-user", "lane:Management" => "write"}
+        )
 
       assert body["data"]["getProcessInstance"]["id"] == process_instance_id
+    end
+
+    test "user with read-only lane claim can see PI" do
+      {process_instance_id, _} = start_laned_process()
+
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "lane-reader", "lane:Management" => "read"}
+        )
+
+      assert body["data"]["getProcessInstance"]["id"] == process_instance_id
+    end
+
+    test "leftover boolean true lane claim cannot see PI" do
+      {process_instance_id, _} = start_laned_process()
+
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "legacy-true", "lane:Management" => true}
+        )
+
+      assert body["data"]["getProcessInstance"] == nil
+    end
+
+    test "garbage lane values cannot see PI" do
+      {process_instance_id, _} = start_laned_process()
+
+      for {label, garbage} <- [
+            {"write-upper", "WRITE"},
+            {"read-upper", "READ"},
+            {"empty", ""},
+            {"int", 1}
+          ] do
+        {200, body} =
+          http_graphql(
+            @get_pi_query,
+            %{"id" => process_instance_id},
+            %{"sub" => "garbage-#{label}", "lane:Management" => garbage}
+          )
+
+        assert body["data"]["getProcessInstance"] == nil
+      end
     end
 
     test "user without matching lane claim cannot see PI (not starter either)" do
       {process_instance_id, _} = start_laned_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "wrong-lane-user", "lane:Engineering" => true}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "wrong-lane-user", "lane:Engineering" => "write"}
+        )
 
       assert body["data"]["getProcessInstance"] == nil
     end
@@ -143,11 +194,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
     test "user with default lane claim can see PI with default lane" do
       process_instance_id = start_default_lane_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "random-user"}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "random-user"}
+        )
 
       assert body["data"]["getProcessInstance"]["id"] == process_instance_id
     end
@@ -155,11 +207,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
     test "user without any lane claim cannot see PI with default lane (not starter)" do
       process_instance_id = start_default_lane_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "no-claims-user", "lane:default" => nil}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "no-claims-user", "lane:default" => nil}
+        )
 
       assert body["data"]["getProcessInstance"] == nil
     end
@@ -169,11 +222,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
     test "zeeky_boogie_doog sees all PIs" do
       {process_instance_id, _} = start_laned_process()
 
-      {200, body} = http_graphql(
-        @get_pi_query,
-        %{"id" => process_instance_id},
-        %{"sub" => "admin-user", "zeeky_boogie_doog" => true}
-      )
+      {200, body} =
+        http_graphql(
+          @get_pi_query,
+          %{"id" => process_instance_id},
+          %{"sub" => "admin-user", "zeeky_boogie_doog" => true}
+        )
 
       assert body["data"]["getProcessInstance"]["id"] == process_instance_id
     end
@@ -184,11 +238,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
       {laned_process_instance_id, _} = start_laned_process()
       default_lane_process_instance_id = start_default_lane_process()
 
-      {200, body} = http_graphql(
-        @list_pis_query,
-        %{},
-        %{"sub" => "default-only-user"}
-      )
+      {200, body} =
+        http_graphql(
+          @list_pis_query,
+          %{},
+          %{"sub" => "default-only-user"}
+        )
 
       results = body["data"]["processInstances"]["results"]
       ids = Enum.map(results, & &1["id"])
@@ -207,11 +262,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
       {_process_instance_id, flow_node_instances} = start_laned_process()
       flow_node_instance = hd(flow_node_instances)
 
-      {200, body} = http_graphql(
-        @get_fni_query,
-        %{"id" => flow_node_instance.id},
-        %{"sub" => "starter-user", "lane:Management" => true}
-      )
+      {200, body} =
+        http_graphql(
+          @get_fni_query,
+          %{"id" => flow_node_instance.id},
+          %{"sub" => "starter-user", "lane:Management" => "write"}
+        )
 
       assert body["data"]["getFlowNodeInstance"]["id"] == flow_node_instance.id
     end
@@ -220,11 +276,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
       {_process_instance_id, flow_node_instances} = start_laned_process()
       flow_node_instance = hd(flow_node_instances)
 
-      {200, body} = http_graphql(
-        @get_fni_query,
-        %{"id" => flow_node_instance.id},
-        %{"sub" => "other-user"}
-      )
+      {200, body} =
+        http_graphql(
+          @get_fni_query,
+          %{"id" => flow_node_instance.id},
+          %{"sub" => "other-user"}
+        )
 
       assert body["data"]["getFlowNodeInstance"] == nil
     end
@@ -235,11 +292,12 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
       {laned_process_instance_id, _} = start_laned_process()
       default_lane_process_instance_id = start_default_lane_process()
 
-      {200, body} = http_graphql(
-        @list_fnis_query,
-        %{},
-        %{"sub" => "default-only-user"}
-      )
+      {200, body} =
+        http_graphql(
+          @list_fnis_query,
+          %{},
+          %{"sub" => "default-only-user"}
+        )
 
       results = body["data"]["flowNodeInstances"]["results"]
       process_instance_ids = results |> Enum.map(& &1["processInstanceId"]) |> MapSet.new()

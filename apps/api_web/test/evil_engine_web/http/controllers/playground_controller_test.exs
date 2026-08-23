@@ -54,7 +54,15 @@ defmodule EvilEngineWeb.Http.PlaygroundControllerTest do
       assert conn.resp_body =~ "List Process Instances"
       assert conn.resp_body =~ "Get Process Instance"
       assert conn.resp_body =~ "List Flow Node Instances"
+      assert conn.resp_body =~ "Get Flow Node Instance"
+      assert conn.resp_body =~ "List Data Object Values"
+      assert conn.resp_body =~ "List Data Object History"
+      assert conn.resp_body =~ "List Decision Definitions"
       assert conn.resp_body =~ "Schema Introspection"
+      assert conn.resp_body =~ "getFlowNodeInstance"
+      assert conn.resp_body =~ "dataObjectValues"
+      assert conn.resp_body =~ "dataObjectHistory"
+      assert conn.resp_body =~ "decisionDefinitions"
     end
 
     test "HTML contains auth bar elements" do

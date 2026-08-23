@@ -52,16 +52,19 @@ curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/finish \
 | Status | Meaning |
 |--------|---------|
 | `204`  | Task completed successfully (no body) |
-| `404`  | FNI not found or invisible to caller (lane check) |
+| `403`  | Caller can see the task (`"read"` or `observe_all`) but lacks `"write"` |
+| `404`  | FNI not found or invisible to caller (no observe of that lane) |
 | `413`  | Result payload exceeds `EVIL_TOKEN_MAX_BYTES` |
 | `422`  | Task not in `waiting` state, or result contract violation |
 
 ### Authorization
 
-The caller's JWT must include `lane:<lane_name>=true` for the lane the
-User Task belongs to. If the task is not on any lane, any authenticated
-caller may finish it. Tasks invisible to the caller return `404` (not
-`403`) to prevent existence probing. See [Authentication](../api/authentication.md).
+The caller's JWT must include `lane:<lane_name>="write"` for the lane the
+User Task belongs to. `"read"` or `observe_all` can see the task but
+finishing it returns **403**. If the task is not on any lane, any
+authenticated caller may finish it. Tasks the caller cannot observe
+return `404` to prevent existence probing. See
+[Authentication](../api/authentication.md).
 
 ## Cancelling a User Task
 
@@ -77,7 +80,8 @@ curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/cancel \
 | Status | Meaning |
 |--------|---------|
 | `204`  | Task cancelled, PI aborted (no body) |
-| `404`  | FNI not found or invisible to caller (lane check) |
+| `403`  | Caller can see the task but lacks `"write"` |
+| `404`  | FNI not found or invisible to caller |
 | `422`  | Task not in `waiting` state |
 
 Cancellation transitions the FNI to `aborted` and **aborts the entire

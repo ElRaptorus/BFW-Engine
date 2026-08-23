@@ -32,10 +32,11 @@ defmodule EvilEngine.Integration.Auth.CatalogAuthorizationTest do
     end
 
     test "201 with zeeky_boogie_doog admin override (no deploy_bpmn)" do
-      {201, _} = http_deploy("linear_start_end.bpmn", %{
-        "deploy_bpmn" => false,
-        "zeeky_boogie_doog" => true
-      })
+      {201, _} =
+        http_deploy("linear_start_end.bpmn", %{
+          "deploy_bpmn" => false,
+          "zeeky_boogie_doog" => true
+        })
     end
   end
 
@@ -102,10 +103,11 @@ defmodule EvilEngine.Integration.Auth.CatalogAuthorizationTest do
     test "204 with zeeky_boogie_doog admin override (no delete_bpmn)" do
       {201, _} = http_deploy("linear_start_end.bpmn")
 
-      {204, _} = http_delete_version("LinearStartEnd", "1.0.0", %{
-        "delete_bpmn" => false,
-        "zeeky_boogie_doog" => true
-      })
+      {204, _} =
+        http_delete_version("LinearStartEnd", "1.0.0", %{
+          "delete_bpmn" => false,
+          "zeeky_boogie_doog" => true
+        })
     end
   end
 
@@ -124,8 +126,33 @@ defmodule EvilEngine.Integration.Auth.CatalogAuthorizationTest do
     test "201 when caller has matching lane claim (Management)" do
       {201, _} = http_deploy("user_task_with_lane.bpmn")
 
-      {201, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => true})
+      {201, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => "write"})
       assert is_binary(body["processInstanceId"])
+    end
+
+    test "403 when caller has read-only lane claim" do
+      {201, _} = http_deploy("user_task_with_lane.bpmn")
+
+      {403, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => "read"})
+      assert body["error"] == "forbidden"
+      assert body["requiredClaim"] == "lane:Management"
+      assert body["requiredValue"] == "write"
+    end
+
+    test "404 when leftover boolean true is not a write alias" do
+      {201, _} = http_deploy("user_task_with_lane.bpmn")
+
+      {404, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => true})
+      assert body["error"] == "not_found"
+    end
+
+    test "404 for garbage lane values that are not read or write" do
+      {201, _} = http_deploy("user_task_with_lane.bpmn")
+
+      for garbage <- ["WRITE", "READ", "", 1] do
+        {404, body} = http_start("LanedUserTask", %{}, %{"lane:Management" => garbage})
+        assert body["error"] == "not_found"
+      end
     end
 
     test "404 when caller lacks default lane claim (lane denial hides existence)" do
@@ -145,11 +172,12 @@ defmodule EvilEngine.Integration.Auth.CatalogAuthorizationTest do
     test "201 with zeeky_boogie_doog admin override (no lane claim)" do
       {201, _} = http_deploy("user_task_with_lane.bpmn")
 
-      {201, _} = http_start("LanedUserTask", %{}, %{
-        "lane:Management" => nil,
-        "lane:default" => nil,
-        "zeeky_boogie_doog" => true
-      })
+      {201, _} =
+        http_start("LanedUserTask", %{}, %{
+          "lane:Management" => nil,
+          "lane:default" => nil,
+          "zeeky_boogie_doog" => true
+        })
     end
   end
 end

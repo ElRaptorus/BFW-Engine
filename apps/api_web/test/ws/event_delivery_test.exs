@@ -8,6 +8,7 @@ defmodule EvilEngineWeb.Ws.EventDeliveryTest do
     Map.merge(
       %{
         admin_override: false,
+        observe_all: false,
         accessible_lanes: [],
         identity_id: "user-1",
         topic: "engine:events"
@@ -18,6 +19,31 @@ defmodule EvilEngineWeb.Ws.EventDeliveryTest do
 
   defp envelope(type, data \\ %{}) do
     %{"type" => type, "data" => data, "occurredAt" => "2026-08-22T12:00:00Z"}
+  end
+
+  describe "observe_all" do
+    test "delivers every event type on every topic without a lane claim" do
+      observer = assigns(%{observe_all: true, accessible_lanes: [], identity_id: "observer"})
+
+      assert EventDelivery.should_deliver?(
+               envelope("FlowNodeInstanceStarted", %{"laneName" => "Management"}),
+               observer
+             )
+
+      assert EventDelivery.should_deliver?(
+               envelope("ProcessInstanceStateChanged", %{
+                 "startedById" => "someone-else",
+                 "hasLanelessFlowNode" => false,
+                 "laneNames" => ["Management"]
+               }),
+               observer
+             )
+
+      assert EventDelivery.should_deliver?(
+               envelope("UnknownEnvelopeType", %{"laneName" => "Management"}),
+               observer
+             )
+    end
   end
 
   describe "admin_override" do

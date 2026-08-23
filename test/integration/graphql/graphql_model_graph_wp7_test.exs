@@ -18,11 +18,11 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
   alias EvilEngine.BPMN.ModelCache
 
   @admin_claims %{"sub" => "admin", "zeeky_boogie_doog" => true}
-  @lane_default_claims %{"sub" => "lane-default-user", "lane:default" => true}
+  @lane_default_claims %{"sub" => "lane-default-user", "lane:default" => "write"}
   # `user_task_with_lane.bpmn` puts every flow node (including the start
   # event) in a lane named "Management" — the starter must hold that claim
   # or `Api.check_start_lane/4` rejects the start with `{:error, :not_found}`.
-  @lane_management_claims %{"sub" => "lane-management-user", "lane:Management" => true}
+  @lane_management_claims %{"sub" => "lane-management-user", "lane:Management" => "write"}
 
   @flow_node_query """
   query($id: ID!) {

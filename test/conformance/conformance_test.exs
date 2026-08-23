@@ -35,7 +35,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
            "sub" => "conformance-#{user_id}",
            "provider" => "conformance-fake",
            "deploy_bpmn" => true,
-           "lane:default" => true
+           "lane:default" => "write"
          }
        }}
     end

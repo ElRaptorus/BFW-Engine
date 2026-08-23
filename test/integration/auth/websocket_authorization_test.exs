@@ -41,7 +41,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     {201, body} = http_start(
       "LanedUserTask",
       %{},
-      %{"sub" => "starter-user", "lane:Management" => true}
+      %{"sub" => "starter-user", "lane:Management" => "write"}
     )
 
     process_instance_id = body["processInstanceId"]
@@ -73,7 +73,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     end
 
     test "nonexistent PI is rejected" do
-      identity = make_identity(%{id: "user", claims: %{"lane:Management" => true}})
+      identity = make_identity(%{id: "user", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
 
       assert {:error, %{reason: "not_found"}} =
@@ -95,11 +95,26 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "user with matching lane claim can join" do
       process_instance_id = start_laned_process()
 
-      identity = make_identity(%{id: "lane-user", claims: %{"lane:Management" => true}})
+      identity = make_identity(%{id: "lane-user", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
                subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+    end
+
+    test "user with read-only lane claim can join" do
+      process_instance_id = start_laned_process()
+
+      identity = make_identity(%{id: "lane-reader", claims: %{"lane:Management" => "read"}})
+      socket = connect_socket(identity)
+
+      assert {:ok, _, _socket} =
+               subscribe_and_join(
+                 socket,
+                 EvilEngineWeb.Ws.EngineChannel,
+                 "process_instance:#{process_instance_id}",
+                 %{}
+               )
     end
 
     test "admin can join any PI" do
@@ -112,10 +127,25 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
                subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
 
+    test "observe_all can join a foreign-lane PI" do
+      process_instance_id = start_laned_process()
+
+      identity = make_identity(%{id: "observer", claims: %{"observe_all" => true}})
+      socket = connect_socket(identity)
+
+      assert {:ok, _, _socket} =
+               subscribe_and_join(
+                 socket,
+                 EvilEngineWeb.Ws.EngineChannel,
+                 "process_instance:#{process_instance_id}",
+                 %{}
+               )
+    end
+
     test "user with default lane claim can join PI with default lane" do
       process_instance_id = start_default_lane_process()
 
-      identity = make_identity(%{id: "default-lane-user", claims: %{"lane:default" => true}})
+      identity = make_identity(%{id: "default-lane-user", claims: %{"lane:default" => "write"}})
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
@@ -187,7 +217,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "laned FNI event delivered when subscriber has matching lane" do
       process_instance_id = start_laned_process()
 
-      identity = make_identity(%{id: "lane-user", claims: %{"lane:Management" => true}})
+      identity = make_identity(%{id: "lane-user", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
 
       {:ok, _, socket} =
@@ -286,7 +316,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
           %{}
         )
 
-      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => "write"})
       wait_for_process_instance(process_instance_id)
       events = collect_pushes(400)
 
@@ -328,7 +358,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
           %{}
         )
 
-      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => "write"})
       wait_for_process_instance(process_instance_id)
       events = collect_pushes(800)
 
@@ -383,7 +413,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     end
 
     test "subscriber with Management receives live Management FNI events on engine:events" do
-      identity = make_identity(%{id: "lane-observer", claims: %{"lane:Management" => true}})
+      identity = make_identity(%{id: "lane-observer", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
       {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
 
@@ -403,7 +433,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     end
 
     test "user_tasks:pending delivers Management UserTaskCreated with lane:Management" do
-      identity = make_identity(%{id: "inbox-lane-user", claims: %{"lane:Management" => true}})
+      identity = make_identity(%{id: "inbox-lane-user", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
       {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
 
@@ -429,7 +459,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     end
 
     test "user_tasks:pending delivers Management UserTaskFinished with lane:Management" do
-      identity = make_identity(%{id: "inbox-finish-user", claims: %{"lane:Management" => true}})
+      identity = make_identity(%{id: "inbox-finish-user", claims: %{"lane:Management" => "write"}})
       process_instance_id = deploy_and_start_laned()
       {:ok, user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
 
@@ -441,7 +471,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
           %{}
         )
 
-      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => "write"})
       wait_for_process_instance(process_instance_id)
       events = collect_pushes(800)
 
@@ -458,7 +488,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
       {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
 
-      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => true})
+      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => "write"})
       wait_for_process_instance(process_instance_id)
       events = collect_pushes(800)
 
@@ -470,7 +500,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     deploy_unique("user_task_with_lane.bpmn")
 
     {201, body} =
-      http_start("LanedUserTask", %{}, %{"sub" => "starter-user", "lane:Management" => true})
+      http_start("LanedUserTask", %{}, %{"sub" => "starter-user", "lane:Management" => "write"})
 
     body["processInstanceId"]
   end
@@ -482,7 +512,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       http_start(
         "LanelessStartManagementTask",
         %{},
-        %{"sub" => "starter-user", "lane:Management" => true}
+        %{"sub" => "starter-user", "lane:Management" => "write"}
       )
 
     body["processInstanceId"]

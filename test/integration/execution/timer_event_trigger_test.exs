@@ -92,9 +92,21 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
 
       flow_node_instance = find_timer_fni!(process_instance_id)
 
-      claims_with_lane = %{"lane:Operations" => true}
+      claims_with_lane = %{"lane:Operations" => "write"}
       {200, body} = http_trigger_timer_event(flow_node_instance.id, claims_with_lane)
       assert body["triggered"] == true
+    end
+
+    test "403 when caller has a read claim on the timer lane" do
+      process_instance_id = deploy_and_start_laned_timer_catch()
+      Process.sleep(500)
+
+      flow_node_instance = find_timer_fni!(process_instance_id)
+
+      {403, body} = http_trigger_timer_event(flow_node_instance.id, %{"lane:Operations" => "read"})
+      assert body["error"] == "forbidden"
+      assert body["requiredClaim"] == "lane:Operations"
+      assert body["requiredValue"] == "write"
     end
   end
 
@@ -150,7 +162,7 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
 
   defp deploy_and_start_laned_timer_catch do
     {201, _} = http_deploy("timer_catch_laned_trigger.bpmn")
-    {201, body} = http_start("TimerCatchLanedTrigger", %{}, %{"lane:Operations" => true})
+    {201, body} = http_start("TimerCatchLanedTrigger", %{}, %{"lane:Operations" => "write"})
     body["processInstanceId"]
   end
 

@@ -11,8 +11,6 @@ defmodule EvilEngine.Persistence.DataObjectPolicyTest do
   alias EvilEngine.Persistence.Resources.DataObject, as: DataObjectResource
   alias EvilEngine.Persistence.Resources.DataObjectWrite
 
-  require Ash.Query
-
   alias Ecto.Adapters.SQL.Sandbox
   alias EvilEngine.Persistence.Repo
 
@@ -46,6 +44,17 @@ defmodule EvilEngine.Persistence.DataObjectPolicyTest do
 
     test "ZeekyBoogieDoog bypass allows full access" do
       actor = %{zeeky_boogie_doog: true}
+
+      result =
+        DataObjectResource
+        |> Ash.Query.limit(10)
+        |> Ash.read(domain: Domain, actor: actor)
+
+      assert {:ok, _records} = result
+    end
+
+    test "ObserveAll bypass allows read access" do
+      actor = %{observe_all: true, accessible_lanes: []}
 
       result =
         DataObjectResource

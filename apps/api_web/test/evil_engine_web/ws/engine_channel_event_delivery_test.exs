@@ -79,7 +79,7 @@ defmodule EvilEngineWeb.Ws.EngineChannelEventDeliveryTest do
         id: "test-user",
         roles: [],
         groups: [],
-        claims: %{"lane:default" => true}
+        claims: %{"lane:default" => "write"}
       }
 
       socket =
@@ -181,7 +181,7 @@ defmodule EvilEngineWeb.Ws.EngineChannelEventDeliveryTest do
       "sub" => "test-user",
       "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix(),
       "iat" => DateTime.utc_now() |> DateTime.to_unix(),
-      "lane:default" => true
+      "lane:default" => "write"
     }
 
     merged = Map.merge(defaults, claims)

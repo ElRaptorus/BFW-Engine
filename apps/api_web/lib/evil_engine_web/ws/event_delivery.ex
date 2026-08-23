@@ -7,8 +7,8 @@ defmodule EvilEngineWeb.Ws.EventDelivery do
   envelope `type` string (explicit allow-lists) rather than field presence:
   JSON `null` and a missing `laneName` are indistinguishable via `get_in/2`.
 
-  `admin_override` is zeeky-only. A future observe-all claim must be a
-  separate assign so write bypass stays locked to `zeeky_boogie_doog`.
+  `admin_override` is zeeky-only. `observe_all` is a separate unbounded-read
+  assign and never implies write bypass.
   """
 
   @engine_level_types MapSet.new([
@@ -67,7 +67,9 @@ defmodule EvilEngineWeb.Ws.EventDelivery do
 
   @type assigns :: %{
           optional(:admin_override) => boolean(),
+          optional(:observe_all) => boolean(),
           optional(:accessible_lanes) => [String.t()],
+          optional(:writable_lanes) => [String.t()],
           optional(:identity_id) => String.t() | nil,
           optional(:topic) => String.t() | nil
         }
@@ -75,13 +77,17 @@ defmodule EvilEngineWeb.Ws.EventDelivery do
   @doc """
   Return whether `payload` should be pushed to the subscriber described by `assigns`.
 
-  `assigns` is expected to contain `:admin_override`, `:accessible_lanes`,
-  `:identity_id`, and `:topic`. Missing keys are treated as the restrictive default.
+  `assigns` is expected to contain `:admin_override`, `:observe_all`,
+  `:accessible_lanes`, `:identity_id`, and `:topic`. Missing keys are
+  treated as the restrictive default.
   """
   @spec should_deliver?(map(), map()) :: boolean()
   def should_deliver?(payload, assigns) when is_map(payload) and is_map(assigns) do
     cond do
       assigns[:admin_override] == true ->
+        true
+
+      assigns[:observe_all] == true ->
         true
 
       pending_user_tasks_topic?(assigns[:topic]) ->
@@ -108,7 +114,7 @@ defmodule EvilEngineWeb.Ws.EventDelivery do
 
   `SinkFailed` is intentionally absent: the WebSocket sink rejects it in
   `accepts?/1`, so it never reaches this filter. Unknown envelope types are
-  dropped (admin override still delivers them).
+  dropped (`admin_override` and `observe_all` still deliver them).
   """
   @spec classified_types() :: %{
           engine_level: [String.t()],

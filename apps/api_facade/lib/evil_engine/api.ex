@@ -993,7 +993,7 @@ defmodule EvilEngine.Api do
   and lane access before delegating to Execution.
   """
   @spec finish_user_task(String.t(), term(), struct(), keyword()) ::
-          :ok | {:error, term()} | {:error, :payload_too_large, map()}
+          :ok | {:error, term()} | {:error, :payload_too_large, map()} | forbidden_error()
   def finish_user_task(flow_node_instance_id, result, identity, opts \\ []) do
     with {:ok, flow_node_instance} <- get_flow_node_instance(flow_node_instance_id),
          :ok <- validate_user_task_type(flow_node_instance),
@@ -1015,7 +1015,7 @@ defmodule EvilEngine.Api do
   delegating to Execution.
   """
   @spec cancel_user_task(String.t(), String.t() | nil, struct(), keyword()) ::
-          :ok | {:error, term()}
+          :ok | {:error, term()} | forbidden_error()
   def cancel_user_task(flow_node_instance_id, reason, identity, opts \\ []) do
     with {:ok, flow_node_instance} <- get_flow_node_instance(flow_node_instance_id),
          :ok <- validate_user_task_type(flow_node_instance),
@@ -1163,7 +1163,8 @@ defmodule EvilEngine.Api do
   Validates FNI existence, timer event type, active/waiting state,
   and lane access before delegating to Execution.
   """
-  @spec trigger_timer_event(String.t(), struct(), keyword()) :: :ok | {:error, term()}
+  @spec trigger_timer_event(String.t(), struct(), keyword()) ::
+          :ok | {:error, term()} | forbidden_error()
   def trigger_timer_event(flow_node_instance_id, identity, opts \\ []) do
     with {:ok, flow_node_instance} <- get_flow_node_instance(flow_node_instance_id),
          :ok <- validate_timer_event_type(flow_node_instance),

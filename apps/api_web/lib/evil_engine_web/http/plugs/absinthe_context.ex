@@ -3,9 +3,12 @@ defmodule EvilEngineWeb.Http.Plugs.AbsintheContext do
   Bridges the JWT-derived `%Identity{}` into the Absinthe/Ash context
   so that Ash policies can enforce visibility rules on GraphQL queries.
 
-  Extracts `lane:*` claim keys into a flat `accessible_lanes` list and
-  sets `zeeky_boogie_doog` for admin-override policy checks.
+  Extracts `lane:*` claim keys (`\"read\"` or `\"write\"`) into
+  `accessible_lanes`, `\"write\"` into `writable_lanes`, and sets
+  `observe_all` plus `zeeky_boogie_doog` for policy checks.
   """
+
+  alias EvilEngine.Api.Validation
 
   @behaviour Plug
 
@@ -34,7 +37,9 @@ defmodule EvilEngineWeb.Http.Plugs.AbsintheContext do
   def prepare_actor(identity) do
     %{
       id: identity.id,
-      accessible_lanes: extract_lane_names(identity.claims),
+      accessible_lanes: Validation.accessible_lanes(identity),
+      writable_lanes: Validation.writable_lanes(identity),
+      observe_all: Validation.observe_all?(identity),
       zeeky_boogie_doog: identity.claims["zeeky_boogie_doog"] == true,
       deploy_bpmn: identity.claims["deploy_bpmn"] == true,
       delete_bpmn: identity.claims["delete_bpmn"] == true,
@@ -48,14 +53,4 @@ defmodule EvilEngineWeb.Http.Plugs.AbsintheContext do
       purge_audit_data: identity.claims["purge_audit_data"] == true
     }
   end
-
-  defp extract_lane_names(claims) when is_map(claims) do
-    claims
-    |> Enum.filter(fn {key, value} ->
-      is_binary(key) and String.starts_with?(key, "lane:") and value == true
-    end)
-    |> Enum.map(fn {key, _} -> String.trim_leading(key, "lane:") end)
-  end
-
-  defp extract_lane_names(_), do: []
 end
