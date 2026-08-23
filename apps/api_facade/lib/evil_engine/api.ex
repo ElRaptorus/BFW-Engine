@@ -2,8 +2,8 @@ defmodule EvilEngine.Api do
   @moduledoc """
   The single service-layer facade for ThomasTheDaemonEngine.
 
-  Every wire adapter (REST, GraphQL, WebSocket, future gRPC sidecar)
-  and every plugin converges on this module instead of calling Ash
+  Every wire adapter (REST, GraphQL, WebSocket) and every in-BEAM
+  plugin converges on this module instead of calling Ash
   resources directly. This concentrates authorization, transaction
   boundaries, and cache wiring in one place.
 

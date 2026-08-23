@@ -685,7 +685,7 @@ Plugins interact with the DMN subsystem through two channels:
 | DRD chain inspection | `facade.decisions.evaluate` with trace | `drd_chain_orchestrator` |
 | CL3 expression showcase | Full evaluation + expression mapping | `boxed_expression_showcase` |
 
-See `examples/plugins/business_rules/` in the repository root for all Elixir examples and `examples/sidecar-js/` for JS sidecar examples.
+See `examples/plugins/business_rules/` in the repository root for all Elixir examples. `examples/sidecar-js/` holds JS sketches against a mocked SDK; they are **not supported in v1** (PLUG-D1).
 
 ---
 

@@ -20,8 +20,8 @@ Arrows show the **permitted** direction of runtime dependencies:
 - **API wire → `EvilEngine.Api` → Core / Peripheral** for commands (ingress flow).
 - **Core → Peripheral / External** for typed events via `EngineEventBus` (egress flow).
 - **Core never calls API.** Peripheral never blocks Core.
-- **Plugins live at the edges** (`peripheral_plugins`, loaded either in-BEAM
-  or as gRPC sidecars) and call `EvilEngine.Api` **directly** for commands
+- **Plugins live at the edges** (`peripheral_plugins`, loaded in-BEAM in v1;
+  a gRPC sidecar host is deferred, PLUG-D1) and call `EvilEngine.Api` **directly** for commands
   — no HTTP round-trip, no wire-format re-encode.
 
 ## 2. Full architecture (Mermaid)
@@ -34,7 +34,7 @@ flowchart TB
     Studio["Bifrost Forge World Studio (React · @elraptorus/daemonengine_client)"]
     OtherClients["CLI · dashboards · 3rd-party clients"]
     Obs["External observability · Prometheus · Datadog · OTel · Kafka"]
-    Sidecars["gRPC plugin sidecars · Go · Rust · Python · Node"]
+    Sidecars["gRPC plugin sidecars · deferred PLUG-D1"]
   end
 
   %% ============ Row 2: API wire surfaces ============
@@ -175,7 +175,7 @@ plugin below converges here:
 | GraphQL resolver in `api_web` | same function call, after Absinthe decoding |
 | WebSocket handler in `api_web` | same function call, after channel decoding |
 | In-BEAM plugin (`peripheral_plugins`, §9.2 mode 1) | **same function call — no HTTP round-trip, no JSON re-encode, no auth replay** |
-| gRPC sidecar plugin (§9.2 mode 2) | bridge in `peripheral_plugins` decodes the proto into a call on the same function |
+| gRPC sidecar plugin (§9.2 mode 2) | **Deferred (PLUG-D1).** Not implemented in v1. A future bridge in `peripheral_plugins` would decode the proto into a call on the same function |
 
 This is the guarantee behind the diagram's heavy arrow from `peri_plugins`
 to `api_svc` (labelled *direct in-process call · no HTTP*). Validation,
@@ -218,8 +218,9 @@ Three distinct concerns, all decoupled from Core:
    `/stats` (§11). Fed exclusively by the `telemetry` EventSink. **No
    Prometheus, no OpenTelemetry in v1 core** — those integrations ship as
    plugin sinks.
-3. **`peripheral_plugins`** — plugin registry, gRPC sidecar bridge, conflict
-   detector (§9.3). Plugins register under a supervised task tree so a
+3. **`peripheral_plugins`** — plugin registry, in-BEAM loader, conflict
+   detector (§9.3). A gRPC sidecar bridge is specified in §9.2.3 but deferred
+   (PLUG-D1). Plugins register under a supervised task tree so a
    crashing plugin cannot take down the engine. This is also where plugin
    EventSinks live on the way back into `EngineEventBus`.
 

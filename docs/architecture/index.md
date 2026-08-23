@@ -7,7 +7,7 @@ Each file covers one architectural aspect. Documentation grows as design decisio
 ## Topics
 
 - **[authorization.md](authorization.md)**: JWT identity mapping, claim dictionary, lane-as-claim, PI/FNI visibility rules, per-action authorization, plugin identity, execution-time detachment, WebSocket lane filtering
-- **[plugins.md](plugins.md)**: Plugin categories (behaviours), hybrid loading model (in-BEAM + gRPC sidecar), lifecycle phases, engine_facade, failure isolation, SDK packages
+- **[plugins.md](plugins.md)**: Plugin categories (behaviours), v1 in-BEAM loading model (gRPC sidecar deferred, PLUG-D1), lifecycle phases, engine_facade, failure isolation, SDK packages
 - **[data-model.md](data-model.md)** — Postgres schema: catalog tables, execution-state tables, audit/communication tables, derived views, LZ4 compression, partitioning rationale
 - **[event-system.md](event-system.md)**: EngineEventBus, EventSink behaviour, three built-in sinks (console, telemetry, websocket), plugin sinks, in-process PubSub topics, fan-out semantics
 - **[api.md](api.md)** — REST surface, GraphQL surface (persistence-backed + Process Model graph), WebSocket (Phoenix Channels), OpenAPI/SDL, API-vs-Core boundary rule

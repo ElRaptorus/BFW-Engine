@@ -23,7 +23,7 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 
-> **Status**: **Phase 6 in progress** GraphQL polish and Sidecar plugin support.
+> **Status**: **Phase 6 completed** BPMN Spec coverage achieved. Ready for full scale battle testing and hardening.
 
 ---
 
@@ -307,7 +307,7 @@ apps/
 ├── api_auth/                # JWT validator (HS256 / RS256 / ES256 / JWKS)
 ├── peripheral_persistence/  # Ash + AshPostgres + RetentionRunner
 ├── peripheral_telemetry/    # :telemetry counters backing /stats
-├── peripheral_plugins/      # Plugin registry + gRPC sidecar bridge
+├── peripheral_plugins/      # Plugin registry + in-BEAM loader (gRPC sidecar deferred, PLUG-D1)
 └── engine_sdk/              # Public behaviours for plugin authors
 ```
 

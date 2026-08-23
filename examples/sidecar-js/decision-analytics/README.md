@@ -1,5 +1,10 @@
 # Decision Analytics Sidecar
 
+> **Not supported in v1 (PLUG-D1).** This directory is a sketch against a
+> mocked SDK. The engine does not host gRPC sidecar plugins. Non-Elixir
+> work in v1 uses the HTTP Service Task, the public API, or (Phase 7) an
+> in-BEAM plugin that execs `node` / `python3`.
+
 Real-time DMN decision analytics from a Node.js gRPC sidecar plugin.
 
 ## What this demonstrates
@@ -28,7 +33,10 @@ Pure TypeScript modules (`AnalyticsCollector`, `LatencyHistogram`, `AnomalyDetec
 
 ## Forward-looking integration
 
-Live integration requires the **gRPC sidecar bridge** planned for BPMN Implementation Phase 5. See [Implementation Phases — Phase 5 (sidecar bridge)](../../../docs/ImplementationPhases.md). Until then, `src/main.ts` uses a stub `SidecarPlugin` object that matches the `@elraptorus/daemonengine_sdk` contract shape.
+Live integration would require a gRPC sidecar host. That host is **deferred
+post-v1** (PLUG-D1); Phase 6 closed without it. `src/main.ts` uses a stub
+`SidecarPlugin` object that matches a sketched `@elraptorus/daemonengine_sdk`
+contract shape. Do not treat this example as loadable.
 
 ## Configuration
 

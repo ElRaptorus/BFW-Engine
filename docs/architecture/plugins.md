@@ -65,9 +65,11 @@ end
 
 The **engine, not the plugin, owns lifecycle.** Plugins never self-register
 from their own `Application.start/2` and never decide *when* they take
-effect. Both tiers below feed the same `EvilEngine.Plugin.Registry`, so
-every consumer downstream (Service Task dispatch, EngineEventBus fan-out,
-REST API extension routing) is oblivious to which tier a registration came from.
+effect. v1 implements the in-BEAM tier only (PLUG-D1). The sidecar tier
+in §9.2.3 is a deferred design. Both tiers, when present, feed the same
+`EvilEngine.Plugin.Registry`, so every consumer downstream (Service Task
+dispatch, EngineEventBus fan-out, REST API extension routing) is
+oblivious to which tier a registration came from.
 
 #### 9.2.1 Lifecycle phases (uniform across both tiers)
 
@@ -127,10 +129,19 @@ Highest performance, idiomatic Elixir.
 > release stripping. The Elixir ecosystem's idiomatic answer is "compile
 > the plugin into the release," which the engine adopts. This trade-off
 > matches Camunda Zeebe (also JVM-side) and every other in-process
-> Elixir plugin system in production. Operators who need filesystem
-> drop-in discovery use the sidecar tier (§9.2.3).
+> Elixir plugin system in production. The filesystem-drop-in sidecar tier
+> is specified in §9.2.3 but is **not implemented in v1** (PLUG-D1). v1
+> operators who need other-language work use the built-in HTTP Service
+> Task, the public API, or an in-BEAM plugin that execs a local interpreter.
 
 #### 9.2.3 Sidecar plugins
+
+> **Deferred — not in v1 (PLUG-D1).** There is no `SidecarLoader`, no plugin
+> gRPC protocol, and no process host. `EVIL_PLUGINS_SIDECAR_*` env vars are
+> reserved no-ops. The remainder of this section is the retained design for
+> a possible post-v1 revisit, not a v1 contract. Non-Elixir code in v1 uses
+> the built-in HTTP Service Task, REST/GraphQL/WebSocket, or an in-BEAM
+> plugin that execs a local interpreter (Phase 7 cookbook).
 
 Language-agnostic. The engine drives discovery and lifecycle from a
 filesystem directory.
@@ -170,17 +181,14 @@ filesystem directory.
   Quarantined plugins are not auto-revived in v1; operator restarts the
   engine.
 
-> **Integration test fixtures (Phase 4)**
+> **Integration test fixtures**
 >
-> Multi-language sidecar fixture plugins live at `test/fixtures/plugins/`
-> (project root). Each subdirectory is a minimal but realistic sidecar:
-> `plugin.toml` + runnable binary/script implementing at least one plugin
-> category. **Five languages are required** to prove the language-agnostic
-> claim: Elixir (escript), Python, Ruby, C# (dotnet), and Node.js.
-> Integration tests set `EVIL_PLUGINS_SIDECAR_DIR` to this fixture
-> directory and reset it after the test run to avoid cross-test
-> interference. See [`testing.md`](./testing.md) §12.4.8 and
-> [`ImplementationPhases.md`](../ImplementationPhases.md) Phase 4 step 3.
+> Multi-language sidecar fixture plugins were planned at `test/fixtures/plugins/`
+> (project root). That CI obligation is **not in v1** (PLUG-D1). If the sidecar
+> host is revisited post-v1, fixtures would live there: `plugin.toml` + runnable
+> binary/script per subdirectory, covering Elixir (escript), Python, Ruby, C#
+> (dotnet), and Node.js, with `EVIL_PLUGINS_SIDECAR_DIR` pointed at the fixture
+> directory and reset after the run. See [`testing.md`](./testing.md) §12.4.8.
 
 #### 9.2.4 `HandlerContext` (Core → `FlowNodeHandler`)
 
@@ -320,4 +328,4 @@ The `examples/` directory contains copy-paste starters and runnable demos coveri
 
 **Business Rules examples** demonstrate the observation-only interaction pattern introduced with plugins observe BRT execution via event sinks and analyze results via `facade.decisions` closures, but never replace the BRT execution path. BRT execution is exclusively handled by the engine's built-in `"feel"` and `"dmn"` modes.
 
-**JS Sidecar examples** are forward-looking — built and unit-tested against a mocked `@elraptorus/daemonengine_sdk` interface. Live integration with the gRPC sidecar bridge is delivered in BPMN Implementation Phase 5 (`docs/ImplementationPhases.md`).
+**JS Sidecar examples** are sketches against a mocked `@elraptorus/daemonengine_sdk` interface. They are **not supported in v1** (PLUG-D1). Live gRPC sidecar integration is deferred post-v1.

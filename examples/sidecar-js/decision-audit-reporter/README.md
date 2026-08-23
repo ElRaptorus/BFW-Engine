@@ -1,5 +1,8 @@
 # Decision Audit Reporter (JS gRPC Sidecar)
 
+> **Not supported in v1 (PLUG-D1).** Sketch only — mocked SDK, no sidecar
+> host. Will not load on a v1 engine. See `examples/README.md`.
+
 Comprehensive post-execution decision audit reports from a Node.js sidecar plugin.
 
 ## What this demonstrates
@@ -33,7 +36,7 @@ The sidecar never replaces DMN execution on the BEAM. It observes BRT completion
 
 ## Forward-looking
 
-This example is built and unit-tested against a **mocked** `SidecarPlugin` interface in `src/types.ts`. Live integration requires the gRPC sidecar bridge from **BPMN Phase 5** (`@elraptorus/daemonengine_sdk` `SidecarPlugin` plus facade RPCs for `getFlowNodeInstance` and `evaluateDecision`).
+This example is built and unit-tested against a **mocked** `SidecarPlugin` interface in `src/types.ts`. Live integration would require a gRPC sidecar host, which is **deferred post-v1** (PLUG-D1). Do not treat this example as a Phase 5/6 deliverable.
 
 ## Fixtures
 

@@ -72,7 +72,7 @@ Infrastructure adapters. May import Core, never imported by Core.
 |-----|---------|
 | `peripheral_persistence` | Ash + AshPostgres resources, RetentionRunner |
 | `peripheral_telemetry` | `:telemetry` counters, /stats data |
-| `peripheral_plugins` | Plugin registry, gRPC bridge for sidecar plugins |
+| `peripheral_plugins` | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
 
 ### API (`apps/api_*`)
 
@@ -90,7 +90,7 @@ The 4 patterns agents encounter most:
 
 ### 1. Ash Code Interface as Single Service Layer
 
-`EvilEngine.Api` is the convergence point for all consumers. Every wire adapter (REST, GraphQL, WebSocket) and every plugin (in-BEAM and gRPC) calls `EvilEngine.Api.*` actions. No consumer bypasses this layer to call Core directly.
+`EvilEngine.Api` is the convergence point for all consumers. Every wire adapter (REST, GraphQL, WebSocket) and every in-BEAM plugin calls `EvilEngine.Api.*` actions. No consumer bypasses this layer to call Core directly.
 
 ### 2. Dependency Direction
 
@@ -102,4 +102,4 @@ All engine state changes emit events through the EngineEventBus. Consumers (WebS
 
 ### 4. Hybrid Plugin Model
 
-Two plugin tiers feed the same Plugin Registry: in-BEAM OTP-app plugins for maximum performance and gRPC sidecar plugins for language-agnostic extensibility. Downstream consumers (Service Task dispatch, EngineEventBus fan-out) are oblivious to the plugin's origin — they query the registry by capability.
+v1 loads **in-BEAM OTP-app plugins only** (PLUG-D1). A gRPC sidecar host is deferred. Downstream consumers (Service Task dispatch, EngineEventBus fan-out) query the registry by capability. Non-Elixir work in v1 uses the HTTP Service Task, the public API, or an in-BEAM plugin that execs a local interpreter.

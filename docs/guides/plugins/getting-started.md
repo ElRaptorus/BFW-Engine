@@ -54,18 +54,17 @@ Highest performance. The plugin is an OTP application bundled into the engine re
 
 The plugin's `Application.start/2` should be a no-op stub. Registration happens exclusively through `on_load`.
 
-### Sidecar Plugins
+### Sidecar Plugins — **not in v1 (PLUG-D1)**
 
-Language-agnostic. The engine discovers plugins in `EVIL_PLUGINS_SIDECAR_DIR` (default `~/.evil/engine/plugins`). Each subdirectory contains a `plugin.toml` manifest:
+The gRPC sidecar host is **deferred**. `EVIL_PLUGINS_SIDECAR_DIR` and related env vars are reserved no-ops; there is no process scanner and no plugin protocol in v1.
 
-```toml
-name       = "my_datadog_sink"
-version    = "1.2.0"
-exec       = "./my-datadog-sink"
-categories = ["event_sink"]
-```
+For non-Elixir work in v1, use:
 
-The engine spawns the binary and communicates via gRPC.
+- the built-in HTTP Service Task,
+- the public REST / GraphQL / WebSocket API, or
+- an in-BEAM plugin that execs a local interpreter (Phase 7 cookbook: `python_script` / `node_script` Service Task handlers).
+
+The sidecar design is retained in [plugins.md](../../architecture/plugins.md) §9.2.3 as a post-v1 sketch. `examples/sidecar-js/` is **not supported**.
 
 ### Include / Exclude Lists
 

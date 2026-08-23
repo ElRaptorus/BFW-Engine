@@ -106,9 +106,11 @@ Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_sdk` pac
 
 ---
 
-### JS Sidecar Plugin Examples (`sidecar-js/`)
+### JS Sidecar Plugin Sketches (`sidecar-js/`) — **not supported in v1 (PLUG-D1)**
 
-Forward-looking Node.js sidecar plugins built against the `@elraptorus/daemonengine_sdk` gRPC interface. Unit-tested with a mocked SDK — live integration requires the gRPC sidecar bridge from BPMN Implementation Phase 5 (see `docs/ImplementationPhases.md`).
+Node.js sketches against a mocked SDK gRPC shape. They are **not shipped**, not a Phase 5/6 deliverable, and will not load on a v1 engine. The gRPC sidecar host is deferred. Keep the directory as design notes only.
+
+Non-Elixir **work** in v1 belongs on the built-in HTTP Service Task, the public API, or (Phase 7 cookbook) an in-BEAM Service Task that execs `python3` / `node`.
 
 | Example | Difficulty | Pattern | Description |
 |---------|------------|---------|-------------|

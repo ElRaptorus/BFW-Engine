@@ -30,13 +30,9 @@ trust boundary is drawn at the HTTP edge:
 |------|-------------|---------|
 | **Inside the trust boundary** | Fully trusted | Engine process, in-BEAM plugins, database |
 | **On the trust boundary** | Authenticated + authorized | REST/GraphQL/WS callers with valid JWT |
-| **Outside the trust boundary** | Untrusted | Sidecar plugin OS processes, network clients without JWT |
+| **Outside the trust boundary** | Untrusted | Network clients without JWT. A future gRPC sidecar host (PLUG-D1, deferred) would also sit here as OS child processes |
 
-Sidecar plugins run as separate OS processes and communicate via gRPC. They are
-outside the process boundary but inside the operator's deployment boundary — the
-operator explicitly placed them in `EVIL_PLUGINS_SIDECAR_DIR`. They receive a
-privileged `plugin:<name>` identity via the gRPC bridge
-([plugins.md](plugins.md) §9.2.3).
+v1 plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation. The sidecar design in [plugins.md](plugins.md) §9.2.3 (separate OS processes, gRPC, `EVIL_PLUGINS_SIDECAR_DIR`) is deferred post-v1.
 
 ---
 
@@ -184,7 +180,7 @@ partition DDL exists.
 | Plugin tier | Process isolation | Identity | Trust rationale |
 |-------------|------------------|----------|-----------------|
 | **In-BEAM** (OTP app) | None — same BEAM VM | `plugin:<name>` (privileged, bypasses claim checks) | Operator compiled it into the release; same trust as engine code |
-| **Sidecar** (gRPC) | Full OS-process isolation | `plugin:<name>` (privileged, via gRPC bridge) | Operator placed it in `EVIL_PLUGINS_SIDECAR_DIR`; binary runs as a child process |
+| **Sidecar** (gRPC) | Full OS-process isolation (design only) | `plugin:<name>` (privileged, via gRPC bridge) | **Not in v1 (PLUG-D1).** Spec: operator would place it in `EVIL_PLUGINS_SIDECAR_DIR`; binary would run as a child process |
 
 Both tiers:
 - Run with a privileged identity that bypasses all engine claim checks ([authorization.md](authorization.md) §7).
@@ -401,7 +397,7 @@ reference when commissioning a penetration test.
 | **A07 — Auth Failures** | Addressed | Stateless JWT; constant-time HMAC; uniform 401 responses; no session management; no login endpoint. Brute-force: delegated to IdP + proxy (see above) |
 | **A08 — Data Integrity Failures** | Addressed | JWT signature verification on every request; BPMN deploy-time linter gate; JSON Schema validation on all inbound payloads; no deserialization of untrusted binary formats |
 | **A09 — Logging & Monitoring Failures** | Partially addressed | Structured JSON logging for all auth events; `/stats` counters; console and websocket event sinks. The `process_instance_events` table is retained for migration compatibility but is no longer populated (the built-in database sink was removed). Gap: no dedicated security-event log stream or SIEM integration in v1 |
-| **A10 — SSRF** | Not applicable | The engine does not make outbound HTTP requests based on user input. Plugin sidecar communication is local gRPC to operator-configured binaries. JWKS URL is operator-configured (not user-supplied) |
+| **A10 — SSRF** | Not applicable | The engine does not make outbound HTTP requests based on user input. JWKS URL is operator-configured (not user-supplied). A future sidecar host would speak local gRPC to operator-configured binaries (PLUG-D1, not in v1) |
 
 ### Additional pentest-relevant controls
 

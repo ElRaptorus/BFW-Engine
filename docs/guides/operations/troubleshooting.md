@@ -73,8 +73,8 @@ See [Observability](observability.md).
 **Checks:**
 - Review logs for `PluginQuarantined` event with the failure reason
 - `on_load` may have raised or returned `{:error, reason}`
-- For sidecars: check the binary exists at the manifest path and has execute permissions
 - For in-BEAM: verify the OTP app is in the release and `:plugin_module` is set in app env
+- Sidecar plugins are **not in v1** (PLUG-D1). `EVIL_PLUGINS_SIDECAR_*` env vars do nothing; a missing sidecar binary is not a v1 failure mode.
 
 Quarantined plugins do not auto-revive — restart the engine after fixing the issue.
 

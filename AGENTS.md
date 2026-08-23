@@ -1964,7 +1964,7 @@ API. Violations of this rule break the architecture.
 | `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
 | `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo), RetentionRunner |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
-| `peripheral_plugins` | Peripheral | Plugin registry, gRPC bridge |
+| `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |
 | `api_facade` | API | `EvilEngine.Api` service-layer facade (no Phoenix dep) |
 | `api_web` | API | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |
@@ -2000,7 +2000,7 @@ The engine ships two npm packages in a pnpm monorepo under `packages/js/`:
 | `examples/plugins/lifecycle_and_api/` | Lifecycle-aware, API consumer, GitHub BPMN auto-deployer examples |
 | `examples/plugins/combined/` | RabbitMQ orchestrator, metrics pipeline |
 | `examples/plugins/business_rules/` | DMN observation & analysis examples: KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD chain orchestrator, boxed expression showcase |
-| `examples/sidecar-js/` | JS gRPC sidecar examples (forward-looking, mocked SDK): decision analytics, decision audit reporter |
+| `examples/sidecar-js/` | JS gRPC sidecar **sketches** (mocked SDK, **not supported in v1**, PLUG-D1): decision analytics, decision audit reporter |
 | `examples/client-js/` | TypeScript client examples (deploy, lifecycle, user tasks, GraphQL, errors, WebSocket, batch, DMN, BRT trace) |
 | `examples/sdk-js/` | TypeScript SDK examples (parse BPMN/DMN, typed payloads, error hierarchy) |
 

@@ -93,10 +93,10 @@ Notable env vars:
 | `EVIL_PI_START_RATE_WINDOW_MS` | Window length in milliseconds for `EVIL_PI_START_RATE_LIMIT`. Used only when the limit is > 0 | `1000` |
 | `EVIL_JSONB_COMPRESSION` | JSONB column compression algorithm for all heavy-payload columns listed in [data-model.md](./data-model.md) §4.2 / §4.3. `lz4` requires Postgres ≥ 14. Setting this changes only the `default_toast_compression` used by new migrations — existing column data retains whatever compression was applied at write time until rewritten. Intended as the Phase-5 safety hatch if LZ4 measures >10% slower than PGLZ on a representative workload | `lz4` |
 | `EVIL_PLUGINS_INBEAM` | **[plugins.md](./plugins.md) §9.2.2**: Comma- or whitespace-separated list of OTP-app names to load as in-BEAM plugins. Order is significant — `on_load` is invoked in list order, sequentially. Apps named here must be present in the release; missing apps are quarantined per [plugins.md](./plugins.md) §9.3. Unset = no in-BEAM plugins | *(unset)* |
-| `EVIL_PLUGINS_SIDECAR_DIR` | **[plugins.md](./plugins.md) §9.2.3**: Filesystem path scanned for sidecar plugin subdirectories with `plugin.toml` manifests. Setting it to an empty string disables sidecar loading entirely | `~/.evil/engine/plugins` |
-| `EVIL_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md) §9.2 + §9.3**: Comma-separated **include** list of plugin names (manifest `name` for sidecars, OTP-app name string for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied | *(unset)* |
-| `EVIL_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md) §9.2 + §9.3**: Comma-separated **exclude** list. Always evaluated against candidates. **Exclude wins** on conflict with `EVIL_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
-| `EVIL_PLUGINS_SIDECAR_RECONNECT_LIMIT` | **[plugins.md](./plugins.md) §9.2.3**: Consecutive failed sidecar process restarts (binary exit + reconnect failure) before the engine quarantines that plugin and emits `Event.PluginQuarantined`. `0` disables the limit (infinite retry — not recommended) | `5` |
+| `EVIL_PLUGINS_SIDECAR_DIR` | **[plugins.md](./plugins.md) §9.2.3**: Reserved. Filesystem path that *would* be scanned for sidecar plugin subdirectories with `plugin.toml` manifests. **Unused in v1** (PLUG-D1) — no `SidecarLoader` exists. Parsed in `runtime.exs` as a no-op. Empty string would disable sidecar loading if the host were implemented | `~/.evil/engine/plugins` |
+| `EVIL_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md) §9.2 + §9.3**: Comma-separated **include** list of plugin names (OTP-app name string for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied. Sidecar names are reserved for a possible post-v1 host | *(unset)* |
+| `EVIL_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md) §9.2 + §9.3**: Comma-separated **exclude** list. Always evaluated against in-BEAM candidates. **Exclude wins** on conflict with `EVIL_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
+| `EVIL_PLUGINS_SIDECAR_RECONNECT_LIMIT` | **[plugins.md](./plugins.md) §9.2.3**: Reserved. Consecutive failed sidecar process restarts before quarantine. **Unused in v1** (PLUG-D1) | `5` |
 
 No `EVIL_OTEL_*` variables exist in v1. **`EVIL_METRICS_ENABLED`** toggles the
 public Prometheus scrape endpoint and in-process reporter startup (`config :peripheral_telemetry, :metrics_enabled`, default `true`).
@@ -206,6 +206,7 @@ EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION=true
 
 # --- Plugins ------------------------------------------------------------------
 # EVIL_PLUGINS_INBEAM=
+# Sidecar vars are reserved no-ops in v1 (PLUG-D1); parsed, unused.
 EVIL_PLUGINS_SIDECAR_DIR=~/.evil/engine/plugins
 # EVIL_PLUGINS_INCLUDE=
 # EVIL_PLUGINS_EXCLUDE=

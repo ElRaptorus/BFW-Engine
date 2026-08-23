@@ -328,7 +328,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 ### 7.1 Plugin → engine calls (engine_facade)
 
-Plugins (in-BEAM and sidecar) run with a **privileged plugin identity**
+Plugins (in-BEAM in v1; sidecar deferred, PLUG-D1) run with a **privileged plugin identity**
 auto-injected by the `engine_facade`:
 
 ```elixir

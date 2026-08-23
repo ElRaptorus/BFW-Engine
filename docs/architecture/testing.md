@@ -307,12 +307,16 @@ Positive-path integration tests verifying the payload-cap eliminations are actua
 - **RESUME-ACTIVE-FROM-FNI**: run a process up to a User Task (FNI in state `active` with an `input_token`), SIGKILL the engine, restart. **Assert:** on restart, the rehydrated PI's in-memory token at that FNI matches exactly the pre-crash `input_token`; no `active_tokens`-style reconciliation is performed; `gateway_pending_arrivals` is empty (no gateway is involved); PI continues cleanly on User Task completion.
 - **RESUME-GATEWAY-PENDING** *(covered by `Resumption.rebuild_join_arrivals/2` + `parallel_gateway_lifecycle_test.exs`)*: run a parallel gateway with 2 of 3 branches arrived, SIGKILL the engine mid-wait, restart. **Assert:** `gateway_pending_arrivals` has exactly 2 rows with the correct `source_branch_sequence_flow_id` values and the correct `arrived_payload`; the third branch's subsequent arrival correctly fires the join; the gateway FNI's `output_token` is the merged result of all 3 branches per the join semantics.
 
-#### 12.4.8 Sidecar plugin integration tests (Phase 4)
+#### 12.4.8 Sidecar plugin integration tests
 
-Sidecar plugin tests exercise the full discovery → manifest parse → Port spawn →
+> **Not a v1 CI obligation (PLUG-D1).** The sidecar host is deferred. The
+> matrix below is retained as the design for a possible post-v1 revisit.
+> v1 does not require `test/fixtures/plugins/`, `SidecarLoader`, or
+> five-language proof in CI.
+
+Sidecar plugin tests would exercise the full discovery → manifest parse → Port spawn →
 gRPC handshake → register → execute → teardown lifecycle against real multi-language
-fixture plugins. These tests land with Phase 4 step 3
-([`ImplementationPhases.md`](../ImplementationPhases.md)).
+fixture plugins.
 
 **Fixture layout** — `test/fixtures/plugins/` (project root):
 

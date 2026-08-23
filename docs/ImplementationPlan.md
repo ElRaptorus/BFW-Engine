@@ -132,6 +132,7 @@ Significant design decisions made during implementation. Each entry records the 
 | PMG-D5 | Phase 6 | **The Engine ships an extension *vocabulary* manifest (`mix evil.gen.extension_manifest` → `extension-manifest.json`), not a generated `bpmn-moddle` descriptor.** The Studio keeps `evil-platform.json` hand-written; a Studio-side bidirectional conformance test checks it against the manifest (manifest → descriptor: every manifest element authorable; descriptor → manifest: every `evil:*` type in the descriptor is in the manifest, modulo an `extensible` exemption). | Roughly half of a moddle descriptor's semantic content (`meta.allowedIn`, the moddle type hierarchy, `xml.tagAlias`) has no counterpart in `sax_handler.ex`, which has no `allowed_in` concept and matches extension elements contextually by name. Generating that data would mean inventing it on the Engine side and moving an authoring-time modelling concern into the wrong repository. |
 | PMG-D6 | Phase 6 | **The TS SDK's client-side BPMN parser (`parseBpmn()`) is kept, not deprecated,** and remains the authoring-path parser for undeployed XML (linter, modeler) where no `process_version_id` exists and therefore no `ModelCache` entry to resolve against. The Model graph serves runtime/deployed read paths only. | Two representations persist with non-overlapping ownership rather than one being a strict replacement. This makes keeping the TS parser in sync with the Elixir structs a required, ongoing companion task (not made obsolete by the Model graph), which is why the pre-existing SDK/Elixir parser drift (nine defect classes, see the WP-0 work package) was repaired directly rather than deferred. |
 | PMG-D7 | Phase 6 | **Corrected stale package naming in docs: `@evil/engine-client` → `@elraptorus/daemonengine_client`** (transport) and **`@elraptorus/daemonengine_sdk`** (contract layer, ships the extension manifest). | `@evil/engine-client` was leftover wording from an earlier naming scheme that never matched the actual published npm packages; corrected everywhere it appeared (`ImplementationPhases.md`, `Architecture.md`, `Glossary.md`, `architecture/plugins.md`, `architecture/api.md`). |
+| PLUG-D1 | Phase 6 | **v1 plugin tier is in-BEAM only.** The gRPC sidecar host (directory scan, `plugin.toml`, Port spawn, bidirectional facade, five-language fixtures) is **deferred** post-v1. Revisit only if a real need for engine-managed non-Elixir Service Task workers appears. v1 path for non-Elixir code: built-in HTTP Service Task, REST/GraphQL/WebSocket, or an in-BEAM plugin that execs a local interpreter (cookbook, Phase 7). | Full sidecar parity duplicates HTTP + in-BEAM, is internally underspecified (UDS vs TCP vs port hint), and would tax proto/SDK/CI forever for little unique capability. |
 
 ---
 
@@ -193,7 +194,7 @@ apps/
 ├── api_web/                 # API      — REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin)
 ├── peripheral_persistence/  # Peripheral — Ash resources + AshPostgres + the `database` EventSink (off by default) + the `RetentionRunner` GenServer that enforces opt-in per-terminal-state retention policies and the `purgeProcessInstances` operator mutation target
 ├── peripheral_telemetry/    # Peripheral — :telemetry counters backing /stats + PromEx Prometheus /metrics (no OTel in v1)
-├── peripheral_plugins/      # Peripheral — plugin registry, sidecar gRPC bridge, conflict detector
+├── peripheral_plugins/      # Peripheral — plugin registry, in-BEAM loader, conflict detector (gRPC sidecar host deferred, PLUG-D1)
 └── engine_sdk/              # Public    — behaviours + test helpers for Elixir plugin authors. Re-exports `EvilEngine.BPMN.{Model.*, ModelCache, Parser}` so in-engine and out-of-tree Elixir tooling parses BPMN XML and consumes the AST with the same semantics the engine uses; plus the subset of `core_types` + plugin-relevant domain types plugin authors need
 ```
 
@@ -201,7 +202,7 @@ apps/
 
 - Core domains never call API domains.
 - Peripheral domains subscribe to Core events; they never push synchronous work onto Core.
-- Plugins live under `peripheral_plugins` or as external sidecars — never inside Core.
+- Plugins live under `peripheral_plugins` as in-BEAM OTP apps — never inside Core. A gRPC sidecar host is deferred post-v1 (PLUG-D1).
 - `core_types` contains no logic — only `defstruct`s, `@type`s, and cross-cutting enums. Every other app may depend on it; it depends on nothing (not even `ash`, `ecto`, or `phoenix`). This keeps it usable from plugins, tests, and Mix tasks with zero boot cost.
 - Each domain publishes its own types inside its own namespace (see §2.1). **No type is duplicated across domains.** If two domains need the same type, it is promoted into `core_types`.
 
@@ -377,11 +378,11 @@ it.
                         ▼
          ┌────────────────────────────────────┐
          │   EvilEngine.Api (Ash Code         │   ◄── in-BEAM plugins
-         │   Interface)  — shared service     │       and gRPC sidecar
-         │   layer for HTTP AND plugins       │       bridge call this
-         │                                    │       function catalog
-         │                                    │       DIRECTLY — no HTTP
-         │                                    │       round-trip.
+         │   Interface)  — shared service     │       call this function
+         │   layer for HTTP AND plugins       │       catalog DIRECTLY —
+         │                                    │       no HTTP round-trip.
+         │                                    │       (gRPC sidecar host
+         │                                    │       deferred, PLUG-D1)
          └──────────────┬─────────────────────┘
                         │ commands (actions) via Ash
                         ▼
@@ -406,10 +407,10 @@ plus planned additions like publish\_message, retry\_pi, purge\_process\_instanc
 Every wire surface above
 (REST controllers, Absinthe resolvers, and channel handlers in `api_web`)
 is a **thin adapter** that decodes the
-wire request and calls the matching `EvilEngine.Api.*` function. Plugins —
-whether in-BEAM OTP apps (§9.2 mode 1) or gRPC sidecars reached through the
-`peripheral_plugins` bridge (§9.2 mode 2) — call the **same functions
+wire request and calls the matching `EvilEngine.Api.*` function. Plugins
+(in-BEAM OTP apps, §9.2 mode 1) call the **same functions
 directly** rather than looping out to an HTTP/GraphQL endpoint and back.
+A gRPC sidecar bridge (§9.2 mode 2) is deferred post-v1 (PLUG-D1).
 This guarantees that validation, authorization policies, and audit hooks
 (all defined inside the Ash action) run identically regardless of caller.
 The only Core-level edges open to plugins are event-scoped (registering
@@ -872,9 +873,9 @@ Resolves the big `AGENT:` marker in concept §BPMN Spec Coverage by Priority.
   1. If `implementation` is set and matches a plugin-registered handler → plugin runs.
   2. Else if `implementation="http"` → built-in `evil:http_service_task` handler runs (see §9.4).
   3. Else: deploy-time error — the BPMN is rejected.
-- **Async-only return contract ()** — a Service Task handler (in-BEAM or sidecar) returns one of two shapes per `handle_enter` invocation:
+- **Async-only return contract ()** — a Service Task handler (in-BEAM in v1; sidecar deferred, PLUG-D1) returns one of two shapes per `handle_enter` invocation:
   - <code>{:error, reason}</code> — synchronous failure during startup (missing config, validation, lookup). The engine transitions FNI to `fatal`.
-  - <code>{:async, flow_node_instance_id}</code> — **park-and-callback path** for all Service Task work that the plugin will resolve later (HTTP webhooks, queue workers, sidecar schedulers, third-party APIs that return on their own clock). The FNI transitions to `waiting`, the engine stores `type_properties.async = true`, and the plugin keeps the FNI id (which is also returned to it as the dispatch result) for later callback. Plugin completes via `engine_facade.finish_async_service_task(flow_node_instance_id, result)` (treated as a synchronous `:ok` return — same DOA, same token advancement, same `Event.FlowNodeInstanceFinished{state: :finished}`) or `engine_facade.fail_async_service_task(flow_node_instance_id, error_code, error_message)` (treated as a synchronous `:error` return — transitions FNI to `fatal`, same `Event.FlowNodeInstanceFinished{state: :fatal}` semantics). On engine restart while FNI is parked, resume rehydrates the `waiting` FNI from the DB and emits `Event.PluginAsyncFlowNodeRehydrated{flow_node_instance_id, plugin_name}` so the plugin can re-register interest in this FNI from its own durable state — the engine never tries to re-dispatch `handle_enter` for an FNI that returned <code>{:async, _}</code> in a prior boot. The async marker (`type_properties.async = true`) survives restart; a partial JSONB index on `(flow_node_instance_id) WHERE state='waiting' AND type_properties->>'async' = 'true'` keeps lookup O(log n) at scale. **Plugin liveness signal:** the supervised plugin process (in-BEAM `GenServer` / sidecar gRPC stream) is the only liveness handle the engine needs — there is no lock to extend, no expiry timer; if the plugin crashes the supervisor restarts it and `Event.PluginAsyncFlowNodeRehydrated` re-arrives. Plugins requiring true durability for their internal queue ship that durability inside the plugin (e.g. a Kafka-consumer plugin uses Kafka's own commit semantics).
+  - <code>{:async, flow_node_instance_id}</code> — **park-and-callback path** for all Service Task work that the plugin will resolve later (HTTP webhooks, queue workers, sidecar schedulers, third-party APIs that return on their own clock). The FNI transitions to `waiting`, the engine stores `type_properties.async = true`, and the plugin keeps the FNI id (which is also returned to it as the dispatch result) for later callback. Plugin completes via `engine_facade.finish_async_service_task(flow_node_instance_id, result)` (treated as a synchronous `:ok` return — same DOA, same token advancement, same `Event.FlowNodeInstanceFinished{state: :finished}`) or `engine_facade.fail_async_service_task(flow_node_instance_id, error_code, error_message)` (treated as a synchronous `:error` return — transitions FNI to `fatal`, same `Event.FlowNodeInstanceFinished{state: :fatal}` semantics). On engine restart while FNI is parked, resume rehydrates the `waiting` FNI from the DB and emits `Event.PluginAsyncFlowNodeRehydrated{flow_node_instance_id, plugin_name}` so the plugin can re-register interest in this FNI from its own durable state — the engine never tries to re-dispatch `handle_enter` for an FNI that returned <code>{:async, _}</code> in a prior boot. The async marker (`type_properties.async = true`) survives restart; a partial JSONB index on `(flow_node_instance_id) WHERE state='waiting' AND type_properties->>'async' = 'true'` keeps lookup O(log n) at scale. **Plugin liveness signal:** the supervised plugin process (in-BEAM `GenServer`; sidecar gRPC stream is deferred, PLUG-D1) is the only liveness handle the engine needs — there is no lock to extend, no expiry timer; if the plugin crashes the supervisor restarts it and `Event.PluginAsyncFlowNodeRehydrated` re-arrives. Plugins requiring true durability for their internal queue ship that durability inside the plugin (e.g. a Kafka-consumer plugin uses Kafka's own commit semantics).
 
 ### Priority tier: High
 
@@ -1126,14 +1127,16 @@ bridge, unary-test wrapping, and module layout.
 
 > Full specification: [`architecture/plugins.md`](./architecture/plugins.md)
 
-The engine uses a hybrid plugin model: in-BEAM OTP-app plugins for
-maximum performance and gRPC sidecar plugins for language-agnostic
-extensibility. Both tiers feed a single Plugin Registry, making every
-downstream consumer (Service Task dispatch, EngineEventBus fan-out, API
-extension routing) oblivious to the plugin's origin. See the architecture
-doc for plugin categories (8 behaviours), lifecycle phases (on_load /
-on_ready), the engine_facade contract, failure isolation and quarantine
-semantics, and SDK packages.
+The engine uses in-BEAM OTP-app plugins in v1 (PLUG-D1). A gRPC sidecar
+host for language-agnostic process plugins is specified in
+[`architecture/plugins.md`](./architecture/plugins.md) §9.2.3 but is
+**deferred post-v1**. The in-BEAM loader feeds a single Plugin Registry,
+so Service Task dispatch, EngineEventBus fan-out, and API extension routing
+are oblivious to a plugin's origin. See the architecture doc for plugin
+categories (8 behaviours), lifecycle phases (on_load / on_ready), the
+engine_facade contract, failure isolation and quarantine semantics, and
+SDK packages. Non-Elixir work in v1 uses the built-in HTTP Service Task,
+the public API, or an in-BEAM plugin that execs a local interpreter.
 
 ---
 
@@ -1185,9 +1188,10 @@ full scenario matrix, assertion framework, and infrastructure setup.
 JWT auth via Joken + JOSE (HS256 / RS256 / ES256, JWKS with
 caching), pluggable via `@behaviour EvilEngine.Plugin.AuthProvider`.
 Default-deny authorization model (see authorization.md).
-JSON Schema 2020-12 input validation on all inbound payloads. Sidecar
-plugins OS-isolated; in-BEAM plugins run inside the trust boundary with
-privileged identity. TLS is a reverse-proxy concern. See the architecture
+JSON Schema 2020-12 input validation on all inbound payloads. v1 plugins
+are in-BEAM only and run inside the trust boundary with privileged
+identity (PLUG-D1). A gRPC sidecar host (OS-isolated child processes) is
+deferred. TLS is a reverse-proxy concern. See the architecture
 doc for the full threat model, per-surface security controls, and explicit
 non-goals.
 
@@ -1247,7 +1251,7 @@ agent-defaulted decisions left in this plan.**
 | `feel_ex` insufficient → we own a FEEL implementation | Medium | High (effort) | Start FEEL-subset impl early in Phase 0; keep it compatible with a later lib swap |
 | Ash does not expose the performance characteristics the engine needs | Low | High | Ash is used only for the API / read-model / persistence layer. Core uses plain OTP. Can degrade to bare Ecto without touching Core |
 | Postgres becomes bottleneck at 10 k concurrent PIs | Medium | High | Partial indexes + JSONB GIN + connection pool tuning in Phase 5; ability to shard by `process_version_id` if needed |
-| Plugin sidecar latency hurts Service Task throughput | Medium | Medium | Default HTTP handler is in-BEAM; sidecar plugin is opt-in for Service Tasks with heavier work anyway |
+| ~~Plugin sidecar latency hurts Service Task throughput~~ | — | — | **Not a v1 runtime risk (PLUG-D1).** Sidecar plugins are deferred post-v1. Default HTTP handler is in-BEAM; non-Elixir work in v1 goes through HTTP, the public API, or an in-BEAM plugin that execs a local interpreter. |
 | BPMN spec corners (e.g., "terminate end event" in subprocess containing call activity) | High | Medium | Per-corner-case ADR (architecture decision record) committed to `docs/adrs/` before implementation |
 | Hot-code-upgrade regressions | Medium | High | Phase 5 includes rehearsal. Blue/green is the always-available fallback |
 | 29–40 week estimate is wildly wrong | High | Low (plan-level) | Phase 1 is a forcing-function checkpoint; re-estimate at end of Phase 1 |
@@ -1255,12 +1259,11 @@ agent-defaulted decisions left in this plan.**
 ### 16.4 Explicit non-goals for v1
 
 - Multi-tenant process isolation at engine level (one engine = one tenant boundary; multi-tenancy is a deployment concern via multiple engines or a plugin).
-- Built-in DMN engine (delegated to external DMN service or plugin).
 - Full SPA admin UI.
-- ~~**Prometheus `/metrics` endpoint.**~~ *Resolved ahead of schedule.* The engine now exposes a Prometheus-format `/metrics` endpoint via PromEx. The endpoint is documented in the OpenAPI spec.
 - **OpenTelemetry export** — logs, metrics, and distributed traces via OTLP are all deferred.
-- ~~**Pluggable authentication** (`AuthProvider` behaviour, OIDC/mTLS/etc.). JWT-only in v1.~~ *Resolved.* Auth is now pluggable via `@behaviour EvilEngine.Plugin.AuthProvider`. What remains a non-goal is **pluggable claim resolution** — a `ClaimResolver` behaviour that lets providers override how the engine evaluates individual claims (e.g. `has_claim?(identity, "deploy_bpmn")` backed by LDAP lookups, graph queries, or request-context-dependent logic instead of flat `Identity.claims` map reads). In the Level 1 model, providers own the full translation from their native identity system to the engine's claim dictionary inside `verify_and_resolve/1` — all claims must be materialized upfront at authentication time and placed into `Identity.claims`. This is sufficient when the identity backend can resolve all relevant claims in a single pass (JWT decode, OIDC userinfo call, single graph query). It becomes limiting if: (a) claim evaluation depends on request context not available at auth time (e.g. "can this user deploy to *this specific* process?"), (b) claims are expensive to compute and most requests only need a subset (lazy evaluation), or (c) the identity backend requires per-claim round-trips that should not all run on every request. If customers report these patterns, v2 should introduce a `ClaimResolver` behaviour with a `resolve_claim(identity, claim_key, context)` callback, and migrate the engine's claim-check sites (Ash policies, controller checks, channel checks) to dispatch through it.
-- **Plugin-tier authorization.** In v1, plugins run with a privileged `plugin:<name>` identity that bypasses all engine claim checks ([`Authorization.md`](./architecture/authorization.md) §7). There is no per-plugin claim set, no per-plugin allow/deny for individual `EvilEngine.Api.*` actions, and no operator-configurable plugin permission model. Plugins are inside the trust boundary by definition (the operator loaded them into the release or into the sidecar directory). If multi-tenant deployments demand per-plugin capability scoping, it becomes a v2 story alongside the tenant-isolation model.
+- **pluggable claim resolution** — a `ClaimResolver` behaviour that lets providers override how the engine evaluates individual claims (e.g. `has_claim?(identity, "deploy_bpmn")` backed by LDAP lookups, graph queries, or request-context-dependent logic instead of flat `Identity.claims` map reads). In the Level 1 model, providers own the full translation from their native identity system to the engine's claim dictionary inside `verify_and_resolve/1` — all claims must be materialized upfront at authentication time and placed into `Identity.claims`. This is sufficient when the identity backend can resolve all relevant claims in a single pass (JWT decode, OIDC userinfo call, single graph query). It becomes limiting if: (a) claim evaluation depends on request context not available at auth time (e.g. "can this user deploy to *this specific* process?"), (b) claims are expensive to compute and most requests only need a subset (lazy evaluation), or (c) the identity backend requires per-claim round-trips that should not all run on every request. If customers report these patterns, v2 should introduce a `ClaimResolver` behaviour with a `resolve_claim(identity, claim_key, context)` callback, and migrate the engine's claim-check sites (Ash policies, controller checks, channel checks) to dispatch through it.
+- **Plugin-tier authorization.** In v1, plugins run with a privileged `plugin:<name>` identity that bypasses all engine claim checks ([`Authorization.md`](./architecture/authorization.md) §7). There is no per-plugin claim set, no per-plugin allow/deny for individual `EvilEngine.Api.*` actions, and no operator-configurable plugin permission model. Plugins are inside the trust boundary by definition (the operator loaded them into the release). If multi-tenant deployments demand per-plugin capability scoping, it becomes a v2 story alongside the tenant-isolation model.
+- **gRPC sidecar plugin host.** v1 loads in-BEAM OTP-app plugins only (PLUG-D1). There is no `SidecarLoader`, no plugin gRPC protocol, and no language-agnostic process host. Non-Elixir code in v1 uses the built-in HTTP Service Task, the public REST/GraphQL/WebSocket API, or an in-BEAM plugin that execs a local interpreter. The §9.2.3 sidecar spec is retained as a deferred design, not a v1 deliverable.
 - **Call Activity version pinning** (`<evil:calledProcessVersion>`). Call Activities always resolve to the latest enabled version at spawn time.
 - **Multi-property BPMN 2.0 correlation** (Option C). Each Message catch / boundary / start correlates on exactly **one** value derived from a single FEEL expression. `bpmn:correlationKey` / `bpmn:correlationProperty` / `bpmn:correlationPropertyRetrievalExpression` / `bpmn:correlationSubscription` are not parsed; only the `<evil:correlationKey>` / `<evil:correlationRetrievalExpression>` extensions are.
 - **Durable `message_subscriptions` table.** Subscriptions live only in memory and are rebuilt by each PI on resume (§3.5.5). There is no per-subscription row in the database.

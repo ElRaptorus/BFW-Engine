@@ -4,8 +4,8 @@ defmodule EvilEngine.Persistence.Api do
 
   Per §2.2 the Ash *Code Interface* exposed on this domain is the
   `EvilEngine.Api` shared service layer used both by the HTTP wire
-  surface (`api_web`) and by plugins
-  (in-BEAM + gRPC sidecars). Plugins bypass HTTP entirely — they call
+  surface (`api_web`) and by in-BEAM plugins. A gRPC sidecar host is
+  deferred (PLUG-D1). Plugins bypass HTTP entirely — they call
   the resource actions as regular Elixir functions.
 
   Phase 0 ships the execution-state tables (`process_instances`,
