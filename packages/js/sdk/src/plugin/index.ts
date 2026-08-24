@@ -22,5 +22,9 @@ export type {
   FacadeSignals,
   FacadeAdHocSubprocesses,
   FacadeGraphql,
+  FacadeDecisions,
+  FacadeTimers,
+  FacadeEvaluateOptions,
+  FacadeTimerScheduleFilters,
   RegistrationResult,
 } from './engine-facade.js';

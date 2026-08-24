@@ -35,20 +35,22 @@ The PI cap should be tuned relative to your DB connection pools and available
 memory.
 
 **Dual-pool model:** The engine uses separate connection pools for writes
-(`EVIL_DB_POOL_SIZE`, default 20) and reads (`EVIL_DB_READ_POOL_SIZE`, default 10).
+(`EVIL_DB_POOL_SIZE`, production default 100) and reads (`EVIL_DB_READ_POOL_SIZE`, production default 50).
 Execution writes (PI/FNI lifecycle, message/signal persistence) use the write pool.
 GraphQL queries and REST list/get endpoints use the read pool. This prevents heavy
 queries from starving execution writes.
 
 - **Write pool `×` 5** — each PI holds a write connection only during
-  persistence flushes, so a 20-connection write pool can sustain ~100
+  persistence flushes, so a 100-connection write pool can sustain ~500
   concurrent PIs with headroom.
 - **Read pool** — sized for the expected number of concurrent Studio users.
-  The default 2:1 write-to-read ratio (20 write / 10 read) reflects the
+  The default 2:1 write-to-read ratio (100 write / 50 read) reflects the
   typical workload asymmetry. Adjust `EVIL_DB_READ_POOL_SIZE` if many
   users query simultaneously.
-- **Total connections** — ensure PostgreSQL `max_connections` ≥ write pool
-  + read pool + headroom (at least 50; PostgreSQL default is 100).
+- **Total connections** — size Postgres with
+  `max_connections >= (write + read) * engine_nodes + 20`. Production
+  defaults already exceed Postgres's default `max_connections` of 100;
+  a single-node install needs at least 170 (recommend 200).
 - **Memory** — each PI consumes ~50–200 KB of BEAM heap depending on token
   size and flow complexity. At 1 GB available heap, 5000 PIs is a safe
   upper bound.

@@ -33,6 +33,16 @@ import {
   UnauthorizedError,
   ValidationError,
   VersionExistsError,
+  RetryCheckpointInsideAdhocSubprocessError,
+  RetryInsideAdhocSubprocessError,
+  RetryCheckpointIsNonRetryableError,
+  NotATimerEventError,
+  DispatchFailedError,
+  ConflictError,
+  BadRequestError,
+  NoMatchingConditionError,
+  NoDecisionsError,
+  ServiceUnavailableError,
 } from '../../src/index.js';
 
 describe('DaemonEngineError base class', () => {
@@ -307,8 +317,16 @@ describe('domain-specific errors', () => {
     const error = new IncompatibleVersionMigrationError('incompatible');
     expect(error).toBeInstanceOf(DaemonEngineError);
     expect(error.statusCode).toBe(422);
-    expect(error.errorCode).toBe('incompatible_version_migration');
+    expect(error.errorCode).toBe('version_migration_incompatible');
     expect(error.name).toBe('IncompatibleVersionMigrationError');
+  });
+
+  it('RetryCheckpointIsNonRetryableError', () => {
+    const error = new RetryCheckpointIsNonRetryableError('not retryable');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('retry_checkpoint_is_non_retryable');
+    expect(error.name).toBe('RetryCheckpointIsNonRetryableError');
   });
 });
 
@@ -335,6 +353,80 @@ describe('GraphQL-specific errors', () => {
     expect(error.statusCode).toBe(200);
     expect(error.errorCode).toBe('graphql_introspection_disabled');
     expect(error.name).toBe('GraphqlIntrospectionDisabledError');
+  });
+});
+
+describe('post-review remediation error classes', () => {
+  it('RetryCheckpointInsideAdhocSubprocessError', () => {
+    const error = new RetryCheckpointInsideAdhocSubprocessError('checkpoint inside ad-hoc');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('retry_checkpoint_inside_adhoc_subprocess');
+    expect(error.name).toBe('RetryCheckpointInsideAdhocSubprocessError');
+  });
+
+  it('RetryInsideAdhocSubprocessError', () => {
+    const error = new RetryInsideAdhocSubprocessError('retry inside ad-hoc');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('retry_inside_adhoc_subprocess');
+    expect(error.name).toBe('RetryInsideAdhocSubprocessError');
+  });
+
+  it('NotATimerEventError', () => {
+    const error = new NotATimerEventError('not a timer');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('not_a_timer_event');
+    expect(error.name).toBe('NotATimerEventError');
+  });
+
+  it('DispatchFailedError', () => {
+    const error = new DispatchFailedError('dispatch failed');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(500);
+    expect(error.errorCode).toBe('dispatch_failed');
+    expect(error.name).toBe('DispatchFailedError');
+  });
+
+  it('ConflictError', () => {
+    const error = new ConflictError('conflict');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(409);
+    expect(error.errorCode).toBe('conflict');
+    expect(error.name).toBe('ConflictError');
+  });
+
+  it('BadRequestError', () => {
+    const error = new BadRequestError('bad request');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(400);
+    expect(error.errorCode).toBe('bad_request');
+    expect(error.name).toBe('BadRequestError');
+  });
+
+  it('NoMatchingConditionError', () => {
+    const error = new NoMatchingConditionError('no match');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('no_matching_condition');
+    expect(error.name).toBe('NoMatchingConditionError');
+  });
+
+  it('NoDecisionsError', () => {
+    const error = new NoDecisionsError('no decisions');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('no_decisions');
+    expect(error.name).toBe('NoDecisionsError');
+  });
+
+  it('ServiceUnavailableError', () => {
+    const error = new ServiceUnavailableError('Engine is resuming');
+    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error.statusCode).toBe(503);
+    expect(error.errorCode).toBe('service_unavailable');
+    expect(error.name).toBe('ServiceUnavailableError');
   });
 });
 
@@ -370,6 +462,7 @@ describe('inheritance chain', () => {
       new GraphqlDepthLimitError('msg'),
       new GraphqlComplexityLimitError('msg'),
       new GraphqlIntrospectionDisabledError('msg'),
+      new ServiceUnavailableError('msg'),
     ];
 
     for (const error of subclasses) {
@@ -377,7 +470,7 @@ describe('inheritance chain', () => {
       expect(error).toBeInstanceOf(Error);
     }
 
-    expect(subclasses).toHaveLength(29);
+    expect(subclasses).toHaveLength(30);
   });
 
   it('subclasses are NOT instanceof each other', () => {

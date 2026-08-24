@@ -48,6 +48,7 @@ defmodule EvilEngine.Execution.ResumeRunner do
     MessageSubscriptions.mark_ready()
     SignalSubscriptions.mark_ready()
     emit_engine_started()
+    maybe_publish_resume_overload()
     {:ok, count}
   rescue
     error ->
@@ -56,6 +57,7 @@ defmodule EvilEngine.Execution.ResumeRunner do
       MessageSubscriptions.mark_ready()
       SignalSubscriptions.mark_ready()
       emit_engine_started()
+      maybe_publish_resume_overload()
       {:ok, 0}
   end
 
@@ -174,6 +176,40 @@ defmodule EvilEngine.Execution.ResumeRunner do
       started_at: DateTime.utc_now()
     })
   end
+
+  # Resume bypasses EVIL_MAX_CONCURRENT_PIS so PI trees come back whole.
+  # When that leaves the engine over the configured cap, emit EngineOverloaded
+  # so operators see the oversubscription. Remaining resumes are never refused.
+  defp maybe_publish_resume_overload do
+    case EvilEngine.Execution.configured_limit() do
+      :infinity ->
+        :ok
+
+      limit when is_integer(limit) and limit >= 0 ->
+        active = EvilEngine.Execution.count_active()
+
+        if active > limit do
+          EngineEventBus.publish(%Event.EngineOverloaded{
+            level: resume_overload_level(active, limit),
+            active_process_instances: active,
+            limit: limit,
+            occurred_at: DateTime.utc_now()
+          })
+        else
+          :ok
+        end
+    end
+  end
+
+  defp resume_overload_level(active, limit) when limit > 0 do
+    if active / limit >= 0.9 do
+      :critical
+    else
+      :elevated
+    end
+  end
+
+  defp resume_overload_level(_active, _limit), do: :critical
 
   defp engine_id do
     Application.get_env(:core_execution, :engine_id, "default")

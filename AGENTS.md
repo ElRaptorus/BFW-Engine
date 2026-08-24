@@ -1510,12 +1510,19 @@ The `EvilEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/evil_engine/eng
   (no payload, no correlation; plugin identity injected into `origin`)
 - Returns `{:ok, %{signal_id, signal_name, deliveries, started_process_instance_ids, pending}}`
 
-### Timer event manual trigger
+### Timer event manual trigger and schedules
 
 - REST: `POST /timer-events/{flow_node_instance_id}/trigger` — manually fire a waiting timer FNI
 - Client: `EventClient.triggerTimer(flowNodeInstanceId)` → `TimerTriggerResult` (`{ triggered: boolean }`)
 - Api: `EvilEngine.Api.trigger_timer_event/3` — lane access + type/state validation, then `Execution.trigger_timer_event/2`
 - No dedicated JWT trigger claim; gated by `lane:<name>` (same model as User Task finish)
+- Facade: `facade.timers.trigger_event.(flow_node_instance_id)` plus schedule `list_schedules` / `get_schedule` / `enable_schedule` / `disable_schedule` (wired through `EvilEngine.Api`, skip_claims)
+
+### Process catalog facade
+
+- `facade.processes.list.()` → `EvilEngine.Api.list_processes/1`
+- `facade.processes.undeploy.(process_model_id, version)` → `EvilEngine.Api.undeploy_process/3` (`skip_claims: true`)
+- Also on the processes namespace: `get`, `deploy`, `enable`, `disable`, `delete_version`, `start`
 
 ### alignment
 
@@ -1962,7 +1969,7 @@ API. Violations of this rule break the architecture.
 | `core_expressions` | Core | FEEL evaluator (Rust NIF) |
 | `core_bpmn` | Core | XML parser, ModelCache, validator, linter gate |
 | `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
-| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo), RetentionRunner |
+| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). RetentionRunner is Phase 7 (not shipped) |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
 | `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |

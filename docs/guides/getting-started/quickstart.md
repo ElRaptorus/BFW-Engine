@@ -115,5 +115,5 @@ curl http://localhost:4000/info
 
 - [Core Concepts](concepts.md) -- understand the engine's domain model
 - [REST API Reference](../api/rest-reference.md) -- full endpoint documentation
-- [GraphQL API Reference](../api/graphql-reference.md) -- queries, mutations, and subscriptions
+- [GraphQL API Reference](../api/graphql-reference.md) -- read-only queries (no mutations or subscriptions)
 - [Operations Guide](../operations/deployment.md) -- production deployment

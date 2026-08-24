@@ -73,7 +73,7 @@ facade.service_tasks.finish_async.(flow_node_instance_id, %{"result" => "success
 facade.service_tasks.fail_async.(flow_node_instance_id, "TIMEOUT", "External service did not respond")
 ```
 
-There is no dedicated REST endpoint for async completion — it is plugin-side only via the engine facade or the equivalent GraphQL mutations.
+There is no dedicated REST endpoint for async completion — it is plugin-side only via the engine facade. GraphQL is query-only and has no mutation equivalent.
 
 ## Payload Cap
 

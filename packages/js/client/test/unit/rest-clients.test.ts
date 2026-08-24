@@ -6,6 +6,7 @@ import { UserTaskClient } from '../../src/rest/user-task-client.js';
 import { EngineClient } from '../../src/rest/engine-client.js';
 import { EventClient } from '../../src/rest/event-client.js';
 import { DecisionClient } from '../../src/rest/decision-client.js';
+import { TimerScheduleClient } from '../../src/rest/timer-schedule-client.js';
 
 function createMockTransport(): HttpTransport {
   return {
@@ -399,5 +400,85 @@ describe('DecisionClient', () => {
     expect(transport.delete).toHaveBeenCalledWith(`/decisions/${encodedId}`);
     expect(transport.delete).toHaveBeenCalledWith(`/decisions/${encodedId}/versions/${encodedVersion}`);
     expect(transport.post).toHaveBeenCalledWith(`/decisions/${encodedId}/evaluate`, { input: { x: 1 } });
+  });
+});
+
+describe('TimerScheduleClient', () => {
+  let transport: ReturnType<typeof createMockTransport>;
+  let client: TimerScheduleClient;
+
+  beforeEach(() => {
+    transport = createMockTransport();
+    client = new TimerScheduleClient(transport);
+  });
+
+  it('list sends GET /timer-schedules and unwraps data', async () => {
+    const schedules = [
+      {
+        id: 'sched-1',
+        processModelId: 'cycle-start',
+        processVersionId: 'ver-1',
+        flowNodeId: 'Start_timer',
+        kind: 'cycle',
+        isoSpec: 'R/PT1H',
+        enabled: true,
+        nextFireAt: '2026-08-24T12:00:00Z',
+        lastTriggeredAt: null,
+        cycleTotal: null,
+        cycleRemaining: null,
+      },
+    ];
+    vi.mocked(transport.get).mockResolvedValueOnce({ data: schedules });
+    const result = await client.list();
+    expect(transport.get).toHaveBeenCalledWith('/timer-schedules');
+    expect(result).toEqual(schedules);
+  });
+
+  it('list appends processVersionId and enabled query parameters', async () => {
+    vi.mocked(transport.get).mockResolvedValueOnce({ data: [] });
+    await client.list({ processVersionId: 'ver-1', enabled: false });
+    expect(transport.get).toHaveBeenCalledWith('/timer-schedules?processVersionId=ver-1&enabled=false');
+  });
+
+  it('get sends GET /timer-schedules/{id} and unwraps data', async () => {
+    const schedule = {
+      id: 'sched-1',
+      processModelId: 'cycle-start',
+      processVersionId: 'ver-1',
+      flowNodeId: 'Start_timer',
+      kind: 'cycle',
+      isoSpec: 'R/PT1H',
+      enabled: true,
+      nextFireAt: null,
+      lastTriggeredAt: null,
+      cycleTotal: null,
+      cycleRemaining: null,
+    };
+    vi.mocked(transport.get).mockResolvedValueOnce({ data: schedule });
+    const result = await client.get('sched-1');
+    expect(transport.get).toHaveBeenCalledWith('/timer-schedules/sched-1');
+    expect(result).toEqual(schedule);
+  });
+
+  it('enable sends PUT /timer-schedules/{id}/enable', async () => {
+    await client.enable('sched-1');
+    expect(transport.put).toHaveBeenCalledWith('/timer-schedules/sched-1/enable');
+  });
+
+  it('disable sends PUT /timer-schedules/{id}/disable', async () => {
+    await client.disable('sched-1');
+    expect(transport.put).toHaveBeenCalledWith('/timer-schedules/sched-1/disable');
+  });
+
+  it('encodes special characters in schedule id', async () => {
+    const scheduleId = 'sched/one';
+    vi.mocked(transport.get).mockResolvedValueOnce({ data: { id: scheduleId } });
+    await client.get(scheduleId);
+    await client.enable(scheduleId);
+    await client.disable(scheduleId);
+    const encodedId = encodeURIComponent(scheduleId);
+    expect(transport.get).toHaveBeenCalledWith(`/timer-schedules/${encodedId}`);
+    expect(transport.put).toHaveBeenCalledWith(`/timer-schedules/${encodedId}/enable`);
+    expect(transport.put).toHaveBeenCalledWith(`/timer-schedules/${encodedId}/disable`);
   });
 });

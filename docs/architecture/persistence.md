@@ -42,11 +42,11 @@ This means GraphQL queries, REST list/get endpoints, and any `Ash.read` call aut
 
 | Pool | Env var | Default | Rationale |
 |------|---------|---------|-----------|
-| Write | `EVIL_DB_POOL_SIZE` | 20 | Execution writes are individually fast but massively concurrent |
-| Read | `EVIL_DB_READ_POOL_SIZE` | 10 | GraphQL queries are heavier but far less frequent |
-| Total | — | 30 | 2:1 write-to-read ratio reflects workload asymmetry |
+| Write | `EVIL_DB_POOL_SIZE` | 100 | Execution writes are individually fast but massively concurrent |
+| Read | `EVIL_DB_READ_POOL_SIZE` | 50 | GraphQL queries are heavier but far less frequent |
+| Total | — | 150 | 2:1 write-to-read ratio reflects workload asymmetry |
 
-Ensure PostgreSQL `max_connections` ≥ 50 (the default is 100).
+Size Postgres with `max_connections >= (write + read) * engine_nodes + 20`. Production defaults (100 + 50) already exceed Postgres's default `max_connections` of 100; a single-node install needs at least 170 (recommend 200). `config/dev.exs` and `config/test.exs` keep smaller local/sandbox pools.
 
 ### Queue tuning (CoDel)
 

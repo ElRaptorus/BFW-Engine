@@ -498,7 +498,10 @@ export interface DecisionEvaluated {
 }
 
 /**
- * Emitted when a timer is registered in the Scheduler.
+ * Reserved — the engine classifies this event for WebSocket dispatch but
+ * does not currently publish it. Kept in the `EngineEvent` union so adding
+ * publish later is non-breaking.
+ *
  * The `kind` field distinguishes between catch (intermediate),
  * boundary, and start timers.
  */
@@ -526,7 +529,11 @@ export interface TimerFired {
   occurredAt: string;
 }
 
-/** Emitted when a timer is cancelled (host completed, PI terminated, etc.). */
+/**
+ * Reserved — the engine classifies this event for WebSocket dispatch but
+ * does not currently publish it. Kept in the `EngineEvent` union so adding
+ * publish later is non-breaking.
+ */
 export interface TimerCancelled {
   type: 'TimerCancelled';
   timerRef: string;

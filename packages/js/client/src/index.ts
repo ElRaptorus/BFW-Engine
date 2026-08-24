@@ -10,6 +10,7 @@ export { ProcessInstanceClient } from './rest/process-instance-client.js';
 export { UserTaskClient } from './rest/user-task-client.js';
 export { EngineClient } from './rest/engine-client.js';
 export { EventClient } from './rest/event-client.js';
+export { TimerScheduleClient } from './rest/timer-schedule-client.js';
 export { GraphqlClient } from './graphql/graphql-client.js';
 export { NotificationClient } from './ws/notification-client.js';
 

@@ -1643,6 +1643,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
+  # Gates plugin `finish_async_service_task` / `fail_async_service_task` only.
+  # Catch events, timers, joins, and Call Activity also park in `:waiting`
+  # via `{:async, id, continuation}` and stamp `async: true` — that flag is
+  # the async return shape, not permission for the plugin callback API.
+  # Only ServiceTask implements `handle_complete/4` for that path.
   defp validate_async_waiting_entry(entry) do
     type_props = Map.get(entry, :type_properties, %{})
     is_async = Map.get(type_props, :async, false) || Map.get(type_props, "async", false)
@@ -1757,7 +1762,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
       })
 
     data = %{data | compensation_esp_throw_map: Map.delete(data.compensation_esp_throw_map, entry.flow_node_id)}
-    finish_compensation_run(data, throw_fni_id, Map.fetch!(data.compensation_runs, throw_fni_id))
+
+    CompensationOrchestrator.finish_run(
+      data,
+      throw_fni_id,
+      Map.fetch!(data.compensation_runs, throw_fni_id),
+      compensation_runtime()
+    )
   end
 
   defp do_handle_fni_ok(data, flow_node_instance_id, %FlowNodeResult{} = result) do
@@ -2008,27 +2019,16 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   defp start_cancel_compensation_run(data, cancel_fni_id) do
-    targets =
-      data.compensation_registry
-      |> Enum.sort_by(& &1.completion_order, :desc)
+    CompensationOrchestrator.start_cancel_run(data, cancel_fni_id, compensation_runtime())
+  end
 
-    if targets == [] do
-      %{data | cancel_reached: true}
-    else
-      cancel_entry = Map.get(data.flow_node_instance_states, cancel_fni_id)
-      output_payload = if cancel_entry, do: cancel_entry.token.payload, else: %{}
-
-      run =
-        CompensationOrchestrator.build_run(
-          targets,
-          :cancel,
-          [],
-          output_payload
-        )
-
-      data = put_in(data.compensation_runs[cancel_fni_id], run)
-      dispatch_next_compensation_handler(data, cancel_fni_id)
-    end
+  defp compensation_runtime do
+    %{
+      emit_fni_started: &emit_fni_started/4,
+      emit_fni_state_changed: &emit_fni_state_changed/5,
+      emit_compensation_triggered: &emit_compensation_triggered/4,
+      dispatch_flow_node_instance: &dispatch_flow_node_instance/4
+    }
   end
 
   defp handle_fni_bpmn_error(data, flow_node_instance_id, %FlowNodeResult{} = result, error_info) do
@@ -2268,322 +2268,19 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   defp start_compensation_run(data, flow_node_instance_id, result, run_spec, entry, targets) do
-    output_payload = result.output_payload || entry.token.payload
-
-    run =
-      CompensationOrchestrator.build_run(
-        targets,
-        run_spec.throw_type,
-        run_spec.outgoing_flow_node_ids,
-        output_payload
-      )
-
-    type_properties = %{
-      compensation_run: true,
-      throw_type: Atom.to_string(run_spec.throw_type),
-      target_count: length(targets),
-      cursor: 0
-    }
-
-    data =
-      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
-        entry
-        | state: :waiting,
-          pid: nil,
-          token: %{entry.token | payload: output_payload},
-          type_properties: type_properties
-      })
-
-    data = put_in(data.compensation_runs[flow_node_instance_id], run)
-
-    _persist = persist_compensation_throw_waiting(data, flow_node_instance_id, type_properties)
-
-    emit_compensation_triggered(
+    CompensationOrchestrator.start_run(
       data,
       flow_node_instance_id,
+      result,
       run_spec,
-      length(targets)
+      entry,
+      targets,
+      compensation_runtime()
     )
-
-    dispatch_next_compensation_handler(data, flow_node_instance_id)
-  end
-
-  defp dispatch_next_compensation_handler(data, throw_fni_id) do
-    run = Map.fetch!(data.compensation_runs, throw_fni_id)
-    target = CompensationOrchestrator.current_target(run)
-
-    if target == nil do
-      finish_compensation_run(data, throw_fni_id, run)
-    else
-      handler_node = find_flow_node(data, target.handler_activity_id)
-
-      if handler_node == nil do
-        Logger.warning(
-          "Compensation handler activity #{target.handler_activity_id} not found in model, " <>
-            "skipping for throw FNI #{throw_fni_id}"
-        )
-
-        data = put_in(data.compensation_runs[throw_fni_id], CompensationOrchestrator.advance_cursor(run))
-        dispatch_next_compensation_handler(data, throw_fni_id)
-      else
-        handler_token = %Token{
-          id: generate_id(),
-          process_instance_id: data.process_instance_id,
-          payload: target.token_snapshot,
-          originating_flow_node_instance_id: throw_fni_id,
-          created_at: DateTime.utc_now()
-        }
-
-        handler_type_properties = %{
-          compensation_for: target.completed_fni_id,
-          compensation_throw_fni_id: throw_fni_id
-        }
-
-        dispatch_compensation_handler_fni(
-          data, handler_node, handler_token, throw_fni_id, handler_type_properties
-        )
-      end
-    end
-  end
-
-  defp finish_compensation_run(data, throw_fni_id, run) do
-    data = %{data | compensation_runs: Map.delete(data.compensation_runs, throw_fni_id)}
-
-    case run.throw_type do
-      :throw ->
-        entry = Map.fetch!(data.flow_node_instance_states, throw_fni_id)
-
-        node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
-
-        targets =
-          run.outgoing_flow_node_ids
-          |> Enum.map(&Map.get(node_index, &1))
-          |> Enum.reject(&is_nil/1)
-
-        new_token = %Token{
-          id: generate_id(),
-          process_instance_id: data.process_instance_id,
-          payload: run.token_payload,
-          originating_flow_node_instance_id: throw_fni_id,
-          created_at: DateTime.utc_now()
-        }
-
-        data =
-          put_in(data.flow_node_instance_states[throw_fni_id], %{
-            entry | state: :finished
-          })
-
-        _persist = persist_compensation_throw_finished(data, throw_fni_id)
-
-        Enum.reduce(targets, data, fn target_node, accumulator ->
-          dispatch_flow_node_instance(accumulator, target_node, new_token, [throw_fni_id])
-        end)
-
-      :end ->
-        entry = Map.fetch!(data.flow_node_instance_states, throw_fni_id)
-
-        data =
-          put_in(data.flow_node_instance_states[throw_fni_id], %{
-            entry | state: :finished
-          })
-
-        _persist = persist_compensation_throw_finished(data, throw_fni_id)
-        %{data | compensation_end_reached: true}
-
-      :cancel ->
-        # Cancel End compensation run complete. The Cancel End FNI is already
-        # finished (no FNI state update needed). Set cancel_reached so
-        # finish_quiesced_pi transitions the PI to :cancelled.
-        %{data | cancel_reached: true}
-    end
   end
 
   defp advance_compensation_run(data, throw_fni_id) do
-    case Map.get(data.compensation_runs, throw_fni_id) do
-      nil ->
-        data
-
-      run ->
-        run = CompensationOrchestrator.advance_cursor(run)
-
-        throw_entry = Map.get(data.flow_node_instance_states, throw_fni_id)
-
-        if throw_entry do
-          cursor_properties = Map.merge(throw_entry.type_properties, %{cursor: run.cursor})
-
-          data =
-            put_in(
-              data.flow_node_instance_states[throw_fni_id],
-              %{throw_entry | type_properties: cursor_properties}
-            )
-
-          data = put_in(data.compensation_runs[throw_fni_id], run)
-          dispatch_next_compensation_handler(data, throw_fni_id)
-        else
-          data
-        end
-    end
-  end
-
-  defp dispatch_compensation_handler_fni(
-         data,
-         handler_node,
-         token,
-         throw_fni_id,
-         extra_type_properties
-       ) do
-    flow_node_instance_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, handler_node)
-
-    case persist_compensation_handler_fni(
-           data,
-           flow_node_instance_id,
-           handler_node,
-           token,
-           lane_name,
-           throw_fni_id,
-           extra_type_properties
-         ) do
-      {:ok, _} ->
-        emit_fni_started(data, flow_node_instance_id, handler_node, [throw_fni_id])
-
-        spawn_compensation_handler_task(
-          data,
-          flow_node_instance_id,
-          handler_node,
-          token,
-          throw_fni_id,
-          extra_type_properties
-        )
-
-      {:error, reason} ->
-        Logger.error(
-          "Compensation: failed to persist handler FNI #{flow_node_instance_id}: #{inspect(reason)}"
-        )
-
-        data
-    end
-  end
-
-  defp persist_compensation_handler_fni(
-         data,
-         flow_node_instance_id,
-         handler_node,
-         token,
-         lane_name,
-         throw_fni_id,
-         extra_type_properties
-       ) do
-    adapter = PersistenceAdapter.adapter()
-
-    PersistenceRetry.with_retry(
-      fn ->
-        adapter.create_flow_node_instance(%{
-          id: flow_node_instance_id,
-          process_instance_id: data.process_instance_id,
-          flow_node_id: handler_node.id,
-          flow_node_type: Atom.to_string(handler_node.type),
-          event_type: nil,
-          lane_name: lane_name,
-          state: "active",
-          started_at: DateTime.utc_now(),
-          input_token: token.payload,
-          previous_flow_node_instance_ids: [throw_fni_id],
-          type_properties: extra_type_properties
-        })
-      end,
-      "FNI comp handler create #{flow_node_instance_id}"
-    )
-  end
-
-  defp spawn_compensation_handler_task(
-         data,
-         flow_node_instance_id,
-         handler_node,
-         token,
-         throw_fni_id,
-         extra_type_properties
-       ) do
-    process_instance_pid = self()
-
-    with {:ok, handler_module} <- HandlerDispatch.handler_for(handler_node),
-         handler_context =
-           build_handler_context(data, flow_node_instance_id, handler_node, process_instance_pid),
-         {:ok, task_pid} <-
-           Task.Supervisor.start_child(data.task_supervisor, fn ->
-             result =
-               BoundaryAwareHandler.wrap_enter(handler_module, handler_node, token, handler_context)
-
-             dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
-           end) do
-      Process.monitor(task_pid)
-
-      entry = %{
-        pid: task_pid,
-        flow_node_id: handler_node.id,
-        flow_node_type: handler_node.type,
-        event_type: nil,
-        state: :active,
-        token: token,
-        previous_flow_node_instance_ids: [throw_fni_id],
-        type_properties: extra_type_properties,
-        next_flow_node_ids: []
-      }
-
-      put_in(data.flow_node_instance_states[flow_node_instance_id], entry)
-    else
-      {:error, reason} ->
-        Logger.error(
-          "Compensation: handler spawn failed for #{handler_node.id} " <>
-            "(FNI #{flow_node_instance_id}): #{inspect(reason)}"
-        )
-
-        data
-    end
-  end
-
-  defp persist_compensation_throw_waiting(data, flow_node_instance_id, type_properties) do
-    adapter = PersistenceAdapter.adapter()
-
-    _retry_result =
-      PersistenceRetry.with_retry(
-        fn ->
-          adapter.update_flow_node_instance(flow_node_instance_id, :update_waiting, %{
-            state: "waiting",
-            type_properties: type_properties
-          })
-        end,
-        "FNI comp throw waiting #{flow_node_instance_id}"
-      )
-
-    emit_fni_state_changed(
-      data,
-      flow_node_instance_id,
-      Map.get(data.flow_node_instance_states, flow_node_instance_id),
-      :active,
-      :waiting
-    )
-  end
-
-  defp persist_compensation_throw_finished(data, flow_node_instance_id) do
-    adapter = PersistenceAdapter.adapter()
-
-    _retry_result =
-      PersistenceRetry.with_retry(
-        fn ->
-          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
-            state: "finished",
-            finished_at: DateTime.utc_now()
-          })
-        end,
-        "FNI comp throw finished #{flow_node_instance_id}"
-      )
-
-    entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
-
-    if entry do
-      emit_fni_state_changed(data, flow_node_instance_id, entry, :waiting, :finished)
-    end
+    CompensationOrchestrator.advance_run(data, throw_fni_id, compensation_runtime())
   end
 
   # -- End Compensation orchestration -------------------------------------------

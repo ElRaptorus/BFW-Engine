@@ -213,10 +213,12 @@ defmodule EvilEngineWeb.Http.RoutesTest do
   # --- 404 ----------------------------------------------------------------
 
   describe "unknown route" do
-    test "unmatched routes are not handled by this router" do
-      assert_raise Phoenix.Router.NoRouteError, fn ->
-        conn(:get, "/nonexistent") |> call()
-      end
+    test "unmatched routes return 404 from the plugin extension catch-all" do
+      conn = conn(:get, "/nonexistent") |> call()
+
+      assert conn.status == 404
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] == "not_found"
     end
   end
 end

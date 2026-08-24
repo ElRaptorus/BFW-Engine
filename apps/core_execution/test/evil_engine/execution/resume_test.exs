@@ -2,12 +2,14 @@ defmodule EvilEngine.Execution.ResumeTest do
   use ExUnit.Case, async: false
 
   alias EvilEngine.BPMN.ModelCache
+  alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Events.MessageSubscriptions
   alias EvilEngine.Execution
   alias EvilEngine.Execution.ProcessInstance
   alias EvilEngine.Execution.ResumeRunner
   alias EvilEngine.Execution.TestSupport.BpmnFactory
   alias EvilEngine.Timers.Scheduler
+  alias EvilEngine.Types.Event
   alias EvilEngine.Types.Identity
 
   @version_id "00000000-0000-0000-0000-000000000001"
@@ -25,6 +27,27 @@ defmodule EvilEngine.Execution.ResumeTest do
       Application.delete_env(:core_execution, :persistence_adapter)
       ModelCache.reset_state()
     end)
+  end
+
+  defmodule ResumeOverloadSink do
+    @moduledoc false
+    @behaviour EvilEngine.Plugin.EventSink
+
+    @impl true
+    def init(opts), do: {:ok, %{test_pid: Keyword.fetch!(opts, :test_pid)}}
+
+    @impl true
+    def accepts?(%Event.EngineOverloaded{}), do: true
+    def accepts?(_event), do: false
+
+    @impl true
+    def handle_event(event, %{test_pid: test_pid} = state) do
+      send(test_pid, {:resume_overload, event})
+      {:ok, state}
+    end
+
+    @impl true
+    def handle_shutdown(_state), do: :ok
   end
 
   defp random_id do
@@ -622,6 +645,65 @@ defmodule EvilEngine.Execution.ResumeTest do
                entry.state == :finished
              end)
 
+      DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, process_instance_pid)
+    end
+
+    test "publishes EngineOverloaded when resume exceeds a finite cap" do
+      original_limit = Application.get_env(:core_execution, :max_concurrent_process_instances)
+      Application.put_env(:core_execution, :max_concurrent_process_instances, 0)
+
+      on_exit(fn ->
+        if original_limit do
+          Application.put_env(:core_execution, :max_concurrent_process_instances, original_limit)
+        else
+          Application.delete_env(:core_execution, :max_concurrent_process_instances)
+        end
+      end)
+
+      process_instance_id = random_id()
+      definitions = BpmnFactory.linear_three_node()
+      ModelCache.put_new(@resume_version_id, definitions)
+
+      Application.put_env(:core_execution, :resume_test_fixture, %{
+        records: [
+          %{
+            id: process_instance_id,
+            process_version_id: @resume_version_id,
+            business_key: nil,
+            parent_process_instance_id: nil,
+            triggerer_flow_node_instance_id: nil,
+            started_at: DateTime.utc_now(),
+            started_by: %{"id" => "test-user"},
+            started_with_context: %{"input" => "data"}
+          }
+        ],
+        list_flow_node_instances:
+          {:ok,
+           [
+             %{
+               id: "fni-start",
+               flow_node_id: "Start_1",
+               flow_node_type: "start_event",
+               state: "finished",
+               input_token: %{"input" => "data"},
+               type_properties: %{},
+               previous_flow_node_instance_ids: [],
+               lane_name: nil,
+               started_at: DateTime.utc_now()
+             }
+           ]}
+      })
+
+      sink_name = "resume-overload-#{System.unique_integer([:positive])}"
+
+      assert :ok =
+               EngineEventBus.register_sink(sink_name, ResumeOverloadSink, test_pid: self())
+
+      assert {:ok, 1} = ResumeRunner.resume_all()
+
+      assert_receive {:resume_overload, %Event.EngineOverloaded{level: :critical, limit: 0}}, 1_000
+
+      assert {:ok, process_instance_pid} = Execution.lookup_process_instance(process_instance_id)
       DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, process_instance_pid)
     end
 

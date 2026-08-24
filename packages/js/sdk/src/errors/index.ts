@@ -28,6 +28,7 @@ export { IncompatibleVersionMigrationError } from './incompatible-version-migrat
 export { RetryCheckpointIsJoinGatewayError } from './retry-checkpoint-is-join-gateway-error.js';
 export { RetryCheckpointIsEbgLoserError } from './retry-checkpoint-is-ebg-loser-error.js';
 export { RetryCheckpointIsMiIterationError } from './retry-checkpoint-is-mi-iteration-error.js';
+export { RetryCheckpointIsNonRetryableError } from './retry-checkpoint-is-non-retryable-error.js';
 export { RetryCheckpointInsideTransactionError } from './retry-checkpoint-inside-transaction-error.js';
 export { RetryInsideTransactionScopeError } from './retry-inside-transaction-scope-error.js';
 export { GraphqlDepthLimitError } from './graphql-depth-limit-error.js';
@@ -46,3 +47,12 @@ export { DecisionServiceValidationError } from './decision-service-validation-er
 export { AmbiguousDecisionError } from './ambiguous-decision-error.js';
 export { InputValueViolationError } from './input-value-violation-error.js';
 export { MissingServiceInputError } from './missing-service-input-error.js';
+export { RetryCheckpointInsideAdhocSubprocessError } from './retry-checkpoint-inside-adhoc-subprocess-error.js';
+export { RetryInsideAdhocSubprocessError } from './retry-inside-adhoc-subprocess-error.js';
+export { NotATimerEventError } from './not-a-timer-event-error.js';
+export { DispatchFailedError } from './dispatch-failed-error.js';
+export { ConflictError } from './conflict-error.js';
+export { BadRequestError } from './bad-request-error.js';
+export { NoMatchingConditionError } from './no-matching-condition-error.js';
+export { NoDecisionsError } from './no-decisions-error.js';
+export { ServiceUnavailableError } from './service-unavailable-error.js';

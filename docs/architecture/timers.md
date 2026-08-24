@@ -184,8 +184,8 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Module | Domain | Purpose |
 |--------|--------|---------|
-| `EvilEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory ETS-based stub for unit tests |
-| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | Ash + AshPostgres implementation |
+| `EvilEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory GenServer. **Current production default** (`config/config.exs`). Cycle Timer Start schedules do not survive an engine restart until a Postgres adapter ships. |
+| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | **Specified, not implemented.** Ash + AshPostgres adapter documented here and in the behaviour `@moduledoc`; no module exists in the tree. |
 
 ---
 
@@ -195,7 +195,7 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 |-----|---------|------|-------------|
 | `:core_timers, :tick_interval_ms` | `1000` | `50` | Scheduler tick frequency |
 | `:core_timers, :timer_start_target` | `:timer_start_listener` | — | Registered name for Timer Start fire delivery |
-| `:core_timers, :persistence_module` | `Persistence.NoOp` | `Persistence.NoOp` | Persistence behaviour implementation |
+| `:core_timers, :persistence_module` | `Persistence.NoOp` | `Persistence.NoOp` | Persistence behaviour implementation. Production currently uses NoOp; a Postgres adapter is specified but not shipped. |
 
 ---
 

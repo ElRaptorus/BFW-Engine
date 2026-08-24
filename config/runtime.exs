@@ -100,7 +100,7 @@ if config_env() == :prod do
 
   repo_opts =
     repo_opts
-    |> Keyword.put(:pool_size, Env.get_int("EVIL_DB_POOL_SIZE", 20))
+    |> Keyword.put(:pool_size, Env.get_int("EVIL_DB_POOL_SIZE", 100))
     |> then(fn o ->
       if Env.get_bool("EVIL_DB_IPV6", false),
         do: Keyword.put(o, :socket_options, [:inet6]),
@@ -117,7 +117,7 @@ if config_env() == :prod do
 
   read_repo_opts =
     repo_opts
-    |> Keyword.put(:pool_size, Env.get_int("EVIL_DB_READ_POOL_SIZE", 10))
+    |> Keyword.put(:pool_size, Env.get_int("EVIL_DB_READ_POOL_SIZE", 50))
     |> Keyword.delete(:pool)
 
   config :peripheral_persistence, EvilEngine.Persistence.ReadRepo, read_repo_opts
@@ -259,15 +259,12 @@ config :peripheral_persistence, :retention,
   pending_messages_keep_after_transition:
     Env.get_bool("EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION", true),
   pending_signals_keep_after_transition:
-    Env.get_bool("EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION", true),
-  pending_escalations_keep_after_transition:
-    Env.get_bool("EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION", true)
+    Env.get_bool("EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION", true)
 
 # --- Pending TTLs + sweeper --------------------------
 config :core_events,
   message_pending_ttl: Env.get("EVIL_MESSAGE_PENDING_TTL", "PT60S"),
   signal_pending_ttl: Env.get("EVIL_SIGNAL_PENDING_TTL", "PT60S"),
-  escalation_pending_ttl: Env.get("EVIL_ESCALATION_PENDING_TTL", "PT60S"),
   pending_sweeper_interval: Env.get_int("EVIL_PENDING_SWEEPER_INTERVAL", 10_000)
 
 # --- Linter-gate -------------------------------------------

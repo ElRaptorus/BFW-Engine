@@ -11,6 +11,16 @@ parent_document: ../ImplementationPlan.md
 
 See [`Schema.md`](../Schema.md) for the visual ER diagram.
 
+> **Shipped vs specified:** the current migration creates catalog, execution,
+> data-object, message/signal, and decision tables. There is **no**
+> `pending_escalations` table (escalation D1). Dedicated `escalations`,
+> `compensations`, and `engine_timers` tables remain specified below but are
+> **not** in the current schema. Escalation and compensation runtime uses
+> EngineEventBus plus in-memory registries; PI-scoped timers persist in FNI
+> `type_properties`; Timer Start schedules use `Timers.Persistence.NoOp`.
+> `GET /stats` computes pending user-task and FNI counts via Ash — there is
+> no `user_tasks_pending` materialized view and no `process_statistics` view.
+
 ## 4. Data model (Postgres)
 
 All tables defined as Ash resources (`AshPostgres`) with generated migrations. Time columns are `timestamptz`. Identifiers are UUIDv7 for natural time-ordering on indexes.
@@ -400,7 +410,12 @@ escalations    -- same shape as signals, plus escalation_code + escalation_name.
   INDEX (escalation_code, published_at)
   INDEX (outcome) WHERE outcome <> 'caught'      -- operator query: "show me uncaught escalations recently"
 
-pending_escalations    -- [`routing.md`](./routing.md) §3.5.7 — escalations whose scope-chain walk reached the root of the root PI uncaught.
+pending_escalations    -- **DROPPED (escalation D1).** There is no `pending_escalations` table,
+  -- no late-catch drain, and no PendingSweeper involvement for escalations.
+  -- Escalation boundaries are pre-spawned in `:waiting` when the host activity starts.
+  -- The DDL below is historical spec text and must not be implemented.
+
+  -- (removed)
   -- OBSERVABILITY-ONLY: the throw-element-aware terminal state is applied the instant
   --   the walker decides "uncaught"; this pending row does NOT block or defer that decision.
   --   It exists so that Escalation Boundary / Event-Subprocess-Start subscriptions registering
@@ -499,6 +514,10 @@ data_object_writes   -- append-only history, one row per Data Object write.
   -- No partial indexes; all rows are terminal/historical.
 
 engine_timers
+  -- SPECIFIED, NOT IN THE CURRENT MIGRATION.
+  -- PI-scoped timers persist in FNI `type_properties`; the Scheduler holds armed
+  -- timers in ETS. Timer Start schedules use `Timers.Persistence.NoOp`.
+  --
   -- NOT PARTITIONED: fire_at can be arbitrarily far-future for scheduled cycle timers,
   --   and adding a dedicated created_at column only for partitioning adds schema churn without
   --   meaningful storage benefit at realistic volumes (~2 timers per PI; the armed-state working
@@ -523,23 +542,19 @@ engine_timers
 
 ### 4.4 Derived indexes / views (for GraphQL queries)
 
-```
-user_tasks_pending  (materialized view refreshed via trigger)
-  flow_node_instance_id, process_instance_id, assignees[], form_schema, created_at
-  INDEX GIN (assignees)
-
-process_statistics  (view)
-  running_count_per_process_version, finished_last_hour, ...
-```
+There is **no** `user_tasks_pending` materialized view and **no**
+`process_statistics` SQL view. `GET /stats` (`EvilEngine.Telemetry.StatsCollector`)
+computes pending user-task and waiting-FNI counts with live Ash queries against
+`flow_node_instances`. GraphQL list/get queries hit Ash resources directly.
 
 ### 4.5 Why this schema fits concept's requirements
 
 | Concept requirement | Mechanism |
 |---|---|
 | "Never the DB bottleneck" | Partial indexes on `state='running'`/`'active'` keep working set small; JSONB GIN for free-form queries; materialized views for heavy aggregates |
-| "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log + `messages` (origin+correlation) / `signals` (origin+deliveries) / `escalations` (origin+correlation) |
-| "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state='active'` (which carries the in-flight token payload in its `input_token` column removed the redundant `active_tokens` shadow) + `gateway_pending_arrivals` (for half-completed joins) + `engine_timers.state='armed'` |
+| "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log (table exists; built-in DatabaseSink removed so it stays empty unless a plugin sink writes it) + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
+| "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state IN ('active','waiting')` (in-flight token payload lives on `input_token`) + `gateway_pending_arrivals` (for half-completed joins). PI-scoped timers resume from FNI `type_properties` into Scheduler ETS. There is no `engine_timers` table. |
 | "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `EVIL_TOKEN_MAX_BYTES` |
-| "Bounded engine-wide audit-table growth" | Engine-audit retention closes the gap PI-cascade retention left for engine-level audit tables with no PI affinity: `messages`/`pending_messages`/`signals`/`escalations`/`compensations` partitioned monthly on their publish timestamp (same scheme as `process_instance_events`); single opt-in retention knob `EVIL_RETENTION_ENGINE_AUDIT_DAYS` swept by the same `RetentionRunner` as a second per-tick pass; operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`, `pending_escalations.state='pending'`, `engine_timers.state='armed'`) excluded from retention. Optional `EVIL_PENDING_<TYPE>_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode for operators who don't need the delivery-attempt audit. `engine_timers` itself is not partitioned — armed rows are cascade-purged with their PI; fired/cancelled rows are retention-eligible. The same partitioning + retention shape applies to `pending_signals` and `pending_escalations` so the signal and escalation resume-race closures don't reintroduce unbounded growth |
+| "Bounded engine-wide audit-table growth" | Engine-audit retention (Phase 7, not shipped) closes the gap PI-cascade retention left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned monthly on `published_at` (`EvilEngine.Persistence.Partitions`). Single opt-in knob `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded from retention. Optional `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. There is no `pending_escalations` table (escalation D1). Dedicated `escalations` / `compensations` / `engine_timers` tables are specified but **not migrated** — do not plan Pass B DELETEs against them until they exist. |
 | "No duplicated rows per tick" | Snapshot tables are **updated in place**; events are only inserted on real state transitions or domain events |
 | "Leverage SQL" | All heavy queries are plain SQL. No client-side filtering. GraphQL queries translate 1:1 to Ecto queries via AshPostgres |

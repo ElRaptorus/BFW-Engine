@@ -32,7 +32,7 @@ Everything observable the engine produces at runtime (PI/FNI transitions, messag
 - `process_instances` + `flow_node_instances` carry every PI / FNI state + timestamps + token payloads, plus the `triggerer_flow_node_instance_id` backlink on every Catch Event / Boundary Event / Auto-triggered PI / Start Event spawned by a Throw or Send Task, and the `parent_process_instance_id` backlink for Call-Activity children.
 - `data_objects` + `data_object_writes` (always-on) carry the full DO write history with FNI attribution.
 - `messages` / `signals` / `escalations` (always-on) carry each engine-wide publish/raise event with `correlations[]` holding `{process_instance_id, flow_node_instance_id, delivered_at}` per recipient, plus the `origin` FNI for thrown events.
-- `engine_timers` carries armed/fired/cancelled timer rows with their owning FNI.
+- Timer Start cycle schedules persist via `EvilEngine.Timers.Persistence` (currently the in-memory `NoOp` adapter; a Postgres adapter is specified but not shipped). PI-scoped timer state lives in FNI `type_properties` and the Scheduler ETS tables.
 
 Together these reconstruct the full sender↔receiver pattern for every BPMN-element-sourced event (the Studio debugger's current approach: point at an event's source and let the user navigate). **This works identically whether the DB EventSink is on or off, live or historical.**
 
@@ -45,7 +45,7 @@ Together these reconstruct the full sender↔receiver pattern for every BPMN-ele
 - The `console` sink emits events as **structured JSON** (`logger_json` formatter) — this is the primary log surface in v1.
 - Severity levels: `error | warn | info | debug | verbose` (maps to concept's "Verbose"). Configured globally via `EVIL_LOG_MIN_SEVERITY` (default `info`).
 - Every log line carries: `engine_id`, `process_instance_id?`, `flow_node_instance_id?`, `identity.id?`, plus the event-specific payload from `EvilEngine.Types.Event.*`.
-- Engine-internal logs outside the event bus (startup banners, sink-failure warnings, `RetentionRunner` heartbeats) use the same JSON formatter and share the same severity level.
+- Engine-internal logs outside the event bus (startup banners, sink-failure warnings) use the same JSON formatter and share the same severity level. `RetentionRunner` heartbeats are **Phase 7** (the runner does not ship today).
 - **API error audit trail:** Every REST error response is logged by `ErrorResponse` (`:error` for 5xx, `:warning` for 4xx). Auth failures, payload-cap violations, rate-limit rejections, and rescued exceptions in message/signal controllers are logged separately with additional context. GraphQL errors are logged by the `ErrorLogger` Absinthe phase. See [api.md §Audit-trail logging](api.md#audit-trail-logging).
 
 ### 11.2 `/stats` endpoint (JSON snapshot)

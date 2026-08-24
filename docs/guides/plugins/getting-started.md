@@ -80,10 +80,10 @@ The sidecar design is retained in [plugins.md](../../architecture/plugins.md) §
 | `EvilEngine.Plugin.ServiceTaskHandler` | [Service Task Handler](service-task-handler.md) |
 | `EvilEngine.Plugin.EventSink` | [Event Sink](event-sink.md) |
 | `EvilEngine.Plugin.RestApiExtension` | [REST API Extension](api-extension.md) |
-| `EvilEngine.Plugin.PersistenceAdapter` | [Persistence Adapter](persistence-adapter.md) |
-| `EvilEngine.Plugin.MonitoringPanel` | [Other Behaviours](other-behaviours.md) |
-| `EvilEngine.Plugin.TimerSource` | [Other Behaviours](other-behaviours.md) |
-| `EvilEngine.Plugin.DataStoreAdapter` | [Other Behaviours](other-behaviours.md) |
+| `EvilEngine.Plugin.PersistenceAdapter` | [Persistence Adapter](persistence-adapter.md) — **not in v1** |
+| `EvilEngine.Plugin.MonitoringPanel` | [Other Behaviours](other-behaviours.md) — **not in v1** |
+| `EvilEngine.Plugin.TimerSource` | [Other Behaviours](other-behaviours.md) — **not in v1** |
+| `EvilEngine.Plugin.DataStoreAdapter` | [Other Behaviours](other-behaviours.md) — **not in v1** |
 | `EvilEngine.Plugin.NamedScript` | [Other Behaviours](other-behaviours.md) |
 
 ## Related

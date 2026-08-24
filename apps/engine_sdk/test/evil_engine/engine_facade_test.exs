@@ -51,6 +51,7 @@ defmodule EvilEngine.EngineFacadeTest do
       assert %EngineFacade.DataObjects{} = facade.data_objects
       assert %EngineFacade.Decisions{} = facade.decisions
       assert %EngineFacade.Graphql{} = facade.graphql
+      assert %EngineFacade.Timers{} = facade.timers
     end
   end
 
@@ -174,6 +175,18 @@ defmodule EvilEngine.EngineFacadeTest do
 
     test "namespace noop: decisions.undeploy returns {:error, :not_wired}", %{facade: f} do
       assert f.decisions.undeploy.("model-1") == {:error, :not_wired}
+    end
+
+    test "namespace noop: processes.list returns {:error, :not_wired}", %{facade: f} do
+      assert f.processes.list.() == {:error, :not_wired}
+    end
+
+    test "namespace noop: processes.undeploy returns {:error, :not_wired}", %{facade: f} do
+      assert f.processes.undeploy.("model-1") == {:error, :not_wired}
+    end
+
+    test "namespace noop: timers.trigger_event returns {:error, :not_wired}", %{facade: f} do
+      assert f.timers.trigger_event.("fni-1") == {:error, :not_wired}
     end
   end
 
@@ -316,6 +329,18 @@ defmodule EvilEngine.EngineFacadeTest do
 
     test "decisions.undeploy is a function of arity 1", %{facade: f} do
       assert is_function(f.decisions.undeploy, 1)
+    end
+
+    test "processes.list is a function of arity 0", %{facade: f} do
+      assert is_function(f.processes.list, 0)
+    end
+
+    test "processes.undeploy is a function of arity 1", %{facade: f} do
+      assert is_function(f.processes.undeploy, 1)
+    end
+
+    test "timers.trigger_event is a function of arity 1", %{facade: f} do
+      assert is_function(f.timers.trigger_event, 1)
     end
   end
 

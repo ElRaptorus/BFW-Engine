@@ -157,8 +157,10 @@ Cycle timers are the only start event type that fires automatically. When a proc
 Cycle start events support **enable/disable** via the Timer Schedules API:
 
 ```
-GET  /timer-schedules          # List all schedules
-PUT  /timer-schedules/:id      # Toggle enabled/disabled
+GET  /timer-schedules              # List all schedules
+GET  /timer-schedules/:id          # Get a single schedule
+PUT  /timer-schedules/:id/enable   # Re-enable a disabled schedule
+PUT  /timer-schedules/:id/disable  # Disable a schedule
 ```
 
 Disabling a schedule stops the timer from firing. Re-enabling re-arms it with the next occurrence. The cycle's remaining repetition count is preserved across enable/disable toggles.

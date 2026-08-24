@@ -12,8 +12,8 @@ The engine requires PostgreSQL 16+ for JSONB support and LZ4 toast compression.
 | `EVIL_DATABASE_NAME` | -- | Database name |
 | `EVIL_DATABASE_USER` | -- | Username |
 | `EVIL_DATABASE_PASS` | -- | Password |
-| `EVIL_DB_POOL_SIZE` | `20` | Write pool size (PI/FNI lifecycle, deploys, message/signal persistence) |
-| `EVIL_DB_READ_POOL_SIZE` | `10` | Read pool size (GraphQL queries, REST list/get endpoints) |
+| `EVIL_DB_POOL_SIZE` | `100` | Write pool size (PI/FNI lifecycle, deploys, message/signal persistence) |
+| `EVIL_DB_READ_POOL_SIZE` | `50` | Read pool size (GraphQL queries, REST list/get endpoints) |
 | `EVIL_DB_CHECKOUT_RETRIES` | `3` | DBConnection retries on mid-query disconnect (Layer 1) |
 | `EVIL_DB_QUEUE_TARGET` | `100` | CoDel target latency (ms) |
 | `EVIL_DB_QUEUE_INTERVAL` | `2000` | CoDel measurement interval (ms) |
@@ -31,9 +31,9 @@ The engine uses two Ecto repos with separate connection pools:
 - **Write pool** (`EvilEngine.Persistence.Repo`, `EVIL_DB_POOL_SIZE`) — handles all mutations: PI/FNI state writes, deployments, message/signal persistence, retry orchestration.
 - **Read pool** (`EvilEngine.Persistence.ReadRepo`, `EVIL_DB_READ_POOL_SIZE`) — handles all reads: GraphQL queries, REST list/get, Ash read actions.
 
-The 2:1 default (20 write / 10 read) reflects workload asymmetry: tens of thousands of PIs produce massively concurrent writes, while a comparatively small number of Studio users issue read queries. Adjust based on your workload profile.
+The 2:1 default (100 write / 50 read) reflects workload asymmetry: tens of thousands of PIs produce massively concurrent writes, while a comparatively small number of Studio users issue read queries. Adjust based on your workload profile.
 
-Ensure PostgreSQL `max_connections` ≥ write pool + read pool + headroom (at least 50; the default is 100).
+Size PostgreSQL with `max_connections >= (write + read) * engine_nodes + 20`. Production defaults (100 + 50) already exceed Postgres's default `max_connections` of 100; a single-node install needs at least 170 (recommend 200).
 
 ## Persistence Resilience
 
@@ -122,7 +122,7 @@ PI purge is atomic: a PI's events, FNIs, data objects, and writes are deleted in
 | `EVIL_RETENTION_RUN_INTERVAL` | `PT1H` | How often the runner wakes |
 | `EVIL_RETENTION_BATCH_SIZE` | `500` | Max rows per transaction |
 
-The `RetentionRunner` starts only if at least one `EVIL_RETENTION_*_DAYS` var is set.
+The `RetentionRunner` is **Phase 7** and does not ship today. When it lands, it will start only if at least one `EVIL_RETENTION_*_DAYS` var is set.
 
 ### Safety Invariants
 

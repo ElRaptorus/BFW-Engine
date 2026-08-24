@@ -2,9 +2,9 @@ defmodule EvilEngineWeb.Graphql.Errors do
   @moduledoc """
   Translates engine error tuples into Absinthe-compatible GraphQL errors.
 
-  Used by mutation resolvers to convert domain errors (like payload-cap
-  violations) into structured GraphQL error objects with typed
-  `extensions.code` values.
+  GraphQL is query-only. This helper is retained for query-layer error
+  translation (for example payload-cap) and for tests. There are no
+  GraphQL mutation resolvers.
   """
 
   @doc """

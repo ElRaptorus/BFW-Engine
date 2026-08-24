@@ -28,7 +28,7 @@ curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/finish \
   -d '{"result": {}}'
 ```
 
-Or via GraphQL — see [User Tasks](user-tasks.md) for the mutation shape.
+Or via REST — see [User Tasks](user-tasks.md) for the finish request body.
 
 Manual Tasks do not support form fields or result contracts. The result payload (if any) becomes the output token.
 

@@ -19,7 +19,7 @@ defmodule ApiFacade.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
-      test_coverage: [tool: ExCoveralls, threshold: 0],
+      test_coverage: [tool: ExCoveralls, threshold: 76],
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env())
     ]

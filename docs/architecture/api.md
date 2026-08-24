@@ -74,11 +74,11 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 
 **`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `EVIL_METRICS_ENABLED` is `true` (default). Metric definitions live in `EvilEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, returns **404** with JSON `{"error":"metrics_disabled"}`.
 
-**`POST /processes/{model_id}/start` — `503` / `429`** — When the dynamic supervisor rejects a new PI because `EVIL_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `EVIL_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
+**`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `EVIL_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `EVIL_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
 
 **Deprecation headers (RFC 8594)** — Routes mark themselves by setting `conn.private[:deprecated]` to `%{successor: path, sunset: optional_datetime}` (via `plug :put_private` or scope options). `DeprecationPlug` injects `Deprecation`, `Link` (`rel="successor-version"`), and optional `Sunset` on responses. Full rules: [§10.5](#105-deprecation-headers-rfc-8594).
 
-Additional trigger-style paths in the table below remain **specified** for v1 parity with `ImplementationPlan.md` §10; wire them through GraphQL (or future controllers) when not yet present on `EvilEngineWeb.Http.Router`.
+Additional trigger-style paths in the table below remain **specified** for v1 parity with `ImplementationPlan.md` §10; wire them through REST controllers (and the plugin facade) when not yet present on `EvilEngineWeb.Http.Router`. GraphQL is query-only — it is never a command surface.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -87,12 +87,9 @@ Additional trigger-style paths in the table below remain **specified** for v1 pa
 | `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`EVIL_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
 | `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md) §11.2) |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
-| `POST` | `/process-instances/{id}/restart` | New PI with original inputs |
-| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `EVIL_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md) §14.3). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). Supersedes the RPC-style `POST /triggers/messages` |
-| `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). Supersedes the RPC-style `POST /triggers/signals` |
-| `POST` | `/triggers/messages` | **Deprecated** — superseded by `POST /messages/{message_name}/trigger`. Same semantics; message name was in the request body `{name, payload, correlation?}` |
-| `POST` | `/triggers/signals` | **Deprecated** — superseded by `POST /signals/{signal_name}/trigger`. Same semantics; signal name was in the request body `{name, payload?}` |
-| `POST` | `/triggers/escalations` | Publish escalation |
+| `POST` | `/process-instances/{id}/restart` | **Specified, not implemented.** Restart would start a new PI with original inputs. Live retry is `PUT /process-instances/{id}/retry`. |
+| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `EVIL_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md) §14.3). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
+| `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
 | `PUT` | `/user-tasks/{fniId}/finish` | Complete with result |
 | `PUT` | `/user-tasks/{fniId}/cancel` | |
 | `PUT` | `/process-instances/{id}/abort` | |
@@ -161,11 +158,11 @@ Errors: `404` (PI not found or activity not found in scope), `422` (`not_adhoc_s
 
 Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activity,complete,get_status}` — same operations with `skip_claims: true`.
 
-**Async Service Tasks:** completion is **plugin-side** only — call `engine_facade.finish_async_service_task/2` or `fail_async_service_task/3` (or the matching `EvilEngine.Api.*` actions / GraphQL mutations when exposed). There is **no** first-class `POST /async-flow-nodes/...` REST surface.
+**Async Service Tasks:** completion is **plugin-side** only — call `engine_facade.finish_async_service_task/2` or `fail_async_service_task/3` (or the matching `EvilEngine.Api.*` facade actions). There is **no** first-class `POST /async-flow-nodes/...` REST surface and **no** GraphQL mutation.
 
 ##### 10.1.1 Payload size limits
 
-Every endpoint that accepts a user-supplied JSON payload — `payload` on `/processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/triggers/messages` (deprecated), `/triggers/escalations`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **facade / GraphQL** path — enforces the engine-wide `EVIL_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. `startProcessInstance`'s `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` and `/triggers/signals` (deprecated) carry no payload — any `payload` key in the body is silently ignored.
+Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `EVIL_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` carries no payload — any `payload` key in the body is silently ignored. There is no `POST /triggers/*` RPC surface (those routes were removed). Escalations are thrown from BPMN, not from a public REST trigger. GraphQL is query-only and does not accept command payloads.
 
 On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structured body:
 
@@ -180,13 +177,15 @@ On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structure
 
 No engine state changes on a 413 — the PI is not started, the message is not published, the User Task is not completed, the async Service Task FNI stays in `waiting`. API-caller retries with a smaller payload are first-class.
 
-The cap is enforced identically whether the payload comes through REST (above) or through the GraphQL Mutation fields in §10.2.1 (`startProcessInstance.input.payload`, `finishUserTask.input.result`, etc.). For GraphQL the same overflow produces a typed error in the response's `errors[]` with `extensions.code = "PAYLOAD_TOO_LARGE"` and the same `size`/`limit`/`field` shape.
+The cap is enforced identically whether the payload comes through REST (above) or through the plugin facade (`EvilEngine.Api.*` / `engine_facade`). Overflow on REST returns HTTP 413 as shown; overflow on the facade returns `{:error, :payload_too_large, %{field, size, limit}}` with the same shape. There are no GraphQL mutations, so GraphQL never carries a command payload.
 
 Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * EVIL_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return the standard Phoenix `413` before the per-field cap check runs.
 
-### 10.2 GraphQL surface (heavyweight querying)
+### 10.2 GraphQL surface (query-only)
 
-GraphQL is the primary surface for everything Studio (and every other external consumer) needs beyond trigger-style REST: paginated lists, deep fetches, live subscriptions, and — — structured access to the parsed Process Model itself. Two complementary blocks: **persistence-backed resources** (§10.2.1) and the **Process Model graph** (§10.2.2).
+GraphQL is **strictly query-only**. It is the primary surface for everything Studio (and every other external consumer) needs beyond trigger-style REST: paginated lists, deep fetches, and structured access to the parsed Process Model itself. Two complementary blocks: **persistence-backed resources** (§10.2.1) and the **Process Model graph** (§10.2.2).
+
+All commands (start, finish, abort, retry, deploy, purge, trigger) are REST and/or the plugin facade. Real-time event delivery is Phoenix Channels (§10.3), not GraphQL subscriptions. See also the consumer guide [`guides/api/graphql-reference.md`](../guides/api/graphql-reference.md).
 
 #### 10.2.1 Persistence-backed resources
 
@@ -203,19 +202,9 @@ type Query {
   dataObjectValues(filter, sort, first, after, last, before)  : KeysetPageOfDataObjectValue
   dataObjectHistory(filter, sort, first, after, last, before) : KeysetPageOfDataObjectHistoryEntry
 }
-
-type Mutation {
-  startProcessInstance(input)                    : StartProcessInstanceResult
-  finishUserTask(input)                          : FinishUserTaskResult
-}
-
-type Subscription {
-  processInstance(id: ID!)                       : ProcessInstanceEvent!
-  processInstances(processModelId: String)       : ProcessInstanceEvent!
-  flowNodeInstance(id: ID!)                      : FlowNodeInstanceEvent!
-  engineEvents(types: [EventType!])              : EngineEvent!
-}
 ```
+
+There are **no GraphQL mutations or subscriptions**. Commands stay on REST (and the plugin facade). Real-time events use Phoenix Channels (§10.3).
 
 Filter grammar is AshGraphql's built-in (type-safe, composable expressions including `ilike` for case-insensitive substring matching on string fields). Sort accepts multiple keys with `field` (SCREAMING_SNAKE_CASE enum) and `order` (`ASC`/`DESC`). Pagination is keyset-based: `first`/`after` for forward paging, `last`/`before` for backward paging.
 
@@ -446,64 +435,35 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 **TypeScript client support (WP-6).** `packages/js/client/src/graphql/query-builder.ts` accepts a `SelectionField[]` — a recursive union type (`packages/js/sdk/src/graphql/model-fields.ts`) that can express nested selections and inline fragments (`{ name: 'flowNode', on: { UserTaskNode: [...], ServiceTaskNode: [...] } }`), not just flat `string[]`. The SDK ships `buildFlowNodeSelection(depth)` and `buildProcessModelSelection(depth)` helpers that pre-build the canonical debugger-shaped selection (default recursion depth 4 for nested `SubProcessNode.flowNodes`), consumed via `GraphqlClient.getProcessVersionWithModel()`, `GraphqlClient.getFlowNodeInstanceWithModel()`, and `GraphqlClient.getProcessInstanceWithModel()`.
 
-#### 10.2.3 Retention + manual purge
+#### 10.2.3 Retention + manual purge (**planned REST**, Phase 7)
 
-One operator-only mutation surfaces database housekeeping through GraphQL. Ordinary API JWTs never succeed on this field — a dedicated `:can_purge_audit_data` Ash Policy gates it; the built-in check verifies `purge_audit_data=true` in the caller's JWT claims ([authorization.md](./authorization.md) §4.1). Operators can layer additional policy checks (e.g. source-IP allowlist) on top without forking the mutation.
+Manual purge is **not** a live GraphQL field and will never be one — GraphQL is query-only. Phase 7 will add an operator-only **REST** command under process-instances (`POST` or `DELETE`, claim `purge_audit_data`) plus a CLI that hits that REST endpoint. Ordinary API JWTs never succeed — the built-in check verifies `purge_audit_data=true` in the caller's JWT claims ([authorization.md](./authorization.md) §4.1). Operators can layer additional checks (e.g. source-IP allowlist) on top without forking the endpoint.
 
-```graphql
-enum TerminalPiState { FINISHED FATAL ABORTED ERROR ESCALATED COMPENSATED }
+Planned request shape (names may shift when Phase 7 lands; OpenAPI will be the schema source of truth):
 
-type PurgedRowCounts {
-  processInstances:    Int!
-  flowNodeInstances:   Int!
-  dataObjectValues:    Int!
-  dataObjectHistory:   Int!
-  processInstanceEvents: Int!   # always zero since the built-in database sink was removed
-}
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `olderThan` | ISO 8601 datetime | required | Cutoff; only terminal PIs finished before this are eligible |
+| `states` | list of terminal PI states | required | `finished`, `fatal`, `aborted`, `error`, `escalated`, `compensated` (`cancelled` is terminal-but-handled — include only if the Phase 7 execute plan says so) |
+| `dryRun` | boolean | `true` | When `true`, return the row counts that *would* be deleted without touching the DB |
+| `batchSize` | integer | `500` | Bounded batch per transaction; caller loops until `purgedPis == 0` |
 
-type PurgeResult {
-  dryRun:     Boolean!
-  purgedPis:  Int!              # number of PIs that were (or would be) deleted
-  rowCounts:  PurgedRowCounts!
-  cutoff:     DateTime!
-  statesPurged: [TerminalPiState!]!
-  ranAt:      DateTime!
-}
+Planned response (`PurgeResult`): `dryRun`, `purgedPis`, `rowCounts` (`processInstances`, `flowNodeInstances`, `dataObjectValues`, `dataObjectHistory`, `processInstanceEvents` — always zero since the built-in database sink was removed), `cutoff`, `statesPurged`, `ranAt`.
 
-extend type Mutation {
-  """
-  Cascade-delete terminal PIs older than `olderThan` whose final state is in
-  `states`. Runs inside a bounded batch (`batchSize`, default 500) per
-  transaction; returns after the first batch even if more rows exist — the
-  caller is expected to loop until `purgedPis == 0`.
-
-  When `dryRun: true` (the default), returns the row counts that WOULD have
-  been deleted without touching the DB. Policy guard: `:can_purge_audit_data`
-  (admin-only — ).
-  """
-  purgeProcessInstances(
-    olderThan: DateTime!
-    states:    [TerminalPiState!]!
-    dryRun:    Boolean = true
-    batchSize: Int      = 500
-  ): PurgeResult!
-}
-```
-
-Semantic invariants:
+Semantic invariants (same as the planned `RetentionRunner`):
 
 - Only **terminal** PIs are eligible — `running` is never touched. Violations return a domain error.
 - Purge is atomic-per-PI: a PI's `process_instances` row, all its `flow_node_instances`, `data_objects`, `data_object_writes`, and `process_instance_events` rows are deleted in one transaction. If any child PI (via Call Activity) is still `running`, the parent PI is skipped and reported in the response metadata.
 - Every successful batch emits exactly one `Event.RetentionPurged{process_instance_id, purged_at, row_counts, policy_source: :manual_purge}` per purged PI on `EngineEventBus`, so audit-sink plugins can ship a "PI X was purged on Y" record to external long-term storage.
 - Catalog rows (`processes`, `process_versions`) are **never** touched — their lifecycle is governed by version deletion.
-- The same endpoint is also callable from the engine CLI as `evil_engine purge --older-than=<ISO8601> --states=finished,error [--dry-run] [--batch-size=500]`, which hits the GraphQL mutation internally with an operator-token.
+- The same REST endpoint is also callable from the engine CLI as `evil_engine purge --older-than=<ISO8601> --states=finished,error [--dry-run] [--batch-size=500]`, which hits REST internally with an operator token. There is no `purgeProcessInstances` GraphQL mutation.
 
 ### 10.3 WebSocket (Phoenix Channels)
 
 - **Implemented** topic shape: `engine:*`, `process_instance:<id>`, `user_tasks:pending`. Planned but not yet wired: `process:<model_id>`.
 - Subscriptions require the same JWT as HTTP.
 - `process_instance:<id>` join enforces §5.1 PI visibility. Dispatch-time filtering (`EventDelivery.should_deliver?/2`) then applies the FNI lane gate and, on `engine:events`, §5.1 PI visibility from emit-time stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`). `user_tasks:pending` is a lane-filtered inbox of `UserTaskCreated` / `UserTaskFinished`.
-- GraphQL Subscriptions are **not** currently implemented. Real-time events use the Phoenix Channel push model. GraphQL FNI **reads** remain PI-scoped (§5.2); WebSocket FNI dispatch is the stricter lane gate.
+- GraphQL has **no** subscriptions (and no mutations). Real-time events use the Phoenix Channel push model. GraphQL FNI **reads** remain PI-scoped (§5.2); WebSocket FNI dispatch is the stricter lane gate.
 
 ### 10.4 OpenAPI + GraphQL SDL
 
@@ -621,7 +581,7 @@ Triggers a named message event. Correlates with waiting `ReceiveTask`, `Intermed
 
 Auth claim: `trigger_message` (`"all"`).
 
-The legacy RPC-style `POST /triggers/messages` (body: `{name, payload, correlation?}`) is superseded by this resource-oriented route.
+The legacy RPC-style `POST /triggers/messages` was **removed**. Use this resource-oriented route.
 
 ### `POST /signals/{signal_name}/trigger` — **implemented**
 
@@ -637,7 +597,7 @@ Response: `{ signalId, signalName, deliveries: [{processInstanceId, flowNodeInst
 
 Note: Signals carry no payload and no correlation — they are pure broadcast by signal name.
 
-The legacy RPC-style `POST /triggers/signals` (body: `{name, payload?}`) is superseded by this resource-oriented route.
+The legacy RPC-style `POST /triggers/signals` was **removed**. Use this resource-oriented route.
 
 ### Timer Schedule Management
 

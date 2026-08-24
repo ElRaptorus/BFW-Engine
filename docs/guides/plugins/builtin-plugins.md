@@ -41,7 +41,7 @@ The `httpResponseHeaders` expression additionally receives a `responseHeaders` b
 
 ## Built-in Event Sinks
 
-All four built-in sinks implement `@behaviour EvilEngine.Plugin.EventSink` and are registered before user plugins.
+All three built-in sinks implement `@behaviour EvilEngine.Plugin.EventSink` and are registered before user plugins. The built-in database sink was removed.
 
 ### Console Sink
 

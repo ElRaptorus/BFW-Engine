@@ -12,9 +12,10 @@ curl http://localhost:4000/health
 # Engine identity and feature flags
 curl http://localhost:4000/info
 # {"engine_id":"...","engine_name":"...","version":"0.0.1",
-#  "started_at":"...","uptime_seconds":3600,
-#  "auth_disabled":false,"event_sink_database":false}
+#  "started_at":"..."}
 ```
+
+`GET /info` does **not** serialize `event_sink_database`. The built-in database event sink was removed.
 
 Both endpoints are suitable for container health probes.
 

@@ -6,9 +6,13 @@ defmodule EvilEngine.Timers.Persistence do
   (Intermediate Catch and Boundary) are stored in FNI `type_properties`
   and do not need a dedicated persistence layer.
 
-  The real implementation lives in `peripheral_persistence`
-  (`EvilEngine.Persistence.TimerStartScheduleAdapter`). For unit tests,
-  `EvilEngine.Timers.Persistence.NoOp` provides an in-memory stub.
+  The production default is `EvilEngine.Timers.Persistence.NoOp`
+  (`config/config.exs`). Cycle Timer Start schedules therefore do not
+  survive process restart unless they are re-registered on deploy.
+  `EvilEngine.Persistence.TimerStartScheduleAdapter` is specified in
+  `docs/architecture/timers.md` but is **not implemented**.
+  For unit tests, `EvilEngine.Timers.Persistence.NoOp` provides an
+  in-memory stub.
   """
 
   @type schedule_attrs :: %{

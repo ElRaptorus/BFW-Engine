@@ -139,6 +139,8 @@ Full error class list:
 | `ActiveInstancesExistError` | `active_instances_exist` | 409 |
 | `ProcessInstanceAlreadyTerminalError` | `process_already_terminal` | 422 |
 | `ProcessInstanceNotTerminalError` | `process_instance_not_terminal` | 422 |
+| `ProcessInstanceNotRetriableError` | `process_instance_not_retriable` | 422 |
+| `IncompatibleVersionMigrationError` | `version_migration_incompatible` | 422 |
 | `FniNotWaitingError` | `fni_not_waiting`, `fni_already_finished`, `fni_already_aborted`, `fni_already_interrupted`, `fni_already_fatal` | 422 |
 | `DeployValidationFailedError` | `validation_failed` | 422 |
 | `LinterGateFailedError` | `linter_gate_failed` | 422 |
@@ -146,6 +148,7 @@ Full error class list:
 | `PayloadTooLargeError` | `payload_too_large` | 413 |
 | `RateLimitedError` | `rate_limited` | 429 |
 | `EngineAtCapacityError` | `engine_at_capacity` | 503 |
+| `ServiceUnavailableError` | `service_unavailable` | 503 |
 | `InternalEngineError` | `internal_error` | 500 |
 | `DecisionDefinitionNotFoundError` | `decision_definition_not_found` | 404 |
 | `DecisionVersionNotFoundError` | `decision_version_not_found` | 404 |
@@ -156,6 +159,21 @@ Full error class list:
 | `DmnCycleError` | `dmn_cycle_error` | 422 |
 | `BkmNotFoundError` | `bkm_not_found` | 404 |
 | `DecisionServiceNotFoundError` | `service_not_found` | 404 |
+| `RetryCheckpointInsideAdhocSubprocessError` | `retry_checkpoint_inside_adhoc_subprocess` | 422 |
+| `RetryInsideAdhocSubprocessError` | `retry_inside_adhoc_subprocess` | 422 |
+| `RetryCheckpointIsNonRetryableError` | `retry_checkpoint_is_non_retryable` | 422 |
+| `NotATimerEventError` | `not_a_timer_event` | 422 |
+| `DispatchFailedError` | `dispatch_failed` | 500 |
+| `ConflictError` | `conflict` | 409 |
+| `BadRequestError` | `bad_request` | 400 |
+| `NoMatchingConditionError` | `no_matching_condition` | 422 |
+| `NoDecisionsError` | `no_decisions` | 422 |
+
+## Plugin types
+
+`EngineFacade` mirrors the in-BEAM Elixir facade passed to plugin `on_load` / `on_ready`. Sidecar host (gRPC) is deferred.
+
+`TimerSourceHandler`, `MonitoringPanelHandler`, `DataStoreAdapterHandler`, and `PersistenceAdapterHandler` may be registered so sketches compile. Registration is accepted and unused at runtime — these capabilities are **not implemented in v1**.
 
 ## WebSocket Event Types
 

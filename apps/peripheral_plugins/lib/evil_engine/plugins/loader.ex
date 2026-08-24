@@ -331,6 +331,7 @@ defmodule EvilEngine.Plugins.Loader do
       messages: build_messages_namespace(plugin_name),
       signals: build_signals_namespace(plugin_name),
       adhoc_subprocesses: build_adhoc_subprocesses_namespace(identity),
+      timers: build_timers_namespace(identity),
       graphql: build_graphql_namespace(identity)
     }
   end
@@ -348,6 +349,7 @@ defmodule EvilEngine.Plugins.Loader do
     plugin_source = "plugin:#{identity.id |> String.replace_leading("plugin:", "")}"
 
     %EngineFacade.Processes{
+      list: fn -> EvilEngine.Api.list_processes() end,
       get: &EvilEngine.Api.get_process_by_model_id/1,
       get_latest_version: &resolve_latest_version/1,
       deploy: fn sources ->
@@ -380,6 +382,12 @@ defmodule EvilEngine.Plugins.Loader do
       end,
       delete_version: fn model_id, vsn ->
         do_delete_version(model_id, vsn, identity, plugin_source)
+      end,
+      undeploy: fn model_id ->
+        EvilEngine.Api.undeploy_process(model_id, identity,
+          skip_claims: true,
+          source: plugin_source
+        )
       end,
       start: fn start_opts ->
         EvilEngine.Api.start_process_instance(start_opts, identity, skip_claims: true)
@@ -618,6 +626,29 @@ defmodule EvilEngine.Plugins.Loader do
           identity,
           skip_claims: true
         )
+      end
+    }
+  end
+
+  defp build_timers_namespace(identity) do
+    %EngineFacade.Timers{
+      trigger_event: fn flow_node_instance_id ->
+        EvilEngine.Api.trigger_timer_event(flow_node_instance_id, identity, skip_claims: true)
+      end,
+      list_schedules: fn filter_opts ->
+        EvilEngine.Api.list_timer_schedules(
+          identity,
+          Keyword.merge(filter_opts, skip_claims: true)
+        )
+      end,
+      get_schedule: fn schedule_id ->
+        EvilEngine.Api.get_timer_schedule(schedule_id, identity, skip_claims: true)
+      end,
+      enable_schedule: fn schedule_id ->
+        EvilEngine.Api.enable_timer_schedule(schedule_id, identity, skip_claims: true)
+      end,
+      disable_schedule: fn schedule_id ->
+        EvilEngine.Api.disable_timer_schedule(schedule_id, identity, skip_claims: true)
       end
     }
   end

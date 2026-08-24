@@ -2,7 +2,9 @@ import {
   ActiveInstancesExistError,
   AmbiguousDecisionError,
   AmbiguousStartEventError,
+  BadRequestError,
   BkmNotFoundError,
+  ConflictError,
   ContractViolationError,
   type DaemonEngineError,
   DaemonEngineError as DaemonEngineErrorClass,
@@ -13,6 +15,7 @@ import {
   DecisionVersionExistsError,
   DecisionVersionNotFoundError,
   DeployValidationFailedError,
+  DispatchFailedError,
   DmnCycleError,
   DmnEvaluationError,
   DmnParseError,
@@ -28,8 +31,12 @@ import {
   LinterGateFailedError,
   MissingServiceInputError,
   NoActiveVersionError,
+  NoDecisionsError,
+  ServiceUnavailableError,
   NoExecutableProcessError,
+  NoMatchingConditionError,
   NoStartEventError,
+  NotATimerEventError,
   NotFoundError,
   ParseError,
   PayloadTooLargeError,
@@ -39,10 +46,13 @@ import {
   ProcessInstanceNotTerminalError,
   ProcessNotFoundError,
   RateLimitedError,
+  RetryCheckpointInsideAdhocSubprocessError,
   RetryCheckpointInsideTransactionError,
   RetryCheckpointIsEbgLoserError,
   RetryCheckpointIsJoinGatewayError,
   RetryCheckpointIsMiIterationError,
+  RetryCheckpointIsNonRetryableError,
+  RetryInsideAdhocSubprocessError,
   RetryInsideTransactionScopeError,
   StartEventNotFoundError,
   UnauthorizedError,
@@ -99,6 +109,30 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
         message,
         body,
       );
+    case 'service_unavailable':
+      return new ServiceUnavailableError(message, body);
+    case 'not_found':
+    case 'metrics_disabled':
+      return new NotFoundError(message, body);
+    case 'forbidden': {
+      let resourceKind: 'process' | 'process_instance' | 'decision' | 'message' | 'signal' = 'process';
+      if (body['resource'] === 'process_instance') {
+        resourceKind = 'process_instance';
+      } else if (body['resource'] === 'decision') {
+        resourceKind = 'decision';
+      } else if (body['resource'] === 'message') {
+        resourceKind = 'message';
+      } else if (body['resource'] === 'signal') {
+        resourceKind = 'signal';
+      }
+      return new ForbiddenError(
+        String(body['requiredClaim'] ?? ''),
+        String(body['requiredValue'] ?? ''),
+        resourceKind,
+        message,
+        body,
+      );
+    }
     case 'process_not_found':
       return new ProcessNotFoundError(message, body);
     case 'no_active_version':
@@ -163,6 +197,7 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
       );
     case 'process_instance_not_retriable':
       return new ProcessInstanceNotRetriableError(message, body);
+    case 'version_migration_incompatible':
     case 'incompatible_version_migration':
       return new IncompatibleVersionMigrationError(message, body);
     case 'retry_checkpoint_is_join_gateway':
@@ -171,10 +206,38 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
       return new RetryCheckpointIsEbgLoserError(message, body);
     case 'retry_checkpoint_is_mi_iteration':
       return new RetryCheckpointIsMiIterationError(message, body);
+    case 'retry_checkpoint_is_non_retryable':
+      return new RetryCheckpointIsNonRetryableError(message, body);
+    case 'target_version_not_cached':
+      return new ValidationError(message, [], body);
+    case 'version_disabled':
+      return new ProcessDisabledError(message, body);
+    case 'not_applicable':
+    case 'enable_failed':
+    case 'disable_failed':
+      return new ValidationError(message, [], body);
+    case 'decision_not_found':
+      return new DecisionDefinitionNotFoundError(message, body);
     case 'retry_checkpoint_inside_transaction':
       return new RetryCheckpointInsideTransactionError(message, body);
     case 'retry_inside_transaction_scope':
       return new RetryInsideTransactionScopeError(message, body);
+    case 'retry_checkpoint_inside_adhoc_subprocess':
+      return new RetryCheckpointInsideAdhocSubprocessError(message, body);
+    case 'retry_inside_adhoc_subprocess':
+      return new RetryInsideAdhocSubprocessError(message, body);
+    case 'not_a_timer_event':
+      return new NotATimerEventError(message, body);
+    case 'dispatch_failed':
+      return new DispatchFailedError(message, body);
+    case 'conflict':
+      return new ConflictError(message, body);
+    case 'bad_request':
+      return new BadRequestError(message, body);
+    case 'no_matching_condition':
+      return new NoMatchingConditionError(message, body);
+    case 'no_decisions':
+      return new NoDecisionsError(message, body);
     case 'root_process_instance_not_terminal':
       return new ProcessInstanceNotTerminalError(
         message,
@@ -253,8 +316,6 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
       return new ValidationError(message, [], body);
     case 'adhoc_not_active':
       return new ValidationError(message, [], body);
-    case 'retry_inside_adhoc_subprocess':
-      return new ValidationError(message, [], body);
     case 'internal_error':
       return new InternalEngineError(message, body);
     default:
@@ -292,6 +353,10 @@ function mapByStatusCode(
     }
     case 404:
       return new NotFoundError(message, body);
+    case 400:
+      return new BadRequestError(message, body);
+    case 409:
+      return new ConflictError(message, body);
     case 422:
       return new ValidationError(message, Array.isArray(body['failures']) ? (body['failures'] as unknown[]) : [], body);
     case 500:

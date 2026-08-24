@@ -2,8 +2,10 @@ defmodule EvilEngine.Events do
   @moduledoc """
   Public namespace for the engine's event bus.
 
-  The real `EngineEventBus`, the four built-in sinks, and the
-  `PendingSweeper` land in Phase 1 / Phase 2. Phase 0 only
+  The real `EngineEventBus`, the three built-in sinks
+  (`console`, `telemetry`, `websocket`), and the
+  `PendingSweeper` land in Phase 1 / Phase 2. The built-in
+  `database` sink was removed. Phase 0 only
   wires the supervision tree and a thin `Phoenix.PubSub` instance
   (`EvilEngine.PubSub`) used by every other app.
   """

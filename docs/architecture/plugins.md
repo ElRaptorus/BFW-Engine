@@ -12,12 +12,12 @@ parent_document: "../ImplementationPlan.md"
 | Category | Behaviour | Conflict rule |
 |---|---|---|
 | Service Task handler | `@behaviour EvilEngine.Plugin.ServiceTaskHandler` | Unique by `implementation`; duplicate → error at registration, NOT crash. Async-only: `handle_enter/3` returns `{:async, ref}` or `{:error, reason}` |
-| Persistence adapter | `@behaviour EvilEngine.Plugin.PersistenceAdapter` | Unique; chained if `chain: true`, else last-wins |
-| REST API extension | `@behaviour EvilEngine.Plugin.RestApiExtension` | Mounted under configured route prefix |
-| Event sink | `@behaviour EvilEngine.Plugin.EventSink` | Many allowed; each registration is an independent fan-out target on `EngineEventBus` ([event-system.md](./event-system.md) §3.3.2). Replaces the pre-EventSink "Lifecycle subscriber" category |
-| Monitoring panel | `@behaviour EvilEngine.Plugin.MonitoringPanel` | Many allowed; each is one fragment on the admin page |
-| Timer source | `@behaviour EvilEngine.Plugin.TimerSource` | Unique per type (`date`/`duration`/`cycle`/custom) |
-| DataStore adapter | `@behaviour EvilEngine.Plugin.DataStoreAdapter` | Unique per store-id |
+  | Persistence adapter | `@behaviour EvilEngine.Plugin.PersistenceAdapter` | **Not in v1** (registration accepted, unused). Unique if ever wired. |
+  | REST API extension | `@behaviour EvilEngine.Plugin.RestApiExtension` | Mounted under configured route prefix. JWT resolved; no engine claim policy. Reserved prefixes rejected. |
+  | Event sink | `@behaviour EvilEngine.Plugin.EventSink` | Many allowed; each registration is an independent fan-out target on `EngineEventBus` ([event-system.md](./event-system.md) §3.3.2). Replaces the pre-EventSink "Lifecycle subscriber" category |
+  | Monitoring panel | `@behaviour EvilEngine.Plugin.MonitoringPanel` | **Not in v1** (registration accepted, unused) |
+  | Timer source | `@behaviour EvilEngine.Plugin.TimerSource` | **Not in v1** (registration accepted, unused) |
+  | DataStore adapter | `@behaviour EvilEngine.Plugin.DataStoreAdapter` | **Not in v1** (registration accepted, unused). DataStores are a parser no-op. |
 | Named script (for `<evil:scriptRef>`) | `@behaviour EvilEngine.Plugin.NamedScript` | Unique by script-key. Callback: `handle_enter(flow_node, payload, context) :: {:ok, map()} \| {:error, term()}` |
 | Auth provider | `@behaviour EvilEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins). Callback: `verify_and_resolve(token) :: {:ok, Identity.t()} \| {:error, reason}` |
 
@@ -50,7 +50,7 @@ defmodule EvilEngine.Plugin.EventSink do
 end
 ```
 
-The four built-in sinks (`console`, `telemetry`, `websocket`, `database` — see [event-system.md](./event-system.md) §3.3.3) all implement this behaviour; they are not special-cased by `EngineEventBus`. Plugin sinks register from inside their `on_load/1` callback (§9.2.1) using the injected `engine_facade`:
+The three built-in sinks (`console`, `telemetry`, `websocket` — see [event-system.md](./event-system.md) §3.3.3) all implement this behaviour; they are not special-cased by `EngineEventBus`. The built-in `database` sink was removed. Plugin sinks register from inside their `on_load/1` callback (§9.2.1) using the injected `engine_facade`:
 
 ```elixir
 def on_load(facade) do
@@ -222,7 +222,7 @@ receive. It exposes identity, capability registration, infrastructure
 | Capability | In-BEAM call | Sidecar gRPC RPC |
 |---|---|---|
 | Register handlers | Typed registration closures: `register_service_task_handler.(impl, handler)`, `register_named_script.(key, handler)`, `register_persistence_adapter.(id, handler)`, `register_rest_api_extension.(prefix, handler)`, `register_monitoring_panel.(handler)`, `register_timer_source.(type, handler)`, `register_data_store_adapter.(id, handler)`, `register_auth_provider.(handler)` — each writes a registry entry | Implicit in the `Hello` reply manifest |
-| Subscribe to typed engine events | `facade.register_event_sink.(name, module, opts)` writing into `EvilEngine.Plugin.Registry`; dispatch is then identical to the four built-in sinks ([event-system.md](./event-system.md) §3.3.3) | Server-streaming RPC — engine pushes `Event.*` messages |
+| Subscribe to typed engine events | `facade.register_event_sink.(name, module, opts)` writing into `EvilEngine.Plugin.Registry`; dispatch is then identical to the three built-in sinks ([event-system.md](./event-system.md) §3.3.3) | Server-streaming RPC — engine pushes `Event.*` messages |
 | Publish events | `facade.publish_event.(event)` | RPC equivalent |
 | Read config | `facade.get_config.(key)` | RPC equivalent |
 
@@ -287,7 +287,7 @@ The Loader's facade closure also logs a warning when any registration error is r
 ### 9.4 Default built-in plugins
 
 - `evil:http` — Default HTTP Service Task handler (`EvilEngine.Plugins.Builtin.HttpServiceTaskHandler`). Per , ships in `peripheral_plugins` as the reference implementation (HTTP client stays out of Core); registered before user plugins so operators can override the `http` implementation key.
-- `evil:postgres_persistence` — Default AshPostgres-backed PersistenceAdapter. Can be replaced by plugin.
+- `evil:postgres_persistence` — **Not in v1.** Execution persistence is `EvilEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`. The plugin `PersistenceAdapter` behaviour is accepted at registration and unused at runtime.
 - No built-in NamedScript handler ships in v1. Inline FEEL evaluation is handled directly by the `ScriptTask` handler without going through the plugin dispatch chain. Plugins register NamedScript handlers via `evil:scriptRef` for custom script languages or complex logic.
 
 **Authentication is pluggable.** The built-in JWT validator in `api_auth`

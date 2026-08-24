@@ -1,3 +1,4 @@
+import type { DmnServiceEvaluationResult } from '../dmn/model.js';
 import type { EngineEvent } from '../events/engine-events.js';
 import type {
   DataObjectValueField,
@@ -36,13 +37,16 @@ import type { DataObjectValue } from '../types/data-object-value.js';
 import type { DecisionDefinition } from '../types/decision-definition.js';
 import type { DecisionVersion } from '../types/decision-version.js';
 import type { DeployResponse } from '../types/deploy.js';
+import type { DmnDeployResponse } from '../types/dmn-deploy.js';
+import type { EvaluationResult } from '../types/dmn-evaluate.js';
 import type { FlowNodeInstance } from '../types/flow-node-instance.js';
 import type { Identity } from '../types/identity.js';
 import type { ProcessInstance } from '../types/process-instance.js';
 import type { ProcessModel } from '../types/process-model.js';
 import type { ProcessVersion } from '../types/process-version.js';
 import type { StartResult } from '../types/start.js';
-import type { MessageTriggerResult, SignalTriggerResult } from '../types/trigger.js';
+import type { TimerSchedule } from '../types/timer-schedule.js';
+import type { MessageTriggerResult, SignalTriggerResult, TimerTriggerResult } from '../types/trigger.js';
 import type { AuthProviderHandler } from './auth-provider.js';
 import type { DataStoreAdapterHandler } from './data-store-adapter.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
@@ -54,21 +58,17 @@ import type { ServiceTaskHandler } from './service-task-handler.js';
 import type { TimerSourceHandler } from './timer-source.js';
 
 /**
- * This interface mirrors the Elixir `EvilEngine.Api` module,
- * which is the single shared service layer through which all wire
- * adapters and plugins converge. The facade is fully implemented — all REST
- * controllers, GraphQL resolvers, and plugin handlers call through
- * `EvilEngine.Api` exclusively. The gRPC sidecar contract will be a
- * 1:1 projection of this surface.
+ * This interface mirrors the in-BEAM Elixir `EvilEngine.EngineFacade` struct
+ * passed to plugin `on_load` / `on_ready`. Sidecar host (gRPC) is deferred
+ * (PLUG-D1). Stub capabilities (`TimerSource`, `MonitoringPanel`,
+ * `DataStoreAdapter`, plugin `PersistenceAdapter`) may still be registered;
+ * registration is accepted and unused at runtime — they are not in v1.
  *
  * Registration methods accept the handler instance directly so that
- * TypeScript enforces the handler contract at compile time. The gRPC
- * bridge serializes handler calls over the wire transparently.
+ * TypeScript enforces the handler contract at compile time.
  *
  * Runtime operations are grouped into resource-scoped namespaces
- * (processes, processInstances, userTasks, serviceTasks, etc.) so
- * plugins get typed access to all EvilEngine.Api operations without
- * direct module coupling.
+ * (processes, processInstances, userTasks, serviceTasks, decisions, timers, etc.).
  */
 export interface EngineFacade {
   engineId: string;
@@ -98,6 +98,8 @@ export interface EngineFacade {
   signals: FacadeSignals;
   graphql: FacadeGraphql;
   adHocSubprocesses: FacadeAdHocSubprocesses;
+  decisions: FacadeDecisions;
+  timers: FacadeTimers;
 }
 
 /** Options for starting a process instance via the facade. */
@@ -110,12 +112,14 @@ export interface StartOptions {
 }
 
 export interface FacadeProcesses {
+  list(): Promise<ProcessModel[]>;
   get(processModelId: string): Promise<ProcessModel>;
   getLatestVersion(processModelId: string): Promise<ProcessModel>;
   deploy(sources: string[]): Promise<DeployResponse>;
   enable(processModelId: string): Promise<void>;
   disable(processModelId: string): Promise<void>;
   deleteVersion(processModelId: string, version: string): Promise<void>;
+  undeploy(processModelId: string): Promise<void>;
   start(processModelId: string, options?: StartOptions): Promise<StartResult>;
 }
 
@@ -240,3 +244,62 @@ export interface FacadeGraphql {
 }
 
 export type RegistrationResult = { status: 'ok' } | { status: 'conflict'; incumbentPluginName: string };
+
+/** Optional keyword filters for listing timer cycle schedules. */
+export interface FacadeTimerScheduleFilters {
+  processVersionId?: string;
+  enabled?: boolean;
+}
+
+/** Optional evaluate options matching `EvilEngine.Api` keyword arguments. */
+export interface FacadeEvaluateOptions {
+  decisionModelId?: string;
+  includeUnmatchedDetails?: boolean;
+}
+
+/**
+ * Runtime namespace for Decision Model catalog and evaluation — mirrors
+ * `EvilEngine.EngineFacade.Decisions`.
+ */
+export interface FacadeDecisions {
+  list(): Promise<DecisionDefinition[]>;
+  get(decisionDefinitionId: string): Promise<DecisionDefinition>;
+  getLatestVersion(decisionDefinitionId: string): Promise<DecisionDefinition>;
+  validate(xml: string): Promise<unknown>;
+  deploy(sources: string[]): Promise<DmnDeployResponse>;
+  evaluate(
+    decisionDefinitionId: string,
+    input: Record<string, unknown>,
+    options?: FacadeEvaluateOptions,
+  ): Promise<EvaluationResult>;
+  evaluateByVersion(
+    decisionDefinitionId: string,
+    version: string,
+    input: Record<string, unknown>,
+    options?: FacadeEvaluateOptions,
+  ): Promise<EvaluationResult>;
+  evaluateService(
+    decisionDefinitionId: string,
+    serviceId: string,
+    input: Record<string, unknown>,
+    options?: { includeUnmatchedDetails?: boolean },
+  ): Promise<DmnServiceEvaluationResult>;
+  getVersions(decisionDefinitionId: string): Promise<DecisionDefinition[]>;
+  getXml(decisionDefinitionId: string): Promise<string>;
+  enable(decisionDefinitionId: string): Promise<void>;
+  disable(decisionDefinitionId: string): Promise<void>;
+  deleteVersion(decisionDefinitionId: string, version: string): Promise<void>;
+  undeploy(decisionDefinitionId: string): Promise<void>;
+}
+
+/**
+ * Runtime namespace for timer event trigger and cycle-schedule management —
+ * mirrors `EvilEngine.EngineFacade.Timers`.
+ */
+export interface FacadeTimers {
+  triggerEvent(flowNodeInstanceId: string): Promise<TimerTriggerResult>;
+  listSchedules(filters?: FacadeTimerScheduleFilters): Promise<TimerSchedule[]>;
+  getSchedule(scheduleId: string): Promise<TimerSchedule>;
+  enableSchedule(scheduleId: string): Promise<TimerSchedule>;
+  disableSchedule(scheduleId: string): Promise<TimerSchedule>;
+}

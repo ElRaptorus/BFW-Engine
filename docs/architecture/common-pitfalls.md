@@ -670,7 +670,7 @@ start_opts = %{
 
 **Mistake:** Enforcing JWT claims (`deploy_bpmn`, `abort_process_instance`, `trigger_message`, etc.) or lane access in REST controllers via `Identity.claims` lookups, then calling Core or publishers directly.
 
-**Why it happens:** Controllers are the first code path hit on an HTTP request, so it feels natural to gate there. Plugin facade closures and future wire adapters (GraphQL mutations, gRPC) would then duplicate or diverge from REST enforcement.
+**Why it happens:** Controllers are the first code path hit on an HTTP request, so it feels natural to gate there. Plugin facade closures and future wire adapters would then duplicate or diverge from REST enforcement.
 
 **Correct approach:** REST controllers parse HTTP, call `EvilEngine.Api.*`, and map error tuples to status codes only. All claim checks go through `EvilEngine.Api.Validation` inside the facade. Plugins pass `skip_claims: true` on facade calls; REST never does. See [api.md](./api.md) §10.8 and [authorization.md](./authorization.md) §13.
 
@@ -1100,3 +1100,19 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 **Why it happens:** `core_expressions` builds a Rustler NIF (dsntk FEEL). The Dockerfile already installs rustup; the Packages workflow did not. Cargo cache keys in the same job are not a substitute for `rustc`. Without a toolchain the integration job fails and the SDK/client publish job never runs.
 
 **Correct approach:** Install native build deps (`build-essential`, `pkg-config`, `libssl-dev`) and pin Rust to the version in `.tool-versions` (`dtolnay/rust-toolchain` with `1.97.0`) before `mix deps.get --only prod`. Keep lint/build/unit and publish `pnpm` invocations filtered to `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` — `pnpm -r` also walks example packages that have no `lint` / `test:unit` scripts. Query GitHub Packages explicitly (`pnpm view … --registry https://npm.pkg.github.com`) when auto-incrementing the publish version; the public npm registry does not host `@elraptorus/*`.
+
+## P68: Do not put `max_children` on the DynamicSupervisor / do not queue leftover PIs for later resume
+
+**Mistake:** Setting `max_children` on `EvilEngine.Execution.Supervisor` from `EVIL_MAX_CONCURRENT_PIS`, or queueing PIs that exceed the cap for a later resume pass.
+
+**Why it happens:** The env var looks like a supervisor limit. Queueing leftovers seems like a way to honor the cap at boot.
+
+**Correct approach:** `max_children` is hardcoded `:infinity`. The cap is a **soft pre-check** on `Execution.start_process_instance/1` for **new public starts** only. **Resume bypasses the cap by design** so a PI tree comes back as a whole (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children). Applying the cap mid-resume, or resuming a parent while deferring its children, leaves a corrupted tree — worse than temporary oversubscription. After boot, new starts hit the cap again; the oversubscribed set drains by natural completion. See [execution.md](./execution.md) §DynamicSupervisor + Registry and §Resume on Startup.
+
+## P69: Timer Start schedules currently use in-memory NoOp persistence
+
+**Mistake:** Assuming cycle Timer Start Events survive an engine restart because `StartEventManager.reload_start_schedules/0` runs at boot.
+
+**Why it happens:** The persistence behaviour and `docs/architecture/timers.md` describe `EvilEngine.Persistence.TimerStartScheduleAdapter` (Ash + Postgres). That module is not in the tree. `config/config.exs` sets `:core_timers, :persistence_module` to `EvilEngine.Timers.Persistence.NoOp` in every environment.
+
+**Correct approach:** Treat Timer Start cycle schedules as process-lifetime until a Postgres adapter ships. After restart, re-deploy (or seeding-directory auto-deploy) re-registers schedules from BPMN. PI-scoped timers (catch/boundary) rehydrate from FNI `type_properties`, not from a dedicated `engine_timers` table — that table is specified but not migrated.

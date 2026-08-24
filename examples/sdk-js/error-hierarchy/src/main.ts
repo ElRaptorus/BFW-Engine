@@ -67,7 +67,7 @@ const inheritanceTreeLines = [
   '├── ProcessInstanceAlreadyTerminalError (422, process_already_terminal)',
   '├── ProcessInstanceNotTerminalError (422, process_instance_not_terminal)',
   '├── ProcessInstanceNotRetriableError (422, process_instance_not_retriable)',
-  '├── IncompatibleVersionMigrationError (422, incompatible_version_migration)',
+  '├── IncompatibleVersionMigrationError (422, version_migration_incompatible)',
   '├── ParseError (400)',
   '├── VersionExistsError (409, version_exists)',
   '├── ActiveInstancesExistError (409, active_instances_exist)',
@@ -194,7 +194,7 @@ function buildSpecimens(): ErrorSpecimen[] {
     },
     {
       name: 'IncompatibleVersionMigrationError',
-      statusLine: '422 incompatible_version_migration',
+      statusLine: '422 version_migration_incompatible',
       instance: new IncompatibleVersionMigrationError('bad migration target'),
     },
     {

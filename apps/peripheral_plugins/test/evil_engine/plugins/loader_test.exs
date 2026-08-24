@@ -94,8 +94,12 @@ defmodule EvilEngine.Plugins.LoaderTest do
     assert is_function(facade.get_config, 1)
     assert %EngineFacade.Processes{} = facade.processes
     assert is_function(facade.processes.get, 1)
+    assert is_function(facade.processes.list, 0)
     assert is_function(facade.processes.deploy, 1)
+    assert is_function(facade.processes.undeploy, 1)
     assert is_function(facade.processes.start, 1)
+    refute facade.processes.list == (&EngineFacade.Processes.noop_0/0)
+    refute facade.processes.undeploy == (&EngineFacade.Processes.noop_1/1)
 
     assert %EngineFacade.ProcessInstances{} = facade.process_instances
     assert is_function(facade.process_instances.get, 1)
@@ -131,6 +135,14 @@ defmodule EvilEngine.Plugins.LoaderTest do
 
     assert %EngineFacade.Graphql{} = facade.graphql
     assert is_function(facade.graphql.query, 2)
+
+    assert %EngineFacade.Timers{} = facade.timers
+    assert is_function(facade.timers.trigger_event, 1)
+    assert is_function(facade.timers.list_schedules, 1)
+    assert is_function(facade.timers.get_schedule, 1)
+    assert is_function(facade.timers.enable_schedule, 1)
+    assert is_function(facade.timers.disable_schedule, 1)
+    refute facade.timers.trigger_event == (&EngineFacade.Timers.noop_1/1)
 
     handler_key = "facade-register-#{System.unique_integer([:positive])}"
 

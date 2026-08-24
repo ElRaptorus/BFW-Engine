@@ -25,6 +25,7 @@ defmodule EvilEngine.Events.MessageSubscriptions do
   require Logger
 
   @table_name :evil_engine_message_subscriptions
+  @process_instance_index_table :evil_engine_message_subscriptions_by_process_instance
 
   # -------------------------------------------------------------------
   # Subscription struct
@@ -105,6 +106,10 @@ defmodule EvilEngine.Events.MessageSubscriptions do
 
     key = {subscription.message_name, subscription.expected_correlation_value}
     :ets.insert(@table_name, {key, subscription})
+    :ets.insert(
+      @process_instance_index_table,
+      {subscription.process_instance_id, key, subscription.subscription_id}
+    )
 
     Logger.debug(
       "MessageSubscriptions: registered #{subscription.subscription_id} " <>
@@ -123,13 +128,18 @@ defmodule EvilEngine.Events.MessageSubscriptions do
   """
   @spec unregister(String.t()) :: :ok
   def unregister(subscription_id) do
-    deleted =
-      @table_name
-      |> :ets.tab2list()
-      |> Enum.filter(fn {_key, sub} -> sub.subscription_id == subscription_id end)
-      |> Enum.each(fn {key, sub} -> :ets.delete_object(@table_name, {key, sub}) end)
+    @table_name
+    |> :ets.tab2list()
+    |> Enum.filter(fn {_key, sub} -> sub.subscription_id == subscription_id end)
+    |> Enum.each(fn {key, sub} ->
+      :ets.delete_object(@table_name, {key, sub})
 
-    _ = deleted
+      :ets.delete_object(
+        @process_instance_index_table,
+        {sub.process_instance_id, key, sub.subscription_id}
+      )
+    end)
+
     :ok
   end
 
@@ -141,16 +151,20 @@ defmodule EvilEngine.Events.MessageSubscriptions do
   """
   @spec unregister_all_for_process_instance(String.t()) :: :ok
   def unregister_all_for_process_instance(process_instance_id) do
-    entries =
-      @table_name
-      |> :ets.tab2list()
-      |> Enum.filter(fn {_key, sub} -> sub.process_instance_id == process_instance_id end)
+    index_entries = :ets.lookup(@process_instance_index_table, process_instance_id)
 
-    Enum.each(entries, fn {key, sub} -> :ets.delete_object(@table_name, {key, sub}) end)
+    Enum.each(index_entries, fn {indexed_process_instance_id, key, subscription_id} ->
+      delete_matching_subscription(key, subscription_id)
 
-    unless entries == [] do
+      :ets.delete_object(
+        @process_instance_index_table,
+        {indexed_process_instance_id, key, subscription_id}
+      )
+    end)
+
+    unless index_entries == [] do
       Logger.debug(
-        "MessageSubscriptions: bulk-removed #{Enum.count(entries)} subscriptions for PI #{process_instance_id}"
+        "MessageSubscriptions: bulk-removed #{Enum.count(index_entries)} subscriptions for PI #{process_instance_id}"
       )
     end
 
@@ -207,6 +221,7 @@ defmodule EvilEngine.Events.MessageSubscriptions do
   @spec reset_state() :: :ok
   def reset_state do
     :ets.delete_all_objects(@table_name)
+    :ets.delete_all_objects(@process_instance_index_table)
     GenServer.call(__MODULE__, :reset_ready)
     :ok
   end
@@ -226,7 +241,16 @@ defmodule EvilEngine.Events.MessageSubscriptions do
         write_concurrency: true
       ])
 
-    {:ok, %{table: table, ready: false}}
+    index_table =
+      :ets.new(@process_instance_index_table, [
+        :bag,
+        :public,
+        :named_table,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
+
+    {:ok, %{table: table, index_table: index_table, ready: false}}
   end
 
   @impl true
@@ -248,6 +272,15 @@ defmodule EvilEngine.Events.MessageSubscriptions do
   # -------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------
+
+  defp delete_matching_subscription(key, subscription_id) do
+    @table_name
+    |> :ets.lookup(key)
+    |> Enum.filter(fn {_key, subscription} -> subscription.subscription_id == subscription_id end)
+    |> Enum.each(fn {lookup_key, subscription} ->
+      :ets.delete_object(@table_name, {lookup_key, subscription})
+    end)
+  end
 
   defp generate_id do
     "msub_" <> (:crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower))

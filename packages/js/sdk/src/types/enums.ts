@@ -87,7 +87,11 @@ export enum EventDefinitionType {
 
 /**
  * The type of capability a plugin registers with the engine.
- * Used in `PluginCapabilitySummary` for introspection / /stats.
+ * Used in `PluginCapabilitySummary` for introspection / `/stats`.
+ *
+ * `PersistenceAdapter`, `MonitoringPanel`, `TimerSource`, and `DataStoreAdapter`
+ * are reserved / not implemented in v1. Registration is accepted and listed,
+ * but the runtime does not invoke those handlers.
  */
 export enum PluginCapabilityType {
   ServiceTaskHandler = 'service_task_handler',

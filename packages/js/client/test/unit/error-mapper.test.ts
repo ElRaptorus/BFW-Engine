@@ -44,6 +44,16 @@ import {
   AmbiguousDecisionError,
   InputValueViolationError,
   MissingServiceInputError,
+  RetryCheckpointInsideAdhocSubprocessError,
+  RetryInsideAdhocSubprocessError,
+  RetryCheckpointIsNonRetryableError,
+  NotATimerEventError,
+  DispatchFailedError,
+  ConflictError,
+  BadRequestError,
+  NoMatchingConditionError,
+  NoDecisionsError,
+  ServiceUnavailableError,
 } from '@elraptorus/daemonengine_sdk';
 
 describe('mapResponseError — domain error code mapping', () => {
@@ -92,6 +102,41 @@ describe('mapResponseError — domain error code mapping', () => {
     expect(typed.active).toBe(100);
     expect(typed.limit).toBe(100);
     expect(typed.retryAfterSeconds).toBe(5);
+  });
+
+  it('maps service_unavailable to ServiceUnavailableError, not EngineAtCapacityError', () => {
+    const error = mapResponseError(503, {
+      error: 'service_unavailable',
+      message: 'Engine is resuming — message subscriptions not ready yet',
+    });
+    expect(error).toBeInstanceOf(ServiceUnavailableError);
+    expect(error).not.toBeInstanceOf(EngineAtCapacityError);
+    expect(error.errorCode).toBe('service_unavailable');
+    expect(error.message).toBe('Engine is resuming — message subscriptions not ready yet');
+  });
+
+  it('maps not_found and metrics_disabled to NotFoundError', () => {
+    expect(mapResponseError(404, { error: 'not_found', message: 'Not found' })).toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(
+      mapResponseError(404, { error: 'metrics_disabled', message: 'Metrics endpoint is not enabled' }),
+    ).toBeInstanceOf(NotFoundError);
+  });
+
+  it('maps forbidden to ForbiddenError', () => {
+    const error = mapResponseError(403, {
+      error: 'forbidden',
+      message: 'Insufficient permissions',
+      requiredClaim: 'trigger_message',
+      requiredValue: 'all',
+      resource: 'message',
+    });
+    expect(error).toBeInstanceOf(ForbiddenError);
+    const typed = error as ForbiddenError;
+    expect(typed.requiredClaim).toBe('trigger_message');
+    expect(typed.requiredValue).toBe('all');
+    expect(typed.resource).toBe('message');
   });
 
   it('maps process_not_found to ProcessNotFoundError', () => {
@@ -252,12 +297,53 @@ describe('mapResponseError — domain error code mapping', () => {
     expect(error).toBeInstanceOf(ProcessInstanceNotRetriableError);
   });
 
-  it('maps incompatible_version_migration to IncompatibleVersionMigrationError', () => {
+  it('maps version_migration_incompatible to IncompatibleVersionMigrationError', () => {
+    const error = mapResponseError(422, {
+      error: 'version_migration_incompatible',
+      message: 'Incompatible version',
+    });
+    expect(error).toBeInstanceOf(IncompatibleVersionMigrationError);
+    expect(error.errorCode).toBe('version_migration_incompatible');
+  });
+
+  it('maps the legacy incompatible_version_migration alias to IncompatibleVersionMigrationError', () => {
     const error = mapResponseError(422, {
       error: 'incompatible_version_migration',
       message: 'Incompatible version',
     });
     expect(error).toBeInstanceOf(IncompatibleVersionMigrationError);
+  });
+
+  it('maps retry_checkpoint_is_non_retryable to RetryCheckpointIsNonRetryableError', () => {
+    const error = mapResponseError(422, {
+      error: 'retry_checkpoint_is_non_retryable',
+      message: 'Cannot retry at this flow node',
+    });
+    expect(error).toBeInstanceOf(RetryCheckpointIsNonRetryableError);
+  });
+
+  it('maps version_disabled to ProcessDisabledError', () => {
+    const error = mapResponseError(422, {
+      error: 'version_disabled',
+      message: 'Target process is disabled',
+    });
+    expect(error).toBeInstanceOf(ProcessDisabledError);
+  });
+
+  it('maps decision_not_found to DecisionDefinitionNotFoundError', () => {
+    const error = mapResponseError(404, {
+      error: 'decision_not_found',
+      message: "Decision model 'x' not found in DMN definitions",
+    });
+    expect(error).toBeInstanceOf(DecisionDefinitionNotFoundError);
+  });
+
+  it('maps target_version_not_cached, not_applicable, enable_failed, and disable_failed to ValidationError', () => {
+    for (const errorCode of ['target_version_not_cached', 'not_applicable', 'enable_failed', 'disable_failed']) {
+      const error = mapResponseError(422, { error: errorCode, message: errorCode });
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error.rawBody?.['error']).toBe(errorCode);
+    }
   });
 
   it('maps graphql_depth_limit to GraphqlDepthLimitError', () => {
@@ -511,6 +597,87 @@ describe('mapResponseError — domain error code mapping', () => {
     const typed = error as MissingServiceInputError;
     expect(typed.missingInputs).toEqual([]);
   });
+
+  it('maps retry_checkpoint_inside_adhoc_subprocess to RetryCheckpointInsideAdhocSubprocessError', () => {
+    const error = mapResponseError(422, {
+      error: 'retry_checkpoint_inside_adhoc_subprocess',
+      message: 'Cannot set a retry checkpoint to an FNI inside an ad-hoc subprocess scope',
+    });
+    expect(error).toBeInstanceOf(RetryCheckpointInsideAdhocSubprocessError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('retry_checkpoint_inside_adhoc_subprocess');
+  });
+
+  it('maps retry_inside_adhoc_subprocess to RetryInsideAdhocSubprocessError', () => {
+    const error = mapResponseError(422, {
+      error: 'retry_inside_adhoc_subprocess',
+      message: 'Cannot retry a PI that is a child of an ad-hoc subprocess scope',
+    });
+    expect(error).toBeInstanceOf(RetryInsideAdhocSubprocessError);
+    expect(error).not.toBeInstanceOf(ValidationError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('retry_inside_adhoc_subprocess');
+  });
+
+  it('maps not_a_timer_event to NotATimerEventError', () => {
+    const error = mapResponseError(422, {
+      error: 'not_a_timer_event',
+      message: 'Flow node instance is not a timer event',
+    });
+    expect(error).toBeInstanceOf(NotATimerEventError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('not_a_timer_event');
+  });
+
+  it('maps dispatch_failed to DispatchFailedError', () => {
+    const error = mapResponseError(500, {
+      error: 'dispatch_failed',
+      message: 'Inner activity dispatch failed',
+    });
+    expect(error).toBeInstanceOf(DispatchFailedError);
+    expect(error.statusCode).toBe(500);
+    expect(error.errorCode).toBe('dispatch_failed');
+  });
+
+  it('maps conflict to ConflictError', () => {
+    const error = mapResponseError(409, {
+      error: 'conflict',
+      message: 'Timer is not currently triggerable',
+    });
+    expect(error).toBeInstanceOf(ConflictError);
+    expect(error.statusCode).toBe(409);
+    expect(error.errorCode).toBe('conflict');
+  });
+
+  it('maps bad_request to BadRequestError', () => {
+    const error = mapResponseError(400, {
+      error: 'bad_request',
+      message: 'Malformed request body',
+    });
+    expect(error).toBeInstanceOf(BadRequestError);
+    expect(error.statusCode).toBe(400);
+    expect(error.errorCode).toBe('bad_request');
+  });
+
+  it('maps no_matching_condition to NoMatchingConditionError', () => {
+    const error = mapResponseError(422, {
+      error: 'no_matching_condition',
+      message: 'No outgoing sequence flow matched',
+    });
+    expect(error).toBeInstanceOf(NoMatchingConditionError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('no_matching_condition');
+  });
+
+  it('maps no_decisions to NoDecisionsError', () => {
+    const error = mapResponseError(422, {
+      error: 'no_decisions',
+      message: 'DMN definitions contain no decision elements',
+    });
+    expect(error).toBeInstanceOf(NoDecisionsError);
+    expect(error.statusCode).toBe(422);
+    expect(error.errorCode).toBe('no_decisions');
+  });
 });
 
 describe('mapResponseError — HTTP status fallback', () => {
@@ -573,6 +740,16 @@ describe('mapResponseError — HTTP status fallback', () => {
       failures: ['bad field'],
     });
     expect(error).toBeInstanceOf(ValidationError);
+  });
+
+  it('falls back to BadRequestError for 400 with unknown error code', () => {
+    const error = mapResponseError(400, { error: 'unknown', message: 'Malformed JSON' });
+    expect(error).toBeInstanceOf(BadRequestError);
+  });
+
+  it('falls back to ConflictError for 409 with unknown error code', () => {
+    const error = mapResponseError(409, { error: 'unknown', message: 'State conflict' });
+    expect(error).toBeInstanceOf(ConflictError);
   });
 
   it('falls back to InternalEngineError for 500 with unknown error code', () => {

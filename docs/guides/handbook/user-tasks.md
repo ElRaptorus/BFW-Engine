@@ -18,7 +18,8 @@ User Tasks are wait states that pause execution until a human completes the task
 ```xml
 <bpmn:userTask id="review_order" name="Review Order">
   <bpmn:extensionElements>
-    <evil:assignees>clerk_role,manager_role</evil:assignees>
+    <evil:assignees>["clerk_role", "manager_role"]</evil:assignees>
+    <!-- alternatively: <evil:assignees>identity.groups</evil:assignees> -->
     <evil:inputMapping source="token.raw_name" target="customer_name"/>
     <evil:payloadContract>{"type":"object","required":["customer_name"],"properties":{"customer_name":{"type":"string"}}}</evil:payloadContract>
     <evil:outputMapping source="token.user_approved" target="approved"/>

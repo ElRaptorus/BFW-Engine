@@ -1,10 +1,10 @@
 # Additional Plugin Behaviours
 
-Beyond the primary Service Task, Event Sink, API Extension, and Persistence behaviours, the engine provides four additional extension points.
+Beyond the primary Service Task, Event Sink, and API Extension behaviours, the engine provides extra extension points. **MonitoringPanel, TimerSource, DataStoreAdapter, and the plugin PersistenceAdapter are not implemented in v1** — registration is accepted and ignored at runtime so existing sketches still compile.
 
 ## MonitoringPanel
 
-Contributes a fragment to the admin HTML page. Many panels are allowed.
+**Not in v1.** Would contribute a fragment to the admin HTML page. Registration is accepted and unused.
 
 ```elixir
 @behaviour EvilEngine.Plugin.MonitoringPanel
@@ -21,7 +21,7 @@ facade.register_monitoring_panel.(MyPlugin.StatusPanel)
 
 ## TimerSource
 
-Custom timer evaluation for non-standard timer types. Unique per type (`date`, `duration`, `cycle`, or custom).
+**Not in v1.** Would supply custom timer evaluation for non-standard timer dialects. Core timers already parse ISO 8601 date, duration, and cycle. Registration is accepted and unused.
 
 ```elixir
 @behaviour EvilEngine.Plugin.TimerSource
@@ -39,7 +39,7 @@ facade.register_timer_source.("cron", MyPlugin.CronTimer)
 
 ## DataStoreAdapter
 
-External data store integration for BPMN DataStore references. Unique per `store_id`.
+**Not in v1.** BPMN DataStores are a parser no-op. Registration is accepted and unused. Do not imply write-through.
 
 ```elixir
 @behaviour EvilEngine.Plugin.DataStoreAdapter

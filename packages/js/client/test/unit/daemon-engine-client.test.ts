@@ -8,6 +8,8 @@ import { EventClient } from '../../src/rest/event-client.js';
 import { DecisionClient } from '../../src/rest/decision-client.js';
 import { GraphqlClient } from '../../src/graphql/graphql-client.js';
 import { NotificationClient } from '../../src/ws/notification-client.js';
+import { AdHocSubprocessClient } from '../../src/rest/adhoc-subprocess-client.js';
+import { TimerScheduleClient } from '../../src/rest/timer-schedule-client.js';
 
 vi.mock('phoenix', () => ({
   Socket: vi.fn().mockImplementation(() => ({
@@ -34,6 +36,8 @@ describe('DaemonEngineClient', () => {
     expect(client.decisions).toBeInstanceOf(DecisionClient);
     expect(client.graphql).toBeInstanceOf(GraphqlClient);
     expect(client.notifications).toBeInstanceOf(NotificationClient);
+    expect(client.adHocSubprocesses).toBeInstanceOf(AdHocSubprocessClient);
+    expect(client.timerSchedules).toBeInstanceOf(TimerScheduleClient);
   });
 
   it('derives the WebSocket URL from the HTTP URL', () => {

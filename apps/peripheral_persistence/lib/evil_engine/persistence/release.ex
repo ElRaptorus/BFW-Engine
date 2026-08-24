@@ -37,10 +37,11 @@ defmodule EvilEngine.Persistence.Release do
   (monthly, quarterly, half_yearly, yearly, off). When `off`, this
   is a no-op.
 
-  Currently covers: `process_instance_events`, `data_object_writes`.
-  Later phases add: `messages`, `pending_messages`, `signals`,
-  `pending_signals`, `escalations`, `pending_escalations`,
-  `compensations`.
+  Currently covers: `process_instance_events`, `data_object_writes`,
+  `messages`, `pending_messages`, `signals`, `pending_signals`.
+  There is no `pending_escalations` table (escalation D1). Dedicated
+  `escalations`, `compensations`, and `engine_timers` audit tables are
+  specified in the data-model docs but are not in the current migration.
   """
   def ensure_partitions do
     load_app()

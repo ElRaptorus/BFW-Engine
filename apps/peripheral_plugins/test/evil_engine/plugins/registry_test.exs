@@ -103,6 +103,66 @@ defmodule EvilEngine.Plugins.RegistryTest do
     end
   end
 
+  describe "rest_api_extension reserved prefixes" do
+    setup do
+      :ok = Registry.register_plugin("ext-plugin", __MODULE__)
+      :ok
+    end
+
+    test "rejects /processes" do
+      assert {:error, :reserved_prefix} =
+               Registry.register_capability("ext-plugin", :rest_api_extension, %{
+                 prefix: "/processes"
+               })
+    end
+
+    test "rejects a nested reserved prefix" do
+      assert {:error, :reserved_prefix} =
+               Registry.register_capability("ext-plugin", :rest_api_extension, %{
+                 prefix: "/processes/extra"
+               })
+    end
+
+    test "accepts a non-reserved prefix" do
+      assert :ok =
+               Registry.register_capability("ext-plugin", :rest_api_extension, %{
+                 prefix: "/echo-ext"
+               })
+
+      caps = Registry.list_capabilities(:rest_api_extension)
+      assert hd(caps).descriptor.prefix == "/echo-ext"
+    end
+  end
+
+  describe "lookup_rest_api_extension/1" do
+    setup do
+      :ok = Registry.register_plugin("lookup-plugin", __MODULE__)
+      :ok
+    end
+
+    test "returns the longest matching prefix" do
+      :ok =
+        Registry.register_capability("lookup-plugin", :rest_api_extension, %{
+          prefix: "/echo-ext"
+        })
+
+      :ok = Registry.register_plugin("lookup-plugin-v2", __MODULE__)
+
+      :ok =
+        Registry.register_capability("lookup-plugin-v2", :rest_api_extension, %{
+          prefix: "/echo-ext/v2"
+        })
+
+      assert {:ok, %{prefix: "/echo-ext/v2", plugin_name: "lookup-plugin-v2"}} =
+               Registry.lookup_rest_api_extension("/echo-ext/v2/ping")
+
+      assert {:ok, %{prefix: "/echo-ext", plugin_name: "lookup-plugin"}} =
+               Registry.lookup_rest_api_extension("/echo-ext/ping")
+
+      assert :error = Registry.lookup_rest_api_extension("/other")
+    end
+  end
+
   describe "list_capabilities/1" do
     test "returns empty list for unregistered type" do
       assert Registry.list_capabilities(:nonexistent) == []

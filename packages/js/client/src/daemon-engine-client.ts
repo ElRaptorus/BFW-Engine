@@ -7,6 +7,7 @@ import { EngineClient } from './rest/engine-client.js';
 import { EventClient } from './rest/event-client.js';
 import { ProcessClient } from './rest/process-client.js';
 import { ProcessInstanceClient } from './rest/process-instance-client.js';
+import { TimerScheduleClient } from './rest/timer-schedule-client.js';
 import { UserTaskClient } from './rest/user-task-client.js';
 import { NotificationClient } from './ws/notification-client.js';
 
@@ -40,6 +41,7 @@ export class DaemonEngineClient {
   public readonly graphql: GraphqlClient;
   public readonly notifications: NotificationClient;
   public readonly adHocSubprocesses: AdHocSubprocessClient;
+  public readonly timerSchedules: TimerScheduleClient;
 
   private readonly transport: HttpTransport;
 
@@ -54,6 +56,7 @@ export class DaemonEngineClient {
     this.decisions = new DecisionClient(this.transport);
     this.graphql = new GraphqlClient(this.transport);
     this.adHocSubprocesses = new AdHocSubprocessClient(this.transport);
+    this.timerSchedules = new TimerScheduleClient(this.transport);
 
     const wsUrl = options?.wsUrl ?? url.replace(/^http/, 'ws') + '/socket';
     this.notifications = new NotificationClient(wsUrl, jwtFactory);

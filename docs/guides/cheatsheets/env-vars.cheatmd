@@ -4,7 +4,8 @@
 
 ```bash
 EVIL_DATABASE_URL=ecto://user:pass@host:5432/evil_engine
-EVIL_DB_POOL_SIZE=20
+EVIL_DB_POOL_SIZE=100
+EVIL_DB_READ_POOL_SIZE=50
 EVIL_DB_IPV6=false
 EVIL_DB_SSL=false
 ```

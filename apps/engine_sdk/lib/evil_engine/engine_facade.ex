@@ -56,6 +56,7 @@ defmodule EvilEngine.EngineFacade do
   | `messages` | `EngineFacade.Messages.t()` | Message publish (`publish/3`) |
   | `signals` | `EngineFacade.Signals.t()` | Signal broadcast publish (`publish/1`; no payload, no correlation) |
   | `adhoc_subprocesses` | `EngineFacade.AdhocSubprocesses.t()` | Ad-hoc subprocess control (activate, complete, status) |
+  | `timers` | `EngineFacade.Timers.t()` | Timer event trigger + cycle schedule list/enable/disable |
   | `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution |
   """
 
@@ -70,6 +71,7 @@ defmodule EvilEngine.EngineFacade do
     Processes,
     ServiceTasks,
     Signals,
+    Timers,
     UserTasks
   }
 
@@ -82,6 +84,7 @@ defmodule EvilEngine.EngineFacade do
           | {:error, :conflict, String.t()}
           | {:error, :invalid_handler, String.t()}
           | {:error, :module_not_loaded, String.t()}
+          | {:error, :reserved_prefix}
           | {:error, :not_wired}
           | {:error, :not_implemented}
 
@@ -110,6 +113,7 @@ defmodule EvilEngine.EngineFacade do
           messages: Messages.t(),
           signals: Signals.t(),
           adhoc_subprocesses: AdhocSubprocesses.t(),
+          timers: Timers.t(),
           graphql: Graphql.t()
         }
 
@@ -139,6 +143,7 @@ defmodule EvilEngine.EngineFacade do
     messages: %Messages{},
     signals: %Signals{},
     adhoc_subprocesses: %AdhocSubprocesses{},
+    timers: %Timers{},
     graphql: %Graphql{}
   ]
 

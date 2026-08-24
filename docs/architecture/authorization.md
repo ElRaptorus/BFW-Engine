@@ -15,7 +15,7 @@ parent_document: ../ImplementationPlan.md (§13)
 
 ## 1. Posture
 
-**Default-deny.** Every API endpoint, GraphQL query/mutation/subscription, and
+**Default-deny.** Every API endpoint, GraphQL query, and
 WebSocket channel requires the caller to present a valid JWT bearer token
 **unless** the endpoint is listed in the explicit exception list (§2).
 
@@ -124,7 +124,7 @@ use.
 |---|---|---|---|
 | `deploy_bpmn` | boolean | Allows: `POST /processes` (BPMN upload), `PUT /processes/{model_id}/enable`, `PUT /processes/{model_id}/disable` — all catalog-mutation operations | `false` |
 | `delete_bpmn` | boolean | Allows: `DELETE /processes/{model_id}/versions/{version}`, `DELETE /processes/{model_id}` (version/process deletion ) | `false` |
-| `purge_audit_data` | boolean | Allows: `purgeProcessInstances` GraphQL mutation and its CLI equivalent | `false` |
+| `purge_audit_data` | boolean | Allows: planned REST manual purge under process-instances (`POST` or `DELETE`, Phase 7) and its CLI equivalent. Not a GraphQL field | `false` |
 | `lane:<name>` | `"read"` \| `"write"` | `"write"`: act on flow nodes on that lane. `"read"`: observe only. Boolean `true` is rejected. | none |
 | `observe_all` | boolean | Unbounded read/observe of PIs, FNIs, data objects, and WS events. **Never** grants write. | `false` |
 | `zeeky_boogie_doog` | boolean | Admin override: full read **and** write bypass. Distinct from `observe_all`. | `false` |
@@ -279,11 +279,11 @@ authenticated list request runs it).
 |---|---|---|
 | **Start PI** (`POST /processes/{model_id}/start`) | **Lane check against the chosen Start Event.** If the process has lanes and the Start Event resides on a lane, the caller must have `lane:<lane_name>="write"`. `"read"` or `observe_all` on a visible start event returns **403**. Absent / leftover `true` / garbage / wrong lane returns **404**. If the process has no lanes, or the Start Event is not in any lane, any authenticated caller may start | Enforced in `EvilEngine.Api.start_process_instance/3` via `Validation.check_lane_access`. The starting user's identity is recorded as `started_by` and never re-checked during execution |
 | **Resume** | *(engine-internal, always automatic )* | No user-initiated Resume in v1. The engine's resume path runs with the PI's original `started_by` context — no JWT involved |
-| **Restart** (`POST /process-instances/{id}/restart`) | Same as Start: lane check against the new PI's Start Event | Restart is semantically a new PI, not a retry. Does NOT require `retry_process_instance` |
+| **Restart** (`POST /process-instances/{id}/restart`) | **Specified, not implemented.** Would be the same as Start: lane check against the new PI's Start Event. Live equivalent is `PUT /process-instances/{id}/retry` (gated by `retry_process_instance`) | Restart is semantically a new PI, not a retry — but that route is not on `Router` today |
 | **Abort** (`PUT /process-instances/{id}/abort`) | `abort_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `abort_process_instance=all` (any PI) | `abort_process_instance=none` or absent → `403` |
 | **Retry** (`PUT /process-instances/{id}/retry`) | `retry_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `retry_process_instance=all` (any PI) | `retry_process_instance=none` or absent → `403`. Enforced in `EvilEngine.Api.retry_process_instance/4` via `Validation.check_scoped_claim/4` — not in the controller. Ownership is checked on the *targeted* PI even in tree-retry scenarios (ancestors are reset implicitly) |
 | Soft-**Delete** (`DELETE /process-instances/{id}`) | `delete_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `delete_process_instance=all` (any PI) | `delete_process_instance=none` or absent → `403` |
-| **Purge** (`purgeProcessInstances` mutation) | `purge_audit_data=true` | Admin-only |
+| **Purge** (planned REST under process-instances, Phase 7) | `purge_audit_data=true` | Admin-only. Not a GraphQL field |
 
 **Start contract excludes internal execution options.** The public start surface
 (`POST /processes/{model_id}/start` and `EvilEngine.Api.start_process_instance/3`)
@@ -302,8 +302,8 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 |---|---|---|
 | **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<evil:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` per §7 User Task in `ImplementationPlan.md` — both checks must pass | Lane check + assignee check are AND-combined |
 | **Cancel User Task** (`PUT /user-tasks/{fniId}/cancel`) | Same as Finish | |
-| **Complete async Service Task** (`PUT /async-flow-nodes/{fniId}/complete`) | Same lane-match rule as User Task: caller must have the FNI's lane claim (or FNI is laneless). The async dispatch is the dual of a User Task wait — the completing agent is a service-side counterpart of an assignee | In practice, plugins call this through `engine_facade` with the privileged plugin identity (§7), bypassing this check |
-| **Fail async Service Task** (`PUT /async-flow-nodes/{fniId}/fail`) | Same as Complete | |
+| **Complete async Service Task** (`engine_facade.finish_async_service_task` / `EvilEngine.Api.finish_async_service_task/2`) | Plugins complete via the facade with the privileged plugin identity (§7), bypassing lane checks. There is **no** `PUT /async-flow-nodes/{fniId}/complete` REST route | REST was never shipped for this callback |
+| **Fail async Service Task** (`engine_facade.fail_async_service_task` / `EvilEngine.Api.fail_async_service_task/3`) | Same as Complete. There is **no** `PUT /async-flow-nodes/{fniId}/fail` REST route | |
 
 ### 6.4 Trigger endpoints (messages, signals, escalations)
 
@@ -311,7 +311,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 |---|---|---|
 | `POST /messages/{message_name}/trigger` | `trigger_message` | `trigger_message` not `"all"` or absent → 403 |
 | `POST /signals/{signal_name}/trigger` | `trigger_signal` | `trigger_signal` not `"all"` or absent → 403 |
-| `POST /triggers/escalations` | `trigger_escalation` | trigger_escalation=false or absent → 403 |
+| `POST /triggers/escalations` | **Specified, not implemented.** Escalations are thrown from BPMN (Error/Escalation End and Intermediate Throw). There is no public REST trigger. The claim `trigger_escalation` is reserved. | Not on `Router` |
 | `POST /timer-events/{flow_node_instance_id}/trigger` | Lane access (`lane:<lane_name>="write"` for the FNI's lane, or FNI is laneless, or `zeeky_boogie_doog=true`) | No dedicated trigger claim. Enforced in `EvilEngine.Api.trigger_timer_event/3` via `Validation.check_lane_access/3`. Visible but not writable (`"read"` / `observe_all`) → `403`. Invisible lane → `404` |
 
 ### 6.5 Observability / admin endpoints
@@ -354,9 +354,10 @@ would be pure ceremony with no security benefit in a single-tenant engine.
 
 When a plugin registers a `RestApiExtension` handler, the engine:
 
-1. Validates the caller's JWT and resolves the Identity (same as any endpoint)
-2. Passes the resolved Identity to the plugin's handler function
-3. **Does not apply any engine-level claim policy** to the plugin's endpoint
+1. Matches the request path against registered prefixes (longest-prefix wins). Unknown paths return HTTP 404 **without** requiring a JWT.
+2. When a prefix matches, validates the caller's JWT and resolves the Identity (same as any engine endpoint)
+3. Passes the resolved Identity to the plugin's Plug (`conn.assigns.identity`)
+4. **Does not apply any engine-level claim policy** to the plugin's endpoint
 
 Per-endpoint authorization is **the plugin's responsibility**. The plugin
 reads whatever claims it needs from `Identity.claims` and enforces its own

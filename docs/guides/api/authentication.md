@@ -124,7 +124,7 @@ end
 |---------|--------|---------|-------------|
 | `EVIL_AUTH_PROVIDER` | `builtin`, `plugin` | `builtin` | `builtin` uses the JWT verifier. `plugin` requires a plugin to register a provider; the engine refuses to start if none does. |
 
-Only one auth provider can be active at a time. If multiple plugins register providers, the last one wins. When no plugin registers a provider and `EVIL_AUTH_PROVIDER=builtin`, the built-in JWT provider is used.
+Only one auth provider can be active at a time. If multiple plugins register providers, **first-writer wins** — a later registration is rejected (`{:error, :conflict, incumbent_plugin_name}`) and the offending plugin is quarantined. When no plugin registers a provider and `EVIL_AUTH_PROVIDER=builtin`, the built-in JWT provider is used.
 
 See [Plugin Development](../plugins/getting-started.md) for the full plugin lifecycle.
 

@@ -46,7 +46,7 @@ See [Deploying Processes](../handbook/deploying-processes.md).
 - If the task has an `evil:resultContract`, the result JSON matches the JSON Schema exactly
 - The caller's JWT has the necessary claims for lane-based assignment
 
-A contract mismatch causes the FNI to go `fatal`. See [User Tasks](../handbook/user-tasks.md).
+A `evil:resultContract` mismatch returns **HTTP 422** and the FNI stays in `waiting` — the process instance stays running. The caller can correct the payload and retry. See [User Tasks](../handbook/user-tasks.md).
 
 ## FNI in Fatal State
 
@@ -82,7 +82,7 @@ Quarantined plugins do not auto-revive — restart the engine after fixing the i
 
 **Checks:**
 - `EVIL_DATABASE_URL` or individual vars point to a running PostgreSQL instance
-- `EVIL_DB_POOL_SIZE` is appropriate for the workload (default 20)
+- `EVIL_DB_POOL_SIZE` is appropriate for the workload (production default 100 write / 50 read)
 - If using SSL, set `EVIL_DB_SSL=true`
 - Check PostgreSQL max connections setting
 

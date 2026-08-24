@@ -48,12 +48,11 @@ Engine identity and feature flags. No authentication required.
   "engine_id": "evil-engine-local",
   "engine_name": "Evil Engine (local)",
   "version": "0.0.1",
-  "started_at": "2026-05-03T15:00:00Z",
-  "uptime_seconds": 3600,
-  "auth_disabled": false,
-  "event_sink_database": false
+  "started_at": "2026-05-03T15:00:00Z"
 }
 ```
+
+`event_sink_database` is **not** serialized. The built-in database event sink was removed; this leftover flag is always absent (never `true`).
 
 ## Authenticated Endpoints
 
@@ -253,6 +252,88 @@ deleted in the same transaction.
 Authorization: requires `delete_process_instance` claim — `own` (can delete
 PIs started by the caller) or `all` (any PI). Default is `none` (403).
 Only terminal PIs (`finished`, `fatal`, `aborted`) can be deleted.
+
+### `PUT /process-instances/{id}/retry`
+
+Retry a terminal PI (`fatal`, `aborted`, or `error`). Optional body:
+
+```json
+{ "version": "latest", "resetToFlowNodeInstanceId": "..." }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `204` | Retry accepted (no body) |
+| `403` | Insufficient `retry_process_instance` claim |
+| `404` | PI not found |
+| `422` | Not retryable, or checkpoint/scope restriction (join gateway, MI iteration, transaction, ad-hoc, …) |
+
+Authorization: `retry_process_instance` — `own` or `all`. Default `none` (403).
+`:compensated` / `:escalated` / `:cancelled` are not retryable.
+See [Retry and Restart](../handbook/retry-restart.md). Request/response schemas: OpenAPI `GET /api/openapi`.
+
+## Decisions (DMN)
+
+Full set on `DecisionController`. Schemas: OpenAPI.
+
+| Method | Path | Purpose | Claim |
+|--------|------|---------|-------|
+| `GET` | `/decisions` | List deployed decisions | any authenticated |
+| `GET` | `/decisions/{model_id}` | Metadata (`?includeXml=true`) | any authenticated |
+| `GET` | `/decisions/{model_id}/versions` | Version history (`?includeXml=true`) | any authenticated |
+| `POST` | `/decisions` | Deploy DMN (body `{sources: ["<xml>"]}`) | `deploy_dmn` |
+| `POST` | `/decisions/{model_id}/evaluate` | Ad-hoc evaluate | any authenticated |
+| `POST` | `/decisions/{model_id}/versions/{version}/evaluate` | Evaluate a pinned version | any authenticated |
+| `POST` | `/decisions/{model_id}/services/{service_id}/evaluate` | Evaluate a Decision Service | any authenticated |
+| `PUT` | `/decisions/{model_id}/enable` | Enable (204) | `deploy_dmn` |
+| `PUT` | `/decisions/{model_id}/disable` | Disable (204) | `deploy_dmn` |
+| `DELETE` | `/decisions/{model_id}` | Undeploy all versions (204) | `delete_dmn` |
+| `DELETE` | `/decisions/{model_id}/versions/{version}` | Soft-delete a version (204) | `delete_dmn` |
+
+See [DMN Decisions](../handbook/dmn-decisions.md). There are no GraphQL writes for DMN.
+
+## Timer schedules
+
+Created automatically when a process version with timer start events is deployed.
+
+| Method | Path | Purpose | Claim |
+|--------|------|---------|-------|
+| `GET` | `/timer-schedules` | List (`?processVersionId=`, `?enabled=`) | `deploy_bpmn` |
+| `GET` | `/timer-schedules/{id}` | Show one | `deploy_bpmn` |
+| `PUT` | `/timer-schedules/{id}/enable` | Re-enable (204) | `deploy_bpmn` |
+| `PUT` | `/timer-schedules/{id}/disable` | Disable (204) | `deploy_bpmn` |
+
+There is no `PUT /timer-schedules/{id}` toggle. See [Timer Events](../handbook/timer-events.md).
+
+## Timer event trigger
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI (catch or boundary) |
+
+Body: empty or `{}`. Success `200`: `{ "triggered": true }`. Auth: `lane:<name>="write"` (or laneless / `zeeky_boogie_doog`). `"read"` / `observe_all` → 403; invisible → 404; not a timer → 422 `not_a_timer_event`; not waiting → 409.
+
+## Messages and signals
+
+| Method | Path | Purpose | Claim |
+|--------|------|---------|-------|
+| `POST` | `/messages/{message_name}/trigger` | Publish a named message. Body `{payload?, correlation?}` | `trigger_message` (`"all"`) |
+| `POST` | `/signals/{signal_name}/trigger` | Broadcast a named signal. Body empty/`{}`; `payload` ignored | `trigger_signal` (`"all"`) |
+
+Response shapes and routing: OpenAPI + [Message Events](../handbook/message-events.md) / [Signal Events](../handbook/signal-events.md). Commands are REST only.
+
+## Ad-hoc subprocesses
+
+`{id}` is the **child process instance ID** spawned by the ad-hoc handler — not the parent PI and not the shell FNI ID.
+
+| Method | Path | Purpose | Claim |
+|--------|------|---------|-------|
+| `GET` | `/adhoc-subprocesses/{id}/activities` | List enabled/performed inner activities | `manage_adhoc_subprocess` |
+| `POST` | `/adhoc-subprocesses/{id}/activities/{activity_id}/activate` | Activate an inner activity | `manage_adhoc_subprocess` |
+| `POST` | `/adhoc-subprocesses/{id}/complete` | Signal completion | `manage_adhoc_subprocess` |
+| `GET` | `/adhoc-subprocesses/{id}/status` | Runtime status | `manage_adhoc_subprocess` |
+
+See [Ad-hoc Subprocesses](../handbook/adhoc-subprocesses.md). No GraphQL writes.
 
 ## Payload Cap
 

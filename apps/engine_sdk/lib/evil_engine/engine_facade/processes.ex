@@ -9,22 +9,30 @@ defmodule EvilEngine.EngineFacade.Processes do
   """
 
   @type t :: %__MODULE__{
+          list: (-> {:ok, list()} | {:error, term()}),
           get: (String.t() -> {:ok, struct()} | :not_found),
           get_latest_version: (String.t() -> {:ok, struct()} | {:error, :no_active_version}),
           deploy: ([map()] -> {:ok, [map()]} | {:error, term()}),
           enable: (String.t() -> {:ok, struct()} | {:error, term()}),
           disable: (String.t() -> {:ok, struct()} | {:error, term()}),
           delete_version: (String.t(), String.t() -> {:ok, struct()} | {:error, term()}),
+          undeploy: (String.t() -> :ok | {:error, term()}),
           start: (keyword() -> {:ok, String.t()} | {:error, term()})
         }
 
-  defstruct get: &__MODULE__.noop_1/1,
+  defstruct list: &__MODULE__.noop_0/0,
+            get: &__MODULE__.noop_1/1,
             get_latest_version: &__MODULE__.noop_1/1,
             deploy: &__MODULE__.noop_1/1,
             enable: &__MODULE__.noop_1/1,
             disable: &__MODULE__.noop_1/1,
             delete_version: &__MODULE__.noop_2/2,
+            undeploy: &__MODULE__.noop_1/1,
             start: &__MODULE__.noop_1/1
+
+  @doc false
+  @spec noop_0() :: {:error, :not_wired}
+  def noop_0, do: {:error, :not_wired}
 
   @doc false
   @spec noop_1(term()) :: {:error, :not_wired}

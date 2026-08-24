@@ -152,6 +152,31 @@ defmodule EvilEngine.Execution.ProcessInstanceTest do
 
       assert_receive {:pi_state_change, ^ref, :finished, _meta}, 2_000
     end
+
+    test "finish_async_service_task on a waiting user task returns fni_not_service_task" do
+      definitions = BpmnFactory.user_task_process()
+      ModelCache.put_new(@version_id, definitions)
+
+      process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@version_id, process_instance_id: process_instance_id)
+
+      Process.sleep(100)
+      {:running, state} = :sys.get_state(process_instance_pid)
+
+      [{flow_node_instance_id, _entry}] =
+        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
+          entry.state == :waiting
+        end)
+
+      assert {:error, :fni_not_service_task} =
+               ProcessInstance.finish_async_service_task(
+                 process_instance_pid,
+                 flow_node_instance_id,
+                 %{"approved" => true}
+               )
+    end
   end
 
   # -------------------------------------------------------------------

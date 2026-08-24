@@ -25,7 +25,7 @@ Each function registers a specific capability type in the Plugin Registry. All r
 | `register_monitoring_panel` | `(handler :: module()) -> registration_result()` | Registers a Monitoring Panel (many allowed) |
 | `register_timer_source` | `(timer_type :: String.t(), handler :: module()) -> registration_result()` | Registers a Timer Source keyed by timer type |
 | `register_data_store_adapter` | `(store_id :: String.t(), handler :: module()) -> registration_result()` | Registers a Data Store Adapter keyed by store ID |
-| `register_auth_provider` | `(handler :: module()) -> registration_result()` | Registers an Auth Provider (unique, last wins) |
+| `register_auth_provider` | `(handler :: module()) -> registration_result()` | Registers an Auth Provider (unique, first-writer wins) |
 | `register_event_sink` | `(name :: String.t(), module(), keyword()) -> :ok \| {:error, term()}` | Registers an Event Sink with the EngineEventBus |
 
 ### Infrastructure
@@ -47,6 +47,7 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | `service_tasks` | `EngineFacade.ServiceTasks.t()` | Async Service Task complete / fail |
 | `flow_node_instances` | `EngineFacade.FlowNodeInstances.t()` | Flow Node Instance reads |
 | `data_objects` | `EngineFacade.DataObjects.t()` | Data Object reads + history |
+| `timers` | `EngineFacade.Timers.t()` | Timer event trigger + cycle schedule list/enable/disable |
 | `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution |
 
 #### `facade.processes`
@@ -59,6 +60,8 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | `enable` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Enable a process |
 | `disable` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Disable a process |
 | `delete_version` | `(String.t(), String.t()) -> {:ok, struct()} \| {:error, term()}` | Soft-delete a specific version |
+| `list` | `() -> {:ok, list()} \| {:error, term()}` | List all process definitions |
+| `undeploy` | `(String.t()) -> :ok \| {:error, term()}` | Soft-delete all versions of a process |
 | `start` | `(keyword()) -> {:ok, String.t()} \| {:error, term()}` | Start a new process instance |
 
 #### `facade.process_instances`
@@ -102,6 +105,16 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `query` | `(String.t(), map()) -> {:ok, map()} \| {:error, term()}` | Execute a raw GraphQL query with plugin identity |
+
+#### `facade.timers`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `trigger_event` | `(String.t()) -> :ok \| {:error, term()}` | Manually fire a waiting timer FNI |
+| `list_schedules` | `(keyword()) -> {:ok, list()} \| {:error, term()}` | List Timer Start Event cycle schedules |
+| `get_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Get one schedule by id |
+| `enable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Re-enable a disabled cycle schedule |
+| `disable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Disable an enabled cycle schedule |
 
 ### Registration Validation (in-BEAM only)
 

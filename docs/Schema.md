@@ -6,6 +6,15 @@
 > tables as a single ER-style diagram and gives a one-paragraph narrative per
 > table so a reader can orient themselves without scanning the full spec.
 > Cross-references to the plan are given inline.
+>
+> **Shipped vs specified:** the current migration creates catalog, execution,
+> data-object, message/signal, and decision tables listed below. There is
+> **no** `pending_escalations` table (escalation D1). Dedicated
+> `escalations`, `compensations`, and `engine_timers` audit tables remain
+> specified in the plan but are **not** in the current schema — escalation
+> and compensation runtime uses EngineEventBus plus in-memory registries;
+> PI-scoped timers persist in FNI `type_properties`; Timer Start schedules
+> currently use the in-memory `Timers.Persistence.NoOp` adapter.
 
 ## 1. Legend
 
@@ -13,7 +22,7 @@
 - **Dashed lines** = logical FK only (the two tables share a partitioning
   scheme so a native multi-table FK isn't expressible cleanly; integrity is
   enforced at the application layer — see `ImplementationPlan.md` §4.3 notes
-  under `pending_messages` / `pending_signals` / `pending_escalations`).
+  under `pending_messages` / `pending_signals`).
 - **Tables tagged "PARTITIONED (monthly)"** use `PARTITION BY RANGE (ts)` with
   one child table per calendar month. Partitions are pre-created by
   `mix evil.partitions.ensure` on every engine boot (see
@@ -315,11 +324,11 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 - **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `EVIL_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible. `ImplementationPlan.md` §4.3.
 - **`signals`** — **partitioned monthly** by `published_at`. Broadcast-to-all semantics (no correlation dimension). `correlations` JSONB array records every delivered subscription. `ImplementationPlan.md` §3.5.6 / §4.3.
 - **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `EVIL_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`. `ImplementationPlan.md` §3.5.6 / §4.3.
-- **`escalations`** — **partitioned monthly** by `published_at`. One row per raised escalation. `scope_chain` records the scope-chain walker trace; `outcome` ∈ {`caught`, `uncaught_root`, `uncaught_intermediate_throw_noop`, `late_caught_observed`}. `ImplementationPlan.md` §3.5.7 / §4.3.
-- **`pending_escalations`** — **partitioned monthly** by `published_at`. **Observability-only**: inserted *after* the throw-element-aware terminal state has been applied, purely so late-registering Escalation Boundary / Event-Subprocess-Start subscriptions can fire their handler side-effects within `EVIL_ESCALATION_PENDING_TTL`. Draining this table never un-applies the terminal state of any PI. `ImplementationPlan.md` §3.5.7 / §4.3.
-- **`compensations`** — **partitioned monthly** by `triggered_at`. Compensation trigger log (always PI-local in v1 per §16.4). `ImplementationPlan.md` §4.3.
+- **`escalations`** — **specified, not in the current migration.** Escalation runtime emits `Event.EscalationRaised` on EngineEventBus. There is no `pending_escalations` table (escalation D1).
+- **`pending_escalations`** — **dropped (escalation D1).** Not created, not swept, no late-catch drain.
+- **`compensations`** — **specified, not in the current migration.** Compensation runtime uses the in-memory `compensation_registry` rebuilt from finished FNIs on resume.
 - **`data_object_writes`** — **partitioned** by `created_at`. Append-only history; atomically consistent with the `data_objects` snapshot update. Every row is DOA-originated (the `source` column was dropped since all writes come from `bpmn:dataOutputAssociation`). Always written regardless of sink config — this is kernel state, not an observability sink. `ImplementationPlan.md` §4.3.
-- **`engine_timers`** — **not partitioned** (`fire_at` can be arbitrarily far-future; partitioning by `created_at` adds schema churn without meaningful storage benefit). State ∈ {`armed`, `fired`, `cancelled`}. Armed rows are cascade-purged with their owning PI; fired/cancelled rows are retention-eligible under engine-audit retention. `ImplementationPlan.md` §4.3.
+- **`engine_timers`** — **specified, not in the current migration.** PI-scoped timers persist in FNI `type_properties` and the Scheduler ETS tables. Timer Start schedules use `EvilEngine.Timers.Persistence` (currently `NoOp` in production config).
 
 ## 5. Partitioning summary
 
@@ -336,14 +345,14 @@ must be in the PK.
 | `pending_messages` | `published_at` | Phase 2 |
 | `signals` | `published_at` | Phase 2 |
 | `pending_signals` | `published_at` | Phase 2 |
-| `escalations` | `published_at` | Phase 4 |
-| `pending_escalations` | `published_at` | Phase 4 |
-| `compensations` | `triggered_at` | Phase 4 |
+| `escalations` | `published_at` | **specified, not migrated** |
+| `pending_escalations` | — | **dropped (D1)** |
+| `compensations` | `triggered_at` | **specified, not migrated** |
 
 See `ImplementationPlan.md` §14.6 for the complete housekeeping story —
 per-state retention for PI-scoped tables, single-knob retention for
 engine-audit tables (`EVIL_RETENTION_ENGINE_AUDIT_DAYS`), and the
-delete-on-transition switches for the three pending tables (messages, signals, and escalations).
+delete-on-transition switches for the pending tables that exist (`pending_messages`, `pending_signals`).
 
 ## 6. Cross-reference quick index
 

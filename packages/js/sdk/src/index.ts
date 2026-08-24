@@ -67,6 +67,7 @@ export type {
 
 // --- Ad-hoc subprocess types ---
 export type { AdHocActivity, AdHocActivateResult, AdHocStatus, AdHocCompleteResult } from './types/index.js';
+export type { TimerSchedule } from './types/index.js';
 
 // --- Error classes (runtime values) ---
 export {
@@ -100,6 +101,7 @@ export {
   RetryCheckpointIsJoinGatewayError,
   RetryCheckpointIsEbgLoserError,
   RetryCheckpointIsMiIterationError,
+  RetryCheckpointIsNonRetryableError,
   RetryCheckpointInsideTransactionError,
   RetryInsideTransactionScopeError,
   GraphqlDepthLimitError,
@@ -118,6 +120,15 @@ export {
   AmbiguousDecisionError,
   InputValueViolationError,
   MissingServiceInputError,
+  RetryCheckpointInsideAdhocSubprocessError,
+  RetryInsideAdhocSubprocessError,
+  NotATimerEventError,
+  DispatchFailedError,
+  ConflictError,
+  BadRequestError,
+  NoMatchingConditionError,
+  NoDecisionsError,
+  ServiceUnavailableError,
 } from './errors/index.js';
 
 // --- WebSocket event types ---
@@ -201,6 +212,10 @@ export type {
   FacadeSignals,
   FacadeAdHocSubprocesses,
   FacadeGraphql,
+  FacadeDecisions,
+  FacadeTimers,
+  FacadeEvaluateOptions,
+  FacadeTimerScheduleFilters,
   RegistrationResult,
 } from './plugin/index.js';
 

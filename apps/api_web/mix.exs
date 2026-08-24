@@ -19,7 +19,7 @@ defmodule ApiWeb.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
-      test_coverage: [tool: ExCoveralls, threshold: 0],
+      test_coverage: [tool: ExCoveralls, threshold: 74],
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env())
     ]
@@ -40,6 +40,7 @@ defmodule ApiWeb.MixProject do
       {:core_execution, in_umbrella: true},
       {:peripheral_persistence, in_umbrella: true},
       {:peripheral_telemetry, in_umbrella: true},
+      {:peripheral_plugins, in_umbrella: true},
       {:engine_sdk, in_umbrella: true},
       {:api_auth, in_umbrella: true},
       {:api_facade, in_umbrella: true},

@@ -154,7 +154,7 @@ concern.
 ## Input Validation
 
 - **JSON Schema 2020-12** on every inbound payload: triggers, task completions, data contracts. Strict mode is always on. Library: `ex_json_schema`.
-- **Payload cap**: `EVIL_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, GraphQL, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 / GraphQL `PAYLOAD_TOO_LARGE` from wire adapters. See [configuration.md](configuration.md) for the env var reference.
+- **Payload cap**: `EVIL_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [configuration.md](configuration.md) for the env var reference.
 - **BPMN linter gate**: deploy-time validation of `<evil:linterRulesetScore>` entries against configured thresholds. See [configuration.md](configuration.md) §14.5.
 
 ---
@@ -290,7 +290,7 @@ high request volume:
 |---------|--------|
 | **Payload cap** | `EVIL_TOKEN_MAX_BYTES` (default 64 KiB) — rejects oversize bodies before allocation, preventing memory exhaustion via large payloads |
 | **Bandit/Cowboy connection limits** | The HTTP server enforces configurable `max_connections` (Bandit default: 16384) and `idle_timeout` — prevents connection-pool exhaustion |
-| **Ecto pool size** | Database connection pools (`EVIL_DB_POOL_SIZE`, default 20 for writes; `EVIL_DB_READ_POOL_SIZE`, default 10 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres |
+| **Ecto pool size** | Database connection pools (`EVIL_DB_POOL_SIZE`, production default 100 for writes; `EVIL_DB_READ_POOL_SIZE`, production default 50 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres. Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` |
 | **Plugin quarantine** | Repeatedly-failing plugins are quarantined ([plugins.md](plugins.md) §9.3), preventing a misbehaving plugin from amplifying load |
 | **JWT validation is stateless** | No database lookup on auth — a flood of invalid JWTs costs CPU (JOSE signature verification) but does not hit the database |
 
@@ -397,7 +397,7 @@ reference when commissioning a penetration test.
 | **A07 — Auth Failures** | Addressed | Stateless JWT; constant-time HMAC; uniform 401 responses; no session management; no login endpoint. Brute-force: delegated to IdP + proxy (see above) |
 | **A08 — Data Integrity Failures** | Addressed | JWT signature verification on every request; BPMN deploy-time linter gate; JSON Schema validation on all inbound payloads; no deserialization of untrusted binary formats |
 | **A09 — Logging & Monitoring Failures** | Partially addressed | Structured JSON logging for all auth events; `/stats` counters; console and websocket event sinks. The `process_instance_events` table is retained for migration compatibility but is no longer populated (the built-in database sink was removed). Gap: no dedicated security-event log stream or SIEM integration in v1 |
-| **A10 — SSRF** | Not applicable | The engine does not make outbound HTTP requests based on user input. JWKS URL is operator-configured (not user-supplied). A future sidecar host would speak local gRPC to operator-configured binaries (PLUG-D1, not in v1) |
+| **A10 — SSRF** | Operator-trust | The builtin HTTP Service Task (`implementation="http"`) **does** make outbound HTTP to the URL in deployed `evil:httpUrl`. That URL is process-author / operator-controlled BPMN, not an unauthenticated request parameter. JWKS URL is operator-configured. Treat deployed models and plugins as trusted; SSRF mitigation (URL allowlists, egress proxy) is an operator/plugin-trust concern, not an engine invariant that "the engine never dials out." |
 
 ### Additional pentest-relevant controls
 

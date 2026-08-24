@@ -12,7 +12,7 @@ defmodule EvilEngine.Test.DbAssertions do
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance
 
-  @sandbox_retry_attempts 3
+  @sandbox_retry_attempts 8
   @sandbox_retry_delay_ms 50
 
   @doc "Fetch a ProcessInstance row by ID. Raises on not-found."
@@ -24,10 +24,19 @@ defmodule EvilEngine.Test.DbAssertions do
 
   @doc "Fetch a ProcessInstance row by ID. Returns nil if not found."
   def fetch_process_instance(process_instance_id) do
-    case Ash.get(ProcessInstance, process_instance_id, domain: Domain, authorize?: false) do
-      {:ok, record} -> record
-      {:error, _} -> nil
-    end
+    with_sandbox_retry(fn ->
+      case Ash.get(ProcessInstance, process_instance_id, domain: Domain, authorize?: false) do
+        {:ok, record} ->
+          record
+
+        {:error, error} ->
+          if sandbox_ownership_error?(error) do
+            raise error
+          else
+            nil
+          end
+      end
+    end)
   end
 
   @doc "Fetch all FlowNodeInstance rows for a PI, ordered by started_at."
@@ -40,11 +49,15 @@ defmodule EvilEngine.Test.DbAssertions do
     end)
   end
 
+  # Killing an FNI mid-write on the shared sandbox connection (see
+  # common-pitfalls.md P45) reverts the checkout to :manual. Re-assert
+  # {:shared, test_pid} and retry instead of treating that as a product bug.
   defp with_sandbox_retry(function, attempt \\ 1) do
     function.()
   rescue
-    error in [Ash.Error.Unknown, DBConnection.OwnershipError] ->
+    error ->
       if attempt < @sandbox_retry_attempts && sandbox_ownership_error?(error) do
+        restore_sandbox_shared_mode()
         Process.sleep(@sandbox_retry_delay_ms * attempt)
         with_sandbox_retry(function, attempt + 1)
       else
@@ -52,14 +65,57 @@ defmodule EvilEngine.Test.DbAssertions do
       end
   end
 
+  @doc """
+  Re-assert `{:shared, self()}` on both persistence repos.
+
+  Called after a Process Instance drain and from sandbox-retry so a killed
+  FNI that was mid-write cannot leave later assertions in `:manual` mode.
+  """
+  def restore_sandbox_shared_mode do
+    Enum.each(
+      [EvilEngine.Persistence.Repo, EvilEngine.Persistence.ReadRepo],
+      &restore_repo_shared_mode/1
+    )
+  end
+
+  defp restore_repo_shared_mode(repo) do
+    case Ecto.Adapters.SQL.Sandbox.checkout(repo, ownership_timeout: 300_000) do
+      :ok ->
+        Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+
+      {:already, :owner} ->
+        Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+
+      {:already, :allowed} ->
+        :ok
+    end
+  rescue
+    _error -> :ok
+  end
+
   defp sandbox_ownership_error?(%DBConnection.OwnershipError{}), do: true
 
-  defp sandbox_ownership_error?(%Ash.Error.Unknown{errors: errors}) do
-    Enum.any?(errors, fn
-      %Ash.Error.Unknown.UnknownError{error: %DBConnection.OwnershipError{}} -> true
-      _ -> false
-    end)
+  defp sandbox_ownership_error?(%Ash.Error.Unknown{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &sandbox_ownership_error?/1)
   end
+
+  defp sandbox_ownership_error?(%Ash.Error.Unknown.UnknownError{error: inner}) do
+    sandbox_ownership_error?(inner)
+  end
+
+  defp sandbox_ownership_error?(error) when is_exception(error) do
+    message = Exception.message(error)
+
+    String.contains?(message, "OwnershipError") or
+      String.contains?(message, "ownership process") or
+      String.contains?(message, "cannot find ownership")
+  end
+
+  defp sandbox_ownership_error?(error) when is_binary(error) do
+    String.contains?(error, "OwnershipError") or String.contains?(error, "ownership process")
+  end
+
+  defp sandbox_ownership_error?(_error), do: false
 
   @doc "Assert a PI row exists with the expected state."
   def assert_pi_state!(process_instance_id, expected_state) do

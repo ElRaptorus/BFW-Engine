@@ -19,7 +19,7 @@ defmodule CoreBpmn.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
-      test_coverage: [tool: ExCoveralls, threshold: 55],
+      test_coverage: [tool: ExCoveralls, threshold: 80],
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env())
     ]

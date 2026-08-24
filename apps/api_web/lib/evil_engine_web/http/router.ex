@@ -154,4 +154,13 @@ defmodule EvilEngineWeb.Http.Router do
       }
       """
   end
+
+  # Last: plugin REST extensions. Specific engine, OpenAPI, GraphQL, and
+  # Swagger routes above win first. Unknown paths 404 without auth; a
+  # matching plugin prefix then requires JWT (engine claims are not applied).
+  scope "/", EvilEngineWeb.Http do
+    pipe_through :api
+
+    match :*, "/*path", PluginExtensionController, :dispatch
+  end
 end

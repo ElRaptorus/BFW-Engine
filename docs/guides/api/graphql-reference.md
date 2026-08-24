@@ -2,6 +2,8 @@
 
 Endpoint: `POST /api/v1/graphql`
 
+GraphQL is **strictly query-only**. All commands are REST (and the plugin facade). Real-time events use Phoenix Channels — see [WebSocket API](websocket.md).
+
 GraphQL Playground: `/admin/graphiql` (devtools-only — disabled in prod unless `EVIL_DEVTOOLS_ENABLED=true`; pre-loaded with example query tabs)
 
 Authentication: same JWT as REST — see [Authentication](authentication.md).
@@ -256,11 +258,11 @@ const flowNodeSelection: SelectionField = {
 
 ## Mutations
 
-No GraphQL mutations are currently implemented. Process operations and user task interactions are available exclusively via the [REST API](rest-reference.md).
+GraphQL is **query-only**. Process operations and user task interactions are available exclusively via the [REST API](rest-reference.md). There are no GraphQL mutations.
 
 ## Subscriptions
 
-GraphQL subscriptions are not currently implemented. For real-time event streaming, use the [WebSocket API](websocket.md) (Phoenix Channels).
+GraphQL has **no** subscriptions. For real-time event streaming, use the [WebSocket API](websocket.md) (Phoenix Channels).
 
 ## Response Format
 

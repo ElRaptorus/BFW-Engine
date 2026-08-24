@@ -640,6 +640,7 @@ defmodule EvilEngine.ExecutionCase do
         receive do
           {:DOWN, ^ref, :process, ^pid, _reason} ->
             await_supervisor_drain()
+            EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
             :ok
         after
           timeout ->
@@ -648,6 +649,7 @@ defmodule EvilEngine.ExecutionCase do
         end
 
       {:error, :not_found} ->
+        EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
         :ok
     end
   end

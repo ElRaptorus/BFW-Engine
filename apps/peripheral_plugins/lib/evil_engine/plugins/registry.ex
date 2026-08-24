@@ -61,8 +61,20 @@ defmodule EvilEngine.Plugins.Registry do
           | {:error, :conflict, String.t()}
           | {:error, :invalid_handler, String.t()}
           | {:error, :module_not_loaded, String.t()}
+          | {:error, :reserved_prefix}
   def register_capability(plugin_name, capability_type, descriptor) do
     GenServer.call(__MODULE__, {:register_capability, plugin_name, capability_type, descriptor})
+  end
+
+  @doc """
+  Longest-prefix match of a request path against registered REST API extensions.
+
+  Returns `:error` when no extension prefix matches at a path-segment boundary.
+  """
+  @spec lookup_rest_api_extension(String.t()) ::
+          {:ok, %{prefix: String.t(), module: module(), plugin_name: String.t()}} | :error
+  def lookup_rest_api_extension(request_path) do
+    GenServer.call(__MODULE__, {:lookup_rest_api_extension, request_path})
   end
 
   @doc "Get all registered plugins."
@@ -118,36 +130,32 @@ defmodule EvilEngine.Plugins.Registry do
 
   @impl true
   def handle_call({:register_capability, plugin_name, cap_type, descriptor}, _from, state) do
-    conflict_key = unique_key_for(cap_type, descriptor)
+    descriptor = maybe_normalize_rest_api_prefix(cap_type, descriptor)
 
-    existing =
-      state.capabilities
-      |> Map.get(cap_type, [])
-      |> Enum.find(fn cap -> cap[:conflict_key] == conflict_key and conflict_key != nil end)
+    case reserved_rest_api_prefix_error(cap_type, descriptor) do
+      {:error, :reserved_prefix} = error ->
+        {:reply, error, state}
 
-    if existing do
-      emit_quarantine(plugin_name, cap_type, conflict_key, existing[:plugin_name])
-      {:reply, {:error, :conflict, existing[:plugin_name]}, state}
-    else
-      case validate_handler_module(cap_type, descriptor) do
-        :ok ->
-          cap_entry = %{
-            plugin_name: plugin_name,
-            type: cap_type,
-            descriptor: descriptor,
-            conflict_key: conflict_key,
-            registered_at: DateTime.utc_now()
-          }
+      :ok ->
+        conflict_key = unique_key_for(cap_type, descriptor)
 
-          caps = Map.get(state.capabilities, cap_type, [])
-          new_caps = Map.put(state.capabilities, cap_type, caps ++ [cap_entry])
-          {:reply, :ok, %{state | capabilities: new_caps}}
+        existing =
+          state.capabilities
+          |> Map.get(cap_type, [])
+          |> Enum.find(fn cap -> cap[:conflict_key] == conflict_key and conflict_key != nil end)
 
-        {:error, reason, message} ->
-          emit_validation_quarantine(plugin_name, cap_type, message)
-          {:reply, {:error, reason, message}, state}
-      end
+        if existing do
+          emit_quarantine(plugin_name, cap_type, conflict_key, existing[:plugin_name])
+          {:reply, {:error, :conflict, existing[:plugin_name]}, state}
+        else
+          append_capability(state, plugin_name, cap_type, descriptor, conflict_key)
+        end
     end
+  end
+
+  @impl true
+  def handle_call({:lookup_rest_api_extension, request_path}, _from, state) do
+    {:reply, do_lookup_rest_api_extension(state, request_path), state}
   end
 
   @impl true
@@ -182,6 +190,27 @@ defmodule EvilEngine.Plugins.Registry do
     {:reply, :ok, %__MODULE__{}}
   end
 
+  defp append_capability(state, plugin_name, cap_type, descriptor, conflict_key) do
+    case validate_handler_module(cap_type, descriptor) do
+      :ok ->
+        cap_entry = %{
+          plugin_name: plugin_name,
+          type: cap_type,
+          descriptor: descriptor,
+          conflict_key: conflict_key,
+          registered_at: DateTime.utc_now()
+        }
+
+        caps = Map.get(state.capabilities, cap_type, [])
+        new_caps = Map.put(state.capabilities, cap_type, caps ++ [cap_entry])
+        {:reply, :ok, %{state | capabilities: new_caps}}
+
+      {:error, reason, message} ->
+        emit_validation_quarantine(plugin_name, cap_type, message)
+        {:reply, {:error, reason, message}, state}
+    end
+  end
+
   # --- Conflict detection helpers -----------------------------------------
 
   defp unique_key_for(:service_task_handler, %{implementation: key}), do: key
@@ -192,6 +221,90 @@ defmodule EvilEngine.Plugins.Registry do
   defp unique_key_for(:rest_api_extension, %{prefix: key}), do: key
   defp unique_key_for(:auth_provider, _descriptor), do: :singleton
   defp unique_key_for(_cap_type, _descriptor), do: nil
+
+  @reserved_route_prefixes MapSet.new([
+                             "/processes",
+                             "/decisions",
+                             "/process-instances",
+                             "/user-tasks",
+                             "/timer-schedules",
+                             "/timer-events",
+                             "/messages",
+                             "/signals",
+                             "/adhoc-subprocesses",
+                             "/stats",
+                             "/api",
+                             "/admin",
+                             "/health",
+                             "/info",
+                             "/metrics"
+                           ])
+
+  defp maybe_normalize_rest_api_prefix(:rest_api_extension, %{prefix: prefix} = descriptor)
+       when is_binary(prefix) do
+    Map.put(descriptor, :prefix, normalize_route_prefix(prefix))
+  end
+
+  defp maybe_normalize_rest_api_prefix(_capability_type, descriptor), do: descriptor
+
+  defp reserved_rest_api_prefix_error(:rest_api_extension, %{prefix: prefix})
+       when is_binary(prefix) do
+    if reserved_route_prefix?(prefix) do
+      {:error, :reserved_prefix}
+    else
+      :ok
+    end
+  end
+
+  defp reserved_rest_api_prefix_error(_capability_type, _descriptor), do: :ok
+
+  defp reserved_route_prefix?(prefix) do
+    normalized = normalize_route_prefix(prefix)
+
+    Enum.any?(@reserved_route_prefixes, fn reserved ->
+      normalized == reserved or String.starts_with?(normalized, reserved <> "/")
+    end)
+  end
+
+  defp normalize_route_prefix(prefix) when is_binary(prefix) do
+    trimmed = String.trim(prefix)
+
+    with_leading_slash =
+      if String.starts_with?(trimmed, "/"), do: trimmed, else: "/" <> trimmed
+
+    String.trim_trailing(with_leading_slash, "/")
+  end
+
+  defp do_lookup_rest_api_extension(state, request_path) when is_binary(request_path) do
+    normalized_path = normalize_route_prefix(request_path)
+
+    state.capabilities
+    |> Map.get(:rest_api_extension, [])
+    |> Enum.filter(fn capability ->
+      prefix = capability.descriptor[:prefix]
+      is_binary(prefix) and path_matches_prefix?(normalized_path, prefix)
+    end)
+    |> Enum.max_by(
+      fn capability -> String.length(capability.descriptor.prefix) end,
+      fn -> nil end
+    )
+    |> case do
+      nil ->
+        :error
+
+      capability ->
+        {:ok,
+         %{
+           prefix: capability.descriptor.prefix,
+           module: capability.descriptor[:module],
+           plugin_name: capability.plugin_name
+         }}
+    end
+  end
+
+  defp path_matches_prefix?(request_path, prefix) do
+    request_path == prefix or String.starts_with?(request_path, prefix <> "/")
+  end
 
   defp emit_quarantine(plugin_name, cap_type, conflict_key, incumbent) do
     reason =

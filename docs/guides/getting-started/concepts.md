@@ -24,7 +24,20 @@ The `<evil:version>` extension element is mandatory on every executable process:
 
 ### Process Instance (PI)
 
-A running execution of a process version. PIs are isolated OTP processes (`:gen_statem`) with states: `running`, `finished`, `fatal`, or `aborted`. Terminal PIs (`fatal` / `aborted`) can be retried via the [Retry and Restart](../handbook/retry-restart.md) mechanism.
+A running execution of a process version. PIs are isolated OTP processes (`:gen_statem`) with states: `running`, `finished`, `fatal`, `aborted`, `error`, `compensated`, `escalated`, or `cancelled`.
+
+| State | Meaning | Retryable |
+|-------|---------|-----------|
+| `running` | In progress | n/a |
+| `finished` | All tokens consumed via End Events (normal completion) | No |
+| `fatal` | Engine crash / unhandled failure | Yes |
+| `aborted` | User/API kill switch (tree-wide) | Yes |
+| `error` | Error End Event (modeled BPMN error) | Yes |
+| `compensated` | Finished after a Compensation End Event — business outcome, not a failure | No |
+| `escalated` | Finished after an uncaught escalation propagated to root — business outcome | No |
+| `cancelled` | Transaction subprocess cancelled via Cancel End Event — business outcome | No |
+
+`:error` / `:fatal` / `:aborted` are retryable via the [Retry and Restart](../handbook/retry-restart.md) mechanism. `:compensated`, `:escalated`, and `:cancelled` are **terminal-but-handled** — they are intentional business outcomes and are not retryable.
 
 ### Flow Node Instance (FNI)
 
@@ -52,7 +65,7 @@ The engine extends BPMN with custom elements under `xmlns:evil="https://evilengi
 | `evil:correlationKey` | Process | FEEL expression for message correlation |
 | `implementation` (BPMN attr) | Service Task | Handler dispatch key (e.g., `"http"`) |
 | `evil:httpUrl`, `evil:httpMethod`, `evil:httpBody`, `evil:httpAuthHeader` | Service Task | Built-in HTTP handler config |
-| `evil:assignees` | User Task | Comma-separated assignee claim identifiers |
+| `evil:assignees` | User Task | FEEL expression that resolves to the list of assignees at runtime (e.g. `identity.groups` or `["clerk_role", "manager_role"]`) |
 | `evil:formFields` | User Task | Formkit-opaque form definition |
 | `evil:resultContract` | User Task | JSON Schema for result validation |
 | `evil:dueDate`, `evil:priority` | User Task | Task metadata |
@@ -83,13 +96,13 @@ The engine is extensible through a behaviour-based plugin system. Plugins implem
 |-----------|---------|
 | `EvilEngine.Plugin.ServiceTaskHandler` | Handle Service Task execution for an `implementation` key |
 | `EvilEngine.Plugin.EventSink` | Receive engine events (logging, monitoring, etc.) |
-| `EvilEngine.Plugin.PersistenceAdapter` | Replace or chain the default persistence |
 | `EvilEngine.Plugin.RestApiExtension` | Mount additional REST/HTTP routes |
-| `EvilEngine.Plugin.MonitoringPanel` | Contribute admin page fragments |
-| `EvilEngine.Plugin.TimerSource` | Custom timer evaluation |
-| `EvilEngine.Plugin.DataStoreAdapter` | External data store integration |
 | `EvilEngine.Plugin.NamedScript` | Handle `evil:scriptRef` execution |
 | `EvilEngine.Plugin.AuthProvider` | Replace the built-in JWT verifier with custom identity resolution |
+| `EvilEngine.Plugin.PersistenceAdapter` | **Not in v1** — registration may be accepted and ignored |
+| `EvilEngine.Plugin.MonitoringPanel` | **Not in v1** — registration may be accepted and ignored |
+| `EvilEngine.Plugin.TimerSource` | **Not in v1** — registration may be accepted and ignored |
+| `EvilEngine.Plugin.DataStoreAdapter` | **Not in v1** — DataStores are a parser no-op; registration may be accepted and ignored |
 
 Plugins are loaded at engine boot via `on_load(engine_facade)` and receive an `on_ready(engine_facade)` callback once the full engine is reachable. See [Plugin Development](../plugins/getting-started.md) for implementation details.
 
@@ -101,6 +114,6 @@ See the [Link Events handbook](../handbook/link-events.md) for full documentatio
 
 ## Process Instance Retry
 
-Terminal PIs (`fatal` or `aborted`) can be restarted via `PUT /process-instances/{id}/retry`. Retry supports optional version migration to a newer compatible process definition and checkpoint-based partial restarts.
+Terminal PIs (`fatal`, `aborted`, or `error`) can be restarted via `PUT /process-instances/{id}/retry`. Retry supports optional version migration to a newer compatible process definition and checkpoint-based partial restarts. `:compensated`, `:escalated`, and `:cancelled` are not retryable.
 
 See the [Retry and Restart handbook](../handbook/retry-restart.md) for full documentation.

@@ -1,8 +1,10 @@
 # Implementing Persistence Adapters
 
-A Persistence Adapter replaces or chains the default AshPostgres persistence layer. This is an advanced extension point for engines that need non-standard storage backends or additional persistence logic.
+**Not implemented in v1.** `facade.register_persistence_adapter` is accepted and ignored at runtime. This plugin behaviour is **not** `EvilEngine.Execution.Persistence` (the in-tree execution adapter swapped via `:core_execution, :persistence_adapter` config, which tests already use).
 
-## Behaviour
+Do not treat this as write-through or as a PostgreSQL replacement.
+
+## Behaviour (reserved)
 
 ```elixir
 @behaviour EvilEngine.Plugin.PersistenceAdapter
@@ -13,7 +15,7 @@ A Persistence Adapter replaces or chains the default AshPostgres persistence lay
 
 ## Registration
 
-Registration is unique. If `chain: true` is set, the adapter chains after the default; otherwise, last-wins replaces it:
+Registration is unique per adapter id, but the runtime does not invoke the adapter in v1:
 
 ```elixir
 def on_load(facade) do
@@ -21,12 +23,6 @@ def on_load(facade) do
   :ok
 end
 ```
-
-## Use Cases
-
-- Write-through to an external audit system
-- Replicate to a secondary database
-- Replace PostgreSQL with a different storage engine
 
 ## Related
 

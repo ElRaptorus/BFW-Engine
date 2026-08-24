@@ -8,11 +8,11 @@ defmodule EvilEngine.Plugin do
   |----------|--------|---------------|
   | Event sink | `EvilEngine.Plugin.EventSink` | Many allowed |
   | Service Task handler | `EvilEngine.Plugin.ServiceTaskHandler` | Unique by `implementation` |
-  | Persistence adapter | `EvilEngine.Plugin.PersistenceAdapter` | Unique; chain or last-wins |
+  | Persistence adapter | `EvilEngine.Plugin.PersistenceAdapter` | **Not in v1** (accepted, unused) |
   | REST API extension | `EvilEngine.Plugin.RestApiExtension` | Mounted under prefix |
-  | Monitoring panel | `EvilEngine.Plugin.MonitoringPanel` | Many allowed |
-  | Timer source | `EvilEngine.Plugin.TimerSource` | Unique per type |
-  | DataStore adapter | `EvilEngine.Plugin.DataStoreAdapter` | Unique per store-id |
+  | Monitoring panel | `EvilEngine.Plugin.MonitoringPanel` | **Not in v1** (accepted, unused) |
+  | Timer source | `EvilEngine.Plugin.TimerSource` | **Not in v1** (accepted, unused) |
+  | DataStore adapter | `EvilEngine.Plugin.DataStoreAdapter` | **Not in v1** (accepted, unused) |
   | Named script | `EvilEngine.Plugin.NamedScript` | Unique by script-key |
   | Auth provider | `EvilEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins) |
 

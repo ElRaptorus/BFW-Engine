@@ -68,7 +68,7 @@ python3 -m http.server 8080 -d manual # requires python3 to be installed.
 | Section                | Content                                                                                                                                                                                                                                              |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Getting Started**    | Overview, quickstart, core concepts                                                                                                                                                                                                                  |
-| **User Handbook**      | Deploying processes, starting instances, user/service/manual/script/business rule tasks, exclusive gateways, parallel gateways, inclusive gateways, complex gateways, event-based gateways, call activities, embedded subprocesses, event subprocesses, error boundary events, error end events, timer events, message events, signal events, conditional events, escalation events, compensation, link events, data objects, DMN decisions, retry/restart, expressions, error handling, monitoring |
+| **User Handbook**      | Deploying processes, starting instances, user/service/manual/script/business rule tasks, exclusive gateways, parallel gateways, inclusive gateways, complex gateways, event-based gateways, call activities, embedded subprocesses, event subprocesses, ad-hoc subprocesses, transactions, multi-instance, standard loops, error boundary events, error end events, timer events, message events, signal events, conditional events, escalation events, compensation, link events, data objects, DMN decisions, retry/restart, expressions, error handling, monitoring |
 | **API Reference**      | REST endpoints, GraphQL schema, authentication, WebSocket channels                                                                                                                                                                                   |
 | **Plugin Development** | Behaviours, engine facade, service task handlers, event sinks, built-in plugins                                                                                                                                                                      |
 | **Operations Guide**   | Deployment, database admin, security, observability, troubleshooting                                                                                                                                                                                 |
@@ -305,13 +305,13 @@ apps/
 ├── api_facade/              # EvilEngine.Api service-layer facade
 ├── api_web/                 # REST + GraphQL + WebSocket + Admin
 ├── api_auth/                # JWT validator (HS256 / RS256 / ES256 / JWKS)
-├── peripheral_persistence/  # Ash + AshPostgres + RetentionRunner
+├── peripheral_persistence/  # Ash + AshPostgres (RetentionRunner is Phase 7, not shipped)
 ├── peripheral_telemetry/    # :telemetry counters backing /stats
 ├── peripheral_plugins/      # Plugin registry + in-BEAM loader (gRPC sidecar deferred, PLUG-D1)
 └── engine_sdk/              # Public behaviours for plugin authors
 ```
 
-Dependency direction is strictly inward: `API → Core → Peripheral`. `engine_sdk`
+Dependency direction is strictly inward: `API → Peripheral → Core`. `engine_sdk`
 re-exports only — it never owns types. See the invariants block in `§2`.
 
 ## Getting started
@@ -388,8 +388,8 @@ mix ash_postgres.rollback
 ### Partition pre-creation
 
 Monthly partitions for `process_instance_events`, `data_object_writes`,
-`messages`, `pending_messages`, `signals`, `pending_signals`, `escalations`,
-`pending_escalations`, and `compensations` are pre-created by the boot hook:
+`messages`, `pending_messages`, `signals`, and `pending_signals`
+are pre-created by the boot hook:
 
 ```bash
 mix evil.partitions.ensure          # dev / test

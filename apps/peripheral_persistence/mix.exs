@@ -1,13 +1,10 @@
 defmodule PeripheralPersistence.MixProject do
   @moduledoc """
-  Owns all persistent state: Ash resources, `AshPostgres.Repo`, the
-  `database` EventSink (off by default), the `RetentionRunner`
-  GenServer, and the `mix evil.partitions.ensure`
-  boot hook.
+  Owns all persistent state: Ash resources, `AshPostgres.Repo`,
+  dual-pool routing, and the `mix evil.partitions.ensure` boot hook.
 
-  Phase 0 lays down the Repo + Ash domain skeleton so `mix
-  ash_postgres.generate_migrations` works; real resources arrive in
-  Phase 1.
+  The built-in `database` EventSink was removed. `RetentionRunner`
+  is Phase 7 work and does **not** ship today.
   """
 
   use Mix.Project
@@ -22,7 +19,7 @@ defmodule PeripheralPersistence.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
-      test_coverage: [tool: ExCoveralls, threshold: 0],
+      test_coverage: [tool: ExCoveralls, threshold: 74],
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases()

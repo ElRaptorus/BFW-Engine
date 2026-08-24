@@ -20,7 +20,7 @@ defmodule CoreExecution.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
-      test_coverage: [tool: ExCoveralls, threshold: 80],
+      test_coverage: [tool: ExCoveralls, threshold: 81],
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env())
     ]

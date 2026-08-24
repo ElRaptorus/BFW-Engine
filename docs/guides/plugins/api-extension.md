@@ -2,15 +2,23 @@
 
 REST API Extensions allow plugins to mount additional HTTP routes under a configured prefix on the engine's web server.
 
+JWT is resolved and `conn.assigns.identity` is set **after** a plugin prefix matches. Unknown paths return 404 without requiring a token. **Engine claim policy is not applied** — plugins enforce their own rules from `Identity.claims`.
+
+Plugin routes are **not** included in the OpenAPI spec. They are unknown at spec-author time.
+
 ## Behaviour
 
+The registered handler is a **Plug** (`call/2`). A Phoenix router qualifies because it implements Plug.
+
 ```elixir
+@behaviour Plug
 @behaviour EvilEngine.Plugin.RestApiExtension
 
+@callback call(Plug.Conn.t(), Plug.opts()) :: Plug.Conn.t()
+
+# Optional. Defaults to the implementing module.
 @callback router_module() :: module()
 ```
-
-The `router_module/0` callback returns the Phoenix Router module that defines the plugin's routes.
 
 ## Registration
 
@@ -21,11 +29,11 @@ def on_load(facade) do
 end
 ```
 
-Routes defined in `MyPlugin.Router` will be accessible under `/my-extension/...`.
+Routes on `MyPlugin.Router` are reachable under `/my-extension/...` after the engine strips the matched prefix from `path_info`.
 
-## Status
+Reserved prefixes (`/processes`, `/decisions`, `/process-instances`, `/user-tasks`, `/timer-schedules`, `/timer-events`, `/messages`, `/signals`, `/adhoc-subprocesses`, `/stats`, `/api`, `/admin`, `/health`, `/info`, `/metrics`) are rejected with `{:error, :reserved_prefix}`. Engine routes always win over the plugin catch-all.
 
-This is a stub behaviour planned for full implementation in Phase 4. The registration mechanism and route mounting infrastructure are defined but not fully wired.
+See `examples/plugins/rest_api_extension/echo/` for a `GET /echo-ext/ping` example.
 
 ## Related
 

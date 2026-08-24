@@ -160,10 +160,10 @@ instances. BPMN throws and plugin facade calls do not set this flag — they
 follow the standard pending-with-TTL behavior for publish-before-subscribe
 races.
 
-**TTL sweeper.** `EvilEngine.Events.PendingSweeper` scans `pending_messages`,
-`pending_signals`, and `pending_escalations` on one tick (every 10 s by
+**TTL sweeper.** `EvilEngine.Events.PendingSweeper` scans `pending_messages`
+and `pending_signals` on one tick (every 10 s by
 default, `EVIL_PENDING_SWEEPER_INTERVAL`), flipping expired `pending` rows to
-`expired`.
+`expired`. Escalations are not held in a pending table (escalation D1).
 
 **Resume.** On engine boot, signal subscriptions re-register as each PI
 rehydrates (same mechanism as §3.5.5 for messages). Each `register/1` call

@@ -21,6 +21,7 @@ defmodule EvilEngine.Events.SignalSubscriptions do
   require Logger
 
   @table_name :evil_engine_signal_subscriptions
+  @process_instance_index_table :evil_engine_signal_subscriptions_by_process_instance
 
   # -------------------------------------------------------------------
   # Subscription struct
@@ -97,6 +98,11 @@ defmodule EvilEngine.Events.SignalSubscriptions do
 
     :ets.insert(@table_name, {subscription.signal_name, subscription})
 
+    :ets.insert(
+      @process_instance_index_table,
+      {subscription.process_instance_id, subscription.signal_name, subscription.subscription_id}
+    )
+
     Logger.debug(
       "SignalSubscriptions: registered #{subscription.subscription_id} " <>
         "for signal=#{subscription.signal_name} " <>
@@ -118,6 +124,11 @@ defmodule EvilEngine.Events.SignalSubscriptions do
     |> Enum.filter(fn {_key, subscription} -> subscription.subscription_id == subscription_id end)
     |> Enum.each(fn {key, subscription} ->
       :ets.delete_object(@table_name, {key, subscription})
+
+      :ets.delete_object(
+        @process_instance_index_table,
+        {subscription.process_instance_id, key, subscription.subscription_id}
+      )
     end)
 
     :ok
@@ -128,20 +139,20 @@ defmodule EvilEngine.Events.SignalSubscriptions do
   """
   @spec unregister_all_for_process_instance(String.t()) :: :ok
   def unregister_all_for_process_instance(process_instance_id) do
-    entries =
-      @table_name
-      |> :ets.tab2list()
-      |> Enum.filter(fn {_key, subscription} ->
-        subscription.process_instance_id == process_instance_id
-      end)
+    index_entries = :ets.lookup(@process_instance_index_table, process_instance_id)
 
-    Enum.each(entries, fn {key, subscription} ->
-      :ets.delete_object(@table_name, {key, subscription})
+    Enum.each(index_entries, fn {indexed_process_instance_id, signal_name, subscription_id} ->
+      delete_matching_subscription(signal_name, subscription_id)
+
+      :ets.delete_object(
+        @process_instance_index_table,
+        {indexed_process_instance_id, signal_name, subscription_id}
+      )
     end)
 
-    unless entries == [] do
+    unless index_entries == [] do
       Logger.debug(
-        "SignalSubscriptions: bulk-removed #{Enum.count(entries)} subscriptions for PI #{process_instance_id}"
+        "SignalSubscriptions: bulk-removed #{Enum.count(index_entries)} subscriptions for PI #{process_instance_id}"
       )
     end
 
@@ -183,6 +194,7 @@ defmodule EvilEngine.Events.SignalSubscriptions do
   @spec reset_state() :: :ok
   def reset_state do
     :ets.delete_all_objects(@table_name)
+    :ets.delete_all_objects(@process_instance_index_table)
     GenServer.call(__MODULE__, :reset_ready)
     :ok
   end
@@ -202,7 +214,16 @@ defmodule EvilEngine.Events.SignalSubscriptions do
         write_concurrency: true
       ])
 
-    {:ok, %{table: table, ready: false}}
+    index_table =
+      :ets.new(@process_instance_index_table, [
+        :bag,
+        :public,
+        :named_table,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
+
+    {:ok, %{table: table, index_table: index_table, ready: false}}
   end
 
   @impl true
@@ -224,6 +245,15 @@ defmodule EvilEngine.Events.SignalSubscriptions do
   # -------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------
+
+  defp delete_matching_subscription(signal_name, subscription_id) do
+    @table_name
+    |> :ets.lookup(signal_name)
+    |> Enum.filter(fn {_name, subscription} -> subscription.subscription_id == subscription_id end)
+    |> Enum.each(fn {lookup_name, subscription} ->
+      :ets.delete_object(@table_name, {lookup_name, subscription})
+    end)
+  end
 
   defp generate_id do
     "ssub_" <> (:crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower))

@@ -160,9 +160,10 @@ export async function createAllPiClient(): Promise<DaemonEngineClient> {
 }
 
 export async function createLaneClient(laneNames: string[]): Promise<DaemonEngineClient> {
-  const laneClaims: Record<string, boolean> = {};
+  const laneClaims: Record<string, string> = {};
   for (const lane of laneNames) {
-    laneClaims[`lane:${lane}`] = true;
+    // Boolean `true` is rejected by the engine; `"write"` is the acting value.
+    laneClaims[`lane:${lane}`] = 'write';
   }
   return clientFromFactory(() =>
     mintTestToken({

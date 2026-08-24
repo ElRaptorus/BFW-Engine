@@ -53,15 +53,14 @@ flowchart TB
 
     subgraph PERI["Peripheral Domains — §2 / §4 / §9 / §11"]
       direction TB
-      peri_persist["peripheral_persistence · Ash + AshPostgres · RetentionRunner"]
+      peri_persist["peripheral_persistence · Ash + AshPostgres · RetentionRunner (Phase 7)"]
       peri_telem["peripheral_telemetry · :telemetry counters · /stats (§11)"]
-      peri_plugins["peripheral_plugins · Registry · gRPC bridge · supervised isolation (§9)"]
+      peri_plugins["peripheral_plugins · Registry · in-BEAM loader · sidecar deferred PLUG-D1"]
       subgraph PERI_SINKS["EventSinks on EngineEventBus"]
         direction LR
         sink_console["console · ON"]
         sink_telem["telemetry · ON"]
         sink_ws["websocket · ON"]
-        sink_db["database · OFF"]
         sink_plugin["plugin sinks · user-defined"]
       end
     end
@@ -116,7 +115,6 @@ flowchart TB
 
   %% ============ Edges: Event egress (dashed, fan-out) ============
   core_events -.->|Event.* fan-out · parallel · crash-isolated| PERI_SINKS
-  sink_db --> peri_persist
   sink_telem --> peri_telem
   sink_ws --> api_web
   sink_console -->|stdout JSON| Obs
@@ -165,8 +163,9 @@ single `api_web` app.
 
 **The triangle apex of the architecture.** `EvilEngine.Api` is an **Ash Code
 Interface**: every Ash action in the engine — `start_process_instance/2`,
-`publish_message/3`, `retry_pi/2`, `purge_process_instances/1`, … — is
-exposed as a plain Elixir function. Every wire adapter above and every
+`publish_message/3`, `retry_pi/2`, … — is
+exposed as a plain Elixir function. Manual purge (`purge_process_instances/1`)
+is **Phase 7 planned REST**, not a live Api function today. Every wire adapter above and every
 plugin below converges here:
 
 | Caller | Path |
@@ -211,9 +210,9 @@ never re-parsing XML at runtime.
 Three distinct concerns, all decoupled from Core:
 
 1. **`peripheral_persistence`** — Ash resources + AshPostgres migrations +
-   the `RetentionRunner` (two-pass
-   housekeeping) + the `mix evil.partitions.ensure` Mix task. Owns every
-   persistent row. Receives writes from `core_execution` via Ash actions.
+   the `mix evil.partitions.ensure` Mix task. Owns every persistent row.
+   Receives writes from `core_execution` via Ash actions. The `RetentionRunner`
+   (two-pass housekeeping) is **Phase 7** and does not ship today.
 2. **`peripheral_telemetry`** — in-process `:telemetry` counters that back
    `/stats` (§11). Fed exclusively by the `telemetry` EventSink. **No
    Prometheus, no OpenTelemetry in v1 core** — those integrations ship as
@@ -272,9 +271,9 @@ internal buffering + retry for at-least-once delivery.
 | DDD boundaries & invariants | — | §2 |
 | Shared service layer (`EvilEngine.Api`, Ash Code Interface) | [`plugins.md`](./architecture/plugins.md) §9.2.5 | §2.2 |
 | Parsed Process Model AST + ModelCache | — | §2.1.3 |
-| Runtime (PI / FNI / handlers) | — | §3.1, §3.2, §5, §7 |
+| Runtime (PI / FNI / handlers) | [`execution.md`](./architecture/execution.md) | §3.1, §3.2, §5, §7 |
 | Event bus + EventSinks | [`event-system.md`](./architecture/event-system.md) | §3.3 |
-| Timer scheduler | — | §3.4 |
+| Timer scheduler | [`timers.md`](./architecture/timers.md) | §3.4 |
 | Message / Signal / Escalation routing | [`routing.md`](./architecture/routing.md) | §3.5 |
 | Pending events (TTL hold) | [`routing.md`](./architecture/routing.md) §3.5.4–§3.5.7 | §3.5 |
 | FEEL | [`expressions.md`](./architecture/expressions.md) | — |
@@ -282,6 +281,10 @@ internal buffering + retry for at-least-once delivery.
 | REST + GraphQL + WS | [`api.md`](./architecture/api.md) | — |
 | /stats + /health + /info | [`observability.md`](./architecture/observability.md) | — |
 | Persistence schema | [`data-model.md`](./architecture/data-model.md) | — |
+| Persistence (dual pool) | [`persistence.md`](./architecture/persistence.md) | — |
+| DMN decision engine | [`dmn.md`](./architecture/dmn.md) | — |
+| TypeScript SDK & client | [`sdk-client.md`](./architecture/sdk-client.md) | — |
+| Common pitfalls | [`common-pitfalls.md`](./architecture/common-pitfalls.md) | — |
 | Retention & housekeeping | [`configuration.md`](./architecture/configuration.md) §14.6 | §14.6 |
 | Configuration (env vars) | [`configuration.md`](./architecture/configuration.md) §14.3 | — |
 | Linter-score deploy gate | [`configuration.md`](./architecture/configuration.md) §14.5 | §14.5 |
