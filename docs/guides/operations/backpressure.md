@@ -106,20 +106,11 @@ every 10 seconds:
 | `0.70 – 0.89` | `elevated` | Nearing capacity |
 | `≥ 0.90` | `critical` | Near or at capacity |
 
-### Health endpoint
+## Health endpoint
 
-`GET /health` now includes a `"load"` field:
+`GET /health` returns **204 No Content**. It does not include a `load` field.
 
-```json
-{
-  "status": "ok",
-  "load": "normal",
-  "uptime_seconds": 12345
-}
-```
-
-When `EVIL_MAX_CONCURRENT_PIS` is `infinity` (default), `load` is always
-`"normal"`.
+Read load from **`GET /stats`**: `engine.load` is `"normal"`, `"elevated"`, or `"critical"`. When `EVIL_MAX_CONCURRENT_PIS` is `infinity` (default), `load` is always `"normal"`.
 
 ### EngineOverloaded / EngineRecovered events
 

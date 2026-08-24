@@ -288,20 +288,8 @@ defmodule EvilEngine.Plugins.Loader do
       register_named_script: fn script_key, handler ->
         do_register(plugin_name, :named_script, %{script_key: script_key, module: handler})
       end,
-      register_persistence_adapter: fn adapter_id, handler ->
-        do_register(plugin_name, :persistence_adapter, %{adapter_id: adapter_id, module: handler})
-      end,
       register_rest_api_extension: fn prefix, handler ->
         do_register(plugin_name, :rest_api_extension, %{prefix: prefix, module: handler})
-      end,
-      register_monitoring_panel: fn handler ->
-        do_register(plugin_name, :monitoring_panel, %{module: handler})
-      end,
-      register_timer_source: fn timer_type, handler ->
-        do_register(plugin_name, :timer_source, %{timer_type: timer_type, module: handler})
-      end,
-      register_data_store_adapter: fn store_id, handler ->
-        do_register(plugin_name, :data_store_adapter, %{store_id: store_id, module: handler})
       end,
       register_auth_provider: fn handler ->
         case do_register(plugin_name, :auth_provider, %{module: handler}) do

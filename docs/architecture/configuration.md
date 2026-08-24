@@ -71,7 +71,7 @@ Notable env vars:
 | `EVIL_EVENT_SINK_CONSOLE` | Toggle for the `console` sink. Values: `on` / `off` | `on` |
 | `EVIL_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink that backs `/stats`. Disabling this makes `/stats` counters permanently zero | `on` |
 | `EVIL_EVENT_SINK_WEBSOCKET` | Toggle for the `websocket` sink that pushes events to connected Phoenix Channels clients | `on` |
-| `EVIL_EVENT_SINK_WEBSOCKET_MIN_SEVERITY` | Severity floor specifically for the `websocket` sink (overrides its `info` default). Useful when a dashboard wants `warn`+ only | `info` |
+| ~~`EVIL_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `EVIL_LOG_MIN_SEVERITY` only. The WebSocket sink drops `debug`/`verbose` by default. | — |
 | ~~`EVIL_EVENT_SINK_DATABASE`~~ | **Removed.** The built-in database sink has been removed. Use a plugin sink for DB-backed event persistence. | — |
 | `EVIL_RETENTION_RUN_INTERVAL` | **Phase 7 (planned).** How often the `RetentionRunner` GenServer would wake up. ISO 8601 duration. Only meaningful if at least one retention-days var below is set. Runner does **not** ship today | `PT1H` |
 | `EVIL_RETENTION_BATCH_SIZE` | **Phase 7 (planned).** Max number of PIs purged per transaction by the `RetentionRunner` | `500` |
@@ -184,12 +184,10 @@ EVIL_EVENT_SINK_CONSOLE=on
 EVIL_EVENT_SINK_TELEMETRY=on
 EVIL_EVENT_SINK_WEBSOCKET=on
 EVIL_LOG_MIN_SEVERITY=info
-# EVIL_EVENT_SINK_WEBSOCKET_MIN_SEVERITY=info
 
 # --- Pending TTLs (ISO 8601 duration) ----------------------------------------
 EVIL_MESSAGE_PENDING_TTL=PT60S
 EVIL_SIGNAL_PENDING_TTL=PT60S
-EVIL_ESCALATION_PENDING_TTL=PT60S
 
 # --- Retention (unset = never auto-purge) -------------------------------------
 EVIL_RETENTION_RUN_INTERVAL=PT1H
@@ -204,7 +202,6 @@ EVIL_RETENTION_BATCH_SIZE=500
 EVIL_PARTITION_AHEAD_MONTHS=3
 EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
 EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
-EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION=true
 
 # --- Plugins ------------------------------------------------------------------
 # EVIL_PLUGINS_INBEAM=

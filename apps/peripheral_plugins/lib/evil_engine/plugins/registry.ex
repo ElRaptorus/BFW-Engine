@@ -13,12 +13,8 @@ defmodule EvilEngine.Plugins.Registry do
   | Capability | Key | Rule |
   |------------|-----|------|
   | ServiceTaskHandler | `:implementation` | Unique (first wins, second quarantined) |
-  | PersistenceAdapter | `:adapter_id` | Unique |
-  | TimerSource | `:timer_type` | Unique per type |
-  | DataStoreAdapter | `:store_id` | Unique per store-id |
   | NamedScript | `:script_key` | Unique by script-key |
   | EventSink | - | Many allowed |
-  | MonitoringPanel | - | Many allowed |
   | RestApiExtension | `:prefix` | Unique per mount prefix |
   | AuthProvider | `:singleton` | Unique (first wins) |
 
@@ -35,11 +31,7 @@ defmodule EvilEngine.Plugins.Registry do
     service_task_handler: EvilEngine.Plugin.ServiceTaskHandler,
     named_script: EvilEngine.Plugin.NamedScript,
     event_sink: EvilEngine.Plugin.EventSink,
-    persistence_adapter: EvilEngine.Plugin.PersistenceAdapter,
     rest_api_extension: EvilEngine.Plugin.RestApiExtension,
-    monitoring_panel: EvilEngine.Plugin.MonitoringPanel,
-    timer_source: EvilEngine.Plugin.TimerSource,
-    data_store_adapter: EvilEngine.Plugin.DataStoreAdapter,
     auth_provider: EvilEngine.Plugin.AuthProvider
   }
 
@@ -214,9 +206,6 @@ defmodule EvilEngine.Plugins.Registry do
   # --- Conflict detection helpers -----------------------------------------
 
   defp unique_key_for(:service_task_handler, %{implementation: key}), do: key
-  defp unique_key_for(:persistence_adapter, %{adapter_id: key}), do: key
-  defp unique_key_for(:timer_source, %{timer_type: key}), do: key
-  defp unique_key_for(:data_store_adapter, %{store_id: key}), do: key
   defp unique_key_for(:named_script, %{script_key: key}), do: key
   defp unique_key_for(:rest_api_extension, %{prefix: key}), do: key
   defp unique_key_for(:auth_provider, _descriptor), do: :singleton
@@ -231,6 +220,7 @@ defmodule EvilEngine.Plugins.Registry do
                              "/timer-events",
                              "/messages",
                              "/signals",
+                             "/escalations",
                              "/adhoc-subprocesses",
                              "/stats",
                              "/api",

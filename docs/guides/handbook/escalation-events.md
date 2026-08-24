@@ -61,20 +61,7 @@ An Escalation End Event terminates the current process scope with escalation sem
 
 ### Inline Extension Elements
 
-The escalation code and message can be overridden inline on the event definition. The following priority applies:
-
-1. `<evil:errorCode>` on the `<bpmn:escalationEventDefinition>` (highest priority)
-2. `escalationCode` on the referenced `<bpmn:escalation>` global definition
-3. `null` / blank — catch-all compatible
-
-```xml
-<bpmn:endEvent id="End_esc">
-  <bpmn:escalationEventDefinition escalationRef="Esc_OOB">
-    <evil:errorCode>CUSTOM_CODE</evil:errorCode>
-    <evil:errorMessage>A specific message for the debugger</evil:errorMessage>
-  </bpmn:escalationEventDefinition>
-</bpmn:endEvent>
-```
+The escalation code comes from the global `<bpmn:escalation escalationCode="…">` referenced by `escalationRef`. A missing or blank code is catch-all compatible. Do **not** put `evil:errorCode` or `evil:errorMessage` on an escalation event definition — those extensions exist only on `<errorEventDefinition>`.
 
 ## Escalation Intermediate Throw Event
 
@@ -196,16 +183,16 @@ If an Escalation Intermediate Throw Event propagates to a top-level process with
 
 - The current PI **continues normally** — no PI state transition occurs
 - The escalation is silently absorbed at the root level
-- The engine emits an `EscalationRaised` event with `caught: false`
+- The engine emits an `EscalationRaised` event
 - The PI that threw the escalation continues along its outgoing sequence flow
 
 ## Engine Events
 
 | Event | Published When |
 |---|---|
-| `EscalationRaised` | Any escalation is thrown (caught or uncaught) |
+| `EscalationRaised` | Every modeled throw (caught or uncaught) and REST/plugin inject (`throwType: "api_trigger"`) |
 
-`EscalationRaised` fields: `escalation_code`, `escalation_message`, `source_process_instance_id`, `source_flow_node_instance_id`, `caught`, `boundary_flow_node_id` (when caught), `occurred_at`.
+`EscalationRaised` fields: `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType` (`end_event` / `intermediate_throw` / `api_trigger`), `laneName`, `occurredAt`. Broadcast to `process_instance:<piId>` and the root PI channel.
 
 Telemetry events:
 - `[:evil_engine, :escalation, :raised]` — fired on every escalation

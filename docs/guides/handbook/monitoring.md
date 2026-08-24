@@ -5,21 +5,18 @@ This guide covers the endpoints and mechanisms available for monitoring engine h
 ## Health and Info (No Auth Required)
 
 ```bash
-# Liveness / readiness check
-curl http://localhost:4000/health
-# {"status":"ok","uptime_seconds":3600}
+# Liveness / readiness — 204 No Content (empty body)
+curl -i http://localhost:4000/health
+# HTTP/1.1 204 No Content
 
-# Engine identity and feature flags
+# Engine identity (camelCase)
 curl http://localhost:4000/info
-# {"engine_id":"...","engine_name":"...","version":"0.0.1",
-#  "started_at":"..."}
+# {"engineId":"...","engineName":"...","version":"0.0.1","startedAt":"..."}
 ```
 
-`GET /info` does **not** serialize `event_sink_database`. The built-in database event sink was removed.
+`GET /health` is a liveness probe only. Load (`normal` / `elevated` / `critical`) lives on **`GET /stats`** as `engine.load`. See [Back-Pressure](../operations/backpressure.md).
 
-Both endpoints are suitable for container health probes.
-
-The `/health` endpoint also includes a `"load"` field reflecting back-pressure status (`"normal"`, `"elevated"`, or `"critical"`) when `EVIL_MAX_CONCURRENT_PIS` is configured. See [Back-Pressure](../operations/backpressure.md) for threshold details.
+`GET /info` does **not** serialize a database event sink. The built-in database event sink was removed.
 
 ## Prometheus Metrics
 
@@ -27,7 +24,7 @@ The `/health` endpoint also includes a `"load"` field reflecting back-pressure s
 curl http://localhost:4000/metrics
 ```
 
-The `/metrics` endpoint (no authentication required) exposes the full metric catalog in Prometheus text format. Available metrics:
+`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`EVIL_METRICS_ENABLED=true`). Set to `false` to disable. OpenTelemetry does **not** ship.
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -41,8 +38,6 @@ The `/metrics` endpoint (no authentication required) exposes the full metric cat
 | `evil_engine_pi_capacity_ratio` | Gauge | Ratio of active PIs to configured cap (0.0–1.0) |
 | BEAM VM gauges | Gauge | Memory usage, run queue lengths, process count |
 
-The endpoint is enabled by default (`EVIL_METRICS_ENABLED=true`). Set to `false` to disable.
-
 For Alertmanager rules and production setup, see [Observability](../operations/observability.md) and [Back-Pressure](../operations/backpressure.md).
 
 ## Engine Stats (Auth Required)
@@ -52,17 +47,30 @@ curl http://localhost:4000/stats \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Returns a full snapshot including engine identity, deployed processes, running PIs, active FNIs, pending user tasks, timers, loaded plugins, and registered event sinks.
+Wire keys are camelCase (`StatsResponse`). Condensed shape:
+
+```json
+{
+  "processInstances": { "running": 3, "finished": 12 },
+  "userTasksPending": { "count": 2 },
+  "plugins": [],
+  "engine": { "load": "normal" },
+  "listeners": { "eventSinksByName": { "console": {}, "telemetry": {}, "websocket": {} } }
+}
+```
+
+`plugins` is an **array**. Full field list: OpenAPI `GET /api/openapi`.
 
 ## GraphQL Queries
 
-Process instances and flow node instances can be queried via [GraphQL](../api/graphql-reference.md):
+Process instances and flow node instances can be queried via [GraphQL](../api/graphql-reference.md). List queries use **offset** pagination (`limit` / `offset`), not cursor keysets:
 
 ```graphql
 query {
   processInstances(
-    filter: { state: { eq: RUNNING } },
-    first: 25
+    filter: { state: { eq: "running" } },
+    limit: 25,
+    offset: 0
   ) {
     results {
       id
@@ -70,12 +78,11 @@ query {
       startedAt
     }
     count
-    endKeyset
   }
 }
 ```
 
-GraphQL queries enforce lane-based visibility — the caller only sees PIs and FNIs they have access to.
+GraphQL is query-only. Queries enforce lane-based visibility — the caller only sees PIs and FNIs they have access to.
 
 ## WebSocket Channels
 
@@ -83,17 +90,33 @@ For real-time monitoring, the engine pushes events via Phoenix Channels:
 
 | Topic | Content |
 |-------|---------|
-| `engine:events` | Engine-level events plus PI-scoped events filtered by §5.1 visibility and lane |
-| `process_instance:<id>` | Events for a specific PI (state changes, FNI lifecycle, user tasks), FNI events lane-filtered |
+| `engine:events` | Engine-level events plus PI-scoped events filtered by visibility and lane |
+| `process_instance:<id>` | Events for a specific PI (not `pi:<id>`) |
 | `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` inbox, lane-filtered |
 
-PI-scoped events are broadcast to `process_instance:<id>` **and** `engine:events`. Dispatch then drops FNI events whose `laneName` the subscriber cannot access, and on `engine:events` drops PI-level events the subscriber cannot see.
+Twelve event types carry `rootProcessInstanceId`. For child PIs the WebSocket sink also broadcasts to `process_instance:<rootProcessInstanceId>`, so a debugger subscribed only to the root channel receives descendant FNI, user-task, data-object, and compensation events.
 
-Joining `process_instance:<id>` requires the PI to be visible to the caller. See [WebSocket API](../api/websocket.md) for connection details, event types, and authorization rules.
+Condensed live catalog (full tables: [WebSocket API](../api/websocket.md) and [Engine event system](../../architecture/event-system.md)):
+
+| Type | Notes |
+|------|-------|
+| `EngineStarted` / `EngineShutdown` / `EngineOverloaded` / `EngineRecovered` | Operational |
+| `ProcessInstanceStateChanged` / `ProcessInstanceRetried` | PI lifecycle; retry version fields are UUIDs |
+| `FlowNodeInstanceStarted` / `Finished` / `StateChanged` | FNI lifecycle |
+| `MultiInstanceStarted` / `MultiInstanceCompleted` | MI / Standard Loop shells |
+| `UserTaskCreated` / `Finished` / `ValidationFailed` | Also `user_tasks:pending` |
+| `CallActivityChildStarted` / `SubProcessChildStarted` / `EventSubprocessTriggered` | Child PIs |
+| `MessagePublished` / `Arrived`, `SignalPublished` / `Arrived`, `EscalationRaised` | Communication |
+| `TimerFired` / `DataObjectWritten` | Runtime |
+| `CompensationTriggered` / `ActivityCompensated` / `TransactionCancelled` | Compensation / transactions |
+| `AdHocActivityActivated` / `AdHocSubProcessCompleted` | Ad-hoc |
+| Catalog / DMN deploy and `DecisionEvaluated` | Definitions |
+
+`SinkFailed` does **not** reach the WebSocket sink.
 
 ## Event Sinks
 
-The engine routes all internal events through the `EngineEventBus` to configurable sinks:
+The engine routes all internal events through the `EngineEventBus` to three built-in sinks:
 
 | Sink | Env Var | Default | Purpose |
 |------|---------|---------|---------|
@@ -101,7 +124,7 @@ The engine routes all internal events through the `EngineEventBus` to configurab
 | Telemetry | `EVIL_EVENT_SINK_TELEMETRY` | `on` | Feeds `/stats` counters |
 | WebSocket | `EVIL_EVENT_SINK_WEBSOCKET` | `on` | Pushes to Phoenix Channels |
 
-Severity filtering is available per sink (e.g., `EVIL_LOG_MIN_SEVERITY`).
+Console severity is `EVIL_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var.
 
 Custom sinks can be built as plugins — see [Implementing Event Sinks](../plugins/event-sink.md).
 

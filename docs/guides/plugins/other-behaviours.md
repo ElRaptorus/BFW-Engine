@@ -1,59 +1,8 @@
 # Additional Plugin Behaviours
 
-Beyond the primary Service Task, Event Sink, and API Extension behaviours, the engine provides extra extension points. **MonitoringPanel, TimerSource, DataStoreAdapter, and the plugin PersistenceAdapter are not implemented in v1** — registration is accepted and ignored at runtime so existing sketches still compile.
+Beyond Service Task handlers, Event Sinks, and REST API extensions, the engine ships two more live capability types: **NamedScript** and **AuthProvider**.
 
-## MonitoringPanel
-
-**Not in v1.** Would contribute a fragment to the admin HTML page. Registration is accepted and unused.
-
-```elixir
-@behaviour EvilEngine.Plugin.MonitoringPanel
-
-@callback render(assigns :: map()) :: term()
-@callback panel_title() :: String.t()
-```
-
-Registration:
-
-```elixir
-facade.register_monitoring_panel.(MyPlugin.StatusPanel)
-```
-
-## TimerSource
-
-**Not in v1.** Would supply custom timer evaluation for non-standard timer dialects. Core timers already parse ISO 8601 date, duration, and cycle. Registration is accepted and unused.
-
-```elixir
-@behaviour EvilEngine.Plugin.TimerSource
-
-@callback timer_type() :: atom()
-@callback evaluate(definition :: String.t(), context :: map()) ::
-            {:ok, DateTime.t()} | {:error, term()}
-```
-
-Registration:
-
-```elixir
-facade.register_timer_source.("cron", MyPlugin.CronTimer)
-```
-
-## DataStoreAdapter
-
-**Not in v1.** BPMN DataStores are a parser no-op. Registration is accepted and unused. Do not imply write-through.
-
-```elixir
-@behaviour EvilEngine.Plugin.DataStoreAdapter
-
-@callback store_id() :: String.t()
-@callback read(key :: String.t(), opts :: keyword()) :: {:ok, term()} | {:error, term()}
-@callback write(key :: String.t(), value :: term(), opts :: keyword()) :: :ok | {:error, term()}
-```
-
-Registration:
-
-```elixir
-facade.register_data_store_adapter.("redis-main", MyPlugin.RedisStore)
-```
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `EvilEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`). BPMN DataStores are a parser no-op.
 
 ## NamedScript
 
@@ -73,6 +22,30 @@ Registration:
 ```elixir
 facade.register_named_script.("my_validation", MyPlugin.CustomScript)
 ```
+
+## AuthProvider
+
+Replaces the built-in JWT verifier. Unique (singleton, first-writer wins). A second plugin that registers another provider receives `{:error, :conflict, incumbent_plugin_name}` and is quarantined. If no plugin registers a provider, the built-in JWT provider in `api_auth` is used.
+
+```elixir
+@behaviour EvilEngine.Plugin.AuthProvider
+
+@callback verify_and_resolve(token :: String.t()) ::
+            {:ok, EvilEngine.Types.Identity.t()} | {:error, term()}
+```
+
+Called on every authenticated HTTP request and WebSocket connection. Must be reasonably fast and must not have side effects.
+
+Registration:
+
+```elixir
+def on_load(facade) do
+  facade.register_auth_provider.(MyPlugin.CompanyGraphAuth)
+  :ok
+end
+```
+
+See `examples/plugins/auth_providers/` for LDAP and CompanyGraph starting points.
 
 ## Related
 

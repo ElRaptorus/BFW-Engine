@@ -88,19 +88,11 @@ export enum EventDefinitionType {
 /**
  * The type of capability a plugin registers with the engine.
  * Used in `PluginCapabilitySummary` for introspection / `/stats`.
- *
- * `PersistenceAdapter`, `MonitoringPanel`, `TimerSource`, and `DataStoreAdapter`
- * are reserved / not implemented in v1. Registration is accepted and listed,
- * but the runtime does not invoke those handlers.
  */
 export enum PluginCapabilityType {
   ServiceTaskHandler = 'service_task_handler',
   EventSink = 'event_sink',
-  PersistenceAdapter = 'persistence_adapter',
   RestApiExtension = 'rest_api_extension',
-  MonitoringPanel = 'monitoring_panel',
-  TimerSource = 'timer_source',
-  DataStoreAdapter = 'data_store_adapter',
   NamedScript = 'named_script',
   AuthProvider = 'auth_provider',
 }

@@ -1,6 +1,10 @@
 # Built-in Plugins
 
-The engine ships with several built-in plugins that cover common use cases. They implement the same behaviours as user plugins and serve as reference implementations.
+The engine ships one built-in OTP plugin capability and three built-in event sinks.
+
+The HTTP Service Task handler is registered by `EvilEngine.Plugins.Loader` before user plugins (implementation key `"http"`), so operators can override it. Built-in event sinks are **not** OTP plugins: `SinkRegistrar` attaches them to `EngineEventBus` at boot. They implement `@behaviour EvilEngine.Plugin.EventSink` but are not loaded via `EVIL_PLUGINS_INBEAM`.
+
+There is no `evil:postgres_persistence` plugin. Execution persistence is `EvilEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`.
 
 ## HTTP Service Task Handler
 
@@ -41,7 +45,7 @@ The `httpResponseHeaders` expression additionally receives a `responseHeaders` b
 
 ## Built-in Event Sinks
 
-All three built-in sinks implement `@behaviour EvilEngine.Plugin.EventSink` and are registered before user plugins. The built-in database sink was removed.
+Three built-in sinks, registered by `SinkRegistrar` (not the plugin Loader). The built-in database sink was removed.
 
 ### Console Sink
 
@@ -64,18 +68,11 @@ Disabling this makes all `/stats` counters permanently zero.
 
 ### WebSocket Sink
 
-Pushes events to connected Phoenix Channels clients.
+Pushes events to connected Phoenix Channels clients. There is no separate WebSocket min-severity env var; use `EVIL_LOG_MIN_SEVERITY` for console logging. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded.
 
 | Env Var | Default |
 |---------|---------|
 | `EVIL_EVENT_SINK_WEBSOCKET` | `on` |
-| `EVIL_EVENT_SINK_WEBSOCKET_MIN_SEVERITY` | `info` |
-
-## Other Built-in Plugins
-
-| Plugin | Type Key | Purpose |
-|--------|----------|---------|
-| `evil:postgres_persistence` | -- | Default AshPostgres persistence adapter |
 
 ## Related
 

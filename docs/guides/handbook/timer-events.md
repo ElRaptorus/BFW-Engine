@@ -214,6 +214,25 @@ Timer events are designed to survive engine restarts:
 - **Cycle Start**: All enabled cycle schedules are reloaded from the database on engine boot and re-armed in the Scheduler.
 - **Date/Duration Start**: Not auto-scheduled, so no resume action is needed — the blocking gate is handled by the Start Event handler.
 
+## Manual Trigger and Cycle Schedules
+
+Waiting Intermediate Catch or Boundary timer FNIs can be fired without waiting for the scheduled time:
+
+```bash
+curl -X POST http://localhost:4000/timer-events/$FNI_ID/trigger \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Response `200`: `{ "triggered": true }`. Authorization is lane `"write"` (or laneless FNI, or `zeeky_boogie_doog`). Errors: `404` (not found / invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
+
+Cycle Timer Start schedules are listed and toggled via REST (`GET /timer-schedules`, `GET /timer-schedules/{id}`, `PUT /timer-schedules/{id}/enable`, `PUT /timer-schedules/{id}/disable`). Plugins use `facade.timers`:
+
+| Function | Purpose |
+|----------|---------|
+| `trigger_event.(flow_node_instance_id)` | Same as the REST trigger |
+| `list_schedules.(opts)` / `get_schedule.(id)` | Inspect cycle schedules |
+| `enable_schedule.(id)` / `disable_schedule.(id)` | Toggle a cycle schedule |
+
 ## Related
 
 - [Error Boundary Events](error-boundary-events.md) — error-triggered boundary events

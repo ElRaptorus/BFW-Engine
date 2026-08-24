@@ -91,9 +91,6 @@ defmodule EvilEngine.Plugins.RegistryTest do
       :ok = Registry.register_plugin("b", __MODULE__)
 
       for {cap_type, descriptor} <- [
-            {:persistence_adapter, %{adapter_id: "pg"}},
-            {:timer_source, %{timer_type: "cron"}},
-            {:data_store_adapter, %{store_id: "main"}},
             {:named_script, %{script_key: "validate"}},
             {:rest_api_extension, %{prefix: "/custom"}}
           ] do
@@ -113,6 +110,13 @@ defmodule EvilEngine.Plugins.RegistryTest do
       assert {:error, :reserved_prefix} =
                Registry.register_capability("ext-plugin", :rest_api_extension, %{
                  prefix: "/processes"
+               })
+    end
+
+    test "rejects /escalations" do
+      assert {:error, :reserved_prefix} =
+               Registry.register_capability("ext-plugin", :rest_api_extension, %{
+                 prefix: "/escalations"
                })
     end
 

@@ -12,7 +12,7 @@ User Tasks are wait states that pause execution until a human completes the task
 | `evil:outputMapping` | FEEL-based output mapper (`source`/`target` pair). Transforms user submission before result contract validation. Multiple supported |
 | `evil:payloadContract` | JSON Schema validated on incoming data (after input mapping). Violation → fatal |
 | `evil:resultContract` | JSON Schema enforced on completion results (after output mapping). Violation → retryable (422) |
-| `evil:dueDate` | ISO 8601 timestamp for task deadline metadata |
+| `evil:dueDate` | FEEL expression or ISO 8601 timestamp for task deadline metadata |
 | `evil:priority` | Numeric priority value |
 
 ```xml
@@ -105,8 +105,9 @@ Flow node instances (including user tasks) can be queried via [GraphQL](../api/g
 ```graphql
 query {
   flowNodeInstances(
-    filter: { flowNodeType: { eq: USER_TASK }, state: { eq: WAITING } },
-    first: 25
+    filter: { flowNodeType: { eq: "user_task" }, state: { eq: "waiting" } },
+    limit: 25,
+    offset: 0
   ) {
     results {
       id
@@ -116,7 +117,7 @@ query {
       state
     }
     count
-    endKeyset
+    hasNextPage
   }
 }
 ```

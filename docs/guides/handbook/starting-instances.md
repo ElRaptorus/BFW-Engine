@@ -27,7 +27,7 @@ All fields in the body are optional:
 
 ```json
 {
-  "process_instance_id": "pi-uuid-...",
+  "processInstanceId": "pi-uuid-...",
   "processModelId": "order_process",
   "version": "2.1.0",
   "state": "running"
@@ -38,11 +38,10 @@ All fields in the body are optional:
 |--------|---------|
 | `201` | PI started |
 | `401` | Missing or invalid JWT |
-| `403` | Process is disabled, or caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
-| `404` | Process not found, or caller has no observe claim on the Start Event's lane (existence hidden) |
-| `404` | Process not found or no active version |
+| `403` | Caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
+| `404` | Process not found, no active version, or caller has no observe claim on the Start Event's lane |
 | `413` | Payload exceeds `EVIL_TOKEN_MAX_BYTES` (see [Error Handling](error-handling.md)) |
-| `422` | Ambiguous or non-matching start event |
+| `422` | Process disabled (`process_disabled`), or ambiguous / non-matching start event |
 
 ## Start Event Resolution
 

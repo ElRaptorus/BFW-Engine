@@ -104,24 +104,48 @@ All events are pushed as `"engine_event"` messages with this shape:
 
 ## Event Types
 
+Full catalog: [event-system.md](../../architecture/event-system.md). Structural keys are camelCase. Opaque payload subtrees are not transformed.
+
+Twelve event types carry `rootProcessInstanceId`. For child PIs the WebSocket sink also broadcasts to `process_instance:<rootProcessInstanceId>` so a debugger subscribed only to the root channel receives descendant FNI, user-task, data-object, and compensation events.
+
 ### Engine-level (always delivered on `engine:events`)
 
 | Type | Fields | Description |
 |------|--------|-------------|
-| `EngineStarted` | `engineId`, `engineName`, `version`, `startedAt` | Boot complete |
-| `EngineShutdown` | `engineId`, `reason`, `occurredAt` | Graceful shutdown |
-| `PluginQuarantined` | `pluginName`, `tier`, `reason`, `occurredAt` | Plugin load failure |
+| `EngineStarted` | `engineId` | Boot complete |
+| `EngineShutdown` | `engineId` | Graceful shutdown |
+| `EngineOverloaded` | `level`, `activeProcessInstances`, `limit` | Load crossed upward (`elevated` / `critical`) |
+| `EngineRecovered` | `previousLevel`, `activeProcessInstances`, `limit` | Load dropped back to `normal` |
+| `PluginQuarantined` | `pluginName`, `reason` | Plugin load / registration failure |
 
-### PI-scoped (broadcast to `process_instance:<id>` and `engine:events`)
+### PI-scoped (broadcast to `process_instance:<id>` and, when distinct, the root PI channel)
 
-| Type | Fields | Description |
-|------|--------|-------------|
-| `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `oldState`, `newState`, `startedById`, `hasLanelessFlowNode`, `laneNames`, `occurredAt` | PI state transition |
-| `FlowNodeInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `flowNodeType`, `laneName`, `occurredAt` | FNI begins execution |
-| `FlowNodeInstanceFinished` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `flowNodeType`, `terminalState`, `laneName`, `occurredAt` | FNI reaches terminal state |
-| `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `assignees`, `laneName`, `occurredAt` | User task enters waiting (also `user_tasks:pending`) |
-| `UserTaskFinished` | `flowNodeInstanceId`, `processInstanceId`, `flowNodeId`, `outcome`, `laneName`, `occurredAt` | User task completed/aborted (also `user_tasks:pending`) |
-| `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName`, `laneName`, `occurredAt` | Async FNI resumed after restart |
+| Type | Description |
+|------|-------------|
+| `ProcessInstanceStateChanged` | PI state transition (includes `hasLanelessFlowNode`, `laneNames`) |
+| `ProcessInstanceRetried` | Retry accepted (`version` / `previousVersion` / `newVersion` are process-version UUIDs) |
+| `FlowNodeInstanceStarted` | FNI begins execution |
+| `FlowNodeInstanceFinished` | FNI reaches a terminal state (`errorInfo` on fatals) |
+| `FlowNodeInstanceStateChanged` | Non-terminal FNI transition (currently `active` → `waiting`) |
+| `MultiInstanceStarted` / `MultiInstanceCompleted` | MI / Standard Loop shell lifecycle |
+| `UserTaskCreated` / `UserTaskFinished` | Also `user_tasks:pending` |
+| `UserTaskValidationFailed` | Result-contract violations |
+| `CallActivityChildStarted` | Child PI spawned by a Call Activity |
+| `SubProcessChildStarted` | Embedded / Event / Ad-hoc subprocess child (`isEventSubprocess`, `isAdHocSubprocess`) |
+| `EventSubprocessTriggered` | ESP trigger fired (`triggerKind`, `isInterrupting`) |
+| `DataObjectWritten` | Successful DOA write |
+| `TimerFired` | Catch / boundary / start timer fired |
+| `MessagePublished` / `MessageArrived` | Message pipeline |
+| `SignalPublished` / `SignalArrived` | Signal broadcast |
+| `EscalationRaised` | Modeled throw or `throwType: "api_trigger"` |
+| `CompensationTriggered` / `ActivityCompensated` | Compensation dispatch |
+| `TransactionCancelled` | Transaction child reached `:cancelled` |
+| `AdHocActivityActivated` / `AdHocSubProcessCompleted` | Ad-hoc control |
+| `ProcessDefinitionDeployed` / `Undeployed` / `Enabled` / `Disabled` | Catalog |
+| `DecisionDefinitionDeployed` / `Undeployed` / `DecisionEvaluated` | DMN |
+| `PluginAsyncFlowNodeRehydrated` | Async FNI resumed after restart |
+
+`SinkFailed` does **not** reach the WebSocket sink.
 
 ## Event Sink Configuration
 

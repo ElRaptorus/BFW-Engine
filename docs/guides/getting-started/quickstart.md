@@ -97,18 +97,18 @@ curl -X POST http://localhost:4000/processes/hello_world/start \
   -d '{"payload": {"greeting": "Hello, World!"}}'
 ```
 
-The response includes the `process_instance_id` and current state. See [Starting Process Instances](../handbook/starting-instances.md) for start event resolution and payload details.
+The response includes `processInstanceId` and current state. See [Starting Process Instances](../handbook/starting-instances.md) for start event resolution and payload details.
 
 ## Check Engine Health
 
 No authentication required:
 
 ```bash
-curl http://localhost:4000/health
-# {"status":"ok","uptime_seconds":42}
+curl -i http://localhost:4000/health
+# HTTP/1.1 204 No Content
 
 curl http://localhost:4000/info
-# {"engine_id":"...","engine_name":"...","version":"0.0.1","auth_disabled":false}
+# {"engineId":"...","engineName":"...","version":"0.0.1","startedAt":"..."}
 ```
 
 ## Next Steps

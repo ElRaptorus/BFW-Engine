@@ -139,7 +139,7 @@ state **`:cancelled`**. This state:
 
 - Appears in `ProcessInstanceStateChanged` events with `newState: "cancelled"`.
 - Is visible in the Studio Debugger with a distinct colour.
-- Is **not retryable** (see [Retry and Restart](retry-restart.md)).
+- Is **not retryable** (see [Retry](retry.md)).
   A cancel is an intentional business outcome, not a failure.
 
 ---
@@ -232,4 +232,4 @@ are not triggered by the transaction cancel.
   subprocess variant
 - [Error Boundary Events](error-boundary-events.md) — for catching errors
   inside a transaction before they become hazards
-- [Retry and Restart](retry-restart.md) — retry restrictions for transactions
+- [Retry](retry.md) — retry restrictions for transactions

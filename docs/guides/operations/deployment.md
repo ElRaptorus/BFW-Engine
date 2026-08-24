@@ -60,7 +60,7 @@ bin/evil_engine start
 
 ## Health Probes
 
-`GET /health` requires no authentication and is suitable for Kubernetes liveness/readiness probes:
+`GET /health` requires no authentication and returns **204 No Content**. It is suitable for Kubernetes liveness/readiness probes (status code only). For load and pool stats, use authenticated `GET /stats`.
 
 ```yaml
 livenessProbe:

@@ -66,7 +66,9 @@ query {
 
 ### Filtering
 
-Filters are type-safe and composable. Each attribute generates a typed filter input (e.g. `ProcessInstanceFilterState` for enum fields, `ProcessInstanceFilterStartedAt` for datetime fields).
+Filters are type-safe and composable. Each attribute generates a typed filter input (e.g. `ProcessInstanceFilterState` for the `state` string field, `ProcessInstanceFilterStartedAt` for datetime fields).
+
+**`state` and `flowNodeType` are strings**, not GraphQL enums. Use lowercase quoted values that match persistence (`"running"`, `"waiting"`, `"user_task"`, `"end_event"`). `RUNNING` / `WAITING` / `USER_TASK` are not valid filter literals.
 
 **Filter operators by type:**
 
@@ -94,7 +96,7 @@ Multiple filter fields are combined with AND logic:
 ```graphql
 query {
   processInstances(filter: {
-    state: { eq: RUNNING },
+    state: { eq: "running" },
     startedAt: { greaterThan: "2026-01-01T00:00:00Z" }
   }) {
     results { id state startedAt }
@@ -165,7 +167,7 @@ Invisible records are simply omitted from query results (no error).
 query FilteredInstances($offset: Int) {
   processInstances(
     filter: {
-      state: { in: [RUNNING, WAITING] },
+      state: { in: ["running", "fatal"] },
       startedAt: { greaterThan: "2026-06-01T00:00:00Z" }
     },
     sort: [{ field: STARTED_AT, order: DESC }],

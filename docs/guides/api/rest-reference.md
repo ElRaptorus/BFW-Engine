@@ -10,22 +10,9 @@ All authenticated endpoints require a JWT Bearer token — see [Authentication](
 
 ### `GET /health`
 
-Liveness/readiness probe.
+Public liveness probe. Returns **204 No Content** (empty body). No authentication required.
 
-Response:
-```json
-{
-  "status": "ok",
-  "load": "normal",
-  "uptime_seconds": 12345
-}
-```
-
-The `"load"` field reflects the engine's current load level (`"normal"`,
-`"elevated"`, or `"critical"`) based on the PI capacity ratio. When no
-PI cap is configured, `load` is always `"normal"`.
-
-No authentication required.
+Load level is **not** on `/health`. Read `engine.load` from `GET /stats`.
 
 ### `GET /metrics`
 
@@ -45,10 +32,10 @@ Engine identity and feature flags. No authentication required.
 
 ```json
 {
-  "engine_id": "evil-engine-local",
-  "engine_name": "Evil Engine (local)",
+  "engineId": "evil-engine-local",
+  "engineName": "Evil Engine (local)",
   "version": "0.0.1",
-  "started_at": "2026-05-03T15:00:00Z"
+  "startedAt": "2026-05-03T15:00:00Z"
 }
 ```
 
@@ -58,18 +45,38 @@ Engine identity and feature flags. No authentication required.
 
 ### `GET /stats`
 
-Full engine state snapshot.
+Full engine state snapshot (camelCase wire keys). Auth required.
 
 ```json
 {
-  "engine": { "id": "...", "name": "...", "version": "...", "uptime_seconds": 3600 },
-  "processes": { "total": 5 },
-  "process_instances": { "running": 3, "finished": 12, "fatal": 0 },
-  "flow_node_instances": { "active": 2, "waiting": 1 },
-  "user_tasks_pending": 1,
-  "timers": { "armed": 0 },
-  "plugins": { "loaded": 2, "quarantined": 0 },
-  "listeners": { "event_sinks_count": 3 }
+  "engine": {
+    "id": "...",
+    "name": "...",
+    "version": "...",
+    "startedAt": "2026-08-24T12:00:00Z",
+    "uptimeSeconds": 3600,
+    "load": "normal"
+  },
+  "processInstances": { "running": 3, "finished": 12, "fatal": 0, "aborted": 0, "error": 0 },
+  "flowNodeInstances": {
+    "active": 2,
+    "waiting": 1,
+    "finished": 10,
+    "fatal": 0,
+    "aborted": 0,
+    "interrupted": 0,
+    "error": 0,
+    "byType": {}
+  },
+  "userTasksPending": { "count": 1, "byAssigneeRole": {} },
+  "asyncFlowNodes": { "waiting": 0, "byPlugin": {} },
+  "timers": { "armed": 0, "fireInNextMinute": 0 },
+  "plugins": [],
+  "listeners": {
+    "eventSinksCount": 3,
+    "eventSinksByName": { "console": "on", "telemetry": "on", "websocket": "on" },
+    "monitoringPanelsCount": 0
+  }
 }
 ```
 
@@ -82,7 +89,7 @@ excluded. No authorization claim required — any authenticated user can list.
 **Success (200):**
 ```json
 [
-  { "id": "...", "processModelId": "order_process", "name": "Order Process", "enabled": true, "created_at": "...", "latest_version": "2.1.0" }
+  { "id": "...", "processModelId": "order_process", "name": "Order Process", "enabled": true, "createdAt": "...", "latestVersion": "2.1.0" }
 ]
 ```
 
@@ -117,7 +124,7 @@ On deploy, the process `enabled` flag is synchronized with the BPMN
 
 **Success (201):**
 ```json
-{ "deployed": [{ "processModelId": "order_process", "version": "1.0.0", "process_version_id": "..." }] }
+{ "deployed": [{ "processModelId": "order_process", "version": "1.0.0", "processVersionId": "..." }] }
 ```
 
 **Linter gate failure (422):**
@@ -140,17 +147,17 @@ Start a new process instance. Body:
 
 **Success (201):**
 ```json
-{ "process_instance_id": "...", "processModelId": "order_process", "version": "1.0.0", "state": "running" }
+{ "processInstanceId": "...", "processModelId": "order_process", "version": "1.0.0", "state": "running" }
 ```
 
 | Status | Meaning |
 |--------|---------|
 | `201` | PI started |
-| `403` | Process disabled, or caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
+| `403` | Caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
 | `404` | Process not found, or caller has no observe claim on the Start Event's lane |
 | `404` | Not found / no active version |
 | `413` | Payload too large |
-| `422` | Ambiguous start event |
+| `422` | Process disabled (`process_disabled`), or ambiguous start event |
 | `429` | Start rate limit exceeded. `Retry-After` header present. |
 | `503` | Engine at capacity (max concurrent PIs reached). `Retry-After: 5` header. |
 
@@ -251,7 +258,7 @@ deleted in the same transaction.
 
 Authorization: requires `delete_process_instance` claim — `own` (can delete
 PIs started by the caller) or `all` (any PI). Default is `none` (403).
-Only terminal PIs (`finished`, `fatal`, `aborted`) can be deleted.
+Only terminal PIs (`finished`, `fatal`, `aborted`, `error`, `escalated`, `compensated`) can be deleted. `:cancelled` is a transaction-child business outcome and is not in this delete set.
 
 ### `PUT /process-instances/{id}/retry`
 
@@ -270,7 +277,7 @@ Retry a terminal PI (`fatal`, `aborted`, or `error`). Optional body:
 
 Authorization: `retry_process_instance` — `own` or `all`. Default `none` (403).
 `:compensated` / `:escalated` / `:cancelled` are not retryable.
-See [Retry and Restart](../handbook/retry-restart.md). Request/response schemas: OpenAPI `GET /api/openapi`.
+See [Retry](../handbook/retry.md). Request/response schemas: OpenAPI `GET /api/openapi`.
 
 ## Decisions (DMN)
 
@@ -321,6 +328,16 @@ Body: empty or `{}`. Success `200`: `{ "triggered": true }`. Auth: `lane:<name>=
 | `POST` | `/signals/{signal_name}/trigger` | Broadcast a named signal. Body empty/`{}`; `payload` ignored | `trigger_signal` (`"all"`) |
 
 Response shapes and routing: OpenAPI + [Message Events](../handbook/message-events.md) / [Signal Events](../handbook/signal-events.md). Commands are REST only.
+
+## Escalations
+
+| Method | Path | Purpose | Claim |
+|--------|------|---------|-------|
+| `POST` | `/escalations/{escalation_code}/trigger` | Inject a named escalation into waiting catchers (ESP starts and waiting Escalation Boundary FNIs) | `trigger_escalation` (boolean) |
+
+Body: empty or `{}`. Any `payload` key is ignored. Success `200`: `{ "escalationCode", "deliveries": [{ "processInstanceId", "flowNodeInstanceId" }], "pending": false }`. Empty `deliveries` is success. Errors: `403` (missing / false claim), `422` (`escalation_code_blank` / `escalation_code_too_long`). This is an operator inject, not a modeled BPMN throw: no pending table, unmatched PIs are not marked `:escalated`.
+
+See [Escalation Events](../handbook/escalation-events.md).
 
 ## Ad-hoc subprocesses
 

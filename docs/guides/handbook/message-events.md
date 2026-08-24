@@ -158,12 +158,17 @@ Message handlers participate in the shared data pipeline extensions:
 
 | Extension | Side | Purpose |
 |-----------|------|---------|
+| `evil:payload` | Throw | FEEL expression that constructs the outgoing message payload (inside `<messageEventDefinition>`) |
+| `evil:correlationRetrievalExpression` | Throw | FEEL expression stamped onto the published message as `correlationValue` |
+| `evil:eventMapping` | Catch | FEEL expression that maps the received payload into the process token (inside `<messageEventDefinition>`) |
 | `evil:inputMapping` | Throw | Maps token fields into the outgoing message payload before publish |
 | `evil:outputMapping` | Catch | Maps the received message payload into the process token on delivery |
 | `evil:payloadContract` | Throw | JSON Schema validated against the outgoing message payload; violation is fatal to the FNI |
 | `evil:resultContract` | Catch | JSON Schema validated against the incoming message payload; violation is fatal to the FNI |
 
-Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. Contracts are placed at the **flow-node's** `<extensionElements>` level, not inside `<messageEventDefinition>`.
+Catch-side correlation uses the **process-level** `evil:correlationKey`, not a catch-event extension.
+
+Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. **Contracts are placed at the flow-node's `<extensionElements>` level**, never inside `<messageEventDefinition>`. `evil:payload`, `evil:eventMapping`, and `evil:correlationRetrievalExpression` live on the event definition.
 
 ### Throw-side input mapping example
 

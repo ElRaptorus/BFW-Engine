@@ -54,9 +54,10 @@ One iteration at a time — each starts only after the previous completes. Use f
 | `evil:inputCollection` | FEEL expression that evaluates to the list to iterate over |
 | `evil:outputCollection` | Variable name for the aggregated results list |
 | `evil:elementVariable` | Name of the per-iteration variable (accessible as `loop.item`) |
+| `evil:outputElementVariable` | Name of the key used to collect each iteration's output into the output collection |
 | `evil:loopBreakCondition` | FEEL expression — loop stops when `true` |
 | `evil:loopInterval` | ISO 8601 duration between sequential iterations |
-| `evil:maxIterations` | Hard cap on the number of iterations |
+| `evil:maxIterations` | Safety cap — sequential truncates; parallel fail-fast |
 | `<bpmn:completionCondition>` | Standard BPMN FEEL expression — MI terminates early when `true` |
 
 ## Input Collection
@@ -89,6 +90,8 @@ Inside the iteration, `loop.item` refers to the current `order` object.
 ```
 
 When all iterations finish, `token.processedOrders` contains a list with one entry per iteration, ordered by iteration index.
+
+`evil:outputElementVariable` (or `<bpmn:outputDataItem>`) names the key used when aggregating each iteration's result into that collection. When set, the engine uses this variable name as the aggregation key.
 
 ## FEEL `loop.*` Context
 
@@ -133,13 +136,18 @@ This is useful for "first N wins" patterns — start parallel work, stop as soon
 
 ## Max Iterations
 
-`evil:maxIterations` caps the number of iterations regardless of collection size:
+`evil:maxIterations` is a safety cap. Behavior differs by MI mode:
+
+| Mode | When the collection is larger than the cap |
+|------|---------------------------------------------|
+| Sequential | Truncation — items beyond the limit are skipped |
+| Parallel | Fail-fast — the shell fatals with `collection_exceeds_max_iterations` |
 
 ```xml
 <evil:maxIterations>50</evil:maxIterations>
 ```
 
-If the collection has 200 items but `maxIterations` is 50, only the first 50 are processed. This is a safety guard against unbounded collections.
+Parallel MI fails fast so a misconfigured collection cannot spawn an unbounded number of concurrent iteration FNIs.
 
 ## Error Handling
 
@@ -207,5 +215,5 @@ The engine does not support BPMN's `<loopCardinality>` element. Iteration count 
 - [Service Tasks](service-tasks.md) — async service task handlers used with MI
 - [Call Activities](call-activities.md) — child process invocation per iteration
 - [Embedded Subprocesses](embedded-subprocesses.md) — subprocess execution per iteration
-- [Retry / Restart](retry-restart.md) — retry behavior for failed MI activities
+- [Retry](retry.md) — retry behavior for failed MI activities
 - [Monitoring](monitoring.md) — observing MI lifecycle events

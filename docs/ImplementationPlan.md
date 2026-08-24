@@ -1052,7 +1052,7 @@ Resolves the big `AGENT:` marker in concept §BPMN Spec Coverage by Priority.
 #### Data Stores
 
 - **Attr**: `bpmn:dataStore`, `bpmn:dataStoreReference`.
-- **Handler**: Placeholder in v1 (pass-through, logged but not persisted). Full implementation is a plugin concern — plugins register a `DataStoreAdapter` by store-id.
+- **Handler**: Parser no-op in v1 (logged, not executed, not persisted). There is **no** plugin `DataStoreAdapter` capability — do not register one.
 
 #### Complex Gateway
 

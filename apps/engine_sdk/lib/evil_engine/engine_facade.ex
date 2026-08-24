@@ -27,11 +27,7 @@ defmodule EvilEngine.EngineFacade do
   |-------|-----------|-------------|
   | `register_service_task_handler` | `(implementation, handler_module)` | Registers a Service Task handler keyed by implementation string |
   | `register_named_script` | `(script_key, handler_module)` | Registers a Named Script handler keyed by script key |
-  | `register_persistence_adapter` | `(adapter_id, handler_module)` | Registers a Persistence Adapter keyed by adapter ID |
   | `register_rest_api_extension` | `(prefix, handler_module)` | Registers a REST API extension keyed by URL prefix |
-  | `register_monitoring_panel` | `(handler_module)` | Registers a Monitoring Panel (many allowed) |
-  | `register_timer_source` | `(timer_type, handler_module)` | Registers a Timer Source keyed by timer type |
-  | `register_data_store_adapter` | `(store_id, handler_module)` | Registers a Data Store Adapter keyed by store ID |
   | `register_auth_provider` | `(handler_module)` | Registers an Auth Provider (unique, first wins) |
   | `register_event_sink` | `(name, module, opts)` | Registers an EventSink with the EngineEventBus |
 
@@ -96,11 +92,7 @@ defmodule EvilEngine.EngineFacade do
           version: String.t(),
           register_service_task_handler: (String.t(), handler_module() -> registration_result()),
           register_named_script: (String.t(), handler_module() -> registration_result()),
-          register_persistence_adapter: (String.t(), handler_module() -> registration_result()),
           register_rest_api_extension: (String.t(), handler_module() -> registration_result()),
-          register_monitoring_panel: (handler_module() -> registration_result()),
-          register_timer_source: (String.t(), handler_module() -> registration_result()),
-          register_data_store_adapter: (String.t(), handler_module() -> registration_result()),
           register_auth_provider: (handler_module() -> registration_result()),
           register_event_sink: (String.t(), module(), keyword() -> :ok | {:error, term()}),
           publish_event: (struct() -> :ok),
@@ -127,11 +119,7 @@ defmodule EvilEngine.EngineFacade do
     :version,
     register_service_task_handler: &__MODULE__.noop_register_2/2,
     register_named_script: &__MODULE__.noop_register_2/2,
-    register_persistence_adapter: &__MODULE__.noop_register_2/2,
     register_rest_api_extension: &__MODULE__.noop_register_2/2,
-    register_monitoring_panel: &__MODULE__.noop_register_1/1,
-    register_timer_source: &__MODULE__.noop_register_2/2,
-    register_data_store_adapter: &__MODULE__.noop_register_2/2,
     register_auth_provider: &__MODULE__.noop_register_1/1,
     register_event_sink: &__MODULE__.noop_register_event_sink/3,
     publish_event: &__MODULE__.noop_publish_event/1,

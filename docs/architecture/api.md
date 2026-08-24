@@ -70,7 +70,7 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 
 #### 10.1.0.1 Public `/health`, `/metrics`, process-start back-pressure, and deprecation
 
-**`GET /health`** — Liveness/readiness; **no auth**. JSON includes a `load` field: `"normal"`, `"elevated"`, or `"critical"`, derived from active PI count vs. `EVIL_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `"normal"` when the cap is `:infinity`. This aligns with the `evil_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
+**`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `EVIL_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `evil_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
 
 **`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `EVIL_METRICS_ENABLED` is `true` (default). Metric definitions live in `EvilEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, returns **404** with JSON `{"error":"metrics_disabled"}`.
 
@@ -82,7 +82,7 @@ Additional trigger-style paths in the table below remain **specified** for v1 pa
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/health` | Liveness/readiness; **no auth**; JSON includes `load` (`normal` / `elevated` / `critical` when `EVIL_MAX_CONCURRENT_PIS` is finite) |
+| `GET` | `/health` | Liveness/readiness; **no auth**; **204 No Content**. Load is `engine.load` on `GET /stats` |
 | `GET` | `/info` | Engine id/name/version/uptime/feature flags; **no auth** |
 | `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`EVIL_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
 | `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md) §11.2) |
@@ -199,24 +199,24 @@ All commands (start, finish, abort, retry, deploy, purge, trigger) are REST and/
 
 #### 10.2.1 Persistence-backed resources
 
-AshGraphql auto-emits queries for each Ash resource with filter/sort/page/sparse-fields. Every list query returns a `KeysetPageOf<Resource>` type containing `results`, `count`, `startKeyset`, and `endKeyset`. Note: AshGraphql does **not** expose a `hasNextPage` field — clients compute it as `results.length < count` (see common-pitfalls.md §P28).
+AshGraphql auto-emits queries for each Ash resource with filter/sort/page/sparse-fields. Every list query uses **offset pagination** (`paginate_with: :offset`) and returns a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`. See common-pitfalls.md §P28.
 
 ```graphql
 type Query {
-  processes(filter, sort, first, after, last, before)         : KeysetPageOfProcess
-  processVersions(filter, sort, first, after, last, before)   : KeysetPageOfProcessVersion
-  processInstances(filter, sort, first, after, last, before)  : KeysetPageOfProcessInstance
-  flowNodeInstances(filter, sort, first, after, last, before) : KeysetPageOfFlowNodeInstance
-  decisionDefinitions(filter, sort, first, after, last, before) : KeysetPageOfDecisionDefinition
-  decisionVersions(filter, sort, first, after, last, before)  : KeysetPageOfDecisionVersion
-  dataObjectValues(filter, sort, first, after, last, before)  : KeysetPageOfDataObjectValue
-  dataObjectHistory(filter, sort, first, after, last, before) : KeysetPageOfDataObjectHistoryEntry
+  processes(filter, sort, limit, offset)              : PageOfProcess
+  processVersions(filter, sort, limit, offset)        : PageOfProcessVersion
+  processInstances(filter, sort, limit, offset)       : PageOfProcessInstance
+  flowNodeInstances(filter, sort, limit, offset)      : PageOfFlowNodeInstance
+  decisionDefinitions(filter, sort, limit, offset)    : PageOfDecisionDefinition
+  decisionVersions(filter, sort, limit, offset)       : PageOfDecisionVersion
+  dataObjectValues(filter, sort, limit, offset)       : PageOfDataObjectValue
+  dataObjectHistory(filter, sort, limit, offset)      : PageOfDataObjectHistoryEntry
 }
 ```
 
 There are **no GraphQL mutations or subscriptions**. Commands stay on REST (and the plugin facade). Real-time events use Phoenix Channels (§10.3).
 
-Filter grammar is AshGraphql's built-in (type-safe, composable expressions including `ilike` for case-insensitive substring matching on string fields). Sort accepts multiple keys with `field` (SCREAMING_SNAKE_CASE enum) and `order` (`ASC`/`DESC`). Pagination is keyset-based: `first`/`after` for forward paging, `last`/`before` for backward paging.
+Filter grammar is AshGraphql's built-in (type-safe, composable expressions including `ilike` for case-insensitive substring matching on string fields). **PI/FNI `state` and FNI `flowNodeType` are strings** — filter with `"running"` / `"waiting"` / `"user_task"`, not GraphQL enums. Sort accepts multiple keys with `field` (SCREAMING_SNAKE_CASE enum) and `order` (`ASC`/`DESC`). Pagination is offset-based: `limit`/`offset`.
 
 All response field names use **camelCase** (Absinthe `LanguageConventions` adapter default). Query field names accept both camelCase and snake_case.
 

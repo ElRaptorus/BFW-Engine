@@ -47,26 +47,19 @@ Layer 1 handles transparent reconnection at the pool level. Layer 2 (`Persistenc
 
 ## Migration Workflow
 
-Migrations are generated from Ash resource changes, not hand-written:
+The engine uses a **single initial migration**. Edit `apps/peripheral_persistence/priv/repo/migrations/20260501110314_create_initial_schema.exs` in place. Do **not** run `mix ash_postgres.generate_migrations`.
 
 ```bash
-# Generate migration from resource diff
-mix ash_postgres.generate_migrations --name add_user_task_fields
+# Apply the initial schema (dev / test)
+MIX_ENV=test mix ecto.migrate
 
-# Apply migrations
-mix ash_postgres.migrate
-
-# Rollback
-mix ash_postgres.rollback
-```
-
-In production releases:
-
-```bash
+# Production release
 bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
 ```
 
 ## Key Tables
+
+Live tables include:
 
 | Table | Purpose |
 |-------|---------|
@@ -78,6 +71,12 @@ bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
 | `data_object_writes` | Append-only DO write audit (partitioned) |
 | `process_instance_events` | Typed event audit log (partitioned, legacy — built-in DB sink removed) |
 | `gateway_pending_arrivals` | Pending gateway join tokens |
+| `timer_start_schedules` | Cycle Timer Start Event schedules |
+| `messages` / `pending_messages` | Published messages and pending-message hold |
+| `signals` / `pending_signals` | Published signals and pending-signal hold |
+| `decision_definitions` / `decision_versions` | DMN catalog |
+
+There are **no** `escalations`, `compensations`, `engine_timers`, or `pending_escalations` tables. Escalation and compensation observability is EngineEventBus plus in-memory registries. PI-scoped catch/boundary timers persist in FNI `type_properties` plus Scheduler ETS.
 
 ## Partitioning
 
@@ -94,9 +93,9 @@ bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"  # pro
 
 ## Retention Policies
 
-All retention is opt-in. A fresh installation never deletes anything.
+**RetentionRunner does not ship.** `EVIL_RETENTION_*` env vars are reserved for Phase 7 and **do not purge data today**. A fresh installation never deletes anything via those knobs.
 
-### Per-Terminal-State PI Retention
+When RetentionRunner lands, all retention will be opt-in (unset = never auto-purge). Planned PI cutoffs:
 
 | Env Var | Purpose |
 |---------|---------|
@@ -107,33 +106,18 @@ All retention is opt-in. A fresh installation never deletes anything.
 | `EVIL_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
 | `EVIL_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
 
-PI purge is atomic: a PI's events, FNIs, data objects, and writes are deleted in one transaction.
+Planned runner knobs: `EVIL_RETENTION_RUN_INTERVAL`, `EVIL_RETENTION_BATCH_SIZE`, `EVIL_RETENTION_ENGINE_AUDIT_DAYS`.
 
-### Engine Audit Retention
-
-| Env Var | Default | Purpose |
-|---------|---------|---------|
-| `EVIL_RETENTION_ENGINE_AUDIT_DAYS` | -- | Max age for engine audit table rows |
-
-### Runner Configuration
-
-| Env Var | Default | Purpose |
-|---------|---------|---------|
-| `EVIL_RETENTION_RUN_INTERVAL` | `PT1H` | How often the runner wakes |
-| `EVIL_RETENTION_BATCH_SIZE` | `500` | Max rows per transaction |
-
-The `RetentionRunner` is **Phase 7** and does not ship today. When it lands, it will start only if at least one `EVIL_RETENTION_*_DAYS` var is set.
-
-### Safety Invariants
+### Safety Invariants (planned)
 
 - `running` PIs are never touched
 - Catalog rows (`processes`, `process_versions`) are never touched
 - PIs with running child PIs (Call Activity) are skipped
-- Operational rows (`pending_messages.state='pending'`, armed timers) are never retention-eligible
+- Operational rows (`pending_messages.state='pending'`, armed timers, `timer_start_schedules`) are never retention-eligible
 
 ### Manual Purge
 
-Manual purge is planned for a future release. In v1, operators can adjust retention env vars or run direct SQL under the admin DB role for ad-hoc cleanup.
+Manual purge is planned for a future release. Today, operators who need ad-hoc cleanup must use SQL under the admin DB role.
 
 ## JSONB Compression
 

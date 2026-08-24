@@ -483,10 +483,7 @@ The current implementation operates within a well-defined scope:
   Subprocess with a Compensation start event that activates when compensation
   is triggered for a specific activity.
 
-- **Transaction Subprocesses and Cancel Events are not yet supported.**
-  Compensation works without the BPMN transaction mechanism. For the Saga
-  Pattern, use an embedded subprocess with error boundaries (as shown in the
-  previous section) rather than a Transaction SubProcess with Cancel Events.
+- **Transaction Subprocesses and Cancel Events are implemented.** See [Transactions](transactions.md). A Cancel End Event inside a `<bpmn:transaction>` runs automatic LIFO compensation, then the Cancel Boundary on the transaction shell continues the parent. Compensation still does **not** auto-trigger on a Hazard (uncaught error).
 
 ## What Does NOT Trigger Compensation
 
@@ -745,4 +742,4 @@ used by ThomasTheDaemonEngine:
 - [Escalation Events](escalation-events.md) — non-fatal signal propagation
 - [Embedded Subprocesses](embedded-subprocesses.md) — subprocess scoping for compensation
 - [Event Subprocesses](event-subprocesses.md) — includes Compensation start events
-- [Retry / Restart](retry-restart.md) — retrying failed compensation runs
+- [Retry](retry.md) — retrying failed compensation runs

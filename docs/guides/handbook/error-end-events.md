@@ -18,7 +18,7 @@ The key distinction: Error End Events represent **expected** error outcomes that
 When an Error End Event fires:
 
 1. The Error End Event FNI transitions to **`error`** state (not `finished`)
-2. All remaining active/waiting sibling FNIs are **immediately interrupted** (same behavior as Terminate End Event)
+2. All remaining active/waiting sibling FNIs are transitioned to **`error`** (reason `process_error`) — they are not `:interrupted`
 3. The PI transitions to **`error`** state
 4. If the PI has a parent (started via a Call Activity), the error propagates upward for [boundary matching](error-boundary-events.md)
 
@@ -82,7 +82,7 @@ When an Error End Event fires in a process with concurrent branches (e.g., via n
 | FNI | State | Meaning |
 |-----|-------|---------|
 | Error End Event | `error` | This element threw the error |
-| Active/waiting siblings | `interrupted` | Collateral — interrupted by the error |
+| Active/waiting siblings | `error` | Collateral — stopped by the error |
 | Previously completed FNIs | `finished` | Completed before the error occurred |
 
 ## Error Propagation to Parent Processes
@@ -237,7 +237,7 @@ PIs in `error` state are retryable, just like `fatal` or `aborted` PIs. Use the 
 PUT /process-instances/{id}/retry
 ```
 
-On retry, the Error End Event FNI (in `error` state) is reset to `active` and re-dispatched. Sibling FNIs that were `interrupted` by the Error End Event are preserved as immutable history.
+On retry, the Error End Event FNI (in `error` state) is reset to `active` and re-dispatched. Sibling FNIs that were set to `error` by the Error End Event are reset with the rest of the retryable `:error` FNIs.
 
 Retry also supports **version migration**: deploy a corrected process version and pass the new `version` in the retry request body. The process restarts with the updated model. **Checkpoint reset** via `resetToFlowNodeInstanceId` is supported as well.
 
@@ -246,4 +246,4 @@ Retry also supports **version migration**: deploy a corrected process version an
 - [Error Boundary Events](error-boundary-events.md) -- catching errors thrown by Error End Events
 - [Error Handling](error-handling.md) -- general error states (`fatal` vs `error`)
 - [Call Activities](call-activities.md) -- parent/child error propagation
-- [Retry and Restart](retry-restart.md) -- recovering from fatal and error states
+- [Retry](retry.md) -- recovering from fatal and error states

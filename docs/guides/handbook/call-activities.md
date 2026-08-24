@@ -16,9 +16,12 @@ Call Activities invoke another BPMN process as a child, creating a separate Proc
 ```xml
 <bpmn:callActivity id="CA_1" name="Process Order" calledElement="OrderSubProcess">
   <bpmn:extensionElements>
+    <evil:startEventId>Start_Express</evil:startEventId>
     <evil:inputMapping source="token.orderId" target="order_id" />
     <evil:inputMapping source="token.customer" target="customer_info" />
     <evil:outputMapping source="token.result" target="order_result" />
+    <evil:payloadContract>{"type":"object","required":["order_id"]}</evil:payloadContract>
+    <evil:resultContract>{"type":"object","required":["order_result"]}</evil:resultContract>
   </bpmn:extensionElements>
   <bpmn:incoming>Flow_In</bpmn:incoming>
   <bpmn:outgoing>Flow_Out</bpmn:outgoing>
@@ -28,8 +31,13 @@ Call Activities invoke another BPMN process as a child, creating a separate Proc
 | Extension Element | Purpose |
 |-------------------|---------|
 | `calledElement` (attribute) | Process key of the child process to invoke |
+| `evil:startEventId` | Child Start Event to enter. Required when the child has multiple untyped starts; optional when it has exactly one |
 | `evil:inputMapping` | FEEL expression mapping parent token fields to child start payload |
 | `evil:outputMapping` | FEEL expression mapping child result fields back to parent token |
+| `evil:payloadContract` | JSON Schema on the child's start payload (after input mapping). Violation is fatal to the Call Activity FNI |
+| `evil:resultContract` | JSON Schema on the child's aggregated result (after output mapping). Violation is fatal to the Call Activity FNI |
+
+`evil:startEventId` selects which Start Event the child begins at. Required when the child has multiple untyped Start Events; optional when it has exactly one. If the ID is missing from the child model the Call Activity fatals with `start_event_not_found`. If the child has multiple untyped starts and this extension is omitted, the engine returns `ambiguous_start_event`.
 
 ## Input Mappings
 

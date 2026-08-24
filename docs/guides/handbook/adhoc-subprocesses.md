@@ -312,7 +312,7 @@ every other subprocess variant (AH-D14):
   scope is rejected (AH-D17, same rationale as Transaction's TX-D8) — the
   inner scope's non-deterministic execution order makes a mid-scope checkpoint
   meaningless. Retry from the shell FNI (or further upstream) instead. See
-  [Retry and Restart](retry-restart.md).
+  [Retry](retry.md).
 - **Sequential engine-managed without `evil:activeElements` is rejected at
   deploy time** (AH-D18) and flagged by the Studio linter's
   `adhoc-subprocess-config` rule even before deployment.
@@ -334,5 +334,5 @@ every other subprocess variant (AH-D14):
   its own opinionated completion semantics
 - [Compensation](compensation.md) — Compensation Boundary Events on ad-hoc
   inner activities work exactly as on any other activity
-- [Retry and Restart](retry-restart.md) — retry restrictions for ad-hoc scopes
+- [Retry](retry.md) — retry restrictions for ad-hoc scopes
 - `examples/plugins/adhoc/ai_toolbox/` — a fully worked plugin-managed example

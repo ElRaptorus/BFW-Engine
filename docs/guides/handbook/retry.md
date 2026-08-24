@@ -1,22 +1,24 @@
-# Process Instance Retry and Restart
+# Process Instance Retry
 
-The engine provides a retry mechanism for process instances that have failed (`fatal`), been aborted (`aborted`), or terminated via an Error End Event (`error`). Retry restarts the PI from a checkpoint or from the beginning, optionally migrating to a newer version of the process definition.
+The engine retries process instances that have failed (`fatal`), been aborted (`aborted`), or terminated via an Error End Event (`error`). There is **one** command: `PUT /process-instances/{id}/retry`. There is no separate restart endpoint. Omitting a checkpoint retries from the Start Event on the same call.
+
+`:compensated`, `:escalated`, and `:cancelled` are terminal-but-handled business outcomes and are **not** retryable (`process_instance_not_retriable`).
 
 ## How It Works
 
 1. A PI reaches `fatal`, `aborted`, or `error` state
-2. An operator sends `PUT /process-instances/{id}/retry` with optional parameters
-3. The engine validates the request (PI state, version compatibility, authorization)
+2. An operator (or plugin) sends `PUT /process-instances/{id}/retry` with optional parameters
+3. The engine validates the request (PI state, version compatibility, checkpoint restrictions, authorization)
 4. The PI is reset according to the specified strategy and resumes execution
 
 ## REST API
 
 ```bash
-# Retry from the beginning (same version)
+# Retry from the Start Event (same version)
 curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
   -H "Authorization: Bearer $TOKEN"
 
-# Retry with version migration
+# Retry with version migration (evil:version string or "latest")
 curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -37,19 +39,36 @@ curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `version` | string | Target process version to migrate to. Use `"latest"` to auto-resolve to the most recent enabled, non-deleted version. Omit to retry on the same version. |
-| `resetToFlowNodeInstanceId` | string | Checkpoint FNI ID. All FNIs causally downstream of this FNI are deleted, and this FNI is reset to `active`. Omit to restart from the beginning. |
+| `version` | string | Target **`evil:version`** to migrate to. Use `"latest"` to auto-resolve to the most recent enabled, non-deleted version. Omit to retry on the same version. |
+| `resetToFlowNodeInstanceId` | string | Checkpoint FNI ID. All FNIs causally downstream of this FNI are deleted, and this FNI is reset to `active`. Omit to retry from the Start Event. |
+
+Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
 
 ### Response Codes
 
 | Code | Meaning |
 |------|---------|
 | 204 | Retry initiated successfully (no response body) |
-| 404 | PI not found or soft-deleted |
-| 422 | PI is in a non-retryable state (e.g. `running` or `finished`), or version migration is incompatible |
+| 404 | PI not found or soft-deleted, target version not found, or checkpoint FNI not found |
+| 422 | PI is not retryable, checkpoint restriction, or version migration is incompatible |
 | 401 | Missing or invalid authentication |
 | 403 | Caller lacks `retry_process_instance` permission for this PI |
 | 503 | Engine at capacity (`EVIL_MAX_CONCURRENT_PIS` reached) |
+
+### HTTP 422 restriction codes
+
+| Error code | Meaning |
+|------------|---------|
+| `process_instance_not_retriable` | PI is not in `fatal` / `aborted` / `error` (includes `finished`, `escalated`, `compensated`, `cancelled`, `running`) |
+| `retry_checkpoint_is_join_gateway` | Checkpoint is a parallel join. Retry at the fork or upstream |
+| `retry_checkpoint_is_mi_iteration` | Checkpoint is an MI/Loop iteration FNI. Retry at the shell or upstream |
+| `retry_checkpoint_is_ebg_loser` | Checkpoint was cancelled by an Event-Based Gateway race |
+| `retry_checkpoint_is_non_retryable` | Checkpoint was interrupted by a BPMN flow mechanism |
+| `retry_inside_adhoc_subprocess` | Targeted PI is a child of an ad-hoc subprocess scope |
+| `retry_checkpoint_inside_adhoc_subprocess` | Checkpoint points inside an ad-hoc subprocess scope |
+| `retry_inside_transaction_scope` | Targeted PI has a transaction ancestor |
+| `retry_checkpoint_inside_transaction` | Checkpoint points inside a transaction child scope |
+| `version_migration_incompatible` | Surviving flow-node IDs are missing from the target version |
 
 ## Version Migration
 
@@ -64,10 +83,10 @@ If the target version is structurally incompatible, the retry is rejected with *
 {
   "error": "version_migration_incompatible",
   "message": "Target version is not compatible with the current PI state",
-  "missing_flow_node_ids": ["Task_renamed"],
-  "process_model_id": "my-process",
-  "current_version": "1.0.0",
-  "target_version": "2.0.0"
+  "missingFlowNodeIds": ["Task_renamed"],
+  "processModelId": "my-process",
+  "currentVersion": "1.0.0",
+  "targetVersion": "2.0.0"
 }
 ```
 
@@ -82,7 +101,7 @@ When `resetToFlowNodeInstanceId` is provided, the engine performs a targeted res
 3. **Data Object rollback** — reverts any Data Object writes performed by deleted FNIs
 4. **Reset** — sets the checkpoint FNI back to `active` state
 
-Without a checkpoint, all FNIs are deleted and the PI restarts from the Start Event.
+Without a checkpoint, all FNIs are deleted and the PI retries from the Start Event.
 
 ## Process Instance Tree
 
@@ -103,7 +122,7 @@ Internally, retry follows three phases:
 
 1. **Targeted reset** — checkpoint + version migration on the specified PI (pure DB operations)
 2. **Tree reset** — reconcile ancestors (upward) and descendants (downward through Call Activities)
-3. **Resume** — restart from the root PI via the standard `ResumeRunner` code path
+3. **Resume** — resume from the root PI via the standard `ResumeRunner` code path
 
 Phases 1 and 2 are pure database operations. Phase 3 reuses the same resume logic as engine-restart recovery, ensuring consistency.
 
@@ -119,26 +138,30 @@ Retry requires the `retry_process_instance` JWT claim:
 
 ## Events
 
-A successful retry emits `Event.ProcessInstanceRetried` via the EngineEventBus:
+A successful retry emits `ProcessInstanceRetried` via the EngineEventBus (camelCase on the wire):
 
 | Field | Description |
 |-------|-------------|
-| `process_instance_id` | The retried PI |
-| `target_process_instance_id` | Same as `process_instance_id` (reserved for future use) |
-| `process_model_id` | Process model key |
-| `version` | The version string used |
-| `previous_state` | `"fatal"`, `"aborted"`, or `"error"` |
-| `previous_version` | Version before migration (if applicable) |
-| `new_version` | Version after migration (if applicable) |
-| `reset_to_flow_node_instance_id` | Checkpoint FNI (if provided) |
-| `retried_by` | Identity of the caller |
-| `occurred_at` | UTC timestamp |
+| `processInstanceId` | Root PI of the tree |
+| `targetProcessInstanceId` | The PI the caller targeted (may differ from the root) |
+| `processModelId` | BPMN process ID string |
+| `version` | **Process version UUID** of the version the PI is now on (not the `evil:version` string) |
+| `previousState` | `"fatal"`, `"aborted"`, or `"error"` |
+| `previousVersion` | Process version UUID before migration, or `null` |
+| `newVersion` | Process version UUID after migration, or `null` when no migration |
+| `resetToFlowNodeInstanceId` | Checkpoint FNI, or `null` when omitted |
+| `retriedBy` | Identity of the caller |
+| `startedById` | Visibility stamp |
+| `hasLanelessFlowNode` / `laneNames` | Visibility stamps (same model as `ProcessInstanceStateChanged`) |
+| `occurredAt` | UTC timestamp |
 
 ## Related
 
 - [Error Handling](error-handling.md) -- fatal, aborted, and error PI states
 - [Error End Events](error-end-events.md) -- PIs in error state and retry support
 - [Call Activities](call-activities.md) -- parent/child PI relationships
+- [Transactions](transactions.md) -- transaction-scope retry restrictions
+- [Ad-hoc Subprocesses](adhoc-subprocesses.md) -- ad-hoc-scope retry restrictions
 - [Starting Instances](starting-instances.md) -- PI lifecycle from the start
 - [Monitoring](monitoring.md) -- observing retry events
 - [Authentication](../api/authentication.md) -- `retry_process_instance` claim

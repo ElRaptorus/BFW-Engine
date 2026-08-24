@@ -343,7 +343,7 @@ mix coveralls           # coverage
 
 The dev compose stack is engine + postgres only
 (`[ImplementationPlan.md §14.2](./docs/ImplementationPlan.md#142-docker-compose-local-dev)`).
-No OTel, no Prometheus, no tracing sidecars in v1.
+Prometheus scrape is `GET /metrics` (on by default via `EVIL_METRICS_ENABLED`). OpenTelemetry does not ship.
 
 ```bash
 docker compose up --build

@@ -2,6 +2,8 @@
 
 The `%EvilEngine.EngineFacade{}` struct is passed to every plugin's `on_load/1` and `on_ready/1` callbacks. It provides a stable, read-only surface for plugins to interact with the engine without reaching into internal modules.
 
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them.
+
 ## Fields
 
 ### Read-Only Identity
@@ -14,17 +16,13 @@ The `%EvilEngine.EngineFacade{}` struct is passed to every plugin's `on_load/1` 
 
 ### Capability Registration
 
-Each function registers a specific capability type in the Plugin Registry. All return `registration_result()` (`:ok | {:error, :conflict, incumbent} | {:error, :invalid_handler, msg} | {:error, :module_not_loaded, msg}`).
+Each function registers a specific capability type in the Plugin Registry. Registration closures return `registration_result()` (`:ok | {:error, :conflict, incumbent} | {:error, :invalid_handler, msg} | {:error, :module_not_loaded, msg} | {:error, :reserved_prefix}`).
 
 | Field | Signature | Description |
 |-------|-----------|-------------|
 | `register_service_task_handler` | `(implementation :: String.t(), handler :: module()) -> registration_result()` | Registers a Service Task handler keyed by implementation string |
 | `register_named_script` | `(script_key :: String.t(), handler :: module()) -> registration_result()` | Registers a Named Script handler keyed by script key |
-| `register_persistence_adapter` | `(adapter_id :: String.t(), handler :: module()) -> registration_result()` | Registers a Persistence Adapter keyed by adapter ID |
 | `register_rest_api_extension` | `(prefix :: String.t(), handler :: module()) -> registration_result()` | Registers a REST API extension keyed by URL prefix |
-| `register_monitoring_panel` | `(handler :: module()) -> registration_result()` | Registers a Monitoring Panel (many allowed) |
-| `register_timer_source` | `(timer_type :: String.t(), handler :: module()) -> registration_result()` | Registers a Timer Source keyed by timer type |
-| `register_data_store_adapter` | `(store_id :: String.t(), handler :: module()) -> registration_result()` | Registers a Data Store Adapter keyed by store ID |
 | `register_auth_provider` | `(handler :: module()) -> registration_result()` | Registers an Auth Provider (unique, first-writer wins) |
 | `register_event_sink` | `(name :: String.t(), module(), keyword()) -> :ok \| {:error, term()}` | Registers an Event Sink with the EngineEventBus |
 
@@ -33,11 +31,11 @@ Each function registers a specific capability type in the Plugin Registry. All r
 | Field | Signature | Description |
 |-------|-----------|-------------|
 | `publish_event` | `(Event.t()) -> :ok` | Publish a typed event to the `EngineEventBus` |
-| `get_config` | `(atom()) -> term()` | Read a runtime configuration key |
+| `get_config` | `(atom()) -> term()` | Read `Application.get_env(:peripheral_plugins, key)` only |
 
 ### Resource-Scoped Runtime Namespaces
 
-Runtime operations are grouped by the resource they operate on. Each namespace is a sub-struct with typed closures wired to `EvilEngine.Api` functions.
+Runtime operations are grouped by the resource they operate on. Each namespace is a sub-struct with typed closures wired to `EvilEngine.Api` functions (`skip_claims: true`).
 
 | Namespace | Type | Description |
 |-----------|------|-------------|
@@ -47,21 +45,25 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | `service_tasks` | `EngineFacade.ServiceTasks.t()` | Async Service Task complete / fail |
 | `flow_node_instances` | `EngineFacade.FlowNodeInstances.t()` | Flow Node Instance reads |
 | `data_objects` | `EngineFacade.DataObjects.t()` | Data Object reads + history |
-| `timers` | `EngineFacade.Timers.t()` | Timer event trigger + cycle schedule list/enable/disable |
+| `decisions` | `EngineFacade.Decisions.t()` | Decision Model catalog + evaluation |
+| `messages` | `EngineFacade.Messages.t()` | Message publish |
+| `signals` | `EngineFacade.Signals.t()` | Signal broadcast (no payload, no correlation) |
 | `escalations` | `EngineFacade.Escalations.t()` | Escalation inject into waiting catchers |
-| `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution |
+| `adhoc_subprocesses` | `EngineFacade.AdhocSubprocesses.t()` | Ad-hoc subprocess control |
+| `timers` | `EngineFacade.Timers.t()` | Timer event trigger + cycle schedule list/enable/disable |
+| `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution (query-only) |
 
 #### `facade.processes`
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `list` | `() -> {:ok, list()} \| {:error, term()}` | List all process definitions |
 | `get` | `(String.t()) -> {:ok, struct()} \| :not_found` | Get a process by model ID |
 | `get_latest_version` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Get the latest version for a process model |
 | `deploy` | `([map()]) -> {:ok, [map()]} \| {:error, term()}` | Deploy parsed BPMN sources |
 | `enable` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Enable a process |
 | `disable` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Disable a process |
 | `delete_version` | `(String.t(), String.t()) -> {:ok, struct()} \| {:error, term()}` | Soft-delete a specific version |
-| `list` | `() -> {:ok, list()} \| {:error, term()}` | List all process definitions |
 | `undeploy` | `(String.t()) -> :ok \| {:error, term()}` | Soft-delete all versions of a process |
 | `start` | `(keyword()) -> {:ok, String.t()} \| {:error, term()}` | Start a new process instance |
 
@@ -70,15 +72,20 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `get` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Get a PI by ID |
-| `abort` | `(String.t(), String.t() \| nil) -> :ok \| {:error, term()}` | Abort a running PI |
+| `abort` | `(String.t(), String.t() \| nil) -> :ok \| {:error, term()}` | Abort a running PI (tree-wide) |
+| `retry` | `(String.t(), map()) -> :ok \| {:error, term()}` | Retry a terminal PI (`fatal`, `aborted`, or `error`) |
 | `delete` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Soft-delete a PI and its FNIs |
 
 #### `facade.user_tasks`
 
+Elixir arity is `(flow_node_instance_id, result | reason, identity)` — there is no process-instance ID argument.
+
+The TypeScript `EngineFacade.userTasks` methods still take `processInstanceId` as the first argument. That extra argument is a TypeScript client/SDK convention; the Elixir facade does not use it.
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `finish` | `(pi_id, fni_id, result, identity) -> :ok \| {:error, term()}` | Finish a waiting User Task with a result payload |
-| `cancel` | `(pi_id, fni_id, reason, identity) -> :ok \| {:error, term()}` | Cancel a waiting User Task |
+| `finish` | `(flow_node_instance_id, result, identity) -> :ok \| {:error, term()}` | Finish a waiting User Task with a result payload |
+| `cancel` | `(flow_node_instance_id, reason, identity) -> :ok \| {:error, term()}` | Cancel a waiting User Task |
 
 #### `facade.service_tasks`
 
@@ -92,6 +99,7 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `get` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Get a single FNI by UUID |
+| `list_for_process_instance` | `(String.t()) -> {:ok, list()} \| {:error, term()}` | List FNIs for a process instance |
 
 #### `facade.data_objects`
 
@@ -101,27 +109,71 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | `list_for_instance` | `(String.t()) -> {:ok, list()} \| {:error, term()}` | Current values for a PI |
 | `history_for_instance` | `(String.t()) -> {:ok, list()} \| {:error, term()}` | Full audit trail for a PI |
 
-#### `facade.graphql`
+#### `facade.decisions`
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `query` | `(String.t(), map()) -> {:ok, map()} \| {:error, term()}` | Execute a raw GraphQL query with plugin identity |
+| `list` | `() -> {:ok, list()} \| {:error, term()}` | List all decision definitions |
+| `get` | `(String.t()) -> {:ok, struct()} \| :not_found` | Get a decision by model ID |
+| `get_latest_version` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Latest non-deleted version |
+| `validate` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Parse and validate DMN XML without persisting |
+| `deploy` | `([String.t()]) -> {:ok, [map()]} \| {:error, term()}` | Deploy DMN XML sources |
+| `evaluate` | `(model_id, input, opts) -> {:ok, struct()} \| {:error, term()}` | Evaluate a decision ad-hoc |
+| `evaluate_by_version` | `(model_id, version, input, opts) -> {:ok, struct()} \| {:error, term()}` | Evaluate a specific version |
+| `evaluate_service` | `(model_id, service_id, input, opts) -> {:ok, struct()} \| {:error, term()}` | Evaluate a Decision Service |
+| `get_versions` | `(String.t()) -> {:ok, list()} \| {:error, term()}` | List versions |
+| `get_xml` | `(String.t()) -> {:ok, String.t()} \| {:error, term()}` | Latest version XML |
+| `enable` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Enable a definition |
+| `disable` | `(String.t()) -> {:ok, struct()} \| {:error, term()}` | Disable a definition |
+| `delete_version` | `(String.t(), String.t()) -> {:ok, struct()} \| {:error, term()}` | Soft-delete a version |
+| `undeploy` | `(String.t()) -> :ok \| {:error, term()}` | Soft-delete all versions |
 
-#### `facade.timers`
+#### `facade.messages`
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `trigger_event` | `(String.t()) -> :ok \| {:error, term()}` | Manually fire a waiting timer FNI |
-| `list_schedules` | `(keyword()) -> {:ok, list()} \| {:error, term()}` | List Timer Start Event cycle schedules |
-| `get_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Get one schedule by id |
-| `enable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Re-enable a disabled cycle schedule |
-| `disable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Disable an enabled cycle schedule |
+| `publish` | `(message_name, correlation_value, payload) -> {:ok, map()} \| {:error, term()}` | Publish a named message through the correlation pipeline |
+
+#### `facade.signals`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `publish` | `(signal_name) -> {:ok, map()} \| {:error, term()}` | Broadcast a named signal (no payload, no correlation) |
 
 #### `facade.escalations`
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `publish` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Inject an escalation code into waiting catchers engine-wide (`EvilEngine.Api.trigger_escalation/3`, `skip_claims: true`). Empty deliveries is success. No payload, no pending. |
+| `publish` | `(escalation_code) -> {:ok, map()} \| {:error, term()}` | Inject an escalation code into waiting catchers engine-wide. Empty deliveries is success. No payload, no pending. |
+
+#### `facade.adhoc_subprocesses`
+
+The process instance ID is the **child** PI spawned by the ad-hoc subprocess handler.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `get_enabled_activities` | `(process_instance_id) -> {:ok, [map()]} \| {:error, term()}` | List enabled/performed inner activities |
+| `activate_activity` | `(process_instance_id, flow_node_id) -> {:ok, map()} \| {:error, term()}` | Activate an inner activity |
+| `complete` | `(process_instance_id) -> :ok \| {:error, term()}` | Signal completion |
+| `get_status` | `(process_instance_id) -> {:ok, map()} \| {:error, term()}` | Query runtime status |
+
+#### `facade.timers`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `trigger_event` | `(flow_node_instance_id) -> :ok \| {:error, term()}` | Manually fire a waiting timer FNI |
+| `list_schedules` | `(keyword()) -> {:ok, list()} \| {:error, term()}` | List Timer Start Event cycle schedules |
+| `get_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Get one schedule by id |
+| `enable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Re-enable a disabled cycle schedule |
+| `disable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Disable an enabled cycle schedule |
+
+#### `facade.graphql`
+
+GraphQL is **query-only**. `facade.graphql.query/2` runs a raw query string through `Absinthe.run/3` with the plugin identity as actor context. There are no mutations.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `query` | `(String.t(), map()) -> {:ok, map()} \| {:error, term()}` | Execute a raw GraphQL query with plugin identity |
 
 ### Registration Validation (in-BEAM only)
 
@@ -163,9 +215,9 @@ end
 ### User Task Control
 
 ```elixir
-facade.user_tasks.finish.("pi-uuid-123", "fni-uuid-456", %{"approved" => true}, identity)
+facade.user_tasks.finish.("fni-uuid-456", %{"approved" => true}, identity)
 
-facade.user_tasks.cancel.("pi-uuid-123", "fni-uuid-456", "User withdrew request", identity)
+facade.user_tasks.cancel.("fni-uuid-456", "User withdrew request", identity)
 ```
 
 ### Async Service Task Completion
@@ -187,18 +239,18 @@ facade.service_tasks.fail_async.("fni-uuid-123", "TIMEOUT", "Service did not res
 
 ## Access Rules
 
-- **Do not** call `EvilEngine.Plugin.Registry` directly — it is private to `peripheral_plugins`
+- **Do not** call `EvilEngine.Plugins.Registry` directly — it is private to `peripheral_plugins`
 - **Do not** reach into `core_execution`, `core_events`, or `peripheral_persistence` modules for command operations
 - Use the facade namespace closures for all runtime operations
 - In-BEAM plugins technically *can* reach internal modules; the contract forbids it and CI lints against it. A gRPC boundary for sidecar plugins is deferred (PLUG-D1) and is **not** a v1 isolation guarantee.
 
 ## Plugin Identity
 
-Every plugin receives a synthetic identity: `%Identity{id: "plugin:<name>", roles: ["plugin"]}`. This identity:
+Every plugin receives a synthetic identity: `%Identity{id: "plugin:<name>", roles: []}`. This identity:
 
-- **Bypasses** claim-based authorization checks (plugins are inside the operator's trust boundary)
+- **Bypasses** claim-based authorization checks (plugins are inside the operator's trust boundary; Loader wires `skip_claims: true`)
 - **Is fully audited** — every action taken through the facade is recorded with the plugin identity
-- **Is auto-injected** by the Loader when wiring namespace closures that require an identity (abort, delete, deploy)
+- **Is auto-injected** by the Loader when wiring namespace closures that require an identity (abort, retry, delete, deploy)
 
 User Task functions (`finish`/`cancel`) accept an explicit `identity` parameter because the plugin may be acting on behalf of a specific user.
 

@@ -12,14 +12,12 @@ parent_document: "../ImplementationPlan.md"
 | Category | Behaviour | Conflict rule |
 |---|---|---|
 | Service Task handler | `@behaviour EvilEngine.Plugin.ServiceTaskHandler` | Unique by `implementation`; duplicate → error at registration, NOT crash. Async-only: `handle_enter/3` returns `{:async, ref}` or `{:error, reason}` |
-  | Persistence adapter | `@behaviour EvilEngine.Plugin.PersistenceAdapter` | **Not in v1** (registration accepted, unused). Unique if ever wired. |
-  | REST API extension | `@behaviour EvilEngine.Plugin.RestApiExtension` | Mounted under configured route prefix. JWT resolved; no engine claim policy. Reserved prefixes rejected. |
-  | Event sink | `@behaviour EvilEngine.Plugin.EventSink` | Many allowed; each registration is an independent fan-out target on `EngineEventBus` ([event-system.md](./event-system.md) §3.3.2). Replaces the pre-EventSink "Lifecycle subscriber" category |
-  | Monitoring panel | `@behaviour EvilEngine.Plugin.MonitoringPanel` | **Not in v1** (registration accepted, unused) |
-  | Timer source | `@behaviour EvilEngine.Plugin.TimerSource` | **Not in v1** (registration accepted, unused) |
-  | DataStore adapter | `@behaviour EvilEngine.Plugin.DataStoreAdapter` | **Not in v1** (registration accepted, unused). DataStores are a parser no-op. |
+| REST API extension | `@behaviour EvilEngine.Plugin.RestApiExtension` | Mounted under configured route prefix. JWT resolved; no engine claim policy. Reserved prefixes rejected (including `/escalations`). |
+| Event sink | `@behaviour EvilEngine.Plugin.EventSink` | Many allowed; each registration is an independent fan-out target on `EngineEventBus` ([event-system.md](./event-system.md) §3.3.2). Replaces the pre-EventSink "Lifecycle subscriber" category |
 | Named script (for `<evil:scriptRef>`) | `@behaviour EvilEngine.Plugin.NamedScript` | Unique by script-key. Callback: `handle_enter(flow_node, payload, context) :: {:ok, map()} \| {:error, term()}` |
 | Auth provider | `@behaviour EvilEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins). Callback: `verify_and_resolve(token) :: {:ok, Identity.t()} \| {:error, reason}` |
+
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `EvilEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`), not a plugin behaviour. BPMN DataStores remain a parser no-op.
 
 **`EventSink` behaviour shape**:
 
@@ -221,7 +219,7 @@ receive. It exposes identity, capability registration, infrastructure
 
 | Capability | In-BEAM call | Sidecar gRPC RPC |
 |---|---|---|
-| Register handlers | Typed registration closures: `register_service_task_handler.(impl, handler)`, `register_named_script.(key, handler)`, `register_persistence_adapter.(id, handler)`, `register_rest_api_extension.(prefix, handler)`, `register_monitoring_panel.(handler)`, `register_timer_source.(type, handler)`, `register_data_store_adapter.(id, handler)`, `register_auth_provider.(handler)` — each writes a registry entry | Implicit in the `Hello` reply manifest |
+| Register handlers | Typed registration closures: `register_service_task_handler.(impl, handler)`, `register_named_script.(key, handler)`, `register_rest_api_extension.(prefix, handler)`, `register_auth_provider.(handler)` — each writes a registry entry. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter **do not exist**. | Implicit in the `Hello` reply manifest |
 | Subscribe to typed engine events | `facade.register_event_sink.(name, module, opts)` writing into `EvilEngine.Plugin.Registry`; dispatch is then identical to the three built-in sinks ([event-system.md](./event-system.md) §3.3.3) | Server-streaming RPC — engine pushes `Event.*` messages |
 | Publish events | `facade.publish_event.(event)` | RPC equivalent |
 | Read config | `facade.get_config.(key)` | RPC equivalent |
@@ -230,23 +228,28 @@ receive. It exposes identity, capability registration, infrastructure
 
 | Namespace | Operations | Notes |
 |---|---|---|
-| `facade.processes` | `get`, `get_latest_version`, `deploy`, `enable`, `disable`, `delete_version`, `start` | Catalog reads + writes for Process Models / Versions |
+| `facade.processes` | `list`, `get`, `get_latest_version`, `deploy`, `enable`, `disable`, `delete_version`, `undeploy`, `start` | Catalog reads + writes for Process Models / Versions |
 | `facade.process_instances` | `get`, `abort`, `retry`, `delete` | Runtime commands on Process Instances |
-| `facade.user_tasks` | `finish`, `cancel` | User Task control — accepts explicit `identity` for on-behalf-of actions |
+| `facade.user_tasks` | `finish`, `cancel` | User Task control — Elixir arity is `(flow_node_instance_id, result\|reason, identity)` |
 | `facade.service_tasks` | `finish_async`, `fail_async` | Async Service Task completion |
 | `facade.flow_node_instances` | `get`, `list_for_process_instance` | FNI reads + per-PI listing |
 | `facade.data_objects` | `get`, `list_for_instance`, `history_for_instance` | Data Object reads + audit trail |
-| `facade.decisions` | `list`, `get`, `get_latest_version`, `deploy`, `evaluate`, `evaluate_service`, `get_versions`, `get_xml`, `enable`, `disable`, `delete_version`, `undeploy` | DMN catalog + evaluation |
-| `facade.graphql` | `query` | Raw GraphQL execution via `Absinthe.run/3` with plugin identity |
+| `facade.decisions` | `list`, `get`, `get_latest_version`, `validate`, `deploy`, `evaluate`, `evaluate_by_version`, `evaluate_service`, `get_versions`, `get_xml`, `enable`, `disable`, `delete_version`, `undeploy` | DMN catalog + evaluation |
+| `facade.messages` | `publish` | Message publish (`publish/3`) |
+| `facade.signals` | `publish` | Signal broadcast (`publish/1`; no payload, no correlation) |
+| `facade.escalations` | `publish` | Escalation inject (`publish/1`; waiter delivery, no payload) |
+| `facade.adhoc_subprocesses` | `get_enabled_activities`, `activate_activity`, `complete`, `get_status` | Ad-hoc subprocess control |
+| `facade.timers` | `trigger_event`, `list_schedules`, `get_schedule`, `enable_schedule`, `disable_schedule` | Timer event trigger + cycle schedule list/enable/disable |
+| `facade.graphql` | `query` | Raw GraphQL execution via `Absinthe.run/3` with plugin identity. Query-only; no mutations. |
 
-Each closure is wired by the `Loader` to the corresponding `EvilEngine.Api` function. The plugin's synthetic identity (`%Identity{id: "plugin:<name>", roles: ["plugin"]}`) is pre-injected for operations that require it (deploy, abort, retry, delete). No HTTP round-trip, no JSON re-encode, no JWT replay for in-BEAM plugins.
+Each closure is wired by the `Loader` to the corresponding `EvilEngine.Api` function. The plugin's synthetic identity (`%Identity{id: "plugin:<name>", roles: []}`) is pre-injected for operations that require it (deploy, abort, retry, delete). No HTTP round-trip, no JSON re-encode, no JWT replay for in-BEAM plugins.
 
 Audit hooks live inside the Ash action itself, so a plugin's command
 is subject to **identical audit recording** as a wire request — every
 `EvilEngine.Api.*` invocation records the invoking Identity, whether
 that identity comes from a JWT-authenticated wire caller or from the
 auto-injected **privileged plugin identity** (`%Identity{id: "plugin:<name>",
-roles: ["plugin"], ...}` — see [`Authorization.md`](./authorization.md) §7).
+roles: [], ...}` — see [`Authorization.md`](./authorization.md) §7).
 **Authorization enforcement differs**: plugins bypass claim checks entirely
 (they are inside the operator's trust boundary ); wire callers are
 subject to the full claim dictionary. **Plugins MUST NOT reach into
@@ -287,7 +290,7 @@ The Loader's facade closure also logs a warning when any registration error is r
 ### 9.4 Default built-in plugins
 
 - `evil:http` — Default HTTP Service Task handler (`EvilEngine.Plugins.Builtin.HttpServiceTaskHandler`). Per , ships in `peripheral_plugins` as the reference implementation (HTTP client stays out of Core); registered before user plugins so operators can override the `http` implementation key.
-- `evil:postgres_persistence` — **Not in v1.** Execution persistence is `EvilEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`. The plugin `PersistenceAdapter` behaviour is accepted at registration and unused at runtime.
+- Execution persistence is `EvilEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`. There is no plugin PersistenceAdapter capability.
 - No built-in NamedScript handler ships in v1. Inline FEEL evaluation is handled directly by the `ScriptTask` handler without going through the plugin dispatch chain. Plugins register NamedScript handlers via `evil:scriptRef` for custom script languages or complex logic.
 
 **Authentication is pluggable.** The built-in JWT validator in `api_auth`

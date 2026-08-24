@@ -19,7 +19,7 @@ This is a **deliberate divergence** from the BPMN 2.0 specification's "first tru
 ### BPMN Example
 
 ```xml
-<bpmn:exclusiveGateway id="Gateway_1" name="Check Amount">
+<bpmn:exclusiveGateway id="Gateway_1" name="Check Amount" default="Flow_Default">
   <bpmn:incoming>Flow_In</bpmn:incoming>
   <bpmn:outgoing>Flow_High</bpmn:outgoing>
   <bpmn:outgoing>Flow_Low</bpmn:outgoing>
@@ -38,12 +38,8 @@ This is a **deliberate divergence** from the BPMN 2.0 specification's "first tru
   </bpmn:conditionExpression>
 </bpmn:sequenceFlow>
 
-<!-- Default flow: no conditionExpression -->
-<bpmn:sequenceFlow id="Flow_Default" sourceRef="Gateway_1" targetRef="Task_Fallback">
-  <bpmn:extensionElements>
-    <evil:default>true</evil:default>
-  </bpmn:extensionElements>
-</bpmn:sequenceFlow>
+<!-- Default flow: referenced by the gateway's default attribute; no conditionExpression -->
+<bpmn:sequenceFlow id="Flow_Default" sourceRef="Gateway_1" targetRef="Task_Fallback" />
 ```
 
 ### Expression Context
@@ -58,7 +54,7 @@ identity.roles contains "manager"
 
 ### Default Flow
 
-A default flow is taken when no conditional flow evaluates to `true`. It acts as a fallback and must not carry a `conditionExpression`. If no default flow is defined and no condition matches, the PI transitions to `fatal`.
+A default flow is taken when no conditional flow evaluates to `true`. Mark it with the standard BPMN `default="Flow_…"` attribute on the gateway. It must not carry a `conditionExpression`. If no default flow is defined and no condition matches, the PI transitions to `fatal`.
 
 ## Join (Converging)
 

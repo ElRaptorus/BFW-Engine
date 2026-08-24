@@ -11,9 +11,9 @@ defmodule EvilEngine.Plugin.RestApiExtension do
 
   Reserved prefixes (`/processes`, `/decisions`, `/process-instances`,
   `/user-tasks`, `/timer-schedules`, `/timer-events`, `/messages`,
-  `/signals`, `/adhoc-subprocesses`, `/stats`, `/api`, `/admin`,
-  `/health`, `/info`, `/metrics`) are rejected at registration with
-  `{:error, :reserved_prefix}`.
+  `/signals`, `/escalations`, `/adhoc-subprocesses`, `/stats`, `/api`,
+  `/admin`, `/health`, `/info`, `/metrics`) are rejected at registration
+  with `{:error, :reserved_prefix}`.
 
   Plugin routes are **not** included in the OpenAPI spec — they are
   unknown at spec-author time.

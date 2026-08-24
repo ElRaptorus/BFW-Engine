@@ -50,7 +50,9 @@ Plugins bypass claim checks (they are within the operator's trust boundary) but 
 
 ## Telemetry Security
 
-No `EVIL_OTEL_*` or `EVIL_PROMETHEUS_*` variables exist in v1. Telemetry is engine-internal only (`:telemetry` events feeding `/stats`).
+`GET /metrics` is public Prometheus text, default **on** (`EVIL_METRICS_ENABLED=true`). The scrape is **unauthenticated**. Restrict it at the network edge (firewall, ingress, or bind the engine to a private network). Set `EVIL_METRICS_ENABLED=false` to disable the endpoint (404).
+
+OpenTelemetry does **not** ship. There are no `EVIL_OTEL_*` variables. `/stats` remains JWT-gated.
 
 ## Related
 

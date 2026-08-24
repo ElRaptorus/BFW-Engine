@@ -7,17 +7,17 @@ ThomasTheDaemonEngine is a BPMN 2.0 workflow engine built on Elixir/OTP, designe
 - **BPMN Execution** -- process flows with Start Events, End Events, Tasks, User Tasks, Manual Tasks, Service Tasks, Script Tasks, Business Rule Tasks, Exclusive Gateways, Call Activities, Link Events, Error Boundary Events, and Data Objects (see the [element support table](#current-element-support) below)
 - **DMN 1.5 CL3** -- full DMN decision engine with all 7 hit policies, all 10 boxed expression types, DRD chaining, BKM invocation, Decision Services, and cross-model imports
 - **FEEL Expressions** -- DMN-spec expression language evaluated via a Rust NIF for high throughput
-- **Plugin System** -- extensible via `@behaviour` modules. Live in v1: Service Task handlers, Event Sinks, Named Scripts, Auth Providers, RestApiExtension. **Not in v1** (registration may be accepted and ignored): TimerSource, MonitoringPanel, DataStoreAdapter, PersistenceAdapter (plugin facade)
+- **Plugin System** -- extensible via `@behaviour` modules. Live capabilities: Service Task handlers, Event Sinks, Named Scripts, Auth Providers, RestApiExtension. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities do not exist.
 - **REST + GraphQL APIs** -- trigger-style REST for all commands, AshGraphql for read-only queries and the Process Model graph
 - **WebSocket** -- Phoenix Channels for real-time event streaming
-- **PostgreSQL Persistence** -- Ash framework with partitioned audit tables and configurable retention
+- **PostgreSQL Persistence** -- Ash framework with partitioned audit tables. Automated retention (RetentionRunner) is **Phase 7** and does not ship.
 - **JWT Authentication** -- HS256, RS256, ES256, and JWKS with claim-based authorization; pluggable Auth Provider for custom identity resolution
-- **PI Retry/Restart** -- retry failed or aborted process instances with optional version migration and checkpoint reset
+- **PI Retry** -- retry failed or aborted process instances with optional version migration and checkpoint reset. There is no separate restart command.
 - **Back-Pressure** -- three-layer overload protection: PI admission control, start rate limiting, and overload signaling
 
 ## Architecture at a Glance
 
-The engine is an Elixir umbrella project with 15 OTP applications organized into four layers:
+The engine is an Elixir umbrella project with **14 OTP applications** organized into four layers:
 
 | Layer | Applications | Purpose |
 |-------|-------------|---------|

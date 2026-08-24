@@ -20,8 +20,8 @@ When a conditional event is reached:
 | Intermediate Conditional Catch Event | Intermediate | Waits until the condition becomes true, then continues |
 | Conditional Boundary Event (interrupting) | Boundary | Monitors the condition while a host activity is active; fires once to interrupt the host |
 | Conditional Boundary Event (non-interrupting) | Boundary | Monitors the condition while a host activity is active; fires at most once to spawn a parallel branch |
-
-Conditional Start Events exist in BPMN 2.0 but are not supported by the engine at this time (Phase 5 — Event Subprocesses).
+| Conditional Start Event (Event Subprocess) | ESP start | **Live.** An Event Subprocess may start on a `false → true` FEEL transition |
+| Conditional Start Event (top-level) | Top-level start | **Not supported.** A top-level Conditional Start does not create a new PI |
 
 ## BPMN XML
 
@@ -139,6 +139,6 @@ After an engine restart, conditional events are properly resumed:
 
 ## Limitations
 
-- **No Conditional Start Events**: Conditional Start Events are parsed but not supported at runtime (planned for Phase 5 with Event Subprocesses)
+- **Top-level Conditional Start Events** are not supported (no new PI from a condition). **Event Subprocess Conditional Start is live** — see [Event Subprocesses](event-subprocesses.md).
 - **No looping non-interrupting**: Conditional non-interrupting boundaries fire at most once per host activity lifecycle
 - **No external trigger**: Conditional events cannot be triggered via REST API — they fire exclusively based on PI-internal state changes

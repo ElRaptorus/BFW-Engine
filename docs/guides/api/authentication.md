@@ -71,12 +71,19 @@ Engine-specific claims:
 |-------|--------|---------|
 | `deploy_bpmn` | `true` | Permission to deploy BPMN processes via `POST /processes`, enable/disable via `PUT` |
 | `delete_bpmn` | `true` | Permission to delete process versions via `DELETE /processes/{model_id}/versions/{ver}` |
+| `deploy_dmn` | `true` | Permission to deploy / enable / disable DMN via `/decisions` |
+| `delete_dmn` | `true` | Permission to undeploy DMN definitions and versions |
 | `abort_process_instance` | `"none"`, `"own"`, `"all"` | Scope for aborting process instances |
 | `retry_process_instance` | `"none"`, `"own"`, `"all"` | Scope for retrying terminal process instances via `PUT /process-instances/{id}/retry` |
 | `delete_process_instance` | `"none"`, `"own"`, `"all"` | Scope for soft-deleting terminal process instances via `DELETE /process-instances/{id}` |
+| `manage_adhoc_subprocess` | `true` | Ad-hoc subprocess list / activate / complete / status |
+| `trigger_message` | `"all"` | Publish a named message via `POST /messages/{name}/trigger` |
+| `trigger_signal` | `"all"` | Broadcast a named signal via `POST /signals/{name}/trigger` |
+| `trigger_escalation` | `true` | Inject an escalation via `POST /escalations/{code}/trigger` |
 | `lane:<name>` | `"read"` \| `"write"` | `"write"`: act. `"read"`: observe only. Boolean `true` is rejected. Example: `"lane:accounting": "write"` |
 | `observe_all` | `true` | Unbounded read/observe. Never a write bypass. |
 | `zeeky_boogie_doog` | `true` | Admin override — bypasses visibility **and** write restrictions |
+| `purge_audit_data` | `true` | **Phase 7 planned** — not enforced today; RetentionRunner does not ship |
 | `roles` | `[string]` | Role list (reserved for future use) |
 | `groups` | `[string]` | Group memberships (extracted from JWT) |
 
@@ -138,13 +145,13 @@ The `retry_process_instance` claim controls who can retry failed or aborted PIs 
 | `"own"` | Can retry PIs the caller originally started |
 | `"all"` | Can retry any PI |
 
-See [Retry and Restart](../handbook/retry-restart.md) for full endpoint documentation.
+See [Retry](../handbook/retry.md) for full endpoint documentation.
 
 ## Related
 
 - [Security](../operations/security.md) -- production JWT configuration and key rotation
 - [User Tasks](../handbook/user-tasks.md) -- assignee claims and lane authorization
-- [Retry and Restart](../handbook/retry-restart.md) -- PI retry authorization
+- [Retry](../handbook/retry.md) -- PI retry authorization
 - [REST API Reference](rest-reference.md) -- endpoints requiring authentication
 - [WebSocket API](websocket.md) -- channel authentication and authorization
 - [Plugin Development](../plugins/getting-started.md) -- implementing a custom Auth Provider

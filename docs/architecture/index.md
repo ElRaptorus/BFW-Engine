@@ -41,4 +41,4 @@ The `docs/guides/handbook/` directory contains per-topic user guides with worked
 
 - **Compensation** (`docs/guides/handbook/compensation.md`) — Compensation modeling (Saga pattern, LIFO, ESP handlers, trigger-vs-mechanism)
 - **Event Subprocesses** (`docs/guides/handbook/event-subprocesses.md`) — Event Subprocess modeling and trigger semantics
-- **Retry / Restart** (`docs/guides/handbook/retry-restart.md`) — PI retry, checkpoint reset, version migration
+- **Retry** (`docs/guides/handbook/retry.md`) — PI retry, checkpoint reset, version migration

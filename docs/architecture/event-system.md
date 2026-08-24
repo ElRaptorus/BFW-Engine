@@ -80,13 +80,12 @@ Config keys:
 | Category | Behaviour | Conflict rule |
 |---|---|---|
 | Service Task handler | `@behaviour EvilEngine.Plugin.ServiceTaskHandler` | Unique by `implementation`; duplicate → error at registration, NOT crash |
-| Persistence adapter | `@behaviour EvilEngine.Plugin.PersistenceAdapter` | **Not in v1** (registration accepted, unused) |
-| REST API extension | `@behaviour EvilEngine.Plugin.RestApiExtension` | Mounted under configured route prefix. JWT resolved; no engine claim policy. Reserved prefixes rejected. |
+| REST API extension | `@behaviour EvilEngine.Plugin.RestApiExtension` | Mounted under configured route prefix. JWT resolved; no engine claim policy. Reserved prefixes rejected (including `/escalations`). |
 | Event sink | `@behaviour EvilEngine.Plugin.EventSink` | Many allowed; each registration is an independent fan-out target on `EngineEventBus` ([EngineEventBus + EventSinks](#engineeventbus--eventsinks)). Replaces the pre-EventSink "Lifecycle subscriber" category |
-| Monitoring panel | `@behaviour EvilEngine.Plugin.MonitoringPanel` | **Not in v1** (registration accepted, unused) |
-| Timer source | `@behaviour EvilEngine.Plugin.TimerSource` | **Not in v1** (registration accepted, unused) |
-| DataStore adapter | `@behaviour EvilEngine.Plugin.DataStoreAdapter` | **Not in v1** (registration accepted, unused). DataStores are a parser no-op. |
 | Named script (for `<evil:scriptRef>`) | `@behaviour EvilEngine.Plugin.NamedScript` | Unique by script-key |
+| Auth provider | `@behaviour EvilEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins) |
+
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them.
 
 **`EventSink` behaviour shape**:
 

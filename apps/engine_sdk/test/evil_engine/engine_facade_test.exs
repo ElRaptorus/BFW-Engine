@@ -6,14 +6,10 @@ defmodule EvilEngine.EngineFacadeTest do
   @registration_fields_2arity [
     :register_service_task_handler,
     :register_named_script,
-    :register_persistence_adapter,
-    :register_rest_api_extension,
-    :register_timer_source,
-    :register_data_store_adapter
+    :register_rest_api_extension
   ]
 
   @registration_fields_1arity [
-    :register_monitoring_panel,
     :register_auth_provider
   ]
 

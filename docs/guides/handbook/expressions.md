@@ -6,28 +6,40 @@ FEEL (Friendly Enough Expression Language) is the expression language defined by
 
 | Context | Example |
 |---------|---------|
-| Conditional sequence flows | `token.amount > 1000` on Exclusive Gateway outgoing flows |
-| Service Task HTTP body | `evil:httpBody` expression evaluated before request |
-| Service Task HTTP auth header | `evil:httpAuthHeader` expression |
-| Service Task HTTP response headers | `evil:httpResponseHeaders` mapping |
-| Input/output mappings | Call Activity `in_mappings` and `out_mappings` |
-| Correlation keys | `evil:correlationKey` on a process |
-| Unary tests | Gateway conditions, decision table cells |
+| Conditional sequence flows | `token.amount > 1000` on Exclusive / Inclusive / Complex Gateway outgoing flows |
+| Script Task / FEEL BRT | `<bpmn:script>` body |
+| Service Task HTTP body / auth / response headers | `evil:httpBody`, `evil:httpAuthHeader`, `evil:httpResponseHeaders` |
+| Input/output mappings | `evil:inputMapping` / `evil:outputMapping` `source` |
+| Correlation | Process `evil:correlationKey`; throw `evil:correlationRetrievalExpression` |
+| Message payload / mapping | `evil:payload`, `evil:eventMapping` |
+| Timer expressions | `timeDate` / `timeDuration` / `timeCycle` |
+| User Task | `evil:assignees`, `evil:dueDate` |
+| Multi-Instance / Standard Loop | `evil:inputCollection`, `evil:loopBreakCondition`, `<loopCondition>` |
+| Complex Join | `<bpmn:activationCondition>` (gets `activatedCount` / `incomingCount`) |
+| Ad-hoc completion / activation | `<completionCondition>`, `evil:activeElements` |
+| Unary tests | Decision table cells |
 
 ## Context Bindings
 
-Every expression evaluates within a context of seven root bindings, plus an optional loop overlay:
+Every expression evaluates against seven root bindings. Overlays are added only while the matching construct is evaluating.
 
-| Binding | Contents |
-|---------|----------|
-| `token` | Current token payload (the main data flowing through the process) |
+| Binding | Description |
+|---------|-------------|
+| `token` | Current flow node's input token (runtime payload) |
 | `this` | Current flow node metadata (`id`, `name`, `type`) |
-| `context` | Shared process-level context map |
-| `dataObjects` | Current Data Object snapshot for the PI |
+| `context` | Immutable process-level variables from the start payload (`started_with_context`), available unchanged for the entire PI lifetime |
+| `dataObjects` | Data objects attached to the process (by ID) |
 | `process` | Process metadata (`id`, `name`, `version`) |
-| `processInstance` | PI metadata (`id`, `startedAt`, `startedBy`) |
-| `identity` | Caller identity from JWT claims (`id`, `name`, `roles`) |
-| `loop` | *(optional)* Multi-Instance iteration context (`index`, `total`, `completed`) |
+| `processInstance` | Instance metadata (`id`, `startedAt`, `startedBy`) |
+| `identity` | Caller identity (`id`, `roles`, `groups`, `claims`) — **no** `name` |
+| `loop` | Iteration overlay (Multi-Instance / Standard Loop; absent otherwise). Sub-keys: `loop.index` (0-based), `loop.total` (collection length or `null` for Standard Loop), `loop.completed`, `loop.results`, `loop.item` (current collection element for MI; `null` for Standard Loop) |
+| `activatedCount` | Complex Join only: incoming branches that have delivered a token so far |
+| `incomingCount` | Complex Join only: total incoming sequence flows |
+| `performedActivities` | Ad-hoc completion only: count of inner FNIs in `:finished` |
+| `activeCount` | Ad-hoc completion only: inner FNIs in `:active` or `:waiting` |
+| `totalActivities` | Ad-hoc completion only: total inner activities in the model |
+
+Bindings are camelCase per the FEEL spec. The engine assembles them in `Context.from_handler_context/2`.
 
 ### Accessing Bindings
 
@@ -35,8 +47,10 @@ Every expression evaluates within a context of seven root bindings, plus an opti
 token.amount              => 500
 this.name                 => "Review Order"
 process.version           => "2.1.0"
-identity.name             => "Alice"
+identity.id               => "user-42"
+identity.roles            => ["clerk"]
 dataObjects.customerName  => "Bob"
+loop.index                => 0
 ```
 
 ## Supported Types

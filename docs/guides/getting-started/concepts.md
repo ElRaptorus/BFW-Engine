@@ -37,11 +37,11 @@ A running execution of a process version. PIs are isolated OTP processes (`:gen_
 | `escalated` | Finished after an uncaught escalation propagated to root — business outcome | No |
 | `cancelled` | Transaction subprocess cancelled via Cancel End Event — business outcome | No |
 
-`:error` / `:fatal` / `:aborted` are retryable via the [Retry and Restart](../handbook/retry-restart.md) mechanism. `:compensated`, `:escalated`, and `:cancelled` are **terminal-but-handled** — they are intentional business outcomes and are not retryable.
+`:error` / `:fatal` / `:aborted` are retryable via the [Retry](../handbook/retry.md) mechanism. `:compensated`, `:escalated`, and `:cancelled` are **terminal-but-handled** — they are intentional business outcomes and are not retryable.
 
 ### Flow Node Instance (FNI)
 
-One step within a PI. When a token reaches a flow node, the engine creates an FNI and dispatches it to the appropriate handler. FNI states: `active` (executing), `waiting` (paused for external input), `finished`, `fatal`, `aborted` (stopped by an external actor), or `interrupted` (stopped by another BPMN element).
+One step within a PI. When a token reaches a flow node, the engine creates an FNI and dispatches it to the appropriate handler. FNI states: `active` (executing), `waiting` (paused for external input), `finished`, `fatal`, `aborted` (stopped by an external actor), `interrupted` (stopped by another BPMN element such as a Terminate End Event or interrupting boundary), or `error` (this FNI threw a modeled BPMN Error End Event, or was collateral of one).
 
 ### Token
 
@@ -53,26 +53,99 @@ When a PI finishes, each End Event that completed produces a **Final Token** —
 
 ### Identity
 
-Every action carries an **Identity** derived from the caller's JWT claims. The identity includes `id`, `name`, `roles`, and domain-specific claims (e.g., `deploy_bpmn`, `lane:accounting`). See [Authentication](../api/authentication.md) for the full claim dictionary.
+Every action carries an **Identity** derived from the caller's JWT claims. The identity includes `id`, `roles`, `groups`, and `claims` (e.g. `deploy_bpmn`, `lane:accounting`). There is **no** `name` field. See [Authentication](../api/authentication.md) for the full claim dictionary.
 
 ## The `evil:` Extension Namespace
 
-The engine extends BPMN with custom elements under `xmlns:evil="https://evilengine.dev/schema/bpmn"`:
+The engine extends BPMN with custom elements under `xmlns:evil="https://evilengine.dev/schema/bpmn"`. The catalog below is the live engine extension vocabulary. FEEL notes live in [FEEL Expressions](../handbook/expressions.md).
 
-| Extension | Element Type | Purpose |
-|-----------|-------------|---------|
-| `evil:version` | Process | Mandatory version identifier |
-| `evil:correlationKey` | Process | FEEL expression for message correlation |
-| `implementation` (BPMN attr) | Service Task | Handler dispatch key (e.g., `"http"`) |
-| `evil:httpUrl`, `evil:httpMethod`, `evil:httpBody`, `evil:httpAuthHeader` | Service Task | Built-in HTTP handler config |
-| `evil:assignees` | User Task | FEEL expression that resolves to the list of assignees at runtime (e.g. `identity.groups` or `["clerk_role", "manager_role"]`) |
-| `evil:formFields` | User Task | Formkit-opaque form definition |
-| `evil:resultContract` | User Task | JSON Schema for result validation |
-| `evil:dueDate`, `evil:priority` | User Task | Task metadata |
-| `evil:requireConfirmation` | Manual Task | When `true`, task waits for operator confirmation |
-| `evil:scriptRef` | Script Task | Named script plugin key (dispatches to `NamedScript` handler) |
-| `evil:inputMapping` / `evil:outputMapping` | Call Activity | FEEL expressions mapping variables between parent and child process scopes |
-| `evil:valueContract` | Data Object | JSON Schema for validating Data Object writes |
+### Process and definitions
+
+| Extension | Where | Purpose |
+|-----------|-------|---------|
+| `evil:version` | Process (required) | Deployment version string |
+| `evil:correlationKey` | Process | Catch-side FEEL correlation for messages |
+| `evil:LinterRulesetScore` | Definitions → `evil:Properties` | Studio linter-gate scores (`rulesetId`, `scorePercent`, …) |
+
+### Shared data pipeline
+
+| Extension | Where | Purpose |
+|-----------|-------|---------|
+| `evil:inputMapping` / `evil:outputMapping` | Tasks, Call Activity, SubProcess, throw/catch events | FEEL `source` → `target` |
+| `evil:payloadContract` / `evil:resultContract` | Tasks, throw/catch message events (flow-node `extensionElements`, never inside the event definition) | JSON Schema on input / output |
+| `evil:dataContract` | Any flow node | JSON Schema with `direction` `input` or `output` |
+
+### Service Task
+
+| Extension | Notes |
+|-----------|-------|
+| `implementation` (BPMN attribute) | Required dispatch key (e.g. `"http"`) |
+| `evil:httpUrl` / `evil:httpMethod` | Static text (not FEEL) |
+| `evil:httpBody` / `evil:httpAuthHeader` / `evil:httpResponseHeaders` | FEEL |
+
+### Business Rule Task
+
+| Extension | Notes |
+|-----------|-------|
+| `implementation` | `"feel"` (inline `<script>`) or `"dmn"` |
+| `evil:decisionRef` | Required for `"dmn"` |
+| `evil:decisionElementId` | Which `<decision>` in a multi-decision model |
+| `evil:resultVariable` | Output variable name |
+| `evil:traceUnmatchedRules` | When `true`, DMN traces unmatched rules |
+
+### Script, User, Manual
+
+| Extension | Element | Notes |
+|-----------|---------|-------|
+| `evil:scriptRef` | Script Task | Named script plugin key |
+| `evil:assignees` | User Task | FEEL list of assignees |
+| `evil:formFields` | User Task | Formkit-opaque JSON |
+| `evil:dueDate` | User Task | FEEL **or** ISO 8601 |
+| `evil:priority` | User Task | Integer |
+| `evil:requireConfirmation` | Manual Task | When `true`, waits for `FinishUserTask` |
+
+### Message events
+
+| Extension | Side | Notes |
+|-----------|------|-------|
+| `evil:payload` | Throw | FEEL outgoing payload |
+| `evil:eventMapping` | Catch | FEEL maps received payload into the token |
+| `evil:correlationRetrievalExpression` | Throw | FEEL stamp on the published message |
+| `evil:correlationKey` | Process (catch) | Catch-side expected correlation |
+
+### Error (never on escalation)
+
+| Extension | Where |
+|-----------|-------|
+| `evil:errorCode` / `evil:errorMessage` | Inside `<errorEventDefinition>` only |
+
+Escalation identity is the global `<bpmn:escalation escalationCode="…">` referenced by `escalationRef`. Do not put `evil:errorCode` on an escalation definition.
+
+### Call Activity / SubProcess / Ad-hoc
+
+| Extension | Notes |
+|-----------|-------|
+| `evil:startEventId` | Call Activity: which child start event |
+| `evil:activeElements` | Ad-hoc: FEEL list of inner activity IDs |
+| `implementation` | Ad-hoc: plugin-managed mode when set |
+| `<bpmn:completionCondition>` | Ad-hoc: standard FEEL completion |
+
+### Multi-Instance / Standard Loop
+
+| Extension / attribute | Notes |
+|-----------------------|-------|
+| `evil:inputCollection` / `evil:outputCollection` | MI collections |
+| `evil:elementVariable` / `evil:outputElementVariable` | Item / output names |
+| `evil:loopBreakCondition` | Sequential early exit |
+| `evil:loopInterval` | ISO 8601 pause between sequential iterations |
+| `evil:maxIterations` | Sequential: truncates. Parallel: fail-fast `collection_exceeds_max_iterations` |
+| `testBefore` / `loopMaximum` / `<loopCondition>` | Standard loop |
+
+### Data Object
+
+| Extension | Purpose |
+|-----------|---------|
+| `evil:valueContract` | JSON Schema on every write |
 
 ## Data Objects
 
@@ -84,7 +157,7 @@ See the [Data Objects handbook](../handbook/data-objects.md) for full documentat
 
 FEEL (Friendly Enough Expression Language) is the expression language from the DMN specification, used for conditions, mappings, and computed values. The engine evaluates FEEL via a high-performance Rust NIF.
 
-Expressions operate within a context of seven root bindings: `token`, `this`, `context`, `dataObjects`, `process`, `processInstance`, and `identity`. An optional `loop` overlay is added during Multi-Instance iterations.
+Expressions operate against seven root bindings (`token`, `this`, `context`, `dataObjects`, `process`, `processInstance`, `identity`) plus overlays: `loop.*` (MI / Standard Loop), `activatedCount` / `incomingCount` (Complex Join), and `performedActivities` / `activeCount` / `totalActivities` (ad-hoc completion). Identity has `id`, `roles`, `groups`, `claims` — **no** `name`.
 
 For the full expression reference including types, built-in functions, and examples, see [FEEL Expressions](../handbook/expressions.md).
 
@@ -99,10 +172,6 @@ The engine is extensible through a behaviour-based plugin system. Plugins implem
 | `EvilEngine.Plugin.RestApiExtension` | Mount additional REST/HTTP routes |
 | `EvilEngine.Plugin.NamedScript` | Handle `evil:scriptRef` execution |
 | `EvilEngine.Plugin.AuthProvider` | Replace the built-in JWT verifier with custom identity resolution |
-| `EvilEngine.Plugin.PersistenceAdapter` | **Not in v1** — registration may be accepted and ignored |
-| `EvilEngine.Plugin.MonitoringPanel` | **Not in v1** — registration may be accepted and ignored |
-| `EvilEngine.Plugin.TimerSource` | **Not in v1** — registration may be accepted and ignored |
-| `EvilEngine.Plugin.DataStoreAdapter` | **Not in v1** — DataStores are a parser no-op; registration may be accepted and ignored |
 
 Plugins are loaded at engine boot via `on_load(engine_facade)` and receive an `on_ready(engine_facade)` callback once the full engine is reachable. See [Plugin Development](../plugins/getting-started.md) for implementation details.
 
@@ -114,6 +183,6 @@ See the [Link Events handbook](../handbook/link-events.md) for full documentatio
 
 ## Process Instance Retry
 
-Terminal PIs (`fatal`, `aborted`, or `error`) can be restarted via `PUT /process-instances/{id}/retry`. Retry supports optional version migration to a newer compatible process definition and checkpoint-based partial restarts. `:compensated`, `:escalated`, and `:cancelled` are not retryable.
+Terminal PIs (`fatal`, `aborted`, or `error`) can be retried via `PUT /process-instances/{id}/retry`. There is no separate restart command. Retry supports optional version migration to a newer compatible process definition and checkpoint-based partial restarts. `:compensated`, `:escalated`, and `:cancelled` are not retryable.
 
-See the [Retry and Restart handbook](../handbook/retry-restart.md) for full documentation.
+See the [Retry handbook](../handbook/retry.md) for full documentation.

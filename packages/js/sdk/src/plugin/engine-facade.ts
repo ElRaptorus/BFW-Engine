@@ -48,21 +48,16 @@ import type { StartResult } from '../types/start.js';
 import type { TimerSchedule } from '../types/timer-schedule.js';
 import type { MessageTriggerResult, SignalTriggerResult, TimerTriggerResult, EscalationTriggerResult } from '../types/trigger.js';
 import type { AuthProviderHandler } from './auth-provider.js';
-import type { DataStoreAdapterHandler } from './data-store-adapter.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
-import type { MonitoringPanelHandler } from './monitoring-panel.js';
 import type { NamedScriptHandler } from './named-script-handler.js';
-import type { PersistenceAdapterHandler } from './persistence-adapter.js';
 import type { RestApiExtensionHandler } from './rest-api-extension.js';
 import type { ServiceTaskHandler } from './service-task-handler.js';
-import type { TimerSourceHandler } from './timer-source.js';
 
 /**
  * This interface mirrors the in-BEAM Elixir `EvilEngine.EngineFacade` struct
  * passed to plugin `on_load` / `on_ready`. Sidecar host (gRPC) is deferred
- * (PLUG-D1). Stub capabilities (`TimerSource`, `MonitoringPanel`,
- * `DataStoreAdapter`, plugin `PersistenceAdapter`) may still be registered;
- * registration is accepted and unused at runtime — they are not in v1.
+ * (PLUG-D1). PersistenceAdapter, MonitoringPanel, TimerSource, and
+ * DataStoreAdapter plugin capabilities do not exist — do not register them.
  *
  * Registration methods accept the handler instance directly so that
  * TypeScript enforces the handler contract at compile time.
@@ -77,11 +72,7 @@ export interface EngineFacade {
 
   registerServiceTaskHandler(implementation: string, handler: ServiceTaskHandler): Promise<RegistrationResult>;
   registerNamedScript(scriptKey: string, handler: NamedScriptHandler): Promise<RegistrationResult>;
-  registerPersistenceAdapter(adapterId: string, handler: PersistenceAdapterHandler): Promise<RegistrationResult>;
   registerRestApiExtension(prefix: string, handler: RestApiExtensionHandler): Promise<RegistrationResult>;
-  registerMonitoringPanel(handler: MonitoringPanelHandler): Promise<RegistrationResult>;
-  registerTimerSource(timerType: string, handler: TimerSourceHandler): Promise<RegistrationResult>;
-  registerDataStoreAdapter(storeId: string, handler: DataStoreAdapterHandler): Promise<RegistrationResult>;
   registerAuthProvider(handler: AuthProviderHandler): Promise<RegistrationResult>;
   registerEventSink(name: string, handler: EventSinkHandler, options?: EventSinkOptions): Promise<RegistrationResult>;
 
@@ -148,6 +139,7 @@ export interface FacadeServiceTasks {
 
 export interface FacadeFlowNodeInstances {
   get(id: string): Promise<FlowNodeInstance>;
+  listForProcessInstance(processInstanceId: string): Promise<FlowNodeInstance[]>;
 }
 
 export interface FacadeDataObjects {

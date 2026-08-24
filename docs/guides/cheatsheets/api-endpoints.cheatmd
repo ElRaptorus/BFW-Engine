@@ -3,17 +3,17 @@
 ## Public (No Auth)
 
 ```
-GET  /health          Liveness/readiness
-GET  /metrics          Prometheus metrics
-GET  /info            Engine identity + flags
+GET  /health           204 No Content (liveness). Load lives on /stats.
+GET  /metrics          Prometheus text (EVIL_METRICS_ENABLED, default on; unauthenticated)
+GET  /info             Engine identity
 ```
 
 ## Devtools (disabled in prod by default — EVIL_DEVTOOLS_ENABLED)
 
 ```
-GET  /                Swagger UI
-GET  /api/openapi     OpenAPI 3.x spec (also via EVIL_EXPOSE_OPENAPI_SPEC)
-GET  /admin/graphiql  Playground with example tabs
+GET  /                 Swagger UI
+GET  /api/openapi      OpenAPI 3.x spec (also via EVIL_EXPOSE_OPENAPI_SPEC)
+GET  /admin/graphiql   Playground with example tabs
 ```
 
 ## Authenticated (JWT Bearer)
@@ -21,11 +21,11 @@ GET  /admin/graphiql  Playground with example tabs
 ### Process Catalog
 
 ```
-GET    /processes                         List deployed processes
+GET    /processes                              List deployed processes
 GET    /processes/{model_id}                   Process metadata (?includeXml)
 GET    /processes/{model_id}/versions          Version history (?includeXml)
-POST   /processes                         Deploy BPMN (JSON: {"sources": [...]})
-POST   /processes/{model_id}/start             Start new PI
+POST   /processes                              Deploy BPMN (JSON: {"sources": [...]})
+POST   /processes/{model_id}/start             Start new PI (disabled process → 422)
 PUT    /processes/{model_id}/enable            Enable process (204)
 PUT    /processes/{model_id}/disable           Disable process (204)
 DELETE /processes/{model_id}                   Undeploy process (204)
@@ -43,24 +43,70 @@ PUT    /user-tasks/{fniId}/cancel         Cancel + abort PI (204)
 
 ```
 PUT    /process-instances/{id}/abort      Abort running PI (204)
+PUT    /process-instances/{id}/retry      Retry terminal PI (fatal/aborted/error)
 DELETE /process-instances/{id}            Delete terminal PI (204)
+```
+
+### Messages / Signals / Escalations
+
+```
+POST   /messages/{message_name}/trigger              Publish message
+POST   /signals/{signal_name}/trigger                Broadcast signal
+POST   /escalations/{escalation_code}/trigger        Inject escalation
+```
+
+### Timers
+
+```
+POST   /timer-events/{fniId}/trigger                 Fire waiting timer FNI
+GET    /timer-schedules                              List Timer Start schedules
+GET    /timer-schedules/{id}                         Show one schedule
+PUT    /timer-schedules/{id}/enable                  Enable schedule (204)
+PUT    /timer-schedules/{id}/disable                 Disable schedule (204)
+```
+
+### Decisions (DMN)
+
+```
+GET    /decisions                                    List deployed decisions
+GET    /decisions/{model_id}                         Metadata (?includeXml)
+GET    /decisions/{model_id}/versions                Version history
+POST   /decisions                                    Deploy DMN
+POST   /decisions/{model_id}/evaluate                Ad-hoc evaluate
+POST   /decisions/{model_id}/versions/{ver}/evaluate Evaluate pinned version
+POST   /decisions/{model_id}/services/{id}/evaluate  Evaluate Decision Service
+PUT    /decisions/{model_id}/enable                  Enable (204)
+PUT    /decisions/{model_id}/disable                 Disable (204)
+DELETE /decisions/{model_id}                         Undeploy (204)
+DELETE /decisions/{model_id}/versions/{ver}          Delete version (204)
+```
+
+### Ad-hoc subprocesses
+
+`{id}` is the child process instance ID.
+
+```
+GET    /adhoc-subprocesses/{id}/activities
+POST   /adhoc-subprocesses/{id}/activities/{activity_id}/activate
+POST   /adhoc-subprocesses/{id}/complete
+GET    /adhoc-subprocesses/{id}/status
 ```
 
 ### Observability
 
 ```
-GET    /stats                             Engine snapshot
+GET    /stats                             Engine snapshot (camelCase; engine.load)
 ```
 
 ## GraphQL
 
 ```
-POST   /api/v1/graphql                    Queries (Ash-generated)
+POST   /api/v1/graphql                    Queries only (no mutations)
 ```
 
 ## WebSocket
 
 ```
 ws://host:port/socket                    Phoenix Channels
-Topics: engine:events | pi:<id>
+Topics: engine:events | process_instance:<id> | user_tasks:pending
 ```

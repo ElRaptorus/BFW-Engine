@@ -80,7 +80,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/handbook/data-objects.md",
           "docs/guides/handbook/link-events.md",
           "docs/guides/handbook/compensation.md",
-          "docs/guides/handbook/retry-restart.md",
+          "docs/guides/handbook/retry.md",
           "docs/guides/handbook/error-handling.md",
           "docs/guides/handbook/monitoring.md",
 
@@ -96,7 +96,6 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/plugins/service-task-handler.md",
           "docs/guides/plugins/event-sink.md",
           "docs/guides/plugins/api-extension.md",
-          "docs/guides/plugins/persistence-adapter.md",
           "docs/guides/plugins/other-behaviours.md",
           "docs/guides/plugins/builtin-plugins.md",
 

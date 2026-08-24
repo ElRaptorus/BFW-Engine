@@ -51,6 +51,7 @@ DMN mode resolves a deployed DMN decision table by `evil:decisionRef` and evalua
 <bpmn:businessRuleTask id="BRT_1" name="Discount Rules" implementation="dmn">
   <bpmn:extensionElements>
     <evil:decisionRef>discount-rules</evil:decisionRef>
+    <evil:decisionElementId>Decision_Discount</evil:decisionElementId>
     <evil:resultVariable>discountResult</evil:resultVariable>
     <evil:traceUnmatchedRules>true</evil:traceUnmatchedRules>
   </bpmn:extensionElements>
@@ -62,6 +63,7 @@ The engine resolves the latest enabled version of the DMN model, loads the parse
 | Extension | Purpose |
 |-----------|---------|
 | `evil:decisionRef` | DMN decision model ID to resolve at runtime |
+| `evil:decisionElementId` | Which `<decision>` to evaluate when the DMN model contains more than one. Omit for single-decision models |
 | `evil:resultVariable` | Wrap the DMN result under this key (optional; without it, the raw result map is the output) |
 | `evil:traceUnmatchedRules` | When `true`, include unmatched rule details in the evaluation trace |
 
