@@ -92,7 +92,7 @@ config :peripheral_plugins, auth_provider_registry: EvilEngine.Auth.ProviderRegi
 config :core_timers,
   tick_interval_ms: 1_000,
   timer_start_target: EvilEngine.Execution.TimerStartListener,
-  persistence_module: EvilEngine.Timers.Persistence.NoOp
+  persistence_module: EvilEngine.Persistence.TimerStartScheduleAdapter
 
 # --- Telemetry -----------------------------------------------------------
 # --- Telemetry -----------------------------------------------------------

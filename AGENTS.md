@@ -1353,7 +1353,7 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `laneName`, `occurredAt` | Emitted when a message reaches a waiting subscription. `laneName` is copied from the catch-side subscription. |
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | No payload, no correlation; true broadcast. Emitted after pipeline completes |
 | `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `laneName`, `occurredAt` | No payload — signal identity and recipient only. `laneName` is copied from the catch-side subscription. |
-| `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught). `throwType`: `"end_event"` or `"intermediate_throw"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. `laneName` is the throw FNI's lane. |
+| `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught) and on REST/plugin inject. `throwType`: `"end_event"`, `"intermediate_throw"`, or `"api_trigger"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. `laneName` is the throw FNI's lane. |
 | `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `laneName`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
 | `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `laneName`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
 | `TransactionCancelled` | `processInstanceId`, `rootProcessInstanceId`, `transactionNodeId`, `compensationHandlerCount`, `laneName`, `occurredAt` | Emitted after all automatic LIFO compensation completes and the transaction child PI is about to transition to `:cancelled`. `compensationHandlerCount` is the number of compensation handlers that ran (0 if no completed compensable activities). Broadcast to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`. `laneName` is the transaction shell's lane. |
@@ -1509,6 +1509,12 @@ The `EvilEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/evil_engine/eng
 - `facade.signals.publish.(signal_name)` → `EvilEngine.Api.publish_signal/3` (with `skip_claims: true` for plugins)
   (no payload, no correlation; plugin identity injected into `origin`)
 - Returns `{:ok, %{signal_id, signal_name, deliveries, started_process_instance_ids, pending}}`
+
+### Escalation facade
+
+- `facade.escalations.publish.(escalation_code)` → `EvilEngine.Api.trigger_escalation/3` (with `skip_claims: true` for plugins)
+  (no payload; engine-wide waiter delivery to ESP starts and waiting Escalation Boundary FNIs)
+- Returns `{:ok, %{escalation_code, deliveries, pending: false}}`
 
 ### Timer event manual trigger and schedules
 
@@ -2134,6 +2140,23 @@ Body: empty or `{}`. Response `200`: `TimerTriggerResult` — `{ "triggered": tr
 TypeScript SDK type: `TimerTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult` alongside `MessageTriggerResult` and `SignalTriggerResult`). Client method: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client`.
 
 Eligible FNIs: Intermediate Catch or Boundary events with `event_type: "timer"`. Delegates to `EvilEngine.Api.trigger_timer_event/3`.
+
+---
+
+## Escalation REST Endpoint
+
+The `EscalationController` (`apps/api_web/lib/evil_engine_web/http/controllers/escalation_controller.ex`)
+exposes engine-wide escalation inject via REST. JWT authentication required.
+
+| Method | Path | Purpose | Required Access |
+|--------|------|---------|-----------------|
+| `POST` | `/escalations/{escalation_code}/trigger` | Inject a named escalation into waiting catchers | boolean `trigger_escalation`, or `zeeky_boogie_doog` |
+
+Body: empty or `{}`. Response `200`: `EscalationTriggerResult` — `{ "escalationCode", "deliveries": [{ "processInstanceId", "flowNodeInstanceId" }], "pending": false }` (camelCase on wire). Empty `deliveries` is success. Errors: `403` (forbidden), `422` (`escalation_code_blank` / `escalation_code_too_long`). Not a modeled throw; no pending; unmatched PIs are not `:escalated`.
+
+TypeScript SDK type: `EscalationTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult`). Client method: `EventClient.triggerEscalation(escalationCode)` in `@elraptorus/daemonengine_client`.
+
+Delegates to `EvilEngine.Api.trigger_escalation/3`.
 
 ---
 

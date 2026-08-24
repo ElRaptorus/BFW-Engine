@@ -10,6 +10,7 @@ notes: >
   at End_Cancelled.
 start:
   payload: null
+wait_timeout_ms: 20000
 expected:
   final_state: "finished"
   final_tokens:

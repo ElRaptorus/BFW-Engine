@@ -87,7 +87,6 @@ Additional trigger-style paths in the table below remain **specified** for v1 pa
 | `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`EVIL_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
 | `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md) §11.2) |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
-| `POST` | `/process-instances/{id}/restart` | **Specified, not implemented.** Restart would start a new PI with original inputs. Live retry is `PUT /process-instances/{id}/retry`. |
 | `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `EVIL_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md) §14.3). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
 | `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
 | `PUT` | `/user-tasks/{fniId}/finish` | Complete with result |
@@ -96,6 +95,7 @@ Additional trigger-style paths in the table below remain **specified** for v1 pa
 | `PUT` | `/process-instances/{id}/retry` | **Retry**: retries a terminal PI. Gated by `retry_process_instance` claim (`own` / `all`). Supports optional version migration and checkpoint reset. 204 on success. |
 | `DELETE` | `/process-instances/{id}` | **Delete**: deletes the PI and its FNIs. Gated by `delete_process_instance` claim (`own` = started-by-self only, `all` = any PI). Running PIs cannot be deleted — caller must abort first. Terminal PIs only |
 | `POST` | `/timer-events/{flow_node_instance_id}/trigger` | **Implemented** — manually fire a waiting timer FNI (Intermediate Catch or Boundary). Body: empty or `{}`. Response: `{triggered: true}`. Auth: lane claim for the FNI's lane (or `zeeky_boogie_doog`). No dedicated trigger claim. See [§10.1.5](#1015-timer-event-manual-trigger-timereventcontroller--implemented) |
+| `POST` | `/escalations/{escalation_code}/trigger` | **Implemented** — inject an escalation into waiting catchers engine-wide (Event Subprocess starts and waiting Escalation Boundary FNIs). Body: empty or `{}`; any `payload` key is silently ignored. Response: `{escalationCode, deliveries: [{processInstanceId, flowNodeInstanceId}], pending: false}`. Auth: boolean `trigger_escalation` via `Validation.check_claim/3`. Empty `deliveries` is success. Not a modeled BPMN throw; no pending table; unmatched PIs are not marked `:escalated`. See [§10.1.6](#1016-escalation-trigger-escalationcontroller--implemented) |
 
 #### 10.1.2 DMN Decision catalog & evaluation (`DecisionController` — implemented)
 
@@ -141,7 +141,17 @@ Body: empty or `{}`. Returns `200` with `{triggered: true}`. Errors: `404` (FNI 
 
 TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client` (`packages/js/client/src/rest/event-client.ts`). SDK type: `TimerTriggerResult` (`packages/js/sdk/src/types/trigger.ts`).
 
-#### 10.1.6 Ad-hoc subprocess control (`AdhocSubprocessController` — implemented)
+#### 10.1.6 Escalation trigger (`EscalationController` — implemented)
+
+| Method | Path | Purpose | Required Claim |
+|---|---|---|---|
+| `POST` | `/escalations/{escalation_code}/trigger` | Inject an escalation into waiting catchers engine-wide | `trigger_escalation` (boolean) |
+
+Body: empty or `{}`; any `payload` key is silently ignored. Escalations carry no payload. Returns `200` with `{escalationCode, deliveries: [{processInstanceId, flowNodeInstanceId}], pending: false}`. Empty `deliveries` is success (no waiter matched). Errors: `403` (missing / false `trigger_escalation`), `422` (`escalation_code_blank` or `escalation_code_too_long`). This is a debugger/operator inject, not a modeled BPMN throw: it delivers to matching waiting Escalation Boundary FNIs and Event Subprocess starts on every running PI. It does not walk the parent chain, does not insert pending rows, and does not mark unmatched PIs `:escalated`. Do not revive `POST /triggers/escalations`. Controller: `EvilEngineWeb.Http.EscalationController`. Delegates to `EvilEngine.Api.trigger_escalation/3`.
+
+TypeScript client: `EventClient.triggerEscalation(escalationCode)` in `@elraptorus/daemonengine_client`. SDK type: `EscalationTriggerResult`. Plugin facade: `facade.escalations.publish.(escalation_code)` with `skip_claims: true`.
+
+#### 10.1.7 Ad-hoc subprocess control (`AdhocSubprocessController` — implemented)
 
 | Method | Path | Purpose | Required Claim |
 |---|---|---|---|
@@ -162,7 +172,7 @@ Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activ
 
 ##### 10.1.1 Payload size limits
 
-Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `EVIL_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` carries no payload — any `payload` key in the body is silently ignored. There is no `POST /triggers/*` RPC surface (those routes were removed). Escalations are thrown from BPMN, not from a public REST trigger. GraphQL is query-only and does not accept command payloads.
+Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `EVIL_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
 
 On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structured body:
 

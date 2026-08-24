@@ -35,5 +35,6 @@ defmodule EvilEngine.Persistence.Api do
     resource EvilEngine.Persistence.Resources.PendingMessage
     resource EvilEngine.Persistence.Resources.Signal
     resource EvilEngine.Persistence.Resources.PendingSignal
+    resource EvilEngine.Persistence.Resources.TimerStartSchedule
   end
 end

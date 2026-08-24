@@ -48,6 +48,7 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | `flow_node_instances` | `EngineFacade.FlowNodeInstances.t()` | Flow Node Instance reads |
 | `data_objects` | `EngineFacade.DataObjects.t()` | Data Object reads + history |
 | `timers` | `EngineFacade.Timers.t()` | Timer event trigger + cycle schedule list/enable/disable |
+| `escalations` | `EngineFacade.Escalations.t()` | Escalation inject into waiting catchers |
 | `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution |
 
 #### `facade.processes`
@@ -115,6 +116,12 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 | `get_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Get one schedule by id |
 | `enable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Re-enable a disabled cycle schedule |
 | `disable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Disable an enabled cycle schedule |
+
+#### `facade.escalations`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `publish` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Inject an escalation code into waiting catchers engine-wide (`EvilEngine.Api.trigger_escalation/3`, `skip_claims: true`). Empty deliveries is success. No payload, no pending. |
 
 ### Registration Validation (in-BEAM only)
 

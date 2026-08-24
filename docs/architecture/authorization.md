@@ -279,7 +279,6 @@ authenticated list request runs it).
 |---|---|---|
 | **Start PI** (`POST /processes/{model_id}/start`) | **Lane check against the chosen Start Event.** If the process has lanes and the Start Event resides on a lane, the caller must have `lane:<lane_name>="write"`. `"read"` or `observe_all` on a visible start event returns **403**. Absent / leftover `true` / garbage / wrong lane returns **404**. If the process has no lanes, or the Start Event is not in any lane, any authenticated caller may start | Enforced in `EvilEngine.Api.start_process_instance/3` via `Validation.check_lane_access`. The starting user's identity is recorded as `started_by` and never re-checked during execution |
 | **Resume** | *(engine-internal, always automatic )* | No user-initiated Resume in v1. The engine's resume path runs with the PI's original `started_by` context — no JWT involved |
-| **Restart** (`POST /process-instances/{id}/restart`) | **Specified, not implemented.** Would be the same as Start: lane check against the new PI's Start Event. Live equivalent is `PUT /process-instances/{id}/retry` (gated by `retry_process_instance`) | Restart is semantically a new PI, not a retry — but that route is not on `Router` today |
 | **Abort** (`PUT /process-instances/{id}/abort`) | `abort_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `abort_process_instance=all` (any PI) | `abort_process_instance=none` or absent → `403` |
 | **Retry** (`PUT /process-instances/{id}/retry`) | `retry_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `retry_process_instance=all` (any PI) | `retry_process_instance=none` or absent → `403`. Enforced in `EvilEngine.Api.retry_process_instance/4` via `Validation.check_scoped_claim/4` — not in the controller. Ownership is checked on the *targeted* PI even in tree-retry scenarios (ancestors are reset implicitly) |
 | Soft-**Delete** (`DELETE /process-instances/{id}`) | `delete_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `delete_process_instance=all` (any PI) | `delete_process_instance=none` or absent → `403` |
@@ -311,7 +310,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 |---|---|---|
 | `POST /messages/{message_name}/trigger` | `trigger_message` | `trigger_message` not `"all"` or absent → 403 |
 | `POST /signals/{signal_name}/trigger` | `trigger_signal` | `trigger_signal` not `"all"` or absent → 403 |
-| `POST /triggers/escalations` | **Specified, not implemented.** Escalations are thrown from BPMN (Error/Escalation End and Intermediate Throw). There is no public REST trigger. The claim `trigger_escalation` is reserved. | Not on `Router` |
+| `POST /escalations/{escalation_code}/trigger` | `trigger_escalation` (boolean) | Enforced via `Validation.check_claim/3`. Absent / false → 403. Empty `deliveries` is still 200. No payload. Do not revive `POST /triggers/escalations` |
 | `POST /timer-events/{flow_node_instance_id}/trigger` | Lane access (`lane:<lane_name>="write"` for the FNI's lane, or FNI is laneless, or `zeeky_boogie_doog=true`) | No dedicated trigger claim. Enforced in `EvilEngine.Api.trigger_timer_event/3` via `Validation.check_lane_access/3`. Visible but not writable (`"read"` / `observe_all`) → `403`. Invisible lane → `404` |
 
 ### 6.5 Observability / admin endpoints

@@ -330,6 +330,7 @@ defmodule EvilEngine.Plugins.Loader do
       decisions: build_decisions_namespace(identity, plugin_name),
       messages: build_messages_namespace(plugin_name),
       signals: build_signals_namespace(plugin_name),
+      escalations: build_escalations_namespace(plugin_name),
       adhoc_subprocesses: build_adhoc_subprocesses_namespace(identity),
       timers: build_timers_namespace(identity),
       graphql: build_graphql_namespace(identity)
@@ -592,6 +593,16 @@ defmodule EvilEngine.Plugins.Loader do
     %EngineFacade.Signals{
       publish: fn signal_name ->
         EvilEngine.Api.publish_signal(signal_name, plugin_identity, skip_claims: true)
+      end
+    }
+  end
+
+  defp build_escalations_namespace(plugin_name) do
+    plugin_identity = plugin_identity(plugin_name)
+
+    %EngineFacade.Escalations{
+      publish: fn escalation_code ->
+        EvilEngine.Api.trigger_escalation(escalation_code, plugin_identity, skip_claims: true)
       end
     }
   end

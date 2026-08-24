@@ -28,5 +28,16 @@ export interface TimerTriggerResult {
   triggered: boolean;
 }
 
+/** Concrete result of an escalation inject. */
+export interface EscalationTriggerResult {
+  escalationCode: string;
+  deliveries: { processInstanceId: string; flowNodeInstanceId: string }[];
+  pending: false;
+}
+
 /** Union of all trigger result types. */
-export type TriggerResult = MessageTriggerResult | SignalTriggerResult | TimerTriggerResult;
+export type TriggerResult =
+  | MessageTriggerResult
+  | SignalTriggerResult
+  | TimerTriggerResult
+  | EscalationTriggerResult;

@@ -215,6 +215,11 @@ describe('EventClient', () => {
     await client.triggerTimer('fni-uuid-123');
     expect(transport.post).toHaveBeenCalledWith('/timer-events/fni-uuid-123/trigger', {});
   });
+
+  it('triggerEscalation sends POST /escalations/{code}/trigger with empty body', async () => {
+    await client.triggerEscalation('ESC_REVIEW');
+    expect(transport.post).toHaveBeenCalledWith('/escalations/ESC_REVIEW/trigger', {});
+  });
 });
 
 describe('DecisionClient', () => {

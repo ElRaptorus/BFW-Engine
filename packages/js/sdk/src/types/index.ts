@@ -27,6 +27,7 @@ export type {
   MessageTriggerResult,
   SignalTriggerResult,
   TimerTriggerResult,
+  EscalationTriggerResult,
 } from './trigger.js';
 export type {
   FormFieldDefinition,

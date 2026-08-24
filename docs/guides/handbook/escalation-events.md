@@ -266,6 +266,19 @@ The parent's non-interrupting boundary fires each time this throw is reached, ac
 
 The engine always evaluates specific-code matches before catch-all, so `CREDIT_LIMIT_EXCEEDED` is routed to `Boundary_credit` and everything else goes to `Boundary_any`.
 
+## Triggering from the API / debugger
+
+`POST /escalations/{escalation_code}/trigger` (claim `trigger_escalation`) injects a named escalation into **waiting catchers** on every running process instance: Event Subprocess starts and waiting Escalation Boundary FNIs. The plugin facade equivalent is `facade.escalations.publish.(escalation_code)`.
+
+This is a debugger/operator inject, the same class as message and signal triggers. It is **not** a modeled BPMN throw:
+
+- It does **not** walk the parent chain. Each running PI is scanned on its own.
+- It does **not** insert pending rows. Unmatched codes return `{deliveries: [], pending: false}`.
+- It does **not** transition unmatched PIs to `:escalated`.
+- It carries **no payload**. Catch-all boundaries (blank code) still match a named trigger when no more-specific waiter exists in that candidate set.
+
+The Studio debugger overlay on an active Escalation Boundary calls this route. Catch-all overlays send a non-blank sentinel such as `__catchall__` so the path parameter is valid.
+
 ## Scope Rules
 
 | Source of escalation | Valid target boundaries |
@@ -283,7 +296,7 @@ Escalation Boundary Events resume correctly after an engine restart. The boundar
 
 ## Limitations
 
-- **No Escalation Start Events**: Escalation Start Events (for Event Subprocesses) are parsed but not supported at runtime (Phase 5).
+- **No top-level Escalation Start Event**: a process cannot be started by an incoming escalation. Escalation Start Events **are** supported on Event Subprocesses (interrupting and non-interrupting).
 - **No Escalation in parallel join context**: If an escalation comes from one branch of a parallel split, it propagates upward without affecting the other parallel branches.
 
 ## Related

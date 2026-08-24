@@ -39,9 +39,9 @@ defmodule EvilEngine.Persistence.Release do
 
   Currently covers: `process_instance_events`, `data_object_writes`,
   `messages`, `pending_messages`, `signals`, `pending_signals`.
-  There is no `pending_escalations` table (escalation D1). Dedicated
-  `escalations`, `compensations`, and `engine_timers` audit tables are
-  specified in the data-model docs but are not in the current migration.
+  There is no `pending_escalations` table (escalation D1). There are no
+  `escalations`, `compensations`, or `engine_timers` tables.
+  `timer_start_schedules` is operational and unpartitioned.
   """
   def ensure_partitions do
     load_app()

@@ -83,6 +83,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   alias EvilEngine.Execution.ProcessInstance.AdHocMode
   alias EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator
   alias EvilEngine.Execution.ProcessInstance.CompensationOrchestrator
+  alias EvilEngine.Execution.ProcessInstance.EscalationTrigger
   alias EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator
   alias EvilEngine.Execution.ProcessInstance.Resumption
   alias EvilEngine.Execution.ProcessInstance.StandardMode
@@ -175,6 +176,18 @@ defmodule EvilEngine.Execution.ProcessInstance do
   @spec trigger_timer_event(pid(), String.t()) :: :ok | {:error, term()}
   def trigger_timer_event(process_instance_pid, flow_node_instance_id) do
     :gen_statem.call(process_instance_pid, {:trigger_timer_event, flow_node_instance_id})
+  end
+
+  @doc """
+  Inject an escalation into waiting catchers in this process instance.
+
+  Delivers to a matching Event Subprocess start and to waiting Escalation
+  Boundary FNIs. Does not walk the parent chain and does not transition
+  the PI to `:escalated` when nothing matched.
+  """
+  @spec trigger_escalation(pid(), map()) :: {:ok, [map()]} | {:error, term()}
+  def trigger_escalation(process_instance_pid, escalation_info) do
+    :gen_statem.call(process_instance_pid, {:trigger_escalation, escalation_info})
   end
 
   @doc "Abort a running process instance."
@@ -994,6 +1007,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
       _other ->
         {:keep_state, data, [{:reply, from, {:error, :fni_not_active_or_found}}]}
     end
+  end
+
+  def running({:call, from}, {:trigger_escalation, escalation_info}, data) do
+    {data, deliveries} = deliver_api_escalation(data, escalation_info)
+    reply_api_escalation_trigger(data, from, deliveries)
   end
 
   def running({:call, from}, {:abort, reason, _identity}, data) do
@@ -3862,6 +3880,120 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # -------------------------------------------------------------------
   # ESP trigger action execution (thin delegation to EspScope)
   # -------------------------------------------------------------------
+
+  defp deliver_api_escalation(data, escalation_info) do
+    {data, esp_deliveries} = fire_api_escalation_esp(data, escalation_info)
+    {data, boundary_deliveries} = fire_api_escalation_boundaries(data, escalation_info)
+    {data, esp_deliveries ++ boundary_deliveries}
+  end
+
+  defp fire_api_escalation_esp(data, escalation_info) do
+    case EspScope.resolve_escalation_catch(data, escalation_info) do
+      {:ok, :noop} ->
+        {data, []}
+
+      {:ok, action} ->
+        previous_ids = MapSet.new(Map.keys(data.flow_node_instance_states))
+        data = execute_esp_action(data, action)
+        record_api_esp_delivery(data, previous_ids, action, escalation_info)
+
+      :none ->
+        {data, []}
+    end
+  end
+
+  defp record_api_esp_delivery(data, previous_ids, action, escalation_info) do
+    case newly_dispatched_esp_flow_node_instance(data, previous_ids, action) do
+      {flow_node_instance_id, flow_node_id} ->
+        emit_escalation_raised(
+          data,
+          flow_node_instance_id,
+          flow_node_id,
+          escalation_info,
+          :api_trigger
+        )
+
+        delivery = %{
+          process_instance_id: data.process_instance_id,
+          flow_node_instance_id: flow_node_instance_id
+        }
+
+        {data, [delivery]}
+
+      nil ->
+        {data, []}
+    end
+  end
+
+  defp newly_dispatched_esp_flow_node_instance(data, previous_ids, {_tag, esp_node, _payload}) do
+    Enum.find_value(data.flow_node_instance_states, fn {flow_node_instance_id, entry} ->
+      if not MapSet.member?(previous_ids, flow_node_instance_id) and
+           entry.flow_node_id == esp_node.id do
+        {flow_node_instance_id, esp_node.id}
+      end
+    end)
+  end
+
+  defp fire_api_escalation_boundaries(data, escalation_info) do
+    fires = EscalationTrigger.matching_waiting_boundaries(data, escalation_info)
+
+    Enum.reduce(fires, {data, []}, fn fire, {accumulator, deliveries} ->
+      apply_api_escalation_boundary_fire(accumulator, deliveries, fire, escalation_info)
+    end)
+  end
+
+  defp apply_api_escalation_boundary_fire(data, deliveries, fire, escalation_info) do
+    data =
+      apply_boundary_catch_or_cycle_fire(
+        data,
+        fire.host_flow_node_instance_id,
+        fire.boundary_node_id,
+        escalation_info,
+        fire.cancel_activity,
+        nil,
+        :catch
+      )
+
+    emit_escalation_raised(
+      data,
+      fire.boundary_flow_node_instance_id,
+      fire.boundary_node_id,
+      escalation_info,
+      :api_trigger
+    )
+
+    delivery = %{
+      process_instance_id: data.process_instance_id,
+      flow_node_instance_id: fire.boundary_flow_node_instance_id
+    }
+
+    {data, deliveries ++ [delivery]}
+  end
+
+  defp reply_api_escalation_trigger(data, from, deliveries) do
+    data = evaluate_parked_inclusive_joins(data)
+    data = evaluate_parked_complex_joins(data)
+    data = evaluate_conditional_waiters(data)
+    data = execute_esp_conditionals(data)
+    reply = {:ok, deliveries}
+
+    if api_escalation_has_fatal_flow_node?(data) do
+      do_transition_to_fatal(data, :fni_fatal, [{:reply, from, reply}])
+    else
+      finish_or_keep_after_api_escalation(data, from, reply)
+    end
+  end
+
+  defp api_escalation_has_fatal_flow_node?(data) do
+    Enum.any?(data.flow_node_instance_states, fn {_id, entry} -> entry.state == :fatal end)
+  end
+
+  defp finish_or_keep_after_api_escalation(data, from, reply) do
+    case maybe_finish(data) do
+      {:stop, data} -> {:stop_and_reply, :normal, [{:reply, from, reply}], data}
+      {:continue, data} -> {:keep_state, data, [{:reply, from, reply}]}
+    end
+  end
 
   defp execute_esp_action(data, {:fire_interrupting, esp_node, payload}) do
     data

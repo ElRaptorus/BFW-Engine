@@ -46,7 +46,7 @@ import type { ProcessModel } from '../types/process-model.js';
 import type { ProcessVersion } from '../types/process-version.js';
 import type { StartResult } from '../types/start.js';
 import type { TimerSchedule } from '../types/timer-schedule.js';
-import type { MessageTriggerResult, SignalTriggerResult, TimerTriggerResult } from '../types/trigger.js';
+import type { MessageTriggerResult, SignalTriggerResult, TimerTriggerResult, EscalationTriggerResult } from '../types/trigger.js';
 import type { AuthProviderHandler } from './auth-provider.js';
 import type { DataStoreAdapterHandler } from './data-store-adapter.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
@@ -96,6 +96,7 @@ export interface EngineFacade {
   dataObjects: FacadeDataObjects;
   messages: FacadeMessages;
   signals: FacadeSignals;
+  escalations: FacadeEscalations;
   graphql: FacadeGraphql;
   adHocSubprocesses: FacadeAdHocSubprocesses;
   decisions: FacadeDecisions;
@@ -167,6 +168,11 @@ export interface FacadeMessages {
 export interface FacadeSignals {
   /** Broadcast a named signal (no payload, no correlation). */
   publish(signalName: string): Promise<SignalTriggerResult>;
+}
+
+export interface FacadeEscalations {
+  /** Inject an escalation code into waiting catchers (no payload). */
+  publish(escalationCode: string): Promise<EscalationTriggerResult>;
 }
 
 export interface FacadeAdHocSubprocesses {

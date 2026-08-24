@@ -21,9 +21,9 @@ The event bus has **two complementary layers**:
 - `"process_instance:#{process_instance_id}"` — lifecycle events for one PI (all transitions + domain events).
 - `"engine:messages"` — published messages (throw-events + external API triggers).
 - `"engine:signals"` — published signals (broadcast).
-- `"engine:escalations"` — escalations (routed to matching boundary/event subprocess subscribers).
-- `"engine:compensations"` — compensation triggers.
 - `"engine:timers"` — timer-fired notifications.
+
+Escalation and compensation observability is `EngineEventBus` (`Event.EscalationRaised`, `Event.CompensationTriggered`, `Event.ActivityCompensated`). There are no `"engine:escalations"` / `"engine:compensations"` PubSub topics and no dedicated audit tables.
 
 Future clustering: swap PubSub adapter to `Phoenix.PubSub.PG2` (multi-node) or `Redis`.
 
@@ -153,7 +153,7 @@ Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1
 
 **A. Kernel-state persistence** (always-on, transactionally coupled with the PI, not routed through the event bus):
 
-- **`process_instances` / `flow_node_instances` / `messages` / `signals` / `escalations` / `data_objects` / `data_object_writes`** — written by `peripheral_persistence` as part of the PI's own transaction (or the message/signal publish transaction). These writes happen **before or alongside** `EngineEventBus.publish/1`, never after it, so the event payload references a DB row that is already durable. `data_object_writes` in particular is always-on regardless of observability sink configuration, because downstream write-audit reconstruction is a runtime debugger feature.
+- **`process_instances` / `flow_node_instances` / `messages` / `signals` / `data_objects` / `data_object_writes`** — written by `peripheral_persistence` as part of the PI's own transaction (or the message/signal publish transaction). These writes happen **before or alongside** `EngineEventBus.publish/1`, never after it, so the event payload references a DB row that is already durable. Escalation and compensation observability is EngineEventBus only (`Event.EscalationRaised`, `Event.CompensationTriggered`) — there is no `escalations` table. `data_object_writes` in particular is always-on regardless of observability sink configuration, because downstream write-audit reconstruction is a runtime debugger feature.
 
 **B. Event-bus sinks** (routed through `EngineEventBus`, [EngineEventBus + EventSinks](#engineeventbus--eventsinks) — each sink toggled independently):
 
@@ -209,7 +209,7 @@ Selected `EvilEngine.Types.Event.*` structs published via `EngineEventBus`. WebS
 | `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `laneName` | Emitted when a message reaches a waiting subscription |
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | Emitted after the signal broadcast pipeline completes. No payload, no correlation |
 | `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `laneName`, `occurredAt` | Emitted when a signal is delivered to a waiting catch/boundary FNI |
-| `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw — both caught and uncaught. `throwType`: `"end_event"` or `"intermediate_throw"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. Paired with `[:evil_engine, :escalation, :raised]` telemetry. `laneName` is the throw FNI's lane. |
+| `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw — both caught and uncaught — and on REST/plugin inject. `throwType`: `"end_event"`, `"intermediate_throw"`, or `"api_trigger"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. Paired with `[:evil_engine, :escalation, :raised]` telemetry. `laneName` is the throw FNI's lane. |
 | `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `parentProcessInstanceId`, `rootProcessInstanceId`, `oldState`, `newState`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `rootProcessInstanceId` equals `processInstanceId` for root PIs; inherited for child PIs (SP-13). Visibility stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`) let `engine:events` apply §5.1 without a DB lookup. |
 | `ProcessInstanceRetried` | `processInstanceId`, `targetProcessInstanceId`, `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy`, `startedById`, `hasLanelessFlowNode`, `laneNames` | Same visibility stamps as `ProcessInstanceStateChanged`. |
 | `FlowNodeInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `laneName` | `rootProcessInstanceId` on all seven PI-scoped lifecycle events below. `laneName` is `null` for laneless FNIs (always delivered). |

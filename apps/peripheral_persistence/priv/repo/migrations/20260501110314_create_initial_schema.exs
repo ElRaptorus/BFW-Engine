@@ -12,6 +12,7 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
   4. Audit tables (process_instance_events, data_objects, data_object_writes)
   5. All indexes, constraints, and compression settings
   6. DMN catalog tables (decision_definitions, decision_versions)
+  7. Operational Timer Start schedules (timer_start_schedules)
   """
 
   use Ecto.Migration
@@ -214,6 +215,39 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
                (deleted = false AND deleted_at IS NULL AND deleted_by IS NULL)
              OR (deleted = true AND deleted_at IS NOT NULL AND deleted_by IS NOT NULL)
              """
+           )
+
+    create table(:timer_start_schedules, primary_key: false) do
+      add :id, :uuid, null: false, default: fragment("uuid_generate_v7()"), primary_key: true
+
+      add :process_version_id,
+          references(:process_versions, type: :uuid, on_delete: :delete_all),
+          null: false
+
+      add :process_model_id, :text, null: false
+      add :flow_node_id, :text, null: false
+      add :kind, :text, null: false
+      add :iso_spec, :text, null: false
+      add :enabled, :boolean, null: false, default: true
+      add :next_fire_at, :utc_datetime_usec
+      add :last_triggered_at, :utc_datetime_usec
+      add :cycle_total, :integer
+      add :cycle_remaining, :integer
+      add :scheduler_ref, :text
+      add :inserted_at, :utc_datetime_usec, null: false, default: fragment("now()")
+      add :updated_at, :utc_datetime_usec, null: false, default: fragment("now()")
+    end
+
+    create unique_index(:timer_start_schedules, [:process_version_id, :flow_node_id],
+             name: "timer_start_schedules_version_flow_node_index"
+           )
+
+    create index(:timer_start_schedules, [:enabled, :next_fire_at],
+             name: "timer_start_schedules_armed_idx"
+           )
+
+    create constraint(:timer_start_schedules, :timer_start_schedules_kind_cycle,
+             check: "kind = 'cycle'"
            )
 
     # ---------------------------------------------------------------
@@ -845,6 +879,20 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
                    )
 
     drop table(:process_instances)
+
+    drop_if_exists constraint(:timer_start_schedules, :timer_start_schedules_kind_cycle)
+
+    drop_if_exists index(:timer_start_schedules, [:enabled, :next_fire_at],
+                     name: "timer_start_schedules_armed_idx"
+                   )
+
+    drop_if_exists unique_index(
+                     :timer_start_schedules,
+                     [:process_version_id, :flow_node_id],
+                     name: "timer_start_schedules_version_flow_node_index"
+                   )
+
+    drop table(:timer_start_schedules)
 
     drop_if_exists constraint(:process_versions, :process_versions_deleted_consistency)
 

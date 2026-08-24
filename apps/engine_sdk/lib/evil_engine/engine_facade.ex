@@ -55,6 +55,7 @@ defmodule EvilEngine.EngineFacade do
   | `decisions` | `EngineFacade.Decisions.t()` | Decision Model catalog reads + writes + evaluation |
   | `messages` | `EngineFacade.Messages.t()` | Message publish (`publish/3`) |
   | `signals` | `EngineFacade.Signals.t()` | Signal broadcast publish (`publish/1`; no payload, no correlation) |
+  | `escalations` | `EngineFacade.Escalations.t()` | Escalation inject (`publish/1`; waiter delivery, no payload) |
   | `adhoc_subprocesses` | `EngineFacade.AdhocSubprocesses.t()` | Ad-hoc subprocess control (activate, complete, status) |
   | `timers` | `EngineFacade.Timers.t()` | Timer event trigger + cycle schedule list/enable/disable |
   | `graphql` | `EngineFacade.Graphql.t()` | Raw GraphQL query execution |
@@ -64,6 +65,7 @@ defmodule EvilEngine.EngineFacade do
     AdhocSubprocesses,
     DataObjects,
     Decisions,
+    Escalations,
     FlowNodeInstances,
     Graphql,
     Messages,
@@ -112,6 +114,7 @@ defmodule EvilEngine.EngineFacade do
           decisions: Decisions.t(),
           messages: Messages.t(),
           signals: Signals.t(),
+          escalations: Escalations.t(),
           adhoc_subprocesses: AdhocSubprocesses.t(),
           timers: Timers.t(),
           graphql: Graphql.t()
@@ -142,6 +145,7 @@ defmodule EvilEngine.EngineFacade do
     decisions: %Decisions{},
     messages: %Messages{},
     signals: %Signals{},
+    escalations: %Escalations{},
     adhoc_subprocesses: %AdhocSubprocesses{},
     timers: %Timers{},
     graphql: %Graphql{}

@@ -265,6 +265,52 @@ defmodule EvilEngine.Execution do
     :exit, _ -> {:error, :not_found}
   end
 
+  @doc """
+  Inject an escalation code into waiting catchers on every running PI.
+
+  Delivers to matching Event Subprocess starts and waiting Escalation
+  Boundary FNIs. Does not walk the parent chain, does not pending-buffer,
+  and does not transition unmatched PIs to `:escalated`.
+  """
+  @spec trigger_escalation(String.t(), keyword()) :: {:ok, [map()]}
+  def trigger_escalation(escalation_code, opts \\ []) do
+    escalation_info = %{
+      escalation_code: escalation_code,
+      escalation_name: Keyword.get(opts, :escalation_name)
+    }
+
+    deliveries =
+      Enum.flat_map(running_process_instance_pids(), fn process_instance_pid ->
+        collect_escalation_deliveries(process_instance_pid, escalation_info)
+      end)
+
+    {:ok, deliveries}
+  end
+
+  defp collect_escalation_deliveries(process_instance_pid, escalation_info) do
+    case ProcessInstance.trigger_escalation(process_instance_pid, escalation_info) do
+      {:ok, deliveries} when is_list(deliveries) -> deliveries
+      _other -> []
+    end
+  catch
+    :exit, _ -> []
+  end
+
+  defp running_process_instance_pids do
+    case Process.whereis(EvilEngine.Execution.Supervisor) do
+      nil ->
+        []
+
+      _supervisor_pid ->
+        EvilEngine.Execution.Supervisor
+        |> DynamicSupervisor.which_children()
+        |> Enum.flat_map(&worker_pid/1)
+    end
+  end
+
+  defp worker_pid({_id, pid, :worker, _modules}) when is_pid(pid), do: [pid]
+  defp worker_pid(_other), do: []
+
   @doc "Look up a PI process by its process_instance_id."
   @spec lookup_process_instance(String.t()) :: {:ok, pid()} | {:error, :not_found}
   def lookup_process_instance(process_instance_id) do

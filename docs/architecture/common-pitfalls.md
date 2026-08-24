@@ -1109,10 +1109,12 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 **Correct approach:** `max_children` is hardcoded `:infinity`. The cap is a **soft pre-check** on `Execution.start_process_instance/1` for **new public starts** only. **Resume bypasses the cap by design** so a PI tree comes back as a whole (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children). Applying the cap mid-resume, or resuming a parent while deferring its children, leaves a corrupted tree — worse than temporary oversubscription. After boot, new starts hit the cap again; the oversubscribed set drains by natural completion. See [execution.md](./execution.md) §DynamicSupervisor + Registry and §Resume on Startup.
 
-## P69: Timer Start schedules currently use in-memory NoOp persistence
+## P69: Do not point production Timer Start persistence at NoOp
 
-**Mistake:** Assuming cycle Timer Start Events survive an engine restart because `StartEventManager.reload_start_schedules/0` runs at boot.
+**Mistake:** Leaving production `:core_timers, :persistence_module` on `EvilEngine.Timers.Persistence.NoOp`, so cycle Timer Start schedules vanish on engine restart even though `StartEventManager.reload_start_schedules/0` runs at boot.
 
-**Why it happens:** The persistence behaviour and `docs/architecture/timers.md` describe `EvilEngine.Persistence.TimerStartScheduleAdapter` (Ash + Postgres). That module is not in the tree. `config/config.exs` sets `:core_timers, :persistence_module` to `EvilEngine.Timers.Persistence.NoOp` in every environment.
+**Why it happens:** NoOp is the test-env default (`config/test.exs`). Copying that assignment into production `config/config.exs` (or forgetting to set the Ash adapter) makes boot reload a no-op: there is nothing in Postgres to reload.
 
-**Correct approach:** Treat Timer Start cycle schedules as process-lifetime until a Postgres adapter ships. After restart, re-deploy (or seeding-directory auto-deploy) re-registers schedules from BPMN. PI-scoped timers (catch/boundary) rehydrate from FNI `type_properties`, not from a dedicated `engine_timers` table — that table is specified but not migrated.
+**Correct approach:** Production `config/config.exs` must set `:core_timers, :persistence_module` to `EvilEngine.Persistence.TimerStartScheduleAdapter` (Ash + the operational `timer_start_schedules` table). Test env keeps NoOp; `ExecutionCase` switches integration tests to the adapter. PI-scoped catch/boundary timers stay in FNI `type_properties` plus Scheduler ETS — there is no `engine_timers` table.
+
+**Related test isolation:** Cycle Timer Start registrations stay in Scheduler ETS until `unregister_timer_starts/1`. Integration and conformance share one BEAM in `coverage_runner.exs`, so a leftover `R/PT1S` schedule can delay or starve a later `PT0S` boundary (C83/C91: expected two final tokens, got one). `ExecutionCase` setup calls `EvilEngine.Timers.Scheduler.reset_state/0` after terminating leftover PIs.

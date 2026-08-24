@@ -8,13 +8,13 @@
 > Cross-references to the plan are given inline.
 >
 > **Shipped vs specified:** the current migration creates catalog, execution,
-> data-object, message/signal, and decision tables listed below. There is
-> **no** `pending_escalations` table (escalation D1). Dedicated
-> `escalations`, `compensations`, and `engine_timers` audit tables remain
-> specified in the plan but are **not** in the current schema — escalation
-> and compensation runtime uses EngineEventBus plus in-memory registries;
-> PI-scoped timers persist in FNI `type_properties`; Timer Start schedules
-> currently use the in-memory `Timers.Persistence.NoOp` adapter.
+> data-object, message/signal, decision, and operational Timer Start tables
+> (`timer_start_schedules`). There is **no** `pending_escalations` table
+> (escalation D1). There are no `escalations`, `compensations`, or
+> `engine_timers` tables. Escalation and compensation observability is
+> EngineEventBus plus in-memory registries; PI-scoped catch/boundary timers
+> persist in FNI `type_properties` plus Scheduler ETS. Production Timer Start
+> persistence is `EvilEngine.Persistence.TimerStartScheduleAdapter`.
 
 ## 1. Legend
 
@@ -57,6 +57,22 @@ erDiagram
     boolean     deleted "deletion flag, default false"
     timestamptz deleted_at "nullable; set when deleted=true"
     jsonb       deleted_by "nullable; identity claim of deleter"
+  }
+
+  process_versions ||--o{ timer_start_schedules : "cycle Timer Starts"
+  timer_start_schedules {
+    uuid        id PK
+    uuid        process_version_id FK
+    text        process_model_id
+    text        flow_node_id
+    text        kind "cycle"
+    text        iso_spec
+    boolean     enabled
+    timestamptz next_fire_at
+    timestamptz last_triggered_at
+    int         cycle_total
+    int         cycle_remaining
+    text        scheduler_ref
   }
 
   %% ===========================================================
@@ -215,57 +231,6 @@ erDiagram
     timestamptz delivered_at "nullable"
     timestamptz expired_at "nullable"
   }
-
-  escalations ||--o{ pending_escalations : "logical FK (shared partition)"
-  escalations {
-    uuid        id "UUIDv7"
-    text        escalation_code
-    text        escalation_name "nullable"
-    jsonb       payload "LZ4"
-    jsonb       origin "{process_instance_id, flow_node_instance_id}"
-    timestamptz published_at "PARTITION KEY"
-    jsonb       scope_chain "scope-chain walker trace"
-    text        outcome "caught|uncaught_root|uncaught_intermediate_throw_noop|late_caught_observed"
-    jsonb       caught_at "nullable"
-  }
-
-  pending_escalations {
-    uuid        id "UUIDv7"
-    uuid        escalation_id "logical FK"
-    text        escalation_code
-    jsonb       payload "LZ4"
-    jsonb       origin
-    jsonb       scope_chain
-    timestamptz published_at "PARTITION KEY"
-    timestamptz expires_at "= published_at + EVIL_ESCALATION_PENDING_TTL"
-    text        state
-    timestamptz delivered_at "nullable"
-    timestamptz expired_at "nullable"
-  }
-
-  process_instances ||--o{ compensations : "triggers"
-  flow_node_instances ||--o{ compensations : "raised by"
-  compensations {
-    uuid        id "UUIDv7"
-    uuid        process_instance_id FK
-    uuid        ⟪triggering_flow_node_instance_id⟫ FK
-    text        activity_ref "nullable"
-    jsonb       payload "LZ4"
-    timestamptz triggered_at "PARTITION KEY"
-  }
-
-  process_instances ||--o{ engine_timers : "arms"
-  flow_node_instances ||--o{ engine_timers : "arms for"
-  engine_timers {
-    uuid        id PK
-    uuid        process_instance_id FK "nullable for global start timers"
-    text        flow_node_id
-    uuid        flow_node_instance_id FK "nullable"
-    timestamptz fire_at
-    text        kind "date|duration|cycle"
-    text        iso_spec
-    text        state "armed|fired|cancelled"
-  }
 ```
 
 > **Rendering note**: a few `_ARRAY` type names (e.g. `uuid_ARRAY`) are used in
@@ -280,6 +245,7 @@ erDiagram
 | `processes` | `process_versions` | 1:N, real FK | Multiple deployed versions per process definition. |
 | `decision_definitions` | `decision_versions` | 1:N, real FK | Multiple deployed versions per DMN decision definition. Mirrors BPMN `processes` ↔ `process_versions`. |
 | `process_versions` | `process_instances` | 1:N, real FK | A PI is pinned to an immutable version for its lifetime. |
+| `process_versions` | `timer_start_schedules` | 1:N, real FK CASCADE | Cycle Timer Start schedules for that version. Deleted on version delete / unregister. |
 | `process_instances` | `process_instances` | self, nullable | Parent PI when started via Call Activity (§3). |
 | `process_instances` | `flow_node_instances` | 1:N, real FK | Every PI's execution trace. |
 | `process_instances` | `data_objects` | 1:N, real FK | PI-scoped DO snapshots (current value). |
@@ -288,15 +254,10 @@ erDiagram
 | `data_objects` | `data_object_writes` | 1:N, real FK | Append-only write history per DO per PI. |
 | `process_instances` | `process_instance_events` | 1:N, real FK | Event timeline — only populated when `database` EventSink is on. |
 | `flow_node_instances` | `process_instance_events` | 1:N, real FK nullable | Events may be PI-scoped with no FNI (e.g. `pi.resumed`). |
-| `process_instances` | `compensations` | 1:N, real FK | Compensation trigger log (always PI-local in v1). |
-| `flow_node_instances` | `compensations` | 1:N, real FK | Which FNI raised each compensation. |
-| `process_instances` | `engine_timers` | 1:N, nullable FK | Armed timers for the PI; `process_instance_id` is NULL for global timer-start event timers. |
-| `flow_node_instances` | `engine_timers` | 1:N, nullable FK | Timer-boundary / intermediate timer catch owners. |
 | `messages` | `pending_messages` | 1:N, **logical** FK | `(message_id, published_at)` pair. Native FK isn't declared because Postgres would require the two partitioned tables to share a native partition-aware reference (doable but schema-churn-heavy for a marginal safety gain). The engine enforces it in application code at publish + drain time. |
 | `signals` | `pending_signals` | 1:N, **logical** FK | Same pattern as messages ↔ pending_messages. |
-| `escalations` | `pending_escalations` | 1:N, **logical** FK | Same pattern; `pending_escalations` is observability-only (inserted *after* the terminal state is already applied). |
 
-No FK exists from `messages` / `signals` / `escalations` into `process_instances`
+No FK exists from `messages` / `signals` into `process_instances`
 — those tables are engine-wide audit with broadcast/fan-out semantics. The
 per-delivery linkage lives inside the `correlations` JSONB array on each row.
 This is deliberate and is what makes engine-audit retention independent of PI retention.
@@ -309,6 +270,7 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 - **`process_versions`** — one row per deployed BPMN *version* of a process. `definitions_id` stores the `bpmn:definitions@id` attribute from the BPMN XML (nullable for legacy deploys). Deletion is a binary flag: `deleted BOOLEAN NOT NULL DEFAULT false`, paired with `deleted_at TIMESTAMPTZ NULL` (timestamp of deletion) and `deleted_by JSONB NULL` (identity claim of the deleter, same shape as `started_by` on `process_instances`). `WHERE NOT deleted` is the active-version predicate. Mirrors the sibling boolean `processes.enabled`. Stores the raw `bpmn_xml` as the **single persistent source of truth** — the parsed AST is only in-memory via `EvilEngine.BPMN.ModelCache`. `ImplementationPlan.md` §4.1.
 - **`decision_definitions`** — one row per deployed DMN decision definition (by `decision_definition_id`, the DMN `definitions@id` attribute). Carries its own `enabled` master switch. Mirrors the BPMN `processes` pattern. See [`dmn.md`](./architecture/dmn.md) §Persistence Layer.
 - **`decision_versions`** — one row per deployed DMN *version* of a decision definition. Stores the raw `dmn_xml` as the persistent source of truth. Same soft-delete pattern as `process_versions`: `deleted` boolean + `deleted_at` + `deleted_by`. `WHERE NOT deleted` is the active-version predicate. See [`dmn.md`](./architecture/dmn.md) §Persistence Layer.
+- **`timer_start_schedules`** — operational cycle Timer Start rows (kind `'cycle'` only). Unique `(process_version_id, flow_node_id)`. Production persistence: `EvilEngine.Persistence.TimerStartScheduleAdapter`. Not engine-audit; Pass B must not DELETE these rows. Deleted on undeploy / unregister / version CASCADE.
 
 ### 4.2 Execution state
 
@@ -324,11 +286,8 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 - **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `EVIL_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible. `ImplementationPlan.md` §4.3.
 - **`signals`** — **partitioned monthly** by `published_at`. Broadcast-to-all semantics (no correlation dimension). `correlations` JSONB array records every delivered subscription. `ImplementationPlan.md` §3.5.6 / §4.3.
 - **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `EVIL_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`. `ImplementationPlan.md` §3.5.6 / §4.3.
-- **`escalations`** — **specified, not in the current migration.** Escalation runtime emits `Event.EscalationRaised` on EngineEventBus. There is no `pending_escalations` table (escalation D1).
-- **`pending_escalations`** — **dropped (escalation D1).** Not created, not swept, no late-catch drain.
-- **`compensations`** — **specified, not in the current migration.** Compensation runtime uses the in-memory `compensation_registry` rebuilt from finished FNIs on resume.
+- **`pending_escalations`** — **dropped (escalation D1).** Not created, not swept, no late-catch drain. Escalation observability is `Event.EscalationRaised` on EngineEventBus.
 - **`data_object_writes`** — **partitioned** by `created_at`. Append-only history; atomically consistent with the `data_objects` snapshot update. Every row is DOA-originated (the `source` column was dropped since all writes come from `bpmn:dataOutputAssociation`). Always written regardless of sink config — this is kernel state, not an observability sink. `ImplementationPlan.md` §4.3.
-- **`engine_timers`** — **specified, not in the current migration.** PI-scoped timers persist in FNI `type_properties` and the Scheduler ETS tables. Timer Start schedules use `EvilEngine.Timers.Persistence` (currently `NoOp` in production config).
 
 ## 5. Partitioning summary
 
@@ -345,9 +304,7 @@ must be in the PK.
 | `pending_messages` | `published_at` | Phase 2 |
 | `signals` | `published_at` | Phase 2 |
 | `pending_signals` | `published_at` | Phase 2 |
-| `escalations` | `published_at` | **specified, not migrated** |
 | `pending_escalations` | — | **dropped (D1)** |
-| `compensations` | `triggered_at` | **specified, not migrated** |
 
 See `ImplementationPlan.md` §14.6 for the complete housekeeping story —
 per-state retention for PI-scoped tables, single-knob retention for

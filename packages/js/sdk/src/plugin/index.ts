@@ -20,6 +20,7 @@ export type {
   FacadeDataObjects,
   FacadeMessages,
   FacadeSignals,
+  FacadeEscalations,
   FacadeAdHocSubprocesses,
   FacadeGraphql,
   FacadeDecisions,

@@ -1192,18 +1192,21 @@ end
 
 defmodule EvilEngine.Types.Event.EscalationRaised do
   @moduledoc """
-  Emitted when an Escalation is raised by an Escalation End Event or an
-  Escalation Intermediate Throw Event.
+  Emitted when an Escalation is raised by an Escalation End Event, an
+  Escalation Intermediate Throw Event, or an API/debugger inject
+  (`throw_type: :api_trigger`).
 
   Published from the PI state machine immediately when the throw FNI is
-  processed. The `throw_type` field distinguishes terminal escalations
-  (`:end_event`) from pass-through ones (`:intermediate_throw`).
+  processed, or once per successful catch fire for an API inject. The
+  `throw_type` field distinguishes terminal escalations (`:end_event`)
+  from pass-through ones (`:intermediate_throw`) and from operator
+  injects (`:api_trigger`).
 
   This event is always emitted on throw — regardless of whether the
   escalation is eventually caught by a boundary event in an ancestor scope.
   """
 
-  @type throw_type :: :end_event | :intermediate_throw
+  @type throw_type :: :end_event | :intermediate_throw | :api_trigger
 
   @type t :: %__MODULE__{
           escalation_code: String.t() | nil,

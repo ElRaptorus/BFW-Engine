@@ -46,6 +46,7 @@ export async function mintTestToken(claims?: Record<string, unknown>): Promise<s
     delete_process_instance: 'all',
     trigger_signal: 'all',
     trigger_message: 'all',
+    trigger_escalation: true,
     'lane:default': "write",
     zeeky_boogie_doog: true,
     ...claims,

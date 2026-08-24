@@ -1,4 +1,5 @@
 import type {
+  EscalationTriggerResult,
   MessageTriggerResult,
   SignalTriggerResult,
   TimerTriggerResult,
@@ -8,14 +9,15 @@ import type {
 import type { HttpTransport } from '../http/transport.js';
 
 /**
- * REST sub-client for message, signal, and timer event triggering.
+ * REST sub-client for message, signal, timer, and escalation triggering.
  *
  * - Messages: `POST /messages/{messageName}/trigger`
  * - Signals: `POST /signals/{signalName}/trigger`
  * - Timers: `POST /timer-events/{flowNodeInstanceId}/trigger`
+ * - Escalations: `POST /escalations/{escalationCode}/trigger`
  *
  * Named `EventClient` (not `TriggerClient`) to accommodate future
- * BPMN event operations (escalation, compensation).
+ * BPMN event operations (compensation).
  */
 export class EventClient {
   constructor(private readonly transport: HttpTransport) {}
@@ -57,6 +59,20 @@ export class EventClient {
   async triggerTimer(flowNodeInstanceId: string): Promise<TimerTriggerResult> {
     return this.transport.post<TimerTriggerResult>(
       `/timer-events/${encodeURIComponent(flowNodeInstanceId)}/trigger`,
+      {},
+    );
+  }
+
+  /**
+   * Inject a named escalation into waiting catchers engine-wide.
+   * Auth claim required: `trigger_escalation`.
+   *
+   * Escalations carry no payload — any `payload` in the request body is
+   * silently ignored by the engine.
+   */
+  async triggerEscalation(escalationCode: string): Promise<EscalationTriggerResult> {
+    return this.transport.post<EscalationTriggerResult>(
+      `/escalations/${encodeURIComponent(escalationCode)}/trigger`,
       {},
     );
   }

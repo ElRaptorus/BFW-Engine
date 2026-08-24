@@ -184,8 +184,8 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Module | Domain | Purpose |
 |--------|--------|---------|
-| `EvilEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory GenServer. **Current production default** (`config/config.exs`). Cycle Timer Start schedules do not survive an engine restart until a Postgres adapter ships. |
-| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | **Specified, not implemented.** Ash + AshPostgres adapter documented here and in the behaviour `@moduledoc`; no module exists in the tree. |
+| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | **Implemented.** Ash + AshPostgres adapter for the operational `timer_start_schedules` table. **Production default** (`config/config.exs` sets `:core_timers, :persistence_module` to this module). Cycle Timer Start schedules survive engine restart; boot reload from Postgres is real. |
+| `EvilEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory GenServer. **Test-only default** (`config/test.exs`). `ExecutionCase` switches tests that exercise Timer Start persistence to `TimerStartScheduleAdapter`. |
 
 ---
 
@@ -195,7 +195,7 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 |-----|---------|------|-------------|
 | `:core_timers, :tick_interval_ms` | `1000` | `50` | Scheduler tick frequency |
 | `:core_timers, :timer_start_target` | `:timer_start_listener` | — | Registered name for Timer Start fire delivery |
-| `:core_timers, :persistence_module` | `Persistence.NoOp` | `Persistence.NoOp` | Persistence behaviour implementation. Production currently uses NoOp; a Postgres adapter is specified but not shipped. |
+| `:core_timers, :persistence_module` | `EvilEngine.Persistence.TimerStartScheduleAdapter` | `EvilEngine.Timers.Persistence.NoOp` | Persistence behaviour implementation. Production uses the Ash adapter; test env keeps NoOp; `ExecutionCase` switches to the adapter. |
 
 ---
 
@@ -221,4 +221,5 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 | `EvilEngine.Timers.StartEventManager` | `apps/core_timers/lib/evil_engine/timers/start_event_manager.ex` |
 | `EvilEngine.Timers.Persistence` | `apps/core_timers/lib/evil_engine/timers/persistence.ex` |
 | `EvilEngine.Timers.Persistence.NoOp` | `apps/core_timers/lib/evil_engine/timers/persistence/no_op.ex` |
+| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/timer_start_schedule_adapter.ex` |
 | `EvilEngine.Timers.Application` | `apps/core_timers/lib/evil_engine/timers/application.ex` |

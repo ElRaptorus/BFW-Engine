@@ -44,6 +44,7 @@ defmodule EvilEngine.ExecutionCase do
     EvilEngine.BPMN.ModelCache.reset_state()
     terminate_all_process_instances()
     await_supervisor_drain()
+    EvilEngine.Timers.Scheduler.reset_state()
     ensure_test_secret()
 
     Application.put_env(
@@ -62,6 +63,12 @@ defmodule EvilEngine.ExecutionCase do
       :core_execution,
       :decision_resolver,
       EvilEngine.Persistence.DecisionResolverImpl
+    )
+
+    Application.put_env(
+      :core_timers,
+      :persistence_module,
+      EvilEngine.Persistence.TimerStartScheduleAdapter
     )
 
     Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.Repo,
@@ -83,6 +90,12 @@ defmodule EvilEngine.ExecutionCase do
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :called_element_resolver)
       Application.delete_env(:core_execution, :decision_resolver)
+
+      Application.put_env(
+        :core_timers,
+        :persistence_module,
+        EvilEngine.Timers.Persistence.NoOp
+      )
 
       if Process.alive?(collector_pid) do
         try do
@@ -341,6 +354,29 @@ defmodule EvilEngine.ExecutionCase do
 
     conn =
       Plug.Test.conn(:post, "/signals/#{URI.encode_www_form(signal_name)}/trigger", json_body)
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(merged)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
+  @doc """
+  Inject a named escalation via `POST /escalations/{code}/trigger`.
+
+  Automatically includes `trigger_escalation: true` unless overridden.
+  Returns `{status, body}`.
+  """
+  def http_trigger_escalation(escalation_code, claims \\ %{}) do
+    merged = Map.merge(%{"trigger_escalation" => true}, claims)
+    json_body = Jason.encode!(%{})
+
+    conn =
+      Plug.Test.conn(
+        :post,
+        "/escalations/#{URI.encode_www_form(escalation_code)}/trigger",
+        json_body
+      )
       |> Plug.Conn.put_req_header("content-type", "application/json")
       |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(merged)}")
       |> route()

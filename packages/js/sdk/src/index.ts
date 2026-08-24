@@ -34,6 +34,7 @@ export type {
   MessageTriggerResult,
   SignalTriggerResult,
   TimerTriggerResult,
+  EscalationTriggerResult,
 } from './types/index.js';
 
 // --- Form types (User Task wire contract) ---
@@ -210,6 +211,7 @@ export type {
   FacadeDataObjects,
   FacadeMessages,
   FacadeSignals,
+  FacadeEscalations,
   FacadeAdHocSubprocesses,
   FacadeGraphql,
   FacadeDecisions,

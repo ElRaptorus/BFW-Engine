@@ -607,9 +607,10 @@ export interface SignalArrived {
 }
 
 /**
- * Emitted when an Escalation is raised by an Escalation End Event or an
- * Escalation Intermediate Throw Event. Always emitted on throw, regardless
- * of whether the escalation is eventually caught in an ancestor scope.
+ * Emitted when an Escalation is raised by an Escalation End Event, an
+ * Escalation Intermediate Throw Event, or a REST/plugin inject
+ * (`throwType: 'api_trigger'`). Always emitted on raise, regardless of
+ * whether the escalation is eventually caught.
  */
 export interface EscalationRaised {
   type: 'EscalationRaised';
@@ -619,8 +620,8 @@ export interface EscalationRaised {
   rootProcessInstanceId: string | null;
   flowNodeInstanceId: string;
   flowNodeId: string;
-  /** Whether this is a terminal throw (end event) or a pass-through throw (intermediate). */
-  throwType: 'end_event' | 'intermediate_throw';
+  /** `"end_event"`, `"intermediate_throw"`, or `"api_trigger"` (REST/plugin inject). */
+  throwType: 'end_event' | 'intermediate_throw' | 'api_trigger';
   laneName: string | null;
   occurredAt: string;
 }

@@ -36,6 +36,7 @@ defmodule PeripheralPersistence.MixProject do
   defp deps do
     [
       {:core_execution, in_umbrella: true},
+      {:core_timers, in_umbrella: true},
       {:core_types, in_umbrella: true},
       {:engine_sdk, in_umbrella: true},
       {:ash, "~> 3.24"},

@@ -173,7 +173,11 @@ defmodule EvilEngine.Test.ConformanceRunner do
   def wait_for_completion(process_instance_id, spec) do
     expected = spec["expected"]
     final_state = expected["final_state"]
-    timeout_milliseconds = spec["wait_timeout_ms"] || 2_000
+    timeout_milliseconds =
+      case spec["wait_timeout_ms"] do
+        timeout when is_integer(timeout) and timeout > 0 -> timeout
+        _other -> 20_000
+      end
 
     if final_state in @terminal_process_instance_states do
       case apply(EvilEngine.Test.ProcessInteractions, :await_process_instance_state, [

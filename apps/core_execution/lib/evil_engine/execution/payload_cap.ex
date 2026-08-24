@@ -5,9 +5,10 @@ defmodule EvilEngine.Execution.PayloadCap do
   This is the **authoritative enforcement site** — every payload-producing
   operation in the engine must go through `check/2` before persisting. The
   PI Facade (Phase 1) calls it on `write_result/2`, `publish_message/2`,
-  `publish_signal/2`, `publish_escalation/3`, and any FEEL-originated token
-  output. The API layer calls it as a supplementary fast-fail on inbound
-  request bodies.
+  `publish_signal/2`, and any FEEL-originated token output. The escalation
+  REST trigger (`POST /escalations/{escalation_code}/trigger`) carries no
+  payload and does not call PayloadCap. The API layer calls it as a
+  supplementary fast-fail on inbound request bodies that do carry a payload.
 
   The function is pure — callers decide the consequence of a violation
   (FNI -> fatal, HTTP -> 413, GraphQL -> typed error).

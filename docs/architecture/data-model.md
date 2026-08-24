@@ -12,12 +12,13 @@ parent_document: ../ImplementationPlan.md
 See [`Schema.md`](../Schema.md) for the visual ER diagram.
 
 > **Shipped vs specified:** the current migration creates catalog, execution,
-> data-object, message/signal, and decision tables. There is **no**
-> `pending_escalations` table (escalation D1). Dedicated `escalations`,
-> `compensations`, and `engine_timers` tables remain specified below but are
-> **not** in the current schema. Escalation and compensation runtime uses
-> EngineEventBus plus in-memory registries; PI-scoped timers persist in FNI
-> `type_properties`; Timer Start schedules use `Timers.Persistence.NoOp`.
+> data-object, message/signal, decision, and operational Timer Start tables
+> (`timer_start_schedules`). There is **no** `pending_escalations` table
+> (escalation D1). There are no `escalations`, `compensations`, or
+> `engine_timers` tables. Escalation and compensation observability is
+> EngineEventBus plus in-memory registries; PI-scoped catch/boundary timers
+> persist in FNI `type_properties` plus Scheduler ETS. Production Timer Start
+> persistence is `EvilEngine.Persistence.TimerStartScheduleAdapter`.
 > `GET /stats` computes pending user-task and FNI counts via Ash — there is
 > no `user_tasks_pending` materialized view and no `process_statistics` view.
 
@@ -246,8 +247,8 @@ process_instance_events
   -- need a SQL-queryable event log register a plugin sink instead. The Studio debugger's
   -- BPMN-flow view does NOT require this table (it reconstructs from the always-on
   -- kernel tables: flow_node_instances with triggerer_flow_node_instance_id,
-  -- process_instances, data_object_writes, messages/signals/escalations with
-  -- correlations[], engine_timers — see [`observability.md`](./observability.md) §11.1).
+  -- process_instances, data_object_writes, messages/signals with
+  -- correlations[] — see [`observability.md`](./observability.md) §11.1).
   --
   -- data_object.written rows were previously mirrored here by the DB sink; the underlying
   -- data_object_writes row (below) is always written regardless — see the note in
@@ -280,13 +281,15 @@ process_instance_events
   INDEX (process_instance_id, occurred_at)
   INDEX (event_type, occurred_at)
 
--- NOTE: `messages`, `pending_messages`, `signals`, `escalations`, and `compensations` are
+-- NOTE: `messages`, `pending_messages`, `signals`, and `pending_signals` are
 -- ENGINE-LEVEL AUDIT tables — they have no PI FK (the relation to PIs is via `messages.correlations[]`
 -- / broadcast semantics), so they are NOT cleaned up by PI-cascade retention. Engine-audit retention gives them
--- their own story: monthly partitioning on the published_at / triggered_at timestamp (below) + a
+-- their own story: monthly partitioning on the published_at timestamp (below) + a
 -- single opt-in retention knob EVIL_RETENTION_ENGINE_AUDIT_DAYS ([`configuration.md`](./configuration.md) §14.3, §14.6) that the existing
 -- `RetentionRunner` applies as a second per-tick pass. Operational-state rows (pending_messages
--- state='pending', engine_timers state='armed') are NEVER retention-eligible.
+-- state='pending', pending_signals state='pending') are NEVER retention-eligible.
+-- There are no `escalations`, `compensations`, or `engine_timers` tables.
+-- `timer_start_schedules` is operational and is not swept by Pass B.
 
 messages
   -- PARTITIONED: PARTITION BY RANGE (published_at), one partition per calendar month.
@@ -388,68 +391,12 @@ pending_signals    -- [`routing.md`](./routing.md) §3.5.6 — signals published
   --   surviving pending row is drained by any subscription that re-registers within TTL after
   --   resume ([`routing.md`](./routing.md) §3.5.6).
 
-escalations    -- same shape as signals, plus escalation_code + escalation_name. payload LZ4, cap from EVIL_TOKEN_MAX_BYTES. Tracks cross-PI propagation.
-  -- PARTITIONED: PARTITION BY RANGE (published_at), one partition per calendar month.
-  -- Composite primary key (id, published_at). Retention-eligible in full.
-  id                       uuid NOT NULL (UUIDv7)
-  escalation_code          text NOT NULL         -- bpmn:escalation@escalationCode
-  escalation_name          text NULL             -- bpmn:escalation@name (optional)
-  payload                  jsonb COMPRESSION lz4
-  origin                   jsonb                 -- { process_instance_id, flow_node_instance_id } — always PI-sourced per [`routing.md`](./routing.md) §3.5.7
-  published_at             timestamptz NOT NULL  -- partition key (when publish_escalation/1 entered the walker)
-  scope_chain              jsonb NOT NULL        -- scope-chain walker trace: [{process_instance_id, scope_kind, scope_id, hop_kind}]
-  outcome                  text NOT NULL         -- caught | uncaught_root | uncaught_intermediate_throw_noop | late_caught_observed
-                                                 --   `late_caught_observed` = reached root uncaught AND terminal state applied
-                                                 --     AND a boundary that registered during pending TTL later fired
-                                                 --     its handler side-effects (non-interrupting spawn / interrupting cascade
-                                                 --     on a different PI / audit). See [`routing.md`](./routing.md) §3.5.7.
-  caught_at                jsonb NULL            -- { process_instance_id, flow_node_instance_id, boundary_kind: "interrupting"|"non_interrupting" } when caught
-                                                 --   For `late_caught_observed` outcome, populated with the FIRST late catch.
-                                                 --   (Re-catches on same escalation are one-shot .)
-  PRIMARY KEY (id, published_at)
-  INDEX (escalation_code, published_at)
-  INDEX (outcome) WHERE outcome <> 'caught'      -- operator query: "show me uncaught escalations recently"
-
-pending_escalations    -- **DROPPED (escalation D1).** There is no `pending_escalations` table,
-  -- no late-catch drain, and no PendingSweeper involvement for escalations.
-  -- Escalation boundaries are pre-spawned in `:waiting` when the host activity starts.
-  -- The DDL below is historical spec text and must not be implemented.
-
-  -- (removed)
-  -- OBSERVABILITY-ONLY: the throw-element-aware terminal state is applied the instant
-  --   the walker decides "uncaught"; this pending row does NOT block or defer that decision.
-  --   It exists so that Escalation Boundary / Event-Subprocess-Start subscriptions registering
-  --   within EVIL_ESCALATION_PENDING_TTL can still fire their handler side-effects (see [`routing.md`](./routing.md) §3.5.7).
-  --
-  -- PARTITIONED: PARTITION BY RANGE (published_at), one partition per calendar month.
-  -- Same scheme as pending_messages / pending_signals; pre-created by `mix evil.partitions.ensure`.
-  --
-  -- RETENTION: EVIL_RETENTION_ENGINE_AUDIT_DAYS sweeps rows WHERE state IN ('delivered',
-  -- 'expired','cancelled'). Rows in state='pending' are operational live state and NEVER swept by
-  -- retention.
-  --
-  -- DELETE-ON-TRANSITION: if EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION=false (default
-  -- true), the row is physically deleted on state transition. Same semantics as the two siblings.
-  id                       uuid NOT NULL (UUIDv7)
-  escalation_id            uuid NOT NULL         -- logical FK to escalations (same partition scheme)
-  escalation_code          text NOT NULL         -- denormalized for index
-  payload                  jsonb COMPRESSION lz4 -- LZ4; snapshot of the escalation payload
-  origin                   jsonb                 -- { process_instance_id, flow_node_instance_id } — the throwing FNI ([`routing.md`](./routing.md) §3.5.7)
-  scope_chain              jsonb NOT NULL        -- snapshot of the scope-chain walker trace as of "reached root uncaught"
-  published_at             timestamptz NOT NULL  -- partition key (moment walker reached root uncaught)
-  expires_at               timestamptz NOT NULL  -- published_at + EVIL_ESCALATION_PENDING_TTL
-  state                    text NOT NULL         -- pending | delivered | expired | cancelled
-                                                 --   delivered = at least one late-registering boundary consumed it.
-                                                 --   expired   = TTL elapsed with no late catch (common case; the escalation
-                                                 --               remained uncaught in the observability-only sense).
-                                                 --   cancelled = explicit operator cancel (not a v1 goal, column reserved).
-  delivered_at             timestamptz NULL      -- set on first late-registering catch within TTL
-  expired_at               timestamptz NULL      -- set when TTL sweeper flips pending → expired
-  PRIMARY KEY (id, published_at)                 -- composite because published_at is the partition key
-  INDEX (escalation_code) WHERE state='pending'  -- boundary-register fast-path (no correlation dim)
-  INDEX (expires_at) WHERE state='pending'       -- TTL sweeper scan
-  -- IMPORTANT: draining a pending_escalations row in state='pending' to a late-registering
-  --   boundary does NOT un-apply the terminal state of any PI. See [`routing.md`](./routing.md) §3.5.7 for the precise rules.
+-- Escalation / compensation observability is EngineEventBus
+-- (`Event.EscalationRaised`, `Event.CompensationTriggered`), not dedicated
+-- audit tables. There is no `escalations` table and no `compensations` table.
+-- `pending_escalations` was dropped (escalation D1): no late-catch drain,
+-- no PendingSweeper involvement for escalations. Boundaries are pre-spawned
+-- in `:waiting` when the host activity starts.
 
 -- NOTE: The PI's `compensation_registry` (the ordered list of completed activities
 -- eligible for compensation) is an IN-MEMORY data structure on the PI's gen_statem
@@ -460,17 +407,27 @@ pending_escalations    -- **DROPPED (escalation D1).** There is no `pending_esca
 -- `compensation_completion_counter`, `compensation_end_reached`,
 -- `compensation_esp_throw_map`) are also purely in-memory.
 
-compensations    -- compensation trigger log (one row per emitted compensation token).
-  -- PARTITIONED: PARTITION BY RANGE (triggered_at), one partition per calendar month.
-  -- Composite primary key (id, triggered_at). Retention-eligible in full.
-  id                       uuid NOT NULL (UUIDv7)
-  process_instance_id      uuid NOT NULL         -- compensation is always PI-local in v1 (no cross-PI compensation, [`../ImplementationPlan.md`](../ImplementationPlan.md) §16.4)
-  ⟪triggering_flow_node_instance_id⟫        uuid NOT NULL         -- FNI that raised the compensation (End/Throw event or boundary)
-  activity_ref             text NULL             -- bpmn:activityRef when compensation targets a single activity (else NULL = "all")
-  payload                  jsonb COMPRESSION lz4 -- LZ4; capped at EVIL_TOKEN_MAX_BYTES
-  triggered_at             timestamptz NOT NULL  -- partition key
-  PRIMARY KEY (id, triggered_at)
-  INDEX (process_instance_id, triggered_at)
+timer_start_schedules
+  -- OPERATIONAL (not engine-audit). Unpartitioned. Pass B must not DELETE.
+  -- Production adapter: EvilEngine.Persistence.TimerStartScheduleAdapter.
+  -- Deleted on undeploy / StartEventManager.unregister_timer_starts/1 / process_versions CASCADE.
+  -- Check: kind = 'cycle'. Date/duration Timer Starts are PI-scoped and must not be inserted.
+  id                       uuid PK
+  process_version_id       uuid FK process_versions ON DELETE CASCADE NOT NULL
+  process_model_id         text NOT NULL         -- BPMN process id (query convenience)
+  flow_node_id             text NOT NULL         -- Timer Start Event id
+  kind                     text NOT NULL         -- 'cycle'
+  iso_spec                 text NOT NULL
+  enabled                  boolean NOT NULL DEFAULT true
+  next_fire_at             timestamptz NULL      -- nil when exhausted
+  last_triggered_at        timestamptz NULL
+  cycle_total              integer NULL          -- nil = infinite
+  cycle_remaining          integer NULL          -- nil = infinite
+  scheduler_ref            text NULL
+  inserted_at              timestamptz NOT NULL
+  updated_at               timestamptz NOT NULL
+  UNIQUE (process_version_id, flow_node_id)
+  INDEX (enabled, next_fire_at)
 
 data_object_writes   -- append-only history, one row per Data Object write.
                      -- Written in the SAME transaction as the upsert into data_objects
@@ -512,32 +469,6 @@ data_object_writes   -- append-only history, one row per Data Object write.
   INDEX (process_instance_id, data_object_id, created_at)  -- per-DO history, reconstruct-in-order
   INDEX (flow_node_instance_id)                            -- "what did FNI X write?"
   -- No partial indexes; all rows are terminal/historical.
-
-engine_timers
-  -- SPECIFIED, NOT IN THE CURRENT MIGRATION.
-  -- PI-scoped timers persist in FNI `type_properties`; the Scheduler holds armed
-  -- timers in ETS. Timer Start schedules use `Timers.Persistence.NoOp`.
-  --
-  -- NOT PARTITIONED: fire_at can be arbitrarily far-future for scheduled cycle timers,
-  --   and adding a dedicated created_at column only for partitioning adds schema churn without
-  --   meaningful storage benefit at realistic volumes (~2 timers per PI; the armed-state working
-  --   set is small and PI-cascade-deleted when the owning PI is purged ).
-  --
-  -- RETENTION: EVIL_RETENTION_ENGINE_AUDIT_DAYS sweeps rows WHERE state IN ('fired',
-  --   'cancelled') AND fire_at < cutoff via row-by-row DELETE in batches. Rows in state='armed'
-  --   are operational live state and are NEVER touched by retention. armed rows with an owning
-  --   PI are cascade-deleted with the PI; armed rows with process_instance_id=NULL
-  --   (global timer-start-event timers) persist until the timer fires or is cancelled.
-  id                      uuid PK
-  process_instance_id     uuid FK NULL    -- NULL for global (timer-start event waiting for deploy)
-  flow_node_id            text
-  flow_node_instance_id   uuid FK NULL
-  fire_at                 timestamptz
-  kind                    text            -- date|duration|cycle
-  iso_spec                text
-  state                   text            -- armed|fired|cancelled
-  INDEX (fire_at) WHERE state='armed'
-  INDEX (state, fire_at) WHERE state IN ('fired','cancelled')  -- retention sweep scan
 ```
 
 ### 4.4 Derived indexes / views (for GraphQL queries)
@@ -555,6 +486,6 @@ computes pending user-task and waiting-FNI counts with live Ash queries against
 | "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log (table exists; built-in DatabaseSink removed so it stays empty unless a plugin sink writes it) + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
 | "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state IN ('active','waiting')` (in-flight token payload lives on `input_token`) + `gateway_pending_arrivals` (for half-completed joins). PI-scoped timers resume from FNI `type_properties` into Scheduler ETS. There is no `engine_timers` table. |
 | "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `EVIL_TOKEN_MAX_BYTES` |
-| "Bounded engine-wide audit-table growth" | Engine-audit retention (Phase 7, not shipped) closes the gap PI-cascade retention left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned monthly on `published_at` (`EvilEngine.Persistence.Partitions`). Single opt-in knob `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded from retention. Optional `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. There is no `pending_escalations` table (escalation D1). Dedicated `escalations` / `compensations` / `engine_timers` tables are specified but **not migrated** — do not plan Pass B DELETEs against them until they exist. |
+| "Bounded engine-wide audit-table growth" | Engine-audit retention (Phase 7, not shipped) closes the gap PI-cascade retention left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned monthly on `published_at` (`EvilEngine.Persistence.Partitions`). Single opt-in knob `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded from retention. Optional `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. There is no `pending_escalations` table (escalation D1). There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and is not swept by Pass B. |
 | "No duplicated rows per tick" | Snapshot tables are **updated in place**; events are only inserted on real state transitions or domain events |
 | "Leverage SQL" | All heavy queries are plain SQL. No client-side filtering. GraphQL queries translate 1:1 to Ecto queries via AshPostgres |

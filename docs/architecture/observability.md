@@ -31,8 +31,8 @@ Everything observable the engine produces at runtime (PI/FNI transitions, messag
 
 - `process_instances` + `flow_node_instances` carry every PI / FNI state + timestamps + token payloads, plus the `triggerer_flow_node_instance_id` backlink on every Catch Event / Boundary Event / Auto-triggered PI / Start Event spawned by a Throw or Send Task, and the `parent_process_instance_id` backlink for Call-Activity children.
 - `data_objects` + `data_object_writes` (always-on) carry the full DO write history with FNI attribution.
-- `messages` / `signals` / `escalations` (always-on) carry each engine-wide publish/raise event with `correlations[]` holding `{process_instance_id, flow_node_instance_id, delivered_at}` per recipient, plus the `origin` FNI for thrown events.
-- Timer Start cycle schedules persist via `EvilEngine.Timers.Persistence` (currently the in-memory `NoOp` adapter; a Postgres adapter is specified but not shipped). PI-scoped timer state lives in FNI `type_properties` and the Scheduler ETS tables.
+- `messages` / `signals` (always-on) carry each engine-wide publish event with `correlations[]` holding `{process_instance_id, flow_node_instance_id, delivered_at}` per recipient, plus the `origin` FNI for thrown events. Escalation and compensation raises are EngineEventBus events (`Event.EscalationRaised`, `Event.CompensationTriggered`), not dedicated tables.
+- Timer Start cycle schedules persist in `timer_start_schedules` via `EvilEngine.Persistence.TimerStartScheduleAdapter` (production). Test env uses `Timers.Persistence.NoOp`. PI-scoped timer state lives in FNI `type_properties` and the Scheduler ETS tables.
 
 Together these reconstruct the full sender↔receiver pattern for every BPMN-element-sourced event (the Studio debugger's current approach: point at an event's source and let the user navigate). **This works identically whether the DB EventSink is on or off, live or historical.**
 

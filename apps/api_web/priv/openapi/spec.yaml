@@ -61,6 +61,8 @@ tags:
     description: Message publish and trigger operations
   - name: Signals
     description: Signal broadcast and trigger operations
+  - name: Escalations
+    description: Escalation inject into waiting catchers (Event Subprocess starts and Escalation Boundaries)
   - name: Ad-hoc Subprocesses
     description: Runtime control of ad-hoc subprocess inner activities
 
@@ -1629,6 +1631,87 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  # ---------------------------------------------------------------------------
+  # Escalations
+  # ---------------------------------------------------------------------------
+
+  /escalations/{escalation_code}/trigger:
+    post:
+      summary: Inject a named escalation into waiting catchers
+      description: >-
+        Delivers `escalation_code` to matching waiting catchers on every
+        running process instance: Escalation Event Subprocess starts and
+        waiting Escalation Boundary FNIs. Requires JWT claim
+        `trigger_escalation: true`. Escalations carry no payload. Any
+        `payload` key in the request body is silently ignored. Unmatched
+        process instances are skipped (not transitioned to `escalated`).
+        There is no pending buffer. `pending` is always `false`.
+      operationId: triggerEscalation
+      tags:
+        - Escalations
+      parameters:
+        - name: escalation_code
+          in: path
+          required: true
+          description: Escalation code to inject (non-blank, at most 256 characters)
+          schema:
+            type: string
+            maxLength: 256
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Escalation delivered to matching waiters (possibly none)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - escalationCode
+                  - deliveries
+                  - pending
+                properties:
+                  escalationCode:
+                    type: string
+                  deliveries:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - processInstanceId
+                        - flowNodeInstanceId
+                      properties:
+                        processInstanceId:
+                          type: string
+                          format: uuid
+                        flowNodeInstanceId:
+                          type: string
+                          format: uuid
+                  pending:
+                    type: boolean
+                    enum: [false]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: Blank or oversize escalation code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Unexpected internal error while triggering the escalation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalEngineError"
 
   # ---------------------------------------------------------------------------
   # Ad-hoc Subprocesses (authenticated)

@@ -104,6 +104,7 @@ defmodule EvilEngineWeb.Http.Router do
 
     post "/messages/:message_name/trigger", MessageController, :publish
     post "/signals/:signal_name/trigger", SignalController, :publish
+    post "/escalations/:escalation_code/trigger", EscalationController, :publish
 
     get "/adhoc-subprocesses/:id/activities", AdhocSubprocessController, :list_activities
 

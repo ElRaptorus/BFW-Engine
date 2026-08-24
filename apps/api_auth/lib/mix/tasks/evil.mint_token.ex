@@ -100,6 +100,7 @@ defmodule Mix.Tasks.Evil.MintToken do
     "delete_process_instance" => "all",
     "trigger_message" => "all",
     "trigger_signal" => "all",
+    "trigger_escalation" => true,
     "zeeky_boogie_doog" => true,
     "lane:default" => "write"
   }
