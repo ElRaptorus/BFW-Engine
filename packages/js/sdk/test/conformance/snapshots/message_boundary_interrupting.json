@@ -88,9 +88,7 @@
             "compensationHandlerId": null,
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_cancel",
-              "payloadExpression": null
+              "messageRef": "Msg_cancel"
             },
             "outMappings": [],
             "resultContract": null

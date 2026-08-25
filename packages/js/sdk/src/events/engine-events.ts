@@ -37,9 +37,7 @@ export type EngineEvent =
   | DecisionDefinitionDeployed
   | DecisionDefinitionUndeployed
   | DecisionEvaluated
-  | TimerArmed
   | TimerFired
-  | TimerCancelled
   | MessagePublished
   | MessageArrived
   | SignalPublished
@@ -270,6 +268,7 @@ export interface CallActivityChildStarted {
   childProcessInstanceId: string;
   childProcessModelId: string;
   childVersion: string;
+  rootProcessInstanceId: string | null;
   laneName: string | null;
   occurredAt: string;
 }
@@ -294,6 +293,7 @@ export interface SubProcessChildStarted {
   childVersion: string;
   isEventSubprocess: boolean;
   isAdHocSubprocess: boolean;
+  rootProcessInstanceId: string | null;
   laneName: string | null;
   occurredAt: string;
 }
@@ -497,26 +497,6 @@ export interface DecisionEvaluated {
   occurredAt: string;
 }
 
-/**
- * Reserved — the engine classifies this event for WebSocket dispatch but
- * does not currently publish it. Kept in the `EngineEvent` union so adding
- * publish later is non-breaking.
- *
- * The `kind` field distinguishes between catch (intermediate),
- * boundary, and start timers.
- */
-export interface TimerArmed {
-  type: 'TimerArmed';
-  timerRef: string;
-  processInstanceId: string | null;
-  flowNodeInstanceId: string | null;
-  flowNodeId: string;
-  fireAt: string;
-  kind: 'catch' | 'boundary' | 'start';
-  laneName: string | null;
-  occurredAt: string;
-}
-
 /** Emitted when a timer fires and is processed by the engine. */
 export interface TimerFired {
   type: 'TimerFired';
@@ -525,21 +505,7 @@ export interface TimerFired {
   flowNodeInstanceId: string | null;
   flowNodeId: string;
   kind: 'catch' | 'boundary' | 'start';
-  laneName: string | null;
-  occurredAt: string;
-}
-
-/**
- * Reserved — the engine classifies this event for WebSocket dispatch but
- * does not currently publish it. Kept in the `EngineEvent` union so adding
- * publish later is non-breaking.
- */
-export interface TimerCancelled {
-  type: 'TimerCancelled';
-  timerRef: string;
-  processInstanceId: string | null;
-  flowNodeInstanceId: string | null;
-  reason: string;
+  rootProcessInstanceId: string | null;
   laneName: string | null;
   occurredAt: string;
 }
@@ -573,6 +539,7 @@ export interface MessageArrived {
   flowNodeInstanceId: string;
   /** The message payload delivered to the subscriber. Opaque — keys are not camelCased. */
   payload: Record<string, unknown>;
+  rootProcessInstanceId: string | null;
   laneName: string | null;
   occurredAt: string;
 }
@@ -602,6 +569,7 @@ export interface SignalArrived {
   signalName: string;
   processInstanceId: string;
   flowNodeInstanceId: string;
+  rootProcessInstanceId: string | null;
   laneName: string | null;
   occurredAt: string;
 }

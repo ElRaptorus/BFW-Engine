@@ -205,6 +205,9 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
       {:finished, final_tokens} ->
         finish_shell(flow_node, context, final_tokens, child_process_instance_id)
 
+      {:compensated, final_tokens} ->
+        finish_shell(flow_node, context, final_tokens, child_process_instance_id)
+
       {:fatal, reason} ->
         handle_child_error(flow_node, context, normalize_error(reason))
 
@@ -291,6 +294,10 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         Process.demonitor(ref, [:flush])
         {:finished, final_tokens}
 
+      {:child_pi_compensated, ^child_pid, final_tokens} ->
+        Process.demonitor(ref, [:flush])
+        {:compensated, final_tokens}
+
       {:child_pi_fatal, ^child_pid, reason} ->
         Process.demonitor(ref, [:flush])
         {:fatal, reason}
@@ -371,6 +378,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
     case BoundaryResolver.find_matching_error_boundary(
            flow_node,
            context.process_model,
+           context.definitions,
            error_info
          ) do
       {:ok, boundary_node} ->
@@ -557,6 +565,10 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         final_tokens = aggregate_from_persistence(child_process_instance_id)
         finish_shell(flow_node, context, final_tokens, child_process_instance_id)
 
+      {:ok, %{state: "compensated"}} ->
+        final_tokens = aggregate_from_persistence(child_process_instance_id)
+        finish_shell(flow_node, context, final_tokens, child_process_instance_id)
+
       {:ok, %{state: "fatal", error_info: error_info}} ->
         handle_child_error(flow_node, context, normalize_error(error_info || "CHILD_FATAL"))
 
@@ -576,6 +588,9 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   defp handle_resume_result(flow_node, context, result, child_process_instance_id) do
     case result do
       {:finished, final_tokens} ->
+        finish_shell(flow_node, context, final_tokens, child_process_instance_id)
+
+      {:compensated, final_tokens} ->
         finish_shell(flow_node, context, final_tokens, child_process_instance_id)
 
       {:fatal, reason} ->
@@ -1022,6 +1037,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         {:ok, subscription_id} =
           MessageSubscriptions.register(%{
             process_instance_id: data.process_instance_id,
+            root_process_instance_id: data.root_process_instance_id,
             flow_node_instance_id: base.start_event_id,
             flow_node_id: base.subprocess_node_id,
             message_name: message_name,
@@ -1064,6 +1080,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         {:ok, subscription_id} =
           SignalSubscriptions.register(%{
             process_instance_id: data.process_instance_id,
+            root_process_instance_id: data.root_process_instance_id,
             flow_node_instance_id: base.start_event_id,
             flow_node_id: base.subprocess_node_id,
             signal_name: signal_name,

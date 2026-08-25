@@ -325,6 +325,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerStartEvent do
       flow_node_instance_id: context.flow_node_instance_id,
       flow_node_id: flow_node.id,
       kind: :start,
+      root_process_instance_id: context.root_process_instance_id,
       lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })

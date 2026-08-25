@@ -98,6 +98,7 @@ defmodule EvilEngine.Execution.FlowNodes.MessageBoundaryEvent do
       {:ok, subscription_id} =
         MessageSubscriptions.register(%{
           process_instance_id: context.process_instance_id,
+          root_process_instance_id: context.root_process_instance_id,
           flow_node_instance_id: context.flow_node_instance_id,
           flow_node_id: flow_node.id,
           message_name: message_name,
@@ -139,6 +140,7 @@ defmodule EvilEngine.Execution.FlowNodes.MessageBoundaryEvent do
     {:ok, subscription_id} =
       MessageSubscriptions.register(%{
         process_instance_id: context.process_instance_id,
+        root_process_instance_id: context.root_process_instance_id,
         flow_node_instance_id: context.flow_node_instance_id,
         flow_node_id: flow_node.id,
         message_name: message_name,
@@ -260,6 +262,7 @@ defmodule EvilEngine.Execution.FlowNodes.MessageBoundaryEvent do
           {:ok, new_subscription_id} =
             MessageSubscriptions.register(%{
               process_instance_id: context.process_instance_id,
+              root_process_instance_id: context.root_process_instance_id,
               flow_node_instance_id: context.flow_node_instance_id,
               flow_node_id: flow_node.id,
               message_name: message_name,
@@ -269,15 +272,34 @@ defmodule EvilEngine.Execution.FlowNodes.MessageBoundaryEvent do
               lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
             })
 
-          message_receive_loop(
-            process_instance_pid,
-            flow_node_instance_id,
-            flow_node,
-            context,
-            message_name,
-            expected_correlation_value,
-            new_subscription_id
-          )
+          type_properties = %{
+            host_flow_node_instance_id: context.host_flow_node_instance_id,
+            cancel_activity: false,
+            message_name: message_name,
+            subscription_id: new_subscription_id,
+            expected_correlation_value: normalize_correlation(expected_correlation_value)
+          }
+
+          case persist_live_subscription(
+                 context,
+                 type_properties,
+                 new_subscription_id,
+                 &MessageSubscriptions.unregister/1
+               ) do
+            :ok ->
+              message_receive_loop(
+                process_instance_pid,
+                flow_node_instance_id,
+                flow_node,
+                context,
+                message_name,
+                expected_correlation_value,
+                new_subscription_id
+              )
+
+            {:error, :persistence_failed} = error ->
+              error
+          end
         else
           {:error, violations} when is_list(violations) ->
             {:error, %{reason: :result_contract_violation, violations: violations}}
@@ -300,6 +322,27 @@ defmodule EvilEngine.Execution.FlowNodes.MessageBoundaryEvent do
   # -------------------------------------------------------------------
   # Private: cleanup
   # -------------------------------------------------------------------
+
+  defp persist_live_subscription(context, type_properties, subscription_id, unregister_fun) do
+    case FniLifecycle.park_async(context, type_properties) do
+      :ok ->
+        notify_process_instance_of_subscription(context, type_properties)
+        :ok
+
+      {:error, :persistence_failed} = error ->
+        unregister_fun.(subscription_id)
+        error
+    end
+  end
+
+  defp notify_process_instance_of_subscription(context, type_properties) do
+    if is_pid(context.process_instance_pid) do
+      send(
+        context.process_instance_pid,
+        {:fni_merge_type_properties, context.flow_node_instance_id, type_properties}
+      )
+    end
+  end
 
   defp unregister_subscription(entry) do
     type_props = entry.type_properties || %{}

@@ -126,29 +126,20 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
   - **Future**: re-schedules the timer, blocks until it fires
   - **Past**: immediately fires the boundary result (timer should
     have fired while the engine was down)
+
+  Non-interrupting cycles (`is_cycle: true`) restore the cycle receive
+  loop, including remaining repetitions persisted after each re-arm.
   """
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t()) ::
           {:boundary, String.t(), term(), boolean()} | {:error, term()}
   def handle_resume(flow_node, entry, context) do
     type_props = entry.type_properties || %{}
-
-    fire_at_string =
-      Map.get(type_props, :fire_at) || Map.get(type_props, "fire_at")
-
     cancel_activity = resolve_cancel_activity(type_props, flow_node)
 
-    case parse_persisted_fire_at(fire_at_string) do
-      {:ok, fire_at} ->
-        now = DateTime.utc_now()
-
-        if DateTime.compare(fire_at, now) == :gt do
-          resume_schedule_and_wait(flow_node, context, fire_at, cancel_activity)
-        else
-          resume_immediate_fire(flow_node, context, cancel_activity)
-        end
-
-      {:error, reason} ->
-        {:error, %{reason: :resume_timer_failed, detail: reason}}
+    if cycle_resume?(type_props) do
+      resume_cycle_boundary(flow_node, context, type_props, cancel_activity)
+    else
+      resume_one_shot_boundary(flow_node, context, type_props, cancel_activity)
     end
   end
 
@@ -250,13 +241,8 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
        ) do
     {:ok, timer_ref} = schedule_timer(flow_node, context, first_fire)
 
-    type_properties = %{
-      host_flow_node_instance_id: host_fni_id,
-      fire_at: DateTime.to_iso8601(first_fire),
-      cancel_activity: cancel_activity,
-      timer_ref: timer_ref,
-      is_cycle: true
-    }
+    type_properties =
+      cycle_type_properties(host_fni_id, first_fire, cancel_activity, timer_ref, cycle_spec)
 
     case FniLifecycle.park_async(context, type_properties) do
       :ok ->
@@ -307,16 +293,32 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
             {:ok, next_timer_ref} = schedule_timer(flow_node, context, next_fire)
 
-            cycle_receive_loop(
-              process_instance_pid,
-              flow_node_instance_id,
-              flow_node,
-              context,
-              cancel_activity,
-              next_timer_ref,
-              next_fire,
-              updated_spec
-            )
+            rearm_type_properties =
+              cycle_type_properties(
+                context.host_flow_node_instance_id,
+                next_fire,
+                cancel_activity,
+                next_timer_ref,
+                updated_spec
+              )
+
+            case persist_cycle_type_properties(context, rearm_type_properties) do
+              :ok ->
+                cycle_receive_loop(
+                  process_instance_pid,
+                  flow_node_instance_id,
+                  flow_node,
+                  context,
+                  cancel_activity,
+                  next_timer_ref,
+                  next_fire,
+                  updated_spec
+                )
+
+              {:error, :persistence_failed} ->
+                _cancel_result = Scheduler.cancel(next_timer_ref)
+                {:error, :persistence_failed}
+            end
 
           nil ->
             {:boundary, flow_node.id, %{}, cancel_activity}
@@ -327,6 +329,73 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
   # -------------------------------------------------------------------
   # Private: resume flow
   # -------------------------------------------------------------------
+
+  defp resume_one_shot_boundary(flow_node, context, type_props, cancel_activity) do
+    fire_at_string = Map.get(type_props, :fire_at) || Map.get(type_props, "fire_at")
+
+    case parse_persisted_fire_at(fire_at_string) do
+      {:ok, fire_at} ->
+        now = DateTime.utc_now()
+
+        if DateTime.compare(fire_at, now) == :gt do
+          resume_schedule_and_wait(flow_node, context, fire_at, cancel_activity)
+        else
+          resume_immediate_fire(flow_node, context, cancel_activity)
+        end
+
+      {:error, reason} ->
+        {:error, %{reason: :resume_timer_failed, detail: reason}}
+    end
+  end
+
+  defp resume_cycle_boundary(flow_node, context, type_props, cancel_activity) do
+    fire_at_string = Map.get(type_props, :fire_at) || Map.get(type_props, "fire_at")
+
+    with {:ok, fire_at} <- parse_persisted_fire_at(fire_at_string),
+         {:ok, cycle_spec} <- parse_persisted_cycle_spec(type_props) do
+      if DateTime.compare(fire_at, DateTime.utc_now()) == :gt do
+        resume_cycle_schedule_and_wait(flow_node, context, fire_at, cycle_spec, cancel_activity)
+      else
+        deliver_due_cycle_tick(flow_node, context, fire_at, cycle_spec, cancel_activity)
+      end
+    else
+      {:error, reason} ->
+        {:error, %{reason: :resume_timer_failed, detail: reason}}
+    end
+  end
+
+  defp resume_cycle_schedule_and_wait(flow_node, context, fire_at, cycle_spec, cancel_activity) do
+    {:ok, timer_ref} = schedule_timer(flow_node, context, fire_at)
+
+    cycle_receive_loop(
+      context.process_instance_pid,
+      context.flow_node_instance_id,
+      flow_node,
+      context,
+      cancel_activity,
+      timer_ref,
+      fire_at,
+      cycle_spec
+    )
+  end
+
+  defp deliver_due_cycle_tick(flow_node, context, fire_at, cycle_spec, cancel_activity) do
+    emit_timer_fired_event(context, flow_node, nil)
+
+    case ISO8601.next_cycle_fire(cycle_spec, fire_at) do
+      {next_fire, updated_spec} ->
+        send(
+          context.process_instance_pid,
+          {:fni_result, context.flow_node_instance_id,
+           {:boundary_cycle_fire, flow_node.id, %{}, cancel_activity}}
+        )
+
+        resume_cycle_schedule_and_wait(flow_node, context, next_fire, updated_spec, cancel_activity)
+
+      nil ->
+        {:boundary, flow_node.id, %{}, cancel_activity}
+    end
+  end
 
   defp resume_schedule_and_wait(flow_node, context, fire_at, cancel_activity) do
     {:ok, timer_ref} = schedule_timer(flow_node, context, fire_at)
@@ -386,6 +455,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
       flow_node_instance_id: context.flow_node_instance_id,
       flow_node_id: flow_node.id,
       kind: :boundary,
+      root_process_instance_id: context.root_process_instance_id,
       lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
@@ -466,6 +536,73 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
   defp parse_persisted_fire_at(%DateTime{} = datetime), do: {:ok, datetime}
   defp parse_persisted_fire_at(_other), do: {:error, :invalid_fire_at}
+
+  defp cycle_resume?(type_props) do
+    value = Map.get(type_props, :is_cycle) || Map.get(type_props, "is_cycle")
+    value == true or value == "true"
+  end
+
+  defp cycle_type_properties(host_fni_id, fire_at, cancel_activity, timer_ref, cycle_spec) do
+    %{
+      host_flow_node_instance_id: host_fni_id,
+      fire_at: DateTime.to_iso8601(fire_at),
+      cancel_activity: cancel_activity,
+      timer_ref: timer_ref,
+      is_cycle: true,
+      cycle_repetitions: encode_cycle_repetitions(cycle_spec.repetitions),
+      cycle_interval: Duration.to_iso8601(cycle_spec.interval_duration)
+    }
+  end
+
+  defp persist_cycle_type_properties(context, type_properties) do
+    case FniLifecycle.park_async(context, type_properties) do
+      :ok ->
+        send(
+          context.process_instance_pid,
+          {:fni_merge_type_properties, context.flow_node_instance_id, type_properties}
+        )
+
+        :ok
+
+      {:error, :persistence_failed} = error ->
+        error
+    end
+  end
+
+  defp parse_persisted_cycle_spec(type_props) do
+    repetitions =
+      Map.get(type_props, :cycle_repetitions) || Map.get(type_props, "cycle_repetitions")
+
+    interval = Map.get(type_props, :cycle_interval) || Map.get(type_props, "cycle_interval")
+
+    with {:ok, decoded_repetitions} <- decode_cycle_repetitions(repetitions),
+         {:ok, duration} <- parse_cycle_interval(interval) do
+      {:ok,
+       %{repetitions: decoded_repetitions, interval_duration: duration, start_at: nil}}
+    end
+  end
+
+  defp parse_cycle_interval(interval) when is_binary(interval) do
+    Duration.from_iso8601(interval)
+  end
+
+  defp parse_cycle_interval(_interval), do: {:error, :invalid_cycle_interval}
+
+  defp encode_cycle_repetitions(:infinite), do: "infinite"
+  defp encode_cycle_repetitions(count) when is_integer(count), do: count
+
+  defp decode_cycle_repetitions("infinite"), do: {:ok, :infinite}
+  defp decode_cycle_repetitions(:infinite), do: {:ok, :infinite}
+  defp decode_cycle_repetitions(count) when is_integer(count) and count >= 1, do: {:ok, count}
+
+  defp decode_cycle_repetitions(count) when is_binary(count) do
+    case Integer.parse(count) do
+      {parsed, ""} when parsed >= 1 -> {:ok, parsed}
+      _ -> {:error, :invalid_cycle_repetitions}
+    end
+  end
+
+  defp decode_cycle_repetitions(_other), do: {:error, :invalid_cycle_repetitions}
 
   defp resolve_cancel_activity(type_props, flow_node) do
     case Map.get(type_props, :cancel_activity) || Map.get(type_props, "cancel_activity") do

@@ -11,16 +11,29 @@ Error Boundary Events catch errors thrown by an activity (such as a Call Activit
 
 ## Matching Rules
 
-Error Boundary Events match using **AND logic** on two optional fields:
+Catch-side Error Boundary matching **resolves** the boundary's error code the same way as throw-side Error End Events:
+
+1. Inline `evil:errorCode` on the boundary's `<errorEventDefinition>` if present
+2. Else the global `<bpmn:error errorCode="...">` referenced by `errorRef`
+3. Else `nil` (catch-all)
+
+A 3-arity lookup that never receives the process `Definitions` cannot resolve `errorRef` — specific boundaries then look like catch-alls. Production matching always passes `Definitions`.
+
+AND filters still apply on the **resolved** code and optional `error_message`:
 
 | Boundary Specifies | Matching Rule |
 |-------------------|---------------|
-| `errorCode` only | Runtime error must carry the same `error_code` |
+| Resolved `errorCode` only | Runtime error must carry the same `error_code` |
 | `errorMessage` only | Runtime error must carry the same `error_message` |
-| Both `errorCode` and `errorMessage` | **Both** must match |
+| Both resolved `errorCode` and `errorMessage` | **Both** must match |
 | Neither (catch-all) | Matches any error |
 
-When multiple boundary events are attached, the engine evaluates them in document order and uses the **first match**.
+When multiple boundary events are attached, the engine **ranks** them (document order is not a specificity tiebreak):
+
+1. First boundary whose **resolved** code equals the raised `error_code` (and the message AND-filter still holds)
+2. Else first catch-all (resolved code `nil`, message filter ok)
+
+`fail_async` on a Service Task uses this same matcher — the plugin's `error_code` string is not a special channel.
 
 ## BPMN Example
 

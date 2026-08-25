@@ -202,7 +202,8 @@ defmodule EvilEngine.BPMN.Model.MultiInstance do
   attributes and `evil:*` extensions, preferring the extension when both
   are present.
 
-  `loopCardinality` is intentionally not supported — iteration count is
+  `loopCardinality` is parsed into `loop_cardinality` and rejected at
+  deploy time (`:loop_cardinality_not_supported`). Iteration count is
   exclusively determined by the input collection length.
 
   The `compiled_*` fields are reserved for future precompilation support.
@@ -222,6 +223,7 @@ defmodule EvilEngine.BPMN.Model.MultiInstance do
           loop_break_condition: String.t() | nil,
           loop_interval: String.t() | nil,
           max_iterations: non_neg_integer() | nil,
+          loop_cardinality: String.t() | nil,
           compiled_collection: reference() | nil,
           compiled_output_collection: reference() | nil,
           compiled_completion_condition: reference() | nil,
@@ -237,6 +239,7 @@ defmodule EvilEngine.BPMN.Model.MultiInstance do
             loop_break_condition: nil,
             loop_interval: nil,
             max_iterations: nil,
+            loop_cardinality: nil,
             compiled_collection: nil,
             compiled_output_collection: nil,
             compiled_completion_condition: nil,

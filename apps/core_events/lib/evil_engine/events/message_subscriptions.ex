@@ -46,7 +46,8 @@ defmodule EvilEngine.Events.MessageSubscriptions do
             kind: kind(),
             registered_at: DateTime.t(),
             via_pid: pid(),
-            lane_name: String.t() | nil
+            lane_name: String.t() | nil,
+            root_process_instance_id: String.t() | nil
           }
 
     @enforce_keys [
@@ -71,7 +72,8 @@ defmodule EvilEngine.Events.MessageSubscriptions do
       :kind,
       :registered_at,
       :via_pid,
-      :lane_name
+      :lane_name,
+      :root_process_instance_id
     ]
   end
 
@@ -101,7 +103,9 @@ defmodule EvilEngine.Events.MessageSubscriptions do
       kind: params.kind,
       registered_at: DateTime.utc_now(),
       via_pid: params.via_pid,
-      lane_name: Map.get(params, :lane_name)
+      lane_name: Map.get(params, :lane_name),
+      root_process_instance_id:
+        Map.get(params, :root_process_instance_id) || params.process_instance_id
     }
 
     key = {subscription.message_name, subscription.expected_correlation_value}
@@ -338,6 +342,7 @@ defmodule EvilEngine.Events.MessageSubscriptions do
             process_instance_id: subscription.process_instance_id,
             flow_node_instance_id: subscription.flow_node_instance_id,
             lane_name: subscription.lane_name,
+            root_process_instance_id: subscription.root_process_instance_id,
             occurred_at: DateTime.utc_now()
           })
 

@@ -74,6 +74,7 @@ defmodule EvilEngine.Execution.BoundaryAwareHandler do
       case BoundaryResolver.find_matching_error_boundary(
              flow_node,
              context.process_model,
+             context.definitions,
              error_info
            ) do
         {:ok, boundary_node} ->

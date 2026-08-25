@@ -13,10 +13,12 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
   import EvilEngine.Execution.ProcessInstance.Helpers
 
+  alias EvilEngine.Events.EngineEventBus
   alias EvilEngine.Execution.BoundaryAwareHandler
   alias EvilEngine.Execution.HandlerDispatch
   alias EvilEngine.Execution.Persistence, as: PersistenceAdapter
   alias EvilEngine.Execution.PersistenceRetry
+  alias EvilEngine.Types.Event
   alias EvilEngine.Types.Token
 
   @type compensation_target :: %{
@@ -436,7 +438,7 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
     )
   end
 
-  defp persist_throw_finished(data, flow_node_instance_id, runtime) do
+  defp persist_throw_finished(data, flow_node_instance_id, _runtime) do
     adapter = PersistenceAdapter.adapter()
 
     _retry_result =
@@ -453,7 +455,29 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
     entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
 
     if entry do
-      runtime.emit_fni_state_changed.(data, flow_node_instance_id, entry, :waiting, :finished)
+      emit_throw_finished(data, flow_node_instance_id, entry)
     end
+  end
+
+  defp emit_throw_finished(data, flow_node_instance_id, entry) do
+    flow_node =
+      Enum.find(data.process_model.flow_nodes, fn node -> node.id == entry.flow_node_id end)
+
+    EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
+      flow_node_instance_id: flow_node_instance_id,
+      process_instance_id: data.process_instance_id,
+      root_process_instance_id: data.root_process_instance_id,
+      flow_node_id: entry.flow_node_id,
+      flow_node_type: entry.flow_node_type,
+      event_type: if(flow_node, do: extract_event_type(flow_node)),
+      lane_name: resolve_lane_name(data.process_model, flow_node),
+      terminal_state: :finished,
+      triggerer_flow_node_instance_id: nil,
+      type_properties: entry.type_properties || %{},
+      error_info: nil,
+      multi_instance_id: Map.get(entry, :multi_instance_id),
+      iteration_index: Map.get(entry, :iteration_index),
+      occurred_at: DateTime.utc_now()
+    })
   end
 end

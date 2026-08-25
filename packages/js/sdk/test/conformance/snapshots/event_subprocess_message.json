@@ -135,9 +135,7 @@
                 "typeData": {
                   "eventDefinition": {
                     "correlationRetrievalExpression": null,
-                    "eventMapping": null,
-                    "messageRef": "Msg_ESP",
-                    "payloadExpression": null
+                    "messageRef": "Msg_ESP"
                   },
                   "isInterrupting": true,
                   "resultContract": null

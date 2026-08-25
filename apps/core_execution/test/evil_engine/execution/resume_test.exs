@@ -202,6 +202,108 @@ defmodule EvilEngine.Execution.ResumeTest do
     end
   end
 
+  describe "MI resume reattaches existing iteration FNIs" do
+    test "parallel MI user tasks keep the same FNI ids after resume" do
+      version_id = random_id()
+
+      definitions =
+        BpmnFactory.multi_instance_task_process(
+          is_sequential: false,
+          flow_node_type: :user_task,
+          process_id: "mi-resume-reattach"
+        )
+
+      ModelCache.put_new(version_id, definitions)
+
+      process_instance_id = random_id()
+      shell_fni_id = random_id()
+      iteration_zero_id = random_id()
+      iteration_one_id = random_id()
+
+      items = [%{"name" => "A"}, %{"name" => "B"}]
+
+      flow_node_instance_data = [
+        %{
+          id: shell_fni_id,
+          flow_node_id: "UserTask_MI_1",
+          flow_node_type: "user_task",
+          state: "active",
+          input_token: %{"items" => items},
+          type_properties: %{},
+          previous_flow_node_instance_ids: [],
+          lane_name: nil,
+          started_at: DateTime.utc_now()
+        },
+        %{
+          id: iteration_zero_id,
+          flow_node_id: "UserTask_MI_1",
+          flow_node_type: "user_task",
+          state: "waiting",
+          input_token: %{"items" => items, "item" => %{"name" => "A"}},
+          type_properties: %{"async" => true},
+          previous_flow_node_instance_ids: [shell_fni_id],
+          lane_name: nil,
+          started_at: DateTime.utc_now(),
+          multi_instance_id: shell_fni_id,
+          iteration_index: 0
+        },
+        %{
+          id: iteration_one_id,
+          flow_node_id: "UserTask_MI_1",
+          flow_node_type: "user_task",
+          state: "waiting",
+          input_token: %{"items" => items, "item" => %{"name" => "B"}},
+          type_properties: %{"async" => true},
+          previous_flow_node_instance_ids: [shell_fni_id],
+          lane_name: nil,
+          started_at: DateTime.utc_now(),
+          multi_instance_id: shell_fni_id,
+          iteration_index: 1
+        }
+      ]
+
+      assert {:ok, process_instance_pid} =
+               resume_pi(process_instance_id, version_id, flow_node_instance_data,
+                 context: %{"items" => items}
+               )
+
+      Process.sleep(80)
+      {:running, state} = :sys.get_state(process_instance_pid)
+
+      waiting_iteration_ids =
+        state.flow_node_instance_states
+        |> Enum.filter(fn {_id, entry} ->
+          entry.flow_node_type == :user_task and entry.state == :waiting and
+            is_binary(Map.get(entry, :multi_instance_id))
+        end)
+        |> Enum.map(fn {id, _entry} -> id end)
+        |> Enum.sort()
+
+      assert waiting_iteration_ids == Enum.sort([iteration_zero_id, iteration_one_id])
+
+      identity = %Identity{id: "finisher"}
+
+      assert :ok =
+               ProcessInstance.finish_user_task(
+                 process_instance_pid,
+                 iteration_zero_id,
+                 %{"approved" => true},
+                 identity
+               )
+
+      assert :ok =
+               ProcessInstance.finish_user_task(
+                 process_instance_pid,
+                 iteration_one_id,
+                 %{"approved" => true},
+                 identity
+               )
+
+      ref = Process.monitor(process_instance_pid)
+      assert_receive {:DOWN, ^ref, :process, ^process_instance_pid, _}, 2_000
+    end
+  end
+
   # -------------------------------------------------------------------
   # U4: Resume PI with async service task
   # -------------------------------------------------------------------

@@ -193,6 +193,8 @@ present, `minScorePercent` ← `scorePercent`, `maxErrors` ← `rawErrorFindings
 `{:async, flow_node_instance_id}` from `handle_enter/3` and complete later via
 `facade.service_tasks.finish_async.(flow_node_instance_id, result)` or
 `facade.service_tasks.fail_async.(flow_node_instance_id, code, message)`.
+The `code` matches Error Boundaries with the same ranking as enter-time errors
+(specific resolved `errorRef` / inline code before catch-all).
 Synchronous `{:ok, %FlowNodeResult{}}` returns are not supported. For local,
 synchronous computation, use a Script Task with a Named Script plugin instead.
 
@@ -362,6 +364,10 @@ FEEL expression that resolves to the list of assignees at runtime.
 </bpmn:userTask>
 ```
 
+**Cancel:** `cancel_user_task` aborts the **entire process tree** — the same
+effect as `PUT /process-instances/{id}/abort`. Error Boundary Events do not
+catch the abort.
+
 #### `evil:formFields`
 
 JSON string defining the form schema (Formkit-opaque).
@@ -432,23 +438,15 @@ the process-level `evil:correlationKey` instead.
 </bpmn:intermediateThrowEvent>
 ```
 
-#### `evil:payload`
+Throw-side message shaping uses `evil:inputMapping` on the flow node (not the
+event definition). Catch-side shaping uses `evil:outputMapping`. There is no
+`evil:payload` or `evil:eventMapping` extension.
 
-FEEL expression for constructing the outgoing message payload (throw
-events).
-
-```xml
-<evil:payload>{ orderId: token.orderId, status: "shipped" }</evil:payload>
-```
-
-#### `evil:eventMapping`
-
-FEEL expression that maps the received message payload into the process
-instance's token.
-
-```xml
-<evil:eventMapping>{ paymentConfirmation: event }</evil:eventMapping>
-```
+**One-sided Send / Receive pipeline:** Send Task and throw-side message events
+consume `evil:inputMapping` + `evil:payloadContract` only (`outputMapping` in
+XML is ignored). Receive Task and catch-side message events consume
+`evil:resultContract` + `evil:outputMapping` only (`inputMapping` in XML is
+ignored). Do not apply the unused side at runtime.
 
 ### Signal Event Extensions
 
@@ -463,8 +461,8 @@ definition's `name` attribute, resolved via `signalRef` on the event definition.
 | `evil:inputMapping` | Throw, End (signal) | FEEL over current token before publish (same semantics); does **not** become signal payload |
 | `evil:outputMapping` | Catch, Boundary (signal) | FEEL over **existing token** after `{:signal_arrived, ...}`; signals carry no inbound payload |
 
-**Not supported on signals:** `evil:payload`, `evil:eventMapping`,
-`evil:correlationKey`, `evil:correlationRetrievalExpression`.
+**Not supported on signals:** `evil:correlationKey`,
+`evil:correlationRetrievalExpression`. Signals carry no payload.
 
 **Semantics:** broadcast-all by `signal_name`; no payload; no
 correlation; Signal Start + catch/boundary fire **simultaneously** (no
@@ -482,6 +480,12 @@ Runtime error code for matching boundary error events.
 ```xml
 <evil:errorCode>VALIDATION_FAILED</evil:errorCode>
 ```
+
+Catch-side Error Boundary matching resolves the boundary's code the same way as
+throw-side: inline `evil:errorCode` if present, else global `<bpmn:error errorCode>`
+via `errorRef`, else `nil` (catch-all). Ranking among boundaries on the same host:
+first specific resolved-code match, then first catch-all. Document order is not a
+specificity tiebreak. `fail_async` `error_code` uses this same matcher.
 
 #### `evil:errorMessage`
 
@@ -625,6 +629,9 @@ the ad-hoc subprocess completes.
 FEEL expression that returns a list of flow node IDs to activate initially.
 Evaluated against the standard FEEL bindings (`token`, `this`, `context`, etc.).
 Required when `ordering="Sequential"` and no `implementation` is set.
+Sequential engine-managed mode activates **only the first** matching ID in that
+list; remaining IDs are logged and ignored at start. `AdHocMode` auto-chain then
+advances through remaining unperformed inner activities (model order).
 
 #### `implementation` attribute
 
@@ -789,8 +796,10 @@ These live inside `<bpmn:extensionElements>` of a
 grouped by `multi_instance_id` (a UUID column on `flow_node_instances`). No child
 PIs are spawned. See the execution architecture docs for details.
 
-**`loopCardinality` is NOT supported.** Iteration count is exclusively
-determined by the input collection length (or `evil:maxIterations` cap).
+**`loopCardinality` is NOT supported.** The parser stores the text, and the
+validator rejects the deploy with `:loop_cardinality_not_supported`. Iteration
+count is exclusively determined by the input collection length (or
+`evil:maxIterations` cap).
 
 #### `evil:inputCollection` / `evil:outputCollection`
 
@@ -1097,11 +1106,15 @@ classifies each Complex Gateway by its incoming/outgoing flow counts and enforce
 - **Mixed rejection** — a gateway with `> 1` incoming **and** `> 1` outgoing is a
   mixed gateway → violation `complex_gateway_mixed`. A Complex Gateway must be
   a split (one in, many out) or a join (many in, one out), never both.
-- **Split rule** — for a split (`> 1` outgoing), every outgoing flow must carry a
-  `conditionExpression` **or** be the gateway's `default` flow. An unconditional,
-  non-default outgoing flow → violation `complex_gateway_unconditional_flow`.
-  (This is the key contrast with the Inclusive Gateway, which silently activates
-  unconditional flows.)
+- **Split completeness is runtime, not deploy** — an unmarked non-default
+  outgoing flow on a Complex Split fatals `:complex_gateway_unconditional_flow`
+  when the split is entered. WIP diagrams may still deploy. Studio lints
+  warning (`bpmn-development`) / error (`bpmn-production-ready`). Exclusive
+  Gateway unmarked non-default outgoings are the same class: runtime fatal
+  `:exclusive_gateway_unconditional_flow` before FEEL, no deploy validator.
+  A single unmarked Exclusive Gateway outgoing is pass-through; a single
+  outgoing that carries a condition is still evaluated (false + no default →
+  `:no_matching_condition`).
 - **Join rule** — for a join (`> 1` incoming), a non-blank `<bpmn:activationCondition>`
   is required → violation `complex_gateway_join_missing_activation_condition` when
   absent. The join is a single-fire **threshold** join: it fires when the FEEL
@@ -1116,7 +1129,8 @@ classifies each Complex Gateway by its incoming/outgoing flow counts and enforce
   the split/join (`complex_region_cross_boundary`), and partially overlapping regions
   (`complex_region_overlap` — regions must be disjoint or strictly nested).
 
-Runtime split outcomes: `complex_split_no_matching_condition` (zero truthy, no
+Runtime split outcomes: `complex_gateway_unconditional_flow` (unmarked
+non-default outgoing), `complex_split_no_matching_condition` (zero truthy, no
 default), `complex_split_condition_failed` (FEEL error). Runtime join outcomes:
 `complex_join_condition_failed` (FEEL error). **Twist 2 cancellation:** when a
 Complex Join fires, every `:active`/`:waiting` FNI whose flow node lies inside the
@@ -1281,7 +1295,7 @@ to the string-keyed format required by the Rust NIF.
 - `<bpmn:condition>` inside `<bpmn:conditionalEventDefinition>` — FEEL expression re-evaluated by the PI on every state mutation until it becomes true
 - `<bpmn:activationCondition>` inside `<bpmn:complexGateway>` (join only) — FEEL threshold expression re-evaluated on every arrival / state change; gets the `activatedCount` / `incomingCount` overlay bindings
 - `<bpmn:timeDuration>`, `<bpmn:timeDate>`, `<bpmn:timeCycle>` (expression-based)
-- `evil:assignees`, `evil:dueDate`, `evil:payload`, `evil:eventMapping`,
+- `evil:assignees`, `evil:dueDate`,
   `evil:correlationRetrievalExpression`, `evil:correlationKey`,
   `evil:inputCollection`, `evil:outputCollection`, `evil:loopBreakCondition`,
   `<bpmn:completionCondition>` (MI), `<bpmn:loopCondition>` (Standard Loop)
@@ -1336,11 +1350,11 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `UserTaskFinished` | Same + `outcome` | `outcome`: `completed` or `aborted`. Also broadcast to `user_tasks:pending` |
 | `UserTaskValidationFailed` | Same + `violations` | `violations`: array of `{message, path}` |
 | `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName`, `laneName` | `pluginName` may be `null` |
-| `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `laneName` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `evil:version` string. `laneName` is the Call Activity shell's lane. |
-| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `laneName`, `occurredAt` | Emitted when an Embedded SubProcess, Event Subprocess, or Ad-hoc SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` (mandatory, ESP-D16) is `true` when the child is an Event Subprocess spawn, `false` otherwise. `isAdHocSubprocess` is `true` when the child is an Ad-hoc SubProcess spawn, `false` otherwise. Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. Does not carry `rootProcessInstanceId` — use `parentProcessInstanceId` or subscribe to the root PI channel |
+| `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `rootProcessInstanceId`, `laneName` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `evil:version` string. `laneName` is the Call Activity shell's lane. `rootProcessInstanceId` is the emitting parent PI's root (SP-13). |
+| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when an Embedded SubProcess, Event Subprocess, or Ad-hoc SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` (mandatory, ESP-D16) is `true` when the child is an Event Subprocess spawn, `false` otherwise. `isAdHocSubprocess` is `true` when the child is an Ad-hoc SubProcess spawn, `false` otherwise. `rootProcessInstanceId` is the emitting parent PI's root (SP-13). Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. |
 | `EventSubprocessTriggered` | `scopeProcessInstanceId`, `rootProcessInstanceId`, `subprocessNodeId`, `childProcessInstanceId`, `triggerKind`, `isInterrupting`, `laneName`, `occurredAt` | Emitted by the scope PI when an Event Subprocess trigger fires and spawns an ESP child PI. `triggerKind` is one of `message`, `signal`, `timer`, `error`, `escalation`, `conditional`. `isInterrupting` reflects the ESP start event's `isInterrupting` attribute. The Studio debugger primarily consumes `SubProcessChildStarted` (with `isEventSubprocess`); this event additionally exposes the trigger kind |
 | `DataObjectWritten` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `dataObjectId`, `writeId`, `previousValue`, `value`, `createdAt`, `laneName` | Emitted after each successful DOA write. `previousValue` is computed from the in-memory cache (not stored in DB). `laneName` is the causing FNI's lane. |
-| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI (cycle start-event fire). `TimerArmed` and `TimerCancelled` structs exist and are classified as FNI-originating for WebSocket dispatch, but are not currently published. |
+| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI (cycle start-event fire). Cycle Timer Start fires leave `processInstanceId` and `rootProcessInstanceId` null. Scheduler telemetry `[:evil_engine, :timer, :armed|:fired|:cancelled]` covers arm/cancel; there are no typed `TimerArmed` / `TimerCancelled` events. |
 | `ProcessDefinitionDeployed` | `processModelId`, `version`, `source` | Emitted per deployed version from `persist_deploy_batch/3` |
 | `ProcessDefinitionUndeployed` | `processModelId`, `version`, `source` | `version` is `null` for bulk undeploy |
 | `ProcessDefinitionEnabled` | `processModelId`, `source` | Emitted when a process is re-enabled via REST or plugin |
@@ -1350,9 +1364,9 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `DecisionEvaluated` | `decisionDefinitionId`, `decisionModelId`, `version`, `decisionVersionId`, `durationMicroseconds`, `source` | Ad-hoc evaluations only (REST + plugin facade); BRT evaluations are observable via `FlowNodeInstanceFinished.typeProperties` |
 | `ProcessInstanceRetried` | `processInstanceId`, `targetProcessInstanceId`, `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `processInstanceId` is the root PI; `targetProcessInstanceId` is the user-targeted PI. `version`, `previousVersion`, `newVersion` are **process version UUIDs** (not `evil:version` strings). `previousVersion`/`newVersion` are `null` when no version migration. `resetToFlowNodeInstanceId` is `null` when no checkpoint. Visibility stamps match `ProcessInstanceStateChanged`. |
 | `MessagePublished` | `messageId`, `messageName`, `correlationValue`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | Emitted after pipeline completes |
-| `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `laneName`, `occurredAt` | Emitted when a message reaches a waiting subscription. `laneName` is copied from the catch-side subscription. |
+| `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a message reaches a waiting subscription. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription (SP-13). |
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | No payload, no correlation; true broadcast. Emitted after pipeline completes |
-| `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `laneName`, `occurredAt` | No payload — signal identity and recipient only. `laneName` is copied from the catch-side subscription. |
+| `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | No payload — signal identity and recipient only. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription (SP-13). |
 | `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught) and on REST/plugin inject. `throwType`: `"end_event"`, `"intermediate_throw"`, or `"api_trigger"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. `laneName` is the throw FNI's lane. |
 | `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `laneName`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
 | `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `laneName`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
@@ -1361,7 +1375,7 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `AdHocSubProcessCompleted` | `processInstanceId`, `rootProcessInstanceId`, `adhocFlowNodeInstanceId`, `adhocNodeId`, `completionReason`, `totalActivations`, `laneName`, `occurredAt` | `completionReason`: `completed`, `fatal`, `error`, `aborted`, `crashed`, `escalation`, `unknown`. `laneName` is the ad-hoc shell's lane. |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
 
-**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Twelve event types carry `rootProcessInstanceId`: `ProcessInstanceStateChanged`, `FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `FlowNodeInstanceStateChanged`, `UserTaskCreated`, `UserTaskFinished`, `DataObjectWritten`, `CompensationTriggered`, `ActivityCompensated`, `TransactionCancelled`, `MultiInstanceStarted`, and `MultiInstanceCompleted`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives all descendant FNI, user-task, data-object, and compensation events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
+**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Event types that carry `rootProcessInstanceId` include PI lifecycle, FNI lifecycle, user-task, data-object, compensation, multi-instance, `TimerFired`, `MessageArrived`, `SignalArrived`, `CallActivityChildStarted`, and `SubProcessChildStarted`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both the primary PI topic (`process_instance:<processInstanceId>` or, for child-spawn events, `process_instance:<parentProcessInstanceId>`) and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives descendant FNI, user-task, data-object, compensation, timer, message/signal arrival, and nested spawn events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
 
 **`EngineOverloaded` / `EngineRecovered` detail:** Emitted on load-threshold **crossings** (`normal` ↔ `elevated` ↔ `critical`), not on every poller tick. `EngineOverloaded` fires on upward transitions (normal→elevated, elevated→critical, normal→critical). `EngineRecovered` fires on downward transitions to normal (elevated→normal, critical→normal). Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). Detection lives in `EvilEngine.Telemetry.Measurements`.
 
@@ -1851,7 +1865,7 @@ clear visual distinction in the debugger:
 When a child PI (via Call Activity) throws a BPMN error:
 - The Call Activity handler receives `{:child_pi_bpmn_error, ...}` in
   `await_child_completion/3` and routes through
-  `BoundaryResolver.find_matching_error_boundary/3`
+  `BoundaryResolver.find_matching_error_boundary/4`
 - **Match found** → `{:boundary, boundary_node_id, error_info,
   cancel_activity}` — parent catches the error and follows the boundary
   path

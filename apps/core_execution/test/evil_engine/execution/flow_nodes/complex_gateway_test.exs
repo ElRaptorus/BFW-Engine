@@ -111,8 +111,8 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
     end
   end
 
-  describe "split — unconditional non-default flows never ride along (distinct from inclusive)" do
-    test "an unconditional non-default flow is NOT activated alongside a truthy conditional" do
+  describe "split — unconditional non-default flows are a runtime fatal" do
+    test "an unconditional non-default flow fatals even when a sibling condition is truthy" do
       sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg1", target_ref: "taskA", condition_expression: "token.x = true"}
       sf_b = %SequenceFlow{id: "sf-b", source_ref: "cg1", target_ref: "taskB"}
 
@@ -120,8 +120,11 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
       context = make_context(gateway, [sf_a, sf_b], [make_target("taskA"), make_target("taskB")])
       token = make_token(%{"x" => true})
 
-      assert {:ok, %FlowNodeResult{} = result} = ComplexGateway.handle_enter(gateway, token, context)
-      assert result.next_flow_node_ids == ["taskA"]
+      assert {:error, {:complex_gateway_unconditional_flow, detail}} =
+               ComplexGateway.handle_enter(gateway, token, context)
+
+      assert detail.sequence_flow_id == "sf-b"
+      assert detail.flow_node_id == "cg1"
     end
   end
 

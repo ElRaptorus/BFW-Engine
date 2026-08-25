@@ -143,6 +143,8 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEventTest do
       assert type_properties.is_cycle == true
       assert is_binary(type_properties.fire_at)
       assert is_binary(type_properties.timer_ref)
+      assert type_properties.cycle_repetitions == 3
+      assert is_binary(type_properties.cycle_interval)
     end
 
     test "returns error for missing timer spec" do
@@ -362,6 +364,72 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEventTest do
 
       entry = %{
         type_properties: %{},
+        token: build_token()
+      }
+
+      assert {:error, %{reason: :resume_timer_failed}} =
+               TimerBoundaryEvent.handle_resume(flow_node, entry, context)
+    end
+
+    test "non-interrupting cycle with remaining 1 fires as a final boundary" do
+      flow_node = build_boundary_node(time_cycle: "R3/PT1H", cancel_activity: false)
+      context = build_context(flow_node)
+
+      past = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+
+      entry = %{
+        type_properties: %{
+          "fire_at" => past,
+          "cancel_activity" => false,
+          "is_cycle" => true,
+          "cycle_repetitions" => 1,
+          "cycle_interval" => "PT0S",
+          "host_flow_node_instance_id" => "fni-host-1"
+        },
+        token: build_token()
+      }
+
+      assert {:boundary, "TimerBE_1", %{}, false} =
+               TimerBoundaryEvent.handle_resume(flow_node, entry, context)
+    end
+
+    test "non-interrupting cycle with remaining 2 delivers a tick then continues" do
+      flow_node = build_boundary_node(time_cycle: "R3/PT1H", cancel_activity: false)
+      context = build_context(flow_node)
+
+      past = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+
+      entry = %{
+        type_properties: %{
+          "fire_at" => past,
+          "cancel_activity" => false,
+          "is_cycle" => true,
+          "cycle_repetitions" => 2,
+          "cycle_interval" => "PT0S",
+          "host_flow_node_instance_id" => "fni-host-1"
+        },
+        token: build_token()
+      }
+
+      result = TimerBoundaryEvent.handle_resume(flow_node, entry, context)
+
+      assert_received {:fni_result, "fni-tbe-1", {:boundary_cycle_fire, "TimerBE_1", %{}, false}}
+      assert {:boundary, "TimerBE_1", %{}, false} = result
+    end
+
+    test "returns error when cycle state is missing interval" do
+      flow_node = build_boundary_node(time_cycle: "R3/PT1H", cancel_activity: false)
+      context = build_context(flow_node)
+
+      past = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+
+      entry = %{
+        type_properties: %{
+          "fire_at" => past,
+          "cancel_activity" => false,
+          "is_cycle" => true,
+          "cycle_repetitions" => 2
+        },
         token: build_token()
       }
 

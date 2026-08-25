@@ -110,9 +110,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Message_1",
-              "payloadExpression": null
+              "messageRef": "Message_1"
             },
             "outMappings": [],
             "resultContract": null

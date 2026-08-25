@@ -12,6 +12,11 @@ defmodule EvilEngine.Execution.FlowNodes.ExclusiveGateway do
   - Zero truthy conditions + no default → fatal `:no_matching_condition`.
   - Multiple truthy conditions → fatal `:ambiguous_condition`.
   - Any expression evaluation error → fatal `:expression_evaluation_failed`.
+  - Split with more than one outgoing: an unmarked (blank `conditionExpression`)
+    non-default flow is fatal `:exclusive_gateway_unconditional_flow` **before**
+    FEEL evaluation. A single outgoing unmarked flow is pass-through. A single
+    outgoing that carries a condition is still evaluated (false + no default →
+    `:no_matching_condition`).
 
   This is a deliberate divergence from the BPMN 2.0 specification's
   "first truthy wins" rule. Strict enforcement prevents ambiguous,
@@ -94,6 +99,42 @@ defmodule EvilEngine.Execution.FlowNodes.ExclusiveGateway do
   end
 
   defp handle_split(flow_node, token, context, outgoing_flows) do
+    case outgoing_flows do
+      [single_flow] ->
+        pass_through_or_evaluate_single_outgoing(flow_node, token, context, single_flow)
+
+      many_flows ->
+        reject_or_evaluate_exclusive_split(flow_node, token, context, many_flows)
+    end
+  end
+
+  defp pass_through_or_evaluate_single_outgoing(flow_node, token, context, single_flow) do
+    if blank_condition?(single_flow) do
+      {:selected, token.payload, [single_flow.target_ref]}
+    else
+      evaluate_exclusive_split(flow_node, token, context, [single_flow])
+    end
+  end
+
+  defp reject_or_evaluate_exclusive_split(flow_node, token, context, outgoing_flows) do
+    case first_unconditional_non_default(outgoing_flows) do
+      %{} = unmarked_flow ->
+        {:error,
+         %{
+           reason: :exclusive_gateway_unconditional_flow,
+           flow_node_id: flow_node.id,
+           sequence_flow_id: unmarked_flow.id,
+           message:
+             "ExclusiveGateway '#{flow_node.id}' has unconditional non-default outgoing " <>
+               "sequence flow '#{unmarked_flow.id}'. Add a conditionExpression or mark the flow as default."
+         }}
+
+      nil ->
+        evaluate_exclusive_split(flow_node, token, context, outgoing_flows)
+    end
+  end
+
+  defp evaluate_exclusive_split(flow_node, token, context, outgoing_flows) do
     feel_context = build_feel_context(flow_node, token, context)
 
     {conditional, rest} =
@@ -207,5 +248,19 @@ defmodule EvilEngine.Execution.FlowNodes.ExclusiveGateway do
       end
 
     {incoming, outgoing}
+  end
+
+  defp first_unconditional_non_default(outgoing_flows) do
+    Enum.find(outgoing_flows, fn sequence_flow ->
+      not sequence_flow.is_default and blank_condition?(sequence_flow)
+    end)
+  end
+
+  defp blank_condition?(sequence_flow) do
+    case sequence_flow.condition_expression do
+      nil -> true
+      expression when is_binary(expression) -> String.trim(expression) == ""
+      _other -> false
+    end
   end
 end

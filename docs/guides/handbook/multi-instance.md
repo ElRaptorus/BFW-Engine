@@ -113,7 +113,7 @@ loop.completed >= loop.total / 2
 
 ## Completion Condition
 
-BPMN's `<bpmn:completionCondition>` is a FEEL expression evaluated after each iteration. When it evaluates to `true`, the MI terminates early — remaining iterations are interrupted.
+BPMN's `<bpmn:completionCondition>` is a FEEL expression evaluated after each iteration. When it evaluates to `true`, the MI terminates early — **remaining parallel iterations are interrupted** (their FNIs go `:interrupted`). Sequential MI simply does not start later items.
 
 ```xml
 <bpmn:multiInstanceLoopCharacteristics isSequential="false">
@@ -205,7 +205,7 @@ The engine emits lifecycle events for MI activities:
 
 ## `loopCardinality` Is Not Supported
 
-The engine does not support BPMN's `<loopCardinality>` element. Iteration count is always determined by the input collection length (optionally capped by `evil:maxIterations`). This is a deliberate design decision — collection-driven iteration is more explicit and debuggable.
+The engine does not support BPMN's `<loopCardinality>` element. The parser stores the text; **deploy is rejected** with `:loop_cardinality_not_supported`. Iteration count is always determined by the input collection length (optionally capped by `evil:maxIterations`). This is a deliberate design decision — collection-driven iteration is more explicit and debuggable.
 
 ## Related
 

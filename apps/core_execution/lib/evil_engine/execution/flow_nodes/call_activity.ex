@@ -177,7 +177,7 @@ defmodule EvilEngine.Execution.FlowNodes.CallActivity do
         payload: input_payload,
         identity: context.identity,
         parent_process_instance_id: context.process_instance_id,
-        root_process_instance_id: child_process_instance_id,
+        root_process_instance_id: context.root_process_instance_id,
         triggerer_flow_node_instance_id: context.flow_node_instance_id,
         notify_pid: handler_pid
       }

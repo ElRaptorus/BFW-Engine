@@ -98,6 +98,12 @@ compensable task.
 Triggers compensation and **continues the flow**. After all handlers have
 executed, the token proceeds along the throw event's outgoing sequence flow.
 
+The throw FNI stays on the normal activity path: it emits
+`FlowNodeInstanceFinished` (not a waiting→finished `FlowNodeInstanceStateChanged`).
+`waitForCompletion` on `<bpmn:compensateEventDefinition>` defaults to `true`
+and is always treated as synchronous — `waitForCompletion="false"` is parsed
+but still waits for every handler to finish before the token proceeds.
+
 ```xml
 <bpmn:intermediateThrowEvent id="Throw_Comp" name="Undo Everything">
   <bpmn:incoming>Flow_In</bpmn:incoming>

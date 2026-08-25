@@ -281,13 +281,26 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
   def reactivate_fnis(data, process_instance_pid, grouped_arrivals \\ %{}) do
     join_fni_ids = join_fni_ids(data)
 
-    Enum.reduce(data.flow_node_instance_states, data, fn {flow_node_instance_id, entry}, acc ->
-      reactivate_single_fni(acc, flow_node_instance_id, entry, process_instance_pid, join_fni_ids, grouped_arrivals)
-    end)
-  end
+    {iteration_entries, other_entries} =
+      Enum.split_with(data.flow_node_instance_states, fn {_id, entry} ->
+        is_binary(Map.get(entry, :multi_instance_id))
+      end)
 
-  defp reactivate_single_fni(data, _flow_node_instance_id, %{multi_instance_id: mi_id} = _entry, _process_instance_pid, _join_fni_ids, _grouped_arrivals) when is_binary(mi_id) do
-    data
+    data =
+      Enum.reduce(iteration_entries, data, fn {flow_node_instance_id, entry}, acc ->
+        reactivate_iteration_fni(acc, flow_node_instance_id, entry, process_instance_pid)
+      end)
+
+    Enum.reduce(other_entries, data, fn {flow_node_instance_id, entry}, acc ->
+      reactivate_single_fni(
+        acc,
+        flow_node_instance_id,
+        entry,
+        process_instance_pid,
+        join_fni_ids,
+        grouped_arrivals
+      )
+    end)
   end
 
   defp reactivate_single_fni(data, flow_node_instance_id, %{state: :active} = entry, process_instance_pid, join_fni_ids, grouped_arrivals) do
@@ -348,48 +361,74 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
 
       data
     else
-      data = interrupt_orphaned_iteration_fnis(data, flow_node_instance_id)
-      reactivate_active_fni(data, flow_node_instance_id, entry, process_instance_pid)
-    end
-  end
+      handler_context =
+        build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
 
-  defp interrupt_orphaned_iteration_fnis(data, shell_fni_id) do
-    orphan_ids =
-      data.flow_node_instance_states
-      |> Enum.filter(fn {_id, entry} ->
-        Map.get(entry, :multi_instance_id) == shell_fni_id and entry.state in [:active, :waiting]
-      end)
-      |> Enum.map(fn {id, _entry} -> id end)
+      handler_module =
+        case HandlerDispatch.handler_for(flow_node) do
+          {:ok, module} -> module
+          _other -> FlowNodes.MultiInstanceBody
+        end
 
-    updated_states =
-      Enum.reduce(orphan_ids, data.flow_node_instance_states, fn fni_id, accumulator ->
-        entry = Map.get(accumulator, fni_id)
-        _persist_result = persist_iteration_interrupt(fni_id, entry)
-        Map.put(accumulator, fni_id, %{entry | state: :interrupted, pid: nil})
-      end)
-
-    if orphan_ids != [] do
-      Logger.info(
-        "Resume: interrupted #{length(orphan_ids)} orphaned iteration FNIs for MI shell #{shell_fni_id}"
+      spawn_resume_task(
+        data,
+        flow_node_instance_id,
+        entry,
+        process_instance_pid,
+        fn -> handler_module.handle_resume(flow_node, entry.token, handler_context) end,
+        "MI/loop shell"
       )
     end
-
-    %{data | flow_node_instance_states: updated_states}
   end
 
-  defp persist_iteration_interrupt(fni_id, entry) do
-    adapter = PersistenceAdapter.adapter()
+  defp reactivate_iteration_fni(data, flow_node_instance_id, %{state: :waiting} = entry, process_instance_pid) do
+    reactivate_waiting_fni(data, flow_node_instance_id, entry, process_instance_pid)
+  end
 
-    PersistenceRetry.with_retry(
-      fn ->
-        adapter.update_flow_node_instance(fni_id, :update_finished, %{
-          state: "interrupted",
-          finished_at: DateTime.utc_now(),
-          type_properties: Map.merge(entry.type_properties || %{}, %{"interrupted_reason" => "engine_restart"})
-        })
-      end,
-      "Resume: interrupt orphaned MI iteration #{fni_id}"
-    )
+  defp reactivate_iteration_fni(data, flow_node_instance_id, %{state: :active} = entry, process_instance_pid) do
+    reactivate_active_iteration_fni(data, flow_node_instance_id, entry, process_instance_pid)
+  end
+
+  defp reactivate_iteration_fni(data, _flow_node_instance_id, _entry, _process_instance_pid), do: data
+
+  defp reactivate_active_iteration_fni(data, flow_node_instance_id, entry, process_instance_pid) do
+    flow_node = find_flow_node(data, entry.flow_node_id)
+
+    with flow_node when not is_nil(flow_node) <- flow_node,
+         {:ok, handler_module} <- HandlerDispatch.inner_handler_for(flow_node) do
+      handler_context =
+        build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+
+      handler_context = %{
+        handler_context
+        | loop: Map.get(entry, :loop_overlay),
+          multi_instance_id: Map.get(entry, :multi_instance_id),
+          iteration_index: Map.get(entry, :iteration_index)
+      }
+
+      spawn_resume_task(
+        data,
+        flow_node_instance_id,
+        entry,
+        process_instance_pid,
+        fn ->
+          BoundaryAwareHandler.wrap_enter(
+            handler_module,
+            flow_node,
+            entry.token,
+            handler_context
+          )
+        end,
+        "MI iteration"
+      )
+    else
+      _other ->
+        Logger.error(
+          "Resume: could not reattach active MI iteration FNI #{flow_node_instance_id}"
+        )
+
+        data
+    end
   end
 
   defp reactivate_join_gateway_fni(data, flow_node_instance_id, entry, process_instance_pid, persisted_arrivals) do

@@ -55,9 +55,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_shared",
-              "payloadExpression": null
+              "messageRef": "Msg_shared"
             },
             "isInterrupting": true,
             "resultContract": null
@@ -80,9 +78,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_shared",
-              "payloadExpression": null
+              "messageRef": "Msg_shared"
             },
             "outMappings": [],
             "resultContract": null

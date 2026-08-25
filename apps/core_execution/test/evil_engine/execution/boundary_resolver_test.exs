@@ -1,6 +1,8 @@
 defmodule EvilEngine.Execution.BoundaryResolverTest do
   use ExUnit.Case, async: true
 
+  alias EvilEngine.BPMN.Model.Definitions
+  alias EvilEngine.BPMN.Model.ErrorDefinition
   alias EvilEngine.BPMN.Model.EventDefinition
   alias EvilEngine.BPMN.Model.FlowNode
   alias EvilEngine.BPMN.Model.FlowNodeData
@@ -33,6 +35,7 @@ defmodule EvilEngine.Execution.BoundaryResolverTest do
         attached_to_ref: "CA_1",
         cancel_activity: Keyword.get(opts, :cancel_activity, true),
         event_definition: %EventDefinition.Error{
+          error_ref: Keyword.get(opts, :error_ref),
           error_code: Keyword.get(opts, :error_code),
           error_message: Keyword.get(opts, :error_message)
         }
@@ -40,7 +43,7 @@ defmodule EvilEngine.Execution.BoundaryResolverTest do
     }
   end
 
-  describe "find_matching_error_boundary/3" do
+  describe "find_matching_error_boundary" do
     test "returns :none when host has no boundary events" do
       {host, model} = build_host_and_model([])
 
@@ -142,6 +145,62 @@ defmodule EvilEngine.Execution.BoundaryResolverTest do
                BoundaryResolver.find_matching_error_boundary(host, model, %{error_code: "OTHER"})
 
       assert matched.id == "BE_2"
+    end
+
+    test "catch-all listed before a specific still yields the specific" do
+      catch_all = error_boundary("BE_catch_all")
+      specific = error_boundary("BE_specific", error_code: "CHARGE_FAILED")
+      {host, model} = build_host_and_model([catch_all, specific])
+
+      assert {:ok, matched} =
+               BoundaryResolver.find_matching_error_boundary(host, model, %{
+                 error_code: "CHARGE_FAILED"
+               })
+
+      assert matched.id == "BE_specific"
+    end
+
+    test "matches a boundary that only has errorRef against the global errorCode" do
+      boundary = error_boundary("BE_ref", error_ref: "Error_PaymentFailed")
+      {host, model} = build_host_and_model([boundary])
+
+      definitions = %Definitions{
+        raw_xml: "",
+        errors: [
+          %ErrorDefinition{id: "Error_PaymentFailed", error_code: "PAYMENT_DECLINED"}
+        ]
+      }
+
+      assert {:ok, matched} =
+               BoundaryResolver.find_matching_error_boundary(
+                 host,
+                 model,
+                 definitions,
+                 %{error_code: "PAYMENT_DECLINED"}
+               )
+
+      assert matched.id == "BE_ref"
+
+      assert :none ==
+               BoundaryResolver.find_matching_error_boundary(
+                 host,
+                 model,
+                 definitions,
+                 %{error_code: "OTHER"}
+               )
+    end
+
+    test "raised unmatched code still matches a catch-all" do
+      specific = error_boundary("BE_specific", error_code: "CHARGE_FAILED")
+      catch_all = error_boundary("BE_catch_all")
+      {host, model} = build_host_and_model([specific, catch_all])
+
+      assert {:ok, matched} =
+               BoundaryResolver.find_matching_error_boundary(host, model, %{
+                 error_code: "UNKNOWN"
+               })
+
+      assert matched.id == "BE_catch_all"
     end
 
     test "ignores non-error boundary events" do

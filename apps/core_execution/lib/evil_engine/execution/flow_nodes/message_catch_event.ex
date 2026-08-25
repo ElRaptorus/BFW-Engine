@@ -98,6 +98,7 @@ defmodule EvilEngine.Execution.FlowNodes.MessageCatchEvent do
       {:ok, subscription_id} =
         MessageSubscriptions.register(%{
           process_instance_id: context.process_instance_id,
+          root_process_instance_id: context.root_process_instance_id,
           flow_node_instance_id: context.flow_node_instance_id,
           flow_node_id: flow_node.id,
           message_name: message_name,
@@ -125,6 +126,7 @@ defmodule EvilEngine.Execution.FlowNodes.MessageCatchEvent do
     {:ok, subscription_id} =
       MessageSubscriptions.register(%{
         process_instance_id: context.process_instance_id,
+        root_process_instance_id: context.root_process_instance_id,
         flow_node_instance_id: context.flow_node_instance_id,
         flow_node_id: flow_node.id,
         message_name: message_name,

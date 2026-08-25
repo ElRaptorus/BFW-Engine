@@ -55,9 +55,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_test",
-              "payloadExpression": null
+              "messageRef": "Msg_test"
             },
             "outMappings": [],
             "resultContract": null

@@ -467,6 +467,41 @@ defmodule EvilEngine.BPMN.ParserTest do
       refute Map.has_key?(event_def, :payload_contract)
     end
 
+    test "leftover evil:payload and evil:eventMapping XML is ignored" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn" id="D1">
+        <bpmn:message id="Msg_1" name="test-msg"/>
+        <bpmn:process id="P1" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:intermediateThrowEvent id="Throw_1">
+            <bpmn:messageEventDefinition messageRef="Msg_1">
+              <bpmn:extensionElements>
+                <evil:payload>{ orderId: token.orderId }</evil:payload>
+                <evil:eventMapping>{ order: event }</evil:eventMapping>
+              </bpmn:extensionElements>
+            </bpmn:messageEventDefinition>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:intermediateThrowEvent>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Throw_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="Throw_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      throw_node = Enum.find(process.flow_nodes, &(&1.id == "Throw_1"))
+
+      assert %EventDefinition.Message{} = event_def = throw_node.type_data.event_definition
+      refute Map.has_key?(event_def, :payload_expression)
+      refute Map.has_key?(event_def, :event_mapping)
+    end
+
     test "resultContract on boundary event is parsed at flow-node level" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
@@ -1541,7 +1576,8 @@ defmodule EvilEngine.BPMN.ParserTest do
                loop_break_condition: "errorCount > 3",
                loop_interval: "PT1S",
                max_iterations: 100,
-               completion_condition: "done = true"
+               completion_condition: "done = true",
+               loop_cardinality: "5"
              } = user_task.multi_instance
     end
 

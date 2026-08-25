@@ -102,8 +102,6 @@ defmodule EvilEngineWeb.Graphql.ModelTypes do
   object :message_event_definition do
     field(:message_ref, :string)
     field(:correlation_retrieval_expression, :string)
-    field(:payload_expression, :string)
-    field(:event_mapping, :string)
   end
 
   object :signal_event_definition do

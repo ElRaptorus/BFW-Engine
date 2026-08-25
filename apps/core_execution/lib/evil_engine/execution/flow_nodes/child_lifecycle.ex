@@ -71,6 +71,10 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
         Process.demonitor(ref, [:flush])
         {:finished, final_tokens}
 
+      {:child_pi_compensated, ^child_pid, final_tokens} ->
+        Process.demonitor(ref, [:flush])
+        {:compensated, final_tokens}
+
       {:child_pi_fatal, ^child_pid, reason} ->
         Process.demonitor(ref, [:flush])
         {:fatal, reason}
@@ -221,6 +225,7 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
     case BoundaryResolver.find_matching_error_boundary(
            flow_node,
            context.process_model,
+           context.definitions,
            error_info
          ) do
       {:ok, boundary_node} ->
@@ -584,6 +589,9 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
       {:finished, final_tokens} ->
         apply_result(flow_node, entry, context, final_tokens, child_process_instance_id)
 
+      {:compensated, final_tokens} ->
+        apply_result(flow_node, entry, context, final_tokens, child_process_instance_id)
+
       {:escalation, escalation_info, final_tokens} ->
         {:ok, next_ids} = resolve_outgoing(flow_node, context)
 
@@ -637,6 +645,15 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
       ) do
     case result do
       {:finished, final_tokens} ->
+        apply_out_mappings_to_result(
+          flow_node,
+          context,
+          final_tokens,
+          next_ids,
+          child_process_instance_id
+        )
+
+      {:compensated, final_tokens} ->
         apply_out_mappings_to_result(
           flow_node,
           context,
@@ -728,6 +745,19 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
 
   defp dispatch_persisted_child_state(
          %{state: "finished"},
+         flow_node,
+         entry,
+         context,
+         child_process_instance_id,
+         _adapter,
+         _opts
+       ) do
+    final_tokens = aggregate_from_persistence(child_process_instance_id)
+    apply_result(flow_node, entry, context, final_tokens, child_process_instance_id)
+  end
+
+  defp dispatch_persisted_child_state(
+         %{state: "compensated"},
          flow_node,
          entry,
          context,

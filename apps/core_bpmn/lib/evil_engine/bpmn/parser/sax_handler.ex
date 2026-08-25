@@ -573,14 +573,6 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: [:evil_correlation_retrieval | state.stack]}}
   end
 
-  defp handle_start("payload", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_payload | state.stack]}}
-  end
-
-  defp handle_start("eventMapping", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_event_mapping | state.stack]}}
-  end
-
   defp handle_start("errorCode", _attributes, state) do
     {:ok, %{state | text_buffer: "", stack: [:evil_error_code | state.stack]}}
   end
@@ -820,6 +812,19 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       end
 
     {:ok, %{state | current_standard_loop: standard_loop, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("loopCardinality", %{current_mi: %MultiInstance{} = mi} = state) do
+    text = String.trim(state.text_buffer)
+
+    updated_mi =
+      if text != "" do
+        %MultiInstance{mi | loop_cardinality: text}
+      else
+        mi
+      end
+
+    {:ok, %{state | current_mi: updated_mi, text_buffer: "", stack: tl(state.stack)}}
   end
 
   defp handle_end("loopCardinality", state) do
@@ -1391,36 +1396,6 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       case state.current_event_def do
         %EventDefinition.Message{} = ed ->
           %EventDefinition.Message{ed | correlation_retrieval_expression: text}
-
-        other ->
-          other
-      end
-
-    {:ok, %{state | current_event_def: event_def, text_buffer: "", stack: rest}}
-  end
-
-  defp handle_end("payload", %{stack: [:evil_payload | rest]} = state) do
-    text = String.trim(state.text_buffer)
-
-    event_def =
-      case state.current_event_def do
-        %EventDefinition.Message{} = ed ->
-          %EventDefinition.Message{ed | payload_expression: text}
-
-        other ->
-          other
-      end
-
-    {:ok, %{state | current_event_def: event_def, text_buffer: "", stack: rest}}
-  end
-
-  defp handle_end("eventMapping", %{stack: [:evil_event_mapping | rest]} = state) do
-    text = String.trim(state.text_buffer)
-
-    event_def =
-      case state.current_event_def do
-        %EventDefinition.Message{} = ed ->
-          %EventDefinition.Message{ed | event_mapping: text}
 
         other ->
           other

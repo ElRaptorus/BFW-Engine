@@ -300,7 +300,9 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
       end)
 
     activities_to_activate =
-      resolve_initial_activity_set(inner_activities, type_data, context)
+      inner_activities
+      |> resolve_initial_activity_set(type_data, context)
+      |> cap_sequential_initial_set(type_data.adhoc_ordering)
 
     Enum.each(activities_to_activate, fn activity ->
       activation_token = %Token{
@@ -349,7 +351,7 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
 
     case EvilEngine.Expressions.evaluate(compiled_ref, feel_context) do
       {:ok, activity_ids} when is_list(activity_ids) ->
-        Enum.filter(inner_activities, fn node -> node.id in activity_ids end)
+        activities_matching_ids_in_list_order(activity_ids, inner_activities)
 
       {:ok, _non_list} ->
         inner_activities
@@ -365,7 +367,7 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
 
     case EvilEngine.Expressions.eval(expression, feel_context) do
       {:ok, activity_ids} when is_list(activity_ids) ->
-        Enum.filter(inner_activities, fn node -> node.id in activity_ids end)
+        activities_matching_ids_in_list_order(activity_ids, inner_activities)
 
       {:ok, _non_list} ->
         inner_activities
@@ -375,6 +377,38 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
         inner_activities
     end
   end
+
+  defp activities_matching_ids_in_list_order(activity_ids, inner_activities) do
+    Enum.flat_map(activity_ids, fn activity_id ->
+      case Enum.find(inner_activities, &activity_ids_equal?(&1.id, activity_id)) do
+        nil -> []
+        node -> [node]
+      end
+    end)
+  end
+
+  defp activity_ids_equal?(left, right), do: to_string(left) == to_string(right)
+
+  defp cap_sequential_initial_set(activities, :sequential) do
+    case activities do
+      [] ->
+        []
+
+      [_single] ->
+        activities
+
+      [first | rest] ->
+        ignored_ids = Enum.map(rest, & &1.id)
+
+        Logger.warning(
+          "Sequential ad-hoc subprocess activates only the first activeElements id '#{first.id}'; ignoring #{inspect(ignored_ids)}"
+        )
+
+        [first]
+    end
+  end
+
+  defp cap_sequential_initial_set(activities, _ordering), do: activities
 
   defp build_feel_context(context) do
     ExpressionsContext.from_handler_context(context, %{})

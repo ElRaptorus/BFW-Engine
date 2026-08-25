@@ -161,6 +161,32 @@ defmodule EvilEngine.Execution.ExclusiveGatewayTest do
   describe "split — no matching condition" do
     test "returns error when no condition is truthy and no default exists" do
       target_a = make_target("taskA")
+      target_b = make_target("taskB")
+
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "xor1",
+        target_ref: "taskA",
+        condition_expression: "token.amount > 1000"
+      }
+
+      sf_b = %SequenceFlow{
+        id: "sf-b",
+        source_ref: "xor1",
+        target_ref: "taskB",
+        condition_expression: "token.amount > 500"
+      }
+
+      gateway = make_gateway("xor1", outgoing: ["sf-a", "sf-b"])
+      context = make_context(gateway, [sf_a, sf_b], [target_a, target_b])
+      token = make_token(%{"amount" => 5})
+
+      assert {:error, %{reason: :no_matching_condition}} =
+               ExclusiveGateway.handle_enter(gateway, token, context)
+    end
+
+    test "single outgoing with a false condition fatals no_matching_condition" do
+      target_a = make_target("taskA")
 
       sf_a = %SequenceFlow{
         id: "sf-a",
@@ -174,6 +200,31 @@ defmodule EvilEngine.Execution.ExclusiveGatewayTest do
       token = make_token(%{"amount" => 5})
 
       assert {:error, %{reason: :no_matching_condition}} =
+               ExclusiveGateway.handle_enter(gateway, token, context)
+    end
+
+    test "unmarked non-default outgoing on a multi-out split fatals before FEEL" do
+      target_a = make_target("taskA")
+      target_b = make_target("taskB")
+
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "xor1",
+        target_ref: "taskA",
+        condition_expression: "token.amount > 1"
+      }
+
+      sf_b = %SequenceFlow{
+        id: "sf-b",
+        source_ref: "xor1",
+        target_ref: "taskB"
+      }
+
+      gateway = make_gateway("xor1", outgoing: ["sf-a", "sf-b"])
+      context = make_context(gateway, [sf_a, sf_b], [target_a, target_b])
+      token = make_token(%{"amount" => 50})
+
+      assert {:error, %{reason: :exclusive_gateway_unconditional_flow, sequence_flow_id: "sf-b"}} =
                ExclusiveGateway.handle_enter(gateway, token, context)
     end
   end
@@ -221,6 +272,7 @@ defmodule EvilEngine.Execution.ExclusiveGatewayTest do
   describe "split — expression evaluation failure" do
     test "returns error when a FEEL expression has syntax errors" do
       target_a = make_target("taskA")
+      target_b = make_target("taskB")
 
       sf_a = %SequenceFlow{
         id: "sf-broken",
@@ -229,8 +281,15 @@ defmodule EvilEngine.Execution.ExclusiveGatewayTest do
         condition_expression: "this is not valid FEEL @@!!"
       }
 
-      gateway = make_gateway("xor1", outgoing: ["sf-broken"])
-      context = make_context(gateway, [sf_a], [target_a])
+      sf_b = %SequenceFlow{
+        id: "sf-false",
+        source_ref: "xor1",
+        target_ref: "taskB",
+        condition_expression: "false"
+      }
+
+      gateway = make_gateway("xor1", outgoing: ["sf-broken", "sf-false"])
+      context = make_context(gateway, [sf_a, sf_b], [target_a, target_b])
       token = make_token(%{"amount" => 50})
 
       assert {:error, %{reason: :expression_evaluation_failed} = error} =
@@ -354,7 +413,7 @@ defmodule EvilEngine.Execution.ExclusiveGatewayTest do
                ExclusiveGateway.handle_enter(gateway, token, context)
     end
 
-    test "unconditional outgoing flow on a split gateway is selected as sole candidate" do
+    test "unconditional outgoing flow on a one-out gateway is pass-through" do
       target = make_target("taskNext")
 
       sequence_flow = %SequenceFlow{
@@ -367,12 +426,10 @@ defmodule EvilEngine.Execution.ExclusiveGatewayTest do
       context = make_context(gateway, [sequence_flow], [target])
       token = make_token()
 
-      # Unconditional flows are neither conditional nor default, so they
-      # pass through without FEEL evaluation. With zero conditional and
-      # zero defaults but one unconditional, the no_matching_condition
-      # error fires (0 truthy, 0 defaults, 0 conditional evaluated).
-      assert {:error, %{reason: :no_matching_condition}} =
+      assert {:ok, %FlowNodeResult{} = result} =
                ExclusiveGateway.handle_enter(gateway, token, context)
+
+      assert result.next_flow_node_ids == ["taskNext"]
     end
   end
 

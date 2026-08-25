@@ -93,8 +93,21 @@ defmodule EvilEngine.Execution.FlowNodes.ParallelGateway do
     if arrived >= required do
       fire_join(flow_node, context, branch_payloads, previous_fni_ids)
     else
+      arrived_flow_ids =
+        persisted_arrivals
+        |> Enum.map(& &1.source_branch_sequence_flow_id)
+        |> MapSet.new()
+
       continuation = fn ->
-        join_receive_loop(flow_node, context, branch_payloads, previous_fni_ids, arrived, required)
+        join_receive_loop(%{
+          flow_node: flow_node,
+          context: context,
+          branch_payloads: branch_payloads,
+          previous_fni_ids: previous_fni_ids,
+          arrived: arrived,
+          required: required,
+          arrived_flow_ids: arrived_flow_ids
+        })
       end
 
       {:async, context.flow_node_instance_id, continuation, %{join_gateway: true}}
@@ -130,33 +143,67 @@ defmodule EvilEngine.Execution.FlowNodes.ParallelGateway do
       fire_join(flow_node, context, [token.payload], previous_fni_ids)
     else
       continuation = fn ->
-        join_receive_loop(flow_node, context, [token.payload], previous_fni_ids, 1, required)
+        join_receive_loop(%{
+          flow_node: flow_node,
+          context: context,
+          branch_payloads: [token.payload],
+          previous_fni_ids: previous_fni_ids,
+          arrived: 1,
+          required: required,
+          arrived_flow_ids: MapSet.new([incoming_flow_id])
+        })
       end
 
       {:async, context.flow_node_instance_id, continuation, %{join_gateway: true}}
     end
   end
 
-  defp join_receive_loop(flow_node, context, branch_payloads, previous_fni_ids, arrived, required) do
+  defp join_receive_loop(state) do
     receive do
       {:join_token_arrived, new_token, new_previous_fni_ids, incoming_flow_id} ->
-        persist_gateway_pending_arrival(
-          context.process_instance_id,
-          context.flow_node_instance_id,
-          incoming_flow_id,
-          List.first(new_previous_fni_ids),
-          new_token.payload
-        )
+        handle_parallel_join_arrival(state, new_token, new_previous_fni_ids, incoming_flow_id)
+    end
+  end
 
-        updated_payloads = branch_payloads ++ [new_token.payload]
-        updated_previous = previous_fni_ids ++ new_previous_fni_ids
-        new_arrived = arrived + 1
+  defp handle_parallel_join_arrival(state, new_token, new_previous_fni_ids, incoming_flow_id) do
+    duplicate? =
+      MapSet.member?(state.arrived_flow_ids, incoming_flow_id) and incoming_flow_id != "unknown"
 
-        if new_arrived >= required do
-          fire_join(flow_node, context, updated_payloads, updated_previous)
-        else
-          join_receive_loop(flow_node, context, updated_payloads, updated_previous, new_arrived, required)
-        end
+    if duplicate? do
+      Logger.warning(
+        "ParallelGateway: ignoring duplicate arrival at '#{state.flow_node.id}' " <>
+          "via sequence flow '#{incoming_flow_id}'"
+      )
+
+      join_receive_loop(state)
+    else
+      apply_parallel_join_arrival(state, new_token, new_previous_fni_ids, incoming_flow_id)
+    end
+  end
+
+  defp apply_parallel_join_arrival(state, new_token, new_previous_fni_ids, incoming_flow_id) do
+    persist_gateway_pending_arrival(
+      state.context.process_instance_id,
+      state.context.flow_node_instance_id,
+      incoming_flow_id,
+      List.first(new_previous_fni_ids),
+      new_token.payload
+    )
+
+    updated_payloads = state.branch_payloads ++ [new_token.payload]
+    updated_previous = state.previous_fni_ids ++ new_previous_fni_ids
+    new_arrived = state.arrived + 1
+
+    if new_arrived >= state.required do
+      fire_join(state.flow_node, state.context, updated_payloads, updated_previous)
+    else
+      join_receive_loop(%{
+        state
+        | branch_payloads: updated_payloads,
+          previous_fni_ids: updated_previous,
+          arrived: new_arrived,
+          arrived_flow_ids: MapSet.put(state.arrived_flow_ids, incoming_flow_id)
+      })
     end
   end
 

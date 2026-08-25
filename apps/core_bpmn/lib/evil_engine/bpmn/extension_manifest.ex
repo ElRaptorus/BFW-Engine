@@ -141,7 +141,6 @@ defmodule EvilEngine.BPMN.ExtensionManifest do
         "BusinessRuleTask",
         "UserTask",
         "SendTask",
-        "ReceiveTask",
         "CallActivity",
         "SubProcess",
         "IntermediateThrowEvent",
@@ -159,7 +158,6 @@ defmodule EvilEngine.BPMN.ExtensionManifest do
         "ScriptTask",
         "BusinessRuleTask",
         "UserTask",
-        "SendTask",
         "ReceiveTask",
         "CallActivity",
         "SubProcess",
@@ -351,22 +349,6 @@ defmodule EvilEngine.BPMN.ExtensionManifest do
       attributes: [],
       applicable_to: ["IntermediateThrowEvent", "EndEvent", "SendTask"],
       model_field: "EventDefinition.Message.correlation_retrieval_expression"
-    },
-    %{
-      element: "payload",
-      value_kind: :feel,
-      carrier: :body,
-      attributes: [],
-      applicable_to: ["IntermediateThrowEvent", "EndEvent"],
-      model_field: "EventDefinition.Message.payload_expression"
-    },
-    %{
-      element: "eventMapping",
-      value_kind: :feel,
-      carrier: :body,
-      attributes: [],
-      applicable_to: ["StartEvent", "IntermediateCatchEvent", "BoundaryEvent"],
-      model_field: "EventDefinition.Message.event_mapping"
     },
 
     # -------------------------------------------------------------------

@@ -291,7 +291,7 @@ Error boundaries use `ErrorBoundaryEvent` as their handler module. This handler 
 
 Error routing stays entirely in the handler layer:
 
-- **`BoundaryAwareHandler.wrap_enter/4`** intercepts `{:error, reason}` from activity handlers and checks for matching error boundaries via `BoundaryResolver.find_matching_error_boundary/3`. On match, the error is converted to `{:boundary, boundary_node_id, error_info, cancel_activity}` before the PI sees it.
+- **`BoundaryAwareHandler.wrap_enter/4`** intercepts `{:error, reason}` from activity handlers and checks for matching error boundaries via `BoundaryResolver.find_matching_error_boundary/4` (pass `Definitions` so catch-side `errorRef` resolves). On match, the error is converted to `{:boundary, boundary_node_id, error_info, cancel_activity}` before the PI sees it.
 - **`SubProcess.handle_child_error/3`** resolves error boundaries for child PI errors in the async continuation.
 
 The PI processes the resulting `{:boundary, ...}` through `handle_boundary_catch/5`, which finds the pre-spawned error boundary FNI (by `boundary_node_id`), kills the passive handler Task, and finishes the FNI in-place. This is the same `finish_boundary_fni` path used by subscription boundaries.
@@ -332,7 +332,7 @@ When the PI receives `{:boundary, ...}`:
 
 - **Non-interrupting cycle** (`cancel_activity: false`): The handler Task loops, firing the boundary on each cycle iteration. Intermediate fires are sent to the PI as `{:boundary_cycle_fire, boundary_node_id, payload, cancel_activity}` (a distinct message type that dispatches the boundary's outgoing path **without** finishing the boundary FNI). The final fire (repetitions exhausted) uses the normal `{:boundary, ...}` result and finishes the FNI. For infinite cycles (`R/...`), the Task loops indefinitely until killed by `cancel_boundary_fnis_for_host` when the host activity completes.
 
-**Resume**: Cycle boundary FNIs resume using the same one-shot mechanism as `time_date`/`time_duration` (based on persisted `fire_at`). Cycle state (remaining repetitions) is not persisted across restarts — a resumed cycle fires once and finishes.
+**Resume**: Non-interrupting cycle remaining count and ISO 8601 `cycle_interval` are persisted on enter and after each re-arm (`is_cycle`, `cycle_repetitions`, `cycle_interval`). `handle_resume/3` restores the cycle receive loop (not a one-shot) and delivers an overdue tick immediately. Interrupting cycles remain one-shot (first fire).
 
 ---
 
@@ -359,22 +359,22 @@ Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements it
 | `LinkCatchEvent` | Pass-through via `SequenceFlowResolver` — landing pad for Link Throw events |
 | `ManualTask` | Returns `{:wait, ...}` when `require_confirmation` is true, otherwise pass-through |
 | `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `{:wait, ...}`. Output pipeline on finish: `out_mappings` → `result_contract` → `PayloadCap`. Input failures → fatal. Output contract violations → retryable (422, stays `:waiting`). Resolves assignees from `evil:assignees` extension |
-| `ExclusiveGateway` | Owns routing: evaluates FEEL conditions on outgoing flows, enforces exactly-one-truthy (deliberate divergence from BPMN 2.0 "first truthy wins"). Mixed gateways (both split and join) rejected at runtime. Join is pure pass-through |
+| `ExclusiveGateway` | Owns routing: evaluates FEEL conditions on outgoing flows, enforces exactly-one-truthy (deliberate divergence from BPMN 2.0 "first truthy wins"). An unmarked non-default outgoing flow on a split (`outgoing > 1`) is a **runtime fatal** `:exclusive_gateway_unconditional_flow` **before** FEEL evaluation. A single unmarked outgoing is pass-through; a single outgoing that carries a condition is still evaluated (false + no default → `:no_matching_condition`). The diagram still deploys; Studio lints warning (`bpmn-development`) / error (`bpmn-production-ready`). Mixed gateways (both split and join) rejected at runtime. Join is pure pass-through |
 | `ParallelGateway` | Fork: resolves all outgoing sequence flows via `SequenceFlowResolver` (conditions ignored). Join: handler-owned async Task with PI routing (see §Parallel Gateway below). Mixed gateways rejected at runtime |
-| `InclusiveGateway` | Fork: evaluates all outgoing conditional FEEL expressions; activates every truthy path plus unconditional non-default flows (OR-split). If zero truthy: default path, or fatal `:no_matching_condition`. Join: handler-owned async Task with PI routing and dead-path elimination (see §Inclusive Gateway below). Mixed gateways rejected at runtime |
-| `ComplexGateway` | Opinionated, deterministic. Split: inclusive-style fork on truthy conditions, but unconditional non-default outgoing flows are a **deploy-time error** (no auto fall-through); zero-truthy → default, else fatal `:complex_split_no_matching_condition`. Join: single-fire **threshold** join driven by a FEEL `activationCondition` with `activatedCount`/`incomingCount` bindings; fires once when the condition becomes true. Twist 1: all branches arrived-or-dead but condition still false → fatal `:complex_join_condition_unmet`. Twist 2: on fire, every still-active/waiting FNI in the join's paired SESE region is cancelled (`:cancelled_by_complex_join`). Mixed gateways rejected at deploy and runtime (see §Complex Gateway below) |
-| `CallActivity` | Owns full child PI lifecycle: version resolution via `CalledElementResolver`, child spawn, monitoring, result/error handling, boundary resolution via `BoundaryResolver`. Supports `in_mappings` (child start payload), `out_mappings` (parent result transformation), and `evil:startEventId` (selects the target Start Event in the child process — required when the child has multiple untyped Start Events). Returns `{:async, flow_node_instance_id, continuation}` to park the FNI while the handler Task monitors the child. Implements `handle_fatal/1` (cascades `force_fatal` to child PI) and `handle_aborted/1` (cascades `abort` to child PI). The cascade is recursive: if the child has its own Call Activities, they cascade further |
+| `InclusiveGateway` | Fork: evaluates all outgoing conditional FEEL expressions; activates every truthy path plus unconditional non-default flows (OR-split). If zero truthy: default path, or fatal `:no_matching_condition`. Join: handler-owned async Task with PI routing and **structural backward-cone** dead-path elimination (see §Inclusive Gateway below). Resume re-evaluates DPE via `evaluate_parked_inclusive_joins/1`. Mixed gateways rejected at runtime |
+| `ComplexGateway` | Opinionated, deterministic. Split: inclusive-style fork on truthy conditions; an unmarked non-default outgoing flow is a **runtime fatal** `:complex_gateway_unconditional_flow` (WIP diagrams may still deploy; Studio lints warning/error by ruleset). Zero-truthy → default, else fatal `:complex_split_no_matching_condition`. Join: single-fire **threshold** join driven by a FEEL `activationCondition` with `activatedCount`/`incomingCount` bindings; fires once when the condition becomes true. Resume re-evaluates the parked join. Twist 1: all branches arrived-or-dead but condition still false → fatal `:complex_join_condition_unmet`. Twist 2: on fire, every still-active/waiting FNI in the join's paired SESE region is cancelled (`:cancelled_by_complex_join`). Mixed gateways, join missing `activationCondition`, and SESE region violations stay deploy-time (see §Complex Gateway below) |
+| `CallActivity` | Owns full child PI lifecycle: version resolution via `CalledElementResolver`, child spawn, monitoring, result/error handling, boundary resolution via `BoundaryResolver`. Child `start_opts` inherit `root_process_instance_id` from `HandlerContext` (SP-13). Supports `in_mappings` (child start payload), `out_mappings` (parent result transformation), and `evil:startEventId` (selects the target Start Event in the child process — required when the child has multiple untyped Start Events). Returns `{:async, flow_node_instance_id, continuation}` to park the FNI while the handler Task monitors the child. Implements `handle_fatal/1` (cascades `force_fatal` to child PI) and `handle_aborted/1` (cascades `abort` to child PI). The cascade is recursive: if the child has its own Call Activities, they cascade further |
 | `SubProcess` | Embedded subprocess execution following the same async-continuation pattern as Call Activity. Validates subprocess contents at **runtime** (exactly one None Start Event, no typed start events, at least one End Event) — allowing WIP diagrams to be deployed. Builds a synthetic `%Process{}` from `FlowNodeData.SubProcess` via `ModelCache.fetch_subprocess_model/2`, starts a child PI under the same `process_version_id` with `subprocess_node_id` in `start_opts`, monitors completion. **Lane inheritance:** the synthetic process inherits the parent's lane that contains the subprocess shell — all inner FNIs are assigned to that lane. If the parent has no lanes, the synthetic process has none either. Supports `in_mappings`, `out_mappings`, `payload_contract`, `result_contract` (same data pipeline as Call Activity). Error bubbling uses `BoundaryResolver` on the subprocess shell. Emits `SubProcessChildStarted` event. Implements `handle_fatal/1` and `handle_aborted/1` for child PI cascade. Resume via `handle_resume/4` mirrors Call Activity |
 | `TimerCatchEvent` | Handler-centric timer lifecycle: resolves timer spec (FEEL), schedules via `Scheduler`, blocks handler Task on `receive {:timer_fired, ...}`, then completes. Implements `handle_fatal/1`, `handle_aborted/1` (cancel armed timer), and `handle_resume/3` (re-schedule or immediate-fire based on persisted `fire_at`). Rejects `time_cycle` (fatal). Returns `{:async, fni_id, continuation, type_properties}` |
-| `TimerBoundaryEvent` | Subscription-model boundary handler: resolves timer spec, schedules via `Scheduler` (before building `type_properties` so `timer_ref` is persisted), blocks on `receive {:timer_fired, ...}`, then returns `{:boundary, flow_node_id, payload, cancel_activity}`. Supports `time_duration`, `time_date`, and `time_cycle`. Interrupting cycles fire once (first cycle fire, reuses one-shot path). Non-interrupting cycles loop: intermediate fires sent as `{:boundary_cycle_fire, ...}`, final fire as `{:boundary, ...}`. Implements `handle_fatal/1`, `handle_aborted/1` (cancel armed timer), and `handle_resume/3`. Dispatched by PI alongside host activity via the subscription-model lifecycle |
+| `TimerBoundaryEvent` | Subscription-model boundary handler: resolves timer spec, schedules via `Scheduler` (before building `type_properties` so `timer_ref` is persisted), blocks on `receive {:timer_fired, ...}`, then returns `{:boundary, flow_node_id, payload, cancel_activity}`. Supports `time_duration`, `time_date`, and `time_cycle`. Interrupting cycles fire once (first cycle fire, reuses one-shot path). Non-interrupting cycles loop: intermediate fires sent as `{:boundary_cycle_fire, ...}`, final fire as `{:boundary, ...}`. Cycle remaining count and ISO 8601 `cycle_interval` are persisted on enter and after each re-arm (`is_cycle`, `cycle_repetitions`, `cycle_interval`); `handle_resume/3` restores the cycle receive loop (not a one-shot) and delivers an overdue tick immediately. Implements `handle_fatal/1`, `handle_aborted/1` (cancel armed timer). Dispatched by PI alongside host activity via the subscription-model lifecycle |
 | `BoundaryEvent` | Generic fallback for boundary event types without a dedicated handler (currently: error boundaries). Instant pass-through — triggered by the PI when a host activity handler returns `{:boundary, ...}`. Forwards the payload along its outgoing flows |
 | `MessageCatchEvent` | Subscription-model handler: registers with `MessageSubscriptions`, blocks handler Task on `receive {:message_arrived, ...}`, applies `outputMapping` to shape the output token, then completes. Implements `handle_aborted/1` (deregister subscription) and `handle_resume/3` (re-register + re-block) |
 | `MessageThrowEvent` | Sync throw handler: applies `inputMapping`, publishes via `MessagePublisher.publish_message/1`, forwards the token along outgoing flows |
 | `MessageEndEvent` | Sync throw handler: applies `inputMapping`, publishes via `MessagePublisher`, then finishes as a normal End Event (token included in `build_final_tokens/1`) |
 | `MessageStartEvent` | Pass-through when PI is started manually with `startEventId`. When started by `MessagePublisher` via `MessageStartHandler`, receives the message payload as the start token |
 | `MessageBoundaryEvent` | Subscription-model boundary handler: registers with `MessageSubscriptions`, blocks on `receive {:message_arrived, ...}`. Interrupting: fires once, returns `{:boundary, ...}`. Non-interrupting: loops — each message sends `{:boundary_cycle_fire, ...}` to the PI, re-registers, and blocks again until the host completes and kills the Task. Shares the subscription registry with Intermediate Catch and Receive Task |
-| `SendTask` | Sync: applies `inputMapping`, publishes the token as a named message via `MessagePublisher`, proceeds along outgoing flows |
-| `ReceiveTask` | Async subscription handler: registers with `MessageSubscriptions`, blocks on `receive {:message_arrived, ...}`, applies `outputMapping`, completes |
+| `SendTask` | Sync: applies `inputMapping` → `payloadContract` → publish via `MessagePublisher`; outgoing token is the published body. `outputMapping` in XML is ignored |
+| `ReceiveTask` | Async subscription handler: registers with `MessageSubscriptions`, blocks on `receive {:message_arrived, ...}`, then `resultContract` → `outputMapping`. `inputMapping` in XML is ignored |
 | `SignalCatchEvent` | Subscription-model handler: registers with `SignalSubscriptions`, blocks handler Task on `receive {:signal_arrived, ...}`, applies `outputMapping` to token (signals carry no payload). Implements `handle_aborted/1` (deregister subscription) and `handle_resume/3` (re-register + re-block) |
 | `SignalThrowEvent` | Sync throw handler: applies `inputMapping`, publishes via `SignalPublisher.publish_signal/1` (no payload, broadcast-all), forwards the token along outgoing flows |
 | `SignalEndEvent` | Sync throw handler: applies `inputMapping`, publishes via `SignalPublisher`, then finishes as a normal End Event |
@@ -475,6 +475,8 @@ Converging inclusive gateways (`incoming_count > 1`, `outgoing_count <= 1`) are 
 
 The join fires when **all flows are either arrived or dead**, AND **at least one token has arrived**. If zero tokens arrived (all paths are dead), the join does not fire — the PI will finish without the join producing an output.
 
+This is **structural backward-cone DPE**, not Camunda-style token-set / path-activation tracking. Each incoming flow's "still live?" test is: any `:active`/`:waiting` FNI whose `flow_node_id` lies in the pre-computed backward reachability set. Well-structured SESE split/join pairs match expected OR-join behaviour. Known gaps versus a token-set model: loops that re-enter the cone, unstructured graphs, and Link Throw/Catch edges that jump outside the backward BFS.
+
 A runtime BFS fallback exists for models without pre-computed analysis data (backward compatibility).
 
 #### PI-level routing
@@ -509,7 +511,7 @@ Same mechanism as Parallel Gateway. Each branch arrival is persisted to the `gat
 
 #### Resume behavior
 
-`Resumption.rebuild_join_routing/2` reconstructs both parallel and inclusive join routing entries from persisted `gateway_pending_arrivals`. For inclusive gateways, it additionally rebuilds `arrived_via_flow_ids` from persisted `source_branch_sequence_flow_id` values and sets `gateway_type: :inclusive_gateway`. The handler's `handle_resume/4` receives the pre-grouped persisted arrivals, reconstructs `branch_payloads`, and re-enters the `inclusive_join_receive_loop` via `{:async, ...}`.
+`Resumption.rebuild_join_routing/2` reconstructs both parallel and inclusive join routing entries from persisted `gateway_pending_arrivals`. For inclusive gateways, it additionally rebuilds `arrived_via_flow_ids` from persisted `source_branch_sequence_flow_id` values and sets `gateway_type: :inclusive_gateway`. The handler's `handle_resume/4` receives the pre-grouped persisted arrivals, reconstructs `branch_payloads`, and re-enters the `inclusive_join_receive_loop` via `{:async, ...}`. After resume, `evaluate_parked_inclusive_joins/1` re-runs DPE so a join whose remaining paths died during downtime can still fire.
 
 #### Mixed gateway rejection
 
@@ -535,12 +537,12 @@ The Complex Gateway is ThomasTheDaemonEngine's opinionated, deterministic take o
 
 `handle_enter/3` evaluates all outgoing conditional flows via FEEL and applies these routing rules:
 
-- **1+ truthy conditions** → activate every truthy flow (token fork). Unlike the Inclusive Gateway, unconditional non-default flows do **not** ride along — they are rejected at deploy time (see validator rule below), so at runtime they cannot exist.
+- **1+ truthy conditions** → activate every truthy flow (token fork). Unlike the Inclusive Gateway, unconditional non-default flows do **not** ride along — entering the split with such a flow is a **runtime fatal** `:complex_gateway_unconditional_flow` (the diagram still deploys; Studio lints it).
 - **Zero truthy + default exists** → activate the default flow only.
 - **Zero truthy + no default** → fatal `:complex_split_no_matching_condition`.
 - **FEEL error during evaluation** → fatal `:complex_split_condition_failed`.
 
-**Deploy-time rule (`Validator.check_complex_gateways/1`):** every outgoing flow of a Complex Split must carry a `conditionExpression` OR be the gateway's `default` flow. An unconditional, non-default outgoing flow is a validation violation `:complex_gateway_unconditional_flow`. This is the defining behavioral difference from the Inclusive Gateway, which silently activates unconditional flows.
+**Runtime rule (not deploy):** every outgoing flow of a Complex Split must carry a `conditionExpression` OR be the gateway's `default` flow. An unconditional, non-default outgoing flow fatals `:complex_gateway_unconditional_flow` when the split is entered. `Validator.check_complex_gateways/1` does **not** reject this at deploy (WIP diagrams may deploy). Mixed Complex, join missing `activationCondition`, and SESE region violations remain deploy-time. This is the defining behavioral difference from the Inclusive Gateway, which silently activates unconditional flows.
 
 #### Join semantics (converging: N incoming, 1 outgoing) — threshold join
 
@@ -638,7 +640,7 @@ Both gateways look similar (conditional multi-path routing) but behave different
 
 | Aspect | Inclusive Gateway | Complex Gateway |
 |---|---|---|
-| Split — unconditional non-default flow | Silently activated alongside truthy conditionals | **Deploy error** (`:complex_gateway_unconditional_flow`) — every outgoing flow must be conditional or default |
+| Split — unconditional non-default flow | Silently activated alongside truthy conditionals | **Runtime fatal** (`:complex_gateway_unconditional_flow`) when the split is entered — every outgoing flow must be conditional or default. Still deploys; Studio lints warning/error by ruleset |
 | Split — zero truthy, default present | Default flow only | Default flow only (same) |
 | Split — zero truthy, no default | Fatal `:no_matching_condition` | Fatal `:complex_split_no_matching_condition` |
 | Join — fire trigger | Dead-path elimination: fires when all reachable paths arrived-or-dead **and** ≥1 arrived | FEEL `activationCondition` becomes true (threshold join) |
@@ -675,8 +677,8 @@ When any successor FNI completes (returns `{:ok, ...}` to the PI), the PI's `han
 1. Identifies sibling catch FNIs by matching `previous_flow_node_instance_ids` — all FNIs that share the same EBG FNI ID as their predecessor.
 2. Kills each sibling's handler Task (`Process.exit(pid, :kill)`).
 3. Invokes `handle_aborted/1` on each sibling's handler (timer cancellation, subscription deregistration).
-4. Persists each sibling as `:aborted` with `type_properties: %{"reason" => "event_based_gateway_sibling_cancelled"}`.
-5. Emits `FlowNodeInstanceFinished` with `terminal_state: :aborted` for each cancelled sibling.
+4. Persists each sibling as `:interrupted` with `type_properties: %{"reason" => "event_based_gateway_sibling_cancelled"}`.
+5. Emits `FlowNodeInstanceFinished` with `terminal_state: :interrupted` for each cancelled sibling.
 
 **Race safety:** The PI is a `gen_statem`; all FNI results arrive as messages processed sequentially. A stale result guard in `handle_fni_ok` drops results for FNIs that are no longer `:active`/`:waiting`, preventing double-completion. The EBG FNI itself transitions to `:finished` before any successor is dispatched, so it never races with its own children.
 
@@ -835,7 +837,7 @@ When the child finishes normally, `apply_out_mappings_to_result/5` aggregates En
 
 #### Error bubbling
 
-BPMN errors from the child PI (`{:child_pi_bpmn_error, ...}`) are routed through `handle_child_error/3` → `BoundaryResolver.find_matching_error_boundary/3` on the **subprocess shell** node. A matching error boundary on the shell returns `{:boundary, boundary_node_id, error_info, cancel_activity}`; no match propagates `{:error, error_info}` and fatals the parent.
+BPMN errors from the child PI (`{:child_pi_bpmn_error, ...}`) are routed through `handle_child_error/3` → `BoundaryResolver.find_matching_error_boundary/4` on the **subprocess shell** node. A matching error boundary on the shell returns `{:boundary, boundary_node_id, error_info, cancel_activity}`; no match propagates `{:error, error_info}` and fatals the parent.
 
 `handle_enter/3`-level failures (validation, input mapping, payload contract) are additionally caught by `BoundaryAwareHandler.wrap_enter/4` when error boundaries are attached to the shell.
 
@@ -1016,7 +1018,7 @@ Service Tasks and Script Tasks have clearly separated execution models. The BPMN
 
 **Design rationale:** Element types must not overlap in execution semantics (precedent: plugin delegation was removed from Business Rule Tasks). The async contract for Service Tasks serves as a classification gate — plugin developers must choose whether their work is local computation (→ Named Script on a Script Task) or external delegation (→ Service Task handler). There is no SyncAdapter convenience; the async ceremony is intentional friction that prevents boundary erosion.
 
-**Error path split:** Errors that occur *during* `handle_enter/3` (missing implementation, handler lookup failure, input pipeline violation) are synchronous and caught by `BoundaryAwareHandler.wrap_enter/4`. Errors that occur *during* async work (after `{:async, ref}` is returned) surface through `fail_async_service_task/3`, which the PI routes through `BoundaryResolver.find_matching_boundary/3` for error boundary events.
+**Error path split:** Errors that occur *during* `handle_enter/3` (missing implementation, handler lookup failure, input pipeline violation) are synchronous and caught by `BoundaryAwareHandler.wrap_enter/4`. Errors that occur *during* async work (after `{:async, ref}` is returned) surface through `fail_async_service_task/4`, which the PI routes through `apply_error_boundary_or_fatal/5` → `BoundaryResolver.find_matching_error_boundary/4`. The `error_code` string matches Error Boundaries with the same ranking as enter-time errors (specific resolved code before catch-all). Output-pipeline failures on `finish_async_service_task` (mapping / result contract / payload cap in `handle_complete`) take the same complete-path wrap — they also go through `apply_error_boundary_or_fatal/5`, not a silent PI fatal.
 
 ---
 
@@ -1507,7 +1509,7 @@ The `:error` state is exclusive to Error End Events (persisted via `FniLifecycle
 When a child PI throws a BPMN error (via Call Activity or Embedded SubProcess):
 
 - The Call Activity or SubProcess handler receives `{:child_pi_bpmn_error, ...}` in `await_child_completion/3`
-- Routes through `BoundaryResolver.find_matching_error_boundary/3` on the Call Activity or subprocess shell node
+- Routes through `BoundaryResolver.find_matching_error_boundary/4` on the Call Activity or subprocess shell node
 - **Match found** → `{:boundary, boundary_node_id, error_info, cancel_activity}` — parent catches the error
 - **No match** → `{:error, error_info}` — parent PI fatals (uncaught BPMN error is fatal)
 
@@ -1801,7 +1803,7 @@ An ad-hoc subprocess (`<bpmn:adHocSubProcess>`) contains activities that are not
 
 1. Handler validates contents (no start/end events, at least one activity)
 2. Spawns child PI in `AdHocMode` with ad-hoc configuration propagated to PI state
-3. In engine-managed mode: activates initial activities per `evil:activeElements` or all inner activities
+3. In engine-managed mode: activates initial activities per `evil:activeElements` or all inner activities. Sequential ordering activates **only the first** matching `activeElements` ID (remaining list IDs are logged and ignored); `maybe_auto_chain_sequential_adhoc` then advances through remaining **unperformed inner activities** as each finishes.
 4. In plugin-managed mode: waits for plugin to activate activities via facade
 5. Child PI completes when completion condition is met or all activities drain naturally
 
@@ -1813,7 +1815,8 @@ An ad-hoc subprocess (`<bpmn:adHocSubProcess>`) contains activities that are not
 ### Ordering Enforcement (Sequential)
 
 - Only one FNI may be `:active` or `:waiting` at a time
-- `maybe_auto_chain_sequential_adhoc` dispatches the next unperformed activity when the current one finishes
+- Sequential `evil:activeElements` is an **initial-set** expression: only `hd(list)` is activated; extra IDs are ignored at start
+- `maybe_auto_chain_sequential_adhoc` dispatches the next unperformed inner activity (model order) when the current one finishes
 - Manual activation via REST/plugin returns `:adhoc_sequential_busy` if an FNI is already active
 
 ### `cancelRemainingInstances` Enforcement

@@ -5,11 +5,10 @@ defmodule EvilEngine.Execution.EscalationResolver do
 
   ## Escalation code resolution
 
-  `EventDefinition.Escalation` carries only an `escalation_ref` at parse time —
-  `escalation_code` is never populated by the parser. The actual `escalation_code`
-  and `name` live on the global `EscalationDefinition` in
-  `Definitions.escalations`. This module resolves those at runtime immediately
-  before an escalation is raised (throw-side) or matched (catch-side).
+  `EventDefinition.Escalation` may carry an inline `escalation_code`
+  (same precedence as throw-side `resolve_escalation_info/2`). When that
+  field is blank, the runtime looks up `escalation_ref` on the global
+  `EscalationDefinition` in `Definitions.escalations`.
 
   ## Boundary matching semantics
 
@@ -183,17 +182,22 @@ defmodule EvilEngine.Execution.EscalationResolver do
   defp interrupting?(%FlowNode{type_data: type_data}), do: type_data.cancel_activity
 
   defp resolve_boundary_code(%FlowNode{type_data: type_data}, definitions) do
-    %EventDefinition.Escalation{escalation_ref: escalation_ref} = type_data.event_definition
+    %EventDefinition.Escalation{} = event_definition = type_data.event_definition
 
-    case escalation_ref do
-      nil ->
-        nil
+    inline_code = event_definition.escalation_code
 
-      ref ->
-        case find_escalation_definition(ref, definitions) do
+    cond do
+      is_binary(inline_code) and inline_code != "" ->
+        inline_code
+
+      is_binary(event_definition.escalation_ref) ->
+        case find_escalation_definition(event_definition.escalation_ref, definitions) do
           %EscalationDefinition{escalation_code: code} -> code
           nil -> nil
         end
+
+      true ->
+        nil
     end
   end
 

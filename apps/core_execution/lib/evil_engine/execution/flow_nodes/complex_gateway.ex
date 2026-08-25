@@ -12,8 +12,8 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGateway do
   via FEEL and every truthy flow is activated (fork). The distinction:
 
   - Every outgoing flow MUST carry a `conditionExpression` OR be the gateway's
-    `default`. Unconditional non-default flows are rejected at **deploy time**
-    (see `EvilEngine.BPMN.Validator`), so they never ride along at runtime.
+    `default`. Unconditional non-default flows are a **runtime** fatal
+    `:complex_gateway_unconditional_flow` (WIP diagrams may still deploy).
   - 1+ truthy conditions → all truthy paths are activated (fork tokens).
   - Zero truthy + default flow → default path only.
   - Zero truthy + no default → fatal `:complex_split_no_matching_condition`.
@@ -212,6 +212,24 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGateway do
   end
 
   defp handle_split(flow_node, token, context, outgoing_flows) do
+    case first_unconditional_non_default(outgoing_flows) do
+      %{} = unmarked_flow ->
+        {:error,
+         {:complex_gateway_unconditional_flow,
+          %{
+            flow_node_id: flow_node.id,
+            sequence_flow_id: unmarked_flow.id,
+            message:
+              "ComplexGateway '#{flow_node.id}' has unconditional non-default outgoing " <>
+                "sequence flow '#{unmarked_flow.id}'. Add a conditionExpression or mark the flow as default."
+          }}}
+
+      nil ->
+        evaluate_complex_split(flow_node, token, context, outgoing_flows)
+    end
+  end
+
+  defp evaluate_complex_split(flow_node, token, context, outgoing_flows) do
     feel_context = build_feel_context(token, context)
 
     {conditional, rest} =
@@ -259,8 +277,8 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGateway do
   end
 
   # Complex Split — unlike Inclusive, unconditional non-default flows never
-  # ride along (rejected at deploy), so only truthy flows and the default
-  # fallback are considered.
+  # ride along (runtime fatal `:complex_gateway_unconditional_flow` before
+  # this function), so only truthy flows and the default fallback remain.
   defp select_outgoing(flow_node, token, truthy_flows, defaults) do
     case {truthy_flows, defaults} do
       {[], []} ->
@@ -303,6 +321,20 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGateway do
       end
 
     {incoming, outgoing}
+  end
+
+  defp first_unconditional_non_default(outgoing_flows) do
+    Enum.find(outgoing_flows, fn sequence_flow ->
+      not sequence_flow.is_default and blank_condition?(sequence_flow)
+    end)
+  end
+
+  defp blank_condition?(sequence_flow) do
+    case sequence_flow.condition_expression do
+      nil -> true
+      expression when is_binary(expression) -> String.trim(expression) == ""
+      _other -> false
+    end
   end
 
   defp persist_gateway_pending_arrival(process_instance_id, gateway_fni_id, incoming_flow_id, source_fni_id, payload) do

@@ -108,8 +108,8 @@ The engine extends BPMN with custom elements under `xmlns:evil="https://evilengi
 
 | Extension | Side | Notes |
 |-----------|------|-------|
-| `evil:payload` | Throw | FEEL outgoing payload |
-| `evil:eventMapping` | Catch | FEEL maps received payload into the token |
+| `evil:inputMapping` | Throw / Send | FEEL maps the token into the published message body |
+| `evil:outputMapping` | Catch / Receive | FEEL maps the received message into the token |
 | `evil:correlationRetrievalExpression` | Throw | FEEL stamp on the published message |
 | `evil:correlationKey` | Process (catch) | Catch-side expected correlation |
 

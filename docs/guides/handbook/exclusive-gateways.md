@@ -8,6 +8,8 @@ A split gateway has one incoming and multiple outgoing sequence flows. Each outg
 
 | Outcome | Behavior |
 |---------|----------|
+| Unmarked non-default outgoing flow (no `conditionExpression`, not `default`) | **Runtime fatal** (`exclusive_gateway_unconditional_flow`) **before** FEEL on a split (`outgoing > 1`). A **single** unmarked outgoing is pass-through. The diagram still deploys. Studio lints warning (`bpmn-development`) / error (`bpmn-production-ready`). |
+| Single outgoing with a condition that is `false` and no default | PI transitions to `fatal` (`no_matching_condition`) — the condition is still evaluated |
 | Exactly one condition is `true` | That path is taken |
 | Zero conditions are `true`, default flow exists | Default flow is taken |
 | Zero conditions are `true`, no default flow | PI transitions to `fatal` (`no_matching_condition`) |

@@ -190,13 +190,15 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
       assert resumed_count >= 1
 
       {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id)
+      {:ok, _child_pid} = poll_pi_alive(original_child_process_instance_id)
 
       {:ok, resumed_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
 
       assert resumed_user_task_fni.process_instance_id == original_child_process_instance_id,
              "The SAME child PI must be resumed, not a new one"
 
-      {204, _} = http_finish_user_task(resumed_user_task_fni.id, %{"result" => "done"})
+      {204, _} =
+        http_finish_user_task(to_string(resumed_user_task_fni.id), %{"result" => "done"})
 
       wait_for_process_instance(original_child_process_instance_id, 5_000)
       wait_for_process_instance(parent_process_instance_id, 5_000)

@@ -11,26 +11,22 @@ end
 
 defmodule EvilEngine.BPMN.Model.EventDefinition.Message do
   @moduledoc """
-  Message event definition — carries correlation, payload expression, and
-  event mapping fields from `evil:*` extensions alongside the BPMN `messageRef`.
+  Message event definition — carries `messageRef` and optional
+  `correlation_retrieval_expression` from `evil:*` extensions.
 
-  Data contracts (`payloadContract` / `resultContract`) are **not** stored here.
-  They live on the event position struct: throw-side events get
-  `payload_contract`, catch-side events get `result_contract`.
+  Data contracts (`payloadContract` / `resultContract`) and token
+  transformation (`inputMapping` / `outputMapping`) are **not** stored
+  here. They live on the event position struct.
   """
 
   @type t :: %__MODULE__{
           message_ref: String.t() | nil,
-          correlation_retrieval_expression: String.t() | nil,
-          payload_expression: String.t() | nil,
-          event_mapping: String.t() | nil
+          correlation_retrieval_expression: String.t() | nil
         }
 
   defstruct [
     :message_ref,
-    :correlation_retrieval_expression,
-    :payload_expression,
-    :event_mapping
+    :correlation_retrieval_expression
   ]
 end
 

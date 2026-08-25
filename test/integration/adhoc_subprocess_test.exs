@@ -613,6 +613,7 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
         end)
 
       assert length(finished_scripts) == 3
+      assert hd(finished_scripts).flow_node_id == "ScriptTask_1"
     end
   end
 

@@ -46,14 +46,18 @@ thing to remember:
 > OR be the gateway's `default` flow.**
 
 An outgoing flow that has neither a condition nor the `default` marker is an
-**unconditional non-default flow**, and the engine **rejects it at deploy
-time** with the violation `complex_gateway_unconditional_flow`.
+**unconditional non-default flow**. The engine **fatals at runtime** with
+`complex_gateway_unconditional_flow` when the split is entered. The diagram
+**still deploys** (WIP models are allowed). Studio lints a warning in
+`bpmn-development` and an error in `bpmn-production-ready`. Mixed Complex
+gateways, a join missing `activationCondition`, and SESE region violations
+remain **deploy-time** rejects.
 
 Contrast this with the [Inclusive Gateway](inclusive-gateways.md), which
 *silently activates* unconditional flows alongside the truthy ones. On an
 Inclusive split, forgetting a condition means the flow always fires — often a
-subtle bug. On a Complex split, forgetting a condition is caught before the
-model can even be deployed. The default flow fires **only** when no conditional
+subtle bug. On a Complex split, forgetting a condition fatals when the token
+reaches the gateway. The default flow fires **only** when no conditional
 flow matches.
 
 ### BPMN Example — Complex Split
@@ -80,8 +84,10 @@ flow matches.
 - If `amount > 100000` **and** `needsFinance` is `true`, both `Task_Legal` and
   `Task_Finance` run in parallel.
 - If neither matches, `Task_Standard` runs (the default).
-- If you added a fourth outgoing flow with no condition and no `default`, the
-  model would be **rejected at deploy**.
+- If you added a fourth outgoing flow with no condition and no `default`,
+  entering the split is a **runtime fatal** (`complex_gateway_unconditional_flow`).
+  The diagram still deploys; Studio lints warning (`bpmn-development`) / error
+  (`bpmn-production-ready`).
 
 ## Complex Join (Converging) — Threshold Join
 
@@ -311,7 +317,7 @@ splitting and joining as two separate Complex Gateway nodes.
 | Error | Cause | When |
 |-------|-------|------|
 | `complex_gateway_mixed` | Gateway has both >1 incoming and >1 outgoing flows | Deploy |
-| `complex_gateway_unconditional_flow` | A Complex Split has an outgoing flow that is neither conditional nor the default | Deploy |
+| `complex_gateway_unconditional_flow` | A Complex Split has an outgoing flow that is neither conditional nor the default | Runtime (`fatal`) |
 | `complex_gateway_join_missing_activation_condition` | A Complex Join has no `<bpmn:activationCondition>` | Deploy |
 | `complex_split_no_matching_condition` | No outgoing condition is truthy and there is no default flow | Runtime (`fatal`) |
 | `complex_split_condition_failed` | A FEEL condition on an outgoing flow failed to evaluate | Runtime (`fatal`) |

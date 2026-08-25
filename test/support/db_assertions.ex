@@ -12,7 +12,7 @@ defmodule EvilEngine.Test.DbAssertions do
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance
 
-  @sandbox_retry_attempts 8
+  @sandbox_retry_attempts 16
   @sandbox_retry_delay_ms 50
 
   @doc "Fetch a ProcessInstance row by ID. Raises on not-found."
@@ -56,12 +56,18 @@ defmodule EvilEngine.Test.DbAssertions do
     function.()
   rescue
     error ->
-      if attempt < @sandbox_retry_attempts && sandbox_ownership_error?(error) do
-        restore_sandbox_shared_mode()
-        Process.sleep(@sandbox_retry_delay_ms * attempt)
-        with_sandbox_retry(function, attempt + 1)
-      else
-        reraise error, __STACKTRACE__
+      cond do
+        attempt < @sandbox_retry_attempts && sandbox_ownership_error?(error) ->
+          restore_sandbox_shared_mode()
+          Process.sleep(@sandbox_retry_delay_ms * attempt)
+          with_sandbox_retry(function, attempt + 1)
+
+        attempt < @sandbox_retry_attempts && not_found_error?(error) ->
+          Process.sleep(@sandbox_retry_delay_ms * attempt)
+          with_sandbox_retry(function, attempt + 1)
+
+        true ->
+          reraise error, __STACKTRACE__
       end
   end
 
@@ -116,6 +122,18 @@ defmodule EvilEngine.Test.DbAssertions do
   end
 
   defp sandbox_ownership_error?(_error), do: false
+
+  defp not_found_error?(%Ash.Error.Query.NotFound{}), do: true
+
+  defp not_found_error?(%Ash.Error.Invalid{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &not_found_error?/1)
+  end
+
+  defp not_found_error?(%Ash.Error.Unknown{errors: errors}) when is_list(errors) do
+    Enum.any?(errors, &not_found_error?/1)
+  end
+
+  defp not_found_error?(_error), do: false
 
   @doc "Assert a PI row exists with the expected state."
   def assert_pi_state!(process_instance_id, expected_state) do

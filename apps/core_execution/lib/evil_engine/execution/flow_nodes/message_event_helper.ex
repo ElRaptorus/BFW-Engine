@@ -50,10 +50,11 @@ defmodule EvilEngine.Execution.FlowNodes.MessageEventHelper do
   against the current handler context and token payload.
 
   Returns `{:ok, value}` where value is a string, or `{:ok, :none}` if
-  no correlation key is defined on the process.
+  no correlation key is defined on the process. FEEL evaluation failures
+  return `{:error, {:correlation_expression_failed, reason}}`.
   """
   @spec evaluate_correlation_key(struct(), HandlerContext.t(), map()) ::
-          {:ok, String.t() | :none}
+          {:ok, String.t() | :none} | {:error, term()}
   def evaluate_correlation_key(process_model, context, token_payload) do
     correlation_key_expression = process_model.correlation_key
 
@@ -65,11 +66,11 @@ defmodule EvilEngine.Execution.FlowNodes.MessageEventHelper do
       case Expressions.eval(correlation_key_expression, feel_context) do
         {:ok, value} when is_binary(value) -> {:ok, value}
         {:ok, value} -> {:ok, to_string(value)}
-        {:error, _reason} -> {:ok, :none}
+        {:error, reason} -> {:error, {:correlation_expression_failed, reason}}
       end
     end
   rescue
-    _exception -> {:ok, :none}
+    exception -> {:error, {:correlation_expression_failed, exception}}
   end
 
   @doc """
@@ -78,9 +79,10 @@ defmodule EvilEngine.Execution.FlowNodes.MessageEventHelper do
   value from the outgoing message payload.
 
   Returns `{:ok, value}` or `{:ok, :none}` if no expression is defined.
+  FEEL evaluation failures return `{:error, {:correlation_expression_failed, reason}}`.
   """
   @spec evaluate_correlation_retrieval_expression(EventDefinition.Message.t(), map(), map()) ::
-          {:ok, String.t() | :none}
+          {:ok, String.t() | :none} | {:error, term()}
   def evaluate_correlation_retrieval_expression(event_definition, _payload, feel_context) do
     expression = event_definition.correlation_retrieval_expression
 
@@ -90,11 +92,11 @@ defmodule EvilEngine.Execution.FlowNodes.MessageEventHelper do
       case Expressions.eval(expression, feel_context) do
         {:ok, value} when is_binary(value) -> {:ok, value}
         {:ok, value} -> {:ok, to_string(value)}
-        {:error, _reason} -> {:ok, :none}
+        {:error, reason} -> {:error, {:correlation_expression_failed, reason}}
       end
     end
   rescue
-    _exception -> {:ok, :none}
+    exception -> {:error, {:correlation_expression_failed, exception}}
   end
 
   # -------------------------------------------------------------------

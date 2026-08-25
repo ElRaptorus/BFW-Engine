@@ -13,8 +13,8 @@ defmodule EvilEngine.Integration.Execution.ComplexGatewayTest do
     every active/waiting FNI inside the join's SESE region is cancelled
     (`cancelled_by_complex_join`). Nested regions cancel their own scope
     only — the enclosing region is untouched.
-  - Deploy rejection — a Complex Split with an unconditional, non-default
-    outgoing flow is rejected at deploy time.
+  - Unmarked Complex Split — an unconditional non-default outgoing flow
+    still deploys; entering the split fatals `:complex_gateway_unconditional_flow`.
   """
   use EvilEngine.ExecutionCase, async: false
 
@@ -120,24 +120,20 @@ defmodule EvilEngine.Integration.Execution.ComplexGatewayTest do
     end
   end
 
-  describe "C214: deploy rejection for an unconditional non-default split flow" do
+  describe "C214: unmarked Complex Split deploys and fatals at runtime" do
     @tag :integration
-    test "deploy is rejected with a Complex Split validation violation" do
-      {status, body} = http_deploy("complex_gateway_unconditional_split.bpmn")
+    test "unconditional non-default split flow deploys, then fatals when the split is entered" do
+      {201, _} = http_deploy("complex_gateway_unconditional_split.bpmn")
 
-      # Rejected at deploy: validation (422) or the parse-error categorization (400).
-      assert status in [400, 422]
+      {201, body} =
+        http_start("ComplexGatewayUnconditionalSplit", %{"payload" => %{"a" => true}})
 
-      details =
-        body
-        |> Map.get("failures", [])
-        |> Enum.flat_map(fn failure -> Map.get(failure, "details", []) end)
+      process_instance_id = body["processInstanceId"]
+      wait_for_process_instance(process_instance_id, 10_000)
+      assert_pi_state!(process_instance_id, "fatal")
 
-      assert Enum.any?(details, fn detail ->
-               String.contains?(detail, "unconditional non-default outgoing flow") and
-                 String.contains?(detail, "ComplexSplit")
-             end),
-             "Expected a Complex Split unconditional-flow violation, got: #{inspect(details)}"
+      complex_split = find_fni_by_flow_node_id(process_instance_id, "ComplexSplit")
+      assert complex_split.state == "fatal"
     end
   end
 

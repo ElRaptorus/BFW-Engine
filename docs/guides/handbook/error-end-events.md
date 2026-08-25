@@ -75,6 +75,8 @@ When both inline and global error codes are available, the engine resolves them 
 
 If inline `evil:errorCode` is set, it **overrides** the global definition's code. This allows reusing a global error definition while customizing the code per throw site.
 
+Catch-side [Error Boundary Events](error-boundary-events.md) resolve `errorRef` the same way and **rank** a specific resolved code before a catch-all. Document order is not a specificity tiebreak.
+
 ## FNI States After an Error End Event
 
 When an Error End Event fires in a process with concurrent branches (e.g., via non-interrupting boundary events or future parallel gateways), the resulting FNI states tell the full story:

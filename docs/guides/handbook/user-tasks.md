@@ -86,9 +86,11 @@ curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/cancel \
 | `422`  | Task not in `waiting` state |
 
 Cancellation transitions the FNI to `aborted` and **aborts the entire
-process instance** — the same effect as `PUT /process-instances/{id}/abort`.
-All parallel branches are stopped and the PI transitions to `aborted`.
-The same lane-based authorization rules apply as for finishing.
+process tree** — the same effect as `PUT /process-instances/{id}/abort`.
+All parallel branches and descendant Call Activity / SubProcess children
+are stopped and the PI transitions to `aborted`. Error Boundary Events
+do not catch the abort. The same lane-based authorization rules apply as
+for finishing.
 
 ## Result Contract Validation
 

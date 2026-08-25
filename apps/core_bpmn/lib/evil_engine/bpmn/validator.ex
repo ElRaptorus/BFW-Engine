@@ -1529,16 +1529,40 @@ defmodule EvilEngine.BPMN.Validator do
     outgoing_flows =
       Enum.filter(process.sequence_flows, &(&1.source_ref == gateway.id))
 
-    outgoing_flows
-    |> Enum.flat_map(fn flow ->
-      case Map.get(node_index, flow.target_ref) do
-        %FlowNode{type: :receive_task} = target ->
-          check_receive_task_has_no_boundaries(gateway, target, process)
+    successor_errors =
+      Enum.flat_map(outgoing_flows, fn flow ->
+        event_based_gateway_successor_error(gateway, flow, node_index)
+      end)
 
-        _ ->
-          []
-      end
-    end)
+    receive_task_errors =
+      Enum.flat_map(outgoing_flows, fn flow ->
+        case Map.get(node_index, flow.target_ref) do
+          %FlowNode{type: :receive_task} = target ->
+            check_receive_task_has_no_boundaries(gateway, target, process)
+
+          _other ->
+            []
+        end
+      end)
+
+    successor_errors ++ receive_task_errors
+  end
+
+  defp event_based_gateway_successor_error(gateway, flow, node_index) do
+    case Map.get(node_index, flow.target_ref) do
+      %FlowNode{type: type} when type in [:intermediate_catch_event, :receive_task] ->
+        []
+
+      %FlowNode{id: target_id, type: type} ->
+        [
+          {:event_based_gateway_invalid_successor,
+           "EventBasedGateway '#{gateway.id}' outgoing flow '#{flow.id}' targets " <>
+             "'#{target_id}' (#{type}). Successors must be an Intermediate Catch Event or a Receive Task."}
+        ]
+
+      nil ->
+        []
+    end
   end
 
   defp check_receive_task_has_no_boundaries(gateway, receive_task, process) do
@@ -1594,7 +1618,7 @@ defmodule EvilEngine.BPMN.Validator do
         ]
 
       length(outgoing) > 1 ->
-        check_complex_split_flows(gateway, outgoing)
+        []
 
       length(incoming) > 1 ->
         check_complex_join_activation_condition(gateway)
@@ -1621,21 +1645,6 @@ defmodule EvilEngine.BPMN.Validator do
     else
       []
     end
-  end
-
-  defp check_complex_split_flows(gateway, outgoing_flows) do
-    Enum.flat_map(outgoing_flows, fn flow ->
-      if blank?(flow.condition_expression) and not flow.is_default do
-        [
-          {:complex_gateway_unconditional_flow,
-           "ComplexGateway '#{gateway.id}' has unconditional non-default outgoing flow " <>
-             "'#{flow.id}'. Every outgoing flow of a Complex Split must carry a " <>
-             "conditionExpression or be the gateway's default flow."}
-        ]
-      else
-        []
-      end
-    end)
   end
 
   # ---------------------------------------------------------------------------
@@ -1940,55 +1949,73 @@ defmodule EvilEngine.BPMN.Validator do
   defp check_multi_instance_rules(_id, _type, nil), do: []
 
   defp check_multi_instance_rules(id, type, %MultiInstance{} = mi) do
-    position_errors = check_loop_on_valid_element(id, type, "multiInstanceLoopCharacteristics")
+    check_loop_on_valid_element(id, type, "multiInstanceLoopCharacteristics") ++
+      check_mi_collection(id, type, mi) ++
+      check_mi_max_iterations(id, type, mi) ++
+      check_mi_completion_condition(id, type, mi) ++
+      check_mi_break_condition(id, type, mi) ++
+      check_loop_cardinality(id, type, mi)
+  end
 
-    collection_errors =
-      if blank?(mi.collection_expression) do
+  defp check_mi_collection(id, type, %MultiInstance{collection_expression: collection_expression}) do
+    if blank?(collection_expression) do
+      [
+        {:mi_missing_collection,
+         "#{type_label(type)} '#{id}' has multiInstanceLoopCharacteristics but no resolvable " <>
+           "collection (evil:inputCollection or loopDataInput is required)"}
+      ]
+    else
+      []
+    end
+  end
+
+  defp check_mi_max_iterations(id, type, %MultiInstance{max_iterations: max_iterations}) do
+    case max_iterations do
+      n when is_integer(n) and n <= 0 ->
         [
-          {:mi_missing_collection,
-           "#{type_label(type)} '#{id}' has multiInstanceLoopCharacteristics but no resolvable " <>
-             "collection (evil:inputCollection or loopDataInput is required)"}
+          {:mi_invalid_max_iterations,
+           "#{type_label(type)} '#{id}' has evil:maxIterations=#{n}; must be > 0"}
         ]
-      else
+
+      _ ->
         []
-      end
+    end
+  end
 
-    max_iterations_errors =
-      case mi.max_iterations do
-        n when is_integer(n) and n <= 0 ->
-          [
-            {:mi_invalid_max_iterations,
-             "#{type_label(type)} '#{id}' has evil:maxIterations=#{n}; must be > 0"}
-          ]
+  defp check_mi_completion_condition(id, type, %MultiInstance{completion_condition: completion_condition}) do
+    if is_binary(completion_condition) and blank?(completion_condition) do
+      [
+        {:mi_blank_completion_condition,
+         "#{type_label(type)} '#{id}' has an empty completionCondition; " <>
+           "remove it or provide a valid FEEL expression"}
+      ]
+    else
+      []
+    end
+  end
 
-        _ ->
-          []
-      end
+  defp check_mi_break_condition(id, type, %MultiInstance{loop_break_condition: loop_break_condition}) do
+    if is_binary(loop_break_condition) and blank?(loop_break_condition) do
+      [
+        {:mi_blank_break_condition,
+         "#{type_label(type)} '#{id}' has an empty evil:loopBreakCondition; " <>
+           "remove it or provide a valid FEEL expression"}
+      ]
+    else
+      []
+    end
+  end
 
-    completion_condition_errors =
-      if is_binary(mi.completion_condition) and blank?(mi.completion_condition) do
-        [
-          {:mi_blank_completion_condition,
-           "#{type_label(type)} '#{id}' has an empty completionCondition; " <>
-             "remove it or provide a valid FEEL expression"}
-        ]
-      else
-        []
-      end
-
-    break_condition_errors =
-      if is_binary(mi.loop_break_condition) and blank?(mi.loop_break_condition) do
-        [
-          {:mi_blank_break_condition,
-           "#{type_label(type)} '#{id}' has an empty evil:loopBreakCondition; " <>
-             "remove it or provide a valid FEEL expression"}
-        ]
-      else
-        []
-      end
-
-    position_errors ++
-      collection_errors ++ max_iterations_errors ++ completion_condition_errors ++ break_condition_errors
+  defp check_loop_cardinality(id, type, %MultiInstance{loop_cardinality: loop_cardinality}) do
+    if is_binary(loop_cardinality) and not blank?(loop_cardinality) do
+      [
+        {:loop_cardinality_not_supported,
+         "#{type_label(type)} '#{id}' declares loopCardinality, which is not supported; " <>
+           "use evil:inputCollection (iteration count is the collection length)"}
+      ]
+    else
+      []
+    end
   end
 
   defp check_standard_loop_rules(_id, _type, nil), do: []

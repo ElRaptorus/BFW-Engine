@@ -210,7 +210,7 @@ The PI is created immediately but the first activity after the start event is no
 Timer events are designed to survive engine restarts:
 
 - **Intermediate Catch**: The `fire_at` datetime is stored in the FNI's `type_properties`. On resume, if the fire time is in the future, the timer is re-registered with the Scheduler. If it is in the past, the FNI completes immediately.
-- **Boundary**: Same as Intermediate Catch — the `fire_at` is stored and re-evaluated on resume. If the timer should have fired during downtime, it fires immediately (interrupting the host if applicable).
+- **Boundary**: Same as Intermediate Catch — the `fire_at` is stored and re-evaluated on resume. If the timer should have fired during downtime, it fires immediately (interrupting the host if applicable). Non-interrupting **cycle** boundaries also persist `is_cycle`, remaining `cycle_repetitions`, and ISO 8601 `cycle_interval` on enter and after each re-arm; resume restores the cycle receive loop (not a one-shot) and delivers an overdue tick immediately.
 - **Cycle Start**: All enabled cycle schedules are reloaded from the database on engine boot and re-armed in the Scheduler.
 - **Date/Duration Start**: Not auto-scheduled, so no resume action is needed — the blocking gate is handled by the Start Event handler.
 

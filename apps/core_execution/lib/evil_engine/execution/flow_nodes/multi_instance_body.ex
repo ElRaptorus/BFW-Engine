@@ -75,7 +75,189 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
   through `{:mi_iteration_completed, ...}` messages, not `handle_complete`.
   """
   def handle_resume(flow_node, token, context) do
-    handle_enter(flow_node, token, context)
+    case reattach_existing_iterations(context) do
+      {:ok, snapshot} ->
+        resume_from_snapshot(flow_node, token, context, snapshot)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp reattach_existing_iterations(%HandlerContext{process_instance_pid: pid, flow_node_instance_id: id})
+       when is_pid(pid) and is_binary(id) do
+    :gen_statem.call(pid, {:mi_reattach_iterations, id})
+  end
+
+  defp reattach_existing_iterations(_context), do: {:ok, empty_iteration_snapshot()}
+
+  defp empty_iteration_snapshot do
+    %{live_count: 0, finished_payloads: [], occupied_indices: []}
+  end
+
+  defp resume_from_snapshot(flow_node, token, context, snapshot) do
+    if snapshot.live_count == 0 and snapshot.occupied_indices == [] do
+      handle_enter(flow_node, token, context)
+    else
+      resume_attached_iterations(flow_node, token, context, snapshot)
+    end
+  end
+
+  defp resume_attached_iterations(flow_node, token, context, snapshot) do
+    %FlowNode{multi_instance: %MultiInstance{} = mi} = flow_node
+
+    if mi.is_sequential do
+      resume_sequential(flow_node, token, context, mi, snapshot)
+    else
+      resume_parallel(flow_node, token, context, mi, snapshot)
+    end
+  end
+
+  defp resume_parallel(flow_node, token, context, mi, snapshot) do
+    token_payload = token.payload || %{}
+
+    with {:ok, collection} <- evaluate_collection(mi, FeelContext.from_handler_context(context, token_payload)),
+         {:ok, collection} <- validate_collection(collection) do
+      total = length(collection)
+      finished = payloads_to_results(snapshot.finished_payloads)
+
+      case collect_iteration_results(
+             snapshot.live_count,
+             mi,
+             total,
+             context,
+             token_payload,
+             Enum.reverse(finished)
+           ) do
+        {:ok, collected} ->
+          finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  defp resume_sequential(flow_node, token, context, mi, snapshot) do
+    token_payload = token.payload || %{}
+
+    with {:ok, collection} <- evaluate_collection(mi, FeelContext.from_handler_context(context, token_payload)),
+         {:ok, collection} <- validate_collection(collection) do
+      resume_state = %{
+        collection: cap_at_max_iterations(collection, mi),
+        total: length(collection),
+        occupied: MapSet.new(snapshot.occupied_indices),
+        finished: payloads_to_results(snapshot.finished_payloads),
+        live_count: snapshot.live_count
+      }
+
+      await_live_then_continue_sequential(flow_node, token, context, mi, resume_state)
+    end
+  end
+
+  defp await_live_then_continue_sequential(flow_node, token, context, mi, resume_state) do
+    case collect_iteration_results(
+           resume_state.live_count,
+           mi,
+           resume_state.total,
+           context,
+           token.payload || %{},
+           Enum.reverse(resume_state.finished)
+         ) do
+      {:ok, collected} ->
+        finish_or_continue_sequential(
+          flow_node,
+          token,
+          context,
+          mi,
+          resume_state.collection,
+          resume_state.total,
+          resume_state.occupied,
+          collected
+        )
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp finish_or_continue_sequential(
+         flow_node,
+         token,
+         context,
+         mi,
+         collection,
+         total,
+         occupied,
+         collected
+       ) do
+    case continue_sequential_remaining(
+           flow_node,
+           token,
+           context,
+           mi,
+           collection,
+           total,
+           occupied,
+           collected
+         ) do
+      {:ok, all_collected} ->
+        token_payload = token.payload || %{}
+        early_break = length(all_collected) < total
+        emit_mi_completed(context, flow_node, mi, total, length(all_collected), early_break)
+        output = build_output_collection(mi, all_collected, total, context, token_payload)
+        type_properties = mi_type_properties(mi, total, all_collected)
+
+        with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
+             {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
+          {:ok,
+           %FlowNodeResult{
+             output_payload: output,
+             type_properties: type_properties,
+             next_flow_node_ids: next_ids
+           }}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp continue_sequential_remaining(flow_node, token, context, mi, collection, total, occupied, collected) do
+    remaining =
+      collection
+      |> Enum.with_index()
+      |> Enum.reject(fn {_item, index} -> MapSet.member?(occupied, index) end)
+
+    remaining
+    |> Enum.reduce_while({:ok, Enum.reverse(collected)}, fn {item, index}, {:ok, rev_accumulated} ->
+      execute_sequential_iteration(flow_node, token, context, mi, item, index, total, rev_accumulated)
+    end)
+    |> reverse_sequential_result()
+  end
+
+  defp reverse_sequential_result({:ok, rev_collected}), do: {:ok, Enum.reverse(rev_collected)}
+  defp reverse_sequential_result({:error, reason}), do: {:error, reason}
+
+  defp payloads_to_results(payloads) do
+    Enum.map(payloads, fn payload -> %FlowNodeResult{output_payload: payload} end)
+  end
+
+  defp finish_parallel_shell(flow_node, mi, total, context, token_payload, collected) do
+    early_break = length(collected) < total
+    emit_mi_completed(context, flow_node, mi, total, length(collected), early_break)
+    output = build_output_collection(mi, collected, total, context, token_payload)
+    type_properties = mi_type_properties(mi, total, collected)
+
+    with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
+         {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
+      {:ok,
+       %FlowNodeResult{
+         output_payload: output,
+         type_properties: type_properties,
+         next_flow_node_ids: next_ids
+       }}
+    end
   end
 
   # -- Collection evaluation ---------------------------------------------------
@@ -267,6 +449,7 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
         collected = [result | accumulated]
 
         if should_break?(mi, Enum.reverse(collected), total, context, token_payload) do
+          interrupt_remaining_iterations(context)
           drain_remaining_results(remaining - 1)
           {:ok, Enum.reverse(collected)}
         else
@@ -274,9 +457,17 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
         end
 
       {:error, reason} ->
+        interrupt_remaining_iterations(context)
         {:error, reason}
     end
   end
+
+  defp interrupt_remaining_iterations(%HandlerContext{process_instance_pid: pid, flow_node_instance_id: id})
+       when is_pid(pid) and is_binary(id) do
+    :gen_statem.call(pid, {:mi_interrupt_remaining, id})
+  end
+
+  defp interrupt_remaining_iterations(_context), do: :ok
 
   defp drain_remaining_results(0), do: :ok
 
@@ -285,7 +476,7 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
       {:mi_iteration_completed, _fni_id, _result} ->
         drain_remaining_results(remaining - 1)
     after
-      @iteration_timeout_ms -> :ok
+      0 -> :ok
     end
   end
 

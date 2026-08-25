@@ -232,7 +232,7 @@ the lifetime of the process instance.
 | Conditional boundary / intermediate | same |
 | Complex gateway join activation | `<bpmn:activationCondition>activatedCount &gt;= 2</bpmn:activationCondition>` — standard BPMN child of `<bpmn:complexGateway>`; evaluated by `ComplexJoinEvaluator` with the `activatedCount`/`incomingCount` overlay (§8.1) |
 | User Task assignees | `<evil:assignees>identity.groups[_.contains("reviewers")]</evil:assignees>` |
-| Throw event payload mapping | `<evil:payload>token</evil:payload>` |
+| Throw event payload mapping | `<evil:inputMapping source="token.orderId" target="orderId"/>` |
 | Data Object association source | inline FEEL in data association |
 | Call Activity input mapping (**active**) | `<evil:inputMapping source="..." target="..."/>` — FEEL expression evaluated against caller's token |
 | Call Activity output mapping (**active**) | `<evil:outputMapping source="..." target="..."/>` — FEEL expression evaluated against child's aggregated result tokens |

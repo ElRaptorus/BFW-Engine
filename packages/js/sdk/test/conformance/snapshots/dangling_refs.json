@@ -49,9 +49,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_NonExistent",
-              "payloadExpression": null
+              "messageRef": "Msg_NonExistent"
             },
             "isInterrupting": true,
             "resultContract": null

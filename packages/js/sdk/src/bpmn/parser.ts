@@ -946,8 +946,6 @@ function buildEventDefinition(kind: EventDefKind, node: OrderedNode): EventDefin
         type: 'message',
         messageRef: attr(node, 'messageRef'),
         correlationRetrievalExpression: childText(extKids, 'correlationRetrievalExpression') || null,
-        payloadExpression: childText(extKids, 'payload') || null,
-        eventMapping: childText(extKids, 'eventMapping') || null,
       };
       return def;
     }

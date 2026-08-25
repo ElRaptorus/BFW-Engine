@@ -105,8 +105,10 @@ defmodule EvilEngine.Execution.FlowNodes.InclusiveGateway do
 
   Called by `Resumption` when reactivating a join FNI after engine restart.
   Reconstructs the handler's internal state from `persisted_arrivals` and
-  either fires immediately (if dead-path evaluation says ready) or enters
-  the async receive loop to wait for remaining tokens or fire signals.
+  either fires immediately (if every incoming already arrived) or enters
+  the async receive loop. Structural dead-path elimination is re-evaluated
+  by the Process Instance (`evaluate_parked_inclusive_joins/1`), which
+  signals the parked join to fire when the remaining incomings are dead.
   """
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t(), [map()]) ::
           {:ok, FlowNodeResult.t()} | {:async, String.t(), (-> term()), map()} | {:error, term()}
@@ -116,11 +118,19 @@ defmodule EvilEngine.Execution.FlowNodes.InclusiveGateway do
     branch_payloads = Enum.map(sorted_arrivals, & &1.arrived_payload)
     previous_fni_ids = Enum.map(sorted_arrivals, & &1.source_flow_node_instance_id)
 
-    continuation = fn ->
-      inclusive_join_receive_loop(flow_node, context, branch_payloads, previous_fni_ids)
-    end
+    {incoming, _outgoing} = resolve_flow_counts(flow_node, context.process_model)
+    required = length(incoming)
+    arrived = length(persisted_arrivals)
 
-    {:async, context.flow_node_instance_id, continuation, %{join_gateway: true}}
+    if arrived >= required and required > 0 do
+      fire_join(flow_node, context, branch_payloads, previous_fni_ids)
+    else
+      continuation = fn ->
+        inclusive_join_receive_loop(flow_node, context, branch_payloads, previous_fni_ids)
+      end
+
+      {:async, context.flow_node_instance_id, continuation, %{join_gateway: true}}
+    end
   end
 
   @impl true

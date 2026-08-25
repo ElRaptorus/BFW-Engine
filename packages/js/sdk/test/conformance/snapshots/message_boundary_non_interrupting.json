@@ -88,9 +88,7 @@
             "compensationHandlerId": null,
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_notify_bi",
-              "payloadExpression": null
+              "messageRef": "Msg_notify_bi"
             },
             "outMappings": [],
             "resultContract": null

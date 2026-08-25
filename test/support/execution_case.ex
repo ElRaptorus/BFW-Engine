@@ -677,7 +677,8 @@ defmodule EvilEngine.ExecutionCase do
           {:DOWN, ^ref, :process, ^pid, _reason} ->
             await_supervisor_drain()
             EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
-            :ok
+            await_persisted_process_instance(process_instance_id, 2_000)
+
         after
           timeout ->
             Process.demonitor(ref, [:flush])
@@ -686,6 +687,26 @@ defmodule EvilEngine.ExecutionCase do
 
       {:error, :not_found} ->
         EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+        await_persisted_process_instance(process_instance_id, 2_000)
+    end
+  end
+
+  defp await_persisted_process_instance(process_instance_id, timeout) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_await_persisted_process_instance(process_instance_id, deadline)
+  end
+
+  defp do_await_persisted_process_instance(process_instance_id, deadline) do
+    case EvilEngine.Test.DbAssertions.fetch_process_instance(process_instance_id) do
+      nil ->
+        if System.monotonic_time(:millisecond) >= deadline do
+          :ok
+        else
+          Process.sleep(25)
+          do_await_persisted_process_instance(process_instance_id, deadline)
+        end
+
+      _record ->
         :ok
     end
   end

@@ -59,6 +59,7 @@ defmodule EvilEngine.Execution.FlowNodes.SignalCatchEvent do
       {:ok, subscription_id} =
         SignalSubscriptions.register(%{
           process_instance_id: context.process_instance_id,
+          root_process_instance_id: context.root_process_instance_id,
           flow_node_instance_id: context.flow_node_instance_id,
           flow_node_id: flow_node.id,
           signal_name: signal_name,
@@ -79,6 +80,7 @@ defmodule EvilEngine.Execution.FlowNodes.SignalCatchEvent do
     {:ok, subscription_id} =
       SignalSubscriptions.register(%{
         process_instance_id: context.process_instance_id,
+        root_process_instance_id: context.root_process_instance_id,
         flow_node_instance_id: context.flow_node_instance_id,
         flow_node_id: flow_node.id,
         signal_name: signal_name,

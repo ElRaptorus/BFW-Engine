@@ -50,7 +50,57 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
   flow through `{:mi_iteration_completed, ...}` messages, not `handle_complete`.
   """
   def handle_resume(flow_node, token, context) do
-    handle_enter(flow_node, token, context)
+    case reattach_existing_iterations(context) do
+      {:ok, snapshot} ->
+        resume_from_snapshot(flow_node, token, context, snapshot)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp reattach_existing_iterations(%HandlerContext{process_instance_pid: pid, flow_node_instance_id: id})
+       when is_pid(pid) and is_binary(id) do
+    :gen_statem.call(pid, {:mi_reattach_iterations, id})
+  end
+
+  defp reattach_existing_iterations(_context) do
+    {:ok, %{live_count: 0, finished_payloads: [], occupied_indices: []}}
+  end
+
+  defp resume_from_snapshot(flow_node, token, context, snapshot) do
+    if snapshot.live_count == 0 and snapshot.occupied_indices == [] do
+      handle_enter(flow_node, token, context)
+    else
+      resume_attached_loop(flow_node, token, context, snapshot)
+    end
+  end
+
+  defp resume_attached_loop(flow_node, token, context, snapshot) do
+    %FlowNode{standard_loop: %StandardLoop{} = standard_loop} = flow_node
+    token_payload = token.payload || %{}
+    finished = Enum.map(snapshot.finished_payloads, fn payload -> %FlowNodeResult{output_payload: payload} end)
+
+    case collect_live_iteration_results(snapshot.live_count, []) do
+      {:ok, live_results} ->
+        collected = finished ++ Enum.reverse(live_results)
+        loop_iterations(flow_node, token, context, standard_loop, length(collected), collected, token_payload)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp collect_live_iteration_results(0, accumulated), do: {:ok, accumulated}
+
+  defp collect_live_iteration_results(remaining, accumulated) do
+    case wait_for_iteration_result() do
+      {:ok, result} ->
+        collect_live_iteration_results(remaining - 1, [result | accumulated])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   # -- While-do: condition checked before each iteration ----------------------

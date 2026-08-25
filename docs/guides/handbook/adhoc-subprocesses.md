@@ -143,11 +143,16 @@ only narrows the *initial* set, it does not impose an order among them.
 At most one inner activity is active at a time.
 
 - **Engine-managed + Sequential requires `evil:activeElements`** (AH-D18). The
-  *order of the list* returned by the FEEL expression is the execution order.
+  *order of the list* returned by the FEEL expression is used only to pick the
+  **first** matching ID. Sequential engine-managed mode activates that one
+  activity at start; remaining list IDs are logged and ignored. After it
+  finishes, `AdHocMode` auto-chain activates the next unperformed inner
+  activity in **model order** (not the leftover FEEL list). Plugin/REST
+  `activate_activity` is how a caller drives a different next step.
   Deploying (or linting in `bpmn-production-ready`) a sequential, engine-managed
   ad-hoc sub-process without `evil:activeElements` is rejected — without an
   explicit ordering expression the engine has no deterministic basis for
-  picking the next activity.
+  picking the first activity.
 - **Plugin-managed + Sequential**: the plugin is responsible for activating
   one activity at a time. If it calls `activate_activity` while another inner
   FNI is still active/waiting, the call fails with
@@ -166,7 +171,10 @@ selected still vary run-to-run.
 > **Example — "Sequential Data Migration".** Engine-managed, with
 > `evil:activeElements` returning
 > `["ValidateSchema", "MigrateTable_Users", "MigrateTable_Orders", "VerifyIntegrity"]`.
-> Each step must finish before the next starts, in exactly that order.
+> Only `ValidateSchema` is activated at start. After it finishes, auto-chain
+> continues with the next unperformed inner activity in the model (not the
+> remaining three IDs as a FEEL-list script). To force a specific next step
+> that is not next in the model, use plugin/REST `activate_activity`.
 
 ---
 

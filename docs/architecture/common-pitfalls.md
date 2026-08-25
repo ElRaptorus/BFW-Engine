@@ -433,7 +433,7 @@ This eliminates the "crash edge case" burden from retry logic — retry can assu
 
 ## P23: Signals are not messages
 
-**Mistake:** Applying message correlation, `evil:payload`, `evil:eventMapping`, catch-wins-over-start gating, or pending-message fan-out semantics to signals.
+**Mistake:** Applying message correlation, catch-wins-over-start gating, or pending-message fan-out semantics to signals.
 
 **Why it happens:** Signal and message infrastructure share a similar architectural shape (publisher → subscriptions → pending → start handler). Developers may assume both subsystems follow the same delivery rules.
 
@@ -443,7 +443,7 @@ This eliminates the "crash edge case" burden from retry logic — retry can assu
 - REST/facade signal trigger silently ignores any `payload` in the request body
 - `SignalPublisher` always runs catch/boundary delivery **and** Signal Start Event firing in parallel (true broadcast); messages gate start events behind zero-delivery
 - `pending_signals` uses **FIFO single-claim** drain (first subscriber to register claims the pending row; subsequent subscribers receive only live broadcasts). Messages use the same FIFO drain for pending rows
-- Signal handlers use `evil:inputMapping`/`evil:outputMapping` for token transformation, **not** `evil:payload`/`evil:eventMapping`
+- Signal handlers use `evil:inputMapping`/`evil:outputMapping` for token transformation. Signals carry no inbound payload, so catch-side output mapping transforms the **existing** token.
 
 See [`routing.md`](./routing.md) §3.5.6.
 
@@ -839,7 +839,7 @@ Timer Start Events are not manually triggerable through this path — they are m
 **Correct approach:** Enforce the activation-condition requirement in `check_complex_gateways/1` (called from `validate_process/2`), which has the process's `sequence_flows` and can classify each Complex Gateway by flow counts:
 
 - `> 1` incoming **and** `> 1` outgoing → `complex_gateway_mixed`.
-- `> 1` outgoing (split) → every outgoing flow must be conditional or default (`complex_gateway_unconditional_flow`); **no** activationCondition check.
+- `> 1` outgoing (split) → **no** activationCondition check. Unconditional non-default outgoing flows are a **runtime** fatal `:complex_gateway_unconditional_flow` (not a deploy violation); Studio lints them.
 - `> 1` incoming (join) → non-blank `<bpmn:activationCondition>` required (`complex_gateway_join_missing_activation_condition`).
 
 The generic `validate_type_data/6` clause for `%FlowNodeData.ComplexGateway{}` must therefore return `[]` and delegate entirely to the flow-count-aware check.
@@ -1118,3 +1118,16 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 **Correct approach:** Production `config/config.exs` must set `:core_timers, :persistence_module` to `EvilEngine.Persistence.TimerStartScheduleAdapter` (Ash + the operational `timer_start_schedules` table). Test env keeps NoOp; `ExecutionCase` switches integration tests to the adapter. PI-scoped catch/boundary timers stay in FNI `type_properties` plus Scheduler ETS — there is no `engine_timers` table.
 
 **Related test isolation:** Cycle Timer Start registrations stay in Scheduler ETS until `unregister_timer_starts/1`. Integration and conformance share one BEAM in `coverage_runner.exs`, so a leftover `R/PT1S` schedule can delay or starve a later `PT0S` boundary (C83/C91: expected two final tokens, got one). `ExecutionCase` setup calls `EvilEngine.Timers.Scheduler.reset_state/0` after terminating leftover PIs.
+
+## P70: Error Boundary catch codes resolve `errorRef`; catch-all ranks after specific; `fail_async` is the production Service Task failure path
+
+**Mistake:** Treating Error Boundary matching as document-order first-match on raw XML `errorCode`/`errorMessage` attributes, or assuming a Service Task plugin failure must return `{:error, _}` from `handle_enter/3` to be catchable.
+
+**Why it happens:** Throw-side Error End Events document inline `evil:errorCode` overriding a global `<bpmn:error>`. Catch-side boundaries typically carry `errorRef` with no inline code. A 3-arity `find_matching_error_boundary/3` that never receives `Definitions` cannot resolve `errorRef`, so a correctly modelled specific boundary looks like a catch-all (or matches nothing). Separately, Service Tasks are async-only: production failures after `{:async, ref}` go through `fail_async_service_task`, not a second `handle_enter`.
+
+**Correct approach:**
+
+- Resolve the boundary's catch code the same way as throw-side: inline `evil:errorCode` if present, else global `errorCode` via `errorRef`, else `nil` (catch-all). Pass `Definitions` into `BoundaryResolver.find_matching_error_boundary/4`.
+- Rank matches: first boundary whose **resolved** code equals the raised `error_code` (message AND-filter still applies), then first catch-all. Document order is not a specificity tiebreak.
+- Plugin Service Task failures use `facade.service_tasks.fail_async.(flow_node_instance_id, error_code, error_message)`. The PI routes that through the same Error Boundary resolver as enter-time errors. `finish_async` output-pipeline failures use the same complete-path wrap.
+

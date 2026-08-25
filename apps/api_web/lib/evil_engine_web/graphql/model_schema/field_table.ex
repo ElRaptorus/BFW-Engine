@@ -207,9 +207,7 @@ defmodule EvilEngineWeb.Graphql.ModelSchema.FieldTable do
     {Model.EventDefinition.Message,
      exposed: [
        :message_ref,
-       :correlation_retrieval_expression,
-       :payload_expression,
-       :event_mapping
+       :correlation_retrieval_expression
      ],
      excluded: []},
     {Model.EventDefinition.Signal, exposed: [:signal_ref], excluded: []},
@@ -271,6 +269,7 @@ defmodule EvilEngineWeb.Graphql.ModelSchema.FieldTable do
        :max_iterations
      ],
      excluded: [
+       {:loop_cardinality, "rejected at deploy (`loopCardinality` is not supported)"},
        {:compiled_collection,
         "precompiled FEEL reference, opaque and reserved (never populated)"},
        {:compiled_output_collection,

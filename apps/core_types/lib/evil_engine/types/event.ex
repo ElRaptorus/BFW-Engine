@@ -38,9 +38,7 @@ defmodule EvilEngine.Types.Event do
           | __MODULE__.DecisionDefinitionUndeployed.t()
           | __MODULE__.DecisionEvaluated.t()
           | __MODULE__.ProcessInstanceRetried.t()
-          | __MODULE__.TimerArmed.t()
           | __MODULE__.TimerFired.t()
-          | __MODULE__.TimerCancelled.t()
           | __MODULE__.MessagePublished.t()
           | __MODULE__.MessageArrived.t()
           | __MODULE__.SignalPublished.t()
@@ -577,6 +575,7 @@ defmodule EvilEngine.Types.Event.CallActivityChildStarted do
           child_process_instance_id: String.t(),
           child_process_model_id: String.t(),
           child_version: String.t(),
+          root_process_instance_id: String.t() | nil,
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
@@ -596,6 +595,7 @@ defmodule EvilEngine.Types.Event.CallActivityChildStarted do
     :child_process_instance_id,
     :child_process_model_id,
     :child_version,
+    :root_process_instance_id,
     :lane_name,
     :occurred_at
   ]
@@ -619,6 +619,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
           child_version: String.t(),
           is_event_subprocess: boolean(),
           is_ad_hoc_subprocess: boolean(),
+          root_process_instance_id: String.t() | nil,
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
@@ -644,6 +645,7 @@ defmodule EvilEngine.Types.Event.SubProcessChildStarted do
     :is_event_subprocess,
     :lane_name,
     :occurred_at,
+    :root_process_instance_id,
     is_ad_hoc_subprocess: false
   ]
 end
@@ -941,41 +943,8 @@ defmodule EvilEngine.Types.Event.ProcessInstanceRetried do
 end
 
 # ---------------------------------------------------------------------------
-# Timer lifecycle events (Phase 3)
+# Timer lifecycle events
 # ---------------------------------------------------------------------------
-
-defmodule EvilEngine.Types.Event.TimerArmed do
-  @moduledoc """
-  Emitted by `core_execution` when a timer is registered in the Scheduler.
-
-  Published on the EngineEventBus with full execution context. The `kind`
-  field distinguishes between `:catch` (intermediate), `:boundary`, and
-  `:start` timers.
-  """
-
-  @type t :: %__MODULE__{
-          timer_ref: String.t(),
-          process_instance_id: String.t() | nil,
-          flow_node_instance_id: String.t() | nil,
-          flow_node_id: String.t(),
-          fire_at: DateTime.t(),
-          kind: :catch | :boundary | :start,
-          lane_name: String.t() | nil,
-          occurred_at: DateTime.t()
-        }
-
-  @enforce_keys [:timer_ref, :flow_node_id, :fire_at, :kind, :occurred_at]
-  defstruct [
-    :timer_ref,
-    :process_instance_id,
-    :flow_node_instance_id,
-    :flow_node_id,
-    :fire_at,
-    :kind,
-    :lane_name,
-    :occurred_at
-  ]
-end
 
 defmodule EvilEngine.Types.Event.TimerFired do
   @moduledoc """
@@ -991,6 +960,7 @@ defmodule EvilEngine.Types.Event.TimerFired do
           flow_node_instance_id: String.t() | nil,
           flow_node_id: String.t(),
           kind: :catch | :boundary | :start,
+          root_process_instance_id: String.t() | nil,
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
@@ -1002,34 +972,7 @@ defmodule EvilEngine.Types.Event.TimerFired do
     :flow_node_instance_id,
     :flow_node_id,
     :kind,
-    :lane_name,
-    :occurred_at
-  ]
-end
-
-defmodule EvilEngine.Types.Event.TimerCancelled do
-  @moduledoc """
-  Emitted by `core_execution` when a timer is cancelled.
-
-  Typical reasons: host activity completed before the boundary timer
-  fired, PI terminated, or a schedule was disabled via the REST API.
-  """
-
-  @type t :: %__MODULE__{
-          timer_ref: String.t(),
-          process_instance_id: String.t() | nil,
-          flow_node_instance_id: String.t() | nil,
-          reason: String.t(),
-          lane_name: String.t() | nil,
-          occurred_at: DateTime.t()
-        }
-
-  @enforce_keys [:timer_ref, :reason, :occurred_at]
-  defstruct [
-    :timer_ref,
-    :process_instance_id,
-    :flow_node_instance_id,
-    :reason,
+    :root_process_instance_id,
     :lane_name,
     :occurred_at
   ]
@@ -1088,6 +1031,7 @@ defmodule EvilEngine.Types.Event.MessageArrived do
           process_instance_id: String.t(),
           flow_node_instance_id: String.t(),
           payload: map(),
+          root_process_instance_id: String.t() | nil,
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
@@ -1108,6 +1052,7 @@ defmodule EvilEngine.Types.Event.MessageArrived do
     :flow_node_instance_id,
     :lane_name,
     :occurred_at,
+    :root_process_instance_id,
     payload: %{}
   ]
 end
@@ -1164,6 +1109,7 @@ defmodule EvilEngine.Types.Event.SignalArrived do
           signal_name: String.t(),
           process_instance_id: String.t(),
           flow_node_instance_id: String.t(),
+          root_process_instance_id: String.t() | nil,
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
@@ -1181,6 +1127,7 @@ defmodule EvilEngine.Types.Event.SignalArrived do
     :signal_name,
     :process_instance_id,
     :flow_node_instance_id,
+    :root_process_instance_id,
     :lane_name,
     :occurred_at
   ]

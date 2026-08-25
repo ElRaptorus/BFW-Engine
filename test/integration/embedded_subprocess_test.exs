@@ -628,7 +628,7 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
       end)
     end
 
-    test "12.2 call activity child events do NOT carry root PI's ID (fan-out stops at CA boundary)",
+    test "12.2 call activity grandchild events inherit the root PI id (SP-13 fan-out)",
          %{collector: collector} do
       {201, _} = http_deploy("simple_callable_process.bpmn")
       {201, _} = http_deploy("embedded_subprocess_with_call_activity.bpmn")
@@ -654,9 +654,9 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
       assert length(ca_child_fni_events) > 0
 
       Enum.each(ca_child_fni_events, fn event ->
-        assert event.root_process_instance_id == ca_child_id,
-               "CA child events should have root_process_instance_id == self (CA boundary resets), " <>
-                 "got: #{inspect(event.root_process_instance_id)}, expected: #{ca_child_id}"
+        assert event.root_process_instance_id == parent_process_instance_id,
+               "CA grandchild FNI events inherit the root PI id (SP-13), " <>
+                 "got: #{inspect(event.root_process_instance_id)}, expected: #{parent_process_instance_id}"
       end)
 
       subprocess_child_fni_events =

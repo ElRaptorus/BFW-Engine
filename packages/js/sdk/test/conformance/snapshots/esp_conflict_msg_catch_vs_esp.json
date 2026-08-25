@@ -61,9 +61,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Msg_Conflict",
-              "payloadExpression": null
+              "messageRef": "Msg_Conflict"
             },
             "outMappings": [],
             "resultContract": null
@@ -134,9 +132,7 @@
                 "typeData": {
                   "eventDefinition": {
                     "correlationRetrievalExpression": null,
-                    "eventMapping": null,
-                    "messageRef": "Msg_Conflict",
-                    "payloadExpression": null
+                    "messageRef": "Msg_Conflict"
                   },
                   "isInterrupting": true,
                   "resultContract": null

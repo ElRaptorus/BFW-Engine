@@ -44,7 +44,7 @@ These two states represent fundamentally different situations:
 | **Cause** | Engine failure (handler crash, unsupported element, persistence error) | Modeled BPMN error (the diagram author placed an Error End Event) |
 | **FNI state** | `:fatal` | `:error` (the Error End Event FNI) |
 | **Siblings** | Remain in their current state | `:error` (collateral, reason `process_error`) |
-| **Parent behavior** | Child PI fatal → parent CA gets `CHILD_FATAL` error | Child PI in `error` state → parent CA matches boundary by `error_code` |
+| **Parent behavior** | Child PI fatal → parent CA gets `CHILD_FATAL` error | Child PI in `error` state → parent CA matches boundary by resolved `error_code` (`errorRef` → global `errorCode`, then catch-all) |
 | **Retryable** | Yes | Yes (operator can fix root cause and retry) |
 | **REST/GraphQL** | State `"fatal"` | State `"error"` |
 
@@ -119,6 +119,8 @@ See [Error End Events](error-end-events.md) for full details, BPMN examples, and
 ## Error Boundary Events
 
 Error Boundary Events allow a process to catch and handle errors from activity nodes. They catch both engine failures and modeled BPMN errors (from [Error End Events](error-end-events.md)). Instead of the parent PI going `fatal` or `error`, the error is routed to an alternative path.
+
+Catch codes resolve via inline `evil:errorCode` or `errorRef` → global `<bpmn:error errorCode>`. Specific resolved codes rank before catch-all. Service Task `fail_async` uses the same matcher.
 
 See [Error Boundary Events](error-boundary-events.md) for full configuration, matching rules, and examples.
 

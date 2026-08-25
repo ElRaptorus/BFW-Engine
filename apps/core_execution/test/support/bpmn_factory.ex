@@ -1067,6 +1067,128 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
   end
 
   @doc """
+  Build a Start → UserTask + non-interrupting Message boundary → End process.
+  """
+  def user_task_with_message_boundary(opts \\ []) do
+    process_id = Keyword.get(opts, :process_id, "test-process")
+    cancel_activity = Keyword.get(opts, :cancel_activity, false)
+    message_id = Keyword.get(opts, :message_id, "Message_1")
+    message_name = Keyword.get(opts, :message_name, "boundary-message")
+
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    user_task = %FlowNode{
+      id: "UserTask_1",
+      name: "Do Work",
+      type: :user_task,
+      type_data: %FlowNodeData.UserTask{form_schema: %{"fields" => []}},
+      incoming: ["Flow_1"],
+      outgoing: ["Flow_2"],
+      boundary_event_refs: ["MessageBE_1"]
+    }
+
+    message_boundary = %FlowNode{
+      id: "MessageBE_1",
+      name: "Message Boundary",
+      type: :boundary_event,
+      type_data: %FlowNodeData.BoundaryEvent{
+        attached_to_ref: "UserTask_1",
+        cancel_activity: cancel_activity,
+        event_definition: %EventDefinition.Message{message_ref: message_id}
+      },
+      outgoing: ["Flow_BE"]
+    }
+
+    end_normal = %FlowNode{
+      id: "End_Normal",
+      name: "Normal End",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_2"]
+    }
+
+    end_boundary = %FlowNode{
+      id: "End_Boundary",
+      name: "Boundary End",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_BE"]
+    }
+
+    flows = [
+      %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "UserTask_1"},
+      %SequenceFlow{id: "Flow_2", source_ref: "UserTask_1", target_ref: "End_Normal"},
+      %SequenceFlow{id: "Flow_BE", source_ref: "MessageBE_1", target_ref: "End_Boundary"}
+    ]
+
+    wrap_process_with_messages(
+      process_id,
+      [start, user_task, message_boundary, end_normal, end_boundary],
+      flows,
+      [%MessageDefinition{id: message_id, name: message_name}]
+    )
+  end
+
+  @doc """
+  Build a Start → Message Throw → End process with an optional
+  `correlation_retrieval_expression` on the throw event definition.
+  """
+  def message_throw_process(opts \\ []) do
+    process_id = Keyword.get(opts, :process_id, "test-process")
+    message_id = Keyword.get(opts, :message_id, "Message_1")
+    message_name = Keyword.get(opts, :message_name, "thrown-message")
+
+    correlation_retrieval_expression =
+      Keyword.get(opts, :correlation_retrieval_expression)
+
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    throw_event = %FlowNode{
+      id: "Throw_1",
+      name: "Throw Message",
+      type: :intermediate_throw_event,
+      type_data: %FlowNodeData.IntermediateThrowEvent{
+        event_definition: %EventDefinition.Message{
+          message_ref: message_id,
+          correlation_retrieval_expression: correlation_retrieval_expression
+        }
+      },
+      incoming: ["Flow_1"],
+      outgoing: ["Flow_2"]
+    }
+
+    end_event = %FlowNode{
+      id: "End_1",
+      name: "Done",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_2"]
+    }
+
+    flows = [
+      %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "Throw_1"},
+      %SequenceFlow{id: "Flow_2", source_ref: "Throw_1", target_ref: "End_1"}
+    ]
+
+    wrap_process_with_messages(
+      process_id,
+      [start, throw_event, end_event],
+      flows,
+      [%MessageDefinition{id: message_id, name: message_name}]
+    )
+  end
+
+  @doc """
   Build a Start → Task (auto-completing) + TimerBE_1 → End process.
 
   The plain Task handler completes immediately after `handle_enter`,
@@ -2559,11 +2681,13 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
     collection_expression = Keyword.get(opts, :collection_expression, "token.items")
     output_collection = Keyword.get(opts, :output_collection, "processedItems")
     flow_node_type = Keyword.get(opts, :flow_node_type, :task)
+    completion_condition = Keyword.get(opts, :completion_condition)
 
     multi_instance = %MultiInstance{
       is_sequential: is_sequential,
       collection_expression: collection_expression,
-      output_collection: output_collection
+      output_collection: output_collection,
+      completion_condition: completion_condition
     }
 
     start = %FlowNode{
@@ -2674,6 +2798,180 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
     ]
 
     wrap_process(process_id, [start, compensation_throw, end_event], flows)
+  end
+
+  @doc """
+  Build Start → Task (with compensation handler) → Compensate Throw → End.
+  """
+  def compensation_with_handler_process(process_id \\ "test-process") do
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    book_task = %FlowNode{
+      id: "Task_Book",
+      name: "Book",
+      type: :task,
+      type_data: %FlowNodeData.Task{},
+      incoming: ["Flow_1"],
+      outgoing: ["Flow_2"],
+      boundary_event_refs: ["BE_Comp"]
+    }
+
+    compensation_boundary = %FlowNode{
+      id: "BE_Comp",
+      type: :boundary_event,
+      type_data: %FlowNodeData.BoundaryEvent{
+        attached_to_ref: "Task_Book",
+        cancel_activity: false,
+        event_definition: %EventDefinition.Compensation{},
+        compensation_handler_id: "Task_Undo"
+      }
+    }
+
+    undo_task = %FlowNode{
+      id: "Task_Undo",
+      name: "Undo Booking",
+      type: :task,
+      type_data: %FlowNodeData.Task{},
+      is_for_compensation: true
+    }
+
+    compensation_throw = %FlowNode{
+      id: "Throw_Compensation",
+      name: "Throw Compensation",
+      type: :intermediate_throw_event,
+      type_data: %FlowNodeData.IntermediateThrowEvent{
+        event_definition: %EventDefinition.Compensation{}
+      },
+      incoming: ["Flow_2"],
+      outgoing: ["Flow_3"]
+    }
+
+    end_event = %FlowNode{
+      id: "End_1",
+      name: "Done",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_3"]
+    }
+
+    flows = [
+      %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "Task_Book"},
+      %SequenceFlow{id: "Flow_2", source_ref: "Task_Book", target_ref: "Throw_Compensation"},
+      %SequenceFlow{id: "Flow_3", source_ref: "Throw_Compensation", target_ref: "End_1"}
+    ]
+
+    wrap_process(
+      process_id,
+      [start, book_task, compensation_boundary, undo_task, compensation_throw, end_event],
+      flows
+    )
+  end
+
+  @doc """
+  Build Start → Compensate End. The process instance terminates as `:compensated`.
+  """
+  def compensate_end_process(process_id \\ "child-process") do
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    compensate_end = %FlowNode{
+      id: "End_Compensate",
+      name: "Compensate End",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{
+        event_definition: %EventDefinition.Compensation{}
+      },
+      incoming: ["Flow_1"]
+    }
+
+    flow = %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "End_Compensate"}
+
+    wrap_process(process_id, [start, compensate_end], [flow])
+  end
+
+  @doc """
+  Build Start → Compensate Throw → End with an interrupting compensation ESP.
+  """
+  def compensation_throw_with_esp_process(process_id \\ "test-process") do
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    compensation_throw = %FlowNode{
+      id: "Throw_Compensation",
+      name: "Throw Compensation",
+      type: :intermediate_throw_event,
+      type_data: %FlowNodeData.IntermediateThrowEvent{
+        event_definition: %EventDefinition.Compensation{}
+      },
+      incoming: ["Flow_1"],
+      outgoing: ["Flow_2"]
+    }
+
+    end_event = %FlowNode{
+      id: "End_1",
+      name: "Done",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_2"]
+    }
+
+    esp_start = %FlowNode{
+      id: "ESP_Start",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{
+        event_definition: %EventDefinition.Compensation{},
+        is_interrupting: true
+      },
+      outgoing: ["ESP_F1"]
+    }
+
+    esp_task = %FlowNode{
+      id: "ESP_Task",
+      type: :task,
+      type_data: %FlowNodeData.Task{},
+      incoming: ["ESP_F1"],
+      outgoing: ["ESP_F2"]
+    }
+
+    esp_end = %FlowNode{
+      id: "ESP_End",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["ESP_F2"]
+    }
+
+    esp = %FlowNode{
+      id: "ESP_Comp",
+      type: :sub_process,
+      type_data: %FlowNodeData.SubProcess{
+        triggered_by_event: true,
+        flow_nodes: [esp_start, esp_task, esp_end],
+        sequence_flows: [
+          %SequenceFlow{id: "ESP_F1", source_ref: "ESP_Start", target_ref: "ESP_Task"},
+          %SequenceFlow{id: "ESP_F2", source_ref: "ESP_Task", target_ref: "ESP_End"}
+        ]
+      }
+    }
+
+    flows = [
+      %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "Throw_Compensation"},
+      %SequenceFlow{id: "Flow_2", source_ref: "Throw_Compensation", target_ref: "End_1"}
+    ]
+
+    wrap_process(process_id, [start, compensation_throw, end_event, esp], flows)
   end
 
   @doc """
@@ -3554,5 +3852,79 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
       [start, fork, task_a, service_task_b, join, end_event],
       flows
     )
+  end
+
+  @doc """
+  Start → sequential ad-hoc subprocess with three inner user tasks.
+
+  `evil:activeElements` lists Task_C then Task_A so list order differs
+  from inner-activity model order (A, B, C).
+  """
+  def sequential_adhoc_user_tasks(opts \\ []) do
+    process_id = Keyword.get(opts, :process_id, "test-process")
+
+    active_elements =
+      Keyword.get(opts, :active_elements_expression, ~s(["Task_C", "Task_A"]))
+
+    ordering = Keyword.get(opts, :adhoc_ordering, :sequential)
+
+    task_a = %FlowNode{
+      id: "Task_A",
+      name: "Task A",
+      type: :user_task,
+      type_data: %FlowNodeData.UserTask{form_schema: %{"fields" => []}}
+    }
+
+    task_b = %FlowNode{
+      id: "Task_B",
+      name: "Task B",
+      type: :user_task,
+      type_data: %FlowNodeData.UserTask{form_schema: %{"fields" => []}}
+    }
+
+    task_c = %FlowNode{
+      id: "Task_C",
+      name: "Task C",
+      type: :user_task,
+      type_data: %FlowNodeData.UserTask{form_schema: %{"fields" => []}}
+    }
+
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    adhoc = %FlowNode{
+      id: "AdHoc_1",
+      name: "Sequential Ad-hoc",
+      type: :sub_process,
+      type_data: %FlowNodeData.SubProcess{
+        is_ad_hoc: true,
+        adhoc_ordering: ordering,
+        cancel_remaining_instances: true,
+        active_elements_expression: active_elements,
+        flow_nodes: [task_a, task_b, task_c],
+        sequence_flows: []
+      },
+      incoming: ["Flow_1"],
+      outgoing: ["Flow_2"]
+    }
+
+    end_event = %FlowNode{
+      id: "End_1",
+      name: "Done",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_2"]
+    }
+
+    flows = [
+      %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "AdHoc_1"},
+      %SequenceFlow{id: "Flow_2", source_ref: "AdHoc_1", target_ref: "End_1"}
+    ]
+
+    wrap_process(process_id, [start, adhoc, end_event], flows)
   end
 end

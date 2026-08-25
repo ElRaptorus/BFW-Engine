@@ -11,7 +11,7 @@ FEEL (Friendly Enough Expression Language) is the expression language defined by
 | Service Task HTTP body / auth / response headers | `evil:httpBody`, `evil:httpAuthHeader`, `evil:httpResponseHeaders` |
 | Input/output mappings | `evil:inputMapping` / `evil:outputMapping` `source` |
 | Correlation | Process `evil:correlationKey`; throw `evil:correlationRetrievalExpression` |
-| Message payload / mapping | `evil:payload`, `evil:eventMapping` |
+| Message shaping | Throw/Send `evil:inputMapping`; Catch/Receive `evil:outputMapping` |
 | Timer expressions | `timeDate` / `timeDuration` / `timeCycle` |
 | User Task | `evil:assignees`, `evil:dueDate` |
 | Multi-Instance / Standard Loop | `evil:inputCollection`, `evil:loopBreakCondition`, `<loopCondition>` |

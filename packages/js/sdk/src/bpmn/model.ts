@@ -461,8 +461,6 @@ export interface MessageEventDefinition {
   type: 'message';
   messageRef: string | null;
   correlationRetrievalExpression: string | null;
-  payloadExpression: string | null;
-  eventMapping: string | null;
 }
 
 export interface SignalEventDefinition {

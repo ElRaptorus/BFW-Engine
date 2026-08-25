@@ -37,6 +37,7 @@ defmodule EvilEngine.Execution.EscalationResolverTest do
 
   defp escalation_boundary(id, opts \\ []) do
     escalation_ref = Keyword.get(opts, :escalation_ref)
+    escalation_code = Keyword.get(opts, :escalation_code)
     cancel_activity = Keyword.get(opts, :cancel_activity, true)
 
     %FlowNode{
@@ -45,7 +46,10 @@ defmodule EvilEngine.Execution.EscalationResolverTest do
       type_data: %FlowNodeData.BoundaryEvent{
         attached_to_ref: "SP_1",
         cancel_activity: cancel_activity,
-        event_definition: %EventDefinition.Escalation{escalation_ref: escalation_ref}
+        event_definition: %EventDefinition.Escalation{
+          escalation_ref: escalation_ref,
+          escalation_code: escalation_code
+        }
       }
     }
   end
@@ -169,6 +173,36 @@ defmodule EvilEngine.Execution.EscalationResolverTest do
                )
 
       assert matched.id == "BE_catch_all"
+    end
+
+    test "matches inline escalation_code without a global ref" do
+      boundary = escalation_boundary("BE_inline", escalation_code: "ESC_INLINE")
+      {host, model} = build_host_and_model([boundary])
+      definitions = build_definitions()
+
+      assert {:ok, matched} =
+               EscalationResolver.find_first_interrupting_escalation_boundary(
+                 host,
+                 model,
+                 definitions,
+                 %{escalation_code: "ESC_INLINE"}
+               )
+
+      assert matched.id == "BE_inline"
+    end
+
+    test "inline escalation_code does not match a different raised code" do
+      boundary = escalation_boundary("BE_inline", escalation_code: "ESC_INLINE")
+      {host, model} = build_host_and_model([boundary])
+      definitions = build_definitions()
+
+      assert :none ==
+               EscalationResolver.find_first_interrupting_escalation_boundary(
+                 host,
+                 model,
+                 definitions,
+                 %{escalation_code: "ESC_OTHER"}
+               )
     end
 
     test "catch-all boundary matches when raised escalation has nil code" do

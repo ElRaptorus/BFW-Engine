@@ -253,6 +253,7 @@ defmodule EvilEngine.Events.SignalPublisher do
         process_instance_id: subscription.process_instance_id,
         flow_node_instance_id: subscription.flow_node_instance_id,
         lane_name: subscription.lane_name,
+        root_process_instance_id: subscription.root_process_instance_id,
         occurred_at: DateTime.utc_now()
       })
 

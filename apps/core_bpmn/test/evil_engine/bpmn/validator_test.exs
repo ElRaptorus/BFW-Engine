@@ -1053,7 +1053,7 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       refute_violation_code(definitions, :complex_gateway_join_missing_activation_condition)
     end
 
-    test "rejects a Complex Split with an unconditional non-default outgoing flow" do
+    test "accepts a Complex Split with an unconditional non-default outgoing flow" do
       definitions =
         minimal_valid_definitions(
           extra_nodes: [
@@ -1077,13 +1077,15 @@ defmodule EvilEngine.BPMN.ValidatorTest do
           ]
         )
 
-      assert {:error, violations} = Validator.validate(definitions)
+      violations =
+        case Validator.validate(definitions) do
+          {:ok, _definitions} -> []
+          {:error, list} -> list
+        end
 
-      {_, message} =
-        Enum.find(violations, fn {c, _} -> c == :complex_gateway_unconditional_flow end)
-
-      assert message =~ "ComplexGateway 'CGSplit'"
-      assert message =~ "unconditional non-default outgoing flow 'Fb'"
+      refute Enum.any?(violations, fn {code, _message} ->
+               code == :complex_gateway_unconditional_flow
+             end)
     end
 
     test "accepts a Complex Split whose outgoing flows are all conditional or default" do
@@ -2513,6 +2515,55 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       assert {:ok, _} = Validator.validate(definitions)
     end
 
+    test "rejects a Script Task successor of an Event-Based Gateway" do
+      definitions =
+        ebg_definitions(
+          [
+            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}, outgoing: ["F1"]},
+            %FlowNode{
+              id: "EBG_1",
+              type: :event_based_gateway,
+              type_data: %FlowNodeData.EventBasedGateway{},
+              incoming: ["F1"],
+              outgoing: ["F_Script", "F_Timer"]
+            },
+            %FlowNode{
+              id: "ST_1",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script: "1"},
+              incoming: ["F_Script"],
+              outgoing: ["F_ST_End"]
+            },
+            %FlowNode{
+              id: "TC_1",
+              type: :intermediate_catch_event,
+              type_data: %FlowNodeData.IntermediateCatchEvent{
+                event_definition: %EventDefinition.Timer{time_duration: "PT10S"}
+              },
+              incoming: ["F_Timer"],
+              outgoing: ["F_TC_End"]
+            },
+            %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}, incoming: ["F_ST_End", "F_TC_End"]}
+          ],
+          [
+            %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "EBG_1"},
+            %SequenceFlow{id: "F_Script", source_ref: "EBG_1", target_ref: "ST_1"},
+            %SequenceFlow{id: "F_Timer", source_ref: "EBG_1", target_ref: "TC_1"},
+            %SequenceFlow{id: "F_ST_End", source_ref: "ST_1", target_ref: "E1"},
+            %SequenceFlow{id: "F_TC_End", source_ref: "TC_1", target_ref: "E1"}
+          ],
+          []
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {code, _} -> code == :event_based_gateway_invalid_successor end)
+
+      assert message =~ "EventBasedGateway 'EBG_1'"
+      assert message =~ "ST_1"
+    end
+
     test "V-EBG-1: rejects Receive Task with boundary event after EBG" do
       definitions =
         ebg_definitions(
@@ -3185,6 +3236,38 @@ defmodule EvilEngine.BPMN.ValidatorTest do
         )
 
       assert_violation_code(definitions, :standard_loop_invalid_maximum)
+    end
+  end
+
+  describe "validate/1 — loopCardinality is not supported" do
+    test "rejects a multi-instance activity that declares loopCardinality" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            %FlowNode{
+              id: "Task_MI",
+              type: :task,
+              type_data: %FlowNodeData.Task{},
+              multi_instance: %MultiInstance{
+                collection_expression: "token.items",
+                loop_cardinality: "5"
+              },
+              incoming: ["F_in"],
+              outgoing: ["F_out"]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F_in", source_ref: "S1", target_ref: "Task_MI"},
+            %SequenceFlow{id: "F_out", source_ref: "Task_MI", target_ref: "E1"}
+          ]
+        )
+
+      assert_violation_code(definitions, :loop_cardinality_not_supported)
+    end
+
+    test "parser_coverage_multi_instance.bpmn is rejected for loopCardinality" do
+      definitions = parse_fixture("parser_coverage_multi_instance.bpmn")
+      assert_violation_code(definitions, :loop_cardinality_not_supported)
     end
   end
 

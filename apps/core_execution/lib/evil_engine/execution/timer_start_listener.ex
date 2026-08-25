@@ -128,6 +128,7 @@ defmodule EvilEngine.Execution.TimerStartListener do
       flow_node_instance_id: nil,
       flow_node_id: flow_node_id,
       kind: :start,
+      root_process_instance_id: nil,
       occurred_at: DateTime.utc_now()
     })
   end

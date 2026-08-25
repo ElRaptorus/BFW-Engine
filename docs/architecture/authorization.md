@@ -423,7 +423,7 @@ Filtering runs in the channel process after PubSub broadcast so each subscriber 
 | any topic | engine-level (`Engine*`, `PluginQuarantined`, `ProcessDefinition*`, `Decision*`, `MessagePublished`, `SignalPublished`) | always deliver |
 | `process_instance:*` | PI-level (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) | always deliver (join already proved §5.1) |
 | `engine:events` | PI-level | deliver iff `startedById` matches the subscriber **or** `hasLanelessFlowNode` **or** any `laneNames` entry is in `accessible_lanes` |
-| any topic | FNI-originating (explicit allow-list, including `TimerArmed` / `TimerFired` / `TimerCancelled` even when those events are not currently published) | deliver if `laneName` is `nil`; else iff `laneName` is in `accessible_lanes` |
+| any topic | FNI-originating (explicit allow-list, including `TimerFired`) | deliver if `laneName` is `nil`; else iff `laneName` is in `accessible_lanes` |
 | `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` only | same FNI lane rule; other types are dropped |
 | any topic | unknown `type` | drop (`admin_override` still delivers) |
 

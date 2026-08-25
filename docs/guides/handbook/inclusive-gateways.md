@@ -2,7 +2,7 @@
 
 Inclusive Gateways (OR-Gateways) route a process along **one or more** paths based on FEEL conditions. Unlike Exclusive Gateways (exactly one path) and Parallel Gateways (all paths unconditionally), Inclusive Gateways activate every outgoing path whose condition is truthy — a hybrid of both.
 
-> **Inclusive vs Complex.** The Inclusive Gateway is the portable, standards-compliant OR-gateway and the right default. The [Complex Gateway](complex-gateways.md) looks similar but is engine-specific: its split **rejects** unconditional non-default flows at deploy (instead of silently activating them), and its join is a FEEL-driven **threshold/quorum** join (instead of pure dead-path elimination). Reach for the Complex Gateway only when you specifically need those behaviours.
+> **Inclusive vs Complex.** The Inclusive Gateway is the portable, standards-compliant OR-gateway and the right default. The [Complex Gateway](complex-gateways.md) looks similar but is engine-specific: its split **fatals at runtime** on unmarked non-default flows (instead of silently activating them; diagrams still deploy), and its join is a FEEL-driven **threshold/quorum** join (instead of pure dead-path elimination). Reach for the Complex Gateway only when you specifically need those behaviours.
 
 ## OR-Split (Diverging)
 
@@ -70,6 +70,8 @@ The join fires when all incoming flows are either **arrived** or **dead**, and a
 ### Deploy-Time Analysis
 
 At deploy time, the engine computes a **backward reachability set** for each incoming flow of every inclusive join. This pre-computation turns the runtime dead-path check into an efficient set intersection instead of a graph traversal. The analysis is re-computed each time the process model is loaded (not persisted in the database).
+
+This is **structural backward-cone DPE**, not Camunda-style token-set / path-activation tracking. Well-structured SESE split/join pairs match expected OR-join behaviour. Known gaps: loops that re-enter the cone, unstructured graphs, and Link Throw/Catch edges that jump outside the backward search.
 
 ### When Does Re-Evaluation Happen?
 

@@ -414,8 +414,8 @@ describe('parseBpmn', () => {
       };
       expect(def.eventDefinition.messageRef).toBe('Msg_1');
       expect(def.eventDefinition.correlationRetrievalExpression).toBe('payload.orderId');
-      expect(def.eventDefinition.payloadExpression).toBe('{ orderId: token.orderId }');
-      expect(def.eventDefinition.eventMapping).toBe('{ order: event }');
+      expect(def.eventDefinition).not.toHaveProperty('payloadExpression');
+      expect(def.eventDefinition).not.toHaveProperty('eventMapping');
     });
 
     it('message event definition no longer carries payloadContract', () => {

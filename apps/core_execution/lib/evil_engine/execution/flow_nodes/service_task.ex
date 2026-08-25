@@ -94,15 +94,18 @@ defmodule EvilEngine.Execution.FlowNodes.ServiceTask do
   end
 
   defp dispatch_and_park(handler_module, flow_node, mapped_token, context) do
-    case dispatch_to_handler(handler_module, flow_node, mapped_token, context) do
-      {:async, flow_node_instance_id} ->
-        case FniLifecycle.park_async(context, %{}) do
-          :ok -> {:async, flow_node_instance_id, %{persisted: true}}
-          {:error, :persistence_failed} -> {:error, :persistence_failed}
+    case FniLifecycle.park_async(context, %{}) do
+      :ok ->
+        case dispatch_to_handler(handler_module, flow_node, mapped_token, context) do
+          {:async, flow_node_instance_id} ->
+            {:async, flow_node_instance_id, %{persisted: true}}
+
+          {:error, reason} ->
+            {:error, reason}
         end
 
-      {:error, reason} ->
-        {:error, reason}
+      {:error, :persistence_failed} ->
+        {:error, :persistence_failed}
     end
   end
 

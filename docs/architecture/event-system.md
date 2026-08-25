@@ -169,7 +169,7 @@ All sinks run **concurrently** under supervised `Task`s started from `EngineEven
 
 Every Process Instance carries `root_process_instance_id` in its runtime state (`EvilEngine.Execution.ProcessInstance.State`). For root-level PIs (started via REST/API with no parent), this equals `process_instance_id`. For child PIs spawned by Call Activity or Embedded SubProcess handlers, it is inherited from the parent handler's `HandlerContext` via `start_opts`, propagating to any nesting depth.
 
-**Event struct field.** Six PI-scoped event types include `root_process_instance_id`, always populated from PI runtime state when emitted:
+**Event struct field.** PI-scoped event types include `root_process_instance_id`, always populated from PI runtime state when emitted:
 
 | Event Type | Wire key |
 |------------|----------|
@@ -180,17 +180,29 @@ Every Process Instance carries `root_process_instance_id` in its runtime state (
 | `UserTaskCreated` | `rootProcessInstanceId` |
 | `UserTaskFinished` | `rootProcessInstanceId` |
 | `DataObjectWritten` | `rootProcessInstanceId` |
+| `TimerFired` | `rootProcessInstanceId` |
+| `MessageArrived` | `rootProcessInstanceId` |
+| `SignalArrived` | `rootProcessInstanceId` |
+| `CallActivityChildStarted` | `rootProcessInstanceId` |
+| `SubProcessChildStarted` | `rootProcessInstanceId` |
+| `CompensationTriggered` | `rootProcessInstanceId` |
+| `ActivityCompensated` | `rootProcessInstanceId` |
+| `TransactionCancelled` | `rootProcessInstanceId` |
+| `MultiInstanceStarted` | `rootProcessInstanceId` |
+| `MultiInstanceCompleted` | `rootProcessInstanceId` |
 
-Child-spawn observability events (`CallActivityChildStarted`, `SubProcessChildStarted`) carry `parent_process_instance_id` but not `root_process_instance_id` — consumers derive the root from prior events or subscribe to the root PI channel.
+Child-spawn observability events (`CallActivityChildStarted`, `SubProcessChildStarted`) carry both `parent_process_instance_id` and `root_process_instance_id` of the emitting parent PI so a root-only WebSocket subscription receives nested spawns.
+
+A Compensate Intermediate Throw Event does **not** emit `FlowNodeInstanceStateChanged` for a waiting→finished transition. Compensation runs synchronously in the throw handler; the throw FNI goes active→finished and emits `FlowNodeInstanceFinished` (plus `CompensationTriggered` / `ActivityCompensated`). `waitForCompletion="false"` is parsed but treated as `true`.
 
 **WebSocket sink fan-out.** The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`, `apps/api_web/lib/evil_engine_web/ws/sinks/websocket.ex`) broadcasts each accepted event to up to four PubSub topics:
 
-1. `process_instance:<processInstanceId>` — when the event carries `process_instance_id` (primary targeted channel for the PI that produced the event).
-2. `process_instance:<rootProcessInstanceId>` — when `root_process_instance_id` is present **and** differs from `process_instance_id` (fan-out to the top-level root PI channel so a single subscription receives all FNI/user-task/DO events from embedded subprocesses and call activities at any depth).
+1. `process_instance:<processInstanceId>` — when the event carries `process_instance_id` (primary targeted channel for the PI that produced the event). Events without `process_instance_id` (child-spawn notifications) use `parent_process_instance_id` instead.
+2. `process_instance:<rootProcessInstanceId>` — when `root_process_instance_id` is present **and** differs from the primary PI id (`process_instance_id` or, for child-spawn events, `parent_process_instance_id`).
 3. `engine:events` — global channel (always). PI-scoped events on this topic are filtered at dispatch by §5.1 visibility stamps plus the FNI lane gate (`EventDelivery.should_deliver?/2`).
 4. `user_tasks:pending` — additionally, for `UserTaskCreated` and `UserTaskFinished` only (lane-filtered inbox).
 
-When `root_process_instance_id` equals `process_instance_id` (a root PI's own events), the sink skips the duplicate root broadcast. Events without `process_instance_id` still use the existing `parent_process_instance_id` fallback (`maybe_broadcast_to_parent_pi_channel/3`) for child-spawn notifications such as `CallActivityChildStarted` and `SubProcessChildStarted`.
+When `root_process_instance_id` equals the primary PI id (a root PI's own events), the sink skips the duplicate root broadcast. `TimerFired` from a cycle Timer Start (no process instance yet) may have both ids `null`.
 
 **Handler propagation.** Call Activity and SubProcess handlers pass `root_process_instance_id: context.root_process_instance_id` in child `start_opts`. Root PI creation sets `root_process_instance_id` to `opts[:root_process_instance_id] || opts.process_instance_id` in `ProcessInstance.init/1`.
 
@@ -205,9 +217,9 @@ Selected `EvilEngine.Types.Event.*` structs published via `EngineEventBus`. WebS
 | `ProcessDefinitionEnabled` | `processModelId`, `source` | Emitted when a process definition is re-enabled |
 | `ProcessDefinitionDisabled` | `processModelId`, `source` | Emitted when a process definition is disabled |
 | `MessagePublished` | `messageId`, `messageName`, `correlationValue`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending` | Emitted after pipeline completes |
-| `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `laneName` | Emitted when a message reaches a waiting subscription |
+| `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName` | Emitted when a message reaches a waiting subscription |
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | Emitted after the signal broadcast pipeline completes. No payload, no correlation |
-| `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `laneName`, `occurredAt` | Emitted when a signal is delivered to a waiting catch/boundary FNI |
+| `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a signal is delivered to a waiting catch/boundary FNI |
 | `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw — both caught and uncaught — and on REST/plugin inject. `throwType`: `"end_event"`, `"intermediate_throw"`, or `"api_trigger"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. Paired with `[:evil_engine, :escalation, :raised]` telemetry. `laneName` is the throw FNI's lane. |
 | `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `parentProcessInstanceId`, `rootProcessInstanceId`, `oldState`, `newState`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `rootProcessInstanceId` equals `processInstanceId` for root PIs; inherited for child PIs (SP-13). Visibility stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`) let `engine:events` apply §5.1 without a DB lookup. |
 | `ProcessInstanceRetried` | `processInstanceId`, `targetProcessInstanceId`, `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy`, `startedById`, `hasLanelessFlowNode`, `laneNames` | Same visibility stamps as `ProcessInstanceStateChanged`. |
@@ -217,12 +229,12 @@ Selected `EvilEngine.Types.Event.*` structs published via `EngineEventBus`. WebS
 | `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `laneName` | Also broadcast to `user_tasks:pending` |
 | `UserTaskFinished` | Same + `outcome` | `outcome`: `completed` or `aborted`. Also broadcast to `user_tasks:pending` |
 | `DataObjectWritten` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `dataObjectId`, `writeId`, `previousValue`, `value`, `createdAt`, `laneName` | Emitted after each successful DOA write |
-| `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `laneName` | Paired with `[:evil_engine, :call_activity, :child_started]` telemetry |
-| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `laneName` | Emitted when an Embedded SubProcess **or** Event Subprocess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` is `true` for Event Subprocess (`triggeredByEvent="true"`) shells and `false` for plain embedded subprocesses — the debugger's primary ESP observability signal (ESP-D16). Paired with `[:evil_engine, :subprocess, :child_started]` telemetry |
+| `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `rootProcessInstanceId`, `laneName` | Paired with `[:evil_engine, :call_activity, :child_started]` telemetry. `rootProcessInstanceId` is the emitting parent PI's root (SP-13). |
+| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `rootProcessInstanceId`, `laneName` | Emitted when an Embedded SubProcess **or** Event Subprocess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` is `true` for Event Subprocess (`triggeredByEvent="true"`) shells and `false` for plain embedded subprocesses — the debugger's primary ESP observability signal (ESP-D16). `rootProcessInstanceId` is the emitting parent PI's root (SP-13). Paired with `[:evil_engine, :subprocess, :child_started]` telemetry |
 | `EventSubprocessTriggered` | `scopeProcessInstanceId`, `rootProcessInstanceId`, `subprocessNodeId`, `childProcessInstanceId`, `triggerKind`, `isInterrupting`, `laneName`, `occurredAt` | Engine-level observability signal emitted by the scope PI when an Event Subprocess trigger fires and spawns an ESP child PI (ESP-D2/D3/D4). `triggerKind` is one of `message`, `signal`, `timer`, `error`, `escalation`, `conditional`. Emitted **in addition** to `SubProcessChildStarted` (which is the debugger's primary ESP signal). Paired with `[:evil_engine, :event_subprocess, :triggered]` telemetry. |
 | `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `laneName`, `occurredAt` | Emitted before handler dispatch. `throwType`: `:throw` or `:end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. Fan-out to PI and root PI channels. |
 | `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `laneName`, `occurredAt` | Emitted after each compensation handler completes. |
-| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI. `TimerArmed` / `TimerCancelled` are classified as FNI-originating but are not currently published. |
+| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI. Cycle Timer Start fires (no PI yet) leave `processInstanceId` and `rootProcessInstanceId` null. Scheduler telemetry `[:evil_engine, :timer, :armed|:fired|:cancelled]` is the operational counterpart; there are no typed `TimerArmed` / `TimerCancelled` events. |
 
 **Messages vs signals.** Messages are routed by `(messageName, correlationValue)` and carry a payload — subscribers match on both name and correlation (see [routing.md](./routing.md) §3.5). Signals are pure broadcast: every subscription registered for the `signalName` receives a copy, with **no correlation key** and **no payload**. `origin` on `MessagePublished` / `SignalPublished` is a map with `source` (`"api"` \| `"pi"` \| `"plugin"`) plus optional `processInstanceId`, `flowNodeInstanceId`, `pluginName`, and `triggeredBy`. `deliveries` is a list of `{processInstanceId, flowNodeInstanceId}` pairs — one entry per recipient. `startedProcessInstanceIds` lists PIs created via Message/Signal Start Events during the same publish. `pending` is `true` when zero subscriptions matched **and** zero Start Events fired, and the publish was buffered for TTL rematch ([routing.md](./routing.md) §3.5.6 for signals).
 

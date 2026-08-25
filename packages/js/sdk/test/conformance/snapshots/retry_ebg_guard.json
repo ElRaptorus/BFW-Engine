@@ -110,9 +110,7 @@
           "typeData": {
             "eventDefinition": {
               "correlationRetrievalExpression": null,
-              "eventMapping": null,
-              "messageRef": "Message_ebg_retry",
-              "payloadExpression": null
+              "messageRef": "Message_ebg_retry"
             },
             "outMappings": [],
             "resultContract": null

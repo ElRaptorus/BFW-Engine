@@ -80,7 +80,7 @@ export const MAPPING_FIELDS: SelectionField[] = ['source', 'target'];
  */
 export const EVENT_DEFINITION_FRAGMENTS: Record<string, SelectionField[]> = {
   NoneEventDefinition: ['isNone'],
-  MessageEventDefinition: ['messageRef', 'correlationRetrievalExpression', 'payloadExpression', 'eventMapping'],
+  MessageEventDefinition: ['messageRef', 'correlationRetrievalExpression'],
   SignalEventDefinition: ['signalRef'],
   TimerEventDefinition: ['timeDate', 'timeDuration', 'timeCycle'],
   ErrorEventDefinition: ['errorRef', 'errorCode', 'errorMessage'],

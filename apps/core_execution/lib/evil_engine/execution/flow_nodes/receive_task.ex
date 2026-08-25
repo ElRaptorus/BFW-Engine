@@ -9,8 +9,7 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
   - `message_ref` is on `flow_node.type_data` (not on an event definition)
   - Wrapped by `BoundaryAwareHandler` (it's an activity, so error
     boundaries apply)
-  - Data pipeline: `payloadContract` → **wait** → `outputMapping` →
-    `resultContract`
+  - Data pipeline: wait → `resultContract` → `outputMapping`
   """
 
   @behaviour EvilEngine.Execution.FlowNodeHandler
@@ -84,6 +83,7 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
       {:ok, subscription_id} =
         MessageSubscriptions.register(%{
           process_instance_id: context.process_instance_id,
+          root_process_instance_id: context.root_process_instance_id,
           flow_node_instance_id: context.flow_node_instance_id,
           flow_node_id: flow_node.id,
           message_name: message_name,
@@ -105,6 +105,7 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
     {:ok, subscription_id} =
       MessageSubscriptions.register(%{
         process_instance_id: context.process_instance_id,
+        root_process_instance_id: context.root_process_instance_id,
         flow_node_instance_id: context.flow_node_instance_id,
         flow_node_id: flow_node.id,
         message_name: message_name,
@@ -130,6 +131,7 @@ defmodule EvilEngine.Execution.FlowNodes.ReceiveTask do
          Map.put(type_properties, :persisted, true)}
 
       {:error, :persistence_failed} ->
+        MessageSubscriptions.unregister(subscription_id)
         {:error, :persistence_failed}
     end
   end

@@ -125,9 +125,7 @@
                 "typeData": {
                   "eventDefinition": {
                     "correlationRetrievalExpression": null,
-                    "eventMapping": null,
-                    "messageRef": "Message_trigger",
-                    "payloadExpression": null
+                    "messageRef": "Message_trigger"
                   },
                   "isInterrupting": true,
                   "resultContract": null
