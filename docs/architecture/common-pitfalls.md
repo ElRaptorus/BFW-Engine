@@ -1171,3 +1171,11 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 **Correct approach:** Keep an empty `apps/peripheral_persistence/priv/read_repo/migrations/` (`.gitkeep` only). Do not put migration files there. Write-schema DDL stays in `priv/repo/migrations`.
 
+## P76: Cache Dialyzer PLTs from `priv/plts` — `_build` does not contain them
+
+**Mistake:** Caching only `deps` and `_build` in CI, then expecting `mix dialyzer` to skip PLT construction.
+
+**Why it happens:** `mix.exs` sets `plt_core_path` and `plt_local_path` to `priv/plts` (the Dialyxir CI convention). Those files are gitignored (`/priv/plts/*.plt`). The `_build` cache therefore never restores the Erlang/Elixir/deps lookup tables, so every CI run rebuilds them from scratch (several minutes).
+
+**Correct approach:** Restore `priv/plts` before Dialyzer and save it after, with a key of `runner.os` + resolved OTP + resolved Elixir (`erlef/setup-beam` outputs) + `hashFiles('**/mix.lock')`. Use `restore-keys` without the lockfile hash so a lockfile bump can incrementally update an older PLT. Do not commit `.plt` files. GitHub cache keys are immutable — skip save on an exact `cache-hit`.
+

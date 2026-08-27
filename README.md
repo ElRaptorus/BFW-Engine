@@ -427,7 +427,7 @@ The root `mix.exs` provides aliases that run the full pipeline in one command.
 | ------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Compiler**       | `mix compile --warnings-as-errors` | Type errors, undefined functions, unused variables, missing modules. Warnings are promoted to errors.                                                                                                  |
 | **Credo**          | `mix credo --strict`               | Code consistency, naming conventions, documentation, cyclomatic complexity, dead code, anti-patterns. Strict mode enables all optional checks.                                                         |
-| **Dialyzer**       | `mix dialyzer`                     | Static type analysis via success typing. Catches type mismatches, unreachable code, incorrect specs, and contract violations across module boundaries. First run builds the PLT (takes a few minutes). |
+| **Dialyzer**       | `mix dialyzer`                     | Static type analysis via success typing. Catches type mismatches, unreachable code, incorrect specs, and contract violations across module boundaries. First run builds the PLT under `priv/plts` (takes a few minutes); CI restores that directory from GitHub Actions cache. |
 | **Sobelow**        | `mix sobelow`                      | Phoenix-specific security scanner. Checks for SQL injection, XSS, directory traversal, insecure configuration, hardcoded secrets, unsafe deserialization, and missing browser security headers.        |
 | **mix deps.audit** | `mix deps.audit`                   | Scans dependencies for known security vulnerabilities (CVEs) via Hex advisory database.                                                                                                                |
 
@@ -468,14 +468,14 @@ mix coveralls.html     # HTML coverage report under cover/
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs:
+GitHub Actions (`.github/workflows/ci.yml`) runs. Dialyzer PLTs under `priv/plts` are restored/saved across runs (keyed on OTP, Elixir, and `mix.lock`); `_build` does not contain them.
 
 
 | Step           | Command                                 |
 | -------------- | --------------------------------------- |
 | Format         | `mix format --check-formatted`          |
 | Credo          | `mix credo --strict`                    |
-| Dialyzer       | `mix dialyzer`                          |
+| Dialyzer       | `mix dialyzer --format github`          |
 | Tests          | `mix coveralls --umbrella`              |
 | Security audit | `mix deps.audit` + `mix sobelow --exit` |
 

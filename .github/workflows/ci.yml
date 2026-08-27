@@ -3,7 +3,6 @@ name: CI
 on:
   workflow_dispatch:
 
-# Cancel any in-progress CI run for the same branch when a new commit lands.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -24,9 +23,6 @@ jobs:
           POSTGRES_USER: evil_engine
           POSTGRES_PASSWORD: evil_engine
           POSTGRES_DB: evil_engine_test
-        # config/test.exs connects to localhost:5543 (same port as the
-        # local evil-engine-postgres-test container). Mapping 5432 here
-        # leaves the suite talking to a closed port.
         ports:
           - 5543:5432
         options: >-
@@ -38,33 +34,43 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Erlang / Elixir
+        id: beam
         uses: erlef/setup-beam@v1
         with:
           otp-version: "29.0.5"
-          elixir-version: "1.20.3"
+          elixir-version: "1.20.3-otp-29"
 
       - name: Cache Elixir deps
         uses: actions/cache@v5
         with:
           path: deps
-          key: ${{ runner.os }}-deps-test-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-deps-test-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
 
       - name: Cache Elixir _build
         uses: actions/cache@v5
         with:
           path: _build
-          key: ${{ runner.os }}-build-test-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('apps/**/lib/**/*.ex', 'apps/**/lib/**/*.exs', 'config/**/*.exs', 'mix.exs') }}
+          key: ${{ runner.os }}-build-test-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('apps/**/lib/**/*.ex', 'apps/**/lib/**/*.exs', 'config/**/*.exs', 'mix.exs') }}
           restore-keys: |
-            ${{ runner.os }}-build-test-${{ hashFiles('**/mix.lock') }}-
+            ${{ runner.os }}-build-test-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}-
+
+      - name: Restore Dialyzer PLT
+        id: plt_cache
+        uses: actions/cache/restore@v5
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
 
       - name: Install Dependencies
-        run: mix deps.get --only test
+        run: mix deps.get
 
       - name: Dependency security audit
         run: mix deps.audit
 
       - name: Compile Dependencies
-        run: mix deps.compile
+        run: MIX_OS_DEPS_COMPILE_PARTITION_COUNT="$(nproc)" mix deps.compile
 
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
@@ -80,6 +86,13 @@ jobs:
 
       - name: Dialyzer
         run: mix dialyzer --format github
+
+      - name: Save Dialyzer PLT
+        if: always() && steps.plt_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
 
       - name: Sobelow (web security scan)
         run: mix sobelow
@@ -103,8 +116,6 @@ jobs:
           mix do --app peripheral_persistence ecto.migrate
 
       - name: Run tests with coverage
-        # Local terminal report + minimum_coverage gate. Do not use
-        # coveralls.github / coveralls.post — those POST to coveralls.io.
         run: mix coveralls --umbrella
 
       - name: Run full-stack integration tests

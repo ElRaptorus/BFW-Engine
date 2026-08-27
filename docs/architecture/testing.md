@@ -422,7 +422,7 @@ DMN decision evaluation throughput under sustained load.
 - Postgres service published on host port **5543** (`config/test.exs`); `mix do --app peripheral_persistence ecto.create` + `ecto.migrate` before tests (`priv/read_repo/migrations` exists empty so Mix does not error on the read pool)
 - `mix format --check-formatted`
 - `mix credo --strict`
-- `mix dialyzer` (Dialyzer baseline, zero warnings over time)
+- `mix dialyzer --format github` (Dialyzer baseline, zero warnings over time). PLTs are restored/saved from `priv/plts` (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
 - `mix coveralls --umbrella` — local coverage + `coveralls.json` `minimum_coverage` gate. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used)
 - `mix run test/integration_runner.exs`
 - `mix sobelow` for security
