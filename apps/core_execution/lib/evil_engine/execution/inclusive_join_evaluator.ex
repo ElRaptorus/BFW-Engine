@@ -34,7 +34,12 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluator do
           flow_node_instance_states :: map(),
           process_model :: BpmnProcess.t()
         ) :: boolean()
-  def should_fire?(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
+  def should_fire?(
+        join_flow_node_id,
+        arrived_via_flow_ids,
+        flow_node_instance_states,
+        process_model
+      ) do
     all_incoming_resolved?(
       join_flow_node_id,
       arrived_via_flow_ids,
@@ -59,7 +64,12 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluator do
           flow_node_instance_states :: map(),
           process_model :: BpmnProcess.t()
         ) :: boolean()
-  def all_incoming_resolved?(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
+  def all_incoming_resolved?(
+        join_flow_node_id,
+        arrived_via_flow_ids,
+        flow_node_instance_states,
+        process_model
+      ) do
     case Map.get(process_model.inclusive_join_analyses, join_flow_node_id) do
       %InclusiveJoinAnalysis{} = analysis ->
         resolved_with_analysis(analysis, arrived_via_flow_ids, flow_node_instance_states)
@@ -88,7 +98,12 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluator do
   end
 
   @dialyzer {:no_opaque, resolved_with_runtime_bfs: 4}
-  defp resolved_with_runtime_bfs(join_flow_node_id, arrived_via_flow_ids, flow_node_instance_states, process_model) do
+  defp resolved_with_runtime_bfs(
+         join_flow_node_id,
+         arrived_via_flow_ids,
+         flow_node_instance_states,
+         process_model
+       ) do
     incoming_index = build_incoming_index(process_model.sequence_flows)
 
     incoming_flow_ids = resolve_incoming_flow_ids(join_flow_node_id, process_model)

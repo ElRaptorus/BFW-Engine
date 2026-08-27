@@ -147,8 +147,7 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
 
     if Enum.empty?(activities) do
       {:error,
-       {:adhoc_subprocess_empty,
-        "Ad-hoc subprocess '#{subprocess_id}' contains no activities"}}
+       {:adhoc_subprocess_empty, "Ad-hoc subprocess '#{subprocess_id}' contains no activities"}}
     else
       :ok
     end
@@ -438,18 +437,16 @@ defmodule EvilEngine.Execution.FlowNodes.AdHocSubProcess do
 
     total_activations = count_child_activations(child_process_instance_id)
 
-    EngineEventBus.publish(
-      %Event.AdHocSubProcessCompleted{
-        process_instance_id: context.process_instance_id,
-        root_process_instance_id: context.root_process_instance_id,
-        adhoc_flow_node_instance_id: context.flow_node_instance_id,
-        adhoc_node_id: flow_node.id,
-        completion_reason: completion_reason,
-        total_activations: total_activations,
-        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
-        occurred_at: DateTime.utc_now()
-      }
-    )
+    EngineEventBus.publish(%Event.AdHocSubProcessCompleted{
+      process_instance_id: context.process_instance_id,
+      root_process_instance_id: context.root_process_instance_id,
+      adhoc_flow_node_instance_id: context.flow_node_instance_id,
+      adhoc_node_id: flow_node.id,
+      completion_reason: completion_reason,
+      total_activations: total_activations,
+      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      occurred_at: DateTime.utc_now()
+    })
   end
 
   defp count_child_activations(child_process_instance_id) do

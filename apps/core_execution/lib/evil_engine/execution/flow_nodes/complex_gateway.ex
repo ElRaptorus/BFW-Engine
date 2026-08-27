@@ -125,7 +125,8 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGateway do
       token.payload
     )
 
-    previous_fni_ids = if source_flow_node_instance_id, do: [source_flow_node_instance_id], else: []
+    previous_fni_ids =
+      if source_flow_node_instance_id, do: [source_flow_node_instance_id], else: []
 
     continuation = fn ->
       complex_join_receive_loop(flow_node, context, [token.payload], previous_fni_ids)
@@ -337,7 +338,13 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGateway do
     end
   end
 
-  defp persist_gateway_pending_arrival(process_instance_id, gateway_fni_id, incoming_flow_id, source_fni_id, payload) do
+  defp persist_gateway_pending_arrival(
+         process_instance_id,
+         gateway_fni_id,
+         incoming_flow_id,
+         source_fni_id,
+         payload
+       ) do
     params = %{
       process_instance_id: process_instance_id,
       gateway_flow_node_instance_id: gateway_fni_id,

@@ -117,8 +117,14 @@ defmodule EvilEngine.Events.MessagePublisher do
 
     {pending, started_process_instance_ids} =
       resolve_pending(
-        message_id, message_name, correlation_value, payload, now,
-        combined_deliveries, started_process_instance_ids, skip_pending
+        message_id,
+        message_name,
+        correlation_value,
+        payload,
+        now,
+        combined_deliveries,
+        started_process_instance_ids,
+        skip_pending
       )
 
     emit_message_published(
@@ -239,9 +245,18 @@ defmodule EvilEngine.Events.MessagePublisher do
       )
   end
 
-  defp resolve_start_events(message_id, message_name, payload, ets_correlation, deliveries, triggerer_fni_id) do
+  defp resolve_start_events(
+         message_id,
+         message_name,
+         payload,
+         ets_correlation,
+         deliveries,
+         triggerer_fni_id
+       ) do
     if deliveries == [] do
-      started_ids = invoke_start_event_handler(message_name, payload, ets_correlation, triggerer_fni_id)
+      started_ids =
+        invoke_start_event_handler(message_name, payload, ets_correlation, triggerer_fni_id)
+
       persist_started_process_instance_ids(message_id, started_ids)
       started_ids
     else
@@ -250,8 +265,14 @@ defmodule EvilEngine.Events.MessagePublisher do
   end
 
   defp resolve_pending(
-         message_id, message_name, correlation_value, payload, now,
-         deliveries, started_process_instance_ids, skip_pending
+         message_id,
+         message_name,
+         correlation_value,
+         payload,
+         now,
+         deliveries,
+         started_process_instance_ids,
+         skip_pending
        ) do
     has_recipients = deliveries != [] or started_process_instance_ids != []
 

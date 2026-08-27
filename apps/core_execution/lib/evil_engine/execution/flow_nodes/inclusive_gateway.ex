@@ -156,7 +156,8 @@ defmodule EvilEngine.Execution.FlowNodes.InclusiveGateway do
       token.payload
     )
 
-    previous_fni_ids = if source_flow_node_instance_id, do: [source_flow_node_instance_id], else: []
+    previous_fni_ids =
+      if source_flow_node_instance_id, do: [source_flow_node_instance_id], else: []
 
     if required == 1 do
       fire_join(flow_node, context, [token.payload], previous_fni_ids)
@@ -334,7 +335,13 @@ defmodule EvilEngine.Execution.FlowNodes.InclusiveGateway do
     {incoming, outgoing}
   end
 
-  defp persist_gateway_pending_arrival(process_instance_id, gateway_fni_id, incoming_flow_id, source_fni_id, payload) do
+  defp persist_gateway_pending_arrival(
+         process_instance_id,
+         gateway_fni_id,
+         incoming_flow_id,
+         source_fni_id,
+         payload
+       ) do
     params = %{
       process_instance_id: process_instance_id,
       gateway_flow_node_instance_id: gateway_fni_id,
@@ -350,7 +357,8 @@ defmodule EvilEngine.Execution.FlowNodes.InclusiveGateway do
            fn -> adapter.create_gateway_pending_arrival(params) end,
            "GPA create for inclusive join #{gateway_fni_id}"
          ) do
-      {:ok, _} -> :ok
+      {:ok, _} ->
+        :ok
 
       {:error, reason} ->
         Logger.warning("Failed to persist gateway pending arrival: #{inspect(reason)}")
@@ -365,7 +373,8 @@ defmodule EvilEngine.Execution.FlowNodes.InclusiveGateway do
            fn -> adapter.delete_gateway_pending_arrivals_for_gateway(gateway_fni_id) end,
            "GPA delete for inclusive join #{gateway_fni_id}"
          ) do
-      :ok -> :ok
+      :ok ->
+        :ok
 
       {:error, reason} ->
         Logger.warning("Failed to delete gateway pending arrivals: #{inspect(reason)}")

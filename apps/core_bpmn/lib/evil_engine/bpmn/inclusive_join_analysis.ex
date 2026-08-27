@@ -53,7 +53,10 @@ defmodule EvilEngine.BPMN.InclusiveJoinAnalysis do
     %{process | inclusive_join_analyses: analyze(process)}
   end
 
-  defp inclusive_join?(%FlowNode{type: :inclusive_gateway, type_data: %FlowNodeData.InclusiveGateway{}} = node, process) do
+  defp inclusive_join?(
+         %FlowNode{type: :inclusive_gateway, type_data: %FlowNodeData.InclusiveGateway{}} = node,
+         process
+       ) do
     incoming_count = count_direction(node, process, :incoming)
     outgoing_count = count_direction(node, process, :outgoing)
 

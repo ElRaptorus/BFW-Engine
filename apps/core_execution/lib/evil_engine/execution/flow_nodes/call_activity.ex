@@ -222,7 +222,8 @@ defmodule EvilEngine.Execution.FlowNodes.CallActivity do
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, resolved} <- resolve_called_version(called_element),
-         {:ok, input_payload} <- ChildLifecycle.resolve_input_payload(flow_node, entry.token, context) do
+         {:ok, input_payload} <-
+           ChildLifecycle.resolve_input_payload(flow_node, entry.token, context) do
       result =
         start_and_monitor_child(
           flow_node,

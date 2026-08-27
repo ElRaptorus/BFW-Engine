@@ -803,7 +803,8 @@ defmodule EvilEngine.Execution.ResumeTest do
 
       assert {:ok, 1} = ResumeRunner.resume_all()
 
-      assert_receive {:resume_overload, %Event.EngineOverloaded{level: :critical, limit: 0}}, 1_000
+      assert_receive {:resume_overload, %Event.EngineOverloaded{level: :critical, limit: 0}},
+                     1_000
 
       assert {:ok, process_instance_pid} = Execution.lookup_process_instance(process_instance_id)
       DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, process_instance_pid)

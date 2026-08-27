@@ -102,8 +102,7 @@ defmodule EvilEngine.BPMN.Validator do
 
   defp check_version(%BpmnProcess{version: nil, id: id}) do
     [
-      {:missing_version,
-       "Process '#{id}' is missing required property: version (evil:version)"}
+      {:missing_version, "Process '#{id}' is missing required property: version (evil:version)"}
     ]
   end
 
@@ -785,7 +784,10 @@ defmodule EvilEngine.BPMN.Validator do
     node_errors ++ flow_errors
   end
 
-  defp check_subprocess_sequence_flow_essential_props(scope_label, %SequenceFlow{} = sequence_flow) do
+  defp check_subprocess_sequence_flow_essential_props(
+         scope_label,
+         %SequenceFlow{} = sequence_flow
+       ) do
     missing = collect_missing_sequence_flow_props(sequence_flow)
 
     if missing == [] do
@@ -1028,7 +1030,10 @@ defmodule EvilEngine.BPMN.Validator do
     event_subprocess_ids =
       flow_nodes
       |> Enum.filter(fn
-        %FlowNode{type: :sub_process, type_data: %FlowNodeData.SubProcess{triggered_by_event: true}} ->
+        %FlowNode{
+          type: :sub_process,
+          type_data: %FlowNodeData.SubProcess{triggered_by_event: true}
+        } ->
           true
 
         _ ->
@@ -1205,7 +1210,7 @@ defmodule EvilEngine.BPMN.Validator do
         {:incomplete_flow_node,
          scope_label <>
            "#{type_label(type)} '#{id}' is missing required properties: " <>
-             "script or scriptRef (at least one must be provided)"}
+           "script or scriptRef (at least one must be provided)"}
       ]
     else
       []
@@ -1230,7 +1235,7 @@ defmodule EvilEngine.BPMN.Validator do
           {:incomplete_flow_node,
            scope_label <>
              "#{label} '#{id}' is missing required property: " <>
-               "implementation (must be one of: feel, dmn)"}
+             "implementation (must be one of: feel, dmn)"}
         ]
 
       data.implementation not in @valid_brt_implementations ->
@@ -1238,7 +1243,7 @@ defmodule EvilEngine.BPMN.Validator do
           {:invalid_brt_implementation,
            scope_label <>
              "#{label} '#{id}' has unrecognized implementation='#{data.implementation}' " <>
-               "(must be one of: feel, dmn)"}
+             "(must be one of: feel, dmn)"}
         ]
 
       true ->
@@ -1256,9 +1261,7 @@ defmodule EvilEngine.BPMN.Validator do
        ) do
     scope_label = "[in AdHocSubProcess '#{id}'] "
 
-    validate_inner_scope_structure(id, data, definitions, scope_label,
-      skip_orphan_check: true
-    ) ++
+    validate_inner_scope_structure(id, data, definitions, scope_label, skip_orphan_check: true) ++
       validate_adhoc_subprocess_structure(id, data)
   end
 
@@ -1322,7 +1325,7 @@ defmodule EvilEngine.BPMN.Validator do
           {:boundary_event_dangling_attached_to,
            scope_label <>
              "#{type_label(type)} '#{id}' has attachedToRef='#{data.attached_to_ref}' " <>
-               "which does not match any FlowNode in this scope"}
+             "which does not match any FlowNode in this scope"}
         ]
       else
         []
@@ -1388,13 +1391,18 @@ defmodule EvilEngine.BPMN.Validator do
   # BRT mode-specific property checks (extracted to keep validate_type_data lean)
   # ---------------------------------------------------------------------------
 
-  defp check_brt_mode_properties(id, label, %{implementation: "feel", script: script}, scope_label) do
+  defp check_brt_mode_properties(
+         id,
+         label,
+         %{implementation: "feel", script: script},
+         scope_label
+       ) do
     if blank?(script) do
       [
         {:incomplete_flow_node,
          scope_label <>
            "#{label} '#{id}' has implementation='feel' but is missing " <>
-             "required property: script (<bpmn:script> child element)"}
+           "required property: script (<bpmn:script> child element)"}
       ]
     else
       []
@@ -1412,7 +1420,7 @@ defmodule EvilEngine.BPMN.Validator do
         {:incomplete_flow_node,
          scope_label <>
            "#{label} '#{id}' has implementation='dmn' but is missing " <>
-             "required property: decisionRef (evil:decisionRef)"}
+           "required property: decisionRef (evil:decisionRef)"}
       ]
     else
       []
@@ -1466,7 +1474,7 @@ defmodule EvilEngine.BPMN.Validator do
         {:incomplete_event_definition,
          scope_label <>
            "#{type_label(type)} '#{id}' has a TimerEventDefinition that is missing required properties: " <>
-             "timeDate, timeDuration, or timeCycle (exactly one must be provided)"}
+           "timeDate, timeDuration, or timeCycle (exactly one must be provided)"}
       ]
     end
   end
@@ -1663,7 +1671,11 @@ defmodule EvilEngine.BPMN.Validator do
     end)
   end
 
-  defp check_cancel_scope_node(%FlowNode{id: id, type: type, type_data: data}, inside_transaction, node_index) do
+  defp check_cancel_scope_node(
+         %FlowNode{id: id, type: type, type_data: data},
+         inside_transaction,
+         node_index
+       ) do
     cancel_end_errors = check_cancel_end_scope(id, type, data, inside_transaction)
     cancel_boundary_errors = check_cancel_boundary_host(id, type, data, node_index)
     inner_errors = check_cancel_scope_inner(data)
@@ -1671,7 +1683,12 @@ defmodule EvilEngine.BPMN.Validator do
     cancel_end_errors ++ cancel_boundary_errors ++ inner_errors
   end
 
-  defp check_cancel_end_scope(id, :end_event, %FlowNodeData.EndEvent{event_definition: %EventDefinition.Cancel{}}, false) do
+  defp check_cancel_end_scope(
+         id,
+         :end_event,
+         %FlowNodeData.EndEvent{event_definition: %EventDefinition.Cancel{}},
+         false
+       ) do
     [
       {:cancel_end_outside_transaction,
        "EndEvent '#{id}' has a Cancel event definition but is not inside a Transaction subprocess. " <>
@@ -1681,7 +1698,15 @@ defmodule EvilEngine.BPMN.Validator do
 
   defp check_cancel_end_scope(_id, _type, _data, _inside_transaction), do: []
 
-  defp check_cancel_boundary_host(id, :boundary_event, %FlowNodeData.BoundaryEvent{event_definition: %EventDefinition.Cancel{}, attached_to_ref: host_ref}, node_index) do
+  defp check_cancel_boundary_host(
+         id,
+         :boundary_event,
+         %FlowNodeData.BoundaryEvent{
+           event_definition: %EventDefinition.Cancel{},
+           attached_to_ref: host_ref
+         },
+         node_index
+       ) do
     host = Map.get(node_index, host_ref)
 
     if cancel_boundary_host_valid?(host) do
@@ -1699,12 +1724,18 @@ defmodule EvilEngine.BPMN.Validator do
 
   defp cancel_boundary_host_valid?(nil), do: false
 
-  defp cancel_boundary_host_valid?(%FlowNode{type: :sub_process, type_data: %FlowNodeData.SubProcess{is_transaction: true}}),
-    do: true
+  defp cancel_boundary_host_valid?(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_transaction: true}
+       }),
+       do: true
 
   defp cancel_boundary_host_valid?(_), do: false
 
-  defp check_cancel_scope_inner(%FlowNodeData.SubProcess{flow_nodes: inner_nodes, is_transaction: is_tx}) do
+  defp check_cancel_scope_inner(%FlowNodeData.SubProcess{
+         flow_nodes: inner_nodes,
+         is_transaction: is_tx
+       }) do
     do_check_cancel_scope(inner_nodes, is_tx)
   end
 
@@ -1718,19 +1749,30 @@ defmodule EvilEngine.BPMN.Validator do
     Enum.flat_map(flow_nodes, &check_nested_transactions_node/1)
   end
 
-  defp check_nested_transactions_node(%FlowNode{id: id, type: :sub_process, type_data: %FlowNodeData.SubProcess{is_transaction: true, flow_nodes: inner_nodes}}) do
+  defp check_nested_transactions_node(%FlowNode{
+         id: id,
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_transaction: true, flow_nodes: inner_nodes}
+       }) do
     direct_violations = Enum.flat_map(inner_nodes, &nested_transaction_violation(id, &1))
     inner_violations = do_check_nested_transactions(inner_nodes)
     direct_violations ++ inner_violations
   end
 
-  defp check_nested_transactions_node(%FlowNode{type: :sub_process, type_data: %FlowNodeData.SubProcess{flow_nodes: inner_nodes}}) do
+  defp check_nested_transactions_node(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{flow_nodes: inner_nodes}
+       }) do
     do_check_nested_transactions(inner_nodes)
   end
 
   defp check_nested_transactions_node(_), do: []
 
-  defp nested_transaction_violation(outer_id, %FlowNode{id: inner_id, type: :sub_process, type_data: %FlowNodeData.SubProcess{is_transaction: true}}) do
+  defp nested_transaction_violation(outer_id, %FlowNode{
+         id: inner_id,
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{is_transaction: true}
+       }) do
     [
       {:nested_transaction,
        "Transaction '#{outer_id}' contains nested Transaction '#{inner_id}'. " <>
@@ -1982,7 +2024,9 @@ defmodule EvilEngine.BPMN.Validator do
     end
   end
 
-  defp check_mi_completion_condition(id, type, %MultiInstance{completion_condition: completion_condition}) do
+  defp check_mi_completion_condition(id, type, %MultiInstance{
+         completion_condition: completion_condition
+       }) do
     if is_binary(completion_condition) and blank?(completion_condition) do
       [
         {:mi_blank_completion_condition,
@@ -1994,7 +2038,9 @@ defmodule EvilEngine.BPMN.Validator do
     end
   end
 
-  defp check_mi_break_condition(id, type, %MultiInstance{loop_break_condition: loop_break_condition}) do
+  defp check_mi_break_condition(id, type, %MultiInstance{
+         loop_break_condition: loop_break_condition
+       }) do
     if is_binary(loop_break_condition) and blank?(loop_break_condition) do
       [
         {:mi_blank_break_condition,

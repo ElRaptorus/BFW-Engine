@@ -884,7 +884,14 @@ defmodule EvilEngine.Execution do
     }
   end
 
-  defp emit_retry_event(root_pi_data, targeted_pi_data, resolved_version_id, identity, opts, root_fnis) do
+  defp emit_retry_event(
+         root_pi_data,
+         targeted_pi_data,
+         resolved_version_id,
+         identity,
+         opts,
+         root_fnis
+       ) do
     is_version_migration = resolved_version_id != targeted_pi_data.process_version_id
 
     previous_version = if is_version_migration, do: targeted_pi_data.process_version_id

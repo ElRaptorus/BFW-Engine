@@ -130,34 +130,34 @@ defmodule EvilEngine.Execution.ResumeRunner do
              "Resume: list pending arrivals for PI #{process_instance.id}",
              max_attempts: 3
            ) do
-        opts = %{
-          resume: true,
-          process_instance_id: process_instance.id,
-          process_version_id: process_instance.process_version_id,
-          business_key: process_instance[:business_key],
-          parent_process_instance_id: process_instance[:parent_process_instance_id],
-          triggerer_flow_node_instance_id: process_instance[:triggerer_flow_node_instance_id],
-          started_at: process_instance[:started_at],
-          started_by: process_instance[:started_by],
-          started_with_context: process_instance[:started_with_context],
-          fni_data: flow_node_instances,
-          pending_arrivals: pending_arrivals
-        }
+      opts = %{
+        resume: true,
+        process_instance_id: process_instance.id,
+        process_version_id: process_instance.process_version_id,
+        business_key: process_instance[:business_key],
+        parent_process_instance_id: process_instance[:parent_process_instance_id],
+        triggerer_flow_node_instance_id: process_instance[:triggerer_flow_node_instance_id],
+        started_at: process_instance[:started_at],
+        started_by: process_instance[:started_by],
+        started_with_context: process_instance[:started_with_context],
+        fni_data: flow_node_instances,
+        pending_arrivals: pending_arrivals
+      }
 
-        case DynamicSupervisor.start_child(
-               EvilEngine.Execution.Supervisor,
-               {EvilEngine.Execution.ProcessInstance, opts}
-             ) do
-          {:ok, _pid} ->
-            :ok
+      case DynamicSupervisor.start_child(
+             EvilEngine.Execution.Supervisor,
+             {EvilEngine.Execution.ProcessInstance, opts}
+           ) do
+        {:ok, _pid} ->
+          :ok
 
-          {:error, reason} ->
-            Logger.error(
-              "ResumeRunner: failed to start PI #{process_instance.id}: #{inspect(reason)}"
-            )
+        {:error, reason} ->
+          Logger.error(
+            "ResumeRunner: failed to start PI #{process_instance.id}: #{inspect(reason)}"
+          )
 
-            :error
-        end
+          :error
+      end
     else
       {:error, reason} ->
         Logger.error(

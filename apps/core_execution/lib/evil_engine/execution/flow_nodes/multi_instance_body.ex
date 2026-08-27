@@ -52,15 +52,22 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
 
     with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
          {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
-      {:ok, %FlowNodeResult{
-        output_payload: output,
-        type_properties: type_properties,
-        next_flow_node_ids: next_ids
-      }}
+      {:ok,
+       %FlowNodeResult{
+         output_payload: output,
+         type_properties: type_properties,
+         next_flow_node_ids: next_ids
+       }}
     end
   end
 
-  defp dispatch_mi_strategy(flow_node, token, context, %MultiInstance{is_sequential: true} = mi, collection) do
+  defp dispatch_mi_strategy(
+         flow_node,
+         token,
+         context,
+         %MultiInstance{is_sequential: true} = mi,
+         collection
+       ) do
     emit_mi_started(context, flow_node, mi, length(collection))
     run_sequential(flow_node, token, context, mi, collection)
   end
@@ -84,7 +91,10 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
     end
   end
 
-  defp reattach_existing_iterations(%HandlerContext{process_instance_pid: pid, flow_node_instance_id: id})
+  defp reattach_existing_iterations(%HandlerContext{
+         process_instance_pid: pid,
+         flow_node_instance_id: id
+       })
        when is_pid(pid) and is_binary(id) do
     :gen_statem.call(pid, {:mi_reattach_iterations, id})
   end
@@ -116,7 +126,8 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
   defp resume_parallel(flow_node, token, context, mi, snapshot) do
     token_payload = token.payload || %{}
 
-    with {:ok, collection} <- evaluate_collection(mi, FeelContext.from_handler_context(context, token_payload)),
+    with {:ok, collection} <-
+           evaluate_collection(mi, FeelContext.from_handler_context(context, token_payload)),
          {:ok, collection} <- validate_collection(collection) do
       total = length(collection)
       finished = payloads_to_results(snapshot.finished_payloads)
@@ -141,7 +152,8 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
   defp resume_sequential(flow_node, token, context, mi, snapshot) do
     token_payload = token.payload || %{}
 
-    with {:ok, collection} <- evaluate_collection(mi, FeelContext.from_handler_context(context, token_payload)),
+    with {:ok, collection} <-
+           evaluate_collection(mi, FeelContext.from_handler_context(context, token_payload)),
          {:ok, collection} <- validate_collection(collection) do
       resume_state = %{
         collection: cap_at_max_iterations(collection, mi),
@@ -223,15 +235,34 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
     end
   end
 
-  defp continue_sequential_remaining(flow_node, token, context, mi, collection, total, occupied, collected) do
+  defp continue_sequential_remaining(
+         flow_node,
+         token,
+         context,
+         mi,
+         collection,
+         total,
+         occupied,
+         collected
+       ) do
     remaining =
       collection
       |> Enum.with_index()
       |> Enum.reject(fn {_item, index} -> MapSet.member?(occupied, index) end)
 
     remaining
-    |> Enum.reduce_while({:ok, Enum.reverse(collected)}, fn {item, index}, {:ok, rev_accumulated} ->
-      execute_sequential_iteration(flow_node, token, context, mi, item, index, total, rev_accumulated)
+    |> Enum.reduce_while({:ok, Enum.reverse(collected)}, fn {item, index},
+                                                            {:ok, rev_accumulated} ->
+      execute_sequential_iteration(
+        flow_node,
+        token,
+        context,
+        mi,
+        item,
+        index,
+        total,
+        rev_accumulated
+      )
     end)
     |> reverse_sequential_result()
   end
@@ -299,8 +330,8 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
 
         case :gen_statem.call(
                process_instance_pid,
-               {:mi_dispatch_iteration, flow_node_instance_id, index, item,
-                iteration_token, loop_overlay, flow_node}
+               {:mi_dispatch_iteration, flow_node_instance_id, index, item, iteration_token,
+                loop_overlay, flow_node}
              ) do
           {:ok, iteration_fni_id} -> {:ok, iteration_fni_id, index}
           {:error, reason} -> {:error, reason, index}
@@ -313,7 +344,12 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
       {:error, {:mi_dispatch_failed, errors}}
     else
       collect_parallel_results(
-        flow_node, mi, total, total, context, token_payload
+        flow_node,
+        mi,
+        total,
+        total,
+        context,
+        token_payload
       )
     end
   end
@@ -349,11 +385,12 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
 
         with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
              {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
-          {:ok, %FlowNodeResult{
-            output_payload: output,
-            type_properties: type_properties,
-            next_flow_node_ids: next_ids
-          }}
+          {:ok,
+           %FlowNodeResult{
+             output_payload: output,
+             type_properties: type_properties,
+             next_flow_node_ids: next_ids
+           }}
         end
 
       {:error, reason} ->
@@ -373,7 +410,14 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
       |> Enum.with_index()
       |> Enum.reduce_while({:ok, []}, fn {item, index}, {:ok, rev_accumulated} ->
         execute_sequential_iteration(
-          flow_node, token, context, mi, item, index, total, rev_accumulated
+          flow_node,
+          token,
+          context,
+          mi,
+          item,
+          index,
+          total,
+          rev_accumulated
         )
       end)
 
@@ -387,11 +431,12 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
 
         with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
              {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
-          {:ok, %FlowNodeResult{
-            output_payload: output,
-            type_properties: type_properties,
-            next_flow_node_ids: next_ids
-          }}
+          {:ok,
+           %FlowNodeResult{
+             output_payload: output,
+             type_properties: type_properties,
+             next_flow_node_ids: next_ids
+           }}
         end
 
       {:error, reason} ->
@@ -399,14 +444,30 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
     end
   end
 
-  defp execute_sequential_iteration(flow_node, token, context, mi, item, index, total, rev_accumulated) do
+  defp execute_sequential_iteration(
+         flow_node,
+         token,
+         context,
+         mi,
+         item,
+         index,
+         total,
+         rev_accumulated
+       ) do
     maybe_wait_interval(mi, index)
 
     accumulated = Enum.reverse(rev_accumulated)
     iteration_token = build_iteration_token(token, mi, item, index, total)
     loop_overlay = build_loop_overlay(item, index, total, accumulated)
 
-    case dispatch_and_await_iteration(context, flow_node, index, item, iteration_token, loop_overlay) do
+    case dispatch_and_await_iteration(
+           context,
+           flow_node,
+           index,
+           item,
+           iteration_token,
+           loop_overlay
+         ) do
       {:ok, iteration_result} ->
         collected = [iteration_result | rev_accumulated]
         token_payload = token.payload || %{}
@@ -422,11 +483,18 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
     end
   end
 
-  defp dispatch_and_await_iteration(context, flow_node, index, item, iteration_token, loop_overlay) do
+  defp dispatch_and_await_iteration(
+         context,
+         flow_node,
+         index,
+         item,
+         iteration_token,
+         loop_overlay
+       ) do
     case :gen_statem.call(
            context.process_instance_pid,
-           {:mi_dispatch_iteration, context.flow_node_instance_id, index, item,
-            iteration_token, loop_overlay, flow_node},
+           {:mi_dispatch_iteration, context.flow_node_instance_id, index, item, iteration_token,
+            loop_overlay, flow_node},
            @iteration_timeout_ms
          ) do
       {:ok, _iteration_fni_id} ->
@@ -462,7 +530,10 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
     end
   end
 
-  defp interrupt_remaining_iterations(%HandlerContext{process_instance_pid: pid, flow_node_instance_id: id})
+  defp interrupt_remaining_iterations(%HandlerContext{
+         process_instance_pid: pid,
+         flow_node_instance_id: id
+       })
        when is_pid(pid) and is_binary(id) do
     :gen_statem.call(pid, {:mi_interrupt_remaining, id})
   end
@@ -507,21 +578,29 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
     length(collected) >= max
   end
 
-  defp check_completion_condition(%MultiInstance{completion_condition: nil}, _, _, _, _), do: false
+  defp check_completion_condition(%MultiInstance{completion_condition: nil}, _, _, _, _),
+    do: false
 
   defp check_completion_condition(mi, collected, total, context, token_payload) do
     evaluate_break_expression(
       mi.completion_condition,
-      collected, total, context, token_payload
+      collected,
+      total,
+      context,
+      token_payload
     )
   end
 
-  defp check_loop_break_condition(%MultiInstance{loop_break_condition: nil}, _, _, _, _), do: false
+  defp check_loop_break_condition(%MultiInstance{loop_break_condition: nil}, _, _, _, _),
+    do: false
 
   defp check_loop_break_condition(mi, collected, total, context, token_payload) do
     evaluate_break_expression(
       mi.loop_break_condition,
-      collected, total, context, token_payload
+      collected,
+      total,
+      context,
+      token_payload
     )
   end
 

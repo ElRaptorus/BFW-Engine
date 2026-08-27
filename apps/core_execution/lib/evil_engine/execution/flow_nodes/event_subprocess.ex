@@ -175,8 +175,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         {:ok, start.id}
 
       _ ->
-        {:error,
-         %{reason: :invalid_event_subprocess, detail: "expected exactly one start event"}}
+        {:error, %{reason: :invalid_event_subprocess, detail: "expected exactly one start event"}}
     end
   end
 
@@ -875,9 +874,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
   """
   @spec resolve_compensation_esp_catch(State.t()) :: {:ok, trigger_action()} | :none
   def resolve_compensation_esp_catch(data) do
-    case EventSubprocessResolver.find_matching_compensation_start(
-           data.event_subprocess_triggers
-         ) do
+    case EventSubprocessResolver.find_matching_compensation_start(data.event_subprocess_triggers) do
       {:ok, trigger} ->
         {:ok, resolve_reactive_trigger(data, trigger, %{})}
 
@@ -902,8 +899,7 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         trigger.trigger_kind == :conditional and trigger.armed?
       end)
 
-    Enum.reduce(conditional_triggers, {data, []}, fn {node_id, trigger},
-                                                     {accumulator, actions} ->
+    Enum.reduce(conditional_triggers, {data, []}, fn {node_id, trigger}, {accumulator, actions} ->
       evaluate_single_conditional(accumulator, actions, node_id, trigger)
     end)
   end
@@ -1002,7 +998,8 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
         register_timer_trigger(base, timer_definition)
 
       %EventDefinition.Error{} = error_definition ->
-        {:ok, %{base | trigger_kind: :error, error_code: resolve_error_code(data, error_definition)}}
+        {:ok,
+         %{base | trigger_kind: :error, error_code: resolve_error_code(data, error_definition)}}
 
       %EventDefinition.Escalation{} = escalation_definition ->
         {:ok,
@@ -1090,7 +1087,12 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
           })
 
         {:ok,
-         %{base | trigger_kind: :signal, signal_name: signal_name, subscription_id: subscription_id}}
+         %{
+           base
+           | trigger_kind: :signal,
+             signal_name: signal_name,
+             subscription_id: subscription_id
+         }}
 
       :error ->
         :skip
@@ -1114,7 +1116,10 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
           Scheduler.schedule(%{
             fire_at: fire_at,
             target: self(),
-            metadata: %{kind: :event_subprocess_start, subprocess_node_id: base.subprocess_node_id}
+            metadata: %{
+              kind: :event_subprocess_start,
+              subprocess_node_id: base.subprocess_node_id
+            }
           })
 
         {:ok, %{base | trigger_kind: :timer, timer_spec: timer_definition, timer_ref: timer_ref}}
@@ -1168,7 +1173,10 @@ defmodule EvilEngine.Execution.FlowNodes.EventSubprocess do
             metadata: %{kind: :event_subprocess_start, subprocess_node_id: subprocess_node_id}
           })
 
-        put_in(data.event_subprocess_triggers[subprocess_node_id], %{trigger | timer_ref: timer_ref})
+        put_in(data.event_subprocess_triggers[subprocess_node_id], %{
+          trigger
+          | timer_ref: timer_ref
+        })
 
       _ ->
         data

@@ -76,7 +76,8 @@ defmodule EvilEngine.Execution.SequentialAdhocActivationTest do
                    identity: %Identity{id: "test-user", roles: ["admin"], groups: ["all"]}
                  })
 
-        assert_receive {:adhoc_activated, %Event.AdHocActivityActivated{activated_flow_node_id: "Task_C"}},
+        assert_receive {:adhoc_activated,
+                        %Event.AdHocActivityActivated{activated_flow_node_id: "Task_C"}},
                        2_000
 
         refute_receive {:adhoc_activated, _}, 200
@@ -112,7 +113,8 @@ defmodule EvilEngine.Execution.SequentialAdhocActivationTest do
 
     activated_ids =
       for _index <- 1..2 do
-        assert_receive {:adhoc_activated, %Event.AdHocActivityActivated{activated_flow_node_id: id}},
+        assert_receive {:adhoc_activated,
+                        %Event.AdHocActivityActivated{activated_flow_node_id: id}},
                        2_000
 
         id

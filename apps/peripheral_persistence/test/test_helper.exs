@@ -17,7 +17,8 @@ already_owner? =
     {:already, :owner} -> true
   end
 
-for table <- ~w(pending_messages pending_signals messages signals data_object_writes process_instance_events) do
+for table <-
+      ~w(pending_messages pending_signals messages signals data_object_writes process_instance_events) do
   EvilEngine.Persistence.Repo.query!("TRUNCATE #{table} CASCADE")
 end
 

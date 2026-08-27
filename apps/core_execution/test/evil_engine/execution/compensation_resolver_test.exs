@@ -24,12 +24,13 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
 
   describe "resolve/2 with activityRef (single target)" do
     test "returns the single matching entry when activityRef matches a registry entry" do
-      entry = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
       result = CompensationResolver.resolve([entry], compensation_event_definition("Task_A"))
 
@@ -38,12 +39,13 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
     end
 
     test "returns empty list when activityRef does not match any registry entry" do
-      entry = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
       result = CompensationResolver.resolve([entry], compensation_event_definition("Task_B"))
 
@@ -57,26 +59,29 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
     end
 
     test "ignores other entries when activityRef matches one" do
-      entry_a = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry_a =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
-      entry_b = build_registry_entry(
-        completed_fni_id: "fni_2",
-        flow_node_id: "Task_B",
-        handler_activity_id: "Comp_B",
-        completion_order: 1
-      )
+      entry_b =
+        build_registry_entry(
+          completed_fni_id: "fni_2",
+          flow_node_id: "Task_B",
+          handler_activity_id: "Comp_B",
+          completion_order: 1
+        )
 
-      entry_c = build_registry_entry(
-        completed_fni_id: "fni_3",
-        flow_node_id: "Task_C",
-        handler_activity_id: "Comp_C",
-        completion_order: 2
-      )
+      entry_c =
+        build_registry_entry(
+          completed_fni_id: "fni_3",
+          flow_node_id: "Task_C",
+          handler_activity_id: "Comp_C",
+          completion_order: 2
+        )
 
       result =
         CompensationResolver.resolve(
@@ -96,26 +101,29 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
 
   describe "resolve/2 broadcast (no activityRef)" do
     test "returns all entries in reverse completion order (LIFO)" do
-      entry_0 = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry_0 =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
-      entry_1 = build_registry_entry(
-        completed_fni_id: "fni_2",
-        flow_node_id: "Task_B",
-        handler_activity_id: "Comp_B",
-        completion_order: 1
-      )
+      entry_1 =
+        build_registry_entry(
+          completed_fni_id: "fni_2",
+          flow_node_id: "Task_B",
+          handler_activity_id: "Comp_B",
+          completion_order: 1
+        )
 
-      entry_2 = build_registry_entry(
-        completed_fni_id: "fni_3",
-        flow_node_id: "Task_C",
-        handler_activity_id: "Comp_C",
-        completion_order: 2
-      )
+      entry_2 =
+        build_registry_entry(
+          completed_fni_id: "fni_3",
+          flow_node_id: "Task_C",
+          handler_activity_id: "Comp_C",
+          completion_order: 2
+        )
 
       result =
         CompensationResolver.resolve(
@@ -134,12 +142,13 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
     end
 
     test "returns single entry when registry has one entry" do
-      entry = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
       result = CompensationResolver.resolve([entry], compensation_event_definition(nil))
 
@@ -150,13 +159,14 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
     test "preserves all entry fields in the output" do
       token = %{"orderId" => "ORD-123", "amount" => 42}
 
-      entry = build_registry_entry(
-        completed_fni_id: "fni_99",
-        flow_node_id: "Task_X",
-        handler_activity_id: "Comp_X",
-        token_snapshot: token,
-        completion_order: 7
-      )
+      entry =
+        build_registry_entry(
+          completed_fni_id: "fni_99",
+          flow_node_id: "Task_X",
+          handler_activity_id: "Comp_X",
+          token_snapshot: token,
+          completion_order: 7
+        )
 
       result = CompensationResolver.resolve([entry], compensation_event_definition(nil))
 
@@ -175,19 +185,21 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
 
   describe "resolve/2 edge cases" do
     test "treats empty-string activityRef as broadcast" do
-      entry_0 = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry_0 =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
-      entry_1 = build_registry_entry(
-        completed_fni_id: "fni_2",
-        flow_node_id: "Task_B",
-        handler_activity_id: "Comp_B",
-        completion_order: 1
-      )
+      entry_1 =
+        build_registry_entry(
+          completed_fni_id: "fni_2",
+          flow_node_id: "Task_B",
+          handler_activity_id: "Comp_B",
+          completion_order: 1
+        )
 
       result =
         CompensationResolver.resolve(
@@ -200,19 +212,21 @@ defmodule EvilEngine.Execution.CompensationResolverTest do
     end
 
     test "treats nil activityRef as broadcast" do
-      entry_0 = build_registry_entry(
-        completed_fni_id: "fni_1",
-        flow_node_id: "Task_A",
-        handler_activity_id: "Comp_A",
-        completion_order: 0
-      )
+      entry_0 =
+        build_registry_entry(
+          completed_fni_id: "fni_1",
+          flow_node_id: "Task_A",
+          handler_activity_id: "Comp_A",
+          completion_order: 0
+        )
 
-      entry_1 = build_registry_entry(
-        completed_fni_id: "fni_2",
-        flow_node_id: "Task_B",
-        handler_activity_id: "Comp_B",
-        completion_order: 1
-      )
+      entry_1 =
+        build_registry_entry(
+          completed_fni_id: "fni_2",
+          flow_node_id: "Task_B",
+          handler_activity_id: "Comp_B",
+          completion_order: 1
+        )
 
       result =
         CompensationResolver.resolve(

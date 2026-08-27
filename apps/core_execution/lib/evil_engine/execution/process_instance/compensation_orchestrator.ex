@@ -385,7 +385,12 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
          {:ok, task_pid} <-
            Task.Supervisor.start_child(data.task_supervisor, fn ->
              result =
-               BoundaryAwareHandler.wrap_enter(handler_module, handler_node, token, handler_context)
+               BoundaryAwareHandler.wrap_enter(
+                 handler_module,
+                 handler_node,
+                 token,
+                 handler_context
+               )
 
              dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
            end) do

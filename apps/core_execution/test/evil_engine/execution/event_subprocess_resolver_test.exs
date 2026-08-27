@@ -75,7 +75,10 @@ defmodule EvilEngine.Execution.EventSubprocessResolverTest do
   describe "find_matching_escalation_start/2" do
     test "specific escalation code beats catch-all" do
       triggers =
-        as_map([escalation_trigger("ESP_CatchAll", nil), escalation_trigger("ESP_Specific", "ES1")])
+        as_map([
+          escalation_trigger("ESP_CatchAll", nil),
+          escalation_trigger("ESP_Specific", "ES1")
+        ])
 
       assert {:ok, %EventSubprocessTrigger{subprocess_node_id: "ESP_Specific"}} =
                EventSubprocessResolver.find_matching_escalation_start(triggers, %{
@@ -85,7 +88,10 @@ defmodule EvilEngine.Execution.EventSubprocessResolverTest do
 
     test "catch-all matches when no specific code matches" do
       triggers =
-        as_map([escalation_trigger("ESP_CatchAll", nil), escalation_trigger("ESP_Specific", "ES1")])
+        as_map([
+          escalation_trigger("ESP_CatchAll", nil),
+          escalation_trigger("ESP_Specific", "ES1")
+        ])
 
       assert {:ok, %EventSubprocessTrigger{subprocess_node_id: "ESP_CatchAll"}} =
                EventSubprocessResolver.find_matching_escalation_start(triggers, %{

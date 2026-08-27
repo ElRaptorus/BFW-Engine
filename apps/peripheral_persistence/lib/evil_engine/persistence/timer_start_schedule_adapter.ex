@@ -128,10 +128,17 @@ defmodule EvilEngine.Persistence.TimerStartScheduleAdapter do
 
   defp fetch_schedule(id) do
     case Ash.get(TimerStartSchedule, id, authorize?: false) do
-      {:ok, record} -> {:ok, record}
-      {:error, %Ash.Error.Invalid{errors: [%Ash.Error.Query.NotFound{} | _]}} -> {:error, :not_found}
-      {:error, %Ash.Error.Query.NotFound{}} -> {:error, :not_found}
-      {:error, reason} -> {:error, reason}
+      {:ok, record} ->
+        {:ok, record}
+
+      {:error, %Ash.Error.Invalid{errors: [%Ash.Error.Query.NotFound{} | _]}} ->
+        {:error, :not_found}
+
+      {:error, %Ash.Error.Query.NotFound{}} ->
+        {:error, :not_found}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

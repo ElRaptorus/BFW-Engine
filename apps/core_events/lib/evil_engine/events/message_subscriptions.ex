@@ -110,6 +110,7 @@ defmodule EvilEngine.Events.MessageSubscriptions do
 
     key = {subscription.message_name, subscription.expected_correlation_value}
     :ets.insert(@table_name, {key, subscription})
+
     :ets.insert(
       @process_instance_index_table,
       {subscription.process_instance_id, key, subscription.subscription_id}

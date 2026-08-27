@@ -321,7 +321,9 @@ defmodule EvilEngine.Execution.EventSubprocessIntegrationTest do
 
       send(pid, {:fni_result, main_fni, {:error, :some_engine_failure}})
 
-      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}}, 3_000
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
+                     3_000
+
       refute_received {:sp_child_started, ^ref, %{subprocess_node_id: "ESP_Err"}}
       await_process_death(pid)
     end
@@ -366,7 +368,9 @@ defmodule EvilEngine.Execution.EventSubprocessIntegrationTest do
     end
 
     test "catch-all escalation ESP (no code) catches any thrown escalation", %{ref: ref} do
-      esp = typed_esp("ESP_EscAny", %EventDefinition.Escalation{escalation_code: nil}, false, :task)
+      esp =
+        typed_esp("ESP_EscAny", %EventDefinition.Escalation{escalation_code: nil}, false, :task)
+
       deploy(build_scope_escalation_throw([esp], "ESC_WHATEVER"))
       {pid, parent_id} = start_scope()
 

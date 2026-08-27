@@ -96,7 +96,11 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluatorTest do
     }
   end
 
-  defp should_fire?(arrived_flow_ids, flow_node_instance_states, process_model \\ make_process_model()) do
+  defp should_fire?(
+         arrived_flow_ids,
+         flow_node_instance_states,
+         process_model \\ make_process_model()
+       ) do
     InclusiveJoinEvaluator.should_fire?(
       @join_id,
       MapSet.new(arrived_flow_ids),
@@ -158,9 +162,7 @@ defmodule EvilEngine.Execution.InclusiveJoinEvaluatorTest do
         )
 
       process_model =
-        make_process_model(
-          inclusive_join_analyses: %{@join_id => three_flow_analysis}
-        )
+        make_process_model(inclusive_join_analyses: %{@join_id => three_flow_analysis})
 
       flow_node_instance_states = %{
         "fni-2" => make_flow_node_instance_state("Task_B", :active)

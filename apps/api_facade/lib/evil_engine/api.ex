@@ -1186,7 +1186,9 @@ defmodule EvilEngine.Api do
   `Execution.trigger_escalation/2`. Escalations carry no payload.
   """
   @spec trigger_escalation(String.t(), struct(), keyword()) ::
-          {:ok, map()} | {:error, :escalation_code_blank | :escalation_code_too_long} | forbidden_error()
+          {:ok, map()}
+          | {:error, :escalation_code_blank | :escalation_code_too_long}
+          | forbidden_error()
   def trigger_escalation(escalation_code, identity, opts \\ []) do
     with {:ok, normalized_code} <- validate_escalation_code(escalation_code),
          :ok <- Validation.check_claim(identity, "trigger_escalation", opts) do

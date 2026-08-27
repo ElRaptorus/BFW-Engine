@@ -335,8 +335,7 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       loop_maximum: parse_int_attr(attributes["loopMaximum"] || "")
     }
 
-    {:ok,
-     %{state | current_standard_loop: standard_loop, stack: [:standard_loop | state.stack]}}
+    {:ok, %{state | current_standard_loop: standard_loop, stack: [:standard_loop | state.stack]}}
   end
 
   defp handle_start("loopCondition", _attributes, state) do
@@ -611,22 +610,26 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp handle_start("inputDataItem", attributes, %{current_mi: %MultiInstance{}} = state) do
     name = attributes["name"]
-    mi = if name && name != "" && state.current_mi.element_variable == nil do
-      %MultiInstance{state.current_mi | element_variable: name}
-    else
-      state.current_mi
-    end
+
+    mi =
+      if name && name != "" && state.current_mi.element_variable == nil do
+        %MultiInstance{state.current_mi | element_variable: name}
+      else
+        state.current_mi
+      end
 
     {:ok, %{state | current_mi: mi}}
   end
 
   defp handle_start("outputDataItem", attributes, %{current_mi: %MultiInstance{}} = state) do
     name = attributes["name"]
-    mi = if name && name != "" && state.current_mi.output_element_variable == nil do
-      %MultiInstance{state.current_mi | output_element_variable: name}
-    else
-      state.current_mi
-    end
+
+    mi =
+      if name && name != "" && state.current_mi.output_element_variable == nil do
+        %MultiInstance{state.current_mi | output_element_variable: name}
+      else
+        state.current_mi
+      end
 
     {:ok, %{state | current_mi: mi}}
   end
@@ -838,10 +841,13 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: tl(state.stack)}}
   end
 
-  defp handle_end("completionCondition", %{
-         current_mi: nil,
-         current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
-       } = state) do
+  defp handle_end(
+         "completionCondition",
+         %{
+           current_mi: nil,
+           current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
+         } = state
+       ) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -854,14 +860,17 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: tl(state.stack)}}
   end
 
-  defp handle_end("completionCondition", %{
-         current_mi: nil,
-         current_node_data: nil,
-         subprocess_stack: [
-           %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
-           | rest_subprocess
-         ]
-       } = state) do
+  defp handle_end(
+         "completionCondition",
+         %{
+           current_mi: nil,
+           current_node_data: nil,
+           subprocess_stack: [
+             %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
+             | rest_subprocess
+           ]
+         } = state
+       ) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1161,11 +1170,14 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("resultContract", %{
-         stack: [:evil_result_contract | rest],
-         current_node_data: nil,
-         subprocess_stack: [saved | rest_subprocess]
-       } = state) do
+  defp handle_end(
+         "resultContract",
+         %{
+           stack: [:evil_result_contract | rest],
+           current_node_data: nil,
+           subprocess_stack: [saved | rest_subprocess]
+         } = state
+       ) do
     text = String.trim(state.text_buffer)
     schema = parse_json_text(text)
     data = apply_result_contract(saved.subprocess_data, schema)
@@ -1186,11 +1198,14 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("payloadContract", %{
-         stack: [:evil_payload_contract | rest],
-         current_node_data: nil,
-         subprocess_stack: [saved | rest_subprocess]
-       } = state) do
+  defp handle_end(
+         "payloadContract",
+         %{
+           stack: [:evil_payload_contract | rest],
+           current_node_data: nil,
+           subprocess_stack: [saved | rest_subprocess]
+         } = state
+       ) do
     text = String.trim(state.text_buffer)
     schema = parse_json_text(text)
     data = apply_payload_contract(saved.subprocess_data, schema)
@@ -1211,10 +1226,13 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("activeElements", %{
-         stack: [:evil_active_elements | rest],
-         current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
-       } = state) do
+  defp handle_end(
+         "activeElements",
+         %{
+           stack: [:evil_active_elements | rest],
+           current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
+         } = state
+       ) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1227,14 +1245,17 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("activeElements", %{
-         stack: [:evil_active_elements | rest],
-         current_node_data: nil,
-         subprocess_stack: [
-           %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
-           | rest_subprocess
-         ]
-       } = state) do
+  defp handle_end(
+         "activeElements",
+         %{
+           stack: [:evil_active_elements | rest],
+           current_node_data: nil,
+           subprocess_stack: [
+             %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
+             | rest_subprocess
+           ]
+         } = state
+       ) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1503,7 +1524,10 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("outputElementVariable", %{stack: [:evil_output_element_variable | rest]} = state) do
+  defp handle_end(
+         "outputElementVariable",
+         %{stack: [:evil_output_element_variable | rest]} = state
+       ) do
     text = String.trim(state.text_buffer)
 
     mi =
@@ -1680,7 +1704,10 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("inputMapping", %{current_node_data: nil, subprocess_stack: [saved | rest]} = state) do
+  defp handle_end(
+         "inputMapping",
+         %{current_node_data: nil, subprocess_stack: [saved | rest]} = state
+       ) do
     case state.current_extension do
       {:input_mapping, mapping} ->
         data = append_mapping(saved.subprocess_data, :in_mappings, mapping)
@@ -1708,7 +1735,10 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     end
   end
 
-  defp handle_end("outputMapping", %{current_node_data: nil, subprocess_stack: [saved | rest]} = state) do
+  defp handle_end(
+         "outputMapping",
+         %{current_node_data: nil, subprocess_stack: [saved | rest]} = state
+       ) do
     case state.current_extension do
       {:output_mapping, mapping} ->
         data = append_mapping(saved.subprocess_data, :out_mappings, mapping)
@@ -1904,7 +1934,12 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
               } = boundary_data
           } ->
             handler_id = Map.get(association_by_source, node.id)
-            updated = %FlowNodeData.BoundaryEvent{boundary_data | compensation_handler_id: handler_id}
+
+            updated = %FlowNodeData.BoundaryEvent{
+              boundary_data
+              | compensation_handler_id: handler_id
+            }
+
             %FlowNode{node | type_data: updated}
 
           _ ->
@@ -1955,7 +1990,11 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
 
   defp update_mi(other, _field, _text), do: other
 
-  defp update_standard_loop_field(%{current_standard_loop: %StandardLoop{} = sl} = state, field, value) do
+  defp update_standard_loop_field(
+         %{current_standard_loop: %StandardLoop{} = sl} = state,
+         field,
+         value
+       ) do
     %{state | current_standard_loop: Map.put(sl, field, value)}
   end
 
@@ -2047,7 +2086,9 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     end
   end
 
-  defp maybe_flush_subprocess_shell(%{subprocess_stack: [saved | rest], current_node: %FlowNode{id: id}} = state)
+  defp maybe_flush_subprocess_shell(
+         %{subprocess_stack: [saved | rest], current_node: %FlowNode{id: id}} = state
+       )
        when id == saved.subprocess_node.id do
     updated_saved =
       case state.current_node_data do

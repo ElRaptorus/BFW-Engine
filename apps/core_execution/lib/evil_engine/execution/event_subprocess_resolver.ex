@@ -30,7 +30,10 @@ defmodule EvilEngine.Execution.EventSubprocessResolver do
   catch-all (`error_code: nil`) trigger. Only `armed?` `:error` triggers are
   considered. Error ESP starts are always interrupting (validator-enforced).
   """
-  @spec find_matching_error_start(%{optional(String.t()) => EventSubprocessTrigger.t()}, error_info()) ::
+  @spec find_matching_error_start(
+          %{optional(String.t()) => EventSubprocessTrigger.t()},
+          error_info()
+        ) ::
           {:ok, EventSubprocessTrigger.t()} | :none
   def find_matching_error_start(triggers, error_info) do
     raised_code = Map.get(error_info, :error_code) || Map.get(error_info, "error_code")

@@ -55,7 +55,13 @@ defmodule EvilEngine.Execution.FlowNodesTest do
 
   defp make_complete_context(flow_node, target_id \\ "end1") do
     target_node = %FlowNode{id: target_id, type: :task, type_data: %FlowNodeData.Task{}}
-    sequence_flow = %SequenceFlow{id: "sf-#{flow_node.id}-#{target_id}", source_ref: flow_node.id, target_ref: target_id}
+
+    sequence_flow = %SequenceFlow{
+      id: "sf-#{flow_node.id}-#{target_id}",
+      source_ref: flow_node.id,
+      target_ref: target_id
+    }
+
     flow_node_with_outgoing = %{flow_node | outgoing: [sequence_flow.id]}
 
     process_model = %BpmnProcess{

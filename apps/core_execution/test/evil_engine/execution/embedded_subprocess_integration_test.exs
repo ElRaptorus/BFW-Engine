@@ -84,12 +84,10 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
 
       assert is_binary(child_id)
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :finished}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       await_process_death(pid)
@@ -108,8 +106,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: payload
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       await_process_death(pid)
@@ -134,8 +131,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{"order_id" => "ORD-99", "extra" => "data"}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      5_000
 
       await_process_death(pid)
@@ -160,8 +156,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{"result_value" => "success"}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      5_000
 
       await_process_death(pid)
@@ -187,8 +182,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{"order_id" => "ORD-42"}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      5_000
 
       await_process_death(pid)
@@ -213,8 +207,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{"key" => "value"}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      5_000
 
       await_process_death(pid)
@@ -257,8 +250,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      5_000
 
       await_process_death(pid)
@@ -298,8 +290,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      3_000
 
       await_process_death(pid)
@@ -319,8 +310,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      3_000
 
       await_process_death(pid)
@@ -340,8 +330,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      3_000
 
       await_process_death(pid)
@@ -361,8 +350,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      3_000
 
       await_process_death(pid)
@@ -392,8 +380,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{"wrong_field" => "value"}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      3_000
 
       await_process_death(pid)
@@ -419,8 +406,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{"no_match" => "string_not_integer"}
                )
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      3_000
 
       await_process_death(pid)
@@ -444,16 +430,13 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:sp_child_started, ^ref,
-                      %{child_process_instance_id: child_id}},
+      assert_receive {:sp_child_started, ^ref, %{child_process_instance_id: child_id}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :fatal}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :fatal}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :fatal}},
                      5_000
 
       await_process_death(pid)
@@ -473,16 +456,13 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:sp_child_started, ^ref,
-                      %{child_process_instance_id: child_id}},
+      assert_receive {:sp_child_started, ^ref, %{child_process_instance_id: child_id}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :error}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :error}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      5_000
 
       await_process_death(pid)
@@ -503,16 +483,13 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:sp_child_started, ^ref,
-                      %{child_process_instance_id: child_id}},
+      assert_receive {:sp_child_started, ^ref, %{child_process_instance_id: child_id}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :error}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :error}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :error}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :error}},
                      5_000
 
       await_process_death(pid)
@@ -543,8 +520,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
       assert metadata.subprocess_node_id == "SubProcess_1"
       assert is_binary(metadata.subprocess_flow_node_instance_id)
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       await_process_death(pid)
@@ -602,12 +578,10 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                       }},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :finished}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       await_process_death(pid)
@@ -638,12 +612,10 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                       }},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :finished}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       refute_received {:pi_state, ^ref, %{new_state: :fatal}}
@@ -691,8 +663,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                       %{process_instance_id: ^outer_child_id, new_state: :finished}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       await_process_death(pid)
@@ -727,12 +698,10 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
 
       assert :ok = ProcessInstance.abort(parent_pid, "test_abort", @test_identity)
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :aborted}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :aborted}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :aborted}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :aborted}},
                      3_000
 
       await_process_death(parent_pid)
@@ -758,8 +727,7 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
 
       refute_received {:sp_child_started, ^ref, _}
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       refute_received {:pi_state, ^ref, %{new_state: :fatal}}
@@ -785,16 +753,13 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
                  payload: %{}
                )
 
-      assert_receive {:sp_child_started, ^ref,
-                      %{child_process_instance_id: child_id}},
+      assert_receive {:sp_child_started, ^ref, %{child_process_instance_id: child_id}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^child_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^child_id, new_state: :finished}},
                      3_000
 
-      assert_receive {:pi_state, ^ref,
-                      %{process_instance_id: ^parent_id, new_state: :finished}},
+      assert_receive {:pi_state, ^ref, %{process_instance_id: ^parent_id, new_state: :finished}},
                      3_000
 
       refute_received {:pi_state, ^ref, %{new_state: :fatal}}
@@ -1267,7 +1232,11 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
     wrap_parent_process(type_data,
       data_objects: [%DataObject{id: "DO_Parent", name: "ParentData"}],
       data_object_references: [
-        %DataObjectReference{id: "DOR_Parent", name: "ParentDataRef", data_object_ref: "DO_Parent"}
+        %DataObjectReference{
+          id: "DOR_Parent",
+          name: "ParentDataRef",
+          data_object_ref: "DO_Parent"
+        }
       ]
     )
   end
@@ -1349,7 +1318,11 @@ defmodule EvilEngine.Execution.EmbeddedSubprocessIntegrationTest do
         }
       ],
       sequence_flows: [
-        %SequenceFlow{id: "Outer_Flow_1", source_ref: "Outer_Start", target_ref: "InnerSubProcess"},
+        %SequenceFlow{
+          id: "Outer_Flow_1",
+          source_ref: "Outer_Start",
+          target_ref: "InnerSubProcess"
+        },
         %SequenceFlow{id: "Outer_Flow_2", source_ref: "InnerSubProcess", target_ref: "Outer_End"}
       ]
     }

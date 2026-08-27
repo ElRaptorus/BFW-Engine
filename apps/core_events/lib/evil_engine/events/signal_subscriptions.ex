@@ -253,7 +253,9 @@ defmodule EvilEngine.Events.SignalSubscriptions do
   defp delete_matching_subscription(signal_name, subscription_id) do
     @table_name
     |> :ets.lookup(signal_name)
-    |> Enum.filter(fn {_name, subscription} -> subscription.subscription_id == subscription_id end)
+    |> Enum.filter(fn {_name, subscription} ->
+      subscription.subscription_id == subscription_id
+    end)
     |> Enum.each(fn {lookup_name, subscription} ->
       :ets.delete_object(@table_name, {lookup_name, subscription})
     end)

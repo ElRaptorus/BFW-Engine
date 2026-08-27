@@ -257,7 +257,10 @@ defmodule EvilEngine.Execution.EscalationResolverTest do
 
     test "ignores non-interrupting boundaries" do
       escalation_def = %EscalationDefinition{id: "Esc_A", escalation_code: "ESC_A"}
-      non_interrupting = escalation_boundary("BE_non", escalation_ref: "Esc_A", cancel_activity: false)
+
+      non_interrupting =
+        escalation_boundary("BE_non", escalation_ref: "Esc_A", cancel_activity: false)
+
       {host, model} = build_host_and_model([non_interrupting])
       definitions = build_definitions([escalation_def])
 

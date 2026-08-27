@@ -57,14 +57,27 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
 
   describe "split — both conditions truthy (fork)" do
     test "activates all truthy paths" do
-      sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg1", target_ref: "taskA", condition_expression: "token.amount > 10"}
-      sf_b = %SequenceFlow{id: "sf-b", source_ref: "cg1", target_ref: "taskB", condition_expression: "token.amount > 5"}
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "cg1",
+        target_ref: "taskA",
+        condition_expression: "token.amount > 10"
+      }
+
+      sf_b = %SequenceFlow{
+        id: "sf-b",
+        source_ref: "cg1",
+        target_ref: "taskB",
+        condition_expression: "token.amount > 5"
+      }
 
       gateway = make_gateway("cg1", outgoing: ["sf-a", "sf-b"])
       context = make_context(gateway, [sf_a, sf_b], [make_target("taskA"), make_target("taskB")])
       token = make_token(%{"amount" => 50})
 
-      assert {:ok, %FlowNodeResult{} = result} = ComplexGateway.handle_enter(gateway, token, context)
+      assert {:ok, %FlowNodeResult{} = result} =
+               ComplexGateway.handle_enter(gateway, token, context)
+
       assert Enum.sort(result.next_flow_node_ids) == ["taskA", "taskB"]
       assert result.output_payload == token.payload
     end
@@ -72,35 +85,72 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
 
   describe "split — one of two conditions truthy" do
     test "activates only the truthy path" do
-      sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg1", target_ref: "taskA", condition_expression: "token.amount > 100"}
-      sf_b = %SequenceFlow{id: "sf-b", source_ref: "cg1", target_ref: "taskB", condition_expression: "token.amount > 5"}
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "cg1",
+        target_ref: "taskA",
+        condition_expression: "token.amount > 100"
+      }
+
+      sf_b = %SequenceFlow{
+        id: "sf-b",
+        source_ref: "cg1",
+        target_ref: "taskB",
+        condition_expression: "token.amount > 5"
+      }
 
       gateway = make_gateway("cg1", outgoing: ["sf-a", "sf-b"])
       context = make_context(gateway, [sf_a, sf_b], [make_target("taskA"), make_target("taskB")])
       token = make_token(%{"amount" => 50})
 
-      assert {:ok, %FlowNodeResult{} = result} = ComplexGateway.handle_enter(gateway, token, context)
+      assert {:ok, %FlowNodeResult{} = result} =
+               ComplexGateway.handle_enter(gateway, token, context)
+
       assert result.next_flow_node_ids == ["taskB"]
     end
   end
 
   describe "split — default flow fallback" do
     test "falls back to default when no conditions are truthy" do
-      sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg1", target_ref: "taskA", condition_expression: "token.amount > 1000"}
-      sf_default = %SequenceFlow{id: "sf-default", source_ref: "cg1", target_ref: "taskDefault", is_default: true}
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "cg1",
+        target_ref: "taskA",
+        condition_expression: "token.amount > 1000"
+      }
+
+      sf_default = %SequenceFlow{
+        id: "sf-default",
+        source_ref: "cg1",
+        target_ref: "taskDefault",
+        is_default: true
+      }
 
       gateway = make_gateway("cg1", outgoing: ["sf-a", "sf-default"])
-      context = make_context(gateway, [sf_a, sf_default], [make_target("taskA"), make_target("taskDefault")])
+
+      context =
+        make_context(gateway, [sf_a, sf_default], [
+          make_target("taskA"),
+          make_target("taskDefault")
+        ])
+
       token = make_token(%{"amount" => 5})
 
-      assert {:ok, %FlowNodeResult{} = result} = ComplexGateway.handle_enter(gateway, token, context)
+      assert {:ok, %FlowNodeResult{} = result} =
+               ComplexGateway.handle_enter(gateway, token, context)
+
       assert result.next_flow_node_ids == ["taskDefault"]
     end
   end
 
   describe "split — no matching condition, no default (fatal)" do
     test "returns complex_split_no_matching_condition error" do
-      sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg1", target_ref: "taskA", condition_expression: "token.amount > 1000"}
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "cg1",
+        target_ref: "taskA",
+        condition_expression: "token.amount > 1000"
+      }
 
       gateway = make_gateway("cg1", outgoing: ["sf-a"])
       context = make_context(gateway, [sf_a], [make_target("taskA")])
@@ -113,7 +163,13 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
 
   describe "split — unconditional non-default flows are a runtime fatal" do
     test "an unconditional non-default flow fatals even when a sibling condition is truthy" do
-      sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg1", target_ref: "taskA", condition_expression: "token.x = true"}
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "cg1",
+        target_ref: "taskA",
+        condition_expression: "token.x = true"
+      }
+
       sf_b = %SequenceFlow{id: "sf-b", source_ref: "cg1", target_ref: "taskB"}
 
       gateway = make_gateway("cg1", outgoing: ["sf-a", "sf-b"])
@@ -130,7 +186,12 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
 
   describe "split — expression evaluation failure" do
     test "returns complex_split_condition_failed on FEEL syntax error" do
-      sf_a = %SequenceFlow{id: "sf-broken", source_ref: "cg1", target_ref: "taskA", condition_expression: "this is not valid FEEL @@!!"}
+      sf_a = %SequenceFlow{
+        id: "sf-broken",
+        source_ref: "cg1",
+        target_ref: "taskA",
+        condition_expression: "this is not valid FEEL @@!!"
+      }
 
       gateway = make_gateway("cg1", outgoing: ["sf-broken"])
       context = make_context(gateway, [sf_a], [make_target("taskA")])
@@ -167,8 +228,19 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
 
   describe "mixed gateway rejection" do
     test "returns mixed_gateway error when gateway has >1 incoming AND >1 outgoing" do
-      sf_a = %SequenceFlow{id: "sf-a", source_ref: "cg-mixed", target_ref: "taskA", condition_expression: "true"}
-      sf_b = %SequenceFlow{id: "sf-b", source_ref: "cg-mixed", target_ref: "taskB", condition_expression: "false"}
+      sf_a = %SequenceFlow{
+        id: "sf-a",
+        source_ref: "cg-mixed",
+        target_ref: "taskA",
+        condition_expression: "true"
+      }
+
+      sf_b = %SequenceFlow{
+        id: "sf-b",
+        source_ref: "cg-mixed",
+        target_ref: "taskB",
+        condition_expression: "false"
+      }
 
       gateway =
         make_gateway("cg-mixed",
@@ -179,7 +251,9 @@ defmodule EvilEngine.Execution.FlowNodes.ComplexGatewayTest do
       context = make_context(gateway, [sf_a, sf_b], [make_target("taskA"), make_target("taskB")])
       token = make_token()
 
-      assert {:error, {:mixed_gateway, detail}} = ComplexGateway.handle_enter(gateway, token, context)
+      assert {:error, {:mixed_gateway, detail}} =
+               ComplexGateway.handle_enter(gateway, token, context)
+
       assert detail.incoming_count == 2
       assert detail.outgoing_count == 2
     end

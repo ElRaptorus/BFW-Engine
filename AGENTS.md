@@ -428,11 +428,11 @@ the process-level `evil:correlationKey` instead.
 
 ```xml
 <bpmn:intermediateThrowEvent id="Throw_payment" name="Notify Payment">
-  <bpmn:messageEventDefinition messageRef="Msg_payment">
-    <bpmn:extensionElements>
+<bpmn:messageEventDefinition messageRef="Msg_payment">
+  <bpmn:extensionElements>
       <evil:correlationRetrievalExpression>token.orderId</evil:correlationRetrievalExpression>
-    </bpmn:extensionElements>
-  </bpmn:messageEventDefinition>
+  </bpmn:extensionElements>
+</bpmn:messageEventDefinition>
   <bpmn:incoming>Flow_In</bpmn:incoming>
   <bpmn:outgoing>Flow_Out</bpmn:outgoing>
 </bpmn:intermediateThrowEvent>

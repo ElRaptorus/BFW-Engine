@@ -44,7 +44,9 @@ defmodule EvilEngine.Execution.FlowNodes.EscalationEndEvent do
   def handle_enter(flow_node, token, context) do
     event_def = flow_node.type_data.event_definition
     escalation_info = EscalationResolver.resolve_escalation_info(event_def, context.definitions)
-    escalation_info = Map.put(escalation_info, :triggerer_flow_node_instance_id, context.flow_node_instance_id)
+
+    escalation_info =
+      Map.put(escalation_info, :triggerer_flow_node_instance_id, context.flow_node_instance_id)
 
     output_payload = token.payload
 

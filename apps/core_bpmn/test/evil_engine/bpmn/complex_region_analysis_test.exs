@@ -113,6 +113,7 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysisTest do
       enriched = ComplexRegionAnalysis.enrich_process(process)
 
       assert enriched.complex_region_analyses == ComplexRegionAnalysis.analyze(process)
+
       assert enriched.complex_region_analyses["ComplexJoin"].region_node_ids ==
                MapSet.new(["TaskA", "TaskB"])
     end
@@ -198,7 +199,10 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysisTest do
       process = build_process(flow_nodes, sequence_flows)
       violations = ComplexRegionAnalysis.region_violations(process)
 
-      assert Enum.any?(violations, fn {code, _message} -> code == :complex_region_cross_boundary end)
+      assert Enum.any?(violations, fn {code, _message} ->
+               code == :complex_region_cross_boundary
+             end)
+
       refute Map.has_key?(ComplexRegionAnalysis.analyze(process), "ComplexJoin")
     end
   end

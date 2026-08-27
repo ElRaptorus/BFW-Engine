@@ -64,7 +64,11 @@ defmodule EvilEngine.Events.EventSubprocessSubscriptionTest do
       register_message(:event_subprocess_start, "order", "ESP_Start_1")
 
       {:ok, result} =
-        MessagePublisher.publish_message(%{name: "order", payload: %{amount: 5}, skip_pending: true})
+        MessagePublisher.publish_message(%{
+          name: "order",
+          payload: %{amount: 5},
+          skip_pending: true
+        })
 
       assert_receive {:event_subprocess_message, "ESP_Start_1", %{amount: 5}}
       # Counts as a delivery → suppresses a standalone message start (tier 3).

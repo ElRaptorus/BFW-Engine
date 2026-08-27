@@ -152,8 +152,7 @@ defmodule EvilEngine.Api.ValidationTest do
     test "returns forbidden when claim does not match required value" do
       caller_identity = identity(%{"trigger_message" => "none"})
 
-      assert {:error, :forbidden,
-              %{required_claim: "trigger_message", required_value: "all"}} =
+      assert {:error, :forbidden, %{required_claim: "trigger_message", required_value: "all"}} =
                Validation.check_required_claim(caller_identity, "trigger_message", "all", [])
     end
 
@@ -238,16 +237,14 @@ defmodule EvilEngine.Api.ValidationTest do
     test "returns forbidden when identity has read claim" do
       caller_identity = identity(%{"lane:finance" => "read"})
 
-      assert {:error, :forbidden,
-              %{required_claim: "lane:finance", required_value: "write"}} =
+      assert {:error, :forbidden, %{required_claim: "lane:finance", required_value: "write"}} =
                Validation.check_lane_access(record_with_lane("finance"), caller_identity, [])
     end
 
     test "returns forbidden when identity has observe_all" do
       caller_identity = identity(%{"observe_all" => true})
 
-      assert {:error, :forbidden,
-              %{required_claim: "lane:finance", required_value: "write"}} =
+      assert {:error, :forbidden, %{required_claim: "lane:finance", required_value: "write"}} =
                Validation.check_lane_access(record_with_lane("finance"), caller_identity, [])
     end
 

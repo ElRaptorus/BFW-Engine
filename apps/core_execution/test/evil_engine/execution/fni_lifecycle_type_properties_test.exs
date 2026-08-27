@@ -194,7 +194,8 @@ defmodule EvilEngine.Execution.FniLifecycleTypePropertiesTest do
         "async" => true
       }
 
-      :ok = FniLifecycle.transition_to_interrupted(@fni_id, @pi_id, "host_completed", nil, existing)
+      :ok =
+        FniLifecycle.transition_to_interrupted(@fni_id, @pi_id, "host_completed", nil, existing)
 
       assert_receive {:fni_update, changes}
       type_properties = changes.type_properties

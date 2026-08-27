@@ -3473,7 +3473,17 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
 
     wrap_process(
       process_id,
-      [start, outer_fork, inner_fork, task_a1, task_a2, inner_join, task_b, outer_join, end_event],
+      [
+        start,
+        outer_fork,
+        inner_fork,
+        task_a1,
+        task_a2,
+        inner_join,
+        task_b,
+        outer_join,
+        end_event
+      ],
       flows
     )
   end

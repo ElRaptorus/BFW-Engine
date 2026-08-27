@@ -477,7 +477,13 @@ defmodule EvilEngine.BPMN.ModelCache do
         inner_flow_node_ids =
           Enum.map(subprocess_node.type_data.flow_nodes, & &1.id)
 
-        [%Lane{id: "inherited_lane__#{subprocess_node.id}", name: lane_name, flow_node_refs: inner_flow_node_ids}]
+        [
+          %Lane{
+            id: "inherited_lane__#{subprocess_node.id}",
+            name: lane_name,
+            flow_node_refs: inner_flow_node_ids
+          }
+        ]
     end
   end
 end

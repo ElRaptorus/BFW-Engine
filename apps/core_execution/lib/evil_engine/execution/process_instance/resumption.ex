@@ -235,7 +235,9 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
 
   defp put_complex_join_fields(routing, _gateway_type, _data, _flow_node_id, _rows), do: routing
 
-  defp complex_activation_condition(%{type_data: %{activation_condition: condition}}), do: condition
+  defp complex_activation_condition(%{type_data: %{activation_condition: condition}}),
+    do: condition
+
   defp complex_activation_condition(_flow_node), do: nil
 
   defp ensure_active_join_gateways_routed(data, join_routing) do
@@ -303,14 +305,28 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     end)
   end
 
-  defp reactivate_single_fni(data, flow_node_instance_id, %{state: :active} = entry, process_instance_pid, join_fni_ids, grouped_arrivals) do
+  defp reactivate_single_fni(
+         data,
+         flow_node_instance_id,
+         %{state: :active} = entry,
+         process_instance_pid,
+         join_fni_ids,
+         grouped_arrivals
+       ) do
     cond do
       mi_shell_fni?(data, flow_node_instance_id) ->
         reactivate_mi_shell_fni(data, flow_node_instance_id, entry, process_instance_pid)
 
       MapSet.member?(join_fni_ids, flow_node_instance_id) ->
         persisted_arrivals = Map.get(grouped_arrivals, flow_node_instance_id, [])
-        reactivate_join_gateway_fni(data, flow_node_instance_id, entry, process_instance_pid, persisted_arrivals)
+
+        reactivate_join_gateway_fni(
+          data,
+          flow_node_instance_id,
+          entry,
+          process_instance_pid,
+          persisted_arrivals
+        )
 
       has_existing_child?(entry) ->
         reactivate_child_spawner_fni(data, flow_node_instance_id, entry, process_instance_pid)
@@ -320,21 +336,42 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     end
   end
 
-  defp reactivate_single_fni(data, flow_node_instance_id, %{state: :waiting} = entry, process_instance_pid, join_fni_ids, grouped_arrivals) do
+  defp reactivate_single_fni(
+         data,
+         flow_node_instance_id,
+         %{state: :waiting} = entry,
+         process_instance_pid,
+         join_fni_ids,
+         grouped_arrivals
+       ) do
     cond do
       mi_shell_fni?(data, flow_node_instance_id) ->
         reactivate_mi_shell_fni(data, flow_node_instance_id, entry, process_instance_pid)
 
       MapSet.member?(join_fni_ids, flow_node_instance_id) ->
         persisted_arrivals = Map.get(grouped_arrivals, flow_node_instance_id, [])
-        reactivate_join_gateway_fni(data, flow_node_instance_id, entry, process_instance_pid, persisted_arrivals)
+
+        reactivate_join_gateway_fni(
+          data,
+          flow_node_instance_id,
+          entry,
+          process_instance_pid,
+          persisted_arrivals
+        )
 
       true ->
         reactivate_waiting_fni(data, flow_node_instance_id, entry, process_instance_pid)
     end
   end
 
-  defp reactivate_single_fni(data, _flow_node_instance_id, _entry, _process_instance_pid, _join_fni_ids, _grouped_arrivals) do
+  defp reactivate_single_fni(
+         data,
+         _flow_node_instance_id,
+         _entry,
+         _process_instance_pid,
+         _join_fni_ids,
+         _grouped_arrivals
+       ) do
     data
   end
 
@@ -381,15 +418,26 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     end
   end
 
-  defp reactivate_iteration_fni(data, flow_node_instance_id, %{state: :waiting} = entry, process_instance_pid) do
+  defp reactivate_iteration_fni(
+         data,
+         flow_node_instance_id,
+         %{state: :waiting} = entry,
+         process_instance_pid
+       ) do
     reactivate_waiting_fni(data, flow_node_instance_id, entry, process_instance_pid)
   end
 
-  defp reactivate_iteration_fni(data, flow_node_instance_id, %{state: :active} = entry, process_instance_pid) do
+  defp reactivate_iteration_fni(
+         data,
+         flow_node_instance_id,
+         %{state: :active} = entry,
+         process_instance_pid
+       ) do
     reactivate_active_iteration_fni(data, flow_node_instance_id, entry, process_instance_pid)
   end
 
-  defp reactivate_iteration_fni(data, _flow_node_instance_id, _entry, _process_instance_pid), do: data
+  defp reactivate_iteration_fni(data, _flow_node_instance_id, _entry, _process_instance_pid),
+    do: data
 
   defp reactivate_active_iteration_fni(data, flow_node_instance_id, entry, process_instance_pid) do
     flow_node = find_flow_node(data, entry.flow_node_id)
@@ -431,7 +479,13 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     end
   end
 
-  defp reactivate_join_gateway_fni(data, flow_node_instance_id, entry, process_instance_pid, persisted_arrivals) do
+  defp reactivate_join_gateway_fni(
+         data,
+         flow_node_instance_id,
+         entry,
+         process_instance_pid,
+         persisted_arrivals
+       ) do
     flow_node = find_flow_node(data, entry.flow_node_id)
 
     if flow_node == nil do
@@ -456,7 +510,9 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
         flow_node_instance_id,
         entry,
         process_instance_pid,
-        fn -> handler_module.handle_resume(flow_node, entry, handler_context, persisted_arrivals) end,
+        fn ->
+          handler_module.handle_resume(flow_node, entry, handler_context, persisted_arrivals)
+        end,
         "join gateway"
       )
     end
@@ -480,10 +536,20 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
 
     case entry.flow_node_type do
       :call_activity ->
-        reactivate_call_activity_fni(data, flow_node_instance_id, waiting_entry, process_instance_pid)
+        reactivate_call_activity_fni(
+          data,
+          flow_node_instance_id,
+          waiting_entry,
+          process_instance_pid
+        )
 
       :sub_process ->
-        reactivate_sub_process_fni(data, flow_node_instance_id, waiting_entry, process_instance_pid)
+        reactivate_sub_process_fni(
+          data,
+          flow_node_instance_id,
+          waiting_entry,
+          process_instance_pid
+        )
     end
   end
 
@@ -641,7 +707,12 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
         reactivate_signal_boundary_fni(data, flow_node_instance_id, entry, process_instance_pid)
 
       "conditional" ->
-        reactivate_conditional_boundary_fni(data, flow_node_instance_id, entry, process_instance_pid)
+        reactivate_conditional_boundary_fni(
+          data,
+          flow_node_instance_id,
+          entry,
+          process_instance_pid
+        )
 
       _ ->
         reactivate_async_fni(data, flow_node_instance_id, entry)
@@ -786,12 +857,19 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       flow_node_instance_id,
       entry,
       process_instance_pid,
-      fn -> FlowNodes.ConditionalCatchEvent.handle_resume(flow_node, entry.token, handler_context) end,
+      fn ->
+        FlowNodes.ConditionalCatchEvent.handle_resume(flow_node, entry.token, handler_context)
+      end,
       "conditional catch"
     )
   end
 
-  defp reactivate_conditional_boundary_fni(data, flow_node_instance_id, entry, process_instance_pid) do
+  defp reactivate_conditional_boundary_fni(
+         data,
+         flow_node_instance_id,
+         entry,
+         process_instance_pid
+       ) do
     flow_node = find_flow_node(data, entry.flow_node_id)
 
     handler_context =
@@ -807,7 +885,13 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       flow_node_instance_id,
       entry,
       process_instance_pid,
-      fn -> FlowNodes.ConditionalBoundaryEvent.handle_resume(flow_node, entry.type_properties, handler_context) end,
+      fn ->
+        FlowNodes.ConditionalBoundaryEvent.handle_resume(
+          flow_node,
+          entry.type_properties,
+          handler_context
+        )
+      end,
       "conditional boundary"
     )
   end
@@ -839,7 +923,8 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
       EngineEventBus.publish(%Event.PluginAsyncFlowNodeRehydrated{
         flow_node_instance_id: flow_node_instance_id,
         process_instance_id: data.process_instance_id,
-        lane_name: resolve_lane_name(data.process_model, find_flow_node(data, entry.flow_node_id)),
+        lane_name:
+          resolve_lane_name(data.process_model, find_flow_node(data, entry.flow_node_id)),
         occurred_at: DateTime.utc_now()
       })
     end
@@ -1019,7 +1104,15 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     case persist_boundary_fni(data, boundary_fni_id, boundary_node, token, lane_name, host_fni_id) do
       {:ok, _} ->
         emit_boundary_fni_started(data, boundary_fni_id, boundary_node, lane_name)
-        start_boundary_handler(data, boundary_fni_id, boundary_node, token, host_fni_id, process_instance_pid)
+
+        start_boundary_handler(
+          data,
+          boundary_fni_id,
+          boundary_node,
+          token,
+          host_fni_id,
+          process_instance_pid
+        )
 
       {:error, _reason} ->
         Logger.error(
@@ -1076,8 +1169,13 @@ defmodule EvilEngine.Execution.ProcessInstance.Resumption do
     case HandlerDispatch.handler_for(boundary_node) do
       {:ok, handler_module} ->
         spawn_boundary_handler_task(
-          data, boundary_fni_id, boundary_node, token, host_fni_id,
-          handler_module, process_instance_pid
+          data,
+          boundary_fni_id,
+          boundary_node,
+          token,
+          host_fni_id,
+          handler_module,
+          process_instance_pid
         )
 
       {:error, reason} ->

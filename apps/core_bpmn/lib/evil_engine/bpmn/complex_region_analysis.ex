@@ -135,7 +135,15 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysis do
     join_pairings =
       Enum.map(joins, fn join_id ->
         join_node = Enum.find(process.flow_nodes, &(&1.id == join_id))
-        build_join_pairing(join_node, process, complex_splits, dominators, incoming_index, outgoing_index)
+
+        build_join_pairing(
+          join_node,
+          process,
+          complex_splits,
+          dominators,
+          incoming_index,
+          outgoing_index
+        )
       end)
 
     overlap_violations = overlap_violations(join_pairings)
@@ -143,7 +151,14 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysis do
     attach_overlap_violations(join_pairings, overlap_violations)
   end
 
-  defp build_join_pairing(join_node, process, complex_splits, dominators, incoming_index, outgoing_index) do
+  defp build_join_pairing(
+         join_node,
+         process,
+         complex_splits,
+         dominators,
+         incoming_index,
+         outgoing_index
+       ) do
     join_id = join_node.id
     split_id = nearest_dominating_split(join_id, complex_splits, dominators)
 
@@ -174,7 +189,8 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysis do
       %{
         base
         | region: region,
-          upstream_reachability: upstream_reachability(base.incoming_flow_ids, join_id, process, incoming_index),
+          upstream_reachability:
+            upstream_reachability(base.incoming_flow_ids, join_id, process, incoming_index),
           violations: boundary_violations
       }
     end
@@ -259,7 +275,10 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysis do
     |> MapSet.delete(join_id)
     |> MapSet.to_list()
     |> Enum.filter(&MapSet.member?(complex_splits, &1))
-    |> Enum.max_by(fn split_id -> MapSet.size(Map.get(dominators, split_id, MapSet.new())) end, fn -> nil end)
+    |> Enum.max_by(
+      fn split_id -> MapSet.size(Map.get(dominators, split_id, MapSet.new())) end,
+      fn -> nil end
+    )
   end
 
   # ---------------------------------------------------------------------------
@@ -334,12 +353,26 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysis do
 
     sequence_flows
     |> Enum.flat_map(fn flow ->
-      edge_boundary_violations(flow, split_id, join_id, region, region_with_entry, region_with_exit)
+      edge_boundary_violations(
+        flow,
+        split_id,
+        join_id,
+        region,
+        region_with_entry,
+        region_with_exit
+      )
     end)
     |> Enum.uniq()
   end
 
-  defp edge_boundary_violations(flow, split_id, join_id, region, region_with_entry, region_with_exit) do
+  defp edge_boundary_violations(
+         flow,
+         split_id,
+         join_id,
+         region,
+         region_with_entry,
+         region_with_exit
+       ) do
     source = flow.source_ref
     target = flow.target_ref
 
@@ -469,13 +502,15 @@ defmodule EvilEngine.BPMN.ComplexRegionAnalysis do
 
   defp complex_gateway_role?(_node, _process, _direction), do: false
 
-  defp incoming_count(%FlowNode{incoming: ids}, _process) when is_list(ids) and ids != [], do: length(ids)
+  defp incoming_count(%FlowNode{incoming: ids}, _process) when is_list(ids) and ids != [],
+    do: length(ids)
 
   defp incoming_count(%FlowNode{id: node_id}, process) do
     Enum.count(process.sequence_flows, &(&1.target_ref == node_id))
   end
 
-  defp outgoing_count(%FlowNode{outgoing: ids}, _process) when is_list(ids) and ids != [], do: length(ids)
+  defp outgoing_count(%FlowNode{outgoing: ids}, _process) when is_list(ids) and ids != [],
+    do: length(ids)
 
   defp outgoing_count(%FlowNode{id: node_id}, process) do
     Enum.count(process.sequence_flows, &(&1.source_ref == node_id))

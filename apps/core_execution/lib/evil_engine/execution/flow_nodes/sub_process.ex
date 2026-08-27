@@ -318,7 +318,8 @@ defmodule EvilEngine.Execution.FlowNodes.SubProcess do
     with :ok <- guard_event_subprocess(type_data),
          {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),
-         {:ok, input_payload} <- ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),
+         {:ok, input_payload} <-
+           ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),
          :ok <- ChildLifecycle.validate_contract(type_data.payload_contract, input_payload) do
       result =
         start_and_monitor_child(

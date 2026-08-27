@@ -136,5 +136,4 @@ defmodule EvilEngine.Execution.MultiInstanceSubprocessIntegrationTest do
       refute_receive {:pi_state_change, ^process_instance_reference, :fatal, _metadata}, 1_000
     end
   end
-
 end

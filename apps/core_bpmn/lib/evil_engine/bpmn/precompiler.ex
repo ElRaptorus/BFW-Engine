@@ -77,9 +77,7 @@ defmodule EvilEngine.BPMN.Precompiler do
 
   defp precompile_adhoc_expressions(sp_data), do: sp_data
 
-  defp maybe_compile_completion_condition(
-         %{adhoc_completion_condition: condition} = sp_data
-       )
+  defp maybe_compile_completion_condition(%{adhoc_completion_condition: condition} = sp_data)
        when is_binary(condition) and condition != "" do
     case EvilEngine.Expressions.compile(condition, @adhoc_completion_shape) do
       {:ok, compiled} ->
@@ -92,9 +90,7 @@ defmodule EvilEngine.BPMN.Precompiler do
 
   defp maybe_compile_completion_condition(sp_data), do: sp_data
 
-  defp maybe_compile_active_elements(
-         %{active_elements_expression: expression} = sp_data
-       )
+  defp maybe_compile_active_elements(%{active_elements_expression: expression} = sp_data)
        when is_binary(expression) and expression != "" do
     case EvilEngine.Expressions.compile(expression) do
       {:ok, compiled} ->

@@ -579,7 +579,12 @@ defmodule EvilEngineWeb.Http.DecisionController do
           {:error, reason} ->
             Logger.error("DMN enable/disable failed: #{inspect(reason)}")
 
-            render_error(conn, 500, "internal_error", "Unexpected error during DMN enable/disable")
+            render_error(
+              conn,
+              500,
+              "internal_error",
+              "Unexpected error during DMN enable/disable"
+            )
         end
 
       :not_found ->

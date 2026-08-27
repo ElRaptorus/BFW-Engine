@@ -116,7 +116,8 @@ defmodule EvilEngine.Execution.PayloadCapEnforcementTest do
         "cap-fni-fatal-#{inspect(ref)}",
         [:evil_engine, :flow_node_instance, :state_change],
         fn _event, _measurements, metadata, _config ->
-          if Map.get(metadata, :terminal_state) == :fatal and metadata.flow_node_type == :service_task do
+          if Map.get(metadata, :terminal_state) == :fatal and
+               metadata.flow_node_type == :service_task do
             send(test_pid, {:fni_fatal, ref, metadata})
           end
         end,

@@ -360,7 +360,9 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
     "Start event '#{event_id}' not found in the called process"
   end
 
-  defp humanize_error({:mixed_gateway, %{flow_node_id: id, incoming_count: incoming, outgoing_count: outgoing}}) do
+  defp humanize_error(
+         {:mixed_gateway, %{flow_node_id: id, incoming_count: incoming, outgoing_count: outgoing}}
+       ) do
     "Complex gateway '#{id}' is a mixed gateway (#{incoming} incoming, #{outgoing} outgoing). " <>
       "A Complex Gateway must be either a split or a join, not both."
   end
@@ -370,7 +372,10 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       "flow to fall back on."
   end
 
-  defp humanize_error({:complex_split_condition_failed, %{flow_node_id: id, sequence_flow_id: flow_id, reason: reason}}) do
+  defp humanize_error(
+         {:complex_split_condition_failed,
+          %{flow_node_id: id, sequence_flow_id: flow_id, reason: reason}}
+       ) do
     "Complex gateway '#{id}': failed to evaluate the condition on sequence flow " <>
       "'#{flow_id}': #{reason}"
   end
@@ -381,7 +386,10 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       "(activatedCount=#{detail.activated_count}, incomingCount=#{detail.incoming_count})."
   end
 
-  defp humanize_error({:complex_join_condition_failed, %{flow_node_id: id, activation_condition: condition, reason: reason}}) do
+  defp humanize_error(
+         {:complex_join_condition_failed,
+          %{flow_node_id: id, activation_condition: condition, reason: reason}}
+       ) do
     "Complex join '#{id}': failed to evaluate the activation condition '#{condition}': #{reason}"
   end
 
@@ -417,8 +425,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
   end
 
   defp humanize_error(
-         {:collection_exceeds_max_iterations,
-          %{collection_size: size, max_iterations: max}}
+         {:collection_exceeds_max_iterations, %{collection_size: size, max_iterations: max}}
        ) do
     "Parallel Multi-Instance input collection has #{size} items but maxIterations is #{max}. " <>
       "Increase maxIterations, reduce the collection, or use Sequential Multi-Instance."

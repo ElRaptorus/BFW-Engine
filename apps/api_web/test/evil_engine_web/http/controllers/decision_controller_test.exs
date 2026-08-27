@@ -425,6 +425,7 @@ defmodule EvilEngineWeb.Http.DecisionControllerTest do
 
     test "DELETE /decisions/:model_id returns 403 without delete_dmn claim" do
       model_id = "auth_delete_decision_#{System.unique_integer([:positive])}"
+
       dmn_xml =
         read_dmn_fixture("simple_unique.dmn")
         |> String.replace("definitions_discount", model_id)
@@ -451,7 +452,9 @@ defmodule EvilEngineWeb.Http.DecisionControllerTest do
         with_auth_enabled(fn ->
           case ensure_dmn_deployed(dmn_xml) do
             {:ok, response} ->
-              Jason.decode!(response.resp_body)["deployed"] |> List.first() |> Map.fetch!("version")
+              Jason.decode!(response.resp_body)["deployed"]
+              |> List.first()
+              |> Map.fetch!("version")
 
             {:already_deployed, _response} ->
               {:ok, definition} = Api.get_decision_by_model_id("definitions_discount")

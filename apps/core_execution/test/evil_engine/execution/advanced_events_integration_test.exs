@@ -164,7 +164,8 @@ defmodule EvilEngine.Execution.AdvancedEventsIntegrationTest do
 
       assert {:ok, _process_instance_pid} = start_process_instance()
 
-      assert_receive {:pi_state_change, ^process_instance_reference, :finished, _process_metadata},
+      assert_receive {:pi_state_change, ^process_instance_reference, :finished,
+                      _process_metadata},
                      2_000
 
       all_fni_events = collect_fni_events(flow_node_instance_reference)

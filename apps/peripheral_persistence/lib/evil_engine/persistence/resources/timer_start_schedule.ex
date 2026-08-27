@@ -55,6 +55,7 @@ defmodule EvilEngine.Persistence.Resources.TimerStartSchedule do
 
     update :update do
       primary? true
+
       accept [
         :enabled,
         :next_fire_at,

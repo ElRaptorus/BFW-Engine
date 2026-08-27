@@ -275,8 +275,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       identity: Resumption.rebuild_identity(opts[:started_by]),
       business_key: opts[:business_key],
       parent_process_instance_id: opts[:parent_process_instance_id],
-      root_process_instance_id:
-        opts[:root_process_instance_id] || opts.process_instance_id,
+      root_process_instance_id: opts[:root_process_instance_id] || opts.process_instance_id,
       triggerer_flow_node_instance_id: opts[:triggerer_flow_node_instance_id],
       started_at: opts[:started_at],
       started_with_context: opts[:started_with_context],
@@ -325,8 +324,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
       identity: opts.identity,
       business_key: opts[:business_key],
       parent_process_instance_id: opts[:parent_process_instance_id],
-      root_process_instance_id:
-        opts[:root_process_instance_id] || opts.process_instance_id,
+      root_process_instance_id: opts[:root_process_instance_id] || opts.process_instance_id,
       triggerer_flow_node_instance_id: opts[:triggerer_flow_node_instance_id],
       notify_pid: opts[:notify_pid],
       adhoc_completion_condition: opts[:adhoc_completion_condition],
@@ -497,8 +495,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # sequential LIFO compensation run.
   def running(
         :info,
-        {:fni_result, flow_node_instance_id,
-         {:compensate, run_spec, %FlowNodeResult{} = result}},
+        {:fni_result, flow_node_instance_id, {:compensate, run_spec, %FlowNodeResult{} = result}},
         data
       ) do
     data = handle_fni_compensate(data, flow_node_instance_id, result, run_spec)
@@ -513,7 +510,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
          {:escalation_end_propagate, escalation_info, %FlowNodeResult{} = result}},
         data
       ) do
-    data = handle_fni_escalation_end_propagate(data, flow_node_instance_id, result, escalation_info)
+    data =
+      handle_fni_escalation_end_propagate(data, flow_node_instance_id, result, escalation_info)
+
     maybe_finish_or_continue(data)
   end
 
@@ -718,11 +717,22 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
   def running(
         {:call, from},
-        {:mi_dispatch_iteration, shell_fni_id, index, item, %Token{} = token,
-         loop_overlay, %FlowNode{} = flow_node},
+        {:mi_dispatch_iteration, shell_fni_id, index, item, %Token{} = token, loop_overlay,
+         %FlowNode{} = flow_node},
         data
       ) do
-    data = dispatch_mi_iteration_fni(data, from, shell_fni_id, index, item, token, loop_overlay, flow_node)
+    data =
+      dispatch_mi_iteration_fni(
+        data,
+        from,
+        shell_fni_id,
+        index,
+        item,
+        token,
+        loop_overlay,
+        flow_node
+      )
+
     {:keep_state, data}
   end
 
@@ -1151,17 +1161,24 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   defp dispatch_parallel_join(data, flow_node, token, previous_flow_node_instance_ids, required) do
-    incoming_flow_id = resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
+    incoming_flow_id =
+      resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
 
     case Map.get(data.join_routing, flow_node.id) do
       nil ->
         dispatch_join_first_token(
-          data, flow_node, token, previous_flow_node_instance_ids,
-          required, :parallel_gateway, incoming_flow_id
+          data,
+          flow_node,
+          token,
+          previous_flow_node_instance_ids,
+          required,
+          :parallel_gateway,
+          incoming_flow_id
         )
 
       %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
-        duplicate? = MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
+        duplicate? =
+          MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
 
         if duplicate? do
           Logger.warning(
@@ -1172,7 +1189,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
           data
         else
           route_subsequent_parallel_token(
-            data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id
+            data,
+            fni_id,
+            flow_node,
+            token,
+            previous_flow_node_instance_ids,
+            incoming_flow_id
           )
         end
     end
@@ -1188,12 +1210,18 @@ defmodule EvilEngine.Execution.ProcessInstance do
     case Map.get(data.join_routing, flow_node.id) do
       nil ->
         dispatch_join_first_token(
-          data, flow_node, token, previous_flow_node_instance_ids,
-          incoming_count, :inclusive_gateway, incoming_flow_id
+          data,
+          flow_node,
+          token,
+          previous_flow_node_instance_ids,
+          incoming_count,
+          :inclusive_gateway,
+          incoming_flow_id
         )
 
       %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
-        duplicate? = MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
+        duplicate? =
+          MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
 
         if duplicate? do
           record_fni_fatal(data, fni_id, flow_node, token, previous_flow_node_instance_ids, %{
@@ -1204,7 +1232,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
           })
         else
           route_subsequent_inclusive_token(
-            data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id
+            data,
+            fni_id,
+            flow_node,
+            token,
+            previous_flow_node_instance_ids,
+            incoming_flow_id
           )
         end
     end
@@ -1221,8 +1254,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
       nil ->
         data =
           dispatch_join_first_token(
-            data, flow_node, token, previous_flow_node_instance_ids,
-            incoming_count, :complex_gateway, incoming_flow_id
+            data,
+            flow_node,
+            token,
+            previous_flow_node_instance_ids,
+            incoming_count,
+            :complex_gateway,
+            incoming_flow_id
           )
 
         augment_complex_join_routing(data, flow_node, token.payload)
@@ -1241,7 +1279,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
 
       %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
-        duplicate? = MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
+        duplicate? =
+          MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
 
         if duplicate? do
           error_info =
@@ -1250,10 +1289,22 @@ defmodule EvilEngine.Execution.ProcessInstance do
                %{flow_node_id: flow_node.id, incoming_flow_id: incoming_flow_id}}
             )
 
-          record_fni_fatal(data, fni_id, flow_node, token, previous_flow_node_instance_ids, error_info)
+          record_fni_fatal(
+            data,
+            fni_id,
+            flow_node,
+            token,
+            previous_flow_node_instance_ids,
+            error_info
+          )
         else
           route_subsequent_complex_token(
-            data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id
+            data,
+            fni_id,
+            flow_node,
+            token,
+            previous_flow_node_instance_ids,
+            incoming_flow_id
           )
         end
     end
@@ -1276,23 +1327,50 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp route_subsequent_complex_token(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id) do
+  defp route_subsequent_complex_token(
+         data,
+         fni_id,
+         flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         incoming_flow_id
+       ) do
     data =
       update_in(data.join_routing[flow_node.id], fn routing ->
         %{
           routing
           | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
         }
-        |> Map.put(:merged_payload, Map.merge(Map.get(routing, :merged_payload) || %{}, token.payload || %{}))
+        |> Map.put(
+          :merged_payload,
+          Map.merge(Map.get(routing, :merged_payload) || %{}, token.payload || %{})
+        )
       end)
 
-    route_token_to_join_handler(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id)
+    route_token_to_join_handler(
+      data,
+      fni_id,
+      flow_node,
+      token,
+      previous_flow_node_instance_ids,
+      incoming_flow_id
+    )
   end
 
-  defp complex_activation_condition(%FlowNode{type_data: %{activation_condition: condition}}), do: condition
+  defp complex_activation_condition(%FlowNode{type_data: %{activation_condition: condition}}),
+    do: condition
+
   defp complex_activation_condition(_flow_node), do: nil
 
-  defp dispatch_join_first_token(data, flow_node, token, previous_flow_node_instance_ids, required, gateway_type, incoming_flow_id) do
+  defp dispatch_join_first_token(
+         data,
+         flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         required,
+         gateway_type,
+         incoming_flow_id
+       ) do
     flow_node_instance_id = generate_id()
     lane_name = resolve_lane_name(data.process_model, flow_node)
 
@@ -1351,14 +1429,29 @@ defmodule EvilEngine.Execution.ProcessInstance do
         put_in(data.join_routing[flow_node.id], routing_entry)
 
       {:error, _reason} ->
-        record_fni_fatal(data, generate_id(), flow_node, token, previous_flow_node_instance_ids, %{
-          "error_code" => "persistence_failed",
-          "message" => "Failed to persist flow node instance"
-        })
+        record_fni_fatal(
+          data,
+          generate_id(),
+          flow_node,
+          token,
+          previous_flow_node_instance_ids,
+          %{
+            "error_code" => "persistence_failed",
+            "message" => "Failed to persist flow node instance"
+          }
+        )
     end
   end
 
-  defp spawn_join_fni_task(data, flow_node_instance_id, flow_node, token, previous_flow_node_instance_ids, handler_module, join_metadata) do
+  defp spawn_join_fni_task(
+         data,
+         flow_node_instance_id,
+         flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         handler_module,
+         join_metadata
+       ) do
     process_instance_pid = self()
 
     handler_context =
@@ -1405,24 +1498,66 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp route_subsequent_inclusive_token(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id) do
-    data = update_in(data.join_routing[flow_node.id], fn routing ->
-      %{routing | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)}
-    end)
-
-    route_token_to_join_handler(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id)
-  end
-
-  defp route_subsequent_parallel_token(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id) do
+  defp route_subsequent_inclusive_token(
+         data,
+         fni_id,
+         flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         incoming_flow_id
+       ) do
     data =
       update_in(data.join_routing[flow_node.id], fn routing ->
-        %{routing | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)}
+        %{
+          routing
+          | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
+        }
       end)
 
-    route_token_to_join_handler(data, fni_id, flow_node, token, previous_flow_node_instance_ids, incoming_flow_id)
+    route_token_to_join_handler(
+      data,
+      fni_id,
+      flow_node,
+      token,
+      previous_flow_node_instance_ids,
+      incoming_flow_id
+    )
   end
 
-  defp route_token_to_join_handler(data, fni_id, _flow_node, token, previous_flow_node_instance_ids, incoming_flow_id) do
+  defp route_subsequent_parallel_token(
+         data,
+         fni_id,
+         flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         incoming_flow_id
+       ) do
+    data =
+      update_in(data.join_routing[flow_node.id], fn routing ->
+        %{
+          routing
+          | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
+        }
+      end)
+
+    route_token_to_join_handler(
+      data,
+      fni_id,
+      flow_node,
+      token,
+      previous_flow_node_instance_ids,
+      incoming_flow_id
+    )
+  end
+
+  defp route_token_to_join_handler(
+         data,
+         fni_id,
+         _flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         incoming_flow_id
+       ) do
     case Map.get(data.flow_node_instance_states, fni_id) do
       %{pid: pid} when is_pid(pid) ->
         send(pid, {:join_token_arrived, token, previous_flow_node_instance_ids, incoming_flow_id})
@@ -1691,7 +1826,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
           %{position: :intermediate_catch}
         end
 
-      data = register_conditional_waiter(data, fni_id, flow_node, handler_module, token_payload, opts)
+      data =
+        register_conditional_waiter(data, fni_id, flow_node, handler_module, token_payload, opts)
 
       waiter = Map.get(data.conditional_waiters, fni_id)
       evaluate_single_conditional_waiter(data, fni_id, waiter)
@@ -1783,10 +1919,20 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
         cond do
           throw_fni_id != nil ->
-            handle_compensation_handler_finished(data, flow_node_instance_id, result, throw_fni_id)
+            handle_compensation_handler_finished(
+              data,
+              flow_node_instance_id,
+              result,
+              throw_fni_id
+            )
 
           esp_throw_fni_id != nil ->
-            handle_compensation_esp_finished(data, flow_node_instance_id, result, esp_throw_fni_id)
+            handle_compensation_esp_finished(
+              data,
+              flow_node_instance_id,
+              result,
+              esp_throw_fni_id
+            )
 
           true ->
             do_handle_fni_ok(data, flow_node_instance_id, result)
@@ -1843,7 +1989,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
           token: %{entry.token | payload: output_payload}
       })
 
-    data = %{data | compensation_esp_throw_map: Map.delete(data.compensation_esp_throw_map, entry.flow_node_id)}
+    data = %{
+      data
+      | compensation_esp_throw_map:
+          Map.delete(data.compensation_esp_throw_map, entry.flow_node_id)
+    }
 
     CompensationOrchestrator.finish_run(
       data,
@@ -2135,7 +2285,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp handle_fni_escalation_end(data, flow_node_instance_id, %FlowNodeResult{} = result, escalation_info) do
+  defp handle_fni_escalation_end(
+         data,
+         flow_node_instance_id,
+         %FlowNodeResult{} = result,
+         escalation_info
+       ) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
         data
@@ -2144,7 +2299,14 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
 
       entry ->
-        emit_escalation_raised(data, flow_node_instance_id, entry.flow_node_id, escalation_info, :end_event)
+        emit_escalation_raised(
+          data,
+          flow_node_instance_id,
+          entry.flow_node_id,
+          escalation_info,
+          :end_event
+        )
+
         data = do_handle_fni_ok(data, flow_node_instance_id, result)
 
         case EspScope.resolve_escalation_catch(data, escalation_info) do
@@ -2158,7 +2320,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp handle_fni_escalation_throw(data, flow_node_instance_id, %FlowNodeResult{} = result, escalation_info) do
+  defp handle_fni_escalation_throw(
+         data,
+         flow_node_instance_id,
+         %FlowNodeResult{} = result,
+         escalation_info
+       ) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
         data
@@ -2167,7 +2334,14 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
 
       entry ->
-        emit_escalation_raised(data, flow_node_instance_id, entry.flow_node_id, escalation_info, :intermediate_throw)
+        emit_escalation_raised(
+          data,
+          flow_node_instance_id,
+          entry.flow_node_id,
+          escalation_info,
+          :intermediate_throw
+        )
+
         data = do_handle_fni_ok(data, flow_node_instance_id, result)
 
         case EspScope.resolve_escalation_catch(data, escalation_info) do
@@ -2181,7 +2355,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp handle_fni_escalation_end_propagate(data, flow_node_instance_id, %FlowNodeResult{} = result, escalation_info) do
+  defp handle_fni_escalation_end_propagate(
+         data,
+         flow_node_instance_id,
+         %FlowNodeResult{} = result,
+         escalation_info
+       ) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
         data
@@ -2219,12 +2398,22 @@ defmodule EvilEngine.Execution.ProcessInstance do
         case maybe_fire_compensation_esp(data, event_definition) do
           {:ok, action} ->
             handle_compensation_esp_fire(
-              data, flow_node_instance_id, result, run_spec, entry, action
+              data,
+              flow_node_instance_id,
+              result,
+              run_spec,
+              entry,
+              action
             )
 
           :none ->
             resolve_compensation_boundary_targets(
-              data, flow_node_instance_id, result, run_spec, entry, event_definition
+              data,
+              flow_node_instance_id,
+              result,
+              run_spec,
+              entry,
+              event_definition
             )
         end
     end
@@ -2262,14 +2451,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
           }
       })
 
-    data = put_in(data.compensation_runs[flow_node_instance_id], %{
-      queue: [],
-      cursor: 0,
-      mode: :esp,
-      throw_type: run_spec.throw_type,
-      outgoing_flow_node_ids: run_spec.outgoing_flow_node_ids,
-      token_payload: output_payload
-    })
+    data =
+      put_in(data.compensation_runs[flow_node_instance_id], %{
+        queue: [],
+        cursor: 0,
+        mode: :esp,
+        throw_type: run_spec.throw_type,
+        outgoing_flow_node_ids: run_spec.outgoing_flow_node_ids,
+        token_payload: output_payload
+      })
 
     emit_fni_state_changed(data, flow_node_instance_id, entry, :active, :waiting)
     emit_compensation_triggered(data, flow_node_instance_id, run_spec, 0)
@@ -2279,12 +2469,23 @@ defmodule EvilEngine.Execution.ProcessInstance do
   defp fire_esp_action(data, {:fire_interrupting, esp_node, payload}, throw_fni_id) do
     data = EspScope.teardown_triggers(data)
     data = interrupt_remaining_fnis(data, throw_fni_id, :compensation_esp_interrupting)
-    data = %{data | compensation_esp_throw_map: Map.put(data.compensation_esp_throw_map, esp_node.id, throw_fni_id)}
+
+    data = %{
+      data
+      | compensation_esp_throw_map:
+          Map.put(data.compensation_esp_throw_map, esp_node.id, throw_fni_id)
+    }
+
     dispatch_esp_shell(data, esp_node, payload)
   end
 
   defp fire_esp_action(data, {:fire_non_interrupting, esp_node, payload}, throw_fni_id) do
-    data = %{data | compensation_esp_throw_map: Map.put(data.compensation_esp_throw_map, esp_node.id, throw_fni_id)}
+    data = %{
+      data
+      | compensation_esp_throw_map:
+          Map.put(data.compensation_esp_throw_map, esp_node.id, throw_fni_id)
+    }
+
     dispatch_esp_shell(data, esp_node, payload)
   end
 
@@ -2302,11 +2503,20 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
     if targets == [] do
       handle_compensation_no_targets(
-        data, flow_node_instance_id, result, run_spec, entry
+        data,
+        flow_node_instance_id,
+        result,
+        run_spec,
+        entry
       )
     else
       start_compensation_run(
-        data, flow_node_instance_id, result, run_spec, entry, targets
+        data,
+        flow_node_instance_id,
+        result,
+        run_spec,
+        entry,
+        targets
       )
     end
   end
@@ -2975,7 +3185,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
         %{position: :intermediate_catch}
       end
 
-    data = register_conditional_waiter(data, fni_id, flow_node, handler_module, token_payload, opts)
+    data =
+      register_conditional_waiter(data, fni_id, flow_node, handler_module, token_payload, opts)
 
     waiter = Map.get(data.conditional_waiters, fni_id)
     evaluate_single_conditional_waiter(data, fni_id, waiter)
@@ -3025,6 +3236,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
     if compensation_handler_id do
       order = data.compensation_completion_counter
+
       new_entry = %{
         completed_fni_id: fni_id,
         flow_node_id: entry.flow_node_id,
@@ -3440,7 +3652,16 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # Multi-Instance iteration helpers
   # -------------------------------------------------------------------
 
-  defp dispatch_mi_iteration_fni(data, from, shell_fni_id, index, _item, token, loop_overlay, flow_node) do
+  defp dispatch_mi_iteration_fni(
+         data,
+         from,
+         shell_fni_id,
+         index,
+         _item,
+         token,
+         loop_overlay,
+         flow_node
+       ) do
     iteration_fni_id = generate_id()
     lane_name = resolve_lane_name(data.process_model, flow_node)
     shell_entry = Map.get(data.flow_node_instance_states, shell_fni_id)
@@ -3483,6 +3704,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
           multi_instance_id: shell_fni_id,
           iteration_index: index
         )
+
         dispatch_mi_iteration_handler(data, from, iteration_context)
 
       {:error, _reason} ->
@@ -3498,7 +3720,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
       {:error, _} ->
         fatal_mi_iteration_fni(
-          data, from, context,
+          data,
+          from,
+          context,
           "unsupported_element",
           "Unsupported inner element type for MI iteration: #{context.flow_node.type}",
           :unsupported_element
@@ -3510,7 +3734,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
     process_instance_pid = self()
 
     handler_context =
-      build_handler_context(data, context.iteration_fni_id, context.flow_node, process_instance_pid)
+      build_handler_context(
+        data,
+        context.iteration_fni_id,
+        context.flow_node,
+        process_instance_pid
+      )
 
     handler_context = %{
       handler_context
@@ -3522,7 +3751,10 @@ defmodule EvilEngine.Execution.ProcessInstance do
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result =
              BoundaryAwareHandler.wrap_enter(
-               handler_module, context.flow_node, context.token, handler_context
+               handler_module,
+               context.flow_node,
+               context.token,
+               handler_context
              )
 
            dispatch_handler_result(process_instance_pid, context.iteration_fni_id, result)
@@ -3532,8 +3764,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
         entry =
           build_mi_iteration_entry(
-            task_pid, :active, context.flow_node, context.token,
-            context.shell_fni_id, context.index, context.loop_overlay
+            task_pid,
+            :active,
+            context.flow_node,
+            context.token,
+            context.shell_fni_id,
+            context.index,
+            context.loop_overlay
           )
 
         data = put_in(data.flow_node_instance_states[context.iteration_fni_id], entry)
@@ -3553,7 +3790,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
         )
 
         fatal_mi_iteration_fni(
-          data, from, context,
+          data,
+          from,
+          context,
           "task_start_failed",
           "Failed to start MI iteration task for '#{context.flow_node.id}' index #{context.index}",
           :task_start_failed
@@ -3577,8 +3816,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
     entry =
       build_mi_iteration_entry(
-        nil, :fatal, context.flow_node, context.token,
-        context.shell_fni_id, context.index, context.loop_overlay
+        nil,
+        :fatal,
+        context.flow_node,
+        context.token,
+        context.shell_fni_id,
+        context.index,
+        context.loop_overlay
       )
 
     data = put_in(data.flow_node_instance_states[context.iteration_fni_id], entry)
@@ -3612,8 +3856,18 @@ defmodule EvilEngine.Execution.ProcessInstance do
         output_payload = result.output_payload || entry.token.payload
         type_properties = stringify_keys(result.type_properties || %{})
 
-        _persist_result = persist_mi_iteration_finished(data, iteration_fni_id, output_payload, type_properties)
-        emit_mi_iteration_finished(data, iteration_fni_id, entry, flow_node, :finished, type_properties, nil)
+        _persist_result =
+          persist_mi_iteration_finished(data, iteration_fni_id, output_payload, type_properties)
+
+        emit_mi_iteration_finished(
+          data,
+          iteration_fni_id,
+          entry,
+          flow_node,
+          :finished,
+          type_properties,
+          nil
+        )
 
         put_in(data.flow_node_instance_states[iteration_fni_id], %{
           entry
@@ -3648,7 +3902,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
             data.root_process_instance_id
           )
 
-        put_in(data.flow_node_instance_states[iteration_fni_id], %{entry | state: :fatal, pid: nil})
+        put_in(data.flow_node_instance_states[iteration_fni_id], %{
+          entry
+          | state: :fatal,
+            pid: nil
+        })
       else
         data
       end
@@ -3657,7 +3915,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
     %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
   end
 
-  defp persist_mi_iteration_finished(_data, flow_node_instance_id, output_payload, type_properties) do
+  defp persist_mi_iteration_finished(
+         _data,
+         flow_node_instance_id,
+         output_payload,
+         type_properties
+       ) do
     adapter = PersistenceAdapter.adapter()
 
     PersistenceRetry.with_retry(
@@ -3673,7 +3936,15 @@ defmodule EvilEngine.Execution.ProcessInstance do
     )
   end
 
-  defp emit_mi_iteration_finished(data, flow_node_instance_id, entry, flow_node, terminal_state, type_properties, error_info) do
+  defp emit_mi_iteration_finished(
+         data,
+         flow_node_instance_id,
+         entry,
+         flow_node,
+         terminal_state,
+         type_properties,
+         error_info
+       ) do
     EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
       flow_node_instance_id: flow_node_instance_id,
       process_instance_id: data.process_instance_id,
@@ -3767,11 +4038,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp resolve_incoming_sequence_flow_id(data, flow_node, [source_fni_id | _]) when is_binary(source_fni_id) do
+  defp resolve_incoming_sequence_flow_id(data, flow_node, [source_fni_id | _])
+       when is_binary(source_fni_id) do
     resolve_incoming_sequence_flow_id(data, flow_node, source_fni_id)
   end
 
-  defp resolve_incoming_sequence_flow_id(data, flow_node, source_fni_id) when is_binary(source_fni_id) do
+  defp resolve_incoming_sequence_flow_id(data, flow_node, source_fni_id)
+       when is_binary(source_fni_id) do
     source_entry = Map.get(data.flow_node_instance_states, source_fni_id)
     source_flow_node_id = if source_entry, do: source_entry.flow_node_id
 
@@ -3949,7 +4222,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp emit_fni_started(data, flow_node_instance_id, flow_node, previous_flow_node_instance_ids, opts \\ []) do
+  defp emit_fni_started(
+         data,
+         flow_node_instance_id,
+         flow_node,
+         previous_flow_node_instance_ids,
+         opts \\ []
+       ) do
     EngineEventBus.publish(%Event.FlowNodeInstanceStarted{
       flow_node_instance_id: flow_node_instance_id,
       process_instance_id: data.process_instance_id,
@@ -4225,7 +4504,13 @@ defmodule EvilEngine.Execution.ProcessInstance do
     )
   end
 
-  defp emit_escalation_raised(data, flow_node_instance_id, flow_node_id, escalation_info, throw_type) do
+  defp emit_escalation_raised(
+         data,
+         flow_node_instance_id,
+         flow_node_id,
+         escalation_info,
+         throw_type
+       ) do
     EngineEventBus.publish(%Event.EscalationRaised{
       escalation_code: escalation_info[:escalation_code],
       escalation_name: escalation_info[:escalation_name],
@@ -4335,7 +4620,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # -------------------------------------------------------------------
 
   defp maybe_evaluate_adhoc_completion_condition(
-         %{mode: AdHocMode, adhoc_completion_condition: condition, adhoc_completion_signaled: false} =
+         %{
+           mode: AdHocMode,
+           adhoc_completion_condition: condition,
+           adhoc_completion_signaled: false
+         } =
            data
        )
        when is_binary(condition) and condition != "" do
@@ -4356,9 +4645,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
 
       {:error, reason} ->
-        Logger.warning(
-          "Ad-hoc completion condition evaluation failed: #{inspect(reason)}"
-        )
+        Logger.warning("Ad-hoc completion condition evaluation failed: #{inspect(reason)}")
 
         data
     end
@@ -4448,7 +4735,11 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # -------------------------------------------------------------------
 
   defp maybe_cancel_remaining_for_adhoc(
-         %{mode: AdHocMode, adhoc_completion_signaled: true, adhoc_cancel_remaining_instances: true} =
+         %{
+           mode: AdHocMode,
+           adhoc_completion_signaled: true,
+           adhoc_cancel_remaining_instances: true
+         } =
            data
        ) do
     interrupt_remaining_fnis(data, nil, :adhoc_completion_cancelled)
@@ -4539,7 +4830,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
     Enum.map(inner_activities, fn activity ->
       fni_entries = Map.get(fni_states_by_flow_node_id, activity.id, [])
       performed_count = Enum.count(fni_entries, fn {_id, entry} -> entry.state == :finished end)
-      active_count = Enum.count(fni_entries, fn {_id, entry} -> entry.state in [:active, :waiting] end)
+
+      active_count =
+        Enum.count(fni_entries, fn {_id, entry} -> entry.state in [:active, :waiting] end)
 
       enabled =
         cond do
@@ -4622,5 +4915,4 @@ defmodule EvilEngine.Execution.ProcessInstance do
       occurred_at: DateTime.utc_now()
     })
   end
-
 end

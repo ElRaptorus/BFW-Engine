@@ -122,15 +122,25 @@ defmodule EvilEngine.Expressions.Context do
   (iterations finished so far), `results` (aggregated outputs), and `item`
   (current collection element or nil for Standard Loops).
   """
-  @spec put_loop_bindings(t(), non_neg_integer(), non_neg_integer() | nil, non_neg_integer(), list(), term()) :: t()
+  @spec put_loop_bindings(
+          t(),
+          non_neg_integer(),
+          non_neg_integer() | nil,
+          non_neg_integer(),
+          list(),
+          term()
+        ) :: t()
   def put_loop_bindings(%__MODULE__{} = context, index, total, completed, results, item) do
-    %{context | loop: %{
-      "index" => index,
-      "total" => total,
-      "completed" => completed,
-      "results" => results || [],
-      "item" => item
-    }}
+    %{
+      context
+      | loop: %{
+          "index" => index,
+          "total" => total,
+          "completed" => completed,
+          "results" => results || [],
+          "item" => item
+        }
+    }
   end
 
   @doc """
@@ -144,7 +154,10 @@ defmodule EvilEngine.Expressions.Context do
   @spec put_gateway_bindings(t(), non_neg_integer(), non_neg_integer()) :: t()
   def put_gateway_bindings(%__MODULE__{} = context, activated_count, incoming_count)
       when is_integer(activated_count) and is_integer(incoming_count) do
-    %{context | gateway: %{"activatedCount" => activated_count, "incomingCount" => incoming_count}}
+    %{
+      context
+      | gateway: %{"activatedCount" => activated_count, "incomingCount" => incoming_count}
+    }
   end
 
   defp merge_loop(scope, nil), do: scope

@@ -220,7 +220,14 @@ defmodule EvilEngine.Execution.Persistence do
   rather than relying on FNI `type_properties`.
   """
   @callback list_child_process_instances(parent_process_instance_id :: String.t()) ::
-              {:ok, [%{id: String.t(), state: String.t(), triggerer_flow_node_instance_id: String.t() | nil}]}
+              {:ok,
+               [
+                 %{
+                   id: String.t(),
+                   state: String.t(),
+                   triggerer_flow_node_instance_id: String.t() | nil
+                 }
+               ]}
               | {:error, term()}
 
   @doc """

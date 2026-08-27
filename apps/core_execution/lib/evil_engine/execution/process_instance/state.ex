@@ -85,7 +85,9 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           data_object_cache: %{String.t() => term()},
           join_routing: %{String.t() => join_routing_entry()},
           conditional_waiters: %{String.t() => conditional_waiter_entry()},
-          event_subprocess_triggers: %{String.t() => EvilEngine.Execution.EventSubprocessTrigger.t()},
+          event_subprocess_triggers: %{
+            String.t() => EvilEngine.Execution.EventSubprocessTrigger.t()
+          },
           event_subprocess_kinds: %{String.t() => {atom(), boolean()}},
           compensation_registry: [compensation_registry_entry()],
           compensation_completion_counter: non_neg_integer(),

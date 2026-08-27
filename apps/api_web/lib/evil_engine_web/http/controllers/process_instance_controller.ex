@@ -244,7 +244,11 @@ defmodule EvilEngineWeb.Http.ProcessInstanceController do
     )
   end
 
-  defp render_retry_error(conn, _process_instance_id, {:error, :retry_checkpoint_is_non_retryable}) do
+  defp render_retry_error(
+         conn,
+         _process_instance_id,
+         {:error, :retry_checkpoint_is_non_retryable}
+       ) do
     render_error(
       conn,
       422,

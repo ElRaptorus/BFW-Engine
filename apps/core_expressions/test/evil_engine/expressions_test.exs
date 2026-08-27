@@ -443,7 +443,8 @@ defmodule EvilEngine.ExpressionsTest do
         build_context(token: %{"amount" => 500})
         |> Context.put_gateway_bindings(2, 2)
 
-      assert {:ok, true} = Expressions.eval("activatedCount = incomingCount and token.amount > 100", context)
+      assert {:ok, true} =
+               Expressions.eval("activatedCount = incomingCount and token.amount > 100", context)
     end
 
     test "to_feel_scope merges gateway bindings at the top level" do

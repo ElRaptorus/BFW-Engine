@@ -59,7 +59,10 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
     end
   end
 
-  defp reattach_existing_iterations(%HandlerContext{process_instance_pid: pid, flow_node_instance_id: id})
+  defp reattach_existing_iterations(%HandlerContext{
+         process_instance_pid: pid,
+         flow_node_instance_id: id
+       })
        when is_pid(pid) and is_binary(id) do
     :gen_statem.call(pid, {:mi_reattach_iterations, id})
   end
@@ -79,12 +82,25 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
   defp resume_attached_loop(flow_node, token, context, snapshot) do
     %FlowNode{standard_loop: %StandardLoop{} = standard_loop} = flow_node
     token_payload = token.payload || %{}
-    finished = Enum.map(snapshot.finished_payloads, fn payload -> %FlowNodeResult{output_payload: payload} end)
+
+    finished =
+      Enum.map(snapshot.finished_payloads, fn payload ->
+        %FlowNodeResult{output_payload: payload}
+      end)
 
     case collect_live_iteration_results(snapshot.live_count, []) do
       {:ok, live_results} ->
         collected = finished ++ Enum.reverse(live_results)
-        loop_iterations(flow_node, token, context, standard_loop, length(collected), collected, token_payload)
+
+        loop_iterations(
+          flow_node,
+          token,
+          context,
+          standard_loop,
+          length(collected),
+          collected,
+          token_payload
+        )
 
       {:error, reason} ->
         {:error, reason}
@@ -155,7 +171,13 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
     case dispatch_and_wait(flow_node, token, context, index, collected) do
       {:ok, result, _iteration_token} ->
         loop_iterations(
-          flow_node, token, context, sl, index + 1, collected ++ [result], token_payload
+          flow_node,
+          token,
+          context,
+          sl,
+          index + 1,
+          collected ++ [result],
+          token_payload
         )
 
       {:error, reason} ->
@@ -183,8 +205,8 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
 
     case :gen_statem.call(
            process_instance_pid,
-           {:mi_dispatch_iteration, flow_node_instance_id, index, nil,
-            iteration_token, loop_overlay, flow_node}
+           {:mi_dispatch_iteration, flow_node_instance_id, index, nil, iteration_token,
+            loop_overlay, flow_node}
          ) do
       {:ok, _iteration_fni_id} ->
         case wait_for_iteration_result() do
@@ -212,7 +234,12 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
 
   # -- Condition evaluation ---------------------------------------------------
 
-  defp evaluate_condition(%StandardLoop{loop_condition: nil}, _collected, _context, _token_payload) do
+  defp evaluate_condition(
+         %StandardLoop{loop_condition: nil},
+         _collected,
+         _context,
+         _token_payload
+       ) do
     true
   end
 
@@ -280,11 +307,12 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
 
     with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
          {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
-      {:ok, %FlowNodeResult{
-        output_payload: output,
-        type_properties: type_properties,
-        next_flow_node_ids: next_ids
-      }}
+      {:ok,
+       %FlowNodeResult{
+         output_payload: output,
+         type_properties: type_properties,
+         next_flow_node_ids: next_ids
+       }}
     end
   end
 

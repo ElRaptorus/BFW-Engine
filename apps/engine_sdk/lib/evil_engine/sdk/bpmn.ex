@@ -49,7 +49,8 @@ defmodule EvilEngine.SDK.BPMN do
   `ModelCache`. Returns `{:error, :not_found}` if the version does not
   exist or its source is unavailable for re-parsing on a cold miss.
   """
-  @spec fetch_definitions(String.t()) :: {:ok, Model.Definitions.t()} | {:error, :not_found | term()}
+  @spec fetch_definitions(String.t()) ::
+          {:ok, Model.Definitions.t()} | {:error, :not_found | term()}
   defdelegate fetch_definitions(process_version_id), to: ModelCache, as: :fetch
 
   @doc "Same as `fetch_definitions/1`, but returns the struct directly (or `nil`) instead of a result tuple."

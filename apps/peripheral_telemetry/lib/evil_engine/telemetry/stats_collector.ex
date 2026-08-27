@@ -100,10 +100,29 @@ defmodule EvilEngine.Telemetry.StatsCollector do
 
     counts
   rescue
-    _ -> %{active: 0, waiting: 0, finished: 0, fatal: 0, aborted: 0, interrupted: 0, error: 0, by_type: %{}}
+    _ ->
+      %{
+        active: 0,
+        waiting: 0,
+        finished: 0,
+        fatal: 0,
+        aborted: 0,
+        interrupted: 0,
+        error: 0,
+        by_type: %{}
+      }
   catch
     :exit, _ ->
-      %{active: 0, waiting: 0, finished: 0, fatal: 0, aborted: 0, interrupted: 0, error: 0, by_type: %{}}
+      %{
+        active: 0,
+        waiting: 0,
+        finished: 0,
+        fatal: 0,
+        aborted: 0,
+        interrupted: 0,
+        error: 0,
+        by_type: %{}
+      }
   end
 
   defp query_user_tasks_pending do

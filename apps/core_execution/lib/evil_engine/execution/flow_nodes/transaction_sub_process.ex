@@ -299,10 +299,24 @@ defmodule EvilEngine.Execution.FlowNodes.TransactionSubProcess do
         cancel_handler
       )
 
-    handle_child_result(result, flow_node, context, child_process_instance_id, process_instance_pid, next_ids)
+    handle_child_result(
+      result,
+      flow_node,
+      context,
+      child_process_instance_id,
+      process_instance_pid,
+      next_ids
+    )
   end
 
-  defp handle_child_result(result, flow_node, context, child_process_instance_id, process_instance_pid, next_ids) do
+  defp handle_child_result(
+         result,
+         flow_node,
+         context,
+         child_process_instance_id,
+         process_instance_pid,
+         next_ids
+       ) do
     case result do
       {:boundary, _, _, _} ->
         result
@@ -394,7 +408,8 @@ defmodule EvilEngine.Execution.FlowNodes.TransactionSubProcess do
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),
-         {:ok, input_payload} <- ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),
+         {:ok, input_payload} <-
+           ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),
          :ok <- ChildLifecycle.validate_contract(type_data.payload_contract, input_payload) do
       execute_child(
         flow_node,

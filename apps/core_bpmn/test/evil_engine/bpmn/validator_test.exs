@@ -1023,7 +1023,9 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       assert {:error, violations} = Validator.validate(definitions)
 
       {_, message} =
-        Enum.find(violations, fn {c, _} -> c == :complex_gateway_join_missing_activation_condition end)
+        Enum.find(violations, fn {c, _} ->
+          c == :complex_gateway_join_missing_activation_condition
+        end)
 
       assert message =~ "ComplexGateway 'CGJoin'"
       assert message =~ "activationCondition"
@@ -1256,14 +1258,24 @@ defmodule EvilEngine.BPMN.ValidatorTest do
               target_ref: "InnerSplit",
               condition_expression: "token.x = true"
             },
-            %SequenceFlow{id: "Fo2", source_ref: "OuterSplit", target_ref: "TaskC", is_default: true},
+            %SequenceFlow{
+              id: "Fo2",
+              source_ref: "OuterSplit",
+              target_ref: "TaskC",
+              is_default: true
+            },
             %SequenceFlow{
               id: "Fi1",
               source_ref: "InnerSplit",
               target_ref: "TaskA",
               condition_expression: "token.y = true"
             },
-            %SequenceFlow{id: "Fi2", source_ref: "InnerSplit", target_ref: "TaskB", is_default: true},
+            %SequenceFlow{
+              id: "Fi2",
+              source_ref: "InnerSplit",
+              target_ref: "TaskB",
+              is_default: true
+            },
             %SequenceFlow{id: "Fj1", source_ref: "TaskA", target_ref: "InnerJoin"},
             %SequenceFlow{id: "Fj2", source_ref: "TaskB", target_ref: "InnerJoin"},
             %SequenceFlow{id: "Fj3", source_ref: "InnerJoin", target_ref: "OuterJoin"},
@@ -2157,7 +2169,8 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       </bpmn:subProcess>
       """
 
-      assert {:ok, _} = validate_esp(esp, ~s(<bpmn:error id="Err_ESP" name="err" errorCode="E1" />))
+      assert {:ok, _} =
+               validate_esp(esp, ~s(<bpmn:error id="Err_ESP" name="err" errorCode="E1" />))
     end
 
     test "valid escalation-triggered ESP passes" do
@@ -2175,7 +2188,10 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       """
 
       assert {:ok, _} =
-               validate_esp(esp, ~s(<bpmn:escalation id="Esc_ESP" name="esc" escalationCode="ES1" />))
+               validate_esp(
+                 esp,
+                 ~s(<bpmn:escalation id="Esc_ESP" name="esc" escalationCode="ES1" />)
+               )
     end
 
     test "valid conditional-triggered ESP passes" do
@@ -2431,7 +2447,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       definitions =
         ebg_definitions(
           [
-            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}, outgoing: ["F1"]},
+            %FlowNode{
+              id: "S1",
+              type: :start_event,
+              type_data: %FlowNodeData.StartEvent{},
+              outgoing: ["F1"]
+            },
             %FlowNode{
               id: "EBG_1",
               type: :event_based_gateway,
@@ -2457,7 +2478,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
               incoming: ["F_Message"],
               outgoing: ["F_MC_End"]
             },
-            %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}, incoming: ["F_TC_End", "F_MC_End"]}
+            %FlowNode{
+              id: "E1",
+              type: :end_event,
+              type_data: %FlowNodeData.EndEvent{},
+              incoming: ["F_TC_End", "F_MC_End"]
+            }
           ],
           [
             %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "EBG_1"},
@@ -2476,7 +2502,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       definitions =
         ebg_definitions(
           [
-            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}, outgoing: ["F1"]},
+            %FlowNode{
+              id: "S1",
+              type: :start_event,
+              type_data: %FlowNodeData.StartEvent{},
+              outgoing: ["F1"]
+            },
             %FlowNode{
               id: "EBG_1",
               type: :event_based_gateway,
@@ -2500,7 +2531,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
               incoming: ["F_Timer"],
               outgoing: ["F_TC_End"]
             },
-            %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}, incoming: ["F_RT_End", "F_TC_End"]}
+            %FlowNode{
+              id: "E1",
+              type: :end_event,
+              type_data: %FlowNodeData.EndEvent{},
+              incoming: ["F_RT_End", "F_TC_End"]
+            }
           ],
           [
             %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "EBG_1"},
@@ -2519,7 +2555,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       definitions =
         ebg_definitions(
           [
-            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}, outgoing: ["F1"]},
+            %FlowNode{
+              id: "S1",
+              type: :start_event,
+              type_data: %FlowNodeData.StartEvent{},
+              outgoing: ["F1"]
+            },
             %FlowNode{
               id: "EBG_1",
               type: :event_based_gateway,
@@ -2543,7 +2584,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
               incoming: ["F_Timer"],
               outgoing: ["F_TC_End"]
             },
-            %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}, incoming: ["F_ST_End", "F_TC_End"]}
+            %FlowNode{
+              id: "E1",
+              type: :end_event,
+              type_data: %FlowNodeData.EndEvent{},
+              incoming: ["F_ST_End", "F_TC_End"]
+            }
           ],
           [
             %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "EBG_1"},
@@ -2568,7 +2614,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       definitions =
         ebg_definitions(
           [
-            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}, outgoing: ["F1"]},
+            %FlowNode{
+              id: "S1",
+              type: :start_event,
+              type_data: %FlowNodeData.StartEvent{},
+              outgoing: ["F1"]
+            },
             %FlowNode{
               id: "EBG_1",
               type: :event_based_gateway,
@@ -2603,7 +2654,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
               incoming: ["F_Timer"],
               outgoing: ["F_TC_End"]
             },
-            %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}, incoming: ["F_RT_End", "F_TC_End", "F_BE_End"]}
+            %FlowNode{
+              id: "E1",
+              type: :end_event,
+              type_data: %FlowNodeData.EndEvent{},
+              incoming: ["F_RT_End", "F_TC_End", "F_BE_End"]
+            }
           ],
           [
             %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "EBG_1"},
@@ -2638,7 +2694,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       definitions =
         ebg_definitions(
           [
-            %FlowNode{id: "S1", type: :start_event, type_data: %FlowNodeData.StartEvent{}, outgoing: ["F1"]},
+            %FlowNode{
+              id: "S1",
+              type: :start_event,
+              type_data: %FlowNodeData.StartEvent{},
+              outgoing: ["F1"]
+            },
             %FlowNode{
               id: "RT_1",
               type: :receive_task,
@@ -2657,7 +2718,12 @@ defmodule EvilEngine.BPMN.ValidatorTest do
               },
               outgoing: ["F_BE_End"]
             },
-            %FlowNode{id: "E1", type: :end_event, type_data: %FlowNodeData.EndEvent{}, incoming: ["F_RT_End", "F_BE_End"]}
+            %FlowNode{
+              id: "E1",
+              type: :end_event,
+              type_data: %FlowNodeData.EndEvent{},
+              incoming: ["F_RT_End", "F_BE_End"]
+            }
           ],
           [
             %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "RT_1"},
@@ -3478,9 +3544,7 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       }
 
       adhoc =
-        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
-          adhoc_ordering: :sequential
-        )
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [], adhoc_ordering: :sequential)
 
       definitions =
         minimal_valid_definitions(
@@ -3552,9 +3616,7 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       }
 
       adhoc =
-        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
-          implementation: "   "
-        )
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [], implementation: "   ")
 
       definitions =
         minimal_valid_definitions(
@@ -3576,9 +3638,7 @@ defmodule EvilEngine.BPMN.ValidatorTest do
       }
 
       adhoc =
-        adhoc_subprocess_node("AdHoc_1", [inner_task], [],
-          adhoc_ordering: :parallel
-        )
+        adhoc_subprocess_node("AdHoc_1", [inner_task], [], adhoc_ordering: :parallel)
 
       definitions =
         minimal_valid_definitions(

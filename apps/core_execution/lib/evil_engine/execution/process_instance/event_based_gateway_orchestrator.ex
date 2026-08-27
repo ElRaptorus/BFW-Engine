@@ -50,7 +50,11 @@ defmodule EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
         )
 
       accumulator =
-        %{accumulator | conditional_waiters: Map.delete(accumulator.conditional_waiters, sibling_flow_node_instance_id)}
+        %{
+          accumulator
+          | conditional_waiters:
+              Map.delete(accumulator.conditional_waiters, sibling_flow_node_instance_id)
+        }
 
       put_in(accumulator.flow_node_instance_states[sibling_flow_node_instance_id], %{
         entry

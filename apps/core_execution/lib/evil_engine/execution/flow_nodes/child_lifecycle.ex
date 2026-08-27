@@ -146,7 +146,13 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
 
   Used on the enter path when `next_ids` is already resolved.
   """
-  @spec apply_out_mappings_to_result(FlowNode.t(), HandlerContext.t(), term(), [String.t()], String.t()) ::
+  @spec apply_out_mappings_to_result(
+          FlowNode.t(),
+          HandlerContext.t(),
+          term(),
+          [String.t()],
+          String.t()
+        ) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
   def apply_out_mappings_to_result(
         flow_node,
@@ -189,7 +195,14 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
           {:ok, FlowNodeResult.t()} | {:error, term()}
   def apply_result(flow_node, _entry, context, final_tokens, child_process_instance_id) do
     {:ok, next_ids} = resolve_outgoing(flow_node, context)
-    apply_out_mappings_to_result(flow_node, context, final_tokens, next_ids, child_process_instance_id)
+
+    apply_out_mappings_to_result(
+      flow_node,
+      context,
+      final_tokens,
+      next_ids,
+      child_process_instance_id
+    )
   end
 
   # ===================================================================
@@ -574,7 +587,15 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
   `next_ids` is resolved lazily when needed (`{:finished, ...}` and
   `{:escalation, ...}` paths).
   """
-  @spec dispatch_await_result(term(), FlowNode.t(), map(), HandlerContext.t(), String.t(), pid(), String.t()) ::
+  @spec dispatch_await_result(
+          term(),
+          FlowNode.t(),
+          map(),
+          HandlerContext.t(),
+          String.t(),
+          pid(),
+          String.t()
+        ) ::
           term()
   def dispatch_await_result(
         result,
@@ -632,7 +653,15 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
   Dispatches the tagged result from `await_child_completion` when
   `next_ids` is already known (used on the enter and fresh-lifecycle paths).
   """
-  @spec dispatch_enter_result(term(), FlowNode.t(), HandlerContext.t(), String.t(), pid(), [String.t()], String.t()) ::
+  @spec dispatch_enter_result(
+          term(),
+          FlowNode.t(),
+          HandlerContext.t(),
+          String.t(),
+          pid(),
+          [String.t()],
+          String.t()
+        ) ::
           term()
   def dispatch_enter_result(
         result,
@@ -968,8 +997,7 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
           {:error,
            %{
              error_code: "child_resume_failed",
-             message:
-               "Failed to resume child PI #{child_process_instance_id}: #{inspect(reason)}"
+             message: "Failed to resume child PI #{child_process_instance_id}: #{inspect(reason)}"
            }}
       end
     else

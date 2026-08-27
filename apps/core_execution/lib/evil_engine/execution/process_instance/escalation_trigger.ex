@@ -41,7 +41,14 @@ defmodule EvilEngine.Execution.ProcessInstance.EscalationTrigger do
       waiting_by_host
       |> Map.keys()
       |> Enum.flat_map(fn host_fni_id ->
-        fires_for_host(data, process_model, definitions, escalation_info, host_fni_id, waiting_by_host)
+        fires_for_host(
+          data,
+          process_model,
+          definitions,
+          escalation_info,
+          host_fni_id,
+          waiting_by_host
+        )
       end)
     end
   end
@@ -72,12 +79,27 @@ defmodule EvilEngine.Execution.ProcessInstance.EscalationTrigger do
 
   defp collect_waiting_escalation_boundary(_data, _fni_id, _entry, accumulator), do: accumulator
 
-  defp fires_for_host(data, process_model, definitions, escalation_info, host_fni_id, waiting_by_host) do
+  defp fires_for_host(
+         data,
+         process_model,
+         definitions,
+         escalation_info,
+         host_fni_id,
+         waiting_by_host
+       ) do
     case Map.get(data.flow_node_instance_states, host_fni_id) do
       %{state: state, flow_node_id: host_node_id} when state in [:active, :waiting] ->
         host_node = Helpers.find_flow_node(data, host_node_id)
         waiters = Map.get(waiting_by_host, host_fni_id, [])
-        build_host_fires(host_node, process_model, definitions, escalation_info, host_fni_id, waiters)
+
+        build_host_fires(
+          host_node,
+          process_model,
+          definitions,
+          escalation_info,
+          host_fni_id,
+          waiters
+        )
 
       _other ->
         []
@@ -86,7 +108,14 @@ defmodule EvilEngine.Execution.ProcessInstance.EscalationTrigger do
 
   defp build_host_fires(nil, _process_model, _definitions, _info, _host_fni_id, _waiters), do: []
 
-  defp build_host_fires(host_node, process_model, definitions, escalation_info, host_fni_id, waiters) do
+  defp build_host_fires(
+         host_node,
+         process_model,
+         definitions,
+         escalation_info,
+         host_fni_id,
+         waiters
+       ) do
     interrupting_fire =
       interrupting_fire_for_host(
         host_node,

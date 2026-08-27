@@ -56,7 +56,8 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
     {data, boundary_fni_id} =
       if is_subscription_model do
-        {finish_boundary_fni(data, flow_node_instance_id, triggerer_fni_id), flow_node_instance_id}
+        {finish_boundary_fni(data, flow_node_instance_id, triggerer_fni_id),
+         flow_node_instance_id}
       else
         case find_prespawned_boundary_fni_id(data, boundary_node_id) do
           nil ->
@@ -193,7 +194,10 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         )
 
       accumulator =
-        %{accumulator | conditional_waiters: Map.delete(accumulator.conditional_waiters, boundary_fni_id)}
+        %{
+          accumulator
+          | conditional_waiters: Map.delete(accumulator.conditional_waiters, boundary_fni_id)
+        }
 
       put_in(accumulator.flow_node_instance_states[boundary_fni_id], %{
         entry
@@ -230,7 +234,10 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         )
 
       accumulator =
-        %{accumulator | conditional_waiters: Map.delete(accumulator.conditional_waiters, sibling_fni_id)}
+        %{
+          accumulator
+          | conditional_waiters: Map.delete(accumulator.conditional_waiters, sibling_fni_id)
+        }
 
       put_in(accumulator.flow_node_instance_states[sibling_fni_id], %{
         entry
@@ -428,7 +435,9 @@ defmodule EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
     log_fni_persist_error(
       PersistenceRetry.with_retry(
-        fn -> adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, changes) end,
+        fn ->
+          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, changes)
+        end,
         "Boundary FNI finished #{flow_node_instance_id}"
       ),
       "Boundary FNI finished",

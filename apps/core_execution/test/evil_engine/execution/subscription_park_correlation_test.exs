@@ -209,7 +209,13 @@ defmodule EvilEngine.Execution.SubscriptionParkCorrelationTest do
     MessageSubscriptions.mark_ready()
 
     {flow_node, context} = receive_task_context()
-    token = %Token{id: "token-1", process_instance_id: "pi-1", payload: %{}, created_at: DateTime.utc_now()}
+
+    token = %Token{
+      id: "token-1",
+      process_instance_id: "pi-1",
+      payload: %{},
+      created_at: DateTime.utc_now()
+    }
 
     assert {:error, :persistence_failed} =
              FlowNodes.ReceiveTask.handle_enter(flow_node, token, context)

@@ -112,9 +112,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -221,9 +224,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -327,9 +333,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -437,9 +446,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -534,9 +546,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -653,9 +668,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -762,9 +780,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true
@@ -859,9 +880,12 @@ defmodule EvilEngine.Execution.RetryTest do
         def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
-          writes = Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+          writes =
+            Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
+
           {:ok, %{writes: writes}}
         end
+
         @impl true
         def list_data_objects(_), do: {:ok, []}
         @impl true

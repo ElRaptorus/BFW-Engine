@@ -85,7 +85,10 @@ defmodule EvilEngineWeb.Graphql.ModelResolvers do
     |> Map.put(:all_flow_nodes, collect_all_flow_nodes(process.flow_nodes, nil))
     |> Map.put(:sequence_flows, Enum.map(process.sequence_flows, &Map.from_struct/1))
     |> Map.put(:data_objects, Enum.map(process.data_objects, &Map.from_struct/1))
-    |> Map.put(:data_object_references, Enum.map(process.data_object_references, &Map.from_struct/1))
+    |> Map.put(
+      :data_object_references,
+      Enum.map(process.data_object_references, &Map.from_struct/1)
+    )
     |> Map.put(:associations, Enum.map(process.associations, &Map.from_struct/1))
     |> Map.put(:lanes, Enum.map(process.lanes, &Map.from_struct/1))
     |> Map.put(:extensions, Enum.map(process.extensions, &extension_to_map/1))
@@ -115,7 +118,8 @@ defmodule EvilEngineWeb.Graphql.ModelResolvers do
   process is required; zero or multiple is an error.
   """
   @spec select_process(Model.Definitions.t()) ::
-          {:ok, Model.Process.t()} | {:error, :no_executable_process | :multiple_executable_processes}
+          {:ok, Model.Process.t()}
+          | {:error, :no_executable_process | :multiple_executable_processes}
   def select_process(%Model.Definitions{processes: processes}) do
     case Enum.filter(processes, & &1.is_executable) do
       [process] -> {:ok, process}
@@ -144,8 +148,11 @@ defmodule EvilEngineWeb.Graphql.ModelResolvers do
     with {:ok, flow_node_instance} <- ensure_required_ids_loaded(flow_node_instance, actor),
          {:ok, process_instance} <- load_process_instance(flow_node_instance, actor) do
       case process_instance do
-        nil -> {:ok, nil}
-        process_instance -> Ash.get(ProcessVersion, process_instance.process_version_id, actor: actor)
+        nil ->
+          {:ok, nil}
+
+        process_instance ->
+          Ash.get(ProcessVersion, process_instance.process_version_id, actor: actor)
       end
     end
   end
@@ -164,7 +171,11 @@ defmodule EvilEngineWeb.Graphql.ModelResolvers do
           {:ok, nil}
 
         process_instance ->
-          load_flow_node(loader, process_instance.process_version_id, flow_node_instance.flow_node_id)
+          load_flow_node(
+            loader,
+            process_instance.process_version_id,
+            flow_node_instance.flow_node_id
+          )
       end
     end
   end

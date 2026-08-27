@@ -66,7 +66,11 @@ defmodule EvilEngine.Execution.ComplexJoinEvaluatorTest do
       state = build_state(process, %{})
 
       assert :fire =
-               ComplexJoinEvaluator.evaluate(join_flow_node(process), routing(["sf1", "sf2"]), state)
+               ComplexJoinEvaluator.evaluate(
+                 join_flow_node(process),
+                 routing(["sf1", "sf2"]),
+                 state
+               )
     end
 
     test "fires when a token-based condition is met" do

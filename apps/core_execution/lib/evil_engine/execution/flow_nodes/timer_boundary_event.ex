@@ -390,7 +390,13 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
            {:boundary_cycle_fire, flow_node.id, %{}, cancel_activity}}
         )
 
-        resume_cycle_schedule_and_wait(flow_node, context, next_fire, updated_spec, cancel_activity)
+        resume_cycle_schedule_and_wait(
+          flow_node,
+          context,
+          next_fire,
+          updated_spec,
+          cancel_activity
+        )
 
       nil ->
         {:boundary, flow_node.id, %{}, cancel_activity}
@@ -577,8 +583,7 @@ defmodule EvilEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
     with {:ok, decoded_repetitions} <- decode_cycle_repetitions(repetitions),
          {:ok, duration} <- parse_cycle_interval(interval) do
-      {:ok,
-       %{repetitions: decoded_repetitions, interval_duration: duration, start_at: nil}}
+      {:ok, %{repetitions: decoded_repetitions, interval_duration: duration, start_at: nil}}
     end
   end
 

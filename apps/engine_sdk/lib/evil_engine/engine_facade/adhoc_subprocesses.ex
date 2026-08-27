@@ -9,14 +9,10 @@ defmodule EvilEngine.EngineFacade.AdhocSubprocesses do
   """
 
   @type t :: %__MODULE__{
-          get_enabled_activities:
-            (String.t() -> {:ok, [map()]} | {:error, term()}),
-          activate_activity:
-            (String.t(), String.t() -> {:ok, map()} | {:error, term()}),
-          complete:
-            (String.t() -> :ok | {:error, term()}),
-          get_status:
-            (String.t() -> {:ok, map()} | {:error, term()})
+          get_enabled_activities: (String.t() -> {:ok, [map()]} | {:error, term()}),
+          activate_activity: (String.t(), String.t() -> {:ok, map()} | {:error, term()}),
+          complete: (String.t() -> :ok | {:error, term()}),
+          get_status: (String.t() -> {:ok, map()} | {:error, term()})
         }
 
   defstruct get_enabled_activities: &__MODULE__.noop_1/1,
