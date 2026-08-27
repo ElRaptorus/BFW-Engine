@@ -194,7 +194,7 @@ Planning for this will begin, after the v1 release was successful.
 Coverage is enforced at **two levels**:
 
 1. **Per-app thresholds** — Elixir Mix `test_coverage.threshold` in each child app's `mix.exs`. Prevents regression in apps with functional code. Skeleton/struct-only apps use `threshold: 0`.
-2. **Global aggregate threshold** — ExCoveralls `minimum_coverage` in `coveralls.json`. Enforced on the umbrella-wide aggregate via `mix coveralls.html --umbrella`.
+2. **Global aggregate threshold** — ExCoveralls `minimum_coverage` in `coveralls.json`. Enforced on the umbrella-wide aggregate via `mix coveralls.html --umbrella --import-cover cover` (after `mix test.coverdata`) locally and `mix coveralls --umbrella --import-cover cover` in CI.
 
 Both are checked by the `quality` alias. After each phase, per-app thresholds must be **ratcheted up** to at least the target listed below (raise `threshold` in each app's `mix.exs`; raise `minimum_coverage` in `coveralls.json`).
 

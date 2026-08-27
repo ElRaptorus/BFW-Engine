@@ -189,6 +189,7 @@ defmodule EvilEngine.Umbrella.MixProject do
         "test.examples": :test,
         "test.integration": :test,
         "test.conformance": :test,
+        "test.coverdata": :test,
         "test.full": :test,
         quality: :test
       ]
@@ -222,6 +223,11 @@ defmodule EvilEngine.Umbrella.MixProject do
       "test.integration": ["run test/integration_runner.exs"],
       "test.load": ["run test/load_runner.exs"],
       "test.conformance": ["run test/conformance_runner.exs"],
+      # Integration + conformance under one :cover session; exports
+      # cover/umbrella.coverdata (and copies it into each apps/*/cover/).
+      # Named test.coverdata so it does not shadow Mix's built-in
+      # `mix test.coverage` (aggregates exported reports).
+      "test.coverdata": ["run test/coverage_runner.exs"],
       "test.full": [
         "compile --warnings-as-errors",
         "test",
@@ -230,8 +236,10 @@ defmodule EvilEngine.Umbrella.MixProject do
       ],
 
       # --- Quality gate (compile + lint + analysis + docs + test + coverage) -
-      # coverage_runner.exs runs integration + conformance under a single
-      # :cover session and exports .coverdata; coveralls.html merges it.
+      # test.coverdata runs integration + conformance under :cover; the
+      # coveralls.* --import-cover step runs per-app unit tests and merges
+      # that coverdata. CI uses the same pair with `coveralls` (terminal)
+      # instead of `coveralls.html`.
       quality: [
         "compile --warnings-as-errors",
         "evil.gen.extension_manifest --check",
@@ -239,7 +247,7 @@ defmodule EvilEngine.Umbrella.MixProject do
         "dialyzer",
         "sobelow",
         "docs --warnings-as-errors",
-        "run test/coverage_runner.exs",
+        "test.coverdata",
         "coveralls.html --umbrella --import-cover cover"
       ],
 

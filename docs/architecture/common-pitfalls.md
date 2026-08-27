@@ -1145,7 +1145,7 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 **Why it happens:** Those ExCoveralls tasks POST the report to `https://coveralls.io`. Without a Coveralls repo/token the job dies with `ExCoveralls.ReportUploadError` / HTTP 422 (`Couldn't find a repository matching this job`) even when tests passed.
 
-**Correct approach:** Local HTML via `mix coveralls.html --umbrella` (quality alias). CI uses `mix coveralls --umbrella` for the terminal report and `minimum_coverage` gate. Both use ExCoveralls type `"local"` and never POST. `mix coveralls.github` and `mix coveralls.post` are the upload tasks — do not invoke them (they are omitted from `preferred_envs` in the root `mix.exs`). Do not pass `GITHUB_TOKEN` to a coverage step.
+**Correct approach:** Local HTML via `mix coveralls.html --umbrella --import-cover cover` (quality alias, after `mix test.coverdata`). CI uses `mix coveralls --umbrella --import-cover cover` for the terminal report and `minimum_coverage` gate (also after `mix test.coverdata`). Both use ExCoveralls type `"local"` and never POST. `mix coveralls.github` and `mix coveralls.post` are the upload tasks — do not invoke them (they are omitted from `preferred_envs` in the root `mix.exs`). Do not pass `GITHUB_TOKEN` to a coverage step.
 
 ## P73: Production DB pools need Postgres `max_connections` ≥ 200
 
@@ -1178,4 +1178,12 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 **Why it happens:** `mix.exs` sets `plt_core_path` and `plt_local_path` to `priv/plts` (the Dialyxir CI convention). Those files are gitignored (`/priv/plts/*.plt`). The `_build` cache therefore never restores the Erlang/Elixir/deps lookup tables, so every CI run rebuilds them from scratch (several minutes).
 
 **Correct approach:** Restore `priv/plts` before Dialyzer and save it after, with a key of `runner.os` + resolved OTP + resolved Elixir (`erlef/setup-beam` outputs) + `hashFiles('**/mix.lock')`. Use `restore-keys` without the lockfile hash so a lockfile bump can incrementally update an older PLT. Do not commit `.plt` files. GitHub cache keys are immutable — skip save on an exact `cache-hit`.
+
+## P77: Coverage gate must import integration + conformance coverdata
+
+**Mistake:** Running `mix coveralls --umbrella` as the CI coverage gate, then (optionally) `mix run test/integration_runner.exs` afterwards, and never running conformance.
+
+**Why it happens:** `mix coveralls --umbrella` only executes each app's `mix test` (unit/domain). Root suites live under `test/integration/` and `test/conformance/` and are started by Mix `run` scripts, not by `mix test`. The 80% `minimum_coverage` in `coveralls.json` was calibrated against `mix quality`, which runs `test/coverage_runner.exs` first (both root suites under one `:cover` session, export `cover/umbrella.coverdata` into each `apps/*/cover/`) and then `coveralls.html --umbrella --import-cover cover`. Unit-only coverage lands around 65% — large modules such as `EvilEngine.Api` are exercised almost entirely by full-stack tests.
+
+**Correct approach:** CI uses the same merge path as quality: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Do not gate coverage on unit tests alone. Do not run `integration_runner.exs` as a separate post-coverage step — that double-runs integration and still omits conformance from the report. Standalone `mix test.integration` / `mix test.conformance` remain for runs without coverage overhead.
 

@@ -486,9 +486,11 @@ Is this about throughput or latency under load?
 | Alias | What it runs |
 |-------|-------------|
 | `mix test.unit` | All per-app tests (excludes `@tag :integration`) |
-| `mix test.integration` | Full-stack integration tests at project root |
+| `mix test.integration` | Full-stack integration tests at project root (no coverage) |
+| `mix test.conformance` | YAML-driven conformance corpus (no coverage) |
+| `mix test.coverdata` | Integration + conformance under one `:cover` session; exports coverdata for `--import-cover` |
 | `mix test.full` | Compile + credo + unit tests + integration tests |
-| `mix quality` | Same as `test.full` — the quality gate |
+| `mix quality` | Compile, lint, analysis, docs, `test.coverdata`, then `coveralls.html --umbrella --import-cover cover` |
 
 ---
 

@@ -116,10 +116,14 @@ jobs:
           mix do --app peripheral_persistence ecto.migrate
 
       - name: Run tests with coverage
-        run: mix coveralls --umbrella
-
-      - name: Run full-stack integration tests
-        run: mix run test/integration_runner.exs
+        # Same merge path as `mix quality`: integration + conformance under
+        # :cover, then per-app unit tests with --import-cover. Do not use
+        # `mix coveralls --umbrella` alone — that omits root suites and
+        # fails the 80% gate (~65% unit-only). Do not use coveralls.github
+        # / coveralls.post — those POST to coveralls.io.
+        run: |
+          mix test.coverdata
+          mix coveralls --umbrella --import-cover cover
 
   docker:
     name: Docker Build & Smoke Test

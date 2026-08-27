@@ -454,7 +454,7 @@ Runs compile → Credo → Dialyzer → Sobelow → unit tests (with coverage) �
 
 ### CI pipeline
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) runs all of the above plus `mix format --check-formatted` and `mix deps.audit`.
+The GitHub Actions workflow (`.github/workflows/ci.yml`) runs the same test + coverage merge as `mix quality` (`mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`), plus `mix format --check-formatted` and `mix deps.audit`.
 
 ---
 
@@ -476,7 +476,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs. Dialyzer PLTs under `priv/plts
 | Format         | `mix format --check-formatted`          |
 | Credo          | `mix credo --strict`                    |
 | Dialyzer       | `mix dialyzer --format github`          |
-| Tests          | `mix coveralls --umbrella`              |
+| Tests          | `mix test.coverdata` + `mix coveralls --umbrella --import-cover cover` |
 | Security audit | `mix deps.audit` + `mix sobelow --exit` |
 
 

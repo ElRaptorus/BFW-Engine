@@ -15,9 +15,10 @@ When you add a new module or significantly change an existing one:
 
 1. **Run coverage** after your changes:
    ```bash
-   mix coveralls.html --umbrella
+   mix test.coverdata
+   mix coveralls.html --umbrella --import-cover cover
    ```
-   Both levels are checked in a single run. The command will fail if any per-app threshold or the global aggregate threshold is missed.
+   Or `mix quality`, which includes that pair. Both levels are checked in a single coveralls run. The command will fail if any per-app threshold or the global aggregate threshold is missed. `mix coveralls.html --umbrella` **without** `--import-cover` only measures per-app unit tests and will undershoot the 80% gate.
 
 2. **Check for zero-coverage modules** — every newly created module must be exercised by at least one test. Inspect the terminal summary table to confirm no new module shows 0 %.
 
@@ -43,6 +44,6 @@ When you add a new module or significantly change an existing one:
 
 | Format | Command | Best for |
 |--------|---------|----------|
-| **HTML** | `mix coveralls.html --umbrella` | Human review — `cover/excoveralls.html` with navigable, color-coded, line-by-line source |
+| **HTML** | `mix test.coverdata` then `mix coveralls.html --umbrella --import-cover cover` | Human review — `cover/excoveralls.html` with navigable, color-coded, line-by-line source. Omit `--import-cover` only if you intentionally want unit-only numbers. |
 | **Terminal detail** | `MIX_ENV=test mix coveralls.detail --filter <path>` | Agent investigation — prints uncovered lines (red) in terminal, scoped to a file/path |
 | **Terminal summary** | (printed by both commands above) | Quick triage — per-file COV / LINES / RELEVANT / MISSED table |

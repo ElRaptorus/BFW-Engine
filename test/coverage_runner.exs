@@ -4,8 +4,8 @@
 # and exports the combined .coverdata for merging into the ExCoveralls
 # report via `--import-cover cover`.
 #
-# Used exclusively by the `quality` alias. For standalone runs without
-# coverage overhead, use `mix test.integration` / `mix test.conformance`.
+# Used by `mix test.coverdata` (quality alias and CI). For standalone runs
+# without coverage overhead, use `mix test.integration` / `mix test.conformance`.
 
 original_logger_level = Logger.level()
 Logger.configure(level: :critical)
@@ -93,5 +93,5 @@ end
 
 IO.puts("\e[36m  Done — coverdata distributed to #{length(project_apps)} sub-app cover/ directories.\e[0m\n")
 
-# Restore logger level so subsequent mix alias steps (coveralls.html) see correct level
+# Restore logger level so subsequent mix alias steps (coveralls.html / coveralls) see correct level
 Logger.configure(level: original_logger_level)
