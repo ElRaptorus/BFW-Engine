@@ -5,6 +5,8 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: evil-engine-postgres-dev
+    # Production pools are 100 write + 50 read; stock Postgres allows 100.
+    command: postgres -c max_connections=200
     environment:
       POSTGRES_USER: evil_engine
       POSTGRES_PASSWORD: evil_engine

@@ -178,11 +178,13 @@ defmodule EvilEngine.Umbrella.MixProject do
   def cli do
     [
       preferred_envs: [
+        # Local coverage only. `coveralls.github` / `coveralls.post` POST to
+        # coveralls.io and are intentionally omitted (ExCoveralls 0.18 has no
+        # skip_upload switch — not invoking those tasks is the kill switch).
         coveralls: :test,
         "coveralls.detail": :test,
         "coveralls.html": :test,
         "coveralls.json": :test,
-        "coveralls.post": :test,
         "test.unit": :test,
         "test.examples": :test,
         "test.integration": :test,
@@ -211,8 +213,8 @@ defmodule EvilEngine.Umbrella.MixProject do
     [
       setup: ["deps.get", "deps.patch"],
       "deps.patch": &apply_dep_patches/1,
-      "ecto.setup": ["cmd --app peripheral_persistence mix ecto.setup"],
-      "ecto.reset": ["cmd --app peripheral_persistence mix ecto.reset"],
+      "ecto.setup": ["do --app peripheral_persistence ecto.setup"],
+      "ecto.reset": ["do --app peripheral_persistence ecto.reset"],
 
       # --- Test aliases -----------------------------------------------------
       "test.unit": ["test --exclude integration"],

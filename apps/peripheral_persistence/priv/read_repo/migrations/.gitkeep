@@ -1,0 +1,2 @@
+# ReadRepo shares the write Repo's schema. Mix `ecto.migrate` requires this
+# directory to exist; it stays empty so the read pool never applies DDL.

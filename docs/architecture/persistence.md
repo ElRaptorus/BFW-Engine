@@ -38,6 +38,8 @@ This means GraphQL queries, REST list/get endpoints, and any `Ash.read` call aut
 
 **Defense-in-depth:** `ReadRepo` overrides `insert/2` and `insert!/2` to raise `RuntimeError` at runtime, preventing accidental direct writes that bypass the Ash routing layer. Ecto's compile-time `read_only: true` cannot be used because AshPostgres assumes write functions are defined by `Ecto.Repo`.
 
+`mix ecto.migrate` requires a migrations directory for every repo in `ecto_repos`. `priv/read_repo/migrations/` exists empty (`.gitkeep` only) so Mix does not error; DDL lives only under `priv/repo/migrations/`. `Release.migrate/0` treats a missing read-repo directory as zero pending migrations, but Mix does not.
+
 ### Default sizing
 
 | Pool | Env var | Default | Rationale |
@@ -117,6 +119,8 @@ Sampled every 10s by the telemetry poller via `EvilEngine.Telemetry.Measurements
 |--------|------|
 | `EvilEngine.Persistence.Repo` | `apps/peripheral_persistence/lib/evil_engine/persistence/repo.ex` |
 | `EvilEngine.Persistence.ReadRepo` | `apps/peripheral_persistence/lib/evil_engine/persistence/read_repo.ex` |
+| Write-schema migrations | `apps/peripheral_persistence/priv/repo/migrations/` |
+| ReadRepo Mix placeholder (empty) | `apps/peripheral_persistence/priv/read_repo/migrations/` |
 | `EvilEngine.Persistence.RepoRouter` | `apps/peripheral_persistence/lib/evil_engine/persistence/repo_router.ex` |
 | `EvilEngine.Persistence.ExecutionAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/execution_adapter.ex` |
 | `EvilEngine.Persistence.MessagePersistenceAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/message_persistence_adapter.ex` |

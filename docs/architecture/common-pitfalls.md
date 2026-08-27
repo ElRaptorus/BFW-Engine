@@ -1131,3 +1131,43 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 - Rank matches: first boundary whose **resolved** code equals the raised `error_code` (message AND-filter still applies), then first catch-all. Document order is not a specificity tiebreak.
 - Plugin Service Task failures use `facade.service_tasks.fail_async.(flow_node_instance_id, error_code, error_message)`. The PI routes that through the same Error Boundary resolver as enter-time errors. `finish_async` output-pipeline failures use the same complete-path wrap.
 
+## P71: Engine CI test Postgres must listen on host port 5543
+
+**Mistake:** Mapping the GitHub Actions Postgres service as `5432:5432`, waiting on `localhost:5432`, then running `mix test` / `mix coveralls`.
+
+**Why it happens:** `config/test.exs` hard-codes `port: 5543` to match the local `evil-engine-postgres-test` container (`scripts/create-test-db.sh`). A CI service on 5432 looks healthy while Postgrex logs `tcp connect (localhost:5543): connection refused`.
+
+**Correct approach:** Publish `5543:5432`, wait with `pg_isready -h localhost -p 5543`, then `mix do --app peripheral_persistence ecto.create` and `mix do --app peripheral_persistence ecto.migrate` before the suite. Mix 1.20 rejects `mix cmd --app` (use `mix do --app`). Do not add a CI-only port override in `test.exs`.
+
+## P72: Coverage stays on disk — never POST to coveralls.io
+
+**Mistake:** Running `mix coveralls.github` (or `mix coveralls.post`) in CI or locally.
+
+**Why it happens:** Those ExCoveralls tasks POST the report to `https://coveralls.io`. Without a Coveralls repo/token the job dies with `ExCoveralls.ReportUploadError` / HTTP 422 (`Couldn't find a repository matching this job`) even when tests passed.
+
+**Correct approach:** Local HTML via `mix coveralls.html --umbrella` (quality alias). CI uses `mix coveralls --umbrella` for the terminal report and `minimum_coverage` gate. Both use ExCoveralls type `"local"` and never POST. `mix coveralls.github` and `mix coveralls.post` are the upload tasks — do not invoke them (they are omitted from `preferred_envs` in the root `mix.exs`). Do not pass `GITHUB_TOKEN` to a coverage step.
+
+## P73: Production DB pools need Postgres `max_connections` ≥ 200
+
+**Mistake:** Starting the production Docker image (or a `MIX_ENV=prod` release) against stock `postgres:16-alpine` (`max_connections=100`).
+
+**Why it happens:** `config/runtime.exs` defaults `EVIL_DB_POOL_SIZE` to 100 and `EVIL_DB_READ_POOL_SIZE` to 50. Ecto checks those connections out at boot. Postgres rejects the overflow with `FATAL 53300 (too_many_connections)`, the engine never listens, and `GET /health` never returns 204.
+
+**Correct approach:** Start Postgres as `postgres -c max_connections=200` (`docker-compose.yml`, `docker-compose.dev.yml`, CI Docker smoke). GitHub Actions **service** containers cannot override the Postgres command — size pools down there (`EVIL_DB_POOL_SIZE` / `EVIL_DB_READ_POOL_SIZE`) instead. See [persistence.md](./persistence.md) and [configuration.md](./configuration.md).
+
+## P74: Docker smoke must assert `GET /health` HTTP 204 — not JSON `"status":"ok"`
+
+**Mistake:** `curl …/health | grep '"status":"ok"'` (or any body grep) in CI.
+
+**Why it happens:** `GET /health` is a liveness probe that returns **204 No Content** with an empty body (`HealthController`, `docs/architecture/api.md` §10.1.0.1). The engine can be fully up — Bandit listening, migrations applied, `GET /health` logged as `Sent 204` — and grep still fails. `GET /` is **404** in the production image (no Swagger UI).
+
+**Correct approach:** Assert the status code: `curl -sS -o /dev/null -w "%{http_code}" http://localhost:4000/health` equals `204`. `curl -f` is enough for a probe (`Dockerfile` `HEALTHCHECK`); do not parse a body.
+
+## P75: `mix ecto.migrate` needs `priv/read_repo/migrations` even though ReadRepo never owns DDL
+
+**Mistake:** Running `mix ecto.migrate` (or `mix do --app peripheral_persistence ecto.migrate`) against a tree that has `ecto_repos: [Repo, ReadRepo]` but only `priv/repo/migrations`.
+
+**Why it happens:** Mix's `ecto.migrate` task requires a migrations directory for **every** configured repo. `ReadRepo` is a second pool on the same database; it has no schema of its own. The Mix task errors with `Could not find migrations directory "priv/read_repo/migrations"`. `EvilEngine.Persistence.Release.migrate/0` does not raise — a missing directory is treated as zero pending migrations (`Migrations already up`).
+
+**Correct approach:** Keep an empty `apps/peripheral_persistence/priv/read_repo/migrations/` (`.gitkeep` only). Do not put migration files there. Write-schema DDL stays in `priv/repo/migrations`.
+

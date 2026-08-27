@@ -417,9 +417,14 @@ DMN decision evaluation throughput under sustained load.
 
 ### 12.6 CI enforcement
 
+`.github/workflows/ci.yml` (workflow_dispatch):
+
+- Postgres service published on host port **5543** (`config/test.exs`); `mix do --app peripheral_persistence ecto.create` + `ecto.migrate` before tests (`priv/read_repo/migrations` exists empty so Mix does not error on the read pool)
 - `mix format --check-formatted`
 - `mix credo --strict`
 - `mix dialyzer` (Dialyzer baseline, zero warnings over time)
-- `mix test --cover`, coverage gate ≥ 85 % in Core domains
+- `mix coveralls --umbrella` — local coverage + `coveralls.json` `minimum_coverage` gate. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used)
+- `mix run test/integration_runner.exs`
 - `mix sobelow` for security
 - `mix deps.audit`
+- Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)

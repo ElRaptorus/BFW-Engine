@@ -127,6 +127,11 @@ jobs:
           EVIL_DATABASE_NAME: evil_engine_dev
           EVIL_DATABASE_USER: evil_engine
           EVIL_DATABASE_PASS: evil_engine
+          # Production defaults are 100 write + 50 read. GitHub Actions
+          # service containers cannot override Postgres' max_connections
+          # (100), so size the pools down for this job.
+          EVIL_DB_POOL_SIZE: "10"
+          EVIL_DB_READ_POOL_SIZE: "5"
           EVIL_HTTP_PORT: "4100"
           EVIL_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
           EVIL_ENGINE_ID: "evil-engine-ci-integration"

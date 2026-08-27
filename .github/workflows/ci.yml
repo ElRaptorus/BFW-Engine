@@ -24,8 +24,11 @@ jobs:
           POSTGRES_USER: evil_engine
           POSTGRES_PASSWORD: evil_engine
           POSTGRES_DB: evil_engine_test
+        # config/test.exs connects to localhost:5543 (same port as the
+        # local evil-engine-postgres-test container). Mapping 5432 here
+        # leaves the suite talking to a closed port.
         ports:
-          - 5432:5432
+          - 5543:5432
         options: >-
           --health-cmd="pg_isready -U evil_engine"
           --health-interval=5s
@@ -83,8 +86,10 @@ jobs:
 
       - name: Wait for Postgres
         run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends postgresql-client
           for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U evil_engine; then
+            if pg_isready -h localhost -p 5543 -U evil_engine; then
               exit 0
             fi
             sleep 2
@@ -92,10 +97,15 @@ jobs:
           echo "Postgres never became ready"
           exit 1
 
+      - name: Create and migrate test database
+        run: |
+          mix do --app peripheral_persistence ecto.create
+          mix do --app peripheral_persistence ecto.migrate
+
       - name: Run tests with coverage
-        run: mix coveralls.github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Local terminal report + minimum_coverage gate. Do not use
+        # coveralls.github / coveralls.post — those POST to coveralls.io.
+        run: mix coveralls --umbrella
 
       - name: Run full-stack integration tests
         run: mix run test/integration_runner.exs
@@ -114,21 +124,30 @@ jobs:
         run: |
           docker network create ci-net
 
+          # Production pools are 100 write + 50 read; stock Postgres allows 100.
           docker run -d \
             --name postgres \
             --network ci-net \
             -e POSTGRES_USER=evil_engine \
             -e POSTGRES_PASSWORD=evil_engine \
             -e POSTGRES_DB=evil_engine_ci \
-            postgres:16-alpine
+            postgres:16-alpine \
+            postgres -c max_connections=200
 
+          ready=0
           for i in $(seq 1 15); do
             if docker exec postgres pg_isready -U evil_engine > /dev/null 2>&1; then
               echo "Postgres ready"
+              ready=1
               break
             fi
             sleep 2
           done
+          if [ "$ready" != "1" ]; then
+            echo "Postgres never became ready"
+            docker logs postgres
+            exit 1
+          fi
 
       - name: Start application container
         run: |
@@ -150,26 +169,22 @@ jobs:
 
       - name: Verify health endpoint
         run: |
+          # GET /health is 204 No Content (empty body). Do not grep JSON.
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:4000/health | grep -q '"status"'; then
-              echo "Health check passed"
-              break
+            code=$(curl -sS -o /dev/null -w "%{http_code}" http://localhost:4000/health || true)
+            if [ "$code" = "204" ]; then
+              echo "Health check passed (HTTP 204)"
+              echo "Docker smoke test passed"
+              exit 0
             fi
-            echo "Waiting... ($i/30)"
+            echo "Waiting... ($i/30) HTTP ${code:-curl-failed}"
             sleep 2
           done
 
-          echo "=== /health ==="
-          curl -sf http://localhost:4000/health || true
-          echo ""
-          echo "=== / ==="
-          curl -sf http://localhost:4000/ || true
-          echo ""
-
-          # Final assertion
-          curl -sf http://localhost:4000/health | grep -q '"status":"ok"' \
-            && echo "Docker smoke test passed" \
-            || { echo "Docker smoke test FAILED — container logs:"; docker logs engine; exit 1; }
+          echo "Docker smoke test FAILED — expected HTTP 204 from GET /health"
+          echo "=== container logs ==="
+          docker logs engine
+          exit 1
 
       - name: Tear down
         if: always()
