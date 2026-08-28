@@ -66,7 +66,7 @@ defmodule EvilEngine.Events.EngineEventBus do
   @doc false
   @spec reset_state() :: :ok
   def reset_state do
-    GenServer.call(__MODULE__, :reset_state)
+    GenServer.call(__MODULE__, :reset_state, 15_000)
   end
 
   # --- Server callbacks ---------------------------------------------------
@@ -85,6 +85,9 @@ defmodule EvilEngine.Events.EngineEventBus do
         id: {SinkWorker, name},
         start: {SinkWorker, :start_link, [{name, module, opts}]},
         restart: :permanent,
+        # `reset_state` must not wait for a backed-up sink mailbox.
+        # Graceful drain is `shutdown_sinks/0`.
+        shutdown: :brutal_kill,
         type: :worker
       }
 

@@ -203,17 +203,16 @@ defmodule EvilEngine.Umbrella.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
-      {:castore, "~> 1.0", only: :test},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      {:yaml_elixir, "~> 2.11"}
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
   end
 
   defp aliases do
     [
-      setup: ["deps.get", "deps.patch"],
+      setup: ["deps.get", "deps.patch", "deps.compile.sat"],
       "deps.patch": &apply_dep_patches/1,
+      "deps.compile.sat": ["deps.compile simple_sat", "deps.compile crux --force"],
       "ecto.setup": ["do --app peripheral_persistence ecto.setup"],
       "ecto.reset": ["do --app peripheral_persistence ecto.reset"],
 

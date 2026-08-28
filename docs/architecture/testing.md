@@ -33,7 +33,11 @@ When they land:
 #### 12.3.1 YAML-driven conformance framework (Phase 1)
 
 The Phase 1 conformance corpus lives in `test/conformance/` and is executed via
-`mix test.conformance` (or as part of `mix test.full` / `mix quality`).
+`mix test.conformance` (or as part of `mix test.full` / `mix quality`). YAML specs
+are loaded with `YamlElixir` from `api_web`'s `yaml_elixir` dependency (also used
+for OpenAPI at runtime). The umbrella root does not declare `yaml_elixir`: Mix
+rejects a root `only: :test` restriction when a child app needs the package in
+every environment.
 
 **Framework modules:**
 
@@ -422,7 +426,7 @@ DMN decision evaluation throughput under sustained load.
 - Postgres service published on host port **5543** (`config/test.exs`); `mix do --app peripheral_persistence ecto.create` + `ecto.migrate` before tests (`priv/read_repo/migrations` exists empty so Mix does not error on the read pool)
 - `mix format --check-formatted`
 - `mix credo --strict`
-- `mix dialyzer --format github` (Dialyzer baseline, zero warnings over time). PLTs are restored/saved from `priv/plts` (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
+- One Mix cache of `deps` + `_build`, keyed on OS + `mix-precover` + `MIX_ENV` + OTP + Elixir + `mix.lock` (no app source hashes). Restore at job start; save after `mix compile --warnings-as-errors` and **before** coverage so ExCoveralls-instrumented BEAMs are not reused on the next run. Dialyzer PLTs stay a separate `priv/plts` cache (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Packages CI uses the same unified Mix cache with a `-prod-` key prefix. `igniter` is `runtime: false` (not started). It is **not** `only: :dev`: Spark Mix tasks reference `Igniter` at compile time, so Elixir 1.20 type-checking fails if Igniter is absent from the test or prod load path. Ash policy SAT (via `crux`) uses Hex `simple_sat` — a pure Elixir solver. Do not drop it without a replacement (`picosat_elixir` or `simple_sat`); with neither, GraphQL/Ash authorization returns empty results. Mix may compile `crux` before optional SAT backends; CI and `mix setup` run `mix deps.compile.sat` (`simple_sat` then `crux --force`) before the rest of `deps.compile`. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
 - `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate)
 - `mix sobelow` for security
 - `mix deps.audit`

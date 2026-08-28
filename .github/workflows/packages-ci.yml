@@ -70,6 +70,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev
 
       - name: Install Erlang / Elixir
+        id: beam
         uses: erlef/setup-beam@v1
         with:
           otp-version: "29.0.3"
@@ -88,19 +89,15 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm@11.12.0
 
-      - name: Cache Elixir deps
+      - name: Cache Mix deps and _build
         uses: actions/cache@v5
         with:
-          path: deps
-          key: ${{ runner.os }}-deps-prod-${{ hashFiles('**/mix.lock') }}
-
-      - name: Cache Elixir _build
-        uses: actions/cache@v5
-        with:
-          path: _build
-          key: ${{ runner.os }}-build-prod-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('apps/**/lib/**/*.ex', 'apps/**/lib/**/*.exs', 'config/**/*.exs', 'mix.exs') }}
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-prod-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-build-prod-${{ hashFiles('**/mix.lock') }}-
+            ${{ runner.os }}-mix-prod-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
 
       - name: Cache Cargo registry
         uses: actions/cache@v5
@@ -115,6 +112,7 @@ jobs:
       - name: Compile engine and build release
         run: |
           mix deps.get --only prod
+          mix deps.compile.sat
           mix deps.compile
           mix compile
           mix release

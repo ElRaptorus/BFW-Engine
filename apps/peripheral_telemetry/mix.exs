@@ -39,8 +39,7 @@ defmodule PeripheralTelemetry.MixProject do
       {:engine_sdk, in_umbrella: true},
       {:telemetry, "~> 1.4"},
       {:telemetry_metrics, "~> 1.1"},
-      {:telemetry_metrics_prometheus_core,
-       github: "beam-telemetry/telemetry_metrics_prometheus_core", branch: "main"},
+      {:telemetry_metrics_prometheus_core, "~> 1.1"},
       {:telemetry_poller, "~> 1.1"}
     ]
   end

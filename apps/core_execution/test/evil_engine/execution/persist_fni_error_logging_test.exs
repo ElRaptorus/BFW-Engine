@@ -69,6 +69,12 @@ defmodule EvilEngine.Execution.PersistFniErrorLoggingTest do
     def list_all_flow_node_instances(_id), do: {:ok, []}
 
     @impl true
+    def count_all_flow_node_instances(_id), do: {:ok, 0}
+
+    @impl true
+    def get_flow_node_instance_by_id(_id), do: {:error, :not_found}
+
+    @impl true
     def execute_retry_reset(_id, _opts), do: {:ok, []}
 
     @impl true
@@ -192,6 +198,12 @@ defmodule EvilEngine.Execution.PersistFniErrorLoggingTest do
 
         @impl true
         def list_all_flow_node_instances(_id), do: {:ok, []}
+
+        @impl true
+        def count_all_flow_node_instances(_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_id), do: {:error, :not_found}
 
         @impl true
         def execute_retry_reset(_id, _opts), do: {:ok, []}

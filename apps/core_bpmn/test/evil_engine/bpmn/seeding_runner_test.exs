@@ -3,8 +3,6 @@ defmodule EvilEngine.BPMN.SeedingRunnerTest do
 
   import ExUnit.CaptureLog
 
-  require Logger
-
   alias EvilEngine.BPMN.ModelCache
   alias EvilEngine.BPMN.SeedingRunner
 

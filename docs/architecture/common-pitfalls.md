@@ -1177,7 +1177,7 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 **Why it happens:** `mix.exs` sets `plt_core_path` and `plt_local_path` to `priv/plts` (the Dialyxir CI convention). Those files are gitignored (`/priv/plts/*.plt`). The `_build` cache therefore never restores the Erlang/Elixir/deps lookup tables, so every CI run rebuilds them from scratch (several minutes).
 
-**Correct approach:** Restore `priv/plts` before Dialyzer and save it after, with a key of `runner.os` + resolved OTP + resolved Elixir (`erlef/setup-beam` outputs) + `hashFiles('**/mix.lock')`. Use `restore-keys` without the lockfile hash so a lockfile bump can incrementally update an older PLT. Do not commit `.plt` files. GitHub cache keys are immutable — skip save on an exact `cache-hit`.
+**Correct approach:** Restore `priv/plts` before Dialyzer and save it after, with a key of `runner.os` + resolved OTP + resolved Elixir (`erlef/setup-beam` outputs) + `hashFiles('**/mix.lock')`. Use `restore-keys` without the lockfile hash so a lockfile bump can incrementally update an older PLT. Do not commit `.plt` files. GitHub cache keys are immutable — skip save on an exact `cache-hit`. A unified Mix cache of `deps` + `_build` still does not contain `priv/plts`.
 
 ## P77: Coverage gate must import integration + conformance coverdata
 
@@ -1186,4 +1186,14 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 **Why it happens:** `mix coveralls --umbrella` only executes each app's `mix test` (unit/domain). Root suites live under `test/integration/` and `test/conformance/` and are started by Mix `run` scripts, not by `mix test`. The 80% `minimum_coverage` in `coveralls.json` was calibrated against `mix quality`, which runs `test/coverage_runner.exs` first (both root suites under one `:cover` session, export `cover/umbrella.coverdata` into each `apps/*/cover/`) and then `coveralls.html --umbrella --import-cover cover`. Unit-only coverage lands around 65% — large modules such as `EvilEngine.Api` are exercised almost entirely by full-stack tests.
 
 **Correct approach:** CI uses the same merge path as quality: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Do not gate coverage on unit tests alone. Do not run `integration_runner.exs` as a separate post-coverage step — that double-runs integration and still omits conformance from the report. Standalone `mix test.integration` / `mix test.conformance` remain for runs without coverage overhead.
+
+## P78: Do not split Mix `deps` and `_build` caches, and do not hash app sources into the Mix cache key
+
+**Mistake:** Two `actions/cache` steps (`deps` vs `_build`) and/or a `_build` key that includes `hashFiles('apps/**/lib/**/*.ex', ...)`.
+
+**Why it happens:** Exact `_build` key misses every commit. `mix deps.get` against a `_build` restored via `restore-keys` from a different cache entry marks Hex packages outdated. `mix deps.compile` then rebuilds Ash/Phoenix/Absinthe (minutes). Unique per-commit keys also evict Dialyzer PLT caches.
+
+**Correct approach:** One cache, `path: deps` and `_build`, key `runner.os` + `mix-precover` + `MIX_ENV` + setup-beam OTP + Elixir + `mix.lock`. Restore at job start; **save after `mix compile` and before coverage**. Incremental app compile is Mix’s job after restore. PLTs stay a separate `priv/plts` cache (P76).
+
+**Do not save `_build` at job end.** `mix coveralls` rewrites project BEAMs in `_build` with coverage instrumentation. `actions/cache@v5` (combined restore+save) persists those BEAMs. The next run restores them, Mix skips a clean recompile, `code:load_file` hits `:not_purged` on live GenServers (`EngineEventBus`, `SinkWorker`), and `reset_state` times out. Use `actions/cache/restore` + `actions/cache/save` with a `precover` key prefix so poisoned entries from the old key are not reused.
 

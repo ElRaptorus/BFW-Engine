@@ -46,7 +46,6 @@ defmodule ApiWeb.MixProject do
       {:api_facade, in_umbrella: true},
       {:phoenix, "~> 1.8"},
       {:bandit, "~> 1.10"},
-      {:phoenix_html, "~> 4.3"},
       {:phoenix_pubsub, "~> 2.2"},
       {:open_api_spex, "~> 3.21"},
       {:yaml_elixir, "~> 2.11"},
@@ -56,7 +55,6 @@ defmodule ApiWeb.MixProject do
       {:ash_graphql, "~> 1.9"},
       {:absinthe, "~> 1.7"},
       {:absinthe_plug, "~> 1.5"},
-      {:absinthe_phoenix, "~> 2.0"},
       {:dataloader, "~> 2.0"}
     ]
   end

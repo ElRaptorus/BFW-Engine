@@ -9,7 +9,7 @@ parent_document: ../ImplementationPlan.md
 
 Core observability stays intentionally small: structured JSON logs + a
 `/stats` JSON snapshot. **Phase 2** adds an optional public **`GET /metrics`**
-Prometheus exposition endpoint (`telemetry_metrics_prometheus_core`), gated by
+Prometheus exposition endpoint (`telemetry_metrics_prometheus_core` from Hex `~> 1.1`, not GitHub `main`), gated by
 `EVIL_METRICS_ENABLED` (see [configuration.md](./configuration.md)). No OpenTelemetry and no distributed tracing in v1.
 Every typed engine event is fanned out through `EngineEventBus` to a set of
 pluggable sinks ([§3.3](./event-system.md)); this section describes what each sink surfaces and how operators

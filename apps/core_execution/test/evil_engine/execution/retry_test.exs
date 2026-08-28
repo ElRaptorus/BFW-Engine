@@ -167,6 +167,12 @@ defmodule EvilEngine.Execution.RetryTest do
         end
 
         @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
+
+        @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
         @impl true
         def revert_retry(_, _, _), do: :ok
@@ -274,6 +280,12 @@ defmodule EvilEngine.Execution.RetryTest do
              }
            ]}
         end
+
+        @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
 
         @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
@@ -389,6 +401,12 @@ defmodule EvilEngine.Execution.RetryTest do
         end
 
         @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
+
+        @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
         @impl true
         def revert_retry(_, _, _), do: :ok
@@ -486,6 +504,12 @@ defmodule EvilEngine.Execution.RetryTest do
              }
            ]}
         end
+
+        @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
 
         @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
@@ -610,6 +634,12 @@ defmodule EvilEngine.Execution.RetryTest do
         end
 
         @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
+
+        @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
         @impl true
         def revert_retry(_, _, _), do: :ok
@@ -722,6 +752,12 @@ defmodule EvilEngine.Execution.RetryTest do
         end
 
         @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
+
+        @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
         @impl true
         def revert_retry(_, _, _), do: :ok
@@ -820,6 +856,12 @@ defmodule EvilEngine.Execution.RetryTest do
              }
            ]}
         end
+
+        @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
 
         @impl true
         def execute_retry_reset(_, _), do: {:ok, []}
@@ -950,6 +992,12 @@ defmodule EvilEngine.Execution.RetryTest do
              }
            ]}
         end
+
+        @impl true
+        def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
+
+        @impl true
+        def get_flow_node_instance_by_id(_flow_node_instance_id), do: {:error, :not_found}
 
         @impl true
         def execute_retry_reset(_, _), do: {:ok, []}

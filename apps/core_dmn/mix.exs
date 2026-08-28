@@ -37,7 +37,7 @@ defmodule CoreDmn.MixProject do
     [
       {:core_types, in_umbrella: true},
       {:core_expressions, in_umbrella: true},
-      {:telemetry, "~> 1.2"},
+      {:telemetry, "~> 1.4"},
       {:saxy, "~> 1.6"},
       {:jason, "~> 1.4"}
     ]

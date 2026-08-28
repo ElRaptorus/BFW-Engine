@@ -33,7 +33,6 @@ defmodule ApiAuth.MixProject do
     [
       {:core_types, in_umbrella: true},
       {:engine_sdk, in_umbrella: true},
-      {:joken, "~> 2.6"},
       {:jose, "~> 1.11"},
       {:jason, "~> 1.4"},
       {:plug, "~> 1.16"}

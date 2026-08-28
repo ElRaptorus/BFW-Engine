@@ -719,25 +719,29 @@ defmodule EvilEngine.ExpressionsTest do
 
     test "non-map context is rejected by guard clause on evaluate_unary" do
       assert_raise FunctionClauseError, fn ->
-        Expressions.evaluate_unary("< 100", 50, "not_a_map")
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Expressions, :evaluate_unary, ["< 100", 50, "not_a_map"])
       end
     end
 
     test "non-binary expression is rejected by guard clause on eval" do
       assert_raise FunctionClauseError, fn ->
-        Expressions.eval(42, %{})
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Expressions, :eval, [42, %{}])
       end
     end
 
     test "non-binary expression is rejected by guard clause on compile" do
       assert_raise FunctionClauseError, fn ->
-        Expressions.compile(42)
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Expressions, :compile, [42])
       end
     end
 
     test "non-map context_shape is rejected by guard clause on compile" do
       assert_raise FunctionClauseError, fn ->
-        Expressions.compile("1 + 1", "not_a_map")
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Expressions, :compile, ["1 + 1", "not_a_map"])
       end
     end
 

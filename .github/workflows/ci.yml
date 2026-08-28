@@ -40,19 +40,16 @@ jobs:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
 
-      - name: Cache Elixir deps
-        uses: actions/cache@v5
+      - name: Restore Mix deps and _build
+        id: mix_cache
+        uses: actions/cache/restore@v5
         with:
-          path: deps
-          key: ${{ runner.os }}-deps-test-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
-
-      - name: Cache Elixir _build
-        uses: actions/cache@v5
-        with:
-          path: _build
-          key: ${{ runner.os }}-build-test-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('apps/**/lib/**/*.ex', 'apps/**/lib/**/*.exs', 'config/**/*.exs', 'mix.exs') }}
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-precover-${{ env.MIX_ENV }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-build-test-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}-
+            ${{ runner.os }}-mix-precover-${{ env.MIX_ENV }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
 
       - name: Restore Dialyzer PLT
         id: plt_cache
@@ -66,6 +63,9 @@ jobs:
       - name: Install Dependencies
         run: mix deps.get
 
+      - name: Compile SAT solver then Crux
+        run: mix deps.compile.sat
+
       - name: Dependency security audit
         run: mix deps.audit
 
@@ -74,6 +74,15 @@ jobs:
 
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
+
+      - name: Save Mix deps and _build
+        if: steps.mix_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-precover-${{ env.MIX_ENV }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
 
       - name: Extension manifest up to date
         run: mix evil.gen.extension_manifest --check
@@ -121,6 +130,9 @@ jobs:
         # `mix coveralls --umbrella` alone — that omits root suites and
         # fails the 80% gate (~65% unit-only). Do not use coveralls.github
         # / coveralls.post — those POST to coveralls.io.
+        # Save the Mix cache BEFORE this step: ExCoveralls rewrites _build
+        # BEAMs; caching those poisons the next run (:not_purged, EventBus stalls).
+        timeout-minutes: 45
         run: |
           mix test.coverdata
           mix coveralls --umbrella --import-cover cover
