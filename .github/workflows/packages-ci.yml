@@ -29,7 +29,7 @@ jobs:
           node-version: 24
 
       - name: Install pnpm
-        run: npm install -g pnpm@11.12.0
+        run: npm install -g pnpm@11.24.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -73,13 +73,13 @@ jobs:
         id: beam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "29.0.3"
-          elixir-version: "1.20.2"
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.97.0"
+          toolchain: "1.98.0"
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -87,7 +87,7 @@ jobs:
           node-version: 24
 
       - name: Install pnpm
-        run: npm install -g pnpm@11.12.0
+        run: npm install -g pnpm@11.24.0
 
       - name: Cache Mix deps and _build
         uses: actions/cache@v5
@@ -196,7 +196,7 @@ jobs:
           scope: "@elraptorus"
 
       - name: Install pnpm
-        run: npm install -g pnpm@11.12.0
+        run: npm install -g pnpm@11.24.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

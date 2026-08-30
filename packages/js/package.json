@@ -1,23 +1,23 @@
 {
   "private": true,
-  "packageManager": "pnpm@11.12.0",
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:unit": "pnpm -r run test:unit",
     "test:integration": "pnpm --filter @elraptorus/daemonengine_client run test:integration",
-    "test:examples": "pnpm --filter '@elraptorus/example-*' run test",
+    "test:examples": "pnpm --filter '@daemonengine/example-*' run test",
     "lint": "pnpm -r run lint",
     "lint:fix": "pnpm -r run lint:fix",
     "format": "pnpm -r run format"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "catalog:",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "@types/node": "^26.1.1",
-    "eslint": "^10.7.0",
-    "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.7.0",
-    "typescript-eslint": "^8.63.0"
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "globals": "catalog:",
+    "typescript-eslint": "catalog:"
   }
 }

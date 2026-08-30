@@ -17,6 +17,16 @@ The engine ships two TypeScript npm packages in a pnpm monorepo at `packages/js/
 
 The SDK never imports from the client. All contracts (types, error classes, event interfaces, plugin interfaces, GraphQL query option types) live in the SDK. The client is a pure consumer.
 
+## Workspace dependencies
+
+The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/`, `examples/sdk-js/`, and `examples/sidecar-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, ESLint packages, `prettier`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
+
+TypeScript stays on **6.0.x**. `typescript@7` is on npm `latest`, but `typescript-eslint@8.68.0` peers `typescript: >=4.8.4 <6.1.0`. Do not bump until typescript-eslint widens that range.
+
+`pnpm.overrides` in the same workspace file pin four transitive floors that parents have not declared yet: `vite` 8.2.2, `postcss` 8.5.26, `esbuild` 0.28.2, `nanoid@^3` 3.3.18. Drop those overrides when vitest/vite/tsx depend on the patched ranges themselves.
+
+Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; client `phoenix` `^1.8.13`; client test-only `jose` `^6.2.10`.
+
 ## SDK Structure (`packages/js/sdk/src/`)
 
 | Directory | Contents |
@@ -164,7 +174,7 @@ Jobs, in order:
 | Job | What it does |
 |-----|----------------|
 | **lint-build-unit** | `pnpm install --frozen-lockfile`, then lint / build / `test:unit` for the SDK and client packages only (`--filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client`) |
-| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.3, Elixir 1.20.2, Rust 1.97.0 for the FEEL NIF), migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration` |
+| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.5, Elixir 1.20.3-otp-29, Rust 1.98.0 for the FEEL NIF), migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration` |
 | **publish** (needs integration) | Resolves version from the release tag or by incrementing the GitHub Packages `pnpm view` result, then `pnpm publish` of SDK then client (`workspace:*` is rewritten to the published SDK version) |
 
 The integration job must install a Rust toolchain. `mix compile` of `core_expressions` builds the Rustler NIF; without `rustc` the release (and therefore publish) fails.

@@ -41,15 +41,15 @@
   },
   "dependencies": {
     "@elraptorus/daemonengine_sdk": "workspace:*",
-    "phoenix": "^1.8.9"
+    "phoenix": "^1.8.13"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
-    "eslint": "^10.7.0",
-    "jose": "^6.2.3",
-    "prettier": "^3.9.5",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.10"
+    "eslint": "catalog:",
+    "jose": "^6.2.10",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
   }
 }

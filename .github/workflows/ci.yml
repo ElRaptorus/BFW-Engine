@@ -40,17 +40,6 @@ jobs:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
 
-      - name: Restore Mix deps and _build
-        id: mix_cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-precover-${{ env.MIX_ENV }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-precover-${{ env.MIX_ENV }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
-
       - name: Restore Dialyzer PLT
         id: plt_cache
         uses: actions/cache/restore@v5
@@ -71,15 +60,6 @@ jobs:
 
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
-
-      - name: Save Mix deps and _build
-        if: steps.mix_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-precover-${{ env.MIX_ENV }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
 
       - name: Extension manifest up to date
         run: mix evil.gen.extension_manifest --check
