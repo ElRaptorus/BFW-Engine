@@ -17,7 +17,10 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
       process_instance_id =
         http_deploy_and_start("timer_catch_manual_trigger.bpmn", "TimerCatchManualTrigger")
 
-      Process.sleep(500)
+      {:ok, _waiting_catch} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
 
       flow_node_instance = find_timer_fni!(process_instance_id)
 
@@ -35,17 +38,9 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
 
     test "returns 422 for FNI that is not a timer event" do
       process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
-      Process.sleep(200)
 
-      flow_node_instances = fetch_flow_node_instances(process_instance_id)
-
-      user_task_fni =
-        Enum.find(flow_node_instances, fn flow_node_instance ->
-          flow_node_instance.flow_node_type == "user_task" and
-            flow_node_instance.state == "waiting"
-        end)
-
-      assert user_task_fni != nil
+      {:ok, user_task_fni} =
+        await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
 
       {422, body} = http_trigger_timer_event(user_task_fni.id)
       assert body["error"] == "not_a_timer_event"
@@ -55,7 +50,10 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
       process_instance_id =
         http_deploy_and_start("timer_catch_manual_trigger.bpmn", "TimerCatchManualTrigger")
 
-      Process.sleep(500)
+      {:ok, _waiting_catch} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
 
       flow_node_instance = find_timer_fni!(process_instance_id)
 
@@ -77,7 +75,11 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
   describe "timer trigger authorization (lane visibility)" do
     test "returns 404 when caller lacks lane claim for laned timer" do
       process_instance_id = deploy_and_start_laned_timer_catch()
-      Process.sleep(500)
+
+      {:ok, _waiting_catch} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
 
       flow_node_instance = find_timer_fni!(process_instance_id)
 
@@ -88,7 +90,11 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
 
     test "200 when caller has matching lane claim" do
       process_instance_id = deploy_and_start_laned_timer_catch()
-      Process.sleep(500)
+
+      {:ok, _waiting_catch} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
 
       flow_node_instance = find_timer_fni!(process_instance_id)
 
@@ -99,7 +105,11 @@ defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
 
     test "403 when caller has a read claim on the timer lane" do
       process_instance_id = deploy_and_start_laned_timer_catch()
-      Process.sleep(500)
+
+      {:ok, _waiting_catch} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
 
       flow_node_instance = find_timer_fni!(process_instance_id)
 

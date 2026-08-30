@@ -20,6 +20,7 @@ defmodule EvilEngine.Execution.TimerCatchIntegrationTest do
   alias EvilEngine.BPMN.ModelCache
   alias EvilEngine.Execution.ProcessInstance
   alias EvilEngine.Execution.TestSupport.BpmnFactory
+  alias EvilEngine.Execution.TestSupport.SchedulerWait
   alias EvilEngine.Timers.Scheduler
   alias EvilEngine.Types.Identity
 
@@ -89,9 +90,8 @@ defmodule EvilEngine.Execution.TimerCatchIntegrationTest do
 
       %{pid: pid} = start_pi_with_timer(time_date: future)
 
-      Process.sleep(200)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
-      assert Scheduler.armed_count() >= 1
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
     end
@@ -167,9 +167,8 @@ defmodule EvilEngine.Execution.TimerCatchIntegrationTest do
       {:ok, pid} =
         DynamicSupervisor.start_child(EvilEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      Process.sleep(200)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
-      assert Scheduler.armed_count() >= 1
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
     end
@@ -214,8 +213,8 @@ defmodule EvilEngine.Execution.TimerCatchIntegrationTest do
       {:ok, pid} =
         DynamicSupervisor.start_child(EvilEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      Process.sleep(3_000)
-      refute Process.alive?(pid)
+      ref = Process.monitor(pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
     end
   end
 
@@ -249,19 +248,16 @@ defmodule EvilEngine.Execution.TimerCatchIntegrationTest do
 
       %{pid: pid} = start_pi_with_timer(time_date: future)
 
-      Process.sleep(200)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
       armed_before = Scheduler.armed_count()
-      assert armed_before >= 1
 
       ref = Process.monitor(pid)
       ProcessInstance.abort(pid, "user-abort", @test_identity)
 
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 2_000
 
-      Process.sleep(200)
-      armed_after = Scheduler.armed_count()
-      assert armed_after < armed_before
+      assert :ok = SchedulerWait.wait_until_below(armed_before)
     end
   end
 end

@@ -13,6 +13,7 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
   alias EvilEngine.Events.SignalSubscriptions
   alias EvilEngine.Execution
   alias EvilEngine.Execution.TestSupport.BpmnFactory
+  alias EvilEngine.Execution.TestSupport.SchedulerWait
   alias EvilEngine.Timers.Scheduler
   alias EvilEngine.Types.Identity
 
@@ -203,7 +204,7 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
 
       assert {:ok, _pid} = start_process_instance()
 
-      Process.sleep(100)
+      assert :ok = await_message_subscription("msg-wins")
       publish_message("msg-wins")
 
       assert_receive {:pi_state_change, ^pi_ref, :finished, _}, 3_000
@@ -235,7 +236,7 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
 
       assert {:ok, _pid} = start_process_instance()
 
-      Process.sleep(100)
+      assert :ok = await_signal_subscription("sig-wins")
       publish_signal("sig-wins")
 
       assert_receive {:pi_state_change, ^pi_ref, :finished, _}, 3_000
@@ -297,7 +298,7 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
 
       assert {:ok, _pid} = start_process_instance()
 
-      Process.sleep(100)
+      assert :ok = await_message_subscription("recv-wins")
       publish_message("recv-wins")
 
       assert_receive {:pi_state_change, ^pi_ref, :finished, _}, 3_000
@@ -339,7 +340,8 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
                  process_instance_id: process_instance_id
                )
 
-      Process.sleep(100)
+      assert :ok = await_message_subscription("abort-test")
+      assert :ok = SchedulerWait.wait_until_armed(1)
 
       identity = %Identity{id: "test-user", roles: ["admin"], groups: []}
       Execution.abort_process_instance(process_instance_id, "test abort", identity)
@@ -380,7 +382,8 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
                  process_instance_id: process_instance_id
                )
 
-      Process.sleep(100)
+      assert :ok = await_message_subscription("fatal-test")
+      assert :ok = SchedulerWait.wait_until_armed(1)
 
       Execution.fatal_process_instance(process_instance_id, %{reason: :test_forced_fatal})
 
@@ -450,7 +453,7 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
 
       assert {:ok, _pid} = start_process_instance()
 
-      Process.sleep(100)
+      assert :ok = await_message_subscription("msg-over-sig")
       publish_message("msg-over-sig")
 
       assert_receive {:pi_state_change, ^pi_ref, :finished, _}, 3_000
@@ -482,7 +485,7 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
 
       assert {:ok, _pid} = start_process_instance()
 
-      Process.sleep(100)
+      assert :ok = await_message_subscription("recv-a")
       publish_message("recv-a")
 
       assert_receive {:pi_state_change, ^pi_ref, :finished, _}, 3_000
@@ -557,6 +560,36 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
 
       assert aborted_or_interrupted != []
       assert Enum.any?(script_events, &(&1.terminal_state == :fatal))
+    end
+  end
+
+  defp await_message_subscription(message_name, timeout \\ 2_000) do
+    case SchedulerWait.wait_until(
+           fn -> MessageSubscriptions.has_subscriptions_for_message?(message_name) end,
+           timeout
+         ) do
+      :ok ->
+        :ok
+
+      {:error, :timeout} ->
+        flunk(
+          "message subscription for #{inspect(message_name)} was not registered within #{timeout}ms"
+        )
+    end
+  end
+
+  defp await_signal_subscription(signal_name, timeout \\ 2_000) do
+    case SchedulerWait.wait_until(
+           fn -> SignalSubscriptions.lookup(signal_name) != [] end,
+           timeout
+         ) do
+      :ok ->
+        :ok
+
+      {:error, :timeout} ->
+        flunk(
+          "signal subscription for #{inspect(signal_name)} was not registered within #{timeout}ms"
+        )
     end
   end
 end

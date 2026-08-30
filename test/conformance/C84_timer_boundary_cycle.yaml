@@ -9,3 +9,5 @@ expected:
   final_tokens:
     - endEventId: "End_Normal"
     - endEventId: "End_Timeout"
+    - endEventId: "End_Timeout"
+    - endEventId: "End_Timeout"

@@ -22,6 +22,7 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
   alias EvilEngine.BPMN.ModelCache
   alias EvilEngine.Execution.ProcessInstance
   alias EvilEngine.Execution.TestSupport.BpmnFactory
+  alias EvilEngine.Execution.TestSupport.SchedulerWait
   alias EvilEngine.Timers.Scheduler
   alias EvilEngine.Types.Identity
 
@@ -83,9 +84,8 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
       %{pid: pid} =
         start_pi_with_boundary(time_duration: "PT1H", cancel_activity: true)
 
-      Process.sleep(300)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
-      assert Scheduler.armed_count() >= 1
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
     end
@@ -93,10 +93,12 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
 
   describe "non-interrupting timer boundary — PT0S (immediate fire)" do
     test "boundary fires, host user task continues, PI waits for user task" do
+      fired_reference = attach_timer_fired_telemetry()
+
       %{pid: pid} =
         start_pi_with_boundary(time_duration: "PT0S", cancel_activity: false)
 
-      Process.sleep(500)
+      assert_receive {:timer_fired, ^fired_reference}, 5_000
       assert Process.alive?(pid)
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
@@ -113,9 +115,7 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
       ref = Process.monitor(pid)
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
 
-      Process.sleep(200)
-      armed_after = Scheduler.armed_count()
-      assert armed_after == armed_before
+      assert :ok = SchedulerWait.wait_until_count(armed_before)
     end
   end
 
@@ -131,9 +131,8 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
     test "time_cycle on non-interrupting boundary keeps PI alive" do
       %{pid: pid} = start_pi_with_boundary(time_cycle: "R3/PT1H", cancel_activity: false)
 
-      Process.sleep(300)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
-      assert Scheduler.armed_count() >= 1
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
     end
@@ -149,10 +148,14 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
 
   describe "non-interrupting cycle boundary — PT0S (immediate multi-fire)" do
     test "cycle fires multiple times while host continues, PI waits for user task" do
+      fired_reference = attach_timer_fired_telemetry()
+
       %{pid: pid} =
         start_pi_with_boundary(time_cycle: "R3/PT0S", cancel_activity: false)
 
-      Process.sleep(500)
+      assert_receive {:timer_fired, ^fired_reference}, 5_000
+      assert_receive {:timer_fired, ^fired_reference}, 5_000
+      assert_receive {:timer_fired, ^fired_reference}, 5_000
       assert Process.alive?(pid)
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
@@ -185,8 +188,7 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
       assert_receive {:DOWN, ^ref, :process, ^pid, reason}, 5_000
       assert reason in [:normal, :noproc]
 
-      Process.sleep(200)
-      assert Scheduler.armed_count() == 0
+      assert :ok = SchedulerWait.wait_until_count(0)
     end
   end
 
@@ -296,9 +298,8 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
       {:ok, pid} =
         DynamicSupervisor.start_child(EvilEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      Process.sleep(300)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
-      assert Scheduler.armed_count() >= 1
 
       ProcessInstance.abort(pid, "test cleanup", @test_identity)
     end
@@ -368,19 +369,34 @@ defmodule EvilEngine.Execution.TimerBoundaryIntegrationTest do
       %{pid: pid} =
         start_pi_with_boundary(time_duration: "PT1H", cancel_activity: true)
 
-      Process.sleep(300)
+      assert :ok = SchedulerWait.wait_until_armed(1)
       assert Process.alive?(pid)
       armed_before = Scheduler.armed_count()
-      assert armed_before >= 1
 
       ref = Process.monitor(pid)
       ProcessInstance.abort(pid, "user-abort", @test_identity)
 
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 2_000
 
-      Process.sleep(200)
-      armed_after = Scheduler.armed_count()
-      assert armed_after < armed_before
+      assert :ok = SchedulerWait.wait_until_below(armed_before)
     end
+  end
+
+  defp attach_timer_fired_telemetry do
+    reference = make_ref()
+    test_process = self()
+    handler_id = "boundary-timer-fired-#{inspect(reference)}"
+
+    :telemetry.attach(
+      handler_id,
+      [:evil_engine, :timer, :fired],
+      fn _event, _measurements, _metadata, _config ->
+        send(test_process, {:timer_fired, reference})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+    reference
   end
 end

@@ -84,7 +84,8 @@ defmodule EvilEngine.Timers.SchedulerTest do
 
     test "silently drops fire for dead PID target" do
       dead_pid = spawn(fn -> :ok end)
-      Process.sleep(20)
+      dead_reference = Process.monitor(dead_pid)
+      assert_receive {:DOWN, ^dead_reference, :process, ^dead_pid, _}, 200
       refute Process.alive?(dead_pid)
 
       {:ok, _ref} =
@@ -213,7 +214,7 @@ defmodule EvilEngine.Timers.SchedulerTest do
       assert 2 == Scheduler.armed_count()
 
       Process.exit(target, :kill)
-      Process.sleep(100)
+      assert :ok = wait_until_armed_count(0)
 
       assert 0 == Scheduler.armed_count()
     end
@@ -230,7 +231,7 @@ defmodule EvilEngine.Timers.SchedulerTest do
         Scheduler.schedule(%{fire_at: future(60_000), target: target_b, metadata: %{}})
 
       Process.exit(target_a, :kill)
-      Process.sleep(100)
+      assert :ok = wait_until_armed_count(1)
 
       assert 1 == Scheduler.armed_count()
     end
@@ -419,6 +420,24 @@ defmodule EvilEngine.Timers.SchedulerTest do
 
       assert_receive {:telemetry_cancelled, measurements}, 500
       assert measurements.timer_ref == timer_ref
+    end
+  end
+
+  defp wait_until_armed_count(expected_count, timeout \\ 2_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_wait_until_armed_count(expected_count, deadline)
+  end
+
+  defp do_wait_until_armed_count(expected_count, deadline) do
+    if Scheduler.armed_count() == expected_count do
+      :ok
+    else
+      if System.monotonic_time(:millisecond) >= deadline do
+        {:error, {:scheduler_wait_timeout, Scheduler.armed_count()}}
+      else
+        Process.sleep(20)
+        do_wait_until_armed_count(expected_count, deadline)
+      end
     end
   end
 end

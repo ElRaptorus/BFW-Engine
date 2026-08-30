@@ -1219,3 +1219,15 @@ Do **not** disable the wrapping sandbox transaction (`sandbox: true`) to chase `
 
 **Correct approach:** Tests that exercise `update_notify_pid/2` must park the PI on a waiting activity (user task) before the call, then complete that activity and assert `{:child_pi_finished, ...}`. Production wrappers (`ChildLifecycle.set_child_notify_pid/2`) already `catch :exit` and return `:ok` — the child may finish between spawn and the handler re-pointing `notify_pid`. Do not call the raw API without that catch unless the PI is known to be running.
 
+---
+
+## P81: Do not finish a host activity until the non-interrupting timer path has persisted
+
+**Mistake:** Interactive timer tests wait only for the host user task to reach `:waiting`, then immediately `finish_user_task`. Under load the `PT0S` / `R3/PT0S` boundary has not yet produced `End_Timeout`. Finishing the host cancels the boundary (`cancel_boundary_fnis_for_host`). Result: one final token (`End_Normal`) instead of two, or HTTP 404 on finish because a concurrent cycle persist briefly hides the FNI.
+
+**Why it happens:** User-task parking and timer-boundary arming are concurrent. `await_waiting_flow_node_instance(..., "user_task")` returns as soon as the host is waiting — it does **not** mean the Scheduler has fired or that the timeout End Event FNI exists. Completing the host is equivalent to C89 (host completes first, boundary cancelled), which is the opposite of C83/C84/C91.
+
+**Correct approach:** After the host is waiting, poll until the timeout End Event FNI(s) are `finished` (`await_finished_fni_by_node_id` / `await_finished_fni_count_by_node_id` in `test/support/process_interactions.ex`), then finish the still-waiting user task (`finish_waiting_user_task/2`, which retries HTTP 404). For a non-interrupting timer Event Subprocess (C175), wait for the ESP child PI to finish before completing the main user task. Do not use `Process.sleep` as a substitute for those conditions.
+
+The same class of race applies whenever a test publishes a competing event (message/signal) or inspects Scheduler state before the timer path is armed: wait for `MessageSubscriptions.has_subscriptions_for_message?/1`, `SignalSubscriptions.lookup/1`, or `Scheduler.armed_count/0` (`EvilEngine.Execution.TestSupport.SchedulerWait`). Direct `send/2` to a timer GenServer must be followed by `:sys.get_state/1` so `handle_info` has run before assertions.
+

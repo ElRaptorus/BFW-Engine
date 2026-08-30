@@ -198,6 +198,184 @@ defmodule EvilEngine.Test.ProcessInteractions do
   end
 
   @doc """
+  Poll the DB until at least `minimum_count` FNIs with `flow_node_id` are
+  `finished`, or until the timeout expires.
+
+  Use this before completing a host activity that has a non-interrupting
+  timer boundary: finishing the host cancels the boundary, so the timeout
+  path must already have produced its End Event FNI(s).
+  """
+  @spec await_finished_fni_count_by_node_id(String.t(), String.t(), pos_integer(), keyword()) ::
+          {:ok, [map()]} | {:error, :timeout}
+  def await_finished_fni_count_by_node_id(
+        process_instance_id,
+        flow_node_id,
+        minimum_count,
+        opts \\ []
+      )
+      when is_integer(minimum_count) and minimum_count >= 1 do
+    timeout = Keyword.get(opts, :timeout, 5_000)
+    interval = Keyword.get(opts, :poll_interval, 50)
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    do_poll_finished_fni_count_by_node_id(
+      process_instance_id,
+      flow_node_id,
+      minimum_count,
+      interval,
+      deadline
+    )
+  end
+
+  defp do_poll_finished_fni_count_by_node_id(
+         process_instance_id,
+         flow_node_id,
+         minimum_count,
+         interval,
+         deadline
+       ) do
+    matching_flow_node_instances =
+      FlowNodeInstance
+      |> Ash.Query.filter(
+        process_instance_id == ^process_instance_id and
+          flow_node_id == ^flow_node_id and
+          state == "finished"
+      )
+      |> Ash.read!(authorize?: false)
+
+    if length(matching_flow_node_instances) >= minimum_count do
+      {:ok, matching_flow_node_instances}
+    else
+      if System.monotonic_time(:millisecond) >= deadline do
+        {:error, :timeout}
+      else
+        Process.sleep(interval)
+
+        do_poll_finished_fni_count_by_node_id(
+          process_instance_id,
+          flow_node_id,
+          minimum_count,
+          interval,
+          deadline
+        )
+      end
+    end
+  end
+
+  @doc """
+  Convenience for `await_finished_fni_count_by_node_id/4` with `minimum_count` 1.
+  """
+  @spec await_finished_fni_by_node_id(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, :timeout}
+  def await_finished_fni_by_node_id(process_instance_id, flow_node_id, opts \\ []) do
+    case await_finished_fni_count_by_node_id(process_instance_id, flow_node_id, 1, opts) do
+      {:ok, [flow_node_instance | _rest]} -> {:ok, flow_node_instance}
+      {:error, :timeout} -> {:error, :timeout}
+    end
+  end
+
+  @doc """
+  Poll until a child process instance of `parent_process_instance_id` reaches
+  the expected state.
+
+  Options:
+    - `:expected_state` — default `"finished"`
+    - `:timeout` — max wait in ms (default 10_000)
+    - `:poll_interval` — polling interval in ms (default 50)
+  """
+  @spec await_child_process_instance_state(String.t(), keyword()) ::
+          {:ok, map()} | {:error, :timeout}
+  def await_child_process_instance_state(parent_process_instance_id, opts \\ []) do
+    expected_state = Keyword.get(opts, :expected_state, "finished")
+    timeout = Keyword.get(opts, :timeout, 10_000)
+    interval = Keyword.get(opts, :poll_interval, 50)
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    do_poll_child_process_instance_state(
+      parent_process_instance_id,
+      expected_state,
+      interval,
+      deadline
+    )
+  end
+
+  defp do_poll_child_process_instance_state(
+         parent_process_instance_id,
+         expected_state,
+         interval,
+         deadline
+       ) do
+    children =
+      PiResource
+      |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
+      |> Ash.read!(authorize?: false)
+
+    match = Enum.find(children, fn child -> child.state == expected_state end)
+
+    cond do
+      match != nil ->
+        {:ok, match}
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        {:error, :timeout}
+
+      true ->
+        Process.sleep(interval)
+
+        do_poll_child_process_instance_state(
+          parent_process_instance_id,
+          expected_state,
+          interval,
+          deadline
+        )
+    end
+  end
+
+  @doc """
+  Re-read a waiting user task FNI and finish it via REST.
+
+  Retries on HTTP 404: a concurrent timer-boundary persist can briefly make
+  the FNI invisible to the facade (same class of race as P45).
+  """
+  @spec finish_waiting_user_task(String.t(), keyword()) :: :ok | {:error, term()}
+  def finish_waiting_user_task(process_instance_id, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 10_000)
+    result = Keyword.get(opts, :result, %{})
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    do_finish_waiting_user_task(process_instance_id, result, deadline)
+  end
+
+  defp do_finish_waiting_user_task(process_instance_id, result, deadline) do
+    remaining = deadline - System.monotonic_time(:millisecond)
+
+    if remaining <= 0 do
+      {:error, :timeout}
+    else
+      case await_waiting_flow_node_instance(process_instance_id, "user_task",
+             timeout: min(remaining, 2_000)
+           ) do
+        {:ok, user_task_flow_node_instance} ->
+          case finish_user_task(process_instance_id, user_task_flow_node_instance.id, result) do
+            :ok ->
+              :ok
+
+            {:error, {404, _body}} ->
+              Process.sleep(50)
+              do_finish_waiting_user_task(process_instance_id, result, deadline)
+
+            other ->
+              other
+          end
+
+        {:error, :timeout} ->
+          Process.sleep(50)
+          do_finish_waiting_user_task(process_instance_id, result, deadline)
+      end
+    end
+  end
+
+  @doc """
   Poll the DB until a waiting FNI of the given type appears, or timeout.
   """
   @spec await_waiting_flow_node_instance(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, :timeout}

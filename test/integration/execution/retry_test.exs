@@ -1149,9 +1149,11 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
              "expected at least one active/waiting/finished boundary FNI after retry, " <>
                "got: #{inspect(Enum.map(retried_boundary_fnis, &{&1.flow_node_id, &1.state}))}"
 
-      # The critical assertion: we can still finish the user task.
-      # Before the fix, this returned {:error, :fni_not_found} because the PI had crashed.
-      {204, nil} = http_finish_user_task(retried_user_task_fni.id, %{"done" => true})
+      :ok =
+        finish_waiting_user_task(process_instance_id,
+          timeout: 10_000,
+          result: %{"done" => true}
+        )
 
       wait_for_process_instance(process_instance_id, 15_000)
       assert_pi_state!(process_instance_id, "finished")

@@ -24,6 +24,7 @@ defmodule EvilEngine.Execution.TimerStartIntegrationTest do
 
   alias EvilEngine.BPMN.ModelCache
   alias EvilEngine.Execution.TestSupport.BpmnFactory
+  alias EvilEngine.Execution.TestSupport.SchedulerWait
   alias EvilEngine.Execution.TimerStartListener
   alias EvilEngine.Timers.Scheduler
   alias EvilEngine.Timers.StartEventManager
@@ -51,21 +52,25 @@ defmodule EvilEngine.Execution.TimerStartIntegrationTest do
       assert schedule.next_fire_at != nil
       assert schedule.kind == "cycle"
 
-      Process.sleep(500)
-
-      {:ok, updated_schedule} = StartEventManager.get_schedule(schedule.id)
-      assert updated_schedule.last_triggered_at != nil
+      assert :ok =
+               SchedulerWait.wait_until(
+                 fn ->
+                   {:ok, updated_schedule} = StartEventManager.get_schedule(schedule.id)
+                   updated_schedule.last_triggered_at != nil
+                 end,
+                 5_000
+               )
     end
 
     test "disabled cycle schedule does not fire" do
-      definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT0S")
+      definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1H")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
 
       StartEventManager.register_timer_starts(
         version_id,
         "test-process",
-        [%{flow_node_id: "TimerStart_1", kind: :cycle, iso_spec: "R3/PT0S"}]
+        [%{flow_node_id: "TimerStart_1", kind: :cycle, iso_spec: "R3/PT1H"}]
       )
 
       {:ok, schedules} = StartEventManager.list_schedules(process_version_id: version_id)
@@ -73,7 +78,7 @@ defmodule EvilEngine.Execution.TimerStartIntegrationTest do
 
       StartEventManager.disable_schedule(schedule.id)
 
-      Process.sleep(200)
+      assert :ok = SchedulerWait.wait_until_count(0)
 
       {:ok, updated_schedule} = StartEventManager.get_schedule(schedule.id)
       assert updated_schedule.last_triggered_at == nil
@@ -104,6 +109,7 @@ defmodule EvilEngine.Execution.TimerStartIntegrationTest do
         StartEventManager.list_schedules(process_version_id: version_id)
 
       assert schedules_after == []
+      assert :ok = SchedulerWait.wait_until_below(armed_before)
     end
 
     test "enable_schedule re-arms a disabled cycle schedule" do
@@ -143,10 +149,14 @@ defmodule EvilEngine.Execution.TimerStartIntegrationTest do
       assert schedule.cycle_total == 3
       assert schedule.cycle_remaining == 3
 
-      Process.sleep(500)
-
-      {:ok, final} = StartEventManager.get_schedule(schedule.id)
-      assert final.last_triggered_at != nil
+      assert :ok =
+               SchedulerWait.wait_until(
+                 fn ->
+                   {:ok, final} = StartEventManager.get_schedule(schedule.id)
+                   final.last_triggered_at != nil
+                 end,
+                 5_000
+               )
     end
   end
 
@@ -264,7 +274,7 @@ defmodule EvilEngine.Execution.TimerStartIntegrationTest do
          }}
       )
 
-      Process.sleep(200)
+      _ = :sys.get_state(TimerStartListener)
 
       {:ok, updated} = StartEventManager.get_schedule(schedule.id)
       assert updated.last_triggered_at != nil

@@ -1475,12 +1475,13 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     spec = Runner.load_spec("C175_event_subprocess_timer_non_interrupting.yaml")
     process_instance_id = Runner.deploy_and_start(spec)
 
-    {:ok, user_task_fni} =
+    {:ok, _user_task_fni} =
       await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
 
-    # Give the PT1S timer time to fire and spawn the parallel ESP child.
-    Process.sleep(2_000)
-    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+    {:ok, _esp_child} =
+      await_child_process_instance_state(process_instance_id, timeout: 15_000)
+
+    :ok = finish_waiting_user_task(process_instance_id, timeout: 10_000)
 
     wait_for_process_instance(process_instance_id, 15_000)
     Runner.assert_expectations(process_instance_id, spec)
@@ -1593,6 +1594,119 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     |> Enum.map(& &1.id)
   end
 
+  defp await_non_interrupting_timer_then_finish_host(
+         process_instance_id,
+         timeout_end_event_id,
+         fire_count
+       ) do
+    {:ok, _user_task_flow_node_instance} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
+
+    {:ok, _timeout_flow_node_instances} =
+      await_finished_fni_count_by_node_id(
+        process_instance_id,
+        timeout_end_event_id,
+        fire_count,
+        timeout: 10_000
+      )
+
+    :ok = finish_waiting_user_task(process_instance_id, timeout: 10_000)
+  end
+
+  defp await_conformance_timer_schedule!(process_model_id, claims, timeout \\ 5_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_await_conformance_timer_schedule(process_model_id, claims, deadline)
+  end
+
+  defp do_await_conformance_timer_schedule(process_model_id, claims, deadline) do
+    schedules_conn =
+      Plug.Test.conn(:get, "/timer-schedules")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(claims)}")
+      |> route()
+
+    timer_schedule =
+      if schedules_conn.status == 200 do
+        schedules_conn.resp_body
+        |> Jason.decode!()
+        |> Map.get("data", [])
+        |> Enum.find(fn schedule -> schedule["processModelId"] == process_model_id end)
+      else
+        nil
+      end
+
+    cond do
+      timer_schedule != nil ->
+        timer_schedule
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        flunk("timer schedule for process #{process_model_id} did not appear")
+
+      true ->
+        Process.sleep(50)
+        do_await_conformance_timer_schedule(process_model_id, claims, deadline)
+    end
+  end
+
+  defp await_conformance_timer_schedule_enabled!(schedule_id, enabled, claims, timeout \\ 5_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_await_conformance_timer_schedule_enabled(schedule_id, enabled, claims, deadline)
+  end
+
+  defp do_await_conformance_timer_schedule_enabled(schedule_id, enabled, claims, deadline) do
+    show_conn =
+      Plug.Test.conn(:get, "/timer-schedules/#{schedule_id}")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(claims)}")
+      |> route()
+
+    show_body =
+      if show_conn.status == 200 do
+        show_conn.resp_body
+        |> Jason.decode!()
+        |> Map.get("data")
+      else
+        nil
+      end
+
+    cond do
+      is_map(show_body) and show_body["enabled"] == enabled ->
+        show_body
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        flunk("timer schedule #{schedule_id} did not reach enabled=#{enabled}")
+
+      true ->
+        Process.sleep(50)
+        do_await_conformance_timer_schedule_enabled(schedule_id, enabled, claims, deadline)
+    end
+  end
+
+  defp await_conformance_process_instance_for_version(process_version_id, timeout \\ 10_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_await_conformance_process_instance_for_version(process_version_id, deadline)
+  end
+
+  defp do_await_conformance_process_instance_for_version(process_version_id, deadline) do
+    require Ash.Query
+
+    process_instances =
+      EvilEngine.Persistence.Resources.ProcessInstance
+      |> Ash.Query.filter(process_version_id == ^process_version_id)
+      |> Ash.Query.limit(1)
+      |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+
+    cond do
+      process_instances != [] ->
+        hd(process_instances).id
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        flunk("no process instance created for version #{process_version_id}")
+
+      true ->
+        Process.sleep(50)
+        do_await_conformance_process_instance_for_version(process_version_id, deadline)
+    end
+  end
+
   # ===================================================================
   # INTERACTIVE TIER — Timer Boundary conformance (C83, C84, C91)
   # ===================================================================
@@ -1601,10 +1715,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     spec = Runner.load_spec("C83_timer_boundary_non_interrupting.yaml")
     process_instance_id = Runner.deploy_and_start(spec)
 
-    {:ok, user_task_fni} =
-      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
-
-    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+    await_non_interrupting_timer_then_finish_host(process_instance_id, "End_Timeout", 1)
 
     wait_for_process_instance(process_instance_id)
     Runner.assert_expectations(process_instance_id, spec)
@@ -1614,10 +1725,8 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     spec = Runner.load_spec("C84_timer_boundary_cycle.yaml")
     process_instance_id = Runner.deploy_and_start(spec)
 
-    {:ok, user_task_fni} =
-      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
-
-    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+    # R3/PT0S produces three End_Timeout branches, then the host continues.
+    await_non_interrupting_timer_then_finish_host(process_instance_id, "End_Timeout", 3)
 
     wait_for_process_instance(process_instance_id)
     Runner.assert_expectations(process_instance_id, spec)
@@ -1627,10 +1736,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     spec = Runner.load_spec("C91_boundary_cancel_activity_flag.yaml")
     process_instance_id = Runner.deploy_and_start(spec)
 
-    {:ok, user_task_fni} =
-      await_waiting_flow_node_instance(process_instance_id, "user_task", timeout: 10_000)
-
-    :ok = finish_user_task(process_instance_id, user_task_fni.id, %{})
+    await_non_interrupting_timer_then_finish_host(process_instance_id, "End_Timeout", 1)
 
     wait_for_process_instance(process_instance_id)
     Runner.assert_expectations(process_instance_id, spec)
@@ -1638,59 +1744,34 @@ defmodule EvilEngine.Conformance.ConformanceTest do
 
   test "C88: Timer Start disable/enable — disable prevents PI, re-enable creates PI" do
     spec = Runner.load_spec("C88_timer_start_disable_enable.yaml")
-    _process_model_id = spec["process_model_id"]
+    process_model_id = spec["process_model_id"]
 
-    {201, deploy_result} = http_deploy(spec["fixture"])
-    process_version_id = deploy_result["processVersionId"]
-
-    Process.sleep(500)
-
+    {201, _deploy_result} = http_deploy(spec["fixture"])
     deploy_claims = %{"deploy_bpmn" => true}
 
-    schedules_conn =
-      Plug.Test.conn(:get, "/timer-schedules")
+    timer_schedule = await_conformance_timer_schedule!(process_model_id, deploy_claims)
+    schedule_id = timer_schedule["id"]
+    process_version_id = timer_schedule["processVersionId"]
+    assert is_binary(process_version_id)
+
+    disable_conn =
+      Plug.Test.conn(:put, "/timer-schedules/#{schedule_id}/disable")
       |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(deploy_claims)}")
       |> route()
 
-    assert schedules_conn.status == 200
+    assert disable_conn.status == 200
 
-    schedules_body = Jason.decode!(schedules_conn.resp_body)
+    show_body = await_conformance_timer_schedule_enabled!(schedule_id, false, deploy_claims)
+    assert show_body["enabled"] == false
 
-    timer_schedule =
-      Enum.find(schedules_body["data"], fn schedule ->
-        schedule["processVersionId"] == process_version_id
-      end)
+    enable_conn =
+      Plug.Test.conn(:put, "/timer-schedules/#{schedule_id}/enable")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(deploy_claims)}")
+      |> route()
 
-    if timer_schedule do
-      schedule_id = timer_schedule["id"]
+    assert enable_conn.status == 200
 
-      disable_conn =
-        Plug.Test.conn(:put, "/timer-schedules/#{schedule_id}/disable")
-        |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(deploy_claims)}")
-        |> route()
-
-      assert disable_conn.status == 204
-
-      Process.sleep(1_000)
-
-      show_conn =
-        Plug.Test.conn(:get, "/timer-schedules/#{schedule_id}")
-        |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(deploy_claims)}")
-        |> route()
-
-      assert show_conn.status == 200
-      show_body = Jason.decode!(show_conn.resp_body)
-      assert show_body["enabled"] == false
-
-      enable_conn =
-        Plug.Test.conn(:put, "/timer-schedules/#{schedule_id}/enable")
-        |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(deploy_claims)}")
-        |> route()
-
-      assert enable_conn.status == 204
-    end
-
-    Process.sleep(3_000)
+    assert await_conformance_process_instance_for_version(process_version_id)
   end
 
   # ===================================================================

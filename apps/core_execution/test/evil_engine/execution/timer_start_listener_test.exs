@@ -35,7 +35,7 @@ defmodule EvilEngine.Execution.TimerStartListenerTest do
          }}
       )
 
-      Process.sleep(100)
+      _ = :sys.get_state(TimerStartListener)
 
       {:ok, schedule} = StartEventManager.get_schedule(schedule_id)
       assert schedule.last_triggered_at != nil
@@ -56,7 +56,7 @@ defmodule EvilEngine.Execution.TimerStartListenerTest do
          }}
       )
 
-      Process.sleep(100)
+      _ = :sys.get_state(TimerStartListener)
 
       {:ok, schedule} = StartEventManager.get_schedule(schedule_id)
       assert schedule.last_triggered_at == nil
@@ -76,7 +76,7 @@ defmodule EvilEngine.Execution.TimerStartListenerTest do
          }}
       )
 
-      Process.sleep(100)
+      _ = :sys.get_state(TimerStartListener)
 
       {:ok, schedule} = StartEventManager.get_schedule(schedule_id)
       assert schedule.last_triggered_at == nil
@@ -98,12 +98,12 @@ defmodule EvilEngine.Execution.TimerStartListenerTest do
          }}
       )
 
-      Process.sleep(100)
+      _ = :sys.get_state(TimerStartListener)
     end
 
     test "ignores unknown messages gracefully" do
       send(TimerStartListener, :some_random_message)
-      Process.sleep(50)
+      _ = :sys.get_state(TimerStartListener)
       assert Process.alive?(Process.whereis(TimerStartListener))
     end
   end

@@ -44,7 +44,7 @@ every environment.
 | Module | File | Purpose |
 |--------|------|---------|
 | `EvilEngine.Test.ConformanceRunner` | `test/support/conformance_runner.ex` | Loads YAML specs, deploys BPMNs, starts PIs, waits for completion, asserts expectations |
-| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state) |
+| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish) |
 
 **Test tiers:**
 
@@ -53,6 +53,8 @@ every environment.
 | Auto | Deploy → start → wait → assert. No mid-execution interaction required. | `auto` | Dynamically generated from `for` loop over YAML files |
 | Interactive | Requires mid-execution steps (user task finish, async completion, engine restart). | `interactive` | Hand-written `test` blocks using `ProcessInteractions` |
 | Error | Tests start-time rejections (ambiguous start event, oversize payload). | `error` | Hand-written `test` blocks asserting HTTP error status codes |
+
+Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See `common-pitfalls.md` P81. Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing.
 
 **YAML spec format:**
 
