@@ -35,8 +35,30 @@ ebin_dirs =
   |> Enum.filter(&File.dir?/1)
   |> Enum.map(&String.to_charlist/1)
 
+# `:cover.compile_beam_directory` rewrites every module in memory.
+# Instrumenting `EvilEngine.Expressions.Nif` drops the Rustler on_load
+# hook, so `Nif.compile/2` becomes undefined and FEEL/DMN deploys fatal
+# (see common-pitfalls.md P79). Skip that beam; leave the loaded NIF.
+feel_nif_beam = "Elixir.EvilEngine.Expressions.Nif.beam"
+
 for dir <- ebin_dirs do
-  :cover.compile_beam_directory(dir)
+  directory = List.to_string(dir)
+
+  case File.ls(directory) do
+    {:ok, entries} ->
+      if feel_nif_beam in entries do
+        for entry <- entries,
+            String.ends_with?(entry, ".beam"),
+            entry != feel_nif_beam do
+          :cover.compile_beam(String.to_charlist(Path.join(directory, entry)))
+        end
+      else
+        :cover.compile_beam_directory(dir)
+      end
+
+    {:error, _reason} ->
+      :ok
+  end
 end
 
 IO.puts("\e[36m  #{length(ebin_dirs)} project ebin directories instrumented.\e[0m\n")

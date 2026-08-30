@@ -518,12 +518,14 @@ defmodule EvilEngine.Execution.CallActivityIntegrationTest do
   # -------------------------------------------------------------------
 
   describe "Call Activity — notify_pid update" do
-    test "update_notify_pid sets the notification target on a running child PI" do
-      child_definitions = BpmnFactory.linear_start_end("standalone-child")
+    test "update_notify_pid sets the notification target on a running child PI", %{ref: ref} do
+      # Start → End finishes before the test can call update_notify_pid
+      # (:gen_statem.call then EXIT-normal). Hold the PI at a user task.
+      child_definitions = BpmnFactory.user_task_process(process_id: "standalone-child")
       child_version = "standalone-child-v1"
       ModelCache.put_new(child_version, child_definitions)
 
-      identity = %Identity{id: "test-user", roles: [], groups: []}
+      identity = %Identity{id: "test-user", roles: ["admin"], groups: []}
       child_process_instance_id = random_id()
       test_pid = self()
 
@@ -536,7 +538,24 @@ defmodule EvilEngine.Execution.CallActivityIntegrationTest do
           notify_pid: nil
         })
 
-      ProcessInstance.update_notify_pid(child_pid, test_pid)
+      assert_receive {:fni_state, ^ref,
+                      %{
+                        process_instance_id: ^child_process_instance_id,
+                        flow_node_type: :user_task,
+                        new_state: :waiting,
+                        flow_node_instance_id: user_task_flow_node_instance_id
+                      }},
+                     2_000
+
+      assert :ok = ProcessInstance.update_notify_pid(child_pid, test_pid)
+
+      assert :ok =
+               ProcessInstance.finish_user_task(
+                 child_pid,
+                 user_task_flow_node_instance_id,
+                 %{},
+                 identity
+               )
 
       receive do
         {:child_pi_finished, ^child_pid, _tokens} -> :ok

@@ -500,7 +500,9 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
 
       wait_for_process_instance(parent_pi_id, @default_timeout)
 
-      assert_pi_state!(parent_pi_id, "finished")
+      # Poll rather than a single assert: cancelRemainingInstances may kill a
+      # still-writing script-task FNI and briefly drop the shared sandbox.
+      poll_pi_state(parent_pi_id, "finished", @default_timeout)
     end
   end
 

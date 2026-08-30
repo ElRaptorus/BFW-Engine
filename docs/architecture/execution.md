@@ -778,6 +778,7 @@ Conditional events inside an embedded subprocess evaluate against the **child PI
 | `resume_existing_child/5` | State-based resume dispatch after engine restart (parameterized via `extra_terminal_states` for future Transaction support) |
 | `monitor_and_wait/8`, `start_child_from_persistence/7` | Re-monitor running children or restart from DB |
 | `cascade_to_child/2` | Fatal/abort cascade to child PI |
+| `set_child_notify_pid/2` | Re-points the child's `notify_pid` to the current handler Task. Wraps `ProcessInstance.update_notify_pid/2` and `catch`es `:exit` if the child already stopped (P80) |
 | `dispatch_enter_result/7`, `dispatch_await_result/7` | Route child completion outcomes to the appropriate PI response tuple |
 
 #### Parameterization points

@@ -63,14 +63,11 @@ jobs:
       - name: Install Dependencies
         run: mix deps.get
 
-      - name: Compile SAT solver then Crux
-        run: mix deps.compile.sat
-
       - name: Dependency security audit
         run: mix deps.audit
 
       - name: Compile Dependencies
-        run: MIX_OS_DEPS_COMPILE_PARTITION_COUNT="$(nproc)" mix deps.compile
+        run: mix deps.compile
 
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
@@ -125,13 +122,6 @@ jobs:
           mix do --app peripheral_persistence ecto.migrate
 
       - name: Run tests with coverage
-        # Same merge path as `mix quality`: integration + conformance under
-        # :cover, then per-app unit tests with --import-cover. Do not use
-        # `mix coveralls --umbrella` alone — that omits root suites and
-        # fails the 80% gate (~65% unit-only). Do not use coveralls.github
-        # / coveralls.post — those POST to coveralls.io.
-        # Save the Mix cache BEFORE this step: ExCoveralls rewrites _build
-        # BEAMs; caching those poisons the next run (:not_purged, EventBus stalls).
         timeout-minutes: 45
         run: |
           mix test.coverdata

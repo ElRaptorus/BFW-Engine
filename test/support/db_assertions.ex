@@ -63,6 +63,7 @@ defmodule EvilEngine.Test.DbAssertions do
           with_sandbox_retry(function, attempt + 1)
 
         attempt < @sandbox_retry_attempts && not_found_error?(error) ->
+          restore_sandbox_shared_mode()
           Process.sleep(@sandbox_retry_delay_ms * attempt)
           with_sandbox_retry(function, attempt + 1)
 

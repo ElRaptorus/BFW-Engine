@@ -855,7 +855,7 @@ The generic `validate_type_data/6` clause for `%FlowNodeData.ComplexGateway{}` m
 - Pair each join to `S = idom_complex(J)` (nearest dominating Complex Split) and compute `region_node_ids = forward_reachable(S) ∩ backward_reachable(J) \ {S, J}` in `ComplexRegionAnalysis`. The region **excludes** both boundary nodes.
 - Enforce well-formedness **at deploy** (`region_violations/1`): reject unpaired joins (`complex_join_no_paired_split`), cross-boundary edges (`complex_region_cross_boundary`), and partially overlapping regions (`complex_region_overlap`). Valid regions therefore form a **laminar family** — any two are disjoint or strictly nested, so a partial overlap can only arise together with a cross-boundary or pairing violation and is caught first.
 - `interrupt_region_fnis/3` must explicitly skip the join FNI (`id != join_fni_id`) and must be **scoped** — it runs each interrupted FNI's `handle_aborted/1` for local cleanup but does **not** purge the whole PI's message/signal subscriptions (contrast `interrupt_remaining_fnis/2`, used by Terminate/Error End Events).
-- When testing cancellation in the shared-connection Ecto sandbox, drive the join with branches that are **idle-waiting** (e.g. user tasks completed explicitly) before the fire. Killing an FNI that is mid-DB-write on the single shared test connection can tear the connection down and surface as a spurious `DBConnection.OwnershipError` — a test artifact, not an engine bug (in production each process has its own pooled connection).
+- When testing cancellation in the shared-connection Ecto sandbox, drive the join with branches that are **idle-waiting** (e.g. user tasks completed explicitly) before the fire. Killing an FNI that is mid-DB-write on the single shared test connection can tear the connection down and surface as a spurious `DBConnection.OwnershipError` — a test artifact, not an engine bug (in production each process has its own pooled connection). Tests that interrupt in-flight work should `poll_pi_state/3` after `wait_for_process_instance/2` rather than a single `assert_pi_state!/2`. Do **not** check out the sandbox with `sandbox: false` to paper over this — concurrent handler Tasks then share one auto-commit connection and FNIs go `fatal`.
 
 ---
 
@@ -1196,4 +1196,26 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 **Correct approach:** One cache, `path: deps` and `_build`, key `runner.os` + `mix-precover` + `MIX_ENV` + setup-beam OTP + Elixir + `mix.lock`. Restore at job start; **save after `mix compile` and before coverage**. Incremental app compile is Mix’s job after restore. PLTs stay a separate `priv/plts` cache (P76).
 
 **Do not save `_build` at job end.** `mix coveralls` rewrites project BEAMs in `_build` with coverage instrumentation. `actions/cache@v5` (combined restore+save) persists those BEAMs. The next run restores them, Mix skips a clean recompile, `code:load_file` hits `:not_purged` on live GenServers (`EngineEventBus`, `SinkWorker`), and `reset_state` times out. Use `actions/cache/restore` + `actions/cache/save` with a `precover` key prefix so poisoned entries from the old key are not reused.
+
+---
+
+## P79: Do not `:cover.compile` the FEEL NIF module
+
+**Mistake:** `test/coverage_runner.exs` calling `:cover.compile_beam_directory/1` on every project ebin, including `Elixir.EvilEngine.Expressions.Nif.beam`. CI then fails hundreds of integration tests with `UndefinedFunctionError: function EvilEngine.Expressions.Nif.compile/2 is undefined (module EvilEngine.Expressions.Nif is not available)`. FNIs that need FEEL (user tasks, script tasks, gateway conditions, DMN) go `fatal`; polls time out.
+
+**Why it happens:** `:cover.compile_beam` loads an instrumented copy of the module and drops Rustler's `@on_load` that binds the `feel_nif` shared library. Stub clauses that call `:erlang.nif_error(:nif_not_loaded)` are gone too — the module is simply not available. This is independent of Ecto sandbox isolation. Switching `ExecutionCase` to `sandbox: false` plus `TRUNCATE` does **not** fix it and breaks concurrent persists on the shared connection.
+
+**Correct approach:** Skip `Elixir.EvilEngine.Expressions.Nif.beam` when instrumenting. Leave the Mix-compiled NIF module loaded. Coverage for `core_expressions` still includes the Elixir wrapper (`EvilEngine.Expressions`) and callers; the NIF stubs themselves are not a useful coverage target.
+
+Do **not** disable the wrapping sandbox transaction (`sandbox: true`) to chase `Ash.Error.Query.NotFound` after interrupting FNIs. That is a test-side race: `poll_pi_state/3` after `wait_for_process_instance/2`, same as the ad-hoc `cancelRemainingInstances` tests.
+
+---
+
+## P80: `update_notify_pid` is a `:gen_statem.call` — the PI must still be running
+
+**Mistake:** Calling `ProcessInstance.update_notify_pid/2` on a Start → End (or other instantly-finishing) PI. The test then fails with `** (EXIT) normal` from `:gen_statem.call`.
+
+**Why it happens:** A linear Start → End PI reaches `:finished` and stops with `:normal` in milliseconds. `update_notify_pid/2` is a blocking call into the `:running` state. If the PI has already stopped, the call exits rather than returning `{:error, :process_finished}`.
+
+**Correct approach:** Tests that exercise `update_notify_pid/2` must park the PI on a waiting activity (user task) before the call, then complete that activity and assert `{:child_pi_finished, ...}`. Production wrappers (`ChildLifecycle.set_child_notify_pid/2`) already `catch :exit` and return `:ok` — the child may finish between spawn and the handler re-pointing `notify_pid`. Do not call the raw API without that catch unless the PI is known to be running.
 

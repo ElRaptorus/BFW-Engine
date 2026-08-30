@@ -171,7 +171,9 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
 
       wait_for_process_instance(process_instance_id, 10_000)
 
-      assert_pi_state!(process_instance_id, "finished")
+      # Poll: interrupting the subprocess host kills in-flight FNIs and can
+      # briefly drop the shared sandbox (see P45).
+      poll_pi_state(process_instance_id, "finished", 10_000)
 
       flow_node_instances = fetch_flow_node_instances(process_instance_id)
 
