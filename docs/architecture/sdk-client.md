@@ -19,7 +19,7 @@ The SDK never imports from the client. All contracts (types, error classes, even
 
 ## Workspace dependencies
 
-The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/`, `examples/sdk-js/`, and `examples/sidecar-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, ESLint packages, `prettier`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
+The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/` and `examples/sdk-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, ESLint packages, `prettier`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
 
 TypeScript stays on **6.0.x**. `typescript@7` is on npm `latest`, but `typescript-eslint@8.68.0` peers `typescript: >=4.8.4 <6.1.0`. Do not bump until typescript-eslint widens that range.
 

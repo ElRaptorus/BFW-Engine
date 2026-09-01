@@ -682,10 +682,12 @@ Plugins interact with the DMN subsystem through two channels:
 | Decision Service validation | `facade.decisions.evaluate_service` | `decision_service_smoke_tester` |
 | Version regression detection | `facade.decisions.evaluate` + `get_versions` | `decision_regression_tester` |
 | Dead rule detection | Process orchestration + trace analysis | `dead_rule_detector` |
+| Real-time latency analytics | Event Sink + histogram + spike detector | `decision_analytics` |
+| Post-execution compliance audit | Event Sink + FNI inspect + boundary evaluate | `decision_audit_reporter` |
 | DRD chain inspection | `facade.decisions.evaluate` with trace | `drd_chain_orchestrator` |
 | CL3 expression showcase | Full evaluation + expression mapping | `boxed_expression_showcase` |
 
-See `examples/plugins/business_rules/` in the repository root for all Elixir examples. `examples/sidecar-js/` holds JS sketches against a mocked SDK; they are **not supported in v1** (PLUG-D1).
+See `examples/plugins/business_rules/` in the repository root for all Elixir examples.
 
 ---
 

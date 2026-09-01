@@ -411,8 +411,9 @@ through two channels:
 
 See [Plugin Development](../plugins/getting-started.md) for how to build
 observation plugins, and the `examples/plugins/business_rules/` directory
-in the engine repository for 8 working Elixir examples covering decision
-trace publishing, regression testing, dead rule detection, and more.
+in the engine repository for working Elixir examples covering decision
+trace publishing, regression testing, dead rule detection, live analytics,
+compliance audit reporting, and more.
 
 ## Error Handling
 

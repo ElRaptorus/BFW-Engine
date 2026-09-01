@@ -324,11 +324,8 @@ The `examples/` directory contains copy-paste starters and runnable demos coveri
 | Named Scripts | custom validators, local script runner | `examples/plugins/named_scripts/` |
 | Lifecycle & API | lifecycle-aware, API consumer | `examples/plugins/lifecycle_and_api/` |
 | Combined | RabbitMQ-to-engine orchestrator, metrics pipeline | `examples/plugins/combined/` |
-| Business Rules | KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD orchestrator, boxed expression showcase | `examples/plugins/business_rules/` |
-| JS Sidecar Plugins | decision analytics, decision audit reporter | `examples/sidecar-js/` |
+| Business Rules | KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD orchestrator, boxed expression showcase, decision analytics, decision audit reporter | `examples/plugins/business_rules/` |
 | TypeScript Client | deploy, lifecycle, user tasks, GraphQL, errors, WebSocket, batch ops | `examples/client-js/` |
 | TypeScript SDK | BPMN parser, typed payloads, error hierarchy | `examples/sdk-js/` |
 
-**Business Rules examples** demonstrate the observation-only interaction pattern introduced with plugins observe BRT execution via event sinks and analyze results via `facade.decisions` closures, but never replace the BRT execution path. BRT execution is exclusively handled by the engine's built-in `"feel"` and `"dmn"` modes.
-
-**JS Sidecar examples** are sketches against a mocked `@elraptorus/daemonengine_sdk` interface. They are **not supported in v1** (PLUG-D1). Live gRPC sidecar integration is deferred post-v1.
+**Business Rules examples** demonstrate the observation-only interaction pattern: plugins observe BRT execution via event sinks and analyze results via `facade.decisions` closures, but never replace the BRT execution path. BRT execution is exclusively handled by the engine's built-in `"feel"` and `"dmn"` modes. `decision_analytics` and `decision_audit_reporter` are the in-BEAM ports of the former JS sidecar sketches (PLUG-D1).

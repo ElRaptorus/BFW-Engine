@@ -2026,8 +2026,7 @@ The engine ships two npm packages in a pnpm monorepo under `packages/js/`:
 | `examples/plugins/named_scripts/` | Custom validators, local script runner |
 | `examples/plugins/lifecycle_and_api/` | Lifecycle-aware, API consumer, GitHub BPMN auto-deployer examples |
 | `examples/plugins/combined/` | RabbitMQ orchestrator, metrics pipeline |
-| `examples/plugins/business_rules/` | DMN observation & analysis examples: KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD chain orchestrator, boxed expression showcase |
-| `examples/sidecar-js/` | JS gRPC sidecar **sketches** (mocked SDK, **not supported in v1**, PLUG-D1): decision analytics, decision audit reporter |
+| `examples/plugins/business_rules/` | DMN observation & analysis examples: KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD chain orchestrator, boxed expression showcase, decision analytics, decision audit reporter |
 | `examples/client-js/` | TypeScript client examples (deploy, lifecycle, user tasks, GraphQL, errors, WebSocket, batch, DMN, BRT trace) |
 | `examples/sdk-js/` | TypeScript SDK examples (parse BPMN/DMN, typed payloads, error hierarchy) |
 

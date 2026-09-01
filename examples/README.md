@@ -65,11 +65,13 @@ Plugins that observe Business Rule Task execution via events and analyze results
 | Example | Difficulty | Pattern | Description |
 |---------|------------|---------|-------------|
 | [`business_rules/decision_kpi_calculator`](plugins/business_rules/decision_kpi_calculator/) | Simple | Event Sink | Real-time KPIs from BRT decision executions |
+| [`business_rules/decision_analytics`](plugins/business_rules/decision_analytics/) | Intermediate | Event Sink | Latency histograms, p99, rule-hit distribution, and spike detection |
 | [`business_rules/explain_decision`](plugins/business_rules/explain_decision/) | Simple | Named Script | Human-readable decision explanation from trace |
 | [`business_rules/decision_trace_publisher`](plugins/business_rules/decision_trace_publisher/) | Intermediate | Event Sink | Publish BRT decision audit data to external systems |
 | [`business_rules/decision_service_smoke_tester`](plugins/business_rules/decision_service_smoke_tester/) | Intermediate | Lifecycle & API | Auto-verify Decision Services on engine startup (CL3) |
 | [`business_rules/decision_regression_tester`](plugins/business_rules/decision_regression_tester/) | Intermediate | Lifecycle & API | Compare DMN versions for regression detection |
 | [`business_rules/dead_rule_detector`](plugins/business_rules/dead_rule_detector/) | Complex | Lifecycle & API | Analyze rule coverage across multiple PI executions |
+| [`business_rules/decision_audit_reporter`](plugins/business_rules/decision_audit_reporter/) | Complex | Event Sink + Facade | Post-execution coverage, boundary tests, and compliance audit report |
 | [`business_rules/drd_chain_orchestrator`](plugins/business_rules/drd_chain_orchestrator/) | Complex | Lifecycle & API | Multi-decision DRD with BKM reuse (CL3) |
 | [`business_rules/boxed_expression_showcase`](plugins/business_rules/boxed_expression_showcase/) | Complex | Lifecycle & API | All CL3 boxed expression types in one model |
 
@@ -106,19 +108,6 @@ Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_sdk` pac
 
 ---
 
-### JS Sidecar Plugin Sketches (`sidecar-js/`) — **not supported in v1 (PLUG-D1)**
-
-Node.js sketches against a mocked SDK gRPC shape. They are **not shipped**, not a Phase 5/6 deliverable, and will not load on a v1 engine. The gRPC sidecar host is deferred. Keep the directory as design notes only.
-
-Non-Elixir **work** in v1 belongs on the built-in HTTP Service Task, the public API, or (Phase 7 cookbook) an in-BEAM Service Task that execs `python3` / `node`.
-
-| Example | Difficulty | Pattern | Description |
-|---------|------------|---------|-------------|
-| [`decision-analytics`](sidecar-js/decision-analytics/) | Intermediate | gRPC Event Stream | Real-time decision analytics from NodeJS sidecar |
-| [`decision-audit-reporter`](sidecar-js/decision-audit-reporter/) | Complex | gRPC Full Stack | Comprehensive post-execution audit with event + API queries |
-
----
-
 ## Getting Started
 
 ### Plugin examples
@@ -147,4 +136,4 @@ For client-js examples, set `ENGINE_URL` and `ENGINE_TOKEN` environment variable
 - [API Reference](../docs/architecture/api.md) — REST, GraphQL, and WebSocket contracts
 - [Execution Architecture](../docs/architecture/execution.md) — service task handler lifecycle
 - [DMN Architecture](../docs/architecture/dmn.md) — parser model, deployment, evaluation, and plugin integration
-- [`@elraptorus/daemonengine_sdk`](../packages/js/sdk/) — TypeScript SDK including the forward-looking sidecar plugin interface
+- [`@elraptorus/daemonengine_sdk`](../packages/js/sdk/) — TypeScript SDK (types, errors, events, BPMN/DMN parsers)

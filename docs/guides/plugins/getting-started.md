@@ -64,7 +64,7 @@ For non-Elixir work in v1, use:
 - the public REST / GraphQL / WebSocket API, or
 - an in-BEAM plugin that execs a local interpreter (Phase 7 cookbook: `python_script` / `node_script` Service Task handlers).
 
-The sidecar design is retained in [plugins.md](../../architecture/plugins.md) §9.2.3 as a post-v1 sketch. `examples/sidecar-js/` is **not supported**.
+The sidecar design is retained in [plugins.md](../../architecture/plugins.md) §9.2.3 as a post-v1 sketch. Former JS sidecar sketches (`decision-analytics`, `decision-audit-reporter`) live as in-BEAM plugins under `examples/plugins/business_rules/`.
 
 ### Include / Exclude Lists
 
