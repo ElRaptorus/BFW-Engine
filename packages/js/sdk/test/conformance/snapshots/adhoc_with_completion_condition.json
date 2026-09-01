@@ -55,10 +55,10 @@
           "type": "sub_process",
           "typeData": {
             "activeElementsCompiled": null,
-            "activeElementsExpression": null,
+            "activeElementsExpression": "[\"ScriptTask_X\", \"ScriptTask_Y\", \"ScriptTask_Z\"]",
             "adhocCompletionCondition": "true",
             "adhocCompletionConditionCompiled": null,
-            "adhocOrdering": "parallel",
+            "adhocOrdering": "sequential",
             "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],

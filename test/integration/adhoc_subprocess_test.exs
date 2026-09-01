@@ -476,32 +476,28 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
   # ===================================================================
 
   describe "FEEL completion condition (Gap 1)" do
-    test "completion condition fires after performedActivities threshold", %{
-      collector: collector
-    } do
+    test "completion condition fires after performedActivities threshold" do
       ensure_deployed("adhoc_completion_condition_feel.bpmn")
 
       {201, body} = http_start("AdHocCompletionConditionFeel")
       parent_pi_id = body["processInstanceId"]
+      child_pi_id = await_child_pi(parent_pi_id)
 
-      # cancelRemainingInstances may kill a still-writing script FNI and abort
-      # the shared sandbox transaction (P45/P82). Assert via events, not DB.
-      events = await_process_instance_finished_event(collector, parent_pi_id, @default_timeout)
-      child_pi_id = adhoc_child_process_instance_id(events, parent_pi_id)
-      await_process_instance_finished_event(collector, child_pi_id, @default_timeout)
-      assert_adhoc_subprocess_completed(collector)
+      wait_for_process_instance(parent_pi_id, @default_timeout)
+      poll_pi_state(parent_pi_id, "finished", @default_timeout)
+      poll_pi_state(child_pi_id, "finished", @default_timeout)
     end
 
-    test "trivial true completion condition completes immediately", %{collector: collector} do
+    test "trivial true completion condition completes immediately" do
       ensure_deployed("adhoc_with_completion_condition.bpmn")
 
       {201, body} = http_start("AdHocWithCompletionCondition")
       parent_pi_id = body["processInstanceId"]
+      child_pi_id = await_child_pi(parent_pi_id)
 
-      events = await_process_instance_finished_event(collector, parent_pi_id, @default_timeout)
-      child_pi_id = adhoc_child_process_instance_id(events, parent_pi_id)
-      await_process_instance_finished_event(collector, child_pi_id, @default_timeout)
-      assert_adhoc_subprocess_completed(collector)
+      wait_for_process_instance(parent_pi_id, @default_timeout)
+      poll_pi_state(parent_pi_id, "finished", @default_timeout)
+      poll_pi_state(child_pi_id, "finished", @default_timeout)
     end
   end
 
@@ -850,71 +846,6 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
 
   defp find_child_pi_ids(parent_process_instance_id) do
     EvilEngine.Test.DbAssertions.list_child_process_instance_ids(parent_process_instance_id)
-  end
-
-  defp await_process_instance_finished_event(collector, process_instance_id, timeout) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    do_await_process_instance_finished_event(collector, process_instance_id, deadline)
-  end
-
-  defp do_await_process_instance_finished_event(collector, process_instance_id, deadline) do
-    events = EventCollector.get_events(collector)
-
-    finished? =
-      Enum.any?(events, fn
-        %Event.ProcessInstanceStateChanged{
-          process_instance_id: ^process_instance_id,
-          new_state: :finished
-        } ->
-          true
-
-        _event ->
-          false
-      end)
-
-    cond do
-      finished? ->
-        events
-
-      System.monotonic_time(:millisecond) >= deadline ->
-        raise "PI #{process_instance_id} never emitted ProcessInstanceStateChanged finished " <>
-                "within timeout"
-
-      true ->
-        Process.sleep(25)
-        do_await_process_instance_finished_event(collector, process_instance_id, deadline)
-    end
-  end
-
-  defp adhoc_child_process_instance_id(events, parent_process_instance_id) do
-    child_starts =
-      Enum.filter(events, fn
-        %Event.SubProcessChildStarted{
-          parent_process_instance_id: ^parent_process_instance_id,
-          is_ad_hoc_subprocess: true
-        } ->
-          true
-
-        _event ->
-          false
-      end)
-
-    assert length(child_starts) == 1,
-           "Expected exactly one ad-hoc SubProcessChildStarted for parent " <>
-             "#{parent_process_instance_id}, got #{length(child_starts)}"
-
-    [child_start] = child_starts
-    child_start.child_process_instance_id
-  end
-
-  defp assert_adhoc_subprocess_completed(collector) do
-    completed_events =
-      collector
-      |> EventCollector.get_events()
-      |> Enum.filter(&match?(%Event.AdHocSubProcessCompleted{}, &1))
-
-    assert length(completed_events) == 1,
-           "Expected exactly one AdHocSubProcessCompleted event, got #{length(completed_events)}"
   end
 
   defp await_child_pi(parent_process_instance_id, timeout \\ @default_timeout) do

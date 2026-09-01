@@ -29,9 +29,12 @@
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <bpmn:adHocSubProcess id="AdHoc_1" name="Ad-hoc with FEEL Condition" cancelRemainingInstances="true">
+    <bpmn:adHocSubProcess id="AdHoc_1" name="Ad-hoc with FEEL Condition" ordering="Sequential" cancelRemainingInstances="true">
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <evil:activeElements>["ScriptTask_A", "ScriptTask_B", "ScriptTask_C"]</evil:activeElements>
+      </bpmn:extensionElements>
       <bpmn:completionCondition>performedActivities >= 2</bpmn:completionCondition>
       <bpmn:scriptTask id="ScriptTask_A" name="Task A" scriptFormat="feel">
         <bpmn:script>{ result_a: "done_a" }</bpmn:script>

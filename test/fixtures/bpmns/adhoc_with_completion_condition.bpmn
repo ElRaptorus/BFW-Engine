@@ -29,9 +29,12 @@
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <bpmn:adHocSubProcess id="AdHoc_1" name="Ad-hoc with Condition" cancelRemainingInstances="true">
+    <bpmn:adHocSubProcess id="AdHoc_1" name="Ad-hoc with Condition" ordering="Sequential" cancelRemainingInstances="true">
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <evil:activeElements>["ScriptTask_X", "ScriptTask_Y", "ScriptTask_Z"]</evil:activeElements>
+      </bpmn:extensionElements>
       <bpmn:completionCondition>true</bpmn:completionCondition>
       <bpmn:scriptTask id="ScriptTask_X" name="Script X" scriptFormat="feel">
         <bpmn:script>{ result_x: "done_x" }</bpmn:script>

@@ -657,9 +657,9 @@ defmodule EvilEngine.ExecutionCase do
                   "within timeout (current state: #{current_state})"
         else
           # Interrupted FNIs can drop the shared sandbox checkout (P45/P82).
-          # Restore before retrying so a closed connection is not polled for
-          # the full timeout as a fake "unavailable" PI.
-          unless is_map(other) do
+          # Restore only after a raised DB error — a nil row means "not
+          # visible yet" and must not start a fresh empty sandbox transaction.
+          if other == :db_error do
             EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
           end
 
@@ -710,7 +710,6 @@ defmodule EvilEngine.ExecutionCase do
         if System.monotonic_time(:millisecond) >= deadline do
           :ok
         else
-          EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
           Process.sleep(25)
           do_await_persisted_process_instance(process_instance_id, deadline)
         end
