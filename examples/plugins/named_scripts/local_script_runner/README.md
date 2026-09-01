@@ -25,7 +25,7 @@ Copy the modules into an OTP app that already depends on `engine_sdk` **and** ad
 
 ## Behaviour source
 
-- [`ScriptSandbox`](lib/script_sandbox.ex) — path validation and `Port`/`stdio` execution
+- [`ScriptSandbox`](../../shared/script_sandbox.ex) — path validation and JSON-stdin execution (`python3` / `node` / `bash`)
 - [`ScriptRunner`](lib/script_runner.ex) — reads `type_data.script` / `type_data["script"]`
 
 ## Tests

@@ -33,12 +33,16 @@
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <!-- Subprocess A: contains an Error End Event.
+    <!-- Subprocess A: parks at a user task, then Error End.
          A catch-all error boundary is attached to A. -->
     <bpmn:subProcess id="SubProcess_A" name="Subprocess A">
       <bpmn:startEvent id="Sub_Start" name="Sub Start">
         <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
       </bpmn:startEvent>
+      <bpmn:userTask id="Sub_UserTask" name="Arm error">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_Arm</bpmn:outgoing>
+      </bpmn:userTask>
       <bpmn:endEvent id="Sub_ErrorEnd" name="Error End">
         <bpmn:errorEventDefinition id="Sub_ErrDef" errorRef="Error_1">
           <bpmn:extensionElements>
@@ -46,9 +50,10 @@
             <evil:errorMessage>Test error from subprocess</evil:errorMessage>
           </bpmn:extensionElements>
         </bpmn:errorEventDefinition>
-        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:incoming>Sub_Flow_Arm</bpmn:incoming>
       </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_ErrorEnd" />
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_UserTask" />
+      <bpmn:sequenceFlow id="Sub_Flow_Arm" sourceRef="Sub_UserTask" targetRef="Sub_ErrorEnd" />
     </bpmn:subProcess>
 
     <!-- Catch-all error boundary on SubProcess_A -->
@@ -94,13 +99,16 @@
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_SubProcess_A" bpmnElement="SubProcess_A" isExpanded="true">
-        <dc:Bounds x="290" y="120" width="330" height="160" />
+        <dc:Bounds x="260" y="120" width="420" height="160" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
-        <dc:Bounds x="310" y="182" width="36" height="36" />
+        <dc:Bounds x="280" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_UserTask" bpmnElement="Sub_UserTask">
+        <dc:Bounds x="340" y="160" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_ErrorEnd" bpmnElement="Sub_ErrorEnd">
-        <dc:Bounds x="490" y="182" width="36" height="36" />
+        <dc:Bounds x="480" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_BE_Error" bpmnElement="BE_Error">
         <dc:Bounds x="420" y="262" width="36" height="36" />
@@ -135,8 +143,12 @@
         <di:waypoint x="762" y="350" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
-        <di:waypoint x="346" y="200" />
-        <di:waypoint x="490" y="200" />
+        <di:waypoint x="316" y="200" />
+        <di:waypoint x="340" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_Arm" bpmnElement="Sub_Flow_Arm">
+        <di:waypoint x="440" y="200" />
+        <di:waypoint x="480" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_ESP_Error_Flow_1" bpmnElement="ESP_Error_Flow_1">
         <di:waypoint x="266" y="420" />

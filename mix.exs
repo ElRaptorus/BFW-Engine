@@ -188,6 +188,7 @@ defmodule EvilEngine.Umbrella.MixProject do
         "test.unit": :test,
         "test.examples": :test,
         "test.integration": :test,
+        "test.cookbook": :test,
         "test.conformance": :test,
         "test.coverdata": :test,
         "test.full": :test,
@@ -220,6 +221,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       "test.unit": ["test --exclude integration"],
       "test.examples": ["test apps/peripheral_plugins/test/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
+      "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
       "test.load": ["run test/load_runner.exs"],
       "test.conformance": ["run test/conformance_runner.exs"],
       # Integration + conformance under one :cover session; exports

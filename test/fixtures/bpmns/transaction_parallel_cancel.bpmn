@@ -9,9 +9,10 @@
 
   <!--
     TX-9: Parallel branches with cancel.
-    Branch A reaches Cancel End. Branch B has a user task that is waiting.
-    Cancel Boundary fires, interrupts the user task on branch B.
-    Parent reaches End_Cancelled.
+    Branch B parks at Tx_UserTask. Branch A parks at Tx_CancelGate until the
+    test finishes that user task, so Cancel End fires only after branch B is
+    idle-waiting (P45). Cancel Boundary fires, interrupts the user task on
+    branch B. Parent reaches End_Cancelled.
   -->
 
   <bpmn:collaboration id="Collaboration_1">
@@ -48,6 +49,7 @@
           <bpmn:flowNodeRef>Tx_CompA</bpmn:flowNodeRef>
           <bpmn:flowNodeRef>Tx_Fork</bpmn:flowNodeRef>
           <bpmn:flowNodeRef>Tx_UserTask</bpmn:flowNodeRef>
+          <bpmn:flowNodeRef>Tx_CancelGate</bpmn:flowNodeRef>
           <bpmn:flowNodeRef>Tx_CancelEnd</bpmn:flowNodeRef>
         </bpmn:lane>
       </bpmn:laneSet>
@@ -79,8 +81,13 @@
         <bpmn:outgoing>TxFlow_4</bpmn:outgoing>
       </bpmn:userTask>
 
-      <bpmn:endEvent id="Tx_CancelEnd" name="Cancel">
+      <bpmn:userTask id="Tx_CancelGate" name="Arm cancel">
         <bpmn:incoming>TxFlow_3</bpmn:incoming>
+        <bpmn:outgoing>TxFlow_CancelGate</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="Tx_CancelEnd" name="Cancel">
+        <bpmn:incoming>TxFlow_CancelGate</bpmn:incoming>
         <bpmn:cancelEventDefinition />
       </bpmn:endEvent>
 
@@ -91,7 +98,8 @@
       <bpmn:sequenceFlow id="TxFlow_0" sourceRef="Tx_Start" targetRef="Tx_TaskA" />
       <bpmn:sequenceFlow id="TxFlow_1" sourceRef="Tx_TaskA" targetRef="Tx_Fork" />
       <bpmn:sequenceFlow id="TxFlow_2" sourceRef="Tx_Fork" targetRef="Tx_UserTask" />
-      <bpmn:sequenceFlow id="TxFlow_3" sourceRef="Tx_Fork" targetRef="Tx_CancelEnd" />
+      <bpmn:sequenceFlow id="TxFlow_3" sourceRef="Tx_Fork" targetRef="Tx_CancelGate" />
+      <bpmn:sequenceFlow id="TxFlow_CancelGate" sourceRef="Tx_CancelGate" targetRef="Tx_CancelEnd" />
       <bpmn:sequenceFlow id="TxFlow_4" sourceRef="Tx_UserTask" targetRef="Tx_End" />
 
       <bpmn:association id="Assoc_CompA" sourceRef="Tx_CompBoundaryA" targetRef="Tx_CompA" associationDirection="One" />
@@ -141,8 +149,11 @@
       <bpmndi:BPMNShape id="Shape_Tx_UserTask" bpmnElement="Tx_UserTask">
         <dc:Bounds x="640" y="100" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Tx_CancelGate" bpmnElement="Tx_CancelGate">
+        <dc:Bounds x="620" y="270" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_CancelEnd" bpmnElement="Tx_CancelEnd">
-        <dc:Bounds x="670" y="292" width="36" height="36" />
+        <dc:Bounds x="780" y="292" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_End" bpmnElement="Tx_End">
         <dc:Bounds x="802" y="122" width="36" height="36" />
@@ -176,7 +187,11 @@
       <bpmndi:BPMNEdge id="Edge_TxFlow_3" bpmnElement="TxFlow_3">
         <di:waypoint x="555" y="235" />
         <di:waypoint x="555" y="310" />
-        <di:waypoint x="670" y="310" />
+        <di:waypoint x="620" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_TxFlow_CancelGate" bpmnElement="TxFlow_CancelGate">
+        <di:waypoint x="720" y="310" />
+        <di:waypoint x="780" y="310" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_TxFlow_4" bpmnElement="TxFlow_4">
         <di:waypoint x="740" y="140" />

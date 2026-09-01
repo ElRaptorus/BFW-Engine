@@ -19,11 +19,14 @@ Every plugin implements `@behaviour EvilEngine.Plugin` and receives two engine-d
 
 ### Failure Handling
 
+Copy `examples/plugins/lifecycle_and_api/quarantine_demo/` for the author-facing demonstration.
+
 - Raising in `on_load` or `on_ready` quarantines the plugin
-- Returning `{:error, reason}` also quarantines
-- An `Event.PluginQuarantined` is emitted to all sinks
+- Returning `{:error, reason}` also quarantines (`quarantine_demo` returns `{:error, :intentional_quarantine}` from `on_load` and registers nothing)
+- An `Event.PluginQuarantined` is emitted to all sinks (including the SSE cookbook sink)
 - Engine boot continues with remaining plugins
 - Quarantined plugins do not auto-revive — restart the engine
+- `on_ready` failure also calls `EvilEngine.Plugins.Registry.unregister_plugin_capabilities/1` (unlike `on_load` failure)
 
 ## Minimal Example
 
@@ -87,3 +90,4 @@ The sidecar design is retained in [plugins.md](../../architecture/plugins.md) §
 
 - [Engine Facade Reference](engine-facade.md) -- the facade API available in `on_load` and `on_ready`
 - [Built-in Plugins](builtin-plugins.md) -- reference implementations
+- Cookbook: `echo`, `structured_logger`, `sse`, `quarantine_demo`, `python_script`, `node_script` — see `examples/plugins/`

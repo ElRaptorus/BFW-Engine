@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  targetNamespace="https://evilengine.dev/schema/bpmn"
+  id="Definitions_1">
+  <bpmn:error id="Error_script_failed" name="Script failed" errorCode="script_failed" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_python-fail-boundary" name="Python fail_async Error Boundary" processRef="python-fail-boundary-process" />
+  </bpmn:collaboration>
+  <bpmn:process id="python-fail-boundary-process" name="Python fail_async Error Boundary" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_python_fail</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_script_fail</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_caught</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_success</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_start_task</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_python_fail" name="Run Failing Python" implementation="python_script">
+      <bpmn:incoming>Flow_start_task</bpmn:incoming>
+      <bpmn:outgoing>Flow_task_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="BE_script_fail" name="Catch script_failed" attachedToRef="Task_python_fail" cancelActivity="true">
+      <bpmn:outgoing>Flow_boundary_end</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_script_failed" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_caught" name="Caught">
+      <bpmn:incoming>Flow_boundary_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_success" name="Success">
+      <bpmn:incoming>Flow_task_success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_start_task" sourceRef="Start_1" targetRef="Task_python_fail" />
+    <bpmn:sequenceFlow id="Flow_task_success" sourceRef="Task_python_fail" targetRef="End_success" />
+    <bpmn:sequenceFlow id="Flow_boundary_end" sourceRef="BE_script_fail" targetRef="End_caught" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_python-fail-boundary" bpmnElement="Participant_python-fail-boundary" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="620" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="590" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_python_fail" bpmnElement="Task_python_fail">
+        <dc:Bounds x="290" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_script_fail" bpmnElement="BE_script_fail">
+        <dc:Bounds x="322" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_success" bpmnElement="End_success">
+        <dc:Bounds x="520" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_caught" bpmnElement="End_caught">
+        <dc:Bounds x="520" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_start_task" bpmnElement="Flow_start_task">
+        <di:waypoint x="198" y="170" />
+        <di:waypoint x="290" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_task_success" bpmnElement="Flow_task_success">
+        <di:waypoint x="390" y="170" />
+        <di:waypoint x="520" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_boundary_end" bpmnElement="Flow_boundary_end">
+        <di:waypoint x="340" y="228" />
+        <di:waypoint x="340" y="250" />
+        <di:waypoint x="520" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

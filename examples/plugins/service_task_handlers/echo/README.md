@@ -32,7 +32,13 @@ tier is listening.
 The engine reads the standard `implementation` attribute on `<bpmn:serviceTask>`.
 The value must match the key used to register the handler in the plugin registry.
 
+## Redis
+
+An in-memory map (or Agent) is **not** a Redis example. If you need Redis, use a
+real client in your OTP app. Do not copy a dictionary and call it Redis.
+
 ## Further reading
 
+- [Service Task Handler guide](../../../../docs/guides/plugins/service-task-handler.md)
 - [`EvilEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/evil_engine/plugin/service_task_handler.ex)
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md)

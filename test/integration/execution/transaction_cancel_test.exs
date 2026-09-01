@@ -25,11 +25,8 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
   """
   use EvilEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.Resources.ProcessInstance
   alias EvilEngine.Test.EventCollector
   alias EvilEngine.Types.Event
-
-  require Ash.Query
 
   @default_timeout 20_000
 
@@ -38,10 +35,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
   # ---------------------------------------------------------------------------
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    ProcessInstance
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 
   # ---------------------------------------------------------------------------
@@ -58,7 +52,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "finished")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "finished")
 
       child_fnis = fetch_flow_node_instances(child_pi_id)
@@ -93,7 +87,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "finished")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "cancelled")
 
       child_fnis = fetch_flow_node_instances(child_pi_id)
@@ -142,7 +136,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "finished")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "cancelled")
 
       child_fnis = fetch_flow_node_instances(child_pi_id)
@@ -180,7 +174,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "fatal")
 
       child_fnis = fetch_flow_node_instances(child_pi_id)
@@ -206,7 +200,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "finished")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "cancelled")
 
       parent_fnis = fetch_flow_node_instances(pi_id)
@@ -230,7 +224,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "cancelled")
     end
   end
@@ -247,9 +241,10 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       {201, body} = http_start("transaction_with_call_activity")
       pi_id = body["processInstanceId"]
 
-      wait_for_process_instance(pi_id, @default_timeout)
+      {:ok, tx_child_pi_id} =
+        finish_transaction_cancel_gate_after_nested_idle(pi_id, {:on_nested_child, "UserTask_1"})
 
-      [tx_child_pi_id] = find_child_process_instance_ids(pi_id)
+      wait_for_process_instance(pi_id, @default_timeout)
 
       ca_child_pi_ids = find_child_process_instance_ids(tx_child_pi_id)
 
@@ -278,9 +273,10 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       {201, body} = http_start("transaction_with_embedded_subprocess")
       pi_id = body["processInstanceId"]
 
-      wait_for_process_instance(pi_id, @default_timeout)
+      {:ok, tx_child_pi_id} =
+        finish_transaction_cancel_gate_after_nested_idle(pi_id, {:on_nested_child, "SP_UserTask"})
 
-      [tx_child_pi_id] = find_child_process_instance_ids(pi_id)
+      wait_for_process_instance(pi_id, @default_timeout)
 
       sp_child_pi_ids = find_child_process_instance_ids(tx_child_pi_id)
 
@@ -316,10 +312,16 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       {201, body} = http_start("transaction_parallel_cancel")
       pi_id = body["processInstanceId"]
 
+      {:ok, _tx_child_pi_id} =
+        finish_transaction_cancel_gate_after_nested_idle(
+          pi_id,
+          {:on_transaction_child, "Tx_UserTask"}
+        )
+
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "finished")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "cancelled")
 
       child_fnis = fetch_flow_node_instances(child_pi_id)
@@ -355,7 +357,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       child = assert_pi_state!(child_pi_id, "fatal")
       assert child.state == "fatal", "Child PI must be fatal when compensation fails during cancel"
 
@@ -380,7 +382,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "finished")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "cancelled")
 
       {422, error_body} = http_retry_process_instance(child_pi_id)
@@ -406,7 +408,7 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [child_pi_id] = find_child_process_instance_ids(pi_id)
+      [child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(child_pi_id, "fatal")
 
       {422, error_body} = http_retry_process_instance(child_pi_id)
@@ -430,10 +432,10 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [tx_child_pi_id] = find_child_process_instance_ids(pi_id)
+      [tx_child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(tx_child_pi_id, "fatal")
 
-      [sp_child_pi_id] = find_child_process_instance_ids(tx_child_pi_id)
+      [sp_child_pi_id] = await_child_process_instance_ids(tx_child_pi_id)
       assert_pi_state!(sp_child_pi_id, "fatal")
 
       {422, error_body} = http_retry_process_instance(sp_child_pi_id)
@@ -458,10 +460,10 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [tx_child_pi_id] = find_child_process_instance_ids(pi_id)
+      [tx_child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(tx_child_pi_id, "fatal")
 
-      [ca_child_pi_id] = find_child_process_instance_ids(tx_child_pi_id)
+      [ca_child_pi_id] = await_child_process_instance_ids(tx_child_pi_id)
       assert_pi_state!(ca_child_pi_id, "fatal")
 
       {422, error_body} = http_retry_process_instance(ca_child_pi_id)
@@ -486,13 +488,13 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
       wait_for_process_instance(pi_id, @default_timeout)
       assert_pi_state!(pi_id, "fatal")
 
-      [tx_child_pi_id] = find_child_process_instance_ids(pi_id)
+      [tx_child_pi_id] = await_child_process_instance_ids(pi_id)
       assert_pi_state!(tx_child_pi_id, "fatal")
 
-      [sp_child_pi_id] = find_child_process_instance_ids(tx_child_pi_id)
+      [sp_child_pi_id] = await_child_process_instance_ids(tx_child_pi_id)
       assert_pi_state!(sp_child_pi_id, "fatal")
 
-      [ca_child_pi_id] = find_child_process_instance_ids(sp_child_pi_id)
+      [ca_child_pi_id] = await_child_process_instance_ids(sp_child_pi_id)
       assert_pi_state!(ca_child_pi_id, "fatal")
 
       {422, grandchild_error} = http_retry_process_instance(ca_child_pi_id)

@@ -766,7 +766,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
 
       wait_for_process_instance(root_process_instance_id, 20_000)
 
-      [mid_process_instance_id] = find_child_process_instance_ids(root_process_instance_id)
+      [mid_process_instance_id] = await_child_process_instance_ids(root_process_instance_id)
 
       [grandchild_process_instance_id] =
         find_child_process_instance_ids(mid_process_instance_id)
@@ -1366,12 +1366,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
   end
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    require Ash.Query
-
-    ProcessInstanceResource
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: @persistence_domain, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 
   defp poll_child_waiting_user_task(parent_process_instance_id, opts \\ []) do

@@ -5,7 +5,7 @@ table to the engine and evaluate it with different inputs.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24.20+
 - pnpm
 - A running ThomasTheDaemonEngine instance with DMN support (Phase 3+)
 

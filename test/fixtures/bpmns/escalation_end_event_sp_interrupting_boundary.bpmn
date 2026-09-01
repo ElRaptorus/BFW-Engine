@@ -30,11 +30,16 @@
       <bpmn:startEvent id="Sub_Start" name="Sub Start">
         <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
       </bpmn:startEvent>
-      <bpmn:endEvent id="Sub_End_Escalation" name="Sub Escalation End">
+      <bpmn:userTask id="Sub_UserTask" name="Arm escalation">
         <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_Arm</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="Sub_End_Escalation" name="Sub Escalation End">
+        <bpmn:incoming>Sub_Flow_Arm</bpmn:incoming>
         <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
       </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_End_Escalation" />
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_UserTask" />
+      <bpmn:sequenceFlow id="Sub_Flow_Arm" sourceRef="Sub_UserTask" targetRef="Sub_End_Escalation" />
     </bpmn:subProcess>
     <bpmn:boundaryEvent id="BE_Escalation" attachedToRef="SubProcess_1" cancelActivity="true">
       <bpmn:outgoing>Flow_Caught</bpmn:outgoing>
@@ -53,51 +58,56 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
       <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
-        <dc:Bounds x="82" y="80" width="726" height="260" />
+        <dc:Bounds x="82" y="80" width="826" height="260" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
-        <dc:Bounds x="112" y="80" width="696" height="260" />
+        <dc:Bounds x="112" y="80" width="796" height="260" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
-        <dc:Bounds x="290" y="130" width="320" height="180" />
+        <dc:Bounds x="260" y="130" width="500" height="180" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
-        <dc:Bounds x="330" y="202" width="36" height="36" />
+        <dc:Bounds x="280" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_UserTask" bpmnElement="Sub_UserTask">
+        <dc:Bounds x="340" y="180" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_End_Escalation" bpmnElement="Sub_End_Escalation">
-        <dc:Bounds x="500" y="202" width="36" height="36" />
+        <dc:Bounds x="470" y="202" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_BE_Escalation" bpmnElement="BE_Escalation">
         <dc:Bounds x="432" y="292" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
-        <dc:Bounds x="680" y="232" width="36" height="36" />
+        <dc:Bounds x="780" y="232" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Caught" bpmnElement="End_Caught">
-        <dc:Bounds x="680" y="132" width="36" height="36" />
+        <dc:Bounds x="780" y="132" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
         <di:waypoint x="198" y="200" />
-        <di:waypoint x="290" y="200" />
+        <di:waypoint x="260" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_Normal" bpmnElement="Flow_Normal">
-        <di:waypoint x="610" y="200" />
-        <di:waypoint x="645" y="200" />
-        <di:waypoint x="645" y="250" />
-        <di:waypoint x="680" y="250" />
+        <di:waypoint x="760" y="200" />
+        <di:waypoint x="780" y="250" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_Caught" bpmnElement="Flow_Caught">
         <di:waypoint x="450" y="328" />
-        <di:waypoint x="575" y="328" />
-        <di:waypoint x="575" y="150" />
+        <di:waypoint x="680" y="328" />
         <di:waypoint x="680" y="150" />
+        <di:waypoint x="780" y="150" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
-        <di:waypoint x="366" y="220" />
-        <di:waypoint x="500" y="220" />
+        <di:waypoint x="316" y="220" />
+        <di:waypoint x="340" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_Arm" bpmnElement="Sub_Flow_Arm">
+        <di:waypoint x="440" y="220" />
+        <di:waypoint x="470" y="220" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

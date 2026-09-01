@@ -62,7 +62,15 @@ defmodule EvilEngine.Integration.Execution.EscalationEventTest do
       {201, body} = http_start("EscalationSPInterrupting")
       process_instance_id = body["processInstanceId"]
 
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+
+      :ok =
+        finish_waiting_user_task_by_node_id(child_process_instance_id, "Sub_UserTask",
+          timeout: 10_000
+        )
+
       wait_for_process_instance(process_instance_id, 10_000)
+      poll_pi_state(process_instance_id, "finished", 10_000)
 
       assert_pi_state!(process_instance_id, "finished")
 
@@ -196,7 +204,15 @@ defmodule EvilEngine.Integration.Execution.EscalationEventTest do
       {201, body} = http_start("EscalationITSPInterrupting")
       process_instance_id = body["processInstanceId"]
 
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+
+      :ok =
+        finish_waiting_user_task_by_node_id(child_process_instance_id, "Sub_UserTask",
+          timeout: 10_000
+        )
+
       wait_for_process_instance(process_instance_id, 10_000)
+      poll_pi_state(process_instance_id, "finished", 10_000)
 
       assert_pi_state!(process_instance_id, "finished")
 
@@ -776,12 +792,7 @@ defmodule EvilEngine.Integration.Execution.EscalationEventTest do
   # ---------------------------------------------------------------------------
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    require Ash.Query
-
-    EvilEngine.Persistence.Resources.ProcessInstance
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 
   defp find_all_descendant_pi_ids(process_instance_id) do

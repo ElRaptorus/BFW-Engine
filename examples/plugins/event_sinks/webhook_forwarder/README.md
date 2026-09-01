@@ -6,9 +6,9 @@ Use this as a starting point for Zapier, n8n, or your own automation receiver.
 ## Usage
 
 1. Copy `lib/webhook_plugin.ex` and `lib/webhook_sink.ex` into your OTP application.
-2. Replace the placeholder `url` in `WebhookPlugin.on_load/1` with your HTTPS endpoint
+2. Replace the placeholder `url` in `WebhookPlugin.on_load/1` (default `http://127.0.0.1:1/engine-events` fails fast so CI is not blocked on DNS). Use your HTTPS endpoint in a real app.
    (or read it from `Application.get_env/3`).
-3. Replace `default_deliver_payload/3` in `WebhookSink` with a real client.
+3. `default_deliver_payload/3` posts with `:httpc.request/4`. Tests inject `deliver_payload`. Timeouts are swallowed so a slow webhook never crashes the sink worker.
 
 ## Configuration
 

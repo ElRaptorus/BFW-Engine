@@ -2021,12 +2021,14 @@ The engine ships two npm packages in a pnpm monorepo under `packages/js/`:
 | Directory | Contents |
 |-----------|----------|
 | `examples/plugins/auth_providers/` | LDAP, CompanyGraph auth provider examples |
-| `examples/plugins/service_task_handlers/` | Async service task handler examples (all handlers are async-only) |
-| `examples/plugins/event_sinks/` | DataDog, webhook, structured logger sink examples |
+| `examples/plugins/service_task_handlers/` | Async service task handler examples (echo, HTTP, webhook, RabbitMQ stub, python_script, node_script) |
+| `examples/plugins/event_sinks/` | DataDog, webhook, structured logger, SSE sink examples |
 | `examples/plugins/named_scripts/` | Custom validators, local script runner |
-| `examples/plugins/lifecycle_and_api/` | Lifecycle-aware, API consumer, GitHub BPMN auto-deployer examples |
-| `examples/plugins/combined/` | RabbitMQ orchestrator, metrics pipeline |
-| `examples/plugins/business_rules/` | DMN observation & analysis examples: KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD chain orchestrator, boxed expression showcase, decision analytics, decision audit reporter |
+| `examples/plugins/lifecycle_and_api/` | Lifecycle-aware, API consumer, GitHub BPMN auto-deployer, quarantine_demo |
+| `examples/plugins/rest_api_extension/` | Echo RestApiExtension (`GET /echo-ext/ping`) |
+| `examples/plugins/adhoc/` | AI toolbox EventSink for plugin-managed ad-hoc subprocesses |
+| `examples/plugins/combined/` | RabbitMQ orchestrator, metrics pipeline, incident reporter |
+| `examples/plugins/business_rules/` | DMN observation & analysis examples: explain decision, trace publisher, smoke tester, regression tester, DRD chain orchestrator, boxed expression showcase, decision analytics, decision audit reporter |
 | `examples/client-js/` | TypeScript client examples (deploy, lifecycle, user tasks, GraphQL, errors, WebSocket, batch, DMN, BRT trace) |
 | `examples/sdk-js/` | TypeScript SDK examples (parse BPMN/DMN, typed payloads, error hierarchy) |
 

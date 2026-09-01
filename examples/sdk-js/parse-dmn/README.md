@@ -5,7 +5,7 @@ decision table model. No running engine required.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24.20+
 - pnpm
 
 ## Usage

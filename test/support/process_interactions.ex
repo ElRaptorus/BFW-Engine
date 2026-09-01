@@ -13,6 +13,7 @@ defmodule EvilEngine.Test.ProcessInteractions do
   alias EvilEngine.Execution
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias EvilEngine.Test.DbAssertions
 
   @doc """
   Finish a waiting UserTask via the REST endpoint.
@@ -130,10 +131,12 @@ defmodule EvilEngine.Test.ProcessInteractions do
   end
 
   defp query_process_instance_state(process_instance_id) do
-    case Ash.get(PiResource, process_instance_id, authorize?: false) do
-      {:ok, process_instance} -> {:ok, process_instance.state}
-      {:error, _} -> {:error, :not_found}
-    end
+    DbAssertions.with_sandbox_retry(fn ->
+      case Ash.get(PiResource, process_instance_id, authorize?: false) do
+        {:ok, process_instance} -> {:ok, process_instance.state}
+        {:error, _} -> {:error, :not_found}
+      end
+    end)
   end
 
   @doc """
@@ -143,14 +146,16 @@ defmodule EvilEngine.Test.ProcessInteractions do
   @spec find_waiting_fni(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def find_waiting_fni(process_instance_id, flow_node_type) do
     result =
-      FlowNodeInstance
-      |> Ash.Query.filter(
-        process_instance_id == ^process_instance_id and
-          flow_node_type == ^flow_node_type and
-          state == "waiting"
-      )
-      |> Ash.Query.limit(1)
-      |> Ash.read!(authorize?: false)
+      DbAssertions.with_sandbox_retry(fn ->
+        FlowNodeInstance
+        |> Ash.Query.filter(
+          process_instance_id == ^process_instance_id and
+            flow_node_type == ^flow_node_type and
+            state == "waiting"
+        )
+        |> Ash.Query.limit(1)
+        |> Ash.read!(authorize?: false)
+      end)
 
     case result do
       [flow_node_instance | _] -> {:ok, flow_node_instance}
@@ -174,14 +179,16 @@ defmodule EvilEngine.Test.ProcessInteractions do
 
   defp do_poll_waiting_fni_by_node_id(process_instance_id, flow_node_id, interval, deadline) do
     result =
-      FlowNodeInstance
-      |> Ash.Query.filter(
-        process_instance_id == ^process_instance_id and
-          flow_node_id == ^flow_node_id and
-          state == "waiting"
-      )
-      |> Ash.Query.limit(1)
-      |> Ash.read!(authorize?: false)
+      DbAssertions.with_sandbox_retry(fn ->
+        FlowNodeInstance
+        |> Ash.Query.filter(
+          process_instance_id == ^process_instance_id and
+            flow_node_id == ^flow_node_id and
+            state == "waiting"
+        )
+        |> Ash.Query.limit(1)
+        |> Ash.read!(authorize?: false)
+      end)
 
     case result do
       [flow_node_instance | _] ->
@@ -235,13 +242,15 @@ defmodule EvilEngine.Test.ProcessInteractions do
          deadline
        ) do
     matching_flow_node_instances =
-      FlowNodeInstance
-      |> Ash.Query.filter(
-        process_instance_id == ^process_instance_id and
-          flow_node_id == ^flow_node_id and
-          state == "finished"
-      )
-      |> Ash.read!(authorize?: false)
+      DbAssertions.with_sandbox_retry(fn ->
+        FlowNodeInstance
+        |> Ash.Query.filter(
+          process_instance_id == ^process_instance_id and
+            flow_node_id == ^flow_node_id and
+            state == "finished"
+        )
+        |> Ash.read!(authorize?: false)
+      end)
 
     if length(matching_flow_node_instances) >= minimum_count do
       {:ok, matching_flow_node_instances}
@@ -306,9 +315,11 @@ defmodule EvilEngine.Test.ProcessInteractions do
          deadline
        ) do
     children =
-      PiResource
-      |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-      |> Ash.read!(authorize?: false)
+      DbAssertions.with_sandbox_retry(fn ->
+        PiResource
+        |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
+        |> Ash.read!(authorize?: false)
+      end)
 
     match = Enum.find(children, fn child -> child.state == expected_state end)
 
@@ -328,6 +339,125 @@ defmodule EvilEngine.Test.ProcessInteractions do
           interval,
           deadline
         )
+    end
+  end
+
+  @doc """
+  Wait until nested transaction work is idle-waiting, then finish `Tx_CancelGate`.
+
+  Cancel End must not fire while a nested Call Activity or SubProcess child is
+  still persisting (P45). `nested_wait` is:
+
+  - `{:on_transaction_child, flow_node_id}` — wait for that user task on the
+    transaction child PI
+  - `{:on_nested_child, flow_node_id}` — wait for that user task on the
+    grandchild PI (Call Activity or embedded subprocess child)
+  """
+  @spec finish_transaction_cancel_gate_after_nested_idle(
+          String.t(),
+          {:on_transaction_child, String.t()} | {:on_nested_child, String.t()}
+        ) :: {:ok, String.t()} | {:error, term()}
+  def finish_transaction_cancel_gate_after_nested_idle(parent_process_instance_id, nested_wait) do
+    [transaction_child_process_instance_id] =
+      DbAssertions.await_child_process_instance_ids(parent_process_instance_id)
+
+    wait_result =
+      case nested_wait do
+        {:on_transaction_child, flow_node_id} ->
+          await_waiting_fni_by_node_id(transaction_child_process_instance_id, flow_node_id,
+            timeout: 10_000
+          )
+
+        {:on_nested_child, flow_node_id} ->
+          [nested_child_process_instance_id] =
+            DbAssertions.await_child_process_instance_ids(transaction_child_process_instance_id)
+
+          await_waiting_fni_by_node_id(nested_child_process_instance_id, flow_node_id,
+            timeout: 10_000
+          )
+      end
+
+    case wait_result do
+      {:ok, _flow_node_instance} ->
+        case finish_waiting_user_task_by_node_id(
+               transaction_child_process_instance_id,
+               "Tx_CancelGate",
+               timeout: 10_000
+             ) do
+          :ok -> {:ok, transaction_child_process_instance_id}
+          other -> other
+        end
+
+      other ->
+        other
+    end
+  end
+
+  @doc """
+  Wait for a specific user-task FNI (`flow_node_id`) then finish it via REST.
+
+  Use this when more than one user task may be waiting (e.g. a cancel-arm
+  gate plus a nested wait). Retries HTTP 404 the same way as
+  `finish_waiting_user_task/2`.
+  """
+  @spec finish_waiting_user_task_by_node_id(String.t(), String.t(), keyword()) ::
+          :ok | {:error, term()}
+  def finish_waiting_user_task_by_node_id(process_instance_id, flow_node_id, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 10_000)
+    result = Keyword.get(opts, :result, %{})
+    deadline = System.monotonic_time(:millisecond) + timeout
+
+    do_finish_waiting_user_task_by_node_id(
+      process_instance_id,
+      flow_node_id,
+      result,
+      deadline
+    )
+  end
+
+  defp do_finish_waiting_user_task_by_node_id(
+         process_instance_id,
+         flow_node_id,
+         result,
+         deadline
+       ) do
+    remaining = deadline - System.monotonic_time(:millisecond)
+
+    if remaining <= 0 do
+      {:error, :timeout}
+    else
+      case await_waiting_fni_by_node_id(process_instance_id, flow_node_id,
+             timeout: min(remaining, 2_000)
+           ) do
+        {:ok, user_task_flow_node_instance} ->
+          case finish_user_task(process_instance_id, user_task_flow_node_instance.id, result) do
+            :ok ->
+              :ok
+
+            {:error, {404, _body}} ->
+              Process.sleep(50)
+
+              do_finish_waiting_user_task_by_node_id(
+                process_instance_id,
+                flow_node_id,
+                result,
+                deadline
+              )
+
+            other ->
+              other
+          end
+
+        {:error, :timeout} ->
+          Process.sleep(50)
+
+          do_finish_waiting_user_task_by_node_id(
+            process_instance_id,
+            flow_node_id,
+            result,
+            deadline
+          )
+      end
     end
   end
 

@@ -128,4 +128,4 @@ flowchart LR
 - [`EvilEngine.EngineFacade`](../../../../apps/engine_sdk/lib/evil_engine/engine_facade.ex) — facade closure surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — CL3 boxed expressions and evaluation traces
 - [`docs/guides/handbook/business-rule-tasks.md`](../../../../docs/guides/handbook/business-rule-tasks.md) — DMN Business Rule Tasks
-- [`examples/plugins/business_rules/dead_rule_detector/README.md`](../dead_rule_detector/README.md) — similar deploy + process + trace pattern
+- [`examples/plugins/business_rules/decision_audit_reporter/README.md`](../decision_audit_reporter/README.md) — similar deploy + process + trace pattern

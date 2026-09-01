@@ -3,12 +3,14 @@ fixture: "transaction_with_call_activity.bpmn"
 process_model_id: "transaction_with_call_activity"
 child_fixtures:
   - "transaction_with_call_activity_child.bpmn"
-tier: auto
+tier: interactive
 notes: >
-  Transaction contains a Call Activity that starts a long-running child process,
-  then a Cancel End Event fires concurrently. The Cancel End interrupts the Call
-  Activity, causing its child PI to be aborted. The child transaction PI goes
-  :cancelled. Cancel Boundary on the shell fires, parent finishes at End_Cancelled.
+  Transaction contains a Call Activity that starts a long-running child process.
+  Nested work parks at UserTask_1; cancel parks at Tx_CancelGate (P45). The
+  interactive test finishes the gate after the nested user task is waiting.
+  Cancel then interrupts the Call Activity child PI. The transaction child PI
+  goes :cancelled. Cancel Boundary on the shell fires, parent finishes at
+  End_Cancelled.
 start:
   payload: null
 expected:

@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  id="Definitions_ConditionalCatchEbgWins">
+
+  <!--
+    C8: Event-Based Gateway with a conditional catch vs a long timer.
+    A parallel user task writes a Data Object after both EBG targets are
+    idle-waiting, so the conditional fires without cancelling a timer that
+    is still persisting (P45).
+  -->
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_ConditionalCatchEbgWins" name="Conditional Catch EBG Wins" processRef="ConditionalCatchEbgConditionalWins" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ConditionalCatchEbgConditionalWins" name="Conditional Catch EBG Wins" isExecutable="true">
+    <bpmn:extensionElements>
+      <evil:version>1.0.0</evil:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_WriteReady</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EBG_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ConditionalCatch_DataReady</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>TimerCatch_Timeout</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>XorMerge_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Join_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="Result" name="Result" />
+    <bpmn:dataObjectReference id="ResultRef" dataObjectRef="Result" />
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:parallelGateway id="Fork_1" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_User</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Ebg</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:userTask id="UserTask_WriteReady" name="Write Ready">
+      <bpmn:extensionElements>
+        <evil:formFields>{"fields":[{"name":"status","type":"text"}]}</evil:formFields>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_User</bpmn:incoming>
+      <bpmn:outgoing>Flow_User_Join</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DOA_WriteReady">
+        <bpmn:targetRef>ResultRef</bpmn:targetRef>
+        <bpmn:transformation>token</bpmn:transformation>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+
+    <bpmn:eventBasedGateway id="EBG_1" name="Wait for Event">
+      <bpmn:incoming>Flow_Ebg</bpmn:incoming>
+      <bpmn:outgoing>Flow_Conditional</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Timer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:intermediateCatchEvent id="ConditionalCatch_DataReady" name="Wait for Data Ready">
+      <bpmn:incoming>Flow_Conditional</bpmn:incoming>
+      <bpmn:outgoing>Flow_Conditional_Merge</bpmn:outgoing>
+      <bpmn:conditionalEventDefinition>
+        <bpmn:condition xsi:type="bpmn:tFormalExpression">dataObjects.Result.status = "ready"</bpmn:condition>
+      </bpmn:conditionalEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateCatchEvent id="TimerCatch_Timeout" name="Timeout">
+      <bpmn:incoming>Flow_Timer</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timer_Merge</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:exclusiveGateway id="XorMerge_1" name="EBG Winner">
+      <bpmn:incoming>Flow_Conditional_Merge</bpmn:incoming>
+      <bpmn:incoming>Flow_Timer_Merge</bpmn:incoming>
+      <bpmn:outgoing>Flow_Winner_Join</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:parallelGateway id="Join_1" name="Join">
+      <bpmn:incoming>Flow_User_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Winner_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_End</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork_1" />
+    <bpmn:sequenceFlow id="Flow_User" sourceRef="Fork_1" targetRef="UserTask_WriteReady" />
+    <bpmn:sequenceFlow id="Flow_Ebg" sourceRef="Fork_1" targetRef="EBG_1" />
+    <bpmn:sequenceFlow id="Flow_Conditional" sourceRef="EBG_1" targetRef="ConditionalCatch_DataReady" />
+    <bpmn:sequenceFlow id="Flow_Timer" sourceRef="EBG_1" targetRef="TimerCatch_Timeout" />
+    <bpmn:sequenceFlow id="Flow_Conditional_Merge" sourceRef="ConditionalCatch_DataReady" targetRef="XorMerge_1" />
+    <bpmn:sequenceFlow id="Flow_Timer_Merge" sourceRef="TimerCatch_Timeout" targetRef="XorMerge_1" />
+    <bpmn:sequenceFlow id="Flow_User_Join" sourceRef="UserTask_WriteReady" targetRef="Join_1" />
+    <bpmn:sequenceFlow id="Flow_Winner_Join" sourceRef="XorMerge_1" targetRef="Join_1" />
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="Join_1" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant" bpmnElement="Participant_ConditionalCatchEbgWins" isHorizontal="true">
+        <dc:Bounds x="82" y="52" width="980" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="52" width="950" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork_1" bpmnElement="Fork_1">
+        <dc:Bounds x="250" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_WriteReady" bpmnElement="UserTask_WriteReady">
+        <dc:Bounds x="360" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EBG_1" bpmnElement="EBG_1">
+        <dc:Bounds x="385" y="255" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ConditionalCatch_DataReady" bpmnElement="ConditionalCatch_DataReady">
+        <dc:Bounds x="520" y="212" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TimerCatch_Timeout" bpmnElement="TimerCatch_Timeout">
+        <dc:Bounds x="520" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_XorMerge_1" bpmnElement="XorMerge_1">
+        <dc:Bounds x="620" y="255" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Join_1" bpmnElement="Join_1">
+        <dc:Bounds x="760" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="880" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ResultRef" bpmnElement="ResultRef">
+        <dc:Bounds x="392" y="20" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="250" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_User" bpmnElement="Flow_User">
+        <di:waypoint x="275" y="175" />
+        <di:waypoint x="275" y="120" />
+        <di:waypoint x="360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Ebg" bpmnElement="Flow_Ebg">
+        <di:waypoint x="275" y="225" />
+        <di:waypoint x="275" y="280" />
+        <di:waypoint x="385" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Conditional" bpmnElement="Flow_Conditional">
+        <di:waypoint x="410" y="255" />
+        <di:waypoint x="410" y="230" />
+        <di:waypoint x="520" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer" bpmnElement="Flow_Timer">
+        <di:waypoint x="410" y="305" />
+        <di:waypoint x="410" y="330" />
+        <di:waypoint x="520" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Conditional_Merge" bpmnElement="Flow_Conditional_Merge">
+        <di:waypoint x="556" y="230" />
+        <di:waypoint x="645" y="230" />
+        <di:waypoint x="645" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer_Merge" bpmnElement="Flow_Timer_Merge">
+        <di:waypoint x="556" y="330" />
+        <di:waypoint x="645" y="330" />
+        <di:waypoint x="645" y="305" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_User_Join" bpmnElement="Flow_User_Join">
+        <di:waypoint x="460" y="120" />
+        <di:waypoint x="785" y="120" />
+        <di:waypoint x="785" y="175" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Winner_Join" bpmnElement="Flow_Winner_Join">
+        <di:waypoint x="670" y="280" />
+        <di:waypoint x="785" y="280" />
+        <di:waypoint x="785" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_End" bpmnElement="Flow_End">
+        <di:waypoint x="810" y="200" />
+        <di:waypoint x="880" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

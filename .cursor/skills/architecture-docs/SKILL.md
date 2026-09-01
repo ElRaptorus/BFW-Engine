@@ -162,7 +162,7 @@ Use this table to determine **which file to update** based on what you changed o
 | /stats, /health, /info, logs, metrics | `observability.md` |
 | Docker, docker-compose, zero-downtime deploy | `shipping.md` |
 | Env vars, config priority, linter gate, retention | `configuration.md` |
-| Test infrastructure, scenario matrix, CI pipeline | `testing.md` |
+| Test infrastructure, scenario matrix, CI pipeline, Mix aliases (`test.examples` / `test.cookbook`) | `testing.md` |
 | JWT auth, transport, plugin trust, input validation, threat model | `security.md` |
 | Recurring mistake or non-obvious constraint | `common-pitfalls.md` |
 | Significant design decision | `ImplementationPlan.md` section 0 |
@@ -184,4 +184,5 @@ Study these as style references before writing:
 - `docs/architecture/data-model.md` — Good example of schema tables, partitioning rationale, and cross-reference to Schema.md
 - `docs/architecture/event-system.md` — Good example of concise document with layered architecture and sink behaviour definition
 - `docs/architecture/testing.md` — Good example of scenario matrix, assertion framework, and exhaustive integration test specification
+- `docs/architecture/plugins.md` §9.6 — Example catalogue must stay in sync with `examples/README.md` (add/remove cookbook trees in both places; document `mix test.examples` vs `mix test.cookbook`)
 - `docs/architecture/security.md` — Good example of threat model table, per-surface security controls, and explicit non-goals with workarounds

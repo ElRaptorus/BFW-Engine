@@ -167,7 +167,7 @@ The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/
 
 ## CI/CD
 
-`.github/workflows/packages-ci.yml` publishes `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry).
+`.github/workflows/packages-ci.yml` publishes `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry). All jobs pin `actions/setup-node` to Node.js 24.20. First-party packages declare `engines.node` `>=24.20.0`.
 
 Jobs, in order:
 

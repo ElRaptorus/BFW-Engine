@@ -10,8 +10,6 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubClient do
   environment variables.
   """
 
-  require Logger
-
   @type config :: %{
           owner: String.t(),
           repo: String.t(),

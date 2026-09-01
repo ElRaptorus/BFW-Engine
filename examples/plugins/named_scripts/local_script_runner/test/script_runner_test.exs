@@ -1,7 +1,7 @@
 defmodule Examples.Plugins.LocalScriptRunner.ScriptRunnerTest do
   use ExUnit.Case
 
-  alias Examples.Plugins.LocalScriptRunner.ScriptSandbox
+  alias Examples.Plugins.Shared.ScriptSandbox
 
   describe "validate_path/2" do
     test "rejects traversal segments" do
@@ -111,6 +111,35 @@ defmodule Examples.Plugins.LocalScriptRunner.ScriptRunnerTest do
                      %{"input" => true},
                      allowed_scripts_directory: allowed,
                      timeout_milliseconds: 500
+                   )
+      end
+    end
+
+    test "runs a Node.js helper script and parses JSON stdout" do
+      cond do
+        System.find_executable("sh") == nil ->
+          IO.warn("skipping ScriptSandbox Node.js test: sh not installed")
+
+        System.find_executable("node") == nil ->
+          IO.warn("skipping ScriptSandbox Node.js test: node not installed")
+
+        true ->
+          allowed = Path.join(System.tmp_dir!(), "exec-node-#{System.unique_integer([:positive])}")
+          File.mkdir_p!(allowed)
+
+          script_path = Path.join(allowed, "identity.js")
+
+          File.write!(script_path, """
+          const fs = require("fs");
+          const data = JSON.parse(fs.readFileSync(0, "utf8"));
+          process.stdout.write(JSON.stringify(data));
+          """)
+
+          assert {:ok, %{"value" => 7}} =
+                   ScriptSandbox.execute(
+                     "identity.js",
+                     %{"value" => 7},
+                     allowed_scripts_directory: allowed
                    )
       end
     end

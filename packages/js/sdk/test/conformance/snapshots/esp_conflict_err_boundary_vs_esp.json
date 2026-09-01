@@ -95,9 +95,39 @@
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
-                "id": "Sub_ErrorEnd",
+                "id": "Sub_UserTask",
                 "incoming": [
                   "Sub_Flow_1"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Arm error",
+                "outgoing": [
+                  "Sub_Flow_Arm"
+                ],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_ErrorEnd",
+                "incoming": [
+                  "Sub_Flow_Arm"
                 ],
                 "isForCompensation": false,
                 "multiInstance": null,
@@ -130,6 +160,14 @@
                 "isDefault": false,
                 "name": null,
                 "sourceRef": "Sub_Start",
+                "targetRef": "Sub_UserTask"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_Arm",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_UserTask",
                 "targetRef": "Sub_ErrorEnd"
               }
             ],

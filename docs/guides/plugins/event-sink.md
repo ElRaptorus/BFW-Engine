@@ -100,3 +100,4 @@ All events are structs under `EvilEngine.Types.Event.*`:
 - [Error Handling](../handbook/error-handling.md) -- `SinkFailed` event details
 - [Engine Facade Reference](engine-facade.md) -- registration API
 - [Built-in Plugins](builtin-plugins.md) -- reference sink implementations
+- Cookbook: `structured_logger`, `webhook_forwarder`, `sse` under `examples/plugins/event_sinks/` (`GET /events/stream` on the existing HTTP server)

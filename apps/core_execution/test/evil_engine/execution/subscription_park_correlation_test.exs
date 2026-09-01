@@ -107,9 +107,8 @@ defmodule EvilEngine.Execution.SubscriptionParkCorrelationTest do
     @behaviour EvilEngine.Plugin.ServiceTaskHandler
 
     @impl true
-    def handle_enter(_flow_node, _token, context) do
-      Agent.update(__MODULE__, fn count -> count + 1 end)
-      {:async, context.flow_node_instance_id}
+    def handle_enter(_flow_node, _token, _context) do
+      raise "plugin handler must not be invoked when park_async fails"
     end
   end
 
@@ -224,14 +223,6 @@ defmodule EvilEngine.Execution.SubscriptionParkCorrelationTest do
   end
 
   test "ServiceTask park failure never invokes the plugin handler" do
-    {:ok, _agent} = Agent.start_link(fn -> 0 end, name: TrackingServiceTaskHandler)
-
-    on_exit(fn ->
-      if Process.whereis(TrackingServiceTaskHandler) do
-        Agent.stop(TrackingServiceTaskHandler)
-      end
-    end)
-
     Application.put_env(:core_execution, :persistence_adapter, FailingWaitingAdapter)
     Application.put_env(:core_execution, :persistence_retry_max_attempts, 1)
     Application.put_env(:core_execution, :persistence_retry_initial_backoff_ms, 1)
@@ -277,8 +268,6 @@ defmodule EvilEngine.Execution.SubscriptionParkCorrelationTest do
 
     assert {:error, :persistence_failed} =
              FlowNodes.ServiceTask.handle_enter(flow_node, token, context)
-
-    assert Agent.get(TrackingServiceTaskHandler, & &1) == 0
   end
 
   test "throw with a failing correlation retrieval expression fatals and does not publish" do

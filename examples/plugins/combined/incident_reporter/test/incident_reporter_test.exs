@@ -12,7 +12,7 @@ defmodule IncidentReporter.EventSinkTest do
   alias IncidentReporter.EventSink
   alias IncidentReporter.MessageBus.InMemoryAdapter
 
-  defp build_state_changed_event(overrides \\ %{}) do
+  defp build_state_changed_event(overrides) do
     Map.merge(
       %Event.ProcessInstanceStateChanged{
         process_instance_id: "pi-#{System.unique_integer([:positive])}",

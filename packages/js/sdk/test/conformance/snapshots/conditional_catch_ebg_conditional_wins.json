@@ -1,0 +1,368 @@
+{
+  "definitionsId": "Definitions_ConditionalCatchEbgWins",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "Result",
+          "dataState": null,
+          "id": "ResultRef",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "Result",
+          "itemSubjectRef": null,
+          "name": "Result",
+          "valueContract": null
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": [
+            "Flow_Ebg",
+            "Flow_User"
+          ],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_WriteReady",
+              "sourceRef": null,
+              "targetRef": "ResultRef",
+              "valueExpression": "token"
+            }
+          ],
+          "documentation": null,
+          "id": "UserTask_WriteReady",
+          "incoming": [
+            "Flow_User"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Write Ready",
+          "outgoing": [
+            "Flow_User_Join"
+          ],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": {
+              "fields": [
+                {
+                  "name": "status",
+                  "type": "text"
+                }
+              ]
+            },
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EBG_1",
+          "incoming": [
+            "Flow_Ebg"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait for Event",
+          "outgoing": [
+            "Flow_Timer",
+            "Flow_Conditional"
+          ],
+          "standardLoop": null,
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ConditionalCatch_DataReady",
+          "incoming": [
+            "Flow_Conditional"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait for Data Ready",
+          "outgoing": [
+            "Flow_Conditional_Merge"
+          ],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "conditionExpression": "dataObjects.Result.status = \"ready\""
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "TimerCatch_Timeout",
+          "incoming": [
+            "Flow_Timer"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Timeout",
+          "outgoing": [
+            "Flow_Timer_Merge"
+          ],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT1H"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "XorMerge_1",
+          "incoming": [
+            "Flow_Timer_Merge",
+            "Flow_Conditional_Merge"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "EBG Winner",
+          "outgoing": [
+            "Flow_Winner_Join"
+          ],
+          "standardLoop": null,
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Join_1",
+          "incoming": [
+            "Flow_Winner_Join",
+            "Flow_User_Join"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": [
+            "Flow_End"
+          ],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [
+            "Flow_End"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ConditionalCatchEbgConditionalWins",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Fork_1",
+            "UserTask_WriteReady",
+            "EBG_1",
+            "ConditionalCatch_DataReady",
+            "TimerCatch_Timeout",
+            "XorMerge_1",
+            "Join_1",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Conditional Catch EBG Wins",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_User",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "UserTask_WriteReady"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Ebg",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "EBG_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Conditional",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "ConditionalCatch_DataReady"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "EBG_1",
+          "targetRef": "TimerCatch_Timeout"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Conditional_Merge",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ConditionalCatch_DataReady",
+          "targetRef": "XorMerge_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timer_Merge",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "TimerCatch_Timeout",
+          "targetRef": "XorMerge_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_User_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_WriteReady",
+          "targetRef": "Join_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Winner_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "XorMerge_1",
+          "targetRef": "Join_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Join_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

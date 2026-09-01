@@ -1,11 +1,12 @@
 name: "C237: Transaction with embedded subprocess — cancel interrupts subprocess"
 fixture: "transaction_with_embedded_subprocess.bpmn"
 process_model_id: "transaction_with_embedded_subprocess"
-tier: auto
+tier: interactive
 notes: >
   Transaction contains an embedded subprocess (with a user task inside) and
-  a parallel branch that fires Cancel End. When cancel fires, the subprocess
-  shell FNI is interrupted. The child transaction PI transitions to :cancelled.
+  a parallel cancel branch parked at Tx_CancelGate (P45). The interactive test
+  finishes the gate after SP_UserTask is waiting. Cancel then interrupts the
+  subprocess shell. The child transaction PI transitions to :cancelled.
   Cancel Boundary on the shell fires, parent finishes at End_Cancelled.
 start:
   payload: null

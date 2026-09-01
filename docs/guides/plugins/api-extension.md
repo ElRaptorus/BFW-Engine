@@ -33,7 +33,7 @@ Routes on `MyPlugin.Router` are reachable under `/my-extension/...` after the en
 
 Reserved prefixes (`/processes`, `/decisions`, `/process-instances`, `/user-tasks`, `/timer-schedules`, `/timer-events`, `/messages`, `/signals`, `/escalations`, `/adhoc-subprocesses`, `/stats`, `/api`, `/admin`, `/health`, `/info`, `/metrics`) are rejected with `{:error, :reserved_prefix}`. Engine routes always win over the plugin catch-all.
 
-See `examples/plugins/rest_api_extension/echo/` for a `GET /echo-ext/ping` example.
+See `examples/plugins/rest_api_extension/echo/` for a `GET /echo-ext/ping` example. See `examples/plugins/event_sinks/sse/` for `GET /events/stream` (prefix `/events` is not reserved).
 
 ## Related
 

@@ -304,7 +304,7 @@ ready-to-copy starting points.
 
 | Audience | Package | Contents |
 |---|---|---|
-| Elixir plugin authors | `evil_engine_sdk` (Hex, app `apps/engine_sdk`) | All `@behaviour` modules (including `EventSink` — with a `TestSink` Mox fixture that asserts receipt of specific event structs), test helpers, a `mix evil.gen.plugin` scaffolder, reference plugin examples (including a worked `DatadogSink` stub + a worked `KafkaSink` stub). **Per the SDK contract**: `EvilEngine.SDK.BPMN` explicitly re-exports `EvilEngine.BPMN.Model.*` (the AST), `EvilEngine.BPMN.ModelCache.{fetch/1, get/1, fetch_subprocess_model/2, find_message_start_events/1, find_signal_start_events/1}`, and `EvilEngine.BPMN.Parser.parse/1`, so plugins (in-engine and out-of-tree Elixir tooling) parse BPMN XML and consume the AST with the engine's canonical semantics. The SDK also re-exports the full `EvilEngine.Types.Event.*` struct catalog + `EngineEventBus.publish/1` (for test-only synthetic emission) so plugin EventSink authors can pattern-match on stable event types without reaching into the engine's internal modules |
+| Elixir plugin authors | `evil_engine_sdk` (Hex, app `apps/engine_sdk`) | All `@behaviour` modules (including `EventSink` — with a `TestSink` Mox fixture that asserts receipt of specific event structs), test helpers, and copy-paste reference plugins under `examples/plugins/` (including a worked Datadog batched-flush **stub**). `mix evil.gen.plugin` and a KafkaSink scaffolder are **architecture wishlist**, not shipped. **Per the SDK contract**: `EvilEngine.SDK.BPMN` explicitly re-exports `EvilEngine.BPMN.Model.*` (the AST), `EvilEngine.BPMN.ModelCache.{fetch/1, get/1, fetch_subprocess_model/2, find_message_start_events/1, find_signal_start_events/1}`, and `EvilEngine.BPMN.Parser.parse/1`, so plugins (in-engine and out-of-tree Elixir tooling) parse BPMN XML and consume the AST with the engine's canonical semantics. The SDK also re-exports the full `EvilEngine.Types.Event.*` struct catalog + `EngineEventBus.publish/1` (for test-only synthetic emission) so plugin EventSink authors can pattern-match on stable event types without reaching into the engine's internal modules |
 | Non-Elixir plugin authors (Go, Rust, Python, Node, Java, C#) | `evil-engine-plugin-{lang}` — each generated from `evil.engine.plugin.v1.proto` via `buf generate`, published per ecosystem | gRPC client + boilerplate for registering, heartbeating, streaming events |
 | Engine API consumers (Studio, dashboards, CLIs) | `@elraptorus/daemonengine_sdk` (contract layer: types, error classes, event types, the authoring-path BPMN XML parser, and the extension vocabulary manifest) + `@elraptorus/daemonengine_client` (transport: REST, GraphQL, WebSocket, depends on the SDK) — both npm packages in `packages/js/` | Typed client for REST triggers + GraphQL queries (including the Model graph, §10.2.2). The SDK ships `extension-manifest.json` (typed export `extensionManifest`, `packages/js/sdk/src/generated/extension-manifest.ts`) — the vocabulary of every `evil:*` element the parser reads, **not** a `bpmn-moddle` descriptor (see below) |
 
@@ -319,13 +319,17 @@ The `examples/` directory contains copy-paste starters and runnable demos coveri
 | Category | Examples | Location |
 |----------|----------|----------|
 | Auth Providers | LDAP, CompanyGraph | `examples/plugins/auth_providers/` |
-| Service Task Handlers | echo, HTTP enrichment, Redis cache, webhook callback, RabbitMQ roundtrip (all async ) | `examples/plugins/service_task_handlers/` |
-| Event Sinks | DataDog metrics, webhook forwarder, structured logger | `examples/plugins/event_sinks/` |
+| Service Task Handlers | echo, HTTP enrichment, webhook callback, RabbitMQ roundtrip, python_script, node_script (all async) | `examples/plugins/service_task_handlers/` |
+| Event Sinks | DataDog metrics, webhook forwarder, structured logger, SSE (`GET /events/stream`) | `examples/plugins/event_sinks/` |
 | Named Scripts | custom validators, local script runner | `examples/plugins/named_scripts/` |
-| Lifecycle & API | lifecycle-aware, API consumer | `examples/plugins/lifecycle_and_api/` |
-| Combined | RabbitMQ-to-engine orchestrator, metrics pipeline | `examples/plugins/combined/` |
-| Business Rules | KPI calculator, explain decision, trace publisher, smoke tester, regression tester, dead rule detector, DRD orchestrator, boxed expression showcase, decision analytics, decision audit reporter | `examples/plugins/business_rules/` |
+| REST API Extensions | echo (`/echo-ext`) | `examples/plugins/rest_api_extension/` |
+| Ad-hoc | ai_toolbox | `examples/plugins/adhoc/` |
+| Lifecycle & API | lifecycle-aware, API consumer, GitHub BPMN deployer, quarantine_demo | `examples/plugins/lifecycle_and_api/` |
+| Combined | RabbitMQ-to-engine orchestrator, metrics pipeline, incident reporter | `examples/plugins/combined/` |
+| Business Rules | explain decision, trace publisher, smoke tester, regression tester, DRD orchestrator, boxed expression showcase, decision analytics, decision audit reporter | `examples/plugins/business_rules/` |
 | TypeScript Client | deploy, lifecycle, user tasks, GraphQL, errors, WebSocket, batch ops | `examples/client-js/` |
 | TypeScript SDK | BPMN parser, typed payloads, error hierarchy | `examples/sdk-js/` |
 
 **Business Rules examples** demonstrate the observation-only interaction pattern: plugins observe BRT execution via event sinks and analyze results via `facade.decisions` closures, but never replace the BRT execution path. BRT execution is exclusively handled by the engine's built-in `"feel"` and `"dmn"` modes. `decision_analytics` and `decision_audit_reporter` are the in-BEAM ports of the former JS sidecar sketches (PLUG-D1).
+
+**CI:** `mix test.examples` runs unit wrappers. `mix test.cookbook` (and the full `mix test.integration` glob) boots each remaining example against a live engine and link-checks READMEs. Those wrappers, and `CookbookPluginHarness`, batch-compile each example's `lib/**/*.ex` via `Examples.Shared.ExampleCompiler` (`Kernel.ParallelCompiler`) so sibling modules do not warn `is yet to be defined` (P84). See [`examples/README.md`](../../examples/README.md).

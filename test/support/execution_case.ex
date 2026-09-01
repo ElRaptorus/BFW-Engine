@@ -675,6 +675,10 @@ defmodule EvilEngine.ExecutionCase do
   After the monitored PI terminates, also drains the DynamicSupervisor to
   ensure child PIs (from SubProcess/Call Activity) have fully terminated
   and flushed their DB writes before the test proceeds with assertions.
+
+  Does **not** restore the sandbox merely because the process exited (P82):
+  a fresh checkout starts an empty transaction and the PI row that was
+  written in the original shared transaction disappears.
   """
   def wait_for_process_instance(process_instance_id, timeout \\ 2_000) do
     case EvilEngine.Execution.lookup_process_instance(process_instance_id) do
@@ -684,8 +688,7 @@ defmodule EvilEngine.ExecutionCase do
         receive do
           {:DOWN, ^ref, :process, ^pid, _reason} ->
             await_supervisor_drain()
-            EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
-            await_persisted_process_instance(process_instance_id, 2_000)
+            await_persisted_process_instance(process_instance_id, 5_000)
 
         after
           timeout ->
@@ -694,8 +697,7 @@ defmodule EvilEngine.ExecutionCase do
         end
 
       {:error, :not_found} ->
-        EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
-        await_persisted_process_instance(process_instance_id, 2_000)
+        await_persisted_process_instance(process_instance_id, 5_000)
     end
   end
 
@@ -705,11 +707,27 @@ defmodule EvilEngine.ExecutionCase do
   end
 
   defp do_await_persisted_process_instance(process_instance_id, deadline) do
-    case EvilEngine.Test.DbAssertions.fetch_process_instance(process_instance_id) do
+    result =
+      try do
+        EvilEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
+      rescue
+        _error -> :db_error
+      end
+
+    case result do
       nil ->
         if System.monotonic_time(:millisecond) >= deadline do
-          :ok
+          raise "PI #{process_instance_id} stopped but was never visible in persistence"
         else
+          Process.sleep(25)
+          do_await_persisted_process_instance(process_instance_id, deadline)
+        end
+
+      :db_error ->
+        if System.monotonic_time(:millisecond) >= deadline do
+          raise "PI #{process_instance_id} stopped but persistence stayed unavailable"
+        else
+          EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
           Process.sleep(25)
           do_await_persisted_process_instance(process_instance_id, deadline)
         end
@@ -724,13 +742,15 @@ defmodule EvilEngine.ExecutionCase do
     require Ash.Query
     alias EvilEngine.Persistence.Resources.DataObject, as: DataObjectResource
 
-    case DataObjectResource
-         |> Ash.Query.filter(process_instance_id == ^process_instance_id and data_object_id == ^data_object_id)
-         |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
-      {:ok, [record]} -> record
-      {:ok, []} -> nil
-      _ -> nil
-    end
+    EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+      case DataObjectResource
+           |> Ash.Query.filter(process_instance_id == ^process_instance_id and data_object_id == ^data_object_id)
+           |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
+        {:ok, [record]} -> record
+        {:ok, []} -> nil
+        {:error, error} -> raise error
+      end
+    end)
   end
 
   @doc "Fetch all DataObject snapshots for a PI."
@@ -738,12 +758,14 @@ defmodule EvilEngine.ExecutionCase do
     require Ash.Query
     alias EvilEngine.Persistence.Resources.DataObject, as: DataObjectResource
 
-    case DataObjectResource
-         |> Ash.Query.filter(process_instance_id == ^process_instance_id)
-         |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
-      {:ok, records} -> records
-      _ -> []
-    end
+    EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+      case DataObjectResource
+           |> Ash.Query.filter(process_instance_id == ^process_instance_id)
+           |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
+        {:ok, records} -> records
+        {:error, error} -> raise error
+      end
+    end)
   end
 
   @doc "Fetch DataObjectWrite audit rows, optionally filtered by data_object_id."

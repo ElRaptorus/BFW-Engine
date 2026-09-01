@@ -1,6 +1,10 @@
 # LDAP Auth Provider — Example Plugin
 
-Ready-to-copy starting point for building an LDAP-based auth provider for
+This is a **contract tutorial**, not a production LDAP client. Token verification
+is stubbed (`valid-ldap-{id}`). Replace `ldap_bind_and_lookup/1` with `:eldap` or
+`exldap` before using it against a real directory.
+
+Ready-to-copy starting point for building an LDAP-based `AuthProvider` for
 ThomasTheDaemonEngine.
 
 ## What it does
@@ -48,6 +52,7 @@ config :my_company_plugin, :ldap,
 
 ## Further reading
 
+- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `EVIL_PLUGINS_INBEAM`
 - [`EvilEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/evil_engine/plugin/auth_provider.ex)
   — the behaviour your provider must implement.
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — full

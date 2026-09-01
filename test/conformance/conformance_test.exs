@@ -1775,6 +1775,54 @@ defmodule EvilEngine.Conformance.ConformanceTest do
   end
 
   # ===================================================================
+  # INTERACTIVE TIER — Transaction cancel gates (C236–C238)
+  # ===================================================================
+
+  test "C236: Transaction with Call Activity — cancel interrupts CA child PI" do
+    configure_called_element_resolver()
+
+    spec = Runner.load_spec("C236_transaction_with_call_activity.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _transaction_child_process_instance_id} =
+      finish_transaction_cancel_gate_after_nested_idle(
+        process_instance_id,
+        {:on_nested_child, "UserTask_1"}
+      )
+
+    Runner.wait_for_completion(process_instance_id, spec)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C237: Transaction with embedded subprocess — cancel interrupts subprocess" do
+    spec = Runner.load_spec("C237_transaction_with_embedded_subprocess.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _transaction_child_process_instance_id} =
+      finish_transaction_cancel_gate_after_nested_idle(
+        process_instance_id,
+        {:on_nested_child, "SP_UserTask"}
+      )
+
+    Runner.wait_for_completion(process_instance_id, spec)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  test "C238: Transaction parallel branches — one cancels, other interrupted, compensation runs" do
+    spec = Runner.load_spec("C238_transaction_parallel_cancel.yaml")
+    process_instance_id = Runner.deploy_and_start(spec)
+
+    {:ok, _transaction_child_process_instance_id} =
+      finish_transaction_cancel_gate_after_nested_idle(
+        process_instance_id,
+        {:on_transaction_child, "Tx_UserTask"}
+      )
+
+    Runner.wait_for_completion(process_instance_id, spec)
+    Runner.assert_expectations(process_instance_id, spec)
+  end
+
+  # ===================================================================
   # INTERACTIVE TIER — Transaction Subprocess + Cancel Events (C240–C244)
   # ===================================================================
 

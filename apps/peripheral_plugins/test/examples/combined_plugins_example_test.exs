@@ -2,18 +2,22 @@ defmodule EvilEngine.Plugins.Examples.CombinedPluginsExampleTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
+  @compile {:no_warn_undefined, Examples.Shared.ExampleCompiler}
+
+  alias Examples.Shared.ExampleCompiler
+
   @examples_root Path.expand("../../../../examples/plugins/combined", __DIR__)
+  @compiler_path Path.expand("../../../../examples/plugins/shared/example_compiler.ex", __DIR__)
 
   setup_all do
-    paths =
+    Code.require_file(@compiler_path)
+
+    library_files =
       @examples_root
       |> Path.join("**/lib/**/*.ex")
       |> Path.wildcard()
-      |> Enum.reject(&String.contains?(&1, "metrics_pipeline"))
-      |> Enum.sort()
 
-    {:ok, _modules, _warnings} =
-      Kernel.ParallelCompiler.compile(paths, return_diagnostics: true)
+    ExampleCompiler.compile_files(library_files)
 
     :ok
   end

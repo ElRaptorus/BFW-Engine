@@ -31,7 +31,7 @@ Start → BusinessRuleTask("Assess Eligibility") → ScriptTask("Explain Decisio
 
 | Element | Configuration |
 |---------|----------------|
-| Business Rule Task | `<evil:implementation>dmn</evil:implementation>`, `<evil:decisionRef>loan-eligibility</evil:decisionRef>` |
+| Business Rule Task | `implementation="dmn"`, `<evil:decisionRef>loan-eligibility</evil:decisionRef>` |
 | Script Task | `<evil:scriptRef>explain_decision</evil:scriptRef>` |
 
 Output mappings on the Business Rule Task forward `approved`, `maxAmount`, and `reason` into the downstream token. The Script Task maps `explanation` and `decision_count` forward.

@@ -1,5 +1,9 @@
 # CompanyGraph Auth Provider — Example Plugin
 
+This is a **REST-IdP contract tutorial**, not a production CompanyGraph client.
+Tokens are toy prefixes (`cg-admin-`, `cg-deployer-`, `cg-viewer-`). Permission
+seeding is stubbed logging. Keep it next to LDAP as the HTTP-IdP variant.
+
 Ready-to-copy starting point for building a CompanyGraph-based auth provider
 for ThomasTheDaemonEngine.
 
@@ -96,6 +100,7 @@ config :my_company_plugin, :companygraph,
 
 ## Further reading
 
+- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `EVIL_PLUGINS_INBEAM`
 - [`EvilEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/evil_engine/plugin/auth_provider.ex)
   — the behaviour your provider must implement.
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — full

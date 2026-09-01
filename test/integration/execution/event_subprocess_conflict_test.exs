@@ -39,6 +39,16 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
 
   @moduletag :integration
 
+  defp finish_inner_user_task_then_await(process_instance_id, flow_node_id \\ "Sub_UserTask") do
+    [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+
+    :ok =
+      finish_waiting_user_task_by_node_id(child_process_instance_id, flow_node_id, timeout: 10_000)
+
+    wait_for_process_instance(process_instance_id, 10_000)
+    poll_pi_state(process_instance_id, "finished", 10_000)
+  end
+
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
 
@@ -74,7 +84,7 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
       {201, body} = http_start("EspConflictEscBoundaryVsEsp")
       process_instance_id = body["processInstanceId"]
 
-      wait_for_process_instance(process_instance_id, 10_000)
+      finish_inner_user_task_then_await(process_instance_id)
 
       assert_pi_state!(process_instance_id, "finished")
 
@@ -137,11 +147,8 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
              "BE_ShellEscalation should NOT have fired — ESP inside child has proximity " <>
                "(found state: #{inspect(shell_boundary_fni && shell_boundary_fni.state)})"
 
-      call_activity_child_ids = find_child_process_instance_ids(parent_process_instance_id)
-      assert call_activity_child_ids != [],
-             "Expected at least one child PI from CallActivity"
-
-      [call_activity_child_id | _] = call_activity_child_ids
+      [call_activity_child_id | _] =
+        await_child_process_instance_ids(parent_process_instance_id)
 
       child_fnis = fetch_flow_node_instances(call_activity_child_id)
       child_fni_summary =
@@ -169,11 +176,7 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
       {201, body} = http_start("EspConflictEscSpecificEspVsCatchall")
       process_instance_id = body["processInstanceId"]
 
-      wait_for_process_instance(process_instance_id, 10_000)
-
-      # Poll: interrupting the subprocess host kills in-flight FNIs and can
-      # briefly drop the shared sandbox (see P45).
-      poll_pi_state(process_instance_id, "finished", 10_000)
+      finish_inner_user_task_then_await(process_instance_id)
 
       flow_node_instances = fetch_flow_node_instances(process_instance_id)
 
@@ -297,9 +300,8 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
 
       assert_pi_state!(parent_process_instance_id, "escalated")
 
-      child_process_instance_ids = find_child_process_instance_ids(parent_process_instance_id)
-      assert child_process_instance_ids != [],
-             "Expected at least one child PI from CallActivity"
+      child_process_instance_ids =
+        await_child_process_instance_ids(parent_process_instance_id)
 
       Enum.each(child_process_instance_ids, fn child_id ->
         child_pi = fetch_process_instance!(child_id)
@@ -324,7 +326,7 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
       {201, body} = http_start("EspConflictErrBoundaryVsEsp")
       process_instance_id = body["processInstanceId"]
 
-      wait_for_process_instance(process_instance_id, 10_000)
+      finish_inner_user_task_then_await(process_instance_id)
 
       assert_pi_state!(process_instance_id, "finished")
 
@@ -365,6 +367,17 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
       {201, body} = http_start("EspConflictErrEspVsShellParent")
       parent_process_instance_id = body["processInstanceId"]
 
+      [call_activity_child_id] =
+        await_child_process_instance_ids(parent_process_instance_id)
+
+      [inner_subprocess_child_id] =
+        await_child_process_instance_ids(call_activity_child_id)
+
+      :ok =
+        finish_waiting_user_task_by_node_id(inner_subprocess_child_id, "Inner_UserTask",
+          timeout: 10_000
+        )
+
       wait_for_process_instance(parent_process_instance_id, 15_000)
 
       parent_fnis = fetch_flow_node_instances(parent_process_instance_id)
@@ -378,12 +391,6 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
                "(found state: #{inspect(shell_boundary_fni && shell_boundary_fni.state)})"
       assert shell_boundary_end_fni == nil,
              "End_ShellBoundary should NOT exist"
-
-      call_activity_child_ids = find_child_process_instance_ids(parent_process_instance_id)
-      assert call_activity_child_ids != [],
-             "Expected at least one child PI from CallActivity"
-
-      [call_activity_child_id | _] = call_activity_child_ids
 
       child_fnis = fetch_flow_node_instances(call_activity_child_id)
       child_fni_summary =
@@ -609,11 +616,6 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
   # ===================================================================
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    require Ash.Query
-
-    EvilEngine.Persistence.Resources.ProcessInstance
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 end

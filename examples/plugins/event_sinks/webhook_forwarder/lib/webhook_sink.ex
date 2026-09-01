@@ -91,8 +91,29 @@ defmodule Examples.EventSinks.WebhookForwarder.WebhookSink do
   defp json_ready_map_key(key) when is_atom(key), do: Atom.to_string(key)
   defp json_ready_map_key(key) when is_binary(key), do: key
 
-  defp default_deliver_payload(_url, _headers, _json_body) do
-    # TODO: replace with :httpc.request(:post, {String.to_charlist(url), headers, 'application/json', String.to_charlist(json_body)}, [], [])
-    :ok
+  defp default_deliver_payload(url, headers, json_body)
+       when is_binary(url) and is_list(headers) and is_binary(json_body) do
+    _ = Application.ensure_all_started(:inets)
+    _ = Application.ensure_all_started(:ssl)
+
+    httpc_headers =
+      Enum.map(headers, fn {header_name, header_value} ->
+        {to_charlist(header_name), to_charlist(header_value)}
+      end)
+
+    request = {
+      String.to_charlist(url),
+      httpc_headers,
+      ~c"application/json",
+      json_body
+    }
+
+    case :httpc.request(:post, request, [timeout: 2_000, connect_timeout: 2_000], []) do
+      {:ok, _result} ->
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end

@@ -44,17 +44,17 @@ every environment.
 | Module | File | Purpose |
 |--------|------|---------|
 | `EvilEngine.Test.ConformanceRunner` | `test/support/conformance_runner.ex` | Loads YAML specs, deploys BPMNs, starts PIs, waits for completion, asserts expectations |
-| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish) |
+| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish). `finish_waiting_user_task_by_node_id/3` is required when more than one user task may be waiting (cancel-arm gate plus nested wait). `finish_transaction_cancel_gate_after_nested_idle/2` finishes `Tx_CancelGate` only after nested work is idle-waiting (C236–C238 / TX-7–TX-9). Interrupting-boundary proximity fixtures (ESC-1, ESC-3) use Escalation End after the arm user task so the child PI does not dispatch a None End writer that the boundary would kill mid-persist (P45). |
 
 **Test tiers:**
 
 | Tier | Description | YAML `tier` value | Test generation |
 |------|-------------|-------------------|-----------------|
-| Auto | Deploy → start → wait → assert. No mid-execution interaction required. | `auto` | Dynamically generated from `for` loop over YAML files |
+| Auto | Deploy → start → wait → assert. No mid-execution interaction required. A spec whose fixture parks on a user task that **must be finished** (for example `Tx_CancelGate`) cannot be auto. | `auto` | Dynamically generated from `for` loop over YAML files |
 | Interactive | Requires mid-execution steps (user task finish, async completion, engine restart). | `interactive` | Hand-written `test` blocks using `ProcessInteractions` |
 | Error | Tests start-time rejections (ambiguous start event, oversize payload). | `error` | Hand-written `test` blocks asserting HTTP error status codes |
 
-Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See `common-pitfalls.md` P81. Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing.
+Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See `common-pitfalls.md` P81. Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing. When an EBG catch sibling **wins** (C8), wait until every sibling is `:waiting` before completing the work that satisfies the winner — cancelling a sibling mid-persist tears the shared sandbox connection (P45/P82). C8 uses `conditional_catch_ebg_conditional_wins.bpmn` (a parallel user task writes the Data Object after both catches are parked); C9 keeps `conditional_catch_ebg.bpmn` with a timer-first start context.
 
 **YAML spec format:**
 
@@ -118,7 +118,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 | `ExecutionCase` | Case template: Ecto Sandbox checkout, persistence adapter wiring, event collector setup, PI cleanup |
 | `EventCollector` + `EventCollector.Sink` | EventSink-based event accumulator for ordered sequence assertions |
 | `BpmnLoader` | Parse `.bpmn` fixture → `ModelCache.put_new/2` in one call |
-| `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `fetch_flow_node_instances/1`, `assert_pi_state!/2`, `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes (P45/P82). |
+| `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `await_child_process_instance_ids/2`, `fetch_flow_node_instances/1`, `assert_pi_state!/2`, `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes (P45/P82). `fetch_process_instance/1` returns `nil` only for a genuine not-found. |
 
 **BPMN fixtures** (`test/fixtures/bpmns/`):
 
@@ -144,7 +144,20 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 | `start_event_resolution_test.exs` | 4 | start-event disambiguation: path A, path B, ambiguous error, nonexistent error |
 | `event_ordering_test.exs` | 1 | Strict 8-event sequence for Start→Task→End |
 
-**Running**: `MIX_ENV=test mix run test/integration_runner.exs` (or `mix test.integration`).
+**Running**: `MIX_ENV=test mix run test/integration_runner.exs` (or `mix test.integration`). Pass one or more relative directories or `*_test.exs` paths after `--` to narrow the tree (for example `mix test.cookbook` → `test/integration_runner.exs -- integration/plugins`).
+
+#### Mix test aliases (umbrella root)
+
+| Alias | What it runs |
+|-------|----------------|
+| `mix test.unit` | Per-app unit tests (`--exclude integration`) |
+| `mix test.examples` | Cookbook unit wrappers in `apps/peripheral_plugins/test/examples/` (acceptance i). Does not boot the engine. |
+| `mix test.integration` | Full `test/integration/**` suite against the started umbrella, including cookbook boot + README link-check |
+| `mix test.cookbook` | Same integration runner, glob only `test/integration/plugins/**` (acceptance ii + iii). Do **not** also invoke this from `mix quality` / CI (would double-run). |
+| `mix test.conformance` | YAML-driven conformance specs |
+| `mix test.coverdata` / `mix quality` | Full integration glob via `coverage_runner.exs` (unfiltered) |
+
+Cookbook boot tests live under `test/integration/plugins/` because they need Registry, Loader, EngineEventBus, and Bandit.
 
 #### 12.4.2 BPMN execution scenario matrix
 
@@ -429,7 +442,7 @@ DMN decision evaluation throughput under sustained load.
 - `mix format --check-formatted`
 - `mix credo --strict`
 - One Mix cache of `deps` + `_build`, keyed on OS + `mix-precover` + `MIX_ENV` + OTP + Elixir + `mix.lock` (no app source hashes). Restore at job start; save after `mix compile --warnings-as-errors` and **before** coverage so ExCoveralls-instrumented BEAMs are not reused on the next run. Dialyzer PLTs stay a separate `priv/plts` cache (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Packages CI uses the same unified Mix cache with a `-prod-` key prefix. `igniter` is `runtime: false` (not started). It is **not** `only: :dev`: Spark Mix tasks reference `Igniter` at compile time, so Elixir 1.20 type-checking fails if Igniter is absent from the test or prod load path. Ash policy SAT (via `crux`) uses Hex `simple_sat` — a pure Elixir solver. Do not drop it without a replacement (`picosat_elixir` or `simple_sat`); with neither, GraphQL/Ash authorization returns empty results. Mix may compile `crux` before optional SAT backends; CI and `mix setup` run `mix deps.compile.sat` (`simple_sat` then `crux --force`) before the rest of `deps.compile`. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
-- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam` (P79)
+- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam` (P79). Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 24.20 (`actions/setup-node` `node-version: "24.20"`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
 - `mix sobelow` for security
 - `mix deps.audit`
 - Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)

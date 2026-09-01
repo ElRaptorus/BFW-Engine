@@ -122,6 +122,10 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
 
   @invalid_bpmn "<not-bpmn>this is not valid XML for BPMN</not-bpmn>"
 
+  def valid_bpmn_xml, do: @valid_bpmn
+  def second_valid_bpmn_xml, do: @second_valid_bpmn
+  def invalid_bpmn_xml, do: @invalid_bpmn
+
   # ---------------------------------------------------------------------------
   # Stub GitHub clients
   # ---------------------------------------------------------------------------
@@ -145,13 +149,14 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
        [
          %{
            name: "order_process.bpmn",
-           download_url: "https://raw.githubusercontent.com/acme-corp/bpmn-definitions/main/processes/order_process.bpmn"
+           download_url:
+             "https://raw.githubusercontent.com/acme-corp/bpmn-definitions/main/processes/order_process.bpmn"
          }
        ]}
     end
 
     def download_raw(_url, _token) do
-      {:ok, unquote(@valid_bpmn)}
+      {:ok, Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest.valid_bpmn_xml()}
     end
   end
 
@@ -169,11 +174,12 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
     end
 
     def download_raw("https://example.com/first.bpmn", _token) do
-      {:ok, unquote(@valid_bpmn)}
+      {:ok, Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest.valid_bpmn_xml()}
     end
 
     def download_raw("https://example.com/second.bpmn", _token) do
-      {:ok, unquote(@second_valid_bpmn)}
+      {:ok,
+       Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest.second_valid_bpmn_xml()}
     end
   end
 
@@ -191,7 +197,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
     end
 
     def download_raw("https://example.com/good.bpmn", _token) do
-      {:ok, unquote(@valid_bpmn)}
+      {:ok, Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest.valid_bpmn_xml()}
     end
 
     def download_raw("https://example.com/broken.bpmn", _token) do
@@ -213,11 +219,11 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
     end
 
     def download_raw("https://example.com/valid.bpmn", _token) do
-      {:ok, unquote(@valid_bpmn)}
+      {:ok, Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest.valid_bpmn_xml()}
     end
 
     def download_raw("https://example.com/invalid.bpmn", _token) do
-      {:ok, unquote(@invalid_bpmn)}
+      {:ok, Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest.invalid_bpmn_xml()}
     end
   end
 
@@ -257,11 +263,11 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
   end
 
   defp run_worker_and_wait(options) do
+    Process.flag(:trap_exit, true)
     {:ok, worker_pid} = GithubBpmnDeployerWorker.start_link(options)
-    monitor_reference = Process.monitor(worker_pid)
 
     receive do
-      {:DOWN, ^monitor_reference, :process, ^worker_pid, reason} -> reason
+      {:EXIT, ^worker_pid, reason} -> reason
     after
       5_000 -> flunk("worker did not terminate within 5 seconds")
     end

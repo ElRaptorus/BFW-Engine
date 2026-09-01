@@ -30,16 +30,28 @@
       <bpmn:startEvent id="Sub_Start" name="Sub Start">
         <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
       </bpmn:startEvent>
-      <bpmn:intermediateThrowEvent id="Sub_Throw" name="Escalation Throw">
+      <bpmn:userTask id="Sub_UserTask" name="Arm throw">
         <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_Arm</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:intermediateThrowEvent id="Sub_Throw" name="Escalation Throw">
+        <bpmn:incoming>Sub_Flow_Arm</bpmn:incoming>
         <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
         <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
       </bpmn:intermediateThrowEvent>
-      <bpmn:endEvent id="Sub_End" name="Sub End">
+      <!-- Park after throw so the interrupting boundary kills an idle waiter,
+           not a Sub_End FNI that is mid-persist (P45). -->
+      <bpmn:userTask id="Sub_Park" name="Park after throw">
         <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_Park</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_Park</bpmn:incoming>
       </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_Throw" />
-      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Sub_Throw" targetRef="Sub_End" />
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_UserTask" />
+      <bpmn:sequenceFlow id="Sub_Flow_Arm" sourceRef="Sub_UserTask" targetRef="Sub_Throw" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Sub_Throw" targetRef="Sub_Park" />
+      <bpmn:sequenceFlow id="Sub_Flow_Park" sourceRef="Sub_Park" targetRef="Sub_End" />
     </bpmn:subProcess>
     <bpmn:boundaryEvent id="BE_Escalation" attachedToRef="SubProcess_1" cancelActivity="true">
       <bpmn:outgoing>Flow_Caught</bpmn:outgoing>
@@ -67,16 +79,22 @@
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
-        <dc:Bounds x="290" y="130" width="420" height="180" />
+        <dc:Bounds x="260" y="130" width="500" height="180" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
-        <dc:Bounds x="330" y="202" width="36" height="36" />
+        <dc:Bounds x="280" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_UserTask" bpmnElement="Sub_UserTask">
+        <dc:Bounds x="340" y="180" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_Throw" bpmnElement="Sub_Throw">
-        <dc:Bounds x="452" y="202" width="36" height="36" />
+        <dc:Bounds x="470" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Park" bpmnElement="Sub_Park">
+        <dc:Bounds x="530" y="180" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Sub_End" bpmnElement="Sub_End">
-        <dc:Bounds x="600" y="202" width="36" height="36" />
+        <dc:Bounds x="660" y="202" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_BE_Escalation" bpmnElement="BE_Escalation">
         <dc:Bounds x="432" y="292" width="36" height="36" />
@@ -104,12 +122,20 @@
         <di:waypoint x="780" y="150" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
-        <di:waypoint x="366" y="220" />
-        <di:waypoint x="452" y="220" />
+        <di:waypoint x="316" y="220" />
+        <di:waypoint x="340" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_Arm" bpmnElement="Sub_Flow_Arm">
+        <di:waypoint x="440" y="220" />
+        <di:waypoint x="470" y="220" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Sub_Flow_2" bpmnElement="Sub_Flow_2">
-        <di:waypoint x="488" y="220" />
-        <di:waypoint x="600" y="220" />
+        <di:waypoint x="506" y="220" />
+        <di:waypoint x="530" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_Park" bpmnElement="Sub_Flow_Park">
+        <di:waypoint x="630" y="220" />
+        <di:waypoint x="660" y="220" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

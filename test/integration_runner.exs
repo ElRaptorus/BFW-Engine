@@ -21,9 +21,31 @@ end
 
 ExUnit.start(autorun: false, trace: true)
 
-test_dir = Path.expand("integration", __DIR__)
+relative_test_trees =
+  case System.argv() |> Enum.reject(&(&1 == "--")) do
+    [] -> ["integration"]
+    relative_paths -> relative_paths
+  end
 
-for file <- Path.wildcard(Path.join(test_dir, "**/*_test.exs")) do
+test_files =
+  relative_test_trees
+  |> Enum.flat_map(fn relative_path ->
+    test_path = Path.expand(relative_path, __DIR__)
+
+    cond do
+      File.regular?(test_path) ->
+        [test_path]
+
+      File.dir?(test_path) ->
+        Path.wildcard(Path.join(test_path, "**/*_test.exs"))
+
+      true ->
+        []
+    end
+  end)
+  |> Enum.uniq()
+
+for file <- test_files do
   Code.require_file(file)
 end
 

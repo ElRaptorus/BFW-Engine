@@ -80,12 +80,12 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandler do
   end
 
   defp request_http_get(url) do
-    case Process.get(:examples_http_enrichment_request_stub) do
-      function when is_function(function, 1) ->
-        function.(url)
+    stub = Application.get_env(:http_enrichment_example, :request_http_get)
 
-      _ ->
-        http_get(url)
+    if is_function(stub, 1) do
+      stub.(url)
+    else
+      http_get(url)
     end
   end
 

@@ -10,7 +10,7 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandlerTest 
   alias Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandler
 
   setup do
-    previous_stub = Process.get(:examples_http_enrichment_request_stub)
+    previous_stub = Application.get_env(:http_enrichment_example, :request_http_get)
 
     test_pid = self()
 
@@ -34,7 +34,7 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandlerTest 
   end
 
   test "merges JSON response into output on success (async)" do
-    Process.put(:examples_http_enrichment_request_stub, fn _url ->
+    Application.put_env(:http_enrichment_example, :request_http_get, fn _url ->
       {:ok, ~S({"profileScore":42})}
     end)
 
@@ -89,7 +89,7 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandlerTest 
   end
 
   test "calls fail_async when HTTP layer fails" do
-    Process.put(:examples_http_enrichment_request_stub, fn _url ->
+    Application.put_env(:http_enrichment_example, :request_http_get, fn _url ->
       {:error, {:http_error_status, 500}}
     end)
 
@@ -117,6 +117,6 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandlerTest 
     assert_receive {:fail_async, "flow-node-instance-1", "HTTP_ENRICHMENT_ERROR", _message}, 1_000
   end
 
-  defp restore_stub(nil), do: Process.delete(:examples_http_enrichment_request_stub)
-  defp restore_stub(value), do: Process.put(:examples_http_enrichment_request_stub, value)
+  defp restore_stub(nil), do: Application.delete_env(:http_enrichment_example, :request_http_get)
+  defp restore_stub(value), do: Application.put_env(:http_enrichment_example, :request_http_get, value)
 end

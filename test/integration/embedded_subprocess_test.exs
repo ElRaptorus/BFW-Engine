@@ -340,13 +340,13 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       assert_pi_state!(parent_process_instance_id, "finished")
 
-      [level1_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [level1_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(level1_id, "finished")
 
-      [level2_id] = find_child_process_instance_ids(level1_id)
+      [level2_id] = await_child_process_instance_ids(level1_id)
       assert_pi_state!(level2_id, "finished")
 
-      [level3_id] = find_child_process_instance_ids(level2_id)
+      [level3_id] = await_child_process_instance_ids(level2_id)
       assert_pi_state!(level3_id, "finished")
     end
 
@@ -361,10 +361,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       assert_pi_state!(parent_process_instance_id, "finished")
 
-      [subprocess_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [subprocess_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(subprocess_child_id, "finished")
 
-      [ca_child_id] = find_child_process_instance_ids(subprocess_child_id)
+      [ca_child_id] = await_child_process_instance_ids(subprocess_child_id)
       assert_pi_state!(ca_child_id, "finished")
     end
   end
@@ -455,10 +455,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
           timeout: @default_timeout
         )
 
-      [outer_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [outer_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(outer_child_id, "fatal")
 
-      [inner_child_id] = find_child_process_instance_ids(outer_child_id)
+      [inner_child_id] = await_child_process_instance_ids(outer_child_id)
       assert_pi_state!(inner_child_id, "fatal")
     end
 
@@ -474,10 +474,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
           timeout: @default_timeout
         )
 
-      [subprocess_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [subprocess_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(subprocess_child_id, "fatal")
 
-      [ca_child_id] = find_child_process_instance_ids(subprocess_child_id)
+      [ca_child_id] = await_child_process_instance_ids(subprocess_child_id)
       assert_pi_state!(ca_child_id, "fatal")
     end
 
@@ -491,10 +491,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       assert_pi_state!(parent_process_instance_id, "finished")
 
-      [outer_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [outer_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(outer_child_id, "fatal")
 
-      [inner_child_id] = find_child_process_instance_ids(outer_child_id)
+      [inner_child_id] = await_child_process_instance_ids(outer_child_id)
       assert_pi_state!(inner_child_id, "fatal")
 
       end_error_fni = find_fni_by_flow_node_id(parent_process_instance_id, "End_Error")
@@ -513,10 +513,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       assert_pi_state!(parent_process_instance_id, "finished")
 
-      [subprocess_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [subprocess_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(subprocess_child_id, "fatal")
 
-      [ca_child_id] = find_child_process_instance_ids(subprocess_child_id)
+      [ca_child_id] = await_child_process_instance_ids(subprocess_child_id)
       assert_pi_state!(ca_child_id, "fatal")
 
       end_error_fni = find_fni_by_flow_node_id(parent_process_instance_id, "End_Error")
@@ -540,10 +540,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       assert_pi_state!(parent_process_instance_id, "finished")
 
-      [outer_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [outer_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(outer_child_id, "error")
 
-      [inner_child_id] = find_child_process_instance_ids(outer_child_id)
+      [inner_child_id] = await_child_process_instance_ids(outer_child_id)
       assert_pi_state!(inner_child_id, "error")
 
       end_error_fni = find_fni_by_flow_node_id(parent_process_instance_id, "End_Error")
@@ -562,10 +562,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       assert_pi_state!(parent_process_instance_id, "finished")
 
-      [subprocess_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [subprocess_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(subprocess_child_id, "error")
 
-      [ca_child_id] = find_child_process_instance_ids(subprocess_child_id)
+      [ca_child_id] = await_child_process_instance_ids(subprocess_child_id)
       assert_pi_state!(ca_child_id, "error")
 
       end_error_fni = find_fni_by_flow_node_id(parent_process_instance_id, "End_Error")
@@ -584,10 +584,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
           timeout: @default_timeout
         )
 
-      [outer_child_id] = find_child_process_instance_ids(parent_process_instance_id)
+      [outer_child_id] = await_child_process_instance_ids(parent_process_instance_id)
       assert_pi_state!(outer_child_id, "error")
 
-      [inner_child_id] = find_child_process_instance_ids(outer_child_id)
+      [inner_child_id] = await_child_process_instance_ids(outer_child_id)
       assert_pi_state!(inner_child_id, "error")
     end
   end
@@ -638,8 +638,8 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
 
       wait_for_process_instance(parent_process_instance_id, @default_timeout)
 
-      [subprocess_child_id] = find_child_process_instance_ids(parent_process_instance_id)
-      [ca_child_id] = find_child_process_instance_ids(subprocess_child_id)
+      [subprocess_child_id] = await_child_process_instance_ids(parent_process_instance_id)
+      [ca_child_id] = await_child_process_instance_ids(subprocess_child_id)
 
       events = EventCollector.get_events(collector)
 
@@ -680,12 +680,7 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
   # -------------------------------------------------------------------
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    require Ash.Query
-
-    EvilEngine.Persistence.Resources.ProcessInstance
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 
   defp await_child_process_instance(parent_process_instance_id, timeout \\ @default_timeout) do

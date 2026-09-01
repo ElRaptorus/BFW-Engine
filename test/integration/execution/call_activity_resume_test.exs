@@ -363,26 +363,23 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
   end
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    require Ash.Query
-
-    EvilEngine.Persistence.Resources.ProcessInstance
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 
   defp clear_child_process_instance_id_from_fni(parent_process_instance_id, flow_node_id) do
     require Ash.Query
 
     flow_node_instance =
-      EvilEngine.Persistence.Resources.FlowNodeInstance
-      |> Ash.Query.filter(
-        process_instance_id == ^parent_process_instance_id and
-          flow_node_id == ^flow_node_id and
-          state == "waiting"
-      )
-      |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-      |> List.first()
+      EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+        EvilEngine.Persistence.Resources.FlowNodeInstance
+        |> Ash.Query.filter(
+          process_instance_id == ^parent_process_instance_id and
+            flow_node_id == ^flow_node_id and
+            state == "waiting"
+        )
+        |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+        |> List.first()
+      end)
 
     if flow_node_instance do
       current_props = flow_node_instance.type_properties || %{}

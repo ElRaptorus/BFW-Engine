@@ -57,13 +57,40 @@ defmodule Examples.Plugins.LifecycleAware.LifecyclePlugin do
     end
   end
 
-  @doc "Runs a lightweight facade probe after every plugin is loaded to illustrate post-ready work."
+  @doc "Lists the deployed process catalog after every plugin is loaded to illustrate post-ready work."
   @impl true
   def on_ready(engine_facade) do
-    Logger.info("Engine ready, all plugins loaded. Performing health check...")
+    Logger.info("Engine ready, all plugins loaded. Listing process catalog...")
 
-    probe_outcome = engine_facade.processes.get_latest_version.("nonexistent-process-model-id-for-probe")
-    Logger.info("lifecycle example on_ready: processes.get_latest_version probe=#{inspect(probe_outcome)}")
+    catalog_outcome = engine_facade.processes.list.()
+    log_process_catalog(catalog_outcome)
     :ok
   end
+
+  defp log_process_catalog({:ok, processes}) when is_list(processes) do
+    Enum.each(processes, fn process_entry ->
+      Logger.info(
+        "lifecycle example on_ready: process id=#{inspect(catalog_field(process_entry, :id))} version=#{inspect(catalog_field(process_entry, :version))}"
+      )
+    end)
+  end
+
+  defp log_process_catalog(other_outcome) do
+    Logger.info("lifecycle example on_ready: processes.list outcome=#{inspect(other_outcome)}")
+  end
+
+  defp catalog_field(process_entry, field_name) when is_struct(process_entry) do
+    catalog_field(Map.from_struct(process_entry), field_name)
+  end
+
+  defp catalog_field(process_entry, field_name) when is_map(process_entry) do
+    Map.get(process_entry, field_name) ||
+      Map.get(process_entry, Atom.to_string(field_name)) ||
+      Map.get(process_entry, camelize_field(field_name))
+  end
+
+  defp catalog_field(_process_entry, _field_name), do: nil
+
+  defp camelize_field(:id), do: "id"
+  defp camelize_field(:version), do: "version"
 end

@@ -5,7 +5,7 @@ defmodule Examples.Plugins.LocalScriptRunner.ScriptRunner do
 
   @behaviour EvilEngine.Plugin.NamedScript
 
-  alias Examples.Plugins.LocalScriptRunner.ScriptSandbox
+  alias Examples.Plugins.Shared.ScriptSandbox
 
   @doc "Runs the script path from flow node type data against the token payload via the sandbox helper."
   @impl true

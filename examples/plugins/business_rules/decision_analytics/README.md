@@ -8,16 +8,7 @@ This is the in-BEAM successor of the former `examples/sidecar-js/decision-analyt
 
 This plugin implements the **Event Sink observation pattern** for Business Rule Tasks: it never executes decisions. The engine evaluates DMN via `BusinessRuleTask` → `DecisionResolver` → `ModelCache` → `Evaluator`; this sink listens on `EngineEventBus` for `FlowNodeInstanceFinished` events and records analytics from evaluation metadata carried in `type_properties`.
 
-Compared with [`decision_kpi_calculator`](../decision_kpi_calculator/):
-
-| Aspect | `decision_kpi_calculator` | `decision_analytics` |
-|--------|---------------------------|----------------------|
-| Aggregation | `KpiAggregator` (throughput, error rate, coverage) | `AnalyticsCollector` + `LatencyHistogram` |
-| Percentiles | p95 | p95 **and p99** |
-| Anomaly detection | Not included | `AnomalyDetector` rolling-window spikes (default 3×) |
-| Reporting | On-demand `StatsFormatter.format/2` | Periodic JSON via `ReportScheduler` (default 60 s) |
-
-Both examples use the same `bpmn/shipping_cost_process.bpmn` and `dmn/shipping_rates.dmn` fixtures.
+For a **simple KPI sink** (throughput / error rate / coverage only, no histograms or spike detection), copy `AnalyticsSink` + `AnalyticsCollector` and drop `AnomalyDetector` / `LatencyHistogram` / `ReportScheduler`. Do not resurrect the deleted `decision_kpi_calculator` tree.
 
 ## Architecture
 
@@ -125,4 +116,3 @@ facade.register_event_sink.("decision_analytics", AnalyticsSink, [])
 - [`EvilEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/evil_engine/plugin/event_sink.ex) — sink callbacks
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md) — `EngineEventBus` fan-out and crash isolation
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and BRT `type_properties`
-- [`examples/plugins/business_rules/decision_kpi_calculator/README.md`](../decision_kpi_calculator/README.md) — related KPI sink without anomaly detection

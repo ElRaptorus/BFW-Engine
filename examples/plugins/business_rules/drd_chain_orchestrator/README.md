@@ -111,5 +111,5 @@ mix test apps/peripheral_plugins/test/examples/drd_chain_orchestrator_from_examp
 
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DRG evaluation and BKM traces
 - [`docs/guides/handbook/business-rule-tasks.md`](../../../../docs/guides/handbook/business-rule-tasks.md) — BRT execution and `type_properties`
-- [`examples/plugins/business_rules/dead_rule_detector/README.md`](../dead_rule_detector/README.md) — similar facade worker pattern
+- [`examples/plugins/business_rules/decision_audit_reporter/README.md`](../decision_audit_reporter/README.md) — similar facade worker pattern
 - [`test/integration/dmn/dmn_drg_chaining_test.exs`](../../../../test/integration/dmn/dmn_drg_chaining_test.exs) — HTTP DRG chaining tests

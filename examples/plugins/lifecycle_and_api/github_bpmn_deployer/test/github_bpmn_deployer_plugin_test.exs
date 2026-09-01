@@ -15,41 +15,57 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerPluginTest do
     end
 
     test "returns error when GITHUB_BPMN_REPO_OWNER is missing" do
+      System.delete_env("GITHUB_BPMN_REPO_OWNER")
       System.put_env("GITHUB_BPMN_REPO_NAME", "my-repo")
       System.put_env("GITHUB_ACCESS_TOKEN", "ghp_test_token")
 
       facade = build_test_facade()
-      assert {:error, {:missing_configuration, missing}} = GithubBpmnDeployerPlugin.on_load(facade)
+
+      assert {:error, {:missing_configuration, missing}} =
+               GithubBpmnDeployerPlugin.on_load(facade)
+
       assert "GITHUB_BPMN_REPO_OWNER" in missing
     after
       clear_env_vars()
     end
 
     test "returns error when GITHUB_BPMN_REPO_NAME is missing" do
+      System.delete_env("GITHUB_BPMN_REPO_NAME")
       System.put_env("GITHUB_BPMN_REPO_OWNER", "acme-corp")
       System.put_env("GITHUB_ACCESS_TOKEN", "ghp_test_token")
 
       facade = build_test_facade()
-      assert {:error, {:missing_configuration, missing}} = GithubBpmnDeployerPlugin.on_load(facade)
+
+      assert {:error, {:missing_configuration, missing}} =
+               GithubBpmnDeployerPlugin.on_load(facade)
+
       assert "GITHUB_BPMN_REPO_NAME" in missing
     after
       clear_env_vars()
     end
 
     test "returns error when GITHUB_ACCESS_TOKEN is missing" do
+      System.delete_env("GITHUB_ACCESS_TOKEN")
       System.put_env("GITHUB_BPMN_REPO_OWNER", "acme-corp")
       System.put_env("GITHUB_BPMN_REPO_NAME", "my-repo")
 
       facade = build_test_facade()
-      assert {:error, {:missing_configuration, missing}} = GithubBpmnDeployerPlugin.on_load(facade)
+
+      assert {:error, {:missing_configuration, missing}} =
+               GithubBpmnDeployerPlugin.on_load(facade)
+
       assert "GITHUB_ACCESS_TOKEN" in missing
     after
       clear_env_vars()
     end
 
     test "returns error when all required env vars are missing" do
+      clear_env_vars()
       facade = build_test_facade()
-      assert {:error, {:missing_configuration, missing}} = GithubBpmnDeployerPlugin.on_load(facade)
+
+      assert {:error, {:missing_configuration, missing}} =
+               GithubBpmnDeployerPlugin.on_load(facade)
+
       assert length(missing) == 3
     after
       clear_env_vars()
@@ -61,7 +77,10 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerPluginTest do
       System.put_env("GITHUB_ACCESS_TOKEN", "ghp_test_token")
 
       facade = build_test_facade()
-      assert {:error, {:missing_configuration, missing}} = GithubBpmnDeployerPlugin.on_load(facade)
+
+      assert {:error, {:missing_configuration, missing}} =
+               GithubBpmnDeployerPlugin.on_load(facade)
+
       assert "GITHUB_BPMN_REPO_OWNER" in missing
     after
       clear_env_vars()

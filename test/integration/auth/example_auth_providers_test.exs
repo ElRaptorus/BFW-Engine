@@ -1,3 +1,15 @@
+compiler_path = Path.expand("../../../examples/plugins/shared/example_compiler.ex", __DIR__)
+Code.require_file(compiler_path)
+
+examples_root = Path.expand("../../../examples/plugins/auth_providers", __DIR__)
+
+Examples.Shared.ExampleCompiler.compile_files([
+  Path.join(examples_root, "ldap/lib/ldap_auth_provider.ex"),
+  Path.join(examples_root, "ldap/lib/ldap_plugin.ex"),
+  Path.join(examples_root, "companygraph/lib/companygraph_auth_provider.ex"),
+  Path.join(examples_root, "companygraph/lib/companygraph_plugin.ex")
+])
+
 defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
   @moduledoc """
   Verifies that the example auth provider plugins under
@@ -17,16 +29,6 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
 
   alias EvilEngine.Auth.ProviderRegistry
   alias EvilEngine.Types.Identity
-
-  @examples_root Path.expand("../../../examples/plugins/auth_providers", __DIR__)
-
-  setup_all do
-    Code.require_file(Path.join(@examples_root, "ldap/lib/ldap_auth_provider.ex"))
-    Code.require_file(Path.join(@examples_root, "ldap/lib/ldap_plugin.ex"))
-    Code.require_file(Path.join(@examples_root, "companygraph/lib/companygraph_auth_provider.ex"))
-    Code.require_file(Path.join(@examples_root, "companygraph/lib/companygraph_plugin.ex"))
-    :ok
-  end
 
   setup do
     ProviderRegistry.reset_to_default()

@@ -13,7 +13,7 @@ defmodule Examples.EventSinks.WebhookForwarder.WebhookPlugin do
   @impl true
   def on_load(facade) do
     facade.register_event_sink.("webhook_forwarder", WebhookSink,
-      url: "https://example.com/your-webhook-endpoint",
+      url: "http://127.0.0.1:1/engine-events",
       headers: [{"content-type", "application/json"}],
       filter_types: nil
     )

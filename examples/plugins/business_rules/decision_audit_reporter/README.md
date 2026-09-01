@@ -11,15 +11,7 @@ This is the in-BEAM successor of the former `examples/sidecar-js/decision-audit-
 - **Decision evaluation** — `BoundaryTester` runs boundary-case inputs via `facade.decisions.evaluate/3` to complement runtime coverage
 - **Audit report assembly** — JSON report with per-model stats, rule coverage, and compliance flags
 
-Compared with [`dead_rule_detector`](../dead_rule_detector/):
-
-| Aspect | `dead_rule_detector` | `decision_audit_reporter` |
-|--------|----------------------|---------------------------|
-| Data source | Plugin deploys fixtures and starts N process instances | Observes live BRT completions, then queries FNIs |
-| Goal | Dead-rule / coverage analysis | Same goal, plus latency SLA and a compliance report |
-| Boundary tests | Not included | Ad-hoc `evaluate` of configured edge-case inputs |
-
-Both use the same employee-benefits DMN fixture and intentionally omit inputs that hit rules 10, 11, and 12 when those rules are absent from runtime traces.
+Coverage analysis (dead rules vs matched rules) lives in this example's `CoverageAnalyzer`. Generating synthetic test payloads to exercise uncovered rules is a useful extension — add a helper that enumerates input-boundary combinations and feeds them to `facade.decisions.evaluate/3` (do not copy a separate worker plugin).
 
 ## Architecture
 
@@ -49,8 +41,6 @@ The plugin never replaces DMN execution. It observes BRT completions and queries
 |------|---------|
 | `bpmn/employee_benefits_process.bpmn` | Single BRT calling `employee-benefits` |
 | `dmn/employee_benefits.dmn` | 12-rule benefits table (rules 10–12 are hard to hit) |
-
-Identical copies of the in-BEAM `dead_rule_detector` example.
 
 ## Report format and compliance flags
 
@@ -97,6 +87,7 @@ mix test examples/plugins/business_rules/decision_audit_reporter/test/audit_repo
 - **Custom boundary tests** — extend `employee_benefits_boundary_inputs/0` on the worker or load from JSON
 - **SLA thresholds** — pass `:sla_threshold_us` to `AuditReportBuilder.build/1`
 - **Output destinations** — pipe the report map to S3, SIEM, or a governance dashboard instead of `Logger.info`
+- **Test-payload generator** — enumerate FEEL-friendly boundary inputs so coverage analysis can mark remaining dead rules as "untested by design" vs "never hit in production"
 
 ## Further reading
 
@@ -104,4 +95,3 @@ mix test examples/plugins/business_rules/decision_audit_reporter/test/audit_repo
 - [`EvilEngine.EngineFacade`](../../../../apps/engine_sdk/lib/evil_engine/engine_facade.ex) — facade namespace surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and traces
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring
-- [`examples/plugins/business_rules/dead_rule_detector/README.md`](../dead_rule_detector/README.md) — in-BEAM coverage counterpart that starts its own process instances

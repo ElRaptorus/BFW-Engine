@@ -1,5 +1,10 @@
 # RabbitMQ → engine orchestration (combined plugin)
 
+**Stub AMQP** — `RabbitmqConsumer` does not speak a real broker. For a production
+bus, copy the pluggable `MessageBus.Adapter` pattern from
+[`combined/incident_reporter`](../incident_reporter/) (do not add AMQP as an
+engine dependency).
+
 Copy these modules into an OTP application that already loads `EvilEngine.Plugin`
 (see the engine plugin loading docs). This example shows **multiple capabilities in
 one plugin**: a queue-driven `GenServer`, catalog access through `EngineFacade`,

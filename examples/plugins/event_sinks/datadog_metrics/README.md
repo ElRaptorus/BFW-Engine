@@ -1,9 +1,12 @@
 # DataDog metrics — example event sink
 
+This is a **batched-flush teaching stub**, not a Datadog SDK. It never talks to
+`api.datadoghq.com`. Wire `Req`, `:httpc`, or the official Datadog client in
+`default_on_flush/2` if you need a real exporter. The engine already exposes
+Prometheus on `GET /metrics`.
+
 Ready-to-copy starting point that converts selected `EvilEngine.Types.Event` structs
-into counter-style metric entries, buffers them, and flushes in batches. The HTTP
-upload is intentionally stubbed so you can wire `Req`, `:httpc`, or your stack’s
-HTTP client.
+into counter-style metric entries, buffers them, and flushes in batches.
 
 ## Usage
 

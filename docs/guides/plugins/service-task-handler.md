@@ -166,3 +166,4 @@ Handler output (passed to `finish_async`) is checked against `EVIL_TOKEN_MAX_BYT
 - [Built-in Plugins](builtin-plugins.md) -- HTTP handler as reference implementation
 - [Engine Facade Reference](engine-facade.md) -- async completion API
 - [FEEL Expressions](../handbook/expressions.md) -- expression context in handlers
+- Cookbook: `echo`, `http_enrichment`, `python_script`, `node_script` under `examples/plugins/service_task_handlers/` (async `fail_async` + error-boundary fixture next to python_script)

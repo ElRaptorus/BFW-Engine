@@ -676,14 +676,12 @@ Plugins interact with the DMN subsystem through two channels:
 
 | Pattern | Mechanism | Example |
 |---------|-----------|---------|
-| Real-time KPI tracking | Event Sink on `fni.finished` | `decision_kpi_calculator` |
+| Real-time latency analytics | Event Sink + histogram + spike detector | `decision_analytics` (also the place to start for a simpler KPI-only sink) |
 | Trace-based explanation | Named Script reading token trace | `explain_decision` |
 | Audit trail publishing | Event Sink + `AuditMessageBuilder` | `decision_trace_publisher` |
 | Decision Service validation | `facade.decisions.evaluate_service` | `decision_service_smoke_tester` |
 | Version regression detection | `facade.decisions.evaluate` + `get_versions` | `decision_regression_tester` |
-| Dead rule detection | Process orchestration + trace analysis | `dead_rule_detector` |
-| Real-time latency analytics | Event Sink + histogram + spike detector | `decision_analytics` |
-| Post-execution compliance audit | Event Sink + FNI inspect + boundary evaluate | `decision_audit_reporter` |
+| Post-execution compliance audit | Event Sink + FNI inspect + boundary evaluate | `decision_audit_reporter` (includes dead-rule coverage) |
 | DRD chain inspection | `facade.decisions.evaluate` with trace | `drd_chain_orchestrator` |
 | CL3 expression showcase | Full evaluation + expression mapping | `boxed_expression_showcase` |
 

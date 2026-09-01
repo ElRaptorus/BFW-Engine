@@ -4,9 +4,11 @@ example_library_root =
     __DIR__
   )
 
-for library_file_path <- Path.wildcard(Path.join(example_library_root, "**/*.ex")) |> Enum.sort() do
-  Code.require_file(library_file_path)
-end
+Code.require_file(Path.expand("../../../../examples/plugins/shared/example_compiler.ex", __DIR__))
+
+Examples.Shared.ExampleCompiler.compile_files(
+  Path.wildcard(Path.join(example_library_root, "**/*.ex"))
+)
 
 for test_file_path <-
       Path.wildcard(

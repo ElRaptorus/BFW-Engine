@@ -165,9 +165,22 @@ defmodule EvilEngine.Integration.Execution.ConditionalEventTest do
     test "conditional catch fires and timer sibling is cancelled" do
       process_instance_id =
         http_deploy_and_start(
-          "conditional_catch_ebg.bpmn",
-          "ConditionalCatchEbg",
-          %{"payload" => %{"ready" => true}, "context" => %{"ready" => true}}
+          "conditional_catch_ebg_conditional_wins.bpmn",
+          "ConditionalCatchEbgConditionalWins"
+        )
+
+      {:ok, _} =
+        await_waiting_fni_by_node_id(process_instance_id, "TimerCatch_Timeout", timeout: 10_000)
+
+      {:ok, _} =
+        await_waiting_fni_by_node_id(process_instance_id, "ConditionalCatch_DataReady",
+          timeout: 10_000
+        )
+
+      :ok =
+        finish_waiting_user_task_by_node_id(process_instance_id, "UserTask_WriteReady",
+          result: %{"status" => "ready"},
+          timeout: 10_000
         )
 
       wait_for_process_instance(process_instance_id, 10_000)

@@ -139,9 +139,39 @@
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
-                "id": "Tx_CancelEnd",
+                "id": "Tx_CancelGate",
                 "incoming": [
                   "TxFlow_3"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Arm cancel",
+                "outgoing": [
+                  "TxFlow_CancelGate"
+                ],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_CancelEnd",
+                "incoming": [
+                  "TxFlow_CancelGate"
                 ],
                 "isForCompensation": false,
                 "multiInstance": null,
@@ -208,6 +238,14 @@
                 "isDefault": false,
                 "name": null,
                 "sourceRef": "Tx_Fork",
+                "targetRef": "Tx_CancelGate"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_CancelGate",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_CancelGate",
                 "targetRef": "Tx_CancelEnd"
               },
               {
@@ -315,6 +353,7 @@
             "Tx_Start",
             "Tx_Fork",
             "Tx_CA",
+            "Tx_CancelGate",
             "Tx_CancelEnd"
           ],
           "id": "Lane_Tx",

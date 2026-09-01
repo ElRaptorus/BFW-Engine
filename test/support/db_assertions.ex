@@ -12,8 +12,8 @@ defmodule EvilEngine.Test.DbAssertions do
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance
 
-  @sandbox_retry_attempts 16
-  @sandbox_retry_delay_ms 50
+  @sandbox_retry_attempts 6
+  @sandbox_retry_delay_ms 25
 
   @doc "Fetch a ProcessInstance row by ID. Raises on not-found."
   def fetch_process_instance!(process_instance_id) do
@@ -30,10 +30,10 @@ defmodule EvilEngine.Test.DbAssertions do
           record
 
         {:error, error} ->
-          if sandbox_ownership_error?(error) do
-            raise error
-          else
+          if not_found_error?(error) do
             nil
+          else
+            raise error
           end
       end
     end)
@@ -49,6 +49,37 @@ defmodule EvilEngine.Test.DbAssertions do
     end)
   end
 
+  @doc """
+  Poll until at least one child ProcessInstance exists for the parent.
+
+  Use this after `wait_for_process_instance/2` when the test requires a
+  child row. Do **not** use it when an empty list is a valid assertion
+  (the child must not have been spawned).
+  """
+  def await_child_process_instance_ids(parent_process_instance_id, timeout \\ 10_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_await_child_process_instance_ids(parent_process_instance_id, deadline)
+  end
+
+  defp do_await_child_process_instance_ids(parent_process_instance_id, deadline) do
+    child_process_instance_ids = list_child_process_instance_ids(parent_process_instance_id)
+
+    cond do
+      child_process_instance_ids != [] ->
+        child_process_instance_ids
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        raise "No child process instances for parent #{parent_process_instance_id} within timeout"
+
+      true ->
+        # Do not restore on an empty list (P82): a fresh checkout starts an
+        # empty transaction and hides the parent PI row that is already in
+        # the original sandbox transaction.
+        Process.sleep(50)
+        do_await_child_process_instance_ids(parent_process_instance_id, deadline)
+    end
+  end
+
   @doc "Fetch all FlowNodeInstance rows for a PI, ordered by started_at."
   def fetch_flow_node_instances(process_instance_id) do
     with_sandbox_retry(fn ->
@@ -59,20 +90,18 @@ defmodule EvilEngine.Test.DbAssertions do
     end)
   end
 
-  # Killing an FNI mid-write on the shared sandbox connection (see
-  # common-pitfalls.md P45) reverts the checkout to :manual. Re-assert
-  # {:shared, test_pid} and retry instead of treating that as a product bug.
-  defp with_sandbox_retry(function, attempt \\ 1) do
+  @doc """
+  Retry `function` after restoring shared sandbox ownership.
+
+  Public so other test helpers (`ProcessInteractions`) can wrap raw Ash
+  reads that would otherwise crash on a torn shared connection (P45/P82).
+  """
+  def with_sandbox_retry(function, attempt \\ 1) do
     function.()
   rescue
     error ->
       cond do
         attempt < @sandbox_retry_attempts && sandbox_ownership_error?(error) ->
-          restore_sandbox_shared_mode()
-          Process.sleep(@sandbox_retry_delay_ms * attempt)
-          with_sandbox_retry(function, attempt + 1)
-
-        attempt < @sandbox_retry_attempts && not_found_error?(error) ->
           restore_sandbox_shared_mode()
           Process.sleep(@sandbox_retry_delay_ms * attempt)
           with_sandbox_retry(function, attempt + 1)

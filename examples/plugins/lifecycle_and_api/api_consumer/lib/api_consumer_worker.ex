@@ -159,7 +159,7 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
 
   defp finish_user_task_if_configured(
          engine_facade,
-         process_instance_id,
+         _process_instance_id,
          user_task_flow_node_instance_id,
          identity
        ) do

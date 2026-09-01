@@ -1,0 +1,55 @@
+defmodule Examples.ServiceTaskHandlers.NodeScript.NodeScriptFacadeStore do
+  @moduledoc false
+  use Agent
+
+  def start_link(_opts \\ []) do
+    Agent.start_link(fn -> nil end, name: __MODULE__)
+  end
+
+  def put(facade) do
+    ensure_started()
+    Agent.update(__MODULE__, fn _ -> facade end)
+  end
+
+  def get do
+    ensure_started()
+    Agent.get(__MODULE__, & &1)
+  end
+
+  defp ensure_started do
+    case Process.whereis(__MODULE__) do
+      nil -> start_link()
+      _pid -> :ok
+    end
+  end
+end
+
+defmodule Examples.ServiceTaskHandlers.NodeScript.NodeScriptPlugin do
+  @moduledoc """
+  Registers the async `"node_script"` Service Task handler.
+
+  Copy into your OTP application and point `:plugin_module` at this module.
+  Other-language **work** belongs on a Service Task (this plugin). For
+  synchronous Script Tasks that exec local files, see
+  `examples/plugins/named_scripts/local_script_runner/`.
+  """
+
+  @behaviour EvilEngine.Plugin
+
+  @doc "Stores the facade for async completion and registers the node_script handler."
+  @impl true
+  def on_load(facade) do
+    Examples.ServiceTaskHandlers.NodeScript.NodeScriptFacadeStore.put(facade)
+
+    facade.register_service_task_handler.(
+      "node_script",
+      Examples.ServiceTaskHandlers.NodeScript.NodeScriptHandler
+    )
+
+    :ok
+  end
+
+  @doc "Performs no extra work once every plugin has finished loading."
+  @impl true
+  def on_ready(_facade), do: :ok
+end

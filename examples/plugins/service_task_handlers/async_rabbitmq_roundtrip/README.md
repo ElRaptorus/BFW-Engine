@@ -1,5 +1,11 @@
 # RabbitMQ Roundtrip Service Task — Example Plugin
 
+**Stub AMQP** — there is no RabbitMQ client in the engine. The consumer is a
+teaching GenServer. For a real bus, copy the pluggable
+`IncidentReporter.MessageBus.Adapter` pattern from
+[`combined/incident_reporter`](../../combined/incident_reporter/) (do not add AMQP
+as an engine dependency).
+
 Demonstrates request–reply over RabbitMQ (async-only contract): the handler
 publishes with `correlation_id` equal to `flow_node_instance_id`, parks the Flow
 Node Instance, and `RabbitmqConsumer` completes it when a worker sends a JSON

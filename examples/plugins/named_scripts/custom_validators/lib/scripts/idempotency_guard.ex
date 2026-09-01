@@ -9,10 +9,10 @@ defmodule Examples.Plugins.CustomValidators.Scripts.IdempotencyGuard do
   @impl true
   def handle_enter(_flow_node, payload, context) when is_map(payload) do
     data_objects =
-      case context do
-        %{data_objects: objects} -> objects
-        context_map when is_map(context_map) -> Map.get(context_map, :data_objects, %{})
-        _ -> %{}
+      if is_map(context) do
+        Map.get(context, :data_objects, %{})
+      else
+        %{}
       end
 
     case Map.get(data_objects, "processed_flag") do

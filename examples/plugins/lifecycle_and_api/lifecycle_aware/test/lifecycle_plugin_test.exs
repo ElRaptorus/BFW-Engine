@@ -17,23 +17,21 @@ defmodule Examples.Plugins.LifecycleAware.LifecyclePluginTest do
           :fixture_value
         end,
         processes: %EngineFacade.Processes{
-          get_latest_version: fn _process_model_id ->
-            {:error, :process_not_found}
-          end
+          list: fn -> {:ok, []} end
         }
       }
 
       assert :ok = LifecyclePlugin.on_load(facade)
     end
 
-    test "on_ready/1 returns :ok when probes complete" do
+    test "on_ready/1 returns :ok when the process catalog is listed" do
       facade = %EngineFacade{
         engine_id: "test-engine-id",
         engine_name: "test-engine-name",
         version: "0.0.0-test",
         processes: %EngineFacade.Processes{
-          get_latest_version: fn _process_model_id ->
-            {:error, :process_not_found}
+          list: fn ->
+            {:ok, [%{id: "order-process", version: "1.0.0"}]}
           end
         }
       }

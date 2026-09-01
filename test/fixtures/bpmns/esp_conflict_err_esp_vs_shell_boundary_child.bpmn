@@ -32,11 +32,15 @@
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <!-- Embedded subprocess that throws the error -->
+    <!-- Embedded subprocess that parks, then throws the error -->
     <bpmn:subProcess id="SubProcess_Inner" name="Inner Sub">
       <bpmn:startEvent id="Inner_Start" name="Inner Start">
         <bpmn:outgoing>Inner_Flow_1</bpmn:outgoing>
       </bpmn:startEvent>
+      <bpmn:userTask id="Inner_UserTask" name="Arm error">
+        <bpmn:incoming>Inner_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Inner_Flow_Arm</bpmn:outgoing>
+      </bpmn:userTask>
       <bpmn:endEvent id="Inner_ErrorEnd" name="Inner Error End">
         <bpmn:errorEventDefinition id="Inner_ErrDef" errorRef="Error_Inner">
           <bpmn:extensionElements>
@@ -44,9 +48,10 @@
             <evil:errorMessage>Inner error thrown</evil:errorMessage>
           </bpmn:extensionElements>
         </bpmn:errorEventDefinition>
-        <bpmn:incoming>Inner_Flow_1</bpmn:incoming>
+        <bpmn:incoming>Inner_Flow_Arm</bpmn:incoming>
       </bpmn:endEvent>
-      <bpmn:sequenceFlow id="Inner_Flow_1" sourceRef="Inner_Start" targetRef="Inner_ErrorEnd" />
+      <bpmn:sequenceFlow id="Inner_Flow_1" sourceRef="Inner_Start" targetRef="Inner_UserTask" />
+      <bpmn:sequenceFlow id="Inner_Flow_Arm" sourceRef="Inner_UserTask" targetRef="Inner_ErrorEnd" />
     </bpmn:subProcess>
 
     <bpmn:endEvent id="End_Normal" name="Normal End">
@@ -81,16 +86,19 @@
         <dc:Bounds x="162" y="162" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_SubProcess_Inner" bpmnElement="SubProcess_Inner" isExpanded="true">
-        <dc:Bounds x="280" y="100" width="300" height="160" />
+        <dc:Bounds x="250" y="100" width="400" height="160" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Inner_Start" bpmnElement="Inner_Start">
-        <dc:Bounds x="310" y="162" width="36" height="36" />
+        <dc:Bounds x="270" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Inner_UserTask" bpmnElement="Inner_UserTask">
+        <dc:Bounds x="330" y="140" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Inner_ErrorEnd" bpmnElement="Inner_ErrorEnd">
-        <dc:Bounds x="460" y="162" width="36" height="36" />
+        <dc:Bounds x="470" y="162" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
-        <dc:Bounds x="642" y="162" width="36" height="36" />
+        <dc:Bounds x="700" y="162" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_ESP_ErrorInner" bpmnElement="ESP_ErrorInner" isExpanded="true">
         <dc:Bounds x="180" y="310" width="300" height="120" />
@@ -103,15 +111,19 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
         <di:waypoint x="198" y="180" />
-        <di:waypoint x="280" y="180" />
+        <di:waypoint x="250" y="180" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
-        <di:waypoint x="580" y="180" />
-        <di:waypoint x="642" y="180" />
+        <di:waypoint x="650" y="180" />
+        <di:waypoint x="700" y="180" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Inner_Flow_1" bpmnElement="Inner_Flow_1">
-        <di:waypoint x="346" y="180" />
-        <di:waypoint x="460" y="180" />
+        <di:waypoint x="306" y="180" />
+        <di:waypoint x="330" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Inner_Flow_Arm" bpmnElement="Inner_Flow_Arm">
+        <di:waypoint x="430" y="180" />
+        <di:waypoint x="470" y="180" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_ESP_Err_Flow_1" bpmnElement="ESP_Err_Flow_1">
         <di:waypoint x="246" y="370" />

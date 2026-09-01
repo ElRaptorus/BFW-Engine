@@ -302,12 +302,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityCascadeTest do
   # -------------------------------------------------------------------
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
-    require Ash.Query
-
-    EvilEngine.Persistence.Resources.ProcessInstance
-    |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
-    |> Enum.map(& &1.id)
+    list_child_process_instance_ids(parent_process_instance_id)
   end
 
   defp poll_parent_waiting_user_task(process_instance_id) do

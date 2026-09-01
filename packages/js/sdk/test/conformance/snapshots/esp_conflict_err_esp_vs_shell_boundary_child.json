@@ -93,9 +93,39 @@
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
-                "id": "Inner_ErrorEnd",
+                "id": "Inner_UserTask",
                 "incoming": [
                   "Inner_Flow_1"
+                ],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Arm error",
+                "outgoing": [
+                  "Inner_Flow_Arm"
+                ],
+                "standardLoop": null,
+                "type": "user_task",
+                "typeData": {
+                  "assigneesExpression": null,
+                  "dueDate": null,
+                  "formActions": null,
+                  "formSchema": null,
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "priority": null,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Inner_ErrorEnd",
+                "incoming": [
+                  "Inner_Flow_Arm"
                 ],
                 "isForCompensation": false,
                 "multiInstance": null,
@@ -128,6 +158,14 @@
                 "isDefault": false,
                 "name": null,
                 "sourceRef": "Inner_Start",
+                "targetRef": "Inner_UserTask"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Inner_Flow_Arm",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Inner_UserTask",
                 "targetRef": "Inner_ErrorEnd"
               }
             ],
