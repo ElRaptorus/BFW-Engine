@@ -39,6 +39,16 @@ defmodule EvilEngine.Test.DbAssertions do
     end)
   end
 
+  @doc "List child ProcessInstance IDs for a parent PI."
+  def list_child_process_instance_ids(parent_process_instance_id) do
+    with_sandbox_retry(fn ->
+      ProcessInstance
+      |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
+      |> Ash.read!(domain: Domain, authorize?: false)
+      |> Enum.map(& &1.id)
+    end)
+  end
+
   @doc "Fetch all FlowNodeInstance rows for a PI, ordered by started_at."
   def fetch_flow_node_instances(process_instance_id) do
     with_sandbox_retry(fn ->
@@ -102,6 +112,15 @@ defmodule EvilEngine.Test.DbAssertions do
 
   defp sandbox_ownership_error?(%DBConnection.OwnershipError{}), do: true
 
+  defp sandbox_ownership_error?(%DBConnection.ConnectionError{}), do: true
+
+  defp sandbox_ownership_error?(%Postgrex.Error{} = error) do
+    message = Exception.message(error)
+
+    String.contains?(message, "current transaction is aborted") or
+      String.contains?(message, "in_failed_sql_transaction")
+  end
+
   defp sandbox_ownership_error?(%Ash.Error.Unknown{errors: errors}) when is_list(errors) do
     Enum.any?(errors, &sandbox_ownership_error?/1)
   end
@@ -115,7 +134,9 @@ defmodule EvilEngine.Test.DbAssertions do
 
     String.contains?(message, "OwnershipError") or
       String.contains?(message, "ownership process") or
-      String.contains?(message, "cannot find ownership")
+      String.contains?(message, "cannot find ownership") or
+      String.contains?(message, "not the owner") or
+      String.contains?(message, "connection is closed")
   end
 
   defp sandbox_ownership_error?(error) when is_binary(error) do

@@ -1,4 +1,4 @@
-name: Packages CI
+name: SDK & Client Packages CI
 
 on:
   release:

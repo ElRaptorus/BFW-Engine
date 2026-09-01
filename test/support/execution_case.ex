@@ -629,7 +629,8 @@ defmodule EvilEngine.ExecutionCase do
   Poll until a PI reaches the expected state in persistence.
 
   Returns the PI record. Retries on transient DB connection errors
-  (e.g. sandbox ownership race conditions after fast-completing PIs).
+  (e.g. sandbox ownership race conditions after fast-completing PIs)
+  and restores the shared sandbox checkout between those retries (P82).
   """
   def poll_pi_state(process_instance_id, expected_state, timeout \\ 10_000) do
     deadline = System.monotonic_time(:millisecond) + timeout
@@ -648,13 +649,20 @@ defmodule EvilEngine.ExecutionCase do
       %{state: ^expected_state} = record ->
         record
 
-      _ ->
+      other ->
         if System.monotonic_time(:millisecond) >= deadline do
-          current_state = if is_map(result), do: result.state, else: "unavailable"
+          current_state = if is_map(other), do: other.state, else: "unavailable"
 
           raise "PI #{process_instance_id} never reached #{expected_state} " <>
                   "within timeout (current state: #{current_state})"
         else
+          # Interrupted FNIs can drop the shared sandbox checkout (P45/P82).
+          # Restore before retrying so a closed connection is not polled for
+          # the full timeout as a fake "unavailable" PI.
+          unless is_map(other) do
+            EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+          end
+
           Process.sleep(50)
           do_poll_pi_state(process_instance_id, expected_state, deadline)
         end
@@ -702,6 +710,7 @@ defmodule EvilEngine.ExecutionCase do
         if System.monotonic_time(:millisecond) >= deadline do
           :ok
         else
+          EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
           Process.sleep(25)
           do_await_persisted_process_instance(process_instance_id, deadline)
         end

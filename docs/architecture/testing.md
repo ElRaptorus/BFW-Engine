@@ -118,7 +118,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 | `ExecutionCase` | Case template: Ecto Sandbox checkout, persistence adapter wiring, event collector setup, PI cleanup |
 | `EventCollector` + `EventCollector.Sink` | EventSink-based event accumulator for ordered sequence assertions |
 | `BpmnLoader` | Parse `.bpmn` fixture → `ModelCache.put_new/2` in one call |
-| `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `fetch_flow_node_instances/1`, `assert_pi_state!/2`, `assert_fni_count!/2`, `assert_all_fnis_state!/2` |
+| `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `fetch_flow_node_instances/1`, `assert_pi_state!/2`, `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes (P45/P82). |
 
 **BPMN fixtures** (`test/fixtures/bpmns/`):
 
