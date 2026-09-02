@@ -21,9 +21,11 @@ The SDK never imports from the client. All contracts (types, error classes, even
 
 The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/` and `examples/sdk-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, ESLint packages, `prettier`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
 
-TypeScript stays on **6.0.x**. `typescript@7` is on npm `latest`, but `typescript-eslint@8.68.0` peers `typescript: >=4.8.4 <6.1.0`. Do not bump until typescript-eslint widens that range.
+TypeScript stays on **6.0.x**. `typescript@7` is on npm `latest`, but `typescript-eslint@8.69.0` peers `typescript: >=4.8.4 <6.1.0`. Do not bump until typescript-eslint widens that range.
 
-`pnpm.overrides` in the same workspace file pin four transitive floors that parents have not declared yet: `vite` 8.2.2, `postcss` 8.5.26, `esbuild` 0.28.2, `nanoid@^3` 3.3.18. Drop those overrides when vitest/vite/tsx depend on the patched ranges themselves.
+`pnpm-lock.yaml` `catalogs.default` must resolve a version that satisfies each catalog specifier. `pnpm ci` (frozen lockfile) fails with `ERR_PNPM_OUTDATED_LOCKFILE` when they disagree. After a catalog bump, run `pnpm update -r <package>` so every importer and the catalog snapshot move together.
+
+TypeScript 6 does not auto-include `@types/*`. Packages that `tsc` Node builtins (`node:fs`, `import.meta.dirname`) set `"types": ["node"]` in their own `tsconfig.json`. That must not go on `packages/js/tsconfig.base.json` — the published SDK/client must not pick up Node globals.
 
 Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; client `phoenix` `^1.8.13`; client test-only `jose` `^6.2.10`.
 

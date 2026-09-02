@@ -5,7 +5,9 @@
     "rootDir": "src",
     "declaration": false,
     "declarationMap": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "lib": ["ES2024"],
+    "types": ["node"]
   },
   "include": ["src"]
 }

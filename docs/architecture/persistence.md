@@ -123,6 +123,9 @@ Sampled every 10s by the telemetry poller via `EvilEngine.Telemetry.Measurements
 | ReadRepo Mix placeholder (empty) | `apps/peripheral_persistence/priv/read_repo/migrations/` |
 | `EvilEngine.Persistence.RepoRouter` | `apps/peripheral_persistence/lib/evil_engine/persistence/repo_router.ex` |
 | `EvilEngine.Persistence.ExecutionAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/execution_adapter.ex` |
+| `EvilEngine.Persistence.ProcessInstancePurge` | `apps/peripheral_persistence/lib/evil_engine/persistence/process_instance_purge.ex` — Mix/eval PI-tree hard-delete; retry cascade |
+| `EvilEngine.Persistence.Release` | `apps/peripheral_persistence/lib/evil_engine/persistence/release.ex` — migrate / ensure_partitions / purge_retention |
+| `mix evil.retention.purge` | `apps/peripheral_persistence/lib/mix/tasks/evil.retention.purge.ex` |
 | `EvilEngine.Persistence.MessagePersistenceAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/message_persistence_adapter.ex` |
 | `EvilEngine.Persistence.SignalPersistenceAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/signal_persistence_adapter.ex` |
 | `EvilEngine.Execution.PersistenceRetry` | `apps/core_execution/lib/evil_engine/execution/persistence_retry.ex` |

@@ -83,7 +83,7 @@ Engine-specific claims:
 | `lane:<name>` | `"read"` \| `"write"` | `"write"`: act. `"read"`: observe only. Boolean `true` is rejected. Example: `"lane:accounting": "write"` |
 | `observe_all` | `true` | Unbounded read/observe. Never a write bypass. |
 | `zeeky_boogie_doog` | `true` | Admin override — bypasses visibility **and** write restrictions |
-| `purge_audit_data` | `true` | **Phase 7 planned** — not enforced today; RetentionRunner does not ship |
+| `purge_audit_data` | `true` | Unused in v1 — Mix `evil.retention.purge` is the retention path |
 | `roles` | `[string]` | Role list (reserved for future use) |
 | `groups` | `[string]` | Group memberships (extracted from JWT) |
 

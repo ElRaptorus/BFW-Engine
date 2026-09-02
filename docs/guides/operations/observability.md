@@ -93,4 +93,4 @@ Build a plugin implementing `@behaviour EvilEngine.Plugin.EventSink` to forward 
 
 - [Monitoring](../handbook/monitoring.md) -- endpoint usage and subscription patterns
 - [Implementing Event Sinks](../plugins/event-sink.md) -- custom sink development
-- [Database Administration](database.md) -- tables and partitioning (RetentionRunner does not ship)
+- [Database Administration](database.md) -- tables, partitioning, Mix retention purge, operator SQL

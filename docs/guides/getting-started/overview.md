@@ -10,7 +10,7 @@ ThomasTheDaemonEngine is a BPMN 2.0 workflow engine built on Elixir/OTP, designe
 - **Plugin System** -- extensible via `@behaviour` modules. Live capabilities: Service Task handlers, Event Sinks, Named Scripts, Auth Providers, RestApiExtension. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities do not exist.
 - **REST + GraphQL APIs** -- trigger-style REST for all commands, AshGraphql for read-only queries and the Process Model graph
 - **WebSocket** -- Phoenix Channels for real-time event streaming
-- **PostgreSQL Persistence** -- Ash framework with partitioned audit tables. Automated retention (RetentionRunner) is **Phase 7** and does not ship.
+- **PostgreSQL Persistence** -- Ash framework with partitioned audit tables. Opt-in PI-tree hard-delete via `mix evil.retention.purge`; engine-audit cleanup is operator SQL.
 - **JWT Authentication** -- HS256, RS256, ES256, and JWKS with claim-based authorization; pluggable Auth Provider for custom identity resolution
 - **PI Retry** -- retry failed or aborted process instances with optional version migration and checkpoint reset. There is no separate restart command.
 - **Back-Pressure** -- three-layer overload protection: PI admission control, start rate limiting, and overload signaling

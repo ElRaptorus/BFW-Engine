@@ -93,9 +93,20 @@ bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"  # pro
 
 ## Retention Policies
 
-**RetentionRunner does not ship.** `EVIL_RETENTION_*` env vars are reserved for Phase 7 and **do not purge data today**. A fresh installation never deletes anything via those knobs.
+Pass A is `mix evil.retention.purge` (cron/systemd) or `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`. Unset `EVIL_RETENTION_*_DAYS` → the task is a no-op. There is no RetentionRunner GenServer.
 
-When RetentionRunner lands, all retention will be opt-in (unset = never auto-purge). Planned PI cutoffs:
+```bash
+mix evil.retention.purge
+mix evil.retention.purge --dry-run
+bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"
+bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention(dry_run: true)"
+```
+
+Example cron (daily 03:00 UTC):
+
+```cron
+0 3 * * * cd /opt/evil_engine && bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"
+```
 
 | Env Var | Purpose |
 |---------|---------|
@@ -105,19 +116,68 @@ When RetentionRunner lands, all retention will be opt-in (unset = never auto-pur
 | `EVIL_RETENTION_ABORTED_DAYS` | Max age for `aborted` PIs |
 | `EVIL_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
 | `EVIL_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
+| `EVIL_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
+| `EVIL_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
+| `EVIL_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
+| `EVIL_RETENTION_ENGINE_AUDIT_DAYS` | Unused engine convention for the Pass B SQL cutoff below |
+| `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | `false` = destroy pending message rows on deliver/expire/cancel |
+| `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same for pending signals |
 
-Planned runner knobs: `EVIL_RETENTION_RUN_INTERVAL`, `EVIL_RETENTION_BATCH_SIZE`, `EVIL_RETENTION_ENGINE_AUDIT_DAYS`.
+### Safety Invariants
 
-### Safety Invariants (planned)
+- Only **root** PIs are selection keys. Skip the root if any descendant is `running` or `suspended`.
+- Catalog rows (`processes`, `process_versions`) are never touched.
+- Do not touch `messages` / `signals` / `pending_*` / `timer_start_schedules` from Pass A.
+- Operational rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) are never Pass B eligible.
+- REST `DELETE /process-instances/{id}` remains soft-delete of one PI + FNIs.
 
-- `running` PIs are never touched
-- Catalog rows (`processes`, `process_versions`) are never touched
-- PIs with running child PIs (Call Activity) are skipped
-- Operational rows (`pending_messages.state='pending'`, armed timers, `timer_start_schedules`) are never retention-eligible
+### Pass B — operator SQL (engine-audit tables)
 
-### Manual Purge
+Do **not** DELETE `timer_start_schedules`. Substitute `:cutoff` with `now() - make_interval(days => <EVIL_RETENTION_ENGINE_AUDIT_DAYS>)` (or a literal timestamptz). Never delete `state = 'pending'`.
 
-Manual purge is planned for a future release. Today, operators who need ad-hoc cleanup must use SQL under the admin DB role.
+```sql
+-- Preview
+SELECT COUNT(*) FROM messages WHERE published_at < :cutoff;
+SELECT COUNT(*) FROM pending_messages
+  WHERE state <> 'pending' AND published_at < :cutoff;
+SELECT COUNT(*) FROM signals WHERE published_at < :cutoff;
+SELECT COUNT(*) FROM pending_signals
+  WHERE state <> 'pending' AND published_at < :cutoff;
+
+-- Delete (batched; wrap in a transaction per table)
+DELETE FROM pending_messages
+  WHERE id IN (
+    SELECT id FROM pending_messages
+    WHERE state <> 'pending' AND published_at < :cutoff
+    LIMIT 500
+  );
+DELETE FROM pending_signals
+  WHERE id IN (
+    SELECT id FROM pending_signals
+    WHERE state <> 'pending' AND published_at < :cutoff
+    LIMIT 500
+  );
+DELETE FROM messages
+  WHERE id IN (
+    SELECT id FROM messages
+    WHERE published_at < :cutoff
+    LIMIT 500
+  );
+DELETE FROM signals
+  WHERE id IN (
+    SELECT id FROM signals
+    WHERE published_at < :cutoff
+    LIMIT 500
+  );
+```
+
+### Partition drop (`pg_partman`)
+
+Boot-time `mix evil.partitions.ensure` only **creates** upcoming partitions. It is not a `pg_partman` replacement. For long-uptime nodes and for `DETACH`/`DROP` of old partitions, run `pg_partman` (or equivalent) on `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, and `pending_signals`.
+
+### Manual Purge REST
+
+REST/CLI `purge` is deferred / not v1 (`purge_audit_data` unused). Ad-hoc PI-tree cleanup uses the Mix task with a temporarily low days knob, or SQL under the admin DB role.
 
 ## JSONB Compression
 

@@ -8,6 +8,7 @@ defmodule EvilEngine.Persistence.Release do
   """
 
   alias EvilEngine.Persistence.Partitions
+  alias EvilEngine.Persistence.ProcessInstancePurge
 
   @app :peripheral_persistence
 
@@ -50,6 +51,23 @@ defmodule EvilEngine.Persistence.Release do
 
     {:ok, _count} = Partitions.ensure_partitions()
     :ok
+  end
+
+  @doc """
+  Hard-delete aged terminal process-instance trees per
+  `EVIL_RETENTION_*_DAYS`.
+
+  Pass `dry_run: true` to count eligible roots without deleting.
+
+  Used from a release as
+  `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`.
+  """
+  def purge_retention(opts \\ []) do
+    load_app()
+
+    {:ok, _} = Application.ensure_all_started(:peripheral_persistence)
+
+    ProcessInstancePurge.purge_eligible_trees(opts)
   end
 
   defp repos do

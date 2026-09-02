@@ -1,10 +1,12 @@
 defmodule PeripheralPersistence.MixProject do
   @moduledoc """
   Owns all persistent state: Ash resources, `AshPostgres.Repo`,
-  dual-pool routing, and the `mix evil.partitions.ensure` boot hook.
+  dual-pool routing, the `mix evil.partitions.ensure` boot hook, and
+  `mix evil.retention.purge` for opt-in hard-delete of aged terminal
+  process-instance trees.
 
-  The built-in `database` EventSink was removed. `RetentionRunner`
-  is Phase 7 work and does **not** ship today.
+  The built-in `database` EventSink was removed. There is no
+  RetentionRunner GenServer.
   """
 
   use Mix.Project

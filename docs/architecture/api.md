@@ -445,28 +445,11 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 **TypeScript client support (WP-6).** `packages/js/client/src/graphql/query-builder.ts` accepts a `SelectionField[]` — a recursive union type (`packages/js/sdk/src/graphql/model-fields.ts`) that can express nested selections and inline fragments (`{ name: 'flowNode', on: { UserTaskNode: [...], ServiceTaskNode: [...] } }`), not just flat `string[]`. The SDK ships `buildFlowNodeSelection(depth)` and `buildProcessModelSelection(depth)` helpers that pre-build the canonical debugger-shaped selection (default recursion depth 4 for nested `SubProcessNode.flowNodes`), consumed via `GraphqlClient.getProcessVersionWithModel()`, `GraphqlClient.getFlowNodeInstanceWithModel()`, and `GraphqlClient.getProcessInstanceWithModel()`.
 
-#### 10.2.3 Retention + manual purge (**planned REST**, Phase 7)
+#### 10.2.3 Retention + manual purge (**deferred / not v1**)
 
-Manual purge is **not** a live GraphQL field and will never be one — GraphQL is query-only. Phase 7 will add an operator-only **REST** command under process-instances (`POST` or `DELETE`, claim `purge_audit_data`) plus a CLI that hits that REST endpoint. Ordinary API JWTs never succeed — the built-in check verifies `purge_audit_data=true` in the caller's JWT claims ([authorization.md](./authorization.md) §4.1). Operators can layer additional checks (e.g. source-IP allowlist) on top without forking the endpoint.
+Manual purge is **not** a live REST or GraphQL field. Pass A is `mix evil.retention.purge` (RET-D1). REST/CLI `purge` and `purge_audit_data` enforcement are non-goals for v1. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. GraphQL is query-only.
 
-Planned request shape (names may shift when Phase 7 lands; OpenAPI will be the schema source of truth):
-
-| Field | Type | Default | Meaning |
-|---|---|---|---|
-| `olderThan` | ISO 8601 datetime | required | Cutoff; only terminal PIs finished before this are eligible |
-| `states` | list of terminal PI states | required | `finished`, `fatal`, `aborted`, `error`, `escalated`, `compensated` (`cancelled` is terminal-but-handled — include only if the Phase 7 execute plan says so) |
-| `dryRun` | boolean | `true` | When `true`, return the row counts that *would* be deleted without touching the DB |
-| `batchSize` | integer | `500` | Bounded batch per transaction; caller loops until `purgedPis == 0` |
-
-Planned response (`PurgeResult`): `dryRun`, `purgedPis`, `rowCounts` (`processInstances`, `flowNodeInstances`, `dataObjectValues`, `dataObjectHistory`, `processInstanceEvents` — always zero since the built-in database sink was removed), `cutoff`, `statesPurged`, `ranAt`.
-
-Semantic invariants (same as the planned `RetentionRunner`):
-
-- Only **terminal** PIs are eligible — `running` is never touched. Violations return a domain error.
-- Purge is atomic-per-PI: a PI's `process_instances` row, all its `flow_node_instances`, `data_objects`, `data_object_writes`, and `process_instance_events` rows are deleted in one transaction. If any child PI (via Call Activity) is still `running`, the parent PI is skipped and reported in the response metadata.
-- Every successful batch emits exactly one `Event.RetentionPurged{process_instance_id, purged_at, row_counts, policy_source: :manual_purge}` per purged PI on `EngineEventBus`, so audit-sink plugins can ship a "PI X was purged on Y" record to external long-term storage.
-- Catalog rows (`processes`, `process_versions`) are **never** touched — their lifecycle is governed by version deletion.
-- The same REST endpoint is also callable from the engine CLI as `evil_engine purge --older-than=<ISO8601> --states=finished,error [--dry-run] [--batch-size=500]`, which hits REST internally with an operator token. There is no `purgeProcessInstances` GraphQL mutation.
+See [configuration.md](./configuration.md) §14.6 and [database.md](../guides/operations/database.md).
 
 ### 10.3 WebSocket (Phoenix Channels)
 

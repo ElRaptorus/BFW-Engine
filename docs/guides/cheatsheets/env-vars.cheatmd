@@ -80,7 +80,7 @@ EVIL_SIGNAL_PENDING_TTL=PT60S
 
 Escalations are not queued as pending events; there is no pending-escalation table or TTL.
 
-## Retention (Phase 7 planned — env vars do not purge today)
+## Retention (Mix task; unset days = never auto-purge)
 
 ```bash
 EVIL_RETENTION_RUN_INTERVAL=PT1H
@@ -91,13 +91,14 @@ EVIL_RETENTION_FATAL_DAYS=
 EVIL_RETENTION_ABORTED_DAYS=
 EVIL_RETENTION_ESCALATED_DAYS=
 EVIL_RETENTION_COMPENSATED_DAYS=
+EVIL_RETENTION_CANCELLED_DAYS=
 EVIL_RETENTION_ENGINE_AUDIT_DAYS=
 EVIL_PARTITION_AHEAD_MONTHS=3
 EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
 EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
 ```
 
-`RetentionRunner` does not ship. There is no `EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`.
+`mix evil.retention.purge` hard-deletes aged terminal PI trees. `EVIL_RETENTION_RUN_INTERVAL` is ignored (cron owns the interval). `EVIL_RETENTION_ENGINE_AUDIT_DAYS` is an unused convention for the SQL recipe in [database.md](../operations/database.md). There is no `EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`.
 
 ## Prometheus Metrics
 

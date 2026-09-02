@@ -128,6 +128,113 @@ defmodule EvilEngine.Persistence.SignalPersistenceAdapterTest do
     end
   end
 
+  describe "KEEP_AFTER_TRANSITION=false" do
+    setup do
+      previous_retention = Application.get_env(:peripheral_persistence, :retention, [])
+
+      on_exit(fn ->
+        Application.put_env(:peripheral_persistence, :retention, previous_retention)
+      end)
+
+      :ok
+    end
+
+    test "deliver destroys the pending row; a still-pending sibling survives" do
+      put_keep_after_transition(false)
+      now = DateTime.utc_now()
+
+      {:ok, delivered_id} =
+        SignalPersistenceAdapter.insert_pending_signal(%{
+          signal_id: Ash.UUIDv7.generate(),
+          signal_name: "shipment-keep-false",
+          published_at: now,
+          expires_at: DateTime.add(now, 3600, :second),
+          state: "pending"
+        })
+
+      {:ok, sibling_id} =
+        SignalPersistenceAdapter.insert_pending_signal(%{
+          signal_id: Ash.UUIDv7.generate(),
+          signal_name: "shipment-keep-false-sibling",
+          published_at: now,
+          expires_at: DateTime.add(now, 3600, :second),
+          state: "pending"
+        })
+
+      assert :ok = SignalPersistenceAdapter.mark_pending_delivered(delivered_id)
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Ash.get(PendingSignal, delivered_id, authorize?: false)
+
+      assert {:ok, sibling} = Ash.get(PendingSignal, sibling_id, authorize?: false)
+      assert sibling.state == "pending"
+    end
+
+    test "expire destroys past-TTL rows; a still-pending sibling survives" do
+      put_keep_after_transition(false)
+      now = DateTime.utc_now()
+      signal_id = Ash.UUIDv7.generate()
+
+      {:ok, expired_id} =
+        SignalPersistenceAdapter.insert_pending_signal(%{
+          signal_id: signal_id,
+          signal_name: "ttl-keep-false-signal",
+          published_at: DateTime.add(now, -120, :second),
+          expires_at: DateTime.add(now, -30, :second),
+          state: "pending"
+        })
+
+      {:ok, sibling_id} =
+        SignalPersistenceAdapter.insert_pending_signal(%{
+          signal_id: signal_id,
+          signal_name: "ttl-keep-false-signal",
+          published_at: now,
+          expires_at: DateTime.add(now, 3600, :second),
+          state: "pending"
+        })
+
+      assert {:ok, 1} = SignalPersistenceAdapter.expire_pending_signals()
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Ash.get(PendingSignal, expired_id, authorize?: false)
+
+      assert {:ok, sibling} = Ash.get(PendingSignal, sibling_id, authorize?: false)
+      assert sibling.state == "pending"
+    end
+
+    test "cancel destroys matching pending rows; a still-pending sibling survives" do
+      put_keep_after_transition(false)
+      now = DateTime.utc_now()
+
+      {:ok, cancelled_id} =
+        SignalPersistenceAdapter.insert_pending_signal(%{
+          signal_id: Ash.UUIDv7.generate(),
+          signal_name: "cancel-keep-false-signal",
+          published_at: now,
+          expires_at: DateTime.add(now, 3600, :second),
+          state: "pending"
+        })
+
+      {:ok, sibling_id} =
+        SignalPersistenceAdapter.insert_pending_signal(%{
+          signal_id: Ash.UUIDv7.generate(),
+          signal_name: "cancel-keep-false-signal-other",
+          published_at: now,
+          expires_at: DateTime.add(now, 3600, :second),
+          state: "pending"
+        })
+
+      assert {:ok, 1} =
+               SignalPersistenceAdapter.cancel_pending_for_signal_name("cancel-keep-false-signal")
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Ash.get(PendingSignal, cancelled_id, authorize?: false)
+
+      assert {:ok, sibling} = Ash.get(PendingSignal, sibling_id, authorize?: false)
+      assert sibling.state == "pending"
+    end
+  end
+
   describe "expire_pending_signals/0" do
     test "transitions past-TTL pending rows to expired and returns count" do
       now = DateTime.utc_now()
@@ -218,5 +325,15 @@ defmodule EvilEngine.Persistence.SignalPersistenceAdapterTest do
       assert {:ok, record} = Ash.get(Signal, signal_id, authorize?: false)
       assert record.started_process_instance_ids == started_ids
     end
+  end
+
+  defp put_keep_after_transition(keep_after_transition) do
+    retention = Application.get_env(:peripheral_persistence, :retention, [])
+
+    Application.put_env(
+      :peripheral_persistence,
+      :retention,
+      Keyword.put(retention, :pending_signals_keep_after_transition, keep_after_transition)
+    )
   end
 end

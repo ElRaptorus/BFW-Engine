@@ -17,7 +17,7 @@ turn on the ones they want.
 
 ### 11.1 Event sinks — how observability output is produced
 
-Everything observable the engine produces at runtime (PI/FNI transitions, messages, signals, timers, Data Object writes, escalation traces, deploy events, retention purges, sink failures) flows through `EngineEventBus` to the set of active sinks. Each sink's output shape is described in [§3.3.3](./event-system.md). **Operator-facing defaults:**
+Everything observable the engine produces at runtime (PI/FNI transitions, messages, signals, timers, Data Object writes, escalation traces, deploy events, sink failures) flows through `EngineEventBus` to the set of active sinks. Mix retention purge does **not** emit bus events. Each sink's output shape is described in [§3.3.3](./event-system.md). **Operator-facing defaults:**
 
 | Sink | Default | What the operator sees | When to enable/disable |
 |---|---|---|---|
@@ -45,7 +45,7 @@ Together these reconstruct the full sender↔receiver pattern for every BPMN-ele
 - The `console` sink emits events as **structured JSON** (`logger_json` formatter) — this is the primary log surface in v1.
 - Severity levels: `error | warn | info | debug | verbose` (maps to concept's "Verbose"). Configured globally via `EVIL_LOG_MIN_SEVERITY` (default `info`).
 - Every log line carries: `engine_id`, `process_instance_id?`, `flow_node_instance_id?`, `identity.id?`, plus the event-specific payload from `EvilEngine.Types.Event.*`.
-- Engine-internal logs outside the event bus (startup banners, sink-failure warnings) use the same JSON formatter and share the same severity level. `RetentionRunner` heartbeats are **Phase 7** (the runner does not ship today).
+- Engine-internal logs outside the event bus (startup banners, sink-failure warnings) use the same JSON formatter and share the same severity level. Mix retention purge logs counts to stdout; there is no RetentionRunner heartbeat.
 - **API error audit trail:** Every REST error response is logged by `ErrorResponse` (`:error` for 5xx, `:warning` for 4xx). Auth failures, payload-cap violations, rate-limit rejections, and rescued exceptions in message/signal controllers are logged separately with additional context. GraphQL errors are logged by the `ErrorLogger` Absinthe phase. See [api.md §Audit-trail logging](api.md#audit-trail-logging).
 
 ### 11.2 `/stats` endpoint (JSON snapshot)

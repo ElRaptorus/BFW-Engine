@@ -1261,3 +1261,13 @@ The same class of race applies whenever a test publishes a competing event (mess
 
 **Correct approach:** Compile the example's `lib/**/*.ex` with `Examples.Shared.ExampleCompiler.compile_files/1` (`examples/plugins/shared/example_compiler.ex`). That helper uses `Kernel.ParallelCompiler.compile/2` under a lock and skips paths already compiled in the VM. Shared single-file extras (`script_sandbox.ex`) stay on `Code.require_file/1`. Keep `Code.require_file/1` for the wrapper's `test/*.exs` files. Integration tests that load the same example sources (for example `example_auth_providers_test.exs`) must also go through `ExampleCompiler` — mixing `Code.require_file/1` with a later batch compile redefines the modules (`redefining module MyCompany.LdapAuthProvider`).
 
+---
+
+## P85: Dump UUIDs to 16-byte binaries before `Ecto.Adapters.SQL.query`
+
+**Mistake:** Passing a UUID **string** (`"01a062d5-…"`) as a `$1::uuid` parameter to `Ecto.Adapters.SQL.query` / `query!`. Postgrex raises `DBConnection.EncodeError` (`expected a binary of 16 bytes`).
+
+**Why it happens:** Ash and Ecto schemas accept string UUIDs and dump them in the type layer. Raw SQL binds parameters with Postgrex's `:uuid` encoder, which wants the 16-byte binary. UUIDv7 primary keys look like ordinary strings in Elixir maps, so the mismatch is easy to miss until the first raw `DELETE` / `SELECT`.
+
+**Correct approach:** `{:ok, binary} = Ecto.UUID.dump(uuid_string)` (or a shared `dump_uuid!/1` helper) before every UUID argument to `EctoSQL.query`. `ProcessInstancePurge` and its tests do this for eligibility, descendant walks, and cascade deletes. Do not pass `Ash.UUIDv7` strings straight into `ANY($1::uuid[])`.
+

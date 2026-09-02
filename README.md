@@ -305,7 +305,7 @@ apps/
 ├── api_facade/              # EvilEngine.Api service-layer facade
 ├── api_web/                 # REST + GraphQL + WebSocket + Admin
 ├── api_auth/                # JWT validator (HS256 / RS256 / ES256 / JWKS)
-├── peripheral_persistence/  # Ash + AshPostgres (RetentionRunner is Phase 7, not shipped)
+├── peripheral_persistence/  # Ash + AshPostgres (mix evil.retention.purge; no RetentionRunner)
 ├── peripheral_telemetry/    # :telemetry counters backing /stats
 ├── peripheral_plugins/      # Plugin registry + in-BEAM loader (gRPC sidecar deferred, PLUG-D1)
 └── engine_sdk/              # Public behaviours for plugin authors

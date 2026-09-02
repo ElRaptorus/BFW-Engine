@@ -1413,7 +1413,7 @@ When a retry targets a PI that participates in a Call Activity tree, child PIs a
 |----------|-----------|------------------|
 | **A — Implicit retry** | No checkpoint specified, or checkpoint is *after* the Call Activity FNI | Call Activity FNI survives; child PI is **preserved** and reset by Phase 2 (`reset_descendants`). Terminal child → `running`; finished child → preserved |
 | **B — Explicit checkpoint AT Call Activity** | `resetToFlowNodeInstanceId` = the Call Activity FNI itself | Call Activity FNI survives (it is the checkpoint); child PI is **preserved** and reset by Phase 2. Same as Scenario A |
-| **C — Checkpoint BEFORE Call Activity** | `resetToFlowNodeInstanceId` is an FNI that executes before the Call Activity | Call Activity FNI is in the downstream deletion set → **hard-deleted**. Child PI is **hard-deleted** (cascade). A fresh child PI is created when the retried flow re-enters the Call Activity |
+| **C — Checkpoint BEFORE Call Activity** | `resetToFlowNodeInstanceId` is an FNI that executes before the Call Activity | Call Activity FNI is in the downstream deletion set → **hard-deleted**. Child PI is **hard-deleted** via `EvilEngine.Persistence.ProcessInstancePurge.hard_delete_process_instance_tree/1` (same cascade as Mix retention). A fresh child PI is created when the retried flow re-enters the Call Activity |
 
 Phase 2 descendant reset is depth-first: for each reset PI, all Call Activity FNIs with terminal child PIs are walked recursively. Tree depth is bounded by process model nesting (practically 2–4 levels).
 

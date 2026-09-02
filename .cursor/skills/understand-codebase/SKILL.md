@@ -70,7 +70,7 @@ Infrastructure adapters. May import Core, never imported by Core.
 
 | App | Purpose |
 |-----|---------|
-| `peripheral_persistence` | Ash + AshPostgres resources. RetentionRunner is Phase 7 (not shipped) |
+| `peripheral_persistence` | Ash + AshPostgres resources. Mix `evil.retention.purge` hard-deletes aged terminal PI trees |
 | `peripheral_telemetry` | `:telemetry` counters, /stats data |
 | `peripheral_plugins` | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
 

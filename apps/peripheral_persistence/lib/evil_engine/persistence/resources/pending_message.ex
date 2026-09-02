@@ -59,6 +59,11 @@ defmodule EvilEngine.Persistence.Resources.PendingMessage do
 
       change set_attribute(:state, "cancelled")
     end
+
+    destroy :destroy_if_pending do
+      validate compare(:state, is_equal: "pending")
+      change filter(expr(state == "pending"))
+    end
   end
 
   attributes do

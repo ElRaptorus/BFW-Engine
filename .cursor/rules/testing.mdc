@@ -112,6 +112,10 @@ deploy via HTTP, start via HTTP, assert end-to-end.
 | **Integration** | Real BPMN end-to-end through all layers, DB-level assertions | Slow |
 | **Load** | k6/wrk: 10k concurrent PIs, latency, zero-downtime | Very slow |
 
+## Agent completion gate
+
+After Engine code changes, agents MUST run `mix quality` (see `.cursor/rules/build.mdc`). That alias is the canonical pipeline. Narrower `mix test` invocations are for iteration only.
+
 ## CI enforcement
 
 Every PR must pass (in order):
@@ -119,6 +123,6 @@ Every PR must pass (in order):
 1. `mix format --check-formatted`
 2. `mix credo --strict`
 3. `mix dialyzer`
-4. `mix coveralls.html --umbrella` — two-level enforcement: per-app thresholds in each app's `mix.exs` + global aggregate in `coveralls.json` (see `ImplementationPhases.md` § Test Coverage Milestones)
+4. Coverage via the same merge as `mix quality` (`mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`) — per-app thresholds in each app's `mix.exs` + global aggregate in `coveralls.json` (see `ImplementationPhases.md` § Test Coverage Milestones). Do **not** gate on `mix coveralls.html --umbrella` without `--import-cover`.
 5. `mix sobelow`
 6. `mix deps.audit`

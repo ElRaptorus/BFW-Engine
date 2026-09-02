@@ -17,6 +17,7 @@ defmodule EvilEngine.Persistence.ExecutionAdapter do
   require Ash.Query
 
   alias Ecto.Adapters.SQL, as: EctoSQL
+  alias EvilEngine.Persistence.ProcessInstancePurge
   alias EvilEngine.Persistence.Repo
   alias EvilEngine.Persistence.Resources.DataObject, as: DataObjectResource
   alias EvilEngine.Persistence.Resources.DecisionVersion
@@ -651,70 +652,12 @@ defmodule EvilEngine.Persistence.ExecutionAdapter do
       end)
 
     Enum.reduce_while(call_activity_children, :ok, fn child_pi_id, :ok ->
-      case hard_delete_process_instance_tree(child_pi_id) do
+      case ProcessInstancePurge.hard_delete_process_instance_tree(child_pi_id) do
         :ok ->
           {:cont, :ok}
 
         {:error, reason} ->
           {:halt, {:error, reason}}
-      end
-    end)
-  end
-
-  defp hard_delete_process_instance_tree(process_instance_id) do
-    child_spawning_query =
-      FlowNodeInstance
-      |> Ash.Query.filter(
-        process_instance_id == ^process_instance_id and
-          flow_node_type in ["call_activity", "sub_process"]
-      )
-
-    with {:ok, child_spawning_fnis} <-
-           Ash.read(child_spawning_query, domain: @domain, authorize?: false),
-         :ok <- recurse_into_grandchildren(child_spawning_fnis) do
-      delete_process_instance_rows(process_instance_id)
-    end
-  end
-
-  defp recurse_into_grandchildren(call_activity_fnis) do
-    Enum.reduce_while(call_activity_fnis, :ok, fn fni, :ok ->
-      fni
-      |> extract_child_process_instance_id()
-      |> maybe_delete_child_tree()
-    end)
-  end
-
-  defp extract_child_process_instance_id(fni) do
-    (fni.type_properties || %{})["child_process_instance_id"]
-  end
-
-  defp maybe_delete_child_tree(nil), do: {:cont, :ok}
-
-  defp maybe_delete_child_tree(child_id) when is_binary(child_id) do
-    case hard_delete_process_instance_tree(child_id) do
-      :ok -> {:cont, :ok}
-      {:error, reason} -> {:halt, {:error, reason}}
-    end
-  end
-
-  defp delete_process_instance_rows(process_instance_id) do
-    process_instance_id_bin = dump_uuid!(process_instance_id)
-
-    delete_statements = [
-      {"DELETE FROM gateway_pending_arrivals WHERE process_instance_id = $1",
-       [process_instance_id_bin]},
-      {"DELETE FROM data_object_writes WHERE process_instance_id = $1",
-       [process_instance_id_bin]},
-      {"DELETE FROM data_objects WHERE process_instance_id = $1", [process_instance_id_bin]},
-      {"DELETE FROM flow_node_instances WHERE process_instance_id = $1",
-       [process_instance_id_bin]},
-      {"DELETE FROM process_instances WHERE id = $1", [process_instance_id_bin]}
-    ]
-
-    Enum.reduce_while(delete_statements, :ok, fn {delete_sql, parameters}, :ok ->
-      case EctoSQL.query(Repo, delete_sql, parameters) do
-        {:ok, _result} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
   end

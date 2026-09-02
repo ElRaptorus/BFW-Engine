@@ -73,17 +73,18 @@ Notable env vars:
 | `EVIL_EVENT_SINK_WEBSOCKET` | Toggle for the `websocket` sink that pushes events to connected Phoenix Channels clients | `on` |
 | ~~`EVIL_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `EVIL_LOG_MIN_SEVERITY` only. The WebSocket sink drops `debug`/`verbose` by default. | — |
 | ~~`EVIL_EVENT_SINK_DATABASE`~~ | **Removed.** The built-in database sink has been removed. Use a plugin sink for DB-backed event persistence. | — |
-| `EVIL_RETENTION_RUN_INTERVAL` | **Phase 7 (planned).** How often the `RetentionRunner` GenServer would wake up. ISO 8601 duration. Only meaningful if at least one retention-days var below is set. Runner does **not** ship today | `PT1H` |
-| `EVIL_RETENTION_BATCH_SIZE` | **Phase 7 (planned).** Max number of PIs purged per transaction by the `RetentionRunner` | `500` |
-| `EVIL_RETENTION_FINISHED_DAYS` | Max age, in days, for PIs with state `finished` before they are eligible for automated purge. Unset = never auto-purge `finished` PIs | *(unset)* |
+| `EVIL_RETENTION_RUN_INTERVAL` | **Ignored.** Cron/systemd owns the Mix-task interval. The key remains in `runtime.exs` unused | `PT1H` |
+| `EVIL_RETENTION_BATCH_SIZE` | Max number of **root trees** purged per `mix evil.retention.purge` invocation | `500` |
+| `EVIL_RETENTION_FINISHED_DAYS` | Max age, in days, for PIs with state `finished` before they are eligible for Mix purge. Unset = never auto-purge `finished` PIs | *(unset)* |
 | `EVIL_RETENTION_ERROR_DAYS` | Same, for state `error` | *(unset)* |
 | `EVIL_RETENTION_FATAL_DAYS` | Same, for state `fatal` | *(unset)* |
 | `EVIL_RETENTION_ABORTED_DAYS` | Same, for state `aborted` | *(unset)* |
 | `EVIL_RETENTION_ESCALATED_DAYS` | Same, for state `escalated` | *(unset)* |
 | `EVIL_RETENTION_COMPENSATED_DAYS` | Same, for state `compensated` | *(unset)* |
-| `EVIL_RETENTION_ENGINE_AUDIT_DAYS` | **Phase 7 (planned).** Max age, in days, for engine-level audit table rows before they become eligible for automated purge by Pass B. Applies, with one cutoff, to tables that exist today: `messages`, `pending_messages` (terminal states only — `delivered`/`expired`/`cancelled`; `pending` rows are live state and never swept), `signals`, `pending_signals` (same terminal-state rule). There is no `pending_escalations` table. There are no `escalations`, `compensations`, or `engine_timers` tables. `timer_start_schedules` is operational and is not swept by Pass B. Unset = never auto-purge engine-level audit rows | *(unset)* |
-| `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then retention-eligible via `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. When `false`, the engine physically deletes the row in the same transaction that moves its state to `delivered`/`expired`/`cancelled`, so the table only ever holds live `pending` rows. No effect on `pending` rows themselves — those are always kept until they either transition naturally or are cancelled | `true` |
-| `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals`. `true` = keep terminal-state rows for audit (retention via `EVIL_RETENTION_ENGINE_AUDIT_DAYS`); `false` = physical delete on transition. Independent per-table knobs let operators who care about signal-delivery audit keep it even if they've flipped the message-side audit off, or vice versa | `true` |
+| `EVIL_RETENTION_CANCELLED_DAYS` | Same, for state `cancelled`. REST `DELETE /process-instances/{id}` still omits `cancelled`; only the Mix purge uses this knob | *(unset)* |
+| `EVIL_RETENTION_ENGINE_AUDIT_DAYS` | **Unused by the engine.** Operator convention for the Pass B SQL recipe cutoff ([database.md](../guides/operations/database.md)). Unset = operators should not DELETE engine-audit rows | *(unset)* |
+| `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then eligible for operator SQL via the `EVIL_RETENTION_ENGINE_AUDIT_DAYS` cutoff convention. When `false`, the engine physically deletes the row on deliver/expire/cancel, so the table only ever holds live `pending` rows. Destroy still requires `state == 'pending'` | `true` |
+| `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals` | `true` |
 | ~~`EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`~~ | **Removed / not applicable.** Escalation D1 dropped the pending-escalation cache; there is no `pending_escalations` table | — |
 | `EVIL_PARTITION_AHEAD_MONTHS` | Number of future monthly partitions the `mix evil.partitions.ensure` boot hook creates ahead of time for the tables in `EvilEngine.Persistence.Partitions`: `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`. There is no `pending_escalations` table. There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and unpartitioned. At least 1 is enforced regardless of configured value | `3` |
 | `EVIL_TOKEN_MAX_BYTES` | **Hard payload cap** applied to the canonicalized JSON byte size of every user-supplied payload across: FNI output tokens via `write_result/2`, Data Object values at DOA-commit time (DOA-only: check runs when the engine materializes each `dataOutputAssociation` post-`onFinished`), published messages/signals/escalations via the PI facade + API trigger surfaces, PI `started_with_context` at start, User Task completion results, async Service Task completion/fail payloads via `engine_facade.finish_async_service_task/2` and `fail_async_service_task/3` (../ImplementationPlan.md §3.6 / [plugins.md](./plugins.md) §9.2.5) — **no dedicated public REST path** for async plugin callbacks; cap is enforced on the facade and REST. Overflow → structured `{:error, :payload_too_large, size, limit}` from the facade; causing FNI transitions to `fatal`; HTTP endpoints return HTTP 413 before any engine-side work runs. Minimum enforced `1024` (1 KiB); no max — operators running legitimately large-payload workloads can raise this arbitrarily. Configurable for the **entire engine**; no per-process/per-endpoint override in v1 | `65536` (64 KiB) |
@@ -198,6 +199,7 @@ EVIL_RETENTION_BATCH_SIZE=500
 # EVIL_RETENTION_ABORTED_DAYS=
 # EVIL_RETENTION_ESCALATED_DAYS=
 # EVIL_RETENTION_COMPENSATED_DAYS=
+# EVIL_RETENTION_CANCELLED_DAYS=
 # EVIL_RETENTION_ENGINE_AUDIT_DAYS=
 EVIL_PARTITION_AHEAD_MONTHS=3
 EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
@@ -426,7 +428,7 @@ to existing rows.
 
 ### 14.6 Database housekeeping & retention
 
-**RetentionRunner is Phase 7 — it does not ship today.** The env vars and the design below are the planned contract. High-volume operators running tens of thousands of PIs per day need an explicit retention story; low-volume operators need the engine to never delete anything they did not opt into. PI-scoped retention covers the **PI-rooted** story (process state + lifecycle events + DO writes) with per-terminal-state retention + planned REST manual purge. Engine-audit retention closes the remaining gap for **engine-wide audit tables** that have no PI affinity and therefore fall outside PI-cascade cleanup. Every mechanism below is opt-in; a fresh engine installation never deletes anything until the operator sets at least one `EVIL_RETENTION_*_DAYS` env var (once Phase 7 lands).
+High-volume operators running tens of thousands of PIs per day need an explicit retention story; low-volume operators need the engine to never delete anything they did not opt into. **Pass A** (PI-rooted trees) is an opt-in Mix task. **Pass B** (engine-wide audit tables with no PI affinity) is operator SQL. There is no `RetentionRunner` GenServer (RET-D1). A fresh installation never deletes anything until the operator sets at least one `EVIL_RETENTION_*_DAYS` env var and schedules the Mix task, or runs the SQL recipe.
 
 #### 14.6.1 Configurable partitioning
 
@@ -460,57 +462,53 @@ At engine boot, `mix evil.partitions.ensure` (run from the release pre-start hoo
 
 The partition management logic lives in `EvilEngine.Persistence.Partitions` with a single declarative `@partitioned_tables` list. Adding a new partitioned table is a one-line change.
 
-No `pg_partman` dependency in v1. Partition-drop-based archival is a v2 concern — the partitioning shape is chosen so that v2 work is purely additive.
+Boot-time `ensure_partitions` is **not** a `pg_partman` replacement. It only pre-creates upcoming partitions; it never `DETACH`/`DROP`s old ones. Operators with long-uptime nodes (or who need to drop aged partitions) should run `pg_partman` (or equivalent) alongside cron. See [database.md](../guides/operations/database.md).
 
-`timer_start_schedules` is **operational and unpartitioned**. Cycle Timer Start rows are deleted on undeploy / `StartEventManager.unregister_timer_starts/1` (and by FK CASCADE from `process_versions`). Pass B must not DELETE them. PI-scoped catch/boundary timers stay in FNI `type_properties` and Scheduler ETS. There is no `engine_timers` table.
+`timer_start_schedules` is **operational and unpartitioned**. Cycle Timer Start rows are deleted on undeploy / `StartEventManager.unregister_timer_starts/1` (and by FK CASCADE from `process_versions`). Pass B SQL must not DELETE them. PI-scoped catch/boundary timers stay in FNI `type_properties` and Scheduler ETS. There is no `engine_timers` table.
 
-#### 14.6.2 RetentionRunner (opt-in policies — PI-scoped + engine-audit-scoped) — **planned, Phase 7**
+#### 14.6.2 Pass A — Mix-scheduled PI tree purge
 
-The `RetentionRunner` GenServer is **not shipped**. When Phase 7 lands, it starts at boot **only if at least one `EVIL_RETENTION_*_DAYS` env var is set** (§14.3 — either a PI-scoped `EVIL_RETENTION_<STATE>_DAYS` or the engine-audit `EVIL_RETENTION_ENGINE_AUDIT_DAYS`, or any combination). When started, each tick runs two independent passes:
+`mix evil.retention.purge` (and `EvilEngine.Persistence.Release.purge_retention/0` for release eval) hard-deletes aged terminal **root** process-instance trees. Schedule it with cron or systemd. The engine does not wake a GenServer.
 
-**Pass A — PI-scoped (unchanged).** Sleeps for `EVIL_RETENTION_RUN_INTERVAL` (default `PT1H`). For each configured terminal-state PI policy, computes `cutoff = now - N_days` and selects up to `EVIL_RETENTION_BATCH_SIZE` (default `500`) eligible PIs ordered by `finished_at ASC`. Per eligible PI, executes a single transaction that deletes in this order: `process_instance_events` rows → `data_object_writes` rows → `data_objects` snapshot rows → `flow_node_instances` rows → `gateway_pending_arrivals` rows scoped to the eligible PI → the `process_instances` row itself. There is no `engine_timers` table to delete. If any child PI (spawned via Call Activity) is still `running`, the parent is **skipped** (not deleted) — no orphan children. Emits one `Event.RetentionPurged{process_instance_id, purged_at, row_counts, policy_source: :retention_runner}` per deleted PI on `EngineEventBus`.
+- Unset `EVIL_RETENTION_*_DAYS` → the task is a no-op (prints that nothing is configured).
+- Only **root** PIs (`parent_process_instance_id IS NULL`) are selection keys. Age column: `finished_at`. Raw SQL bypasses the Ash `deleted == false` filter so already-soft-deleted terminal roots still free disk.
+- States with a days knob: `finished`, `error`, `fatal`, `aborted`, `escalated`, `compensated`, `cancelled`. Unset knob for a state → that state is never selected.
+- If the whole tree is fully terminal, delete **every** descendant with the root (even if a child is younger than cutoff). If any descendant is `running` or `suspended`, skip the root.
+- One transaction per root tree. Cascade order: `process_instance_events` → `gateway_pending_arrivals` → `data_object_writes` → `data_objects` → `flow_node_instances` → `process_instances`.
+- Do not touch `messages` / `signals` / `pending_*` / `timer_start_schedules` / catalog rows.
+- Batch size = `EVIL_RETENTION_BATCH_SIZE` (default 500) = max trees per Mix invocation.
+- `--dry-run` counts eligible roots without deleting.
+- `EVIL_RETENTION_RUN_INTERVAL` is **ignored**; cron owns the interval. The key remains in `runtime.exs` unused.
 
-**Pass B — engine-audit-scoped.** If `EVIL_RETENTION_ENGINE_AUDIT_DAYS` is set, runs after Pass A with `cutoff = now - N_days` and sweeps, in order, the tables that exist today: `messages WHERE published_at < cutoff` → `pending_messages WHERE state IN ('delivered','expired','cancelled') AND published_at < cutoff` → `signals WHERE published_at < cutoff` → `pending_signals WHERE state IN ('delivered','expired','cancelled') AND published_at < cutoff`. There is **no** `pending_escalations` table (escalation D1). There are no `escalations`, `compensations`, or `engine_timers` tables. `timer_start_schedules` is operational and is not swept by Pass B. Deletes are batched by `EVIL_RETENTION_BATCH_SIZE` per table (one transaction per batch), and **partition-aware** for the partitioned engine-audit tables — PostgreSQL's partition pruning makes each batch touch at most one or two old partitions. Emits one `Event.EngineAuditPurged{table, cutoff, row_count, policy_source: :retention_runner}` per table on `EngineEventBus` so audit-sink plugins can record a per-table purge trail. Pass B does **not** touch `pending_messages.state='pending'` or `pending_signals.state='pending'` (operational live state, [routing.md](./routing.md) §3.5.4 / [routing.md](./routing.md) §3.5.6). Pass B is independent of Pass A: an operator who sets only `EVIL_RETENTION_ENGINE_AUDIT_DAYS` (and no PI-scoped policy) still gets engine-audit retention; the runner simply skips Pass A.
+There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 
-**Safety invariants (both passes):**
+**KEEP_AFTER_TRANSITION.** When `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` (or the signals twin), `mark_pending_delivered`, expire, and cancel **destroy** the pending row instead of updating state. Destroy still requires `state == 'pending'` so a lost claim cannot wipe another waiter. Default `true` keeps terminal-state rows as delivery-attempt audit until operator SQL ages them out.
 
-- `running` PIs are **never** touched.
-- Catalog rows (`processes`, `process_versions`) are **never** touched — lifecycle governed by version deletion.
-- PI-scoped purge is atomic per-PI; there is no intermediate state where a PI's event rows are deleted but its row is still present.
-- Engine-audit purge is atomic per-batch-per-table; cross-table ordering is not atomic (this is intentional — these tables do not have referential dependencies on each other except the logical `pending_messages.message_id → messages.id` link, and that link is not enforced with a foreign key across partition boundaries).
-- The runner never deletes more than `EVIL_RETENTION_BATCH_SIZE` rows per transaction, so long-running transactions don't block normal writes.
-- Unset `EVIL_RETENTION_*_DAYS` for a state means "never purge" for that state. The runner processes only the states that have an explicit policy.
-- An installer who sets every policy to `0` (or negative) purges every terminal PI + every engine-audit row on the next tick — this is intentional footgun territory but the operator had to opt in with seven env vars.
-- Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) are live execution state, **never** retention-eligible regardless of how aggressive `EVIL_RETENTION_ENGINE_AUDIT_DAYS` is set.
+#### 14.6.3 Pass B — operator SQL (not in-engine)
 
-#### 14.6.3 Manual purge (operator-driven) — **planned REST**, Phase 7
-
-Exposed as a planned REST command under process-instances (`POST` or `DELETE`, claim `purge_audit_data`; [api.md](./api.md) §10.2.3) and as the CLI equivalent `evil_engine purge` that hits that REST endpoint. The CLI is the recommended path for automation (scheduled sweeps outside the runner cadence, one-off compliance-driven deletions, pre-upgrade cleanup); REST is the path for in-tool use (admin dashboards). There is no GraphQL mutation — GraphQL is query-only.
-
-`dryRun: true` is the default for the REST command and the CLI's default mode. Operators must explicitly pass `dryRun: false` / `--no-dry-run` to actually delete. The response always returns the row counts that were (or would have been) deleted, so the operator can size up the cost before committing.
+`EVIL_RETENTION_ENGINE_AUDIT_DAYS` is an unused operator convention for the SQL recipe in [database.md](../guides/operations/database.md). The engine never sweeps `messages` / `signals` / terminal `pending_*` rows. REST/CLI `purge` and `purge_audit_data` enforcement are deferred / not v1.
 
 #### 14.6.4 Interaction matrix with other features
 
 | Feature | Interaction |
 |---|---|
-| **DB event sink removed** | `process_instance_events` is no longer populated — the built-in database sink was removed. `row_counts.processInstanceEvents` in every `PurgeResult` is 0. Pass B (engine-audit retention) is unaffected — engine-audit tables are populated independently of event sinks. Users who need DB-backed event persistence can register a plugin sink. |
-| **Studio engine-debugger views** | The **BPMN-flow view** (PI progress, FNI detail, sender↔receiver navigation, DO history, message/signal delivery traces, timer fires) reads always-on kernel tables — `process_instances` / `flow_node_instances` (with `triggerer_flow_node_instance_id`), `data_objects` / `data_object_writes`, `messages` / `signals` (with `correlations[]` on messages) — plus live Scheduler/FNI timer state and operational `timer_start_schedules` for cycle Timer Starts. There are no `escalations` or `engine_timers` tables. PI retention trims its reach for `finished` PIs, and `EVIL_RETENTION_ENGINE_AUDIT_DAYS` caps how far back the message/signal delivery panels reach. A separate **flat "engine event log" panel** — if Studio chooses to implement one — would require a plugin event sink writing to a custom table; its reach would be capped by PI retention the same way (events purge cascades with the parent PI). |
-| **Resume** | Irrelevant — retention only touches terminal PIs + terminal-state engine-audit rows. A `running` PI in a partition older than the retention cutoff is still resumable. A `pending` pending-message or pending-signal is always preserved regardless of age. |
-| **`data_object_writes` always-on** | Purged together with the parent PI row. A Data Object write audit can live no longer than the PI whose writes it records. |
-| **External sinks** | Retention does not affect data already shipped to external sinks — those live on the external side. `Event.RetentionPurged` (PI-scoped) and `Event.EngineAuditPurged` (engine-wide) are both emitted onto `EngineEventBus` so external archives can record purges as distinct data points with different granularities. |
-| **Monthly partitions** | Retention runner's `DELETE` is partition-aware across the partitioned tables that exist (`process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`): rows land in the right partition automatically, and future v2 archival can `DETACH` + `DROP` whole old partitions for a given month. There is no `pending_escalations` table. There are no `escalations` / `compensations` tables. `timer_start_schedules` is unpartitioned and not Pass B. |
-| **`EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false`** | `pending_messages` is effectively zero-retention for terminal-state rows regardless of `EVIL_RETENTION_ENGINE_AUDIT_DAYS` — rows are deleted on state transition, not on retention tick. The retention runner's pass over `pending_messages` then finds no eligible rows under normal operation (only the narrow race where a row transitioned just before the tick would still be deleted). |
-| **`EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false`** | Identical semantics to the `pending_messages` knob, applied to `pending_signals`. Independent per-table — operators who want signal-delivery audit but no message-delivery audit (or vice versa) mix and match. |
-| **`EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`** | **Not applicable.** Escalation D1 dropped the pending-escalation cache; there is no `pending_escalations` table for this knob to act on. Escalation observability is EngineEventBus (`Event.EscalationRaised`), not a dedicated audit table. |
-| **Cross-PI broadcasts & unmatched publishes** | A `messages` row that fanned out to 5 PIs has 5 entries in `correlations[]`, but still occupies one row. Retention deletes the row based on `published_at` alone, regardless of how many PIs received it and regardless of whether those PIs are still `running` — there is no referential link from `messages` to `process_instances`, so retention cannot cascade the other direction either. |
+| **DB event sink removed** | `process_instance_events` is no longer populated — the built-in database sink was removed. Pass A still deletes leftover rows for a purged PI. Pass B is operator SQL and is unaffected by event sinks. |
+| **Studio engine-debugger views** | The **BPMN-flow view** reads always-on kernel tables. Pass A trims reach for aged terminal PIs. Pass B SQL (when operators run it) caps how far back the message/signal delivery panels reach. |
+| **Resume** | Irrelevant — Pass A only touches terminal trees. A `running` PI is never selected. A `pending` pending-message or pending-signal is always preserved regardless of age. |
+| **`data_object_writes` always-on** | Purged together with the parent PI tree. A Data Object write audit can live no longer than the PI whose writes it records. |
+| **External sinks** | Retention does not affect data already shipped to external sinks. There are no purge bus events; operators who need a trail log Mix/cron output or wrap the SQL recipe. |
+| **Monthly partitions** | Row `DELETE`s from Pass A land in the right partition automatically. Dropping old partitions is an operator `pg_partman` (or equivalent) job — boot-time `ensure_partitions` does not drop. `timer_start_schedules` is unpartitioned and not Pass B. |
+| **`EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false`** | `pending_messages` is zero-retention for terminal-state rows — rows are destroyed on deliver/expire/cancel. Operator SQL over terminal pending rows then finds nothing under normal operation. |
+| **`EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false`** | Identical semantics for `pending_signals`. Independent per-table. |
+| **`EVIL_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`** | **Not applicable.** Escalation D1 dropped the pending-escalation cache. |
+| **Cross-PI broadcasts & unmatched publishes** | A `messages` row that fanned out to 5 PIs still occupies one row. Pass A does not delete it. Pass B SQL deletes by `published_at` alone. |
+| **REST `DELETE /process-instances/{id}`** | Remains **soft-delete of one PI + its FNIs**. It does not walk children, does not hard-delete DOs/gateway rows, and still omits `cancelled`. Pass A is the hard-delete path. |
 
 #### 14.6.5 Non-goals for v1 (see ../ImplementationPlan.md §16.4)
 
-- Automatic archival to external storage (S3, GCS, cold-storage Postgres) — the `Event.RetentionPurged` and `Event.EngineAuditPurged` events on `EngineEventBus` are the integration surface for plugins that want this behavior.
-- Continuous `pg_partman`-style partition automation — replaced by the boot-time `mix evil.partitions.ensure` with `EVIL_PARTITION_AHEAD_MONTHS`.
+- `RetentionRunner` OTP child, REST/CLI `purge`, per-PI bus events, in-engine Pass B.
+- Automatic archival to external storage (S3, GCS, cold-storage Postgres).
 - Per-PI retention overrides (e.g. "keep this one PI forever") — retention is global by terminal state.
-- Per-table retention granularity for engine-audit tables: one knob covers all engine-audit tables that exist (`messages`, `pending_messages`, `signals`, `pending_signals`). Operators who need "keep messages for 1y, signals for 30d" run an external archival sink plugin.
-- Manual `purgeEngineAudit` REST command: the planned PI-scoped REST purge has no engine-audit equivalent in v1. Operators who need ad-hoc engine-audit cleanup set `EVIL_RETENTION_ENGINE_AUDIT_DAYS` temporarily low, or run direct SQL under the admin DB role.
-- Cascading engine-audit rows with PI purge: a `messages` row is not deleted when any of its recipient PIs is purged. The audit row and the PI row have different lifecycles on purpose — a published message was a real engine-wide event regardless of which PIs happened to receive it.
-- Backfill: if the DB sink was off and is then turned on, past events are **not** retroactively recoverable from the active sinks.
-- Event-level retention (keep PI rows but drop old events): in v1 a PI's events live as long as the PI row does.
+- Per-table engine-audit knobs inside the engine: one operator convention (`EVIL_RETENTION_ENGINE_AUDIT_DAYS`) plus SQL. Operators who need "keep messages for 1y, signals for 30d" vary the SQL cutoffs.
+- Cascading engine-audit rows with PI purge: a `messages` row is not deleted when any of its recipient PIs is purged.
+- Event-level retention (keep PI rows but drop old events): in v1 a PI's leftover `process_instance_events` live as long as the PI row does.

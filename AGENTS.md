@@ -7,6 +7,8 @@
 > ```
 >
 > **"Integration tests deferred because the database is not running" is a rule violation. Start the container yourself. No exceptions.**
+>
+> **QUALITY GATE — NON-NEGOTIABLE:** After any Engine code change, run `mix quality` from the project root (after the database one-liner). That alias in `mix.exs` is the only acceptable completion check. Do not substitute a subset (`mix compile`, `mix test apps/…`, `mix credo`) and claim the work is verified. See `.cursor/rules/build.mdc`.
 
 This document is the domain knowledge reference for ThomasTheDaemonEngine,
 a BPMN 2.0 Workflow Engine built with Elixir/OTP and oceans of sacrificial blood collected from all over the false emperors rotting domain in honor of the [Blood God](https://wh40k.lexicanum.com/wiki/Khorne).
@@ -59,10 +61,11 @@ Container: `evil-engine-postgres-test` | Port: `5543` | User: `evil_engine` | Im
 - DO NOT treat integration tests as optional — they are part of the quality gate
 
 **Relevant rules and skills:**
-- `.cursor/rules/build.mdc` — Build verification pipeline (always-applied)
+- `.cursor/rules/build.mdc` — `mix quality` is the required completion gate after every Engine code change (always-applied)
 - `.cursor/rules/test-db-mandatory.mdc` — Zero-tolerance DB policy (always-applied)
 - `.cursor/skills/ensure-test-db/SKILL.md` — Detailed troubleshooting steps
 - `.cursor/skills/integration-testing/SKILL.md` — Full integration test guide
+- `.cursor/skills/thorough-review/SKILL.md` — Full review checklist; §1 is `mix quality`
 
 ---
 
@@ -1989,7 +1992,7 @@ API. Violations of this rule break the architecture.
 | `core_expressions` | Core | FEEL evaluator (Rust NIF) |
 | `core_bpmn` | Core | XML parser, ModelCache, validator, linter gate |
 | `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
-| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). RetentionRunner is Phase 7 (not shipped) |
+| `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `evil.retention.purge` for opt-in PI-tree hard-delete (RET-D1) |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
 | `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |

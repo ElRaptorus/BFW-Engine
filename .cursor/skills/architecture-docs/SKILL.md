@@ -161,7 +161,7 @@ Use this table to determine **which file to update** based on what you changed o
 | FEEL context, bindings, evaluation | `expressions.md` |
 | /stats, /health, /info, logs, metrics | `observability.md` |
 | Docker, docker-compose, zero-downtime deploy | `shipping.md` |
-| Env vars, config priority, linter gate, retention | `configuration.md` |
+| Env vars, config priority, linter gate, retention (`ProcessInstancePurge`, Mix purge) | `configuration.md` |
 | Test infrastructure, scenario matrix, CI pipeline, Mix aliases (`test.examples` / `test.cookbook`) | `testing.md` |
 | JWT auth, transport, plugin trust, input validation, threat model | `security.md` |
 | Recurring mistake or non-obvious constraint | `common-pitfalls.md` |

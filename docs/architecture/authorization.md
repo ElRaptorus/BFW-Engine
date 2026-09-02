@@ -124,7 +124,7 @@ use.
 |---|---|---|---|
 | `deploy_bpmn` | boolean | Allows: `POST /processes` (BPMN upload), `PUT /processes/{model_id}/enable`, `PUT /processes/{model_id}/disable` — all catalog-mutation operations | `false` |
 | `delete_bpmn` | boolean | Allows: `DELETE /processes/{model_id}/versions/{version}`, `DELETE /processes/{model_id}` (version/process deletion ) | `false` |
-| `purge_audit_data` | boolean | Allows: planned REST manual purge under process-instances (`POST` or `DELETE`, Phase 7) and its CLI equivalent. Not a GraphQL field | `false` |
+| `purge_audit_data` | boolean | Unused in v1 (RET-D1). REST/CLI purge is deferred. Mix `evil.retention.purge` is not JWT-gated | `false` |
 | `lane:<name>` | `"read"` \| `"write"` | `"write"`: act on flow nodes on that lane. `"read"`: observe only. Boolean `true` is rejected. | none |
 | `observe_all` | boolean | Unbounded read/observe of PIs, FNIs, data objects, and WS events. **Never** grants write. | `false` |
 | `zeeky_boogie_doog` | boolean | Admin override: full read **and** write bypass. Distinct from `observe_all`. | `false` |
@@ -282,7 +282,7 @@ authenticated list request runs it).
 | **Abort** (`PUT /process-instances/{id}/abort`) | `abort_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `abort_process_instance=all` (any PI) | `abort_process_instance=none` or absent → `403` |
 | **Retry** (`PUT /process-instances/{id}/retry`) | `retry_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `retry_process_instance=all` (any PI) | `retry_process_instance=none` or absent → `403`. Enforced in `EvilEngine.Api.retry_process_instance/4` via `Validation.check_scoped_claim/4` — not in the controller. Ownership is checked on the *targeted* PI even in tree-retry scenarios (ancestors are reset implicitly) |
 | Soft-**Delete** (`DELETE /process-instances/{id}`) | `delete_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `delete_process_instance=all` (any PI) | `delete_process_instance=none` or absent → `403` |
-| **Purge** (planned REST under process-instances, Phase 7) | `purge_audit_data=true` | Admin-only. Not a GraphQL field |
+| **Purge** (deferred REST; Mix task is the v1 path) | `purge_audit_data` unused | Admin-only Mix/eval; not a GraphQL field |
 
 **Start contract excludes internal execution options.** The public start surface
 (`POST /processes/{model_id}/start` and `EvilEngine.Api.start_process_instance/3`)
@@ -540,7 +540,7 @@ sub: "<unique user id>"
 # Boolean claims (default: false if absent)
 deploy_bpmn: true|false       Deploy, enable/disable processes
 delete_bpmn: true|false       Delete process versions / undeploy processes
-purge_audit_data: true|false   Run retention purge mutations
+purge_audit_data: true|false   Unused in v1 (Mix purge is the retention path)
 zeeky_boogie_doog: true|false Admin read+write override
 observe_all: true|false       Unbounded read/observe; never write
 trigger_escalation: true|false

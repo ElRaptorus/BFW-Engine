@@ -266,7 +266,7 @@ process_instance_events
                                     --   timer.armed | timer.fired | timer.cancelled
                                     --   data_object.written                             (payload carries write_id + flow_node_instance_id + value + previous_value)
                                     --   user_task.claimed | user_task.completed
-                                    --   retention.purged                                (emitted by RetentionRunner + manual purge)
+                                    --   retention.purged                                (not emitted in v1 — Mix purge has no bus event)
                                     --   sink.failed                                     (emitted by EngineEventBus when a sink crashes)
   severity                text      -- error|warn|info|debug|verbose
   occurred_at             timestamptz NOT NULL
@@ -283,10 +283,10 @@ process_instance_events
 
 -- NOTE: `messages`, `pending_messages`, `signals`, and `pending_signals` are
 -- ENGINE-LEVEL AUDIT tables — they have no PI FK (the relation to PIs is via `messages.correlations[]`
--- / broadcast semantics), so they are NOT cleaned up by PI-cascade retention. Engine-audit retention gives them
--- their own story: monthly partitioning on the published_at timestamp (below) + a
--- single opt-in retention knob EVIL_RETENTION_ENGINE_AUDIT_DAYS ([`configuration.md`](./configuration.md) §14.3, §14.6) that the existing
--- `RetentionRunner` applies as a second per-tick pass. Operational-state rows (pending_messages
+-- / broadcast semantics), so they are NOT cleaned up by Pass A (`mix evil.retention.purge`).
+-- Pass B is operator SQL ([`database.md`](../guides/operations/database.md)) using
+-- `EVIL_RETENTION_ENGINE_AUDIT_DAYS` as a cutoff convention ([`configuration.md`](./configuration.md) §14.3, §14.6).
+-- Operational-state rows (pending_messages
 -- state='pending', pending_signals state='pending') are NEVER retention-eligible.
 -- There are no `escalations`, `compensations`, or `engine_timers` tables.
 -- `timer_start_schedules` is operational and is not swept by Pass B.
@@ -316,15 +316,15 @@ pending_messages    -- [`routing.md`](./routing.md) §3.5.4 — unmatched publis
   -- Note: the FK into `messages` is enforced at the logical level via (message_id, published_at)
   -- pair (both tables share the same partition key), so cross-partition FKs behave correctly.
   --
-  -- RETENTION: EVIL_RETENTION_ENGINE_AUDIT_DAYS sweeps rows WHERE state IN ('delivered',
-  -- 'expired','cancelled'). Rows in state='pending' are operational live state and are NEVER
-  -- touched by retention — they either transition naturally (TTL sweeper at [`routing.md`](./routing.md) §3.5.4) or survive
+  -- RETENTION: operator SQL (Pass B) may DELETE rows WHERE state <> 'pending' AND
+  -- published_at < cutoff. Rows in state='pending' are operational live state and are NEVER
+  -- touched — they either transition naturally (TTL sweeper at [`routing.md`](./routing.md) §3.5.4) or survive
   -- until the next engine boot for resume-time re-subscription drain ([`routing.md`](./routing.md) §3.5.5).
   --
   -- DELETE-ON-TRANSITION: if EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false (default
-  -- true), the row is physically deleted the moment its state transitions to delivered/expired/
-  -- cancelled, so this table holds only rows still in state='pending'. Operators choose between
-  -- audit-retention (default) and zero-retention for this table specifically.
+  -- true), the row is physically deleted on deliver/expire/cancel, so this table holds only
+  -- rows still in state='pending'. Operators choose between audit-retention (default) and
+  -- zero-retention for this table specifically.
   id                       uuid NOT NULL (UUIDv7)
   message_id               uuid NOT NULL         -- logical FK to messages (same partition scheme)
   message_name             text NOT NULL         -- denormalized for index
@@ -367,14 +367,14 @@ pending_signals    -- [`routing.md`](./routing.md) §3.5.6 — signals published
   -- Logical FK into `signals` via (signal_id, published_at) — both tables share the partition key,
   -- so cross-partition logical FK behavior matches pending_messages / messages.
   --
-  -- RETENTION: EVIL_RETENTION_ENGINE_AUDIT_DAYS sweeps rows WHERE state IN ('delivered',
-  -- 'expired','cancelled'). Rows in state='pending' are operational live state and are NEVER
-  -- touched by retention — they either transition naturally (TTL sweeper) or survive engine
+  -- RETENTION: operator SQL (Pass B) may DELETE rows WHERE state <> 'pending' AND
+  -- published_at < cutoff. Rows in state='pending' are operational live state and are NEVER
+  -- touched — they either transition naturally (TTL sweeper) or survive engine
   -- boot for resume-time re-subscription drain ([`routing.md`](./routing.md) §3.5.6).
   --
   -- DELETE-ON-TRANSITION: if EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false (default
-  -- true), the row is physically deleted the moment its state transitions to delivered/expired/
-  -- cancelled. Same semantics as EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION.
+  -- true), the row is physically deleted on deliver/expire/cancel. Same semantics as
+  -- EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION.
   id                       uuid NOT NULL (UUIDv7)
   signal_id                uuid NOT NULL         -- logical FK to signals (same partition scheme)
   signal_name              text NOT NULL         -- denormalized for index
@@ -486,6 +486,6 @@ computes pending user-task and waiting-FNI counts with live Ash queries against
 | "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log (table exists; built-in DatabaseSink removed so it stays empty unless a plugin sink writes it) + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
 | "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state IN ('active','waiting')` (in-flight token payload lives on `input_token`) + `gateway_pending_arrivals` (for half-completed joins). PI-scoped timers resume from FNI `type_properties` into Scheduler ETS. There is no `engine_timers` table. |
 | "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `EVIL_TOKEN_MAX_BYTES` |
-| "Bounded engine-wide audit-table growth" | Engine-audit retention (Phase 7, not shipped) closes the gap PI-cascade retention left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned monthly on `published_at` (`EvilEngine.Persistence.Partitions`). Single opt-in knob `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded from retention. Optional `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. There is no `pending_escalations` table (escalation D1). There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and is not swept by Pass B. |
+| "Bounded engine-wide audit-table growth" | Operator SQL (Pass B recipe in [database.md](../guides/operations/database.md)) closes the gap PI-tree Mix purge left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned on `published_at` (`EvilEngine.Persistence.Partitions`). Single unused convention `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded. Optional `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. `timer_start_schedules` is operational — do not DELETE it. Recommend `pg_partman` for `DETACH`/`DROP` of old partitions. |
 | "No duplicated rows per tick" | Snapshot tables are **updated in place**; events are only inserted on real state transitions or domain events |
 | "Leverage SQL" | All heavy queries are plain SQL. No client-side filtering. GraphQL queries translate 1:1 to Ecto queries via AshPostgres |

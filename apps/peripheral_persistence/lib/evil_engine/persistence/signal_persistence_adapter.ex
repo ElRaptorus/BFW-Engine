@@ -100,14 +100,14 @@ defmodule EvilEngine.Persistence.SignalPersistenceAdapter do
   defp do_mark_pending_delivered(pending_signal_id) do
     case Ash.get(PendingSignal, pending_signal_id, authorize?: false) do
       {:ok, record} ->
-        case Ash.update(record, %{}, action: :mark_delivered, authorize?: false) do
-          {:ok, _} -> :ok
-          {:error, %Ash.Error.Invalid{} = error} -> {:error, {:already_claimed, error}}
-          {:error, reason} -> {:error, reason}
-        end
+        transition_pending_signal(record, :mark_delivered)
 
       {:error, reason} ->
-        {:error, reason}
+        if not_found_error?(reason) do
+          {:error, {:already_claimed, reason}}
+        else
+          {:error, reason}
+        end
     end
   end
 
@@ -130,7 +130,7 @@ defmodule EvilEngine.Persistence.SignalPersistenceAdapter do
       {:ok, records} ->
         cancelled_count =
           Enum.count(records, fn record ->
-            match?({:ok, _}, Ash.update(record, %{}, action: :mark_expired, authorize?: false))
+            match?(:ok, transition_pending_signal(record, :mark_expired))
           end)
 
         {:ok, cancelled_count}
@@ -179,11 +179,40 @@ defmodule EvilEngine.Persistence.SignalPersistenceAdapter do
   defp expire_records(expired_records) do
     expired_count =
       Enum.count(expired_records, fn record ->
-        match?({:ok, _}, Ash.update(record, %{}, action: :mark_expired, authorize?: false))
+        match?(:ok, transition_pending_signal(record, :mark_expired))
       end)
 
     {:ok, expired_count}
   end
+
+  defp keep_pending_signals_after_transition? do
+    :peripheral_persistence
+    |> Application.get_env(:retention, [])
+    |> Keyword.get(:pending_signals_keep_after_transition, true)
+  end
+
+  defp transition_pending_signal(record, keep_action) do
+    if keep_pending_signals_after_transition?() do
+      case Ash.update(record, %{}, action: keep_action, authorize?: false) do
+        {:ok, _} -> :ok
+        {:error, %Ash.Error.Invalid{} = error} -> {:error, {:already_claimed, error}}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      case Ash.destroy(record, action: :destroy_if_pending, authorize?: false) do
+        :ok -> :ok
+        {:ok, _} -> :ok
+        {:error, %Ash.Error.Invalid{} = error} -> {:error, {:already_claimed, error}}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp not_found_error?(%Ash.Error.Invalid{errors: errors}) do
+    Enum.any?(errors, &match?(%Ash.Error.Query.NotFound{}, &1))
+  end
+
+  defp not_found_error?(_reason), do: false
 
   @impl true
   def update_started_process_instance_ids(signal_id, started_ids) do
