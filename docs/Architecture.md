@@ -24,124 +24,36 @@ Arrows show the **permitted** direction of runtime dependencies:
   a gRPC sidecar host is deferred, PLUG-D1) and call `EvilEngine.Api` **directly** for commands
   — no HTTP round-trip, no wire-format re-encode.
 
-## 2. Full architecture (Mermaid)
+## 2. Overview
 
-```mermaid
-flowchart TB
-  %% ============ Row 1: External actors (top) ============
-  subgraph EXT["External actors & systems"]
-    direction LR
-    Studio["Bifrost Forge World Studio (React · @elraptorus/daemonengine_client)"]
-    OtherClients["CLI · dashboards · 3rd-party clients"]
-    Obs["External observability · Prometheus · Datadog · OTel · Kafka"]
-    Sidecars["gRPC plugin sidecars · deferred PLUG-D1"]
-  end
+The Engine uses domain driven design and is basically cut into three rough domains:
 
-  %% ============ Row 2: API wire surfaces ============
-  subgraph APIWIRE["API wire surfaces — §10"]
-    direction LR
-    api_auth["api_auth · JWT · HS/RS/ES + JWKS"]
-    api_web["api_web · REST + GraphQL + WebSocket + Admin"]
-  end
+- API: Public interfaces for accessing the Engine
+- Periphery: Plugin Host, Telemetry, Persistence Layer, etc.
+- Core: The actual heart of the Engine, where all the BPMN magic happens
 
-  %% ============ Row 3: Shared service layer (triangle apex) ============
-  api_svc[["EvilEngine.Api · Ash Code Interface · one shared service layer for HTTP surfaces AND plugins · §2.2 / §9"]]
+Each DDD subsystem is a separate OTP application under `apps/`:
 
-  %% ============ Row 4: Core + Peripheral side-by-side (triangle base) ============
-  subgraph BASE[" "]
-    direction LR
-
-    subgraph PERI["Peripheral Domains — §2 / §4 / §9 / §11"]
-      direction TB
-      peri_persist["peripheral_persistence · Ash + AshPostgres · Mix retention purge"]
-      peri_telem["peripheral_telemetry · :telemetry counters · /stats (§11)"]
-      peri_plugins["peripheral_plugins · Registry · in-BEAM loader · sidecar deferred PLUG-D1"]
-      subgraph PERI_SINKS["EventSinks on EngineEventBus"]
-        direction LR
-        sink_console["console · ON"]
-        sink_telem["telemetry · ON"]
-        sink_ws["websocket · ON"]
-        sink_plugin["plugin sinks · user-defined"]
-      end
-    end
-
-    subgraph CORE["Core Domains — §2 / §3 / §5"]
-      direction TB
-      core_types["core_types · behaviour-free structs"]
-      subgraph CORE_RUN[" "]
-        direction LR
-        core_exec["core_execution · PI/FNI runtime · Resume · PayloadCap"]
-        core_events["core_events · EngineEventBus · Pending Sweeper"]
-        core_timers["core_timers · ISO 8601 scheduler"]
-        core_expr["core_expressions · FEEL · Identity resolver"]
-        core_bpmn["core_bpmn · XML parser · ModelCache · Linter gate"]
-      end
-      core_types --- CORE_RUN
-    end
-  end
-
-  %% ============ Storage + seed (bottom) ============
-  Postgres[("PostgreSQL 14+ · monthly partitions")]
-  SeedingDir[/"Seeding Directory · *.bpmn auto-deploy"/]
-
-  %% ============ Edges: Ingress (wire clients → wire surfaces) ============
-  Studio -->|REST · GraphQL · WS| APIWIRE
-  OtherClients -->|REST · GraphQL · WS| APIWIRE
-  OtherClients -.->|Swagger| api_web
-
-  api_web --> api_auth
-
-  %% ============ Edges: wire surfaces → shared service ============
-  api_web --> api_svc
-
-  %% ============ Edges: Plugins bypass HTTP and call the service layer directly ============
-  peri_plugins ==>|direct in-process call · no HTTP| api_svc
-
-  %% ============ Edges: service layer → Core / Peripheral ============
-  api_svc -->|commands| core_exec
-  api_svc -->|Ash read-model| peri_persist
-  api_svc -->|Model graph| core_bpmn
-
-  %% ============ Edges: Core internal ============
-  core_exec <--> core_events
-  core_exec <--> core_timers
-  core_exec <--> core_expr
-  core_exec <--> core_bpmn
-  core_events <--> core_timers
-
-  %% ============ Edges: Core → Persistence ============
-  core_exec -->|Ash actions| peri_persist
-  peri_persist <-->|SQL · partitions| Postgres
-
-  %% ============ Edges: Event egress (dashed, fan-out) ============
-  core_events -.->|Event.* fan-out · parallel · crash-isolated| PERI_SINKS
-  sink_telem --> peri_telem
-  sink_ws --> api_web
-  sink_console -->|stdout JSON| Obs
-  sink_plugin --> peri_plugins
-  sink_plugin -->|forward| Obs
-
-  %% ============ Edges: sidecar bridge + seeding ============
-  peri_plugins -.->|gRPC streams| Sidecars
-  SeedingDir -->|*.bpmn at boot| core_bpmn
-
-  %% ============ Styling ============
-  classDef ext fill:#fdf6e3,stroke:#b58900,color:#073642
-  classDef api fill:#e8f4fd,stroke:#268bd2,color:#073642
-  classDef svc fill:#c9ddf4,stroke:#0d4b8d,color:#073642,stroke-width:2px
-  classDef core fill:#eef7ee,stroke:#859900,color:#073642
-  classDef peri fill:#fbeef2,stroke:#d33682,color:#073642
-  classDef db fill:#fff2b3,stroke:#b58900,color:#073642
-  classDef sink fill:#fbeef2,stroke:#d33682,color:#073642,stroke-dasharray: 4 2
-
-  class Studio,OtherClients,Obs,Sidecars,SeedingDir ext
-  class Postgres db
-  class api_web,api_auth api
-  class api_svc svc
-  class core_types,core_exec,core_events,core_timers,core_expr,core_bpmn core
-  class peri_persist,peri_telem,peri_plugins peri
-  class sink_console,sink_telem,sink_ws,sink_db,sink_plugin sink
 ```
+apps/
+├── core_types/              # Shared, behaviour-free structs
+├── core_execution/          # PI/FNI runtime
+├── core_expressions/        # FEEL evaluator, identity resolver
+├── core_bpmn/               # XML parser, AST, ModelCache, linter gate
+├── core_dmn/                # DMN 1.5 CL3 decision engine
+├── core_timers/             # Timer scheduler (ETS + tick + cycle re-arm), ISO 8601 parser, StartEventManager
+├── core_events/             # EngineEventBus + built-in sinks
+├── api_facade/              # EvilEngine.Api service-layer facade
+├── api_web/                 # REST + GraphQL + WebSocket + Admin
+├── api_auth/                # JWT validator (HS256 / RS256 / ES256 / JWKS)
+├── peripheral_persistence/  # Ash + AshPostgres (mix evil.retention.purge; no RetentionRunner)
+├── peripheral_telemetry/    # :telemetry counters backing /stats
+├── peripheral_plugins/      # Plugin registry + in-BEAM loader (gRPC sidecar deferred, PLUG-D1)
+└── engine_sdk/              # Public behaviours for plugin authors
+```
+
+Dependency direction is strictly inward: `API → Peripheral → Core`. `engine_sdk`
+re-exports only — it never owns types.
 
 ## 3. Layer-by-layer reading guide
 
@@ -168,16 +80,16 @@ exposed as a plain Elixir function. Manual REST purge is **deferred / not v1**
 (RET-D1); operators run `mix evil.retention.purge`. Every wire adapter above and every
 plugin below converges here:
 
-| Caller | Path |
-|---|---|
-| REST controller in `api_web` | `EvilEngine.Api.start_process_instance(input, actor)` |
-| GraphQL resolver in `api_web` | same function call, after Absinthe decoding |
-| WebSocket handler in `api_web` | same function call, after channel decoding |
-| In-BEAM plugin (`peripheral_plugins`, §9.2 mode 1) | **same function call — no HTTP round-trip, no JSON re-encode, no auth replay** |
-| gRPC sidecar plugin (§9.2 mode 2) | **Deferred (PLUG-D1).** Not implemented in v1. A future bridge in `peripheral_plugins` would decode the proto into a call on the same function |
+| Caller                                             | Path                                                                                                                                           |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| REST controller in `api_web`                       | `EvilEngine.Api.start_process_instance(input, actor)`                                                                                          |
+| GraphQL resolver in `api_web`                      | same function call, after Absinthe decoding                                                                                                    |
+| WebSocket handler in `api_web`                     | same function call, after channel decoding                                                                                                     |
+| In-BEAM plugin (`peripheral_plugins`, §9.2 mode 1) | **same function call — no HTTP round-trip, no JSON re-encode, no auth replay**                                                                 |
+| gRPC sidecar plugin (§9.2 mode 2)                  | **Deferred (PLUG-D1).** Not implemented in v1. A future bridge in `peripheral_plugins` would decode the proto into a call on the same function |
 
 This is the guarantee behind the diagram's heavy arrow from `peri_plugins`
-to `api_svc` (labelled *direct in-process call · no HTTP*). Validation,
+to `api_svc` (labelled _direct in-process call · no HTTP_). Validation,
 authorization policies, and audit hooks live **inside** the Ash action, so
 every caller — wire or plugin — gets identical enforcement. No code path
 bypasses the service layer to reach Core or Persistence directly; the
@@ -229,11 +141,11 @@ Three distinct concerns, all decoupled from Core:
 Every `Event.*` published via `EngineEventBus.publish/1` fans out in parallel
 to every sink that returned `true` from `accepts?/2`. Built-in sinks:
 
-| Sink | Default | Purpose |
-|---|---|---|
-| `console` | **ON** | `logger_json` → stdout (consumed by `kubectl logs`, Loki, Cloudwatch, …) |
-| `telemetry` | **ON** | Increments `/stats` counters |
-| `websocket` | **ON** | Phoenix.Channels push to connected clients (Studio debugger live view) |
+| Sink        | Default | Purpose                                                                  |
+| ----------- | ------- | ------------------------------------------------------------------------ |
+| `console`   | **ON**  | `logger_json` → stdout (consumed by `kubectl logs`, Loki, Cloudwatch, …) |
+| `telemetry` | **ON**  | Increments `/stats` counters                                             |
+| `websocket` | **ON**  | Phoenix.Channels push to connected clients (Studio debugger live view)   |
 
 The built-in `database` sink was removed. The `process_instance_events`
 table is retained for migration compatibility but is no longer populated by any
@@ -260,40 +172,40 @@ internal buffering + retry for at-least-once delivery.
   `EVIL_PARTITION_AHEAD_MONTHS` ahead on each boot.
 - **The Seeding Directory** (`EVIL_SEEDING_DIRECTORY`) is scanned once at boot;
   every `*.bpmn` file is deployed through the same code path as `POST
-  /processes`, including the linter-score gate.
+/processes`, including the linter-score gate.
 - **Observability** integrations (Prometheus, Datadog, Loki, OTel, Kafka) are
   **not built into the engine core**. They are realized by plugin EventSinks,
   keeping the core unopinionated about wire format.
 
 ## 4. Mapping to documentation
 
-| Diagram region | Architecture doc | Plan section |
-|---|---|---|
-| DDD boundaries & invariants | — | §2 |
-| Shared service layer (`EvilEngine.Api`, Ash Code Interface) | [`plugins.md`](./architecture/plugins.md) §9.2.5 | §2.2 |
-| Parsed Process Model AST + ModelCache | — | §2.1.3 |
-| Runtime (PI / FNI / handlers) | [`execution.md`](./architecture/execution.md) | §3.1, §3.2, §5, §7 |
-| Event bus + EventSinks | [`event-system.md`](./architecture/event-system.md) | §3.3 |
-| Timer scheduler | [`timers.md`](./architecture/timers.md) | §3.4 |
-| Message / Signal / Escalation routing | [`routing.md`](./architecture/routing.md) | §3.5 |
-| Pending events (TTL hold) | [`routing.md`](./architecture/routing.md) §3.5.4–§3.5.7 | §3.5 |
-| FEEL | [`expressions.md`](./architecture/expressions.md) | — |
-| Plugins & SDKs | [`plugins.md`](./architecture/plugins.md) | §9 |
-| REST + GraphQL + WS | [`api.md`](./architecture/api.md) | — |
-| /stats + /health + /info | [`observability.md`](./architecture/observability.md) | — |
-| Persistence schema | [`data-model.md`](./architecture/data-model.md) | — |
-| Persistence (dual pool) | [`persistence.md`](./architecture/persistence.md) | — |
-| DMN decision engine | [`dmn.md`](./architecture/dmn.md) | — |
-| TypeScript SDK & client | [`sdk-client.md`](./architecture/sdk-client.md) | — |
-| Common pitfalls | [`common-pitfalls.md`](./architecture/common-pitfalls.md) | — |
-| Retention & housekeeping | [`configuration.md`](./architecture/configuration.md) §14.6 | §14.6 |
-| Configuration (env vars) | [`configuration.md`](./architecture/configuration.md) §14.3 | — |
-| Linter-score deploy gate | [`configuration.md`](./architecture/configuration.md) §14.5 | §14.5 |
-| Shipping & deployment | [`shipping.md`](./architecture/shipping.md) | §14 |
-| Testing strategy | [`testing.md`](./architecture/testing.md) | — |
-| Security | [`security.md`](./architecture/security.md) | §13 |
-| JWT auth + authorization | [`authorization.md`](./architecture/authorization.md) | §13 |
-| Architecture detail index | [`architecture/index.md`](./architecture/index.md) | — |
-| Phases (roll-out order) | — | [`ImplementationPhases.md`](./ImplementationPhases.md) |
-| Glossary of terms | — | [`Glossary.md`](./Glossary.md) |
-| Database schema diagram | — | [`Schema.md`](./Schema.md) |
+| Diagram region                                              | Architecture doc                                            | Plan section                                           |
+| ----------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
+| DDD boundaries & invariants                                 | —                                                           | §2                                                     |
+| Shared service layer (`EvilEngine.Api`, Ash Code Interface) | [`plugins.md`](./architecture/plugins.md) §9.2.5            | §2.2                                                   |
+| Parsed Process Model AST + ModelCache                       | —                                                           | §2.1.3                                                 |
+| Runtime (PI / FNI / handlers)                               | [`execution.md`](./architecture/execution.md)               | §3.1, §3.2, §5, §7                                     |
+| Event bus + EventSinks                                      | [`event-system.md`](./architecture/event-system.md)         | §3.3                                                   |
+| Timer scheduler                                             | [`timers.md`](./architecture/timers.md)                     | §3.4                                                   |
+| Message / Signal / Escalation routing                       | [`routing.md`](./architecture/routing.md)                   | §3.5                                                   |
+| Pending events (TTL hold)                                   | [`routing.md`](./architecture/routing.md) §3.5.4–§3.5.7     | §3.5                                                   |
+| FEEL                                                        | [`expressions.md`](./architecture/expressions.md)           | —                                                      |
+| Plugins & SDKs                                              | [`plugins.md`](./architecture/plugins.md)                   | §9                                                     |
+| REST + GraphQL + WS                                         | [`api.md`](./architecture/api.md)                           | —                                                      |
+| /stats + /health + /info                                    | [`observability.md`](./architecture/observability.md)       | —                                                      |
+| Persistence schema                                          | [`data-model.md`](./architecture/data-model.md)             | —                                                      |
+| Persistence (dual pool)                                     | [`persistence.md`](./architecture/persistence.md)           | —                                                      |
+| DMN decision engine                                         | [`dmn.md`](./architecture/dmn.md)                           | —                                                      |
+| TypeScript SDK & client                                     | [`sdk-client.md`](./architecture/sdk-client.md)             | —                                                      |
+| Common pitfalls                                             | [`common-pitfalls.md`](./architecture/common-pitfalls.md)   | —                                                      |
+| Retention & housekeeping                                    | [`configuration.md`](./architecture/configuration.md) §14.6 | §14.6                                                  |
+| Configuration (env vars)                                    | [`configuration.md`](./architecture/configuration.md) §14.3 | —                                                      |
+| Linter-score deploy gate                                    | [`configuration.md`](./architecture/configuration.md) §14.5 | §14.5                                                  |
+| Shipping & deployment                                       | [`shipping.md`](./architecture/shipping.md)                 | §14                                                    |
+| Testing strategy                                            | [`testing.md`](./architecture/testing.md)                   | —                                                      |
+| Security                                                    | [`security.md`](./architecture/security.md)                 | §13                                                    |
+| JWT auth + authorization                                    | [`authorization.md`](./architecture/authorization.md)       | §13                                                    |
+| Architecture detail index                                   | [`architecture/index.md`](./architecture/index.md)          | —                                                      |
+| Phases (roll-out order)                                     | —                                                           | [`ImplementationPhases.md`](./ImplementationPhases.md) |
+| Glossary of terms                                           | —                                                           | [`Glossary.md`](./Glossary.md)                         |
+| Database schema diagram                                     | —                                                           | [`Schema.md`](./Schema.md)                             |
