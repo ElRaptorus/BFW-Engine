@@ -21,12 +21,13 @@ jobs:
       run:
         working-directory: packages/js
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: "24.20"
+          node-version: 24
+          check-latest: true
 
       - name: Install pnpm
         run: npm install -g pnpm@11.25.0
@@ -64,7 +65,7 @@ jobs:
           --health-timeout=5s
           --health-retries=12
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install native build deps
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev
@@ -82,9 +83,10 @@ jobs:
           toolchain: "1.98.0"
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: "24.20"
+          node-version: 24
+          check-latest: true
 
       - name: Install pnpm
         run: npm install -g pnpm@11.25.0
@@ -186,12 +188,13 @@ jobs:
     env:
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Node for GitHub Packages
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: "24.20"
+          node-version: 24
+          check-latest: true
           registry-url: https://npm.pkg.github.com
           scope: "@elraptorus"
 
