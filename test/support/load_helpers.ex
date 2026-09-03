@@ -9,6 +9,7 @@ defmodule EvilEngine.Test.LoadHelpers do
   alias EvilEngine.Persistence.Api, as: Domain
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance
+  alias EvilEngine.Test.BenchmarkReporter
 
   @doc """
   Seed `count` process instances with FNIs into the database.
@@ -94,13 +95,30 @@ defmodule EvilEngine.Test.LoadHelpers do
   @doc """
   Measure the wall-clock time of a function and log it as a benchmark.
 
-  Returns `{elapsed_ms, result}`.
+  Returns `{elapsed_ms, result}`. When `opts` includes `:id`, also records a
+  workload into `EvilEngine.Test.BenchmarkReporter` (no-op if the agent is not
+  started).
+
+  ## Options
+
+  - `:id` — workload identifier; recording is skipped when omitted
+  - `:kind` — `"execution" | "resume" | "seeding" | "pool_pressure" | "dmn"`
+  - `:process_count` — number of process instances in the workload
+  - `:latency_samples_milliseconds` — samples for p50/p95/p99; omit for `null`
+  - `:latency_samples_table` — ETS bag of `{:sample, milliseconds}` read **after** the fun
+  - `:queue_time_milliseconds_p99` — optional P99 DB queue time
+  - `:queue_time_collector` — collector from `start_queue_time_collector/0`, read **after** the fun
+  - `:kpis` — optional throughput KPI map
+  - `:kpi_kind` — `:resume` or `:seeding`; after the fun, copies `process_instances_per_second`
+    into the matching KPI field
   """
   @spec measure(String.t(), (-> term())) :: {non_neg_integer(), term()}
-  def measure(label, fun) do
+  @spec measure(String.t(), (-> term()), keyword()) :: {non_neg_integer(), term()}
+  def measure(label, fun, opts \\ []) when is_list(opts) do
     {elapsed_us, result} = :timer.tc(fun)
     elapsed_ms = div(elapsed_us, 1000)
     IO.puts("[BENCH] #{label}: #{elapsed_ms}ms")
+    maybe_record_measurement(opts, elapsed_ms)
     {elapsed_ms, result}
   end
 
@@ -120,6 +138,22 @@ defmodule EvilEngine.Test.LoadHelpers do
   @spec count_registered_process_instances() :: non_neg_integer()
   def count_registered_process_instances do
     Registry.count(EvilEngine.Execution.Registry)
+  end
+
+  @doc """
+  Restore shared sandbox ownership (P82) then call `ResumeRunner.resume_all/0`.
+
+  Large resume workloads can tear the shared checkout (checkout timeout /
+  OwnershipError). Callers must keep sandbox `{:shared, self()}` — this
+  retries after restore instead of disabling the sandbox.
+  """
+  @spec resume_all_with_sandbox_retry() :: term()
+  def resume_all_with_sandbox_retry do
+    # Do not checkout/restore before the first attempt: a fresh sandbox
+    # transaction hides rows seeded in the test's existing shared checkout (P82).
+    EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+      EvilEngine.Execution.ResumeRunner.resume_all()
+    end)
   end
 
   @doc """
@@ -149,20 +183,8 @@ defmodule EvilEngine.Test.LoadHelpers do
   @doc "Compute the P99 queue_time_ms from collected samples."
   @spec queue_time_p99(map()) :: float()
   def queue_time_p99(%{table: table}) do
-    samples =
-      :ets.tab2list(table)
-      |> Enum.map(fn {:sample, value} -> value end)
-      |> Enum.sort()
-
-    case samples do
-      [] ->
-        0.0
-
-      sorted ->
-        index = trunc(length(sorted) * 0.99)
-        index = min(index, length(sorted) - 1)
-        Enum.at(sorted, index) / 1.0
-    end
+    samples = Enum.map(:ets.tab2list(table), fn {:sample, value} -> value end)
+    percentile(samples, 0.99)
   end
 
   @doc "Compute the max queue_time_ms from collected samples."
@@ -213,21 +235,33 @@ defmodule EvilEngine.Test.LoadHelpers do
     :ok
   end
 
-  @doc "Stop the queue time collector and clean up."
+  @doc """
+  Stop the queue time collector and clean up.
+
+  Idempotent: ExUnit `on_exit` runs after the test process exits, which
+  already drops ETS tables owned by that process. A second `:ets.delete/1`
+  would raise `ArgumentError`.
+  """
   @spec stop_queue_time_collector(map()) :: :ok
   def stop_queue_time_collector(%{table: table, handler_id: handler_id}) do
     :telemetry.detach(handler_id)
-    :ets.delete(table)
+
+    case :ets.info(table) do
+      :undefined -> :ok
+      _info -> :ets.delete(table)
+    end
+
     :ok
   end
 
   @doc "Clean up seeded rows via direct SQL (avoids needing Ash :destroy actions)."
   @spec cleanup_seeded_pis([map()]) :: :ok
   def cleanup_seeded_pis(seeded) do
-    process_instance_ids = Enum.map(seeded, fn %{process_instance_id: id} ->
-      {:ok, binary_uuid} = Ecto.UUID.dump(id)
-      binary_uuid
-    end)
+    process_instance_ids =
+      Enum.map(seeded, fn %{process_instance_id: id} ->
+        {:ok, binary_uuid} = Ecto.UUID.dump(id)
+        binary_uuid
+      end)
 
     EvilEngine.Persistence.Repo.query!(
       "DELETE FROM flow_node_instances WHERE process_instance_id = ANY($1::uuid[])",
@@ -240,5 +274,110 @@ defmodule EvilEngine.Test.LoadHelpers do
     )
 
     :ok
+  end
+
+  defp maybe_record_measurement(opts, elapsed_milliseconds) do
+    case Keyword.get(opts, :id) do
+      nil ->
+        :ok
+
+      id ->
+        process_count = Keyword.get(opts, :process_count, 0)
+        elapsed_denominator = max(elapsed_milliseconds, 1)
+        process_instances_per_second = process_count * 1000 / elapsed_denominator
+
+        BenchmarkReporter.record(%{
+          id: id,
+          kind: Keyword.get(opts, :kind),
+          process_count: process_count,
+          elapsed_milliseconds: elapsed_milliseconds,
+          process_instances_per_second: process_instances_per_second,
+          latencies_milliseconds: latencies_milliseconds(latency_samples_after_fun(opts)),
+          queue_time_milliseconds_p99: queue_time_milliseconds_p99_after_fun(opts),
+          kpis: kpis_after_fun(opts, process_instances_per_second)
+        })
+    end
+  end
+
+  defp latency_samples_after_fun(opts) do
+    case Keyword.fetch(opts, :latency_samples_milliseconds) do
+      {:ok, samples} ->
+        samples
+
+      :error ->
+        case Keyword.get(opts, :latency_samples_table) do
+          nil ->
+            nil
+
+          table ->
+            Enum.map(:ets.tab2list(table), fn {:sample, milliseconds} -> milliseconds end)
+        end
+    end
+  end
+
+  defp queue_time_milliseconds_p99_after_fun(opts) do
+    case Keyword.fetch(opts, :queue_time_milliseconds_p99) do
+      {:ok, queue_time_milliseconds_p99} ->
+        queue_time_milliseconds_p99
+
+      :error ->
+        case Keyword.get(opts, :queue_time_collector) do
+          nil -> nil
+          collector -> queue_time_p99(collector)
+        end
+    end
+  end
+
+  defp kpis_after_fun(opts, process_instances_per_second) do
+    kpis = Keyword.get(opts, :kpis, default_kpis())
+
+    case Keyword.get(opts, :kpi_kind) do
+      :resume ->
+        Map.put(
+          kpis,
+          :resume_throughput_process_instances_per_second,
+          process_instances_per_second
+        )
+
+      :seeding ->
+        Map.put(
+          kpis,
+          :seeding_throughput_process_instances_per_second,
+          process_instances_per_second
+        )
+
+      _other ->
+        kpis
+    end
+  end
+
+  defp default_kpis do
+    %{
+      resume_throughput_process_instances_per_second: nil,
+      seeding_throughput_process_instances_per_second: nil
+    }
+  end
+
+  defp latencies_milliseconds(samples) when is_list(samples) do
+    %{
+      p50: percentile(samples, 0.50),
+      p95: percentile(samples, 0.95),
+      p99: percentile(samples, 0.99)
+    }
+  end
+
+  defp latencies_milliseconds(_omitted), do: nil
+
+  defp percentile(samples, quantile) do
+    sorted_samples = Enum.sort(samples)
+
+    case sorted_samples do
+      [] ->
+        0.0
+
+      _non_empty ->
+        index = min(trunc(length(sorted_samples) * quantile), length(sorted_samples) - 1)
+        Enum.at(sorted_samples, index) / 1.0
+    end
   end
 end

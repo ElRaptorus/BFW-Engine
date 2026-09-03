@@ -11,6 +11,9 @@
 #
 # Or through the mix alias:
 #   mix test.load
+#
+# Optional subset (same argv pattern as test/integration_runner.exs):
+#   MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
 
 Logger.configure(level: :warning)
 
@@ -20,17 +23,38 @@ for file <- Path.wildcard(Path.join(support_dir, "*.ex")) do
   Code.require_file(file)
 end
 
+{:ok, _} = EvilEngine.Test.BenchmarkReporter.start_link()
+
 ExUnit.start(autorun: false, trace: true, timeout: 300_000)
 
-test_dir = Path.expand("load", __DIR__)
+relative_test_trees =
+  case System.argv() |> Enum.reject(&(&1 == "--")) do
+    [] -> ["load"]
+    relative_paths -> relative_paths
+  end
 
-for file <- Path.wildcard(Path.join(test_dir, "**/*_test.exs")) do
+test_files =
+  relative_test_trees
+  |> Enum.flat_map(fn relative_path ->
+    test_path = Path.expand(relative_path, __DIR__)
+
+    cond do
+      File.regular?(test_path) ->
+        [test_path]
+
+      File.dir?(test_path) ->
+        Path.wildcard(Path.join(test_path, "**/*_test.exs"))
+
+      true ->
+        []
+    end
+  end)
+  |> Enum.uniq()
+
+for file <- test_files do
   Code.require_file(file)
 end
 
 %{failures: failures} = ExUnit.run()
 
-if failures > 0 do
-  IO.puts("\n\e[31m✗ #{failures} load test failure(s). Aborting.\e[0m")
-  System.halt(1)
-end
+EvilEngine.Test.LoadRunnerReport.finish!(failures)

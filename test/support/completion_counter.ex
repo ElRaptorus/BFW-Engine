@@ -11,9 +11,19 @@ defmodule EvilEngine.Test.CompletionCounter do
 
   @doc """
   Start a new counter. Returns a handle used by `count/1`, `await/3`, and `stop/1`.
+
+  ## Options
+
+    * `:roots_only` — when `true`, count only root process instances whose
+      `parent_process_instance_id` is `nil`, `:undefined`, or absent from
+      telemetry metadata. Defaults to `false` so child PIs (e.g. Call Activity)
+      are included.
   """
-  @spec start() :: map()
-  def start do
+  @spec start(keyword()) :: map()
+  def start, do: start([])
+
+  def start(opts) do
+    roots_only = Keyword.get(opts, :roots_only, false)
     ref = :atomics.new(1, signed: false)
     handler_id = "completion-counter-#{System.unique_integer([:positive])}"
 
@@ -21,11 +31,12 @@ defmodule EvilEngine.Test.CompletionCounter do
       handler_id,
       [:evil_engine, :process_instance, :state_change],
       fn _event, _measurements, metadata, config ->
-        if metadata.new_state in @terminal_states do
+        if metadata.new_state in @terminal_states and
+             counts_as_completion?(metadata, config.roots_only) do
           :atomics.add(config.ref, 1, 1)
         end
       end,
-      %{ref: ref}
+      %{ref: ref, roots_only: roots_only}
     )
 
     %{ref: ref, handler_id: handler_id}
@@ -68,5 +79,21 @@ defmodule EvilEngine.Test.CompletionCounter do
   def stop(%{handler_id: handler_id}) do
     :telemetry.detach(handler_id)
     :ok
+  end
+
+  defp counts_as_completion?(_metadata, false), do: true
+
+  defp counts_as_completion?(metadata, true) do
+    case Map.fetch(metadata, :parent_process_instance_id) do
+      {:ok, parent_process_instance_id}
+      when parent_process_instance_id in [nil, :undefined] ->
+        true
+
+      :error ->
+        true
+
+      {:ok, _parent_process_instance_id} ->
+        false
+    end
   end
 end

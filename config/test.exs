@@ -9,7 +9,10 @@ config :peripheral_persistence, EvilEngine.Persistence.Repo,
   port: 5543,
   database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: System.schedulers_online() * 2,
+  # Load tests (L6 10k resume orphan sweep) hold the shared sandbox connection
+  # longer than the 15s runtime default. Keep sandbox {:shared, self()}.
+  timeout: 120_000
 
 config :peripheral_persistence, EvilEngine.Persistence.ReadRepo,
   username: "evil_engine",
@@ -18,7 +21,8 @@ config :peripheral_persistence, EvilEngine.Persistence.ReadRepo,
   port: 5543,
   database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: System.schedulers_online() * 2,
+  timeout: 120_000
 
 config :api_web, EvilEngineWeb.Http.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],

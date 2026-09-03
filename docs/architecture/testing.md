@@ -399,7 +399,7 @@ Service Task end-to-end.
 
 ### 12.5 Load tests
 
-All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` or individually with `mix test test/load/<file>.exs --include load`.
+All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`) or individually with `mix test test/load/<file>.exs --include load`. Without `:test`, `ExecutionCase` cannot wrap `DBConnection.ConnectionPool` and every HTTP-start load test fails. CI `load-bench.yml` already sets `MIX_ENV: test`.
 
 #### Execution load tests (`execution_load_test.exs`)
 
@@ -411,32 +411,71 @@ Seed PIs directly via Ash writes (bypassing HTTP), then measure `ResumeRunner.re
 
 #### Pool pressure tests (`pool_pressure_test.exs`)
 
-Concurrent mixed-workload tests that exercise execution writes and GraphQL reads simultaneously against the dual-pool architecture. PI starts use `Task.async_stream` with configurable `max_concurrency` (default 20). PP1: 500 concurrent PIs + 50 GraphQL readers. PP2: 1,000 mixed PIs + 100 GraphQL readers. PP3: burst-start 200 PIs while polling GraphQL continuously. Assertions: **zero `DBConnection.ConnectionError`** (tracked via `[:db_connection, :connection_error]` telemetry), all PIs reach terminal state, all GraphQL queries return 200, P99 `queue_time_ms` < 1,000ms.
+Concurrent mixed-workload tests that exercise execution writes and GraphQL reads simultaneously against the dual-pool architecture. PI starts use `Task.async_stream` with configurable `max_concurrency` (default 20). PP1: 500 concurrent PIs + 50 GraphQL readers. PP2: 1,000 mixed PIs + 100 GraphQL readers (GraphQL tasks are **unlinked** — a sandbox `ConnectionError` on a reader must not EXIT the test process). PP3: burst-start 200 PIs while polling GraphQL continuously. Assertions: **zero `DBConnection.ConnectionError` telemetry** (production-pool signal), all PIs reach terminal state, P99 `queue_time_ms` < 1,000ms. PP1/PP3 also require GraphQL HTTP 200; PP2 treats GraphQL errors on the shared sandbox checkout as P82 noise.
 
 #### Resume pressure tests (`resume_pressure_test.exs`)
 
-Resume-under-GraphQL-pressure: seed 1,000–5,000 PIs, fire `ResumeRunner.resume_all()` while concurrent GraphQL queries hammer the read pool. Verifies that the startup scenario (engine restarts with many PIs, Studio users immediately query) does not cause pool exhaustion.
+RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Concurrent Absinthe/Ash GraphQL during resume (or immediately after, while thousands of PI processes still share the sandbox checkout) aborts the owner connection (P82). Production uses a pooled repo. The suite therefore records resume throughput only; GraphQL-under-resume is not representable in the shared sandbox.
 
 #### DMN load tests (`dmn_load_test.exs`)
 
-DMN decision evaluation throughput under sustained load.
+DMN decision evaluation throughput under sustained load. Each measured batch terminates remaining PI processes afterward so later batches are not inflated by leftover BEAM processes.
+
+#### Standard execution workloads (E8 / E9)
+
+| Test | Workload id(s) | What it exercises |
+|------|----------------|-------------------|
+| E8 | `exec_10000_mixed_standard` | 10,000 root PIs round-robin across linear, parallel gateway, parallel multi-instance script task, and Call Activity fixtures |
+| E9 | `exec_1000_linear_payload_1kib`, `_16kib`, `_64kib` | 1,000 linear PIs each at 1 KiB, 16 KiB, and ~64 KiB start payloads (JSON-encoded size capped at the engine payload limit) |
+
+E8 uses `CompletionCounter.start(roots_only: true)` so Call Activity child PIs do not satisfy the await early — only root terminal PIs increment the counter. E9 uses the default counter (all terminal PIs).
+
+#### Hot-path triage
+
+A recorded KPI is a **hot path** only if E6/E7/E8 P99 `queue_time_ms` is ≥ 1 000, E8 wall time exceeds 5× the first measured baseline (206 507 ms on 2026-09-02; the test assert is capped at 600 s because 5× would exceed the timeout), `:erlang.memory()[:total]` is still climbing after `terminate_all_process_instances`, or resume/seeding throughput falls implausibly below the existing L-test ceilings. End-of-suite `memoryBytes.total` on the JSON report is a snapshot at write time, not a leak detector.
+
+The first Phase 7 standard run (2026-09-03, Linux, Postgres in Docker) found **no hot path**. A later full suite on the same machine recorded E6 57 582 ms with queue P99 17 ms; E7 83 908 ms / 8 ms; E8 198 542 ms / 18 ms (first E8 baseline 206 507 ms). E9 1 KiB / 16 KiB / 64 KiB completed in 7 415 / 10 577 / 16 006 ms. Resume and seeding L-tests stayed inside their existing ceilings. Core was not rewritten.
+
+#### Benchmark reporting
+
+`mix test.load` runs `test/load_runner.exs`, which starts `EvilEngine.Test.BenchmarkReporter` before ExUnit and calls `EvilEngine.Test.LoadRunnerReport.finish!/1` after the suite. Instrumented workloads pass `:id` (and optional KPI metadata) to `LoadHelpers.measure/3`, which still prints `[BENCH]` lines to stdout and records a workload map into the reporter.
+
+After every run — including when ExUnit reports failures — the runner writes a pretty JSON file to `test/load/reports/<utc_compact>.json` (gitignored via `.gitignore`). Top-level report fields:
+
+| Field | Description |
+|-------|-------------|
+| `schemaVersion` | Always `1` |
+| `recordedAt` | UTC ISO 8601 timestamp |
+| `gitSha`, `otpRelease`, `elixirVersion` | Build provenance |
+| `beamProcessCount` | `:erlang.system_info(:process_count)` at write time |
+| `memoryBytes` | Snapshot of `:erlang.memory/0` (`total`, `processes`, `system`, `atom`, `binary`, `ets`) |
+| `garbageCollection` | `numberOfCollections` and `wordsReclaimed` from `:erlang.statistics(:garbage_collection)` |
+| `workloads` | Array of per-workload objects (`id`, `kind`, `processCount`, `elapsedMilliseconds`, `processInstancesPerSecond`, latency percentiles, optional queue-time P99, nested `kpis`) |
+
+Runtime snapshot fields (`beamProcessCount`, `memoryBytes`, `garbageCollection`) are **top-level** on the report — they are not duplicated inside each workload object.
+
+Optional baseline compare: set `EVIL_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
+
+Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load` or the dispatch workflow below.
 
 #### Test helpers
 
 | Helper | Purpose |
 |--------|---------|
 | `LoadHelpers.seed_process_instances/3` | Bulk-seed PIs via direct Ash writes |
-| `LoadHelpers.measure/2` | Wall-clock timing with `[BENCH]` log output |
+| `LoadHelpers.measure/3` | Wall-clock timing with `[BENCH]` log output; records into `BenchmarkReporter` when `:id` is set |
 | `LoadHelpers.start_queue_time_collector/0` | Attach telemetry handler to collect DB queue_time samples |
 | `LoadHelpers.queue_time_p99/1` | Compute P99 from collected samples |
 | `LoadHelpers.queue_time_max/1` | Compute max from collected samples |
 | `LoadHelpers.start_connection_error_collector/0` | Track `DBConnection.ConnectionError` events via telemetry |
 | `LoadHelpers.connection_error_count/1` | Read the connection error count |
-| `CompletionCounter` | Lock-free PI completion counter via `:atomics` + telemetry |
+| `CompletionCounter` | Lock-free PI completion counter via `:atomics` + telemetry; `start(roots_only: true)` counts only root terminal PIs |
+| `BenchmarkReporter` | In-memory workload accumulator; `write!/1` emits schemaVersion 1 JSON |
+| `LoadRunnerReport` | Post-run hook: writes report path, applies exit codes 1 (test failure) / 2 (baseline regression) |
 
 ### 12.6 CI enforcement
 
-`.github/workflows/ci.yml` (workflow_dispatch):
+`.github/workflows/ci.yml` (push / pull_request to `main` and `develop`, plus `workflow_dispatch`):
 
 - Postgres service published on host port **5543** (`config/test.exs`); `mix do --app peripheral_persistence ecto.create` + `ecto.migrate` before tests (`priv/read_repo/migrations` exists empty so Mix does not error on the read pool)
 - `mix format --check-formatted`
@@ -446,3 +485,13 @@ DMN decision evaluation throughput under sustained load.
 - `mix sobelow` for security
 - `mix deps.audit`
 - Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)
+
+`.github/workflows/load-bench.yml` (**manual only** — `workflow_dispatch`; **not** required on pull requests):
+
+| Step | Detail |
+|------|--------|
+| Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
+| Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Node `24.20`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (90-minute job timeout) |
+| Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
+| Baseline | Does **not** set `EVIL_LOAD_BASELINE_PATH` — download the artifact and compare locally |

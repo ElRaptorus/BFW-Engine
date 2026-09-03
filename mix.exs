@@ -192,6 +192,7 @@ defmodule EvilEngine.Umbrella.MixProject do
         "test.conformance": :test,
         "test.coverdata": :test,
         "test.full": :test,
+        "test.load": :test,
         quality: :test
       ]
     ]

@@ -14,7 +14,9 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   ## Threshold methodology
 
   Ceilings are set at ~5x the observed baseline on a local dev machine
-  (M-series Mac, Postgres in Docker). Baselines measured 2026-05-03:
+  (M-series Mac, Postgres in Docker). Baselines measured 2026-05-03
+  except E8/E9 (2026-09-02, Linux, Postgres in Docker). E8's 5× ceiling
+  would exceed the 600 s test timeout, so the assert is capped at 600 s.
 
   | Test | Baseline  | Ceiling |
   |------|-----------|---------|
@@ -25,6 +27,10 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   | E5   |  3,896 ms |   20 s  |
   | E6   | 23,308 ms |  117 s  |
   | E7   | 32,657 ms |  163 s  |
+  | E8   | 206,507 ms |  600 s |
+  | E9 1 KiB | 11,843 ms | 60 s |
+  | E9 16 KiB | 19,652 ms | 99 s |
+  | E9 64 KiB | 30,713 ms | 154 s |
   """
 
   use EvilEngine.ExecutionCase, async: false
@@ -33,8 +39,17 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   alias EvilEngine.Plugins.Loader
   alias EvilEngine.Test.AutoFinisher
   alias EvilEngine.Test.CompletionCounter
+  alias EvilEngine.Test.DbAssertions
   alias EvilEngine.Test.ExamplePlugin
   alias EvilEngine.Test.LoadHelpers
+
+  @payload_cap_bytes 65_536
+  @mi_start_body %{"payload" => %{"items" => [1, 2, 3]}}
+  @e9_elapsed_ceilings_ms %{
+    "1kib" => 60_000,
+    "16kib" => 99_000,
+    "64kib" => 154_000
+  }
 
   @fixtures %{
     linear: {"linear_start_end.bpmn", "LinearStartEnd"},
@@ -73,13 +88,20 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
     counter = CompletionCounter.start()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_100_linear", fn ->
-      for _ <- 1..100 do
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_100_linear",
+        fn ->
+          for _ <- 1..100 do
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 100, 10_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 100, 10_000)
+        end,
+        id: "exec_100_linear",
+        kind: :execution,
+        process_count: 100
+      )
 
     assert CompletionCounter.count(counter) >= 100
     assert elapsed_ms < 1_500
@@ -99,13 +121,20 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
     counter = CompletionCounter.start()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_1000_chained", fn ->
-      for _ <- 1..1_000 do
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_1000_chained",
+        fn ->
+          for _ <- 1..1_000 do
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 1_000, 30_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 1_000, 30_000)
+        end,
+        id: "exec_1000_chained",
+        kind: :execution,
+        process_count: 1_000
+      )
 
     assert CompletionCounter.count(counter) >= 1_000
     assert elapsed_ms < 54_000
@@ -125,13 +154,20 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
     counter = CompletionCounter.start()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_1000_echo", fn ->
-      for _ <- 1..1_000 do
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_1000_echo",
+        fn ->
+          for _ <- 1..1_000 do
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 1_000, 30_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 1_000, 30_000)
+        end,
+        id: "exec_1000_echo",
+        kind: :execution,
+        process_count: 1_000
+      )
 
     assert CompletionCounter.count(counter) >= 1_000
     assert elapsed_ms < 18_000
@@ -151,13 +187,20 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
     counter = CompletionCounter.start()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_1000_async", fn ->
-      for _ <- 1..1_000 do
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_1000_async",
+        fn ->
+          for _ <- 1..1_000 do
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 1_000, 60_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 1_000, 60_000)
+        end,
+        id: "exec_1000_async",
+        kind: :execution,
+        process_count: 1_000
+      )
 
     assert CompletionCounter.count(counter) >= 1_000
     assert elapsed_ms < 21_000
@@ -177,13 +220,20 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
     counter = CompletionCounter.start()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_1000_user_task", fn ->
-      for _ <- 1..1_000 do
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_1000_user_task",
+        fn ->
+          for _ <- 1..1_000 do
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 1_000, 30_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 1_000, 30_000)
+        end,
+        id: "exec_1000_user_task",
+        kind: :execution,
+        process_count: 1_000
+      )
 
     assert CompletionCounter.count(counter) >= 1_000
     assert elapsed_ms < 20_000
@@ -213,14 +263,22 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
     counter = CompletionCounter.start()
     queue_collector = LoadHelpers.start_queue_time_collector()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_5000_mixed", fn ->
-      for i <- 1..5_000 do
-        {_fixture, key} = Enum.at(fixtures, rem(i - 1, 5))
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_5000_mixed",
+        fn ->
+          for i <- 1..5_000 do
+            {_fixture, key} = Enum.at(fixtures, rem(i - 1, 5))
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 5_000, 180_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 5_000, 180_000)
+        end,
+        id: "exec_5000_mixed",
+        kind: :execution,
+        process_count: 5_000,
+        queue_time_collector: queue_collector
+      )
 
     p99_queue_ms = LoadHelpers.queue_time_p99(queue_collector)
     IO.puts("[BENCH] exec_5000_mixed P99 queue_time: #{Float.round(p99_queue_ms, 1)}ms")
@@ -246,13 +304,21 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
     counter = CompletionCounter.start()
     queue_collector = LoadHelpers.start_queue_time_collector()
 
-    {elapsed_ms, _} = LoadHelpers.measure("exec_10000_linear", fn ->
-      for _ <- 1..10_000 do
-        {201, _} = http_start(key)
-      end
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_10000_linear",
+        fn ->
+          for _ <- 1..10_000 do
+            {201, _} = http_start(key)
+          end
 
-      {:ok, _} = CompletionCounter.await(counter, 10_000, 300_000)
-    end)
+          {:ok, _} = CompletionCounter.await(counter, 10_000, 300_000)
+        end,
+        id: "exec_10000_linear",
+        kind: :execution,
+        process_count: 10_000,
+        queue_time_collector: queue_collector
+      )
 
     p99_queue_ms = LoadHelpers.queue_time_p99(queue_collector)
     IO.puts("[BENCH] exec_10000_linear P99 queue_time: #{Float.round(p99_queue_ms, 1)}ms")
@@ -263,5 +329,113 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
     LoadHelpers.stop_queue_time_collector(queue_collector)
     CompletionCounter.stop(counter)
+  end
+
+  # -------------------------------------------------------------------
+  # E8: 10,000 mixed linear / parallel / MI / call-activity
+  # -------------------------------------------------------------------
+
+  @tag :load
+  @tag :e8
+  @tag timeout: 600_000
+  test "E8: 10,000 mixed linear/parallel/MI/call-activity PIs" do
+    {201, _} = http_deploy("linear_start_end.bpmn")
+    {201, _} = http_deploy("parallel_gateway_two_branches.bpmn")
+    {201, _} = http_deploy("mi_parallel_script_task.bpmn")
+    {201, _} = http_deploy("call_activity_child.bpmn")
+    {201, _} = http_deploy("call_activity_basic.bpmn")
+
+    starters = [
+      {"LinearStartEnd", %{}},
+      {"ParallelGatewayTwoBranches", %{}},
+      {"mi-parallel-script-task", @mi_start_body},
+      {"CallActivityBasic", %{}}
+    ]
+
+    counter = CompletionCounter.start(roots_only: true)
+    queue_collector = LoadHelpers.start_queue_time_collector()
+    latency_samples_table = :ets.new(:e8_start_latencies, [:public, :bag])
+
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        "exec_10000_mixed_standard",
+        fn ->
+          for index <- 1..10_000 do
+            {process_model_id, body} = Enum.at(starters, rem(index - 1, 4))
+
+            {start_us, {201, _}} =
+              :timer.tc(fn -> http_start_with_sandbox_retry(process_model_id, body) end)
+
+            :ets.insert(latency_samples_table, {:sample, start_us / 1000})
+          end
+
+          {:ok, _} = CompletionCounter.await(counter, 10_000, 480_000)
+        end,
+        id: "exec_10000_mixed_standard",
+        kind: :execution,
+        process_count: 10_000,
+        latency_samples_table: latency_samples_table,
+        queue_time_collector: queue_collector
+      )
+
+    p99_queue_ms = LoadHelpers.queue_time_p99(queue_collector)
+    IO.puts("[BENCH] exec_10000_mixed_standard P99 queue_time: #{Float.round(p99_queue_ms, 1)}ms")
+
+    assert CompletionCounter.count(counter) >= 10_000
+    assert elapsed_ms < 600_000
+    assert p99_queue_ms < 1_000, "P99 queue_time #{p99_queue_ms}ms exceeds 1000ms ceiling"
+
+    LoadHelpers.stop_queue_time_collector(queue_collector)
+    CompletionCounter.stop(counter)
+    :ets.delete(latency_samples_table)
+  end
+
+  # -------------------------------------------------------------------
+
+  @tag :load
+  @tag :e9
+  @tag timeout: 600_000
+  test "E9: 1,000 linear PIs at 1 KiB / 16 KiB / 64 KiB payloads" do
+    {201, _} = http_deploy("linear_start_end.bpmn")
+
+    for {label, byte_count} <- [{"1kib", 1_024}, {"16kib", 16_384}, {"64kib", 60_000}] do
+      body = payload_of_bytes(byte_count)
+      encoded_payload_bytes = :erlang.iolist_size(Jason.encode!(body["payload"]))
+      assert encoded_payload_bytes <= @payload_cap_bytes
+
+      workload_id = "exec_1000_linear_payload_#{label}"
+      counter = CompletionCounter.start()
+
+      {elapsed_ms, _} =
+        LoadHelpers.measure(
+          workload_id,
+          fn ->
+            for _ <- 1..1_000 do
+              {status, _response} = http_start_with_sandbox_retry("LinearStartEnd", body)
+              assert status == 201
+            end
+
+            {:ok, _} = CompletionCounter.await(counter, 1_000, 180_000)
+          end,
+          id: workload_id,
+          kind: :execution,
+          process_count: 1_000
+        )
+
+      assert CompletionCounter.count(counter) >= 1_000
+      assert elapsed_ms < Map.fetch!(@e9_elapsed_ceilings_ms, label)
+
+      CompletionCounter.stop(counter)
+    end
+  end
+
+  defp payload_of_bytes(byte_count) do
+    %{"payload" => %{"blob" => String.duplicate("a", byte_count)}}
+  end
+
+  defp http_start_with_sandbox_retry(process_model_id, body) do
+    DbAssertions.with_sandbox_retry(fn ->
+      http_start(process_model_id, body)
+    end)
   end
 end

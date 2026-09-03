@@ -64,20 +64,33 @@ defmodule EvilEngine.Load.DmnLoadTest do
   defp run_batch(process_id, count, timeout) do
     counter = CompletionCounter.start()
 
-    {elapsed_ms, _} =
-      LoadHelpers.measure("batch_#{process_id}_#{count}", fn ->
-        for _ <- 1..count do
-          {201, _} = http_start(process_id, @payload)
-        end
+    try do
+      {elapsed_ms, _} =
+        LoadHelpers.measure(
+          "batch_#{process_id}_#{count}",
+          fn ->
+            for _ <- 1..count do
+              {201, _} = http_start(process_id, @payload)
+            end
 
-        case CompletionCounter.await(counter, count, timeout) do
-          {:ok, _completed} -> :ok
-          {:timeout, completed} -> {:partial, completed}
-        end
-      end)
+            case CompletionCounter.await(counter, count, timeout) do
+              {:ok, _completed} -> :ok
+              {:timeout, completed} -> {:partial, completed}
+            end
+          end,
+          id: "batch_#{process_id}_#{count}",
+          kind: :dmn,
+          process_count: count
+        )
 
-    CompletionCounter.stop(counter)
-    elapsed_ms
+      CompletionCounter.stop(counter)
+      elapsed_ms
+    after
+      # Each measured run must start from an empty Execution Supervisor.
+      # Leaving finished PIs registered makes later batches monotonically slower
+      # (D5 climbed 9 s → 35 s across seven 1 000-PI batches on Linux).
+      LoadHelpers.terminate_all_process_instances()
+    end
   end
 
   defp run_measured_scenario(fixture_key, count, timeout) do
