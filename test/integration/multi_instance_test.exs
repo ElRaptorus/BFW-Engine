@@ -678,6 +678,12 @@ defmodule EvilEngine.Integration.MultiInstanceTest do
           state == "waiting"
       )
       |> Ash.read!(authorize?: false)
+      |> Enum.reject(fn flow_node_instance ->
+        type_properties = flow_node_instance.type_properties || %{}
+
+        Map.get(type_properties, "mi_shell") == true or
+          Map.get(type_properties, :mi_shell) == true
+      end)
 
     if length(waiting_flow_node_instances) >= expected_count do
       waiting_flow_node_instances

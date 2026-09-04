@@ -373,7 +373,13 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
 
     case boundaries do
       [] ->
-        propagate_escalation_end(flow_node, context, escalation_info, child_process_instance_id)
+        propagate_escalation_end(
+          flow_node,
+          context,
+          escalation_info,
+          child_process_instance_id,
+          final_tokens
+        )
 
       non_interrupting ->
         Enum.each(non_interrupting, fn boundary_node ->
@@ -395,14 +401,21 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
   end
 
   @doc false
-  def propagate_escalation_end(flow_node, context, escalation_info, child_process_instance_id) do
+  def propagate_escalation_end(
+        flow_node,
+        context,
+        escalation_info,
+        child_process_instance_id,
+        final_tokens \\ []
+      ) do
     type_properties = %{child_process_instance_id: child_process_instance_id}
+    output_payload = output_payload_from_final_tokens(final_tokens)
 
-    case FniLifecycle.finish(context, flow_node, nil, type_properties) do
+    case FniLifecycle.finish(context, flow_node, output_payload, type_properties) do
       {:ok, lifecycle_result} ->
         {:escalation_end_propagate, escalation_info,
          %FlowNodeResult{
-           output_payload: nil,
+           output_payload: output_payload,
            next_flow_node_ids: [],
            type_properties: type_properties,
            metadata: %{persisted: true, lifecycle: lifecycle_result}
@@ -1108,6 +1121,18 @@ defmodule EvilEngine.Execution.FlowNodes.ChildLifecycle do
   # ===================================================================
   # §I — Misc helpers
   # ===================================================================
+
+  defp output_payload_from_final_tokens(final_tokens) when is_list(final_tokens) do
+    payload =
+      Enum.find_value(final_tokens, fn
+        %{payload: payload} when is_map(payload) -> payload
+        _other -> nil
+      end)
+
+    payload || %{}
+  end
+
+  defp output_payload_from_final_tokens(_final_tokens), do: %{}
 
   @doc "Updates the child PI's notify_pid so completion messages reach the current handler Task."
   @spec set_child_notify_pid(pid(), pid()) :: :ok

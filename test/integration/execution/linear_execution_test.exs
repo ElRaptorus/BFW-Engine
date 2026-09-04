@@ -30,7 +30,9 @@ defmodule EvilEngine.Integration.Execution.LinearExecutionTest do
       assert end_fni.flow_node_type == "end_event"
       assert end_fni.event_type == nil
       assert start_fni.input_token == %{"key" => "value"}
-      assert end_fni.finished_at != nil
+      assert start_fni.output_token == %{"key" => "value"}
+      assert end_fni.input_token == %{"key" => "value"}
+      assert end_fni.output_token == %{"key" => "value"}
 
       Enum.each(flow_node_instances, fn fni ->
         assert fni.error_info == nil,
@@ -80,6 +82,10 @@ defmodule EvilEngine.Integration.Execution.LinearExecutionTest do
       assert end_fni.event_type == nil
 
       assert start_fni.input_token == %{"order_id" => 42}
+      assert start_fni.output_token == %{"order_id" => 42}
+      assert task_fni.input_token == %{"order_id" => 42}
+      assert task_fni.output_token == %{"order_id" => 42}
+      assert end_fni.input_token == %{"order_id" => 42}
       assert end_fni.output_token == %{"order_id" => 42}
 
       Enum.each(flow_node_instances, fn fni ->

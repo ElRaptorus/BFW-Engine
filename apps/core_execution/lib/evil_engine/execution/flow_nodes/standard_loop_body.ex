@@ -32,16 +32,40 @@ defmodule EvilEngine.Execution.FlowNodes.StandardLoopBody do
   @impl true
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()}
+          | {:async, String.t(), (-> term()), map()}
           | {:error, term()}
   def handle_enter(flow_node, token, context) do
     %FlowNode{standard_loop: %StandardLoop{} = sl} = flow_node
 
     emit_loop_started(context, flow_node)
+    park_or_run_loop(flow_node, token, context, sl)
+  end
 
-    if sl.test_before do
+  defp park_or_run_loop(flow_node, token, context, sl) do
+    token_payload = token.payload || %{}
+
+    if sl.test_before and not evaluate_condition(sl, [], context, token_payload) do
       run_while_do(flow_node, token, context, sl)
     else
-      run_do_while(flow_node, token, context, sl)
+      park_loop_shell(flow_node, token, context, sl)
+    end
+  end
+
+  defp park_loop_shell(flow_node, token, context, sl) do
+    continuation = fn ->
+      if sl.test_before do
+        run_while_do(flow_node, token, context, sl)
+      else
+        run_do_while(flow_node, token, context, sl)
+      end
+    end
+
+    case FniLifecycle.park_async(context, %{mi_shell: true}) do
+      :ok ->
+        {:async, context.flow_node_instance_id, continuation, %{persisted: true, mi_shell: true}}
+
+      {:error, :persistence_failed} ->
+        {:error, :persistence_failed}
     end
   end
 

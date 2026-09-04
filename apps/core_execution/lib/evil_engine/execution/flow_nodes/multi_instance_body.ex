@@ -32,6 +32,7 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
   @impl true
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()}
+          | {:async, String.t(), (-> term()), map()}
           | {:error, term()}
   def handle_enter(flow_node, token, context) do
     %FlowNode{multi_instance: %MultiInstance{} = mi} = flow_node
@@ -40,14 +41,32 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
 
     with {:ok, collection} <- evaluate_collection(mi, feel_context),
          {:ok, collection} <- validate_collection(collection) do
-      dispatch_mi_strategy(flow_node, token, context, mi, collection)
+      park_or_dispatch(flow_node, token, context, mi, collection)
     end
   end
 
-  defp dispatch_mi_strategy(flow_node, _token, context, mi, []) do
+  defp park_or_dispatch(flow_node, token, context, mi, []) do
+    dispatch_mi_strategy(flow_node, token, context, mi, [])
+  end
+
+  defp park_or_dispatch(flow_node, token, context, mi, collection) do
+    continuation = fn ->
+      dispatch_mi_strategy(flow_node, token, context, mi, collection)
+    end
+
+    case FniLifecycle.park_async(context, %{mi_shell: true}) do
+      :ok ->
+        {:async, context.flow_node_instance_id, continuation, %{persisted: true, mi_shell: true}}
+
+      {:error, :persistence_failed} ->
+        {:error, :persistence_failed}
+    end
+  end
+
+  defp dispatch_mi_strategy(flow_node, token, context, mi, []) do
     emit_mi_started(context, flow_node, mi, 0)
     emit_mi_completed(context, flow_node, mi, 0, 0, false)
-    output = %{"results" => []}
+    output = build_output_collection(mi, [], 0, context, token.payload || %{})
     type_properties = mi_type_properties(mi, 0, [])
 
     with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
@@ -646,10 +665,11 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
   # -- Output collection building ---------------------------------------------
 
   defp build_output_collection(mi, collected, total, context, token_payload) do
-    results = Enum.map(collected, fn r -> r.output_payload end)
+    results = Enum.map(collected, fn result -> result.output_payload end)
+    incoming = token_payload || %{}
 
-    if mi.output_collection do
-      feel_context = FeelContext.from_handler_context(context, token_payload)
+    if is_binary(mi.output_collection) and mi.output_collection != "" do
+      feel_context = FeelContext.from_handler_context(context, incoming)
       completed_count = length(collected)
 
       feel_context =
@@ -663,11 +683,17 @@ defmodule EvilEngine.Execution.FlowNodes.MultiInstanceBody do
         )
 
       case Expressions.eval(mi.output_collection, feel_context) do
-        {:ok, value} -> value
-        _ -> %{"results" => results}
+        {:ok, value} when is_map(value) ->
+          value
+
+        {:ok, value} when is_list(value) ->
+          Map.put(incoming, mi.output_collection, value)
+
+        _other ->
+          Map.put(incoming, mi.output_collection, results)
       end
     else
-      %{"results" => results}
+      Map.put(incoming, "results", results)
     end
   end
 

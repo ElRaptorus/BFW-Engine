@@ -140,12 +140,17 @@ defmodule EvilEngine.Test.ProcessInteractions do
   end
 
   @doc """
-  Query the DB for the first FNI of the given type in `:waiting` state
-  for the specified PI.
+  Query the DB for the first completable FNI of the given type in
+  `:waiting` state for the specified PI.
+
+  Skips MI/loop **shell** FNIs (`type_properties.mi_shell`). Those park as
+  waiting while iterations run; finishing them as a user/service task is
+  invalid. Iteration FNIs (and ordinary non-MI waiting activities) are
+  returned.
   """
   @spec find_waiting_fni(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def find_waiting_fni(process_instance_id, flow_node_type) do
-    result =
+    waiting_flow_node_instances =
       DbAssertions.with_sandbox_retry(fn ->
         FlowNodeInstance
         |> Ash.Query.filter(
@@ -153,14 +158,21 @@ defmodule EvilEngine.Test.ProcessInteractions do
             flow_node_type == ^flow_node_type and
             state == "waiting"
         )
-        |> Ash.Query.limit(1)
         |> Ash.read!(authorize?: false)
       end)
+      |> Enum.reject(&loop_shell_flow_node_instance?/1)
 
-    case result do
+    case waiting_flow_node_instances do
       [flow_node_instance | _] -> {:ok, flow_node_instance}
       [] -> {:error, :not_found}
     end
+  end
+
+  defp loop_shell_flow_node_instance?(flow_node_instance) do
+    type_properties = flow_node_instance.type_properties || %{}
+
+    Map.get(type_properties, "mi_shell") == true or
+      Map.get(type_properties, :mi_shell) == true
   end
 
   @doc """

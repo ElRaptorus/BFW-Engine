@@ -22,7 +22,14 @@ defmodule EvilEngine.Test.EventCollector do
       collector_pid: pid
     )
 
+    Process.put(:evil_engine_test_event_collector, pid)
+
     {:ok, pid}
+  end
+
+  @doc "Collector pid for the current test process, or nil."
+  def current do
+    Process.get(:evil_engine_test_event_collector)
   end
 
   @doc "Return all collected events in order."

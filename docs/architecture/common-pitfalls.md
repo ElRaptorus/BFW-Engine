@@ -1283,3 +1283,19 @@ The same class of race applies whenever a test publishes a competing event (mess
 
 **Correct approach:** Always use the Ash accept list (`:output_token`, not `:output_payload`) when calling `:update_finished`. Assert iteration FNI `output_token` in persistence after an MI run — event presence is not enough. `PersistenceRetry` must not retry `class: :invalid` (see P27).
 
+---
+
+## P87: `assert_pi_state!` must verify the persisted execution chain — events are not persistence
+
+**Mistake:** Asserting PI `finished` plus `FlowNodeInstanceFinished` / `MultiInstanceCompleted` events, and treating that as proof that FNI rows have `input_token` / `output_token` and the correct terminal state.
+
+**Why it happens:** Several persist helpers (`persist_mi_iteration_finished`, compensation throw finish) ignore `_persist_result` and still emit events and update in-memory PI state. The live run looks correct; Ash never wrote `output_token`. Resume, retry, GraphQL, and the Studio debugger then see empty or stale FNI rows.
+
+**Correct approach:** `assert_pi_state!/2` always runs `assert_execution_chain!/2`: every non-boundary FNI has a map `input_token` (incoming payload **before** input mapping); every FNI has `started_at`; terminal FNIs have `finished_at`; finished non-boundary FNIs have a map `output_token` (**after** output mapping); event lifecycle is Started → optional `active→waiting` StateChanged → Finished with `terminal_state` matching the DB row. Types that always park (`user_task`, `receive_task`, `service_task`, `call_activity`, `sub_process`), message/signal/timer/conditional intermediate catches, and MI/loop shells with at least one iteration must have StateChanged. None/Link intermediate catches complete synchronously and do not park. Mapper tests additionally assert the mapped shapes. Pass `verify_execution_chain: false` only when the PI row exists before any FNI.
+
+Parallel persist helpers that skip `FniLifecycle.finish/4` must still write `output_token` **and** emit `FlowNodeInstanceFinished`. Compensation throw with zero targets (`persist_compensation_throw_no_targets/2`) is one such path.
+
+Retry reuses FNI IDs, so `EventCollector` may still hold `FlowNodeInstanceFinished` from the aborted incarnation while the DB row is `waiting` again. The chain helper therefore does not treat historical Finished events as a contradiction of a current `active`/`waiting` row; for a terminal row it asserts the **last** Finished `terminal_state` matches the DB.
+
+Link Catch events and None (untyped) Intermediate Catch events complete synchronously when the token arrives — they must not be required to emit `active → waiting`. Message, signal, timer, and conditional catches must.
+

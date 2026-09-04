@@ -222,12 +222,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
   end
 
   defp assert_final_state(process_instance_id, expected_state) do
-    process_instance = Ash.get!(PiResource, process_instance_id, domain: Domain, authorize?: false)
-
-    unless process_instance.state == expected_state do
-      raise ExUnit.AssertionError,
-        message: "Expected PI state '#{expected_state}', got '#{process_instance.state}'"
-    end
+    apply(EvilEngine.Test.DbAssertions, :assert_pi_state!, [process_instance_id, expected_state])
   end
 
   defp assert_final_tokens_not_nil(process_instance_id) do

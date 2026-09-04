@@ -11,9 +11,20 @@ defmodule EvilEngine.Test.DbAssertions do
   alias EvilEngine.Persistence.Api, as: Domain
   alias EvilEngine.Persistence.Resources.FlowNodeInstance
   alias EvilEngine.Persistence.Resources.ProcessInstance
+  alias EvilEngine.Types.Event
 
   @sandbox_retry_attempts 6
   @sandbox_retry_delay_ms 25
+  @terminal_process_instance_states ~w(finished fatal aborted error compensated escalated cancelled)
+  @terminal_fni_states ~w(finished fatal interrupted aborted error)
+  @parked_flow_node_types MapSet.new([
+                            "user_task",
+                            "receive_task",
+                            "service_task",
+                            "call_activity",
+                            "sub_process"
+                          ])
+  @waiting_catch_event_types MapSet.new(["message", "signal", "timer", "conditional"])
 
   @doc "Fetch a ProcessInstance row by ID. Raises on not-found."
   def fetch_process_instance!(process_instance_id) do
@@ -186,14 +197,49 @@ defmodule EvilEngine.Test.DbAssertions do
 
   defp not_found_error?(_error), do: false
 
-  @doc "Assert a PI row exists with the expected state."
-  def assert_pi_state!(process_instance_id, expected_state) do
+  @doc """
+  Assert a PI row exists with the expected state.
+
+  For any call, also verifies the persisted FNI execution chain
+  (tokens, timestamps, terminal/non-terminal consistency, and
+  Started → optional StateChanged → Finished events). Pass
+  `verify_execution_chain: false` only for assertions that run
+  before FNIs exist.
+  """
+  def assert_pi_state!(process_instance_id, expected_state, opts \\ []) do
     process_instance = fetch_process_instance!(process_instance_id)
-    assert process_instance.state == expected_state, "Expected PI state '#{expected_state}', got '#{process_instance.state}'"
+
+    assert process_instance.state == expected_state,
+           "Expected PI state '#{expected_state}', got '#{process_instance.state}'"
+
+    if Keyword.get(opts, :verify_execution_chain, true) do
+      assert_execution_chain!(process_instance_id, expected_state)
+    end
+
     process_instance
   end
 
-  @terminal_fni_states ["finished", "fatal", "interrupted", "aborted", "error"]
+  @doc """
+  Assert persisted FNI records and event lifecycle for a PI.
+
+  `input_token` is the incoming token at FNI create (before input
+  mapping). `output_token` is the payload after output mapping on a
+  successful finish. Boundary FNIs may have nil tokens (created
+  already-finished on the error path, or finished with an explicit nil
+  payload on the subscription path).
+  """
+  def assert_execution_chain!(process_instance_id, process_instance_state) do
+    flow_node_instances = fetch_flow_node_instances(process_instance_id)
+
+    if process_instance_state in @terminal_process_instance_states do
+      assert_all_fnis_terminal!(process_instance_id)
+    end
+
+    Enum.each(flow_node_instances, &assert_fni_persisted_record!/1)
+    assert_fni_event_lifecycle!(process_instance_id, flow_node_instances)
+
+    flow_node_instances
+  end
 
   @doc """
   Assert that every FNI row for a PI is in a terminal state.
@@ -268,5 +314,158 @@ defmodule EvilEngine.Test.DbAssertions do
   def assert_no_pi!(process_instance_id) do
     assert fetch_process_instance(process_instance_id) == nil,
            "Expected no PI row for #{process_instance_id}, but one exists"
+  end
+
+  defp assert_fni_persisted_record!(flow_node_instance) do
+    assert flow_node_instance.started_at != nil,
+           "FNI #{flow_node_label(flow_node_instance)} is missing started_at"
+
+    if flow_node_instance.state in @terminal_fni_states do
+      assert flow_node_instance.finished_at != nil,
+             "FNI #{flow_node_label(flow_node_instance)} is terminal " <>
+               "(#{flow_node_instance.state}) but missing finished_at"
+    end
+
+    unless boundary_event?(flow_node_instance) do
+      assert is_map(flow_node_instance.input_token),
+             "FNI #{flow_node_label(flow_node_instance)} is missing persisted input_token " <>
+               "(got #{inspect(flow_node_instance.input_token)}). " <>
+               "input_token is the incoming payload before input mapping."
+    end
+
+    case flow_node_instance.state do
+      "finished" ->
+        unless boundary_event?(flow_node_instance) do
+          assert is_map(flow_node_instance.output_token),
+                 "FNI #{flow_node_label(flow_node_instance)} finished without a persisted " <>
+                   "output_token (got #{inspect(flow_node_instance.output_token)}). " <>
+                   "Ash :update_finished accepts :output_token, not :output_payload (P86)."
+        end
+
+      "error" ->
+        if flow_node_instance.flow_node_type == "end_event" do
+          assert is_map(flow_node_instance.output_token),
+                 "Error End FNI #{flow_node_label(flow_node_instance)} must persist output_token"
+        end
+
+      _other ->
+        :ok
+    end
+  end
+
+  defp assert_fni_event_lifecycle!(_process_instance_id, flow_node_instances) do
+    case Process.get(:evil_engine_test_event_collector) do
+      nil ->
+        :ok
+
+      collector_pid ->
+        events = GenServer.call(collector_pid, :get_events)
+        Enum.each(flow_node_instances, &assert_single_fni_event_lifecycle!(&1, events))
+    end
+  end
+
+  defp assert_single_fni_event_lifecycle!(flow_node_instance, events) do
+    started_events = fni_events(events, Event.FlowNodeInstanceStarted, flow_node_instance.id)
+    changed_events = fni_events(events, Event.FlowNodeInstanceStateChanged, flow_node_instance.id)
+    finished_events = fni_events(events, Event.FlowNodeInstanceFinished, flow_node_instance.id)
+
+    assert started_events != [],
+           "FNI #{flow_node_label(flow_node_instance)} has no FlowNodeInstanceStarted event"
+
+    Enum.each(changed_events, fn changed_event ->
+      assert {changed_event.old_state, changed_event.new_state} == {:active, :waiting},
+             "FNI #{flow_node_label(flow_node_instance)} has unexpected StateChanged " <>
+               "#{changed_event.old_state} → #{changed_event.new_state}"
+    end)
+
+    case flow_node_instance.state do
+      "active" ->
+        :ok
+
+      "waiting" ->
+        assert changed_events != [],
+               "FNI #{flow_node_label(flow_node_instance)} is waiting but has no " <>
+                 "FlowNodeInstanceStateChanged (active → waiting)"
+
+      state when state in @terminal_fni_states ->
+        assert finished_events != [],
+               "FNI #{flow_node_label(flow_node_instance)} is #{state} but has no " <>
+                 "FlowNodeInstanceFinished event"
+
+        finished_event = List.last(finished_events)
+
+        assert Atom.to_string(finished_event.terminal_state) == state,
+               "FNI #{flow_node_label(flow_node_instance)} DB state is #{state} but " <>
+                 "Finished.terminal_state is #{inspect(finished_event.terminal_state)}"
+
+        first_started_at = hd(started_events).occurred_at
+        last_finished_at = finished_event.occurred_at
+
+        assert DateTime.compare(first_started_at, last_finished_at) != :gt,
+               "FNI #{flow_node_label(flow_node_instance)} Finished occurred before Started"
+
+        if require_waiting_transition?(flow_node_instance) do
+          assert changed_events != [],
+                 "FNI #{flow_node_label(flow_node_instance)} (#{flow_node_instance.flow_node_type}) " <>
+                   "finished without an active → waiting StateChanged event"
+        end
+
+      other_state ->
+        flunk("FNI #{flow_node_label(flow_node_instance)} has unexpected state #{other_state}")
+    end
+  end
+
+  defp require_waiting_transition?(flow_node_instance) do
+    flow_node_instance.state == "finished" and must_have_parked?(flow_node_instance)
+  end
+
+  defp must_have_parked?(flow_node_instance) do
+    cond do
+      mi_or_loop_shell?(flow_node_instance) ->
+        mi_or_loop_shell_that_parked?(flow_node_instance)
+
+      flow_node_instance.flow_node_type == "intermediate_catch_event" ->
+        MapSet.member?(@waiting_catch_event_types, flow_node_instance.event_type)
+
+      MapSet.member?(@parked_flow_node_types, flow_node_instance.flow_node_type) ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  defp mi_or_loop_shell?(flow_node_instance) do
+    is_nil(flow_node_instance.multi_instance_id) and
+      (match?(%{"multi_instance" => _}, flow_node_instance.type_properties) or
+         match?(%{"standard_loop" => _}, flow_node_instance.type_properties))
+  end
+
+  defp mi_or_loop_shell_that_parked?(flow_node_instance) do
+    case flow_node_instance.type_properties do
+      %{"multi_instance" => %{"total_iterations" => total}}
+      when is_integer(total) and total > 0 ->
+        true
+
+      %{"standard_loop" => %{"total_iterations" => total}}
+      when is_integer(total) and total > 0 ->
+        true
+
+      _other ->
+        false
+    end
+  end
+
+  defp fni_events(events, event_module, flow_node_instance_id) do
+    Enum.filter(events, fn
+      %{__struct__: ^event_module, flow_node_instance_id: ^flow_node_instance_id} -> true
+      _other -> false
+    end)
+  end
+
+  defp boundary_event?(flow_node_instance), do: flow_node_instance.flow_node_type == "boundary_event"
+
+  defp flow_node_label(flow_node_instance) do
+    "#{flow_node_instance.id} (#{flow_node_instance.flow_node_id})"
   end
 end

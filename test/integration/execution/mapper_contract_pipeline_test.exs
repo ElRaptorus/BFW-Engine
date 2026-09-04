@@ -40,7 +40,12 @@ defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
       assert_all_fnis_state!(process_instance_id, "finished")
 
       service_fni = Enum.find(flow_node_instances, &(&1.flow_node_type == "service_task"))
+      end_fni = Enum.find(flow_node_instances, &(&1.flow_node_type == "end_event"))
       assert service_fni.error_info == nil
+      assert service_fni.input_token == %{"order_id" => "ORD-42"}
+      assert service_fni.output_token == %{"result_id" => "ORD-42"}
+      assert end_fni.input_token == %{"result_id" => "ORD-42"}
+      assert end_fni.output_token == %{"result_id" => "ORD-42"}
     end
 
     test "ST-2: corrupt input FEEL → PI fatal" do
@@ -83,6 +88,16 @@ defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
 
       assert_pi_state!(process_instance_id, "finished")
       assert_all_fnis_state!(process_instance_id, "finished")
+
+      service_fni =
+        Enum.find(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.flow_node_type == "service_task")
+        )
+
+      assert service_fni.input_token == %{"raw_id" => "ABC-123"}
+      assert service_fni.output_token["handled_by"] == "echo"
+      assert service_fni.output_token["input"] == %{"id" => "ABC-123"}
     end
   end
 
@@ -98,12 +113,19 @@ defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
 
       user_task_fni = poll_fni_state(process_instance_id, "user_task", "waiting")
       assert user_task_fni.error_info == nil
+      assert user_task_fni.input_token == %{"raw_name" => "Alice"}
 
       {204, _} = http_finish_user_task(user_task_fni.id, %{"user_approved" => true})
 
       wait_for_process_instance(process_instance_id)
       assert_pi_state!(process_instance_id, "finished")
       assert_all_fnis_state!(process_instance_id, "finished")
+
+      finished_user_task =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.flow_node_type == "user_task"))
+
+      assert finished_user_task.input_token == %{"raw_name" => "Alice"}
+      assert finished_user_task.output_token == %{"approved" => true}
     end
 
     test "UT-3: input contract violation → FNI fatal (upstream bug)" do
@@ -168,6 +190,11 @@ defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
       wait_for_process_instance(process_instance_id)
       assert_pi_state!(process_instance_id, "finished")
       assert_all_fnis_state!(process_instance_id, "finished")
+
+      finished_user_task =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.flow_node_type == "user_task"))
+
+      assert finished_user_task.output_token == %{"approved" => true}
     end
   end
 

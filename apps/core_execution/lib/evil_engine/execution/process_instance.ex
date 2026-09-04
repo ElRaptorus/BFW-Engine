@@ -1781,7 +1781,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
       not is_map_key(extra_type_properties, :host_flow_node_instance_id) and
         not is_map_key(extra_type_properties, :fire_at) and
         not is_map_key(extra_type_properties, :join_gateway) and
-        not is_map_key(extra_type_properties, :awaiting_condition)
+        not is_map_key(extra_type_properties, :awaiting_condition) and
+        not is_map_key(extra_type_properties, :mi_shell)
 
     _ =
       if needs_registry do
@@ -1862,10 +1863,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
   end
 
   # Gates plugin `finish_async_service_task` / `fail_async_service_task` only.
-  # Catch events, timers, joins, and Call Activity also park in `:waiting`
-  # via `{:async, id, continuation}` and stamp `async: true` — that flag is
-  # the async return shape, not permission for the plugin callback API.
-  # Only ServiceTask implements `handle_complete/4` for that path.
+  # Catch events, timers, joins, Call Activity, and MI/loop shells also park
+  # in `:waiting` via `{:async, id, continuation}` and stamp `async: true` —
+  # that flag is the async return shape, not permission for the plugin
+  # callback API. MI/loop shells also stamp `mi_shell: true` so they are
+  # not registered in `Execution.Registry`. Only ServiceTask implements
+  # `handle_complete/4` for that path.
   defp validate_async_waiting_entry(entry) do
     type_props = Map.get(entry, :type_properties, %{})
     is_async = Map.get(type_props, :async, false) || Map.get(type_props, "async", false)
@@ -2546,18 +2549,49 @@ defmodule EvilEngine.Execution.ProcessInstance do
     end
   end
 
-  defp persist_compensation_throw_no_targets(_data, flow_node_instance_id) do
+  defp persist_compensation_throw_no_targets(data, flow_node_instance_id) do
+    entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
+
+    output_token =
+      case entry do
+        %{token: %{payload: payload}} -> to_json_safe(payload) || %{}
+        _ -> %{}
+      end
+
     adapter = PersistenceAdapter.adapter()
 
-    PersistenceRetry.with_retry(
-      fn ->
-        adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
-          state: "finished",
-          finished_at: DateTime.utc_now()
-        })
-      end,
-      "FNI comp throw no-targets #{flow_node_instance_id}"
-    )
+    _retry_result =
+      PersistenceRetry.with_retry(
+        fn ->
+          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+            state: "finished",
+            finished_at: DateTime.utc_now(),
+            output_token: output_token
+          })
+        end,
+        "FNI comp throw no-targets #{flow_node_instance_id}"
+      )
+
+    if entry do
+      flow_node = find_flow_node(data, entry.flow_node_id)
+
+      EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
+        flow_node_instance_id: flow_node_instance_id,
+        process_instance_id: data.process_instance_id,
+        root_process_instance_id: data.root_process_instance_id,
+        flow_node_id: entry.flow_node_id,
+        flow_node_type: entry.flow_node_type,
+        event_type: if(flow_node, do: extract_event_type(flow_node)),
+        lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
+        terminal_state: :finished,
+        triggerer_flow_node_instance_id: nil,
+        type_properties: Map.get(entry, :type_properties) || %{},
+        error_info: nil,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        occurred_at: DateTime.utc_now()
+      })
+    end
   end
 
   defp start_compensation_run(data, flow_node_instance_id, result, run_spec, entry, targets) do

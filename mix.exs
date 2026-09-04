@@ -245,6 +245,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       quality: [
         "compile --warnings-as-errors",
         "evil.gen.extension_manifest --check",
+        "format",
         "credo --strict",
         "dialyzer",
         "sobelow",

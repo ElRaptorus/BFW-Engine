@@ -444,6 +444,14 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
   end
 
   defp persist_throw_finished(data, flow_node_instance_id, _runtime) do
+    entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
+
+    output_token =
+      case entry do
+        %{token: %{payload: payload}} -> to_json_safe(payload) || %{}
+        _ -> %{}
+      end
+
     adapter = PersistenceAdapter.adapter()
 
     _retry_result =
@@ -451,13 +459,12 @@ defmodule EvilEngine.Execution.ProcessInstance.CompensationOrchestrator do
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
             state: "finished",
-            finished_at: DateTime.utc_now()
+            finished_at: DateTime.utc_now(),
+            output_token: output_token
           })
         end,
         "FNI comp throw finished #{flow_node_instance_id}"
       )
-
-    entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
 
     if entry do
       emit_throw_finished(data, flow_node_instance_id, entry)

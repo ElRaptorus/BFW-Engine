@@ -1566,7 +1566,7 @@ Sent by a parent handler Task when no boundary matched on the intermediate Call 
 
 **Escalation End Propagate (`{:escalation_end_propagate, escalation_info, result}`):**
 
-Sent by a Call Activity / SubProcess handler when its child PI escalated but no boundary matched on the CA/SP host. The PI finishes the CA/SP FNI as `:interrupted`, interrupts siblings, sets `escalation_info`, and then `maybe_finish` transitions the PI to `:escalated` — propagating the escalation to the grandparent.
+Sent by a Call Activity / SubProcess handler when its child PI escalated but no boundary matched on the CA/SP host. The handler persists the CA/SP FNI as `:finished` with a map `output_token` (child final-token payload, or `%{}` if none) and emits `FlowNodeInstanceFinished`. The PI then interrupts siblings, sets `escalation_info`, and `maybe_finish` transitions the PI to `:escalated`.
 
 ### Scope-Chain Propagation
 
@@ -1650,7 +1650,7 @@ The PI processes `{:compensate, run_spec, result}` from the handler by:
 1. Resolving targets via `CompensationResolver`
 2. Building a `CompensationRun` and storing it in state
 3. Emitting `CompensationTriggered`
-4. Dispatching the first handler target (or completing immediately if no targets)
+4. Dispatching the first handler target, or completing immediately if no targets (`persist_compensation_throw_no_targets/2` writes `output_token` and emits `FlowNodeInstanceFinished` — the throw FNI does not go through `FniLifecycle.finish/4`)
 
 After each handler finishes (`handle_compensation_handler_finished`):
 1. Emit `ActivityCompensated`
@@ -2073,7 +2073,7 @@ Unlike Call Activity or Embedded SubProcess, MI and Standard Loop do **not** spa
 
 ### Shell and Iteration FNIs
 
-When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopCharacteristics>` is dispatched, the PI creates a **shell FNI** that orchestrates the loop. The shell parks as `:waiting` while a `Task` manages the lifecycle:
+When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopCharacteristics>` is dispatched, the PI creates a **shell FNI** that orchestrates the loop. A non-empty collection (or a Standard Loop that will run at least one iteration) parks the shell via `FniLifecycle.park_async/2` and returns `{:async, fni_id, continuation, %{persisted: true, mi_shell: true}}`. The PI emits `FlowNodeInstanceStateChanged` (`active → waiting`) and skips `Execution.Registry` registration (`mi_shell` is excluded from the generic async-FNI registry). The handler Task then runs the continuation. An empty MI collection, or a while-do Standard Loop whose condition is already false, completes synchronously without parking.
 
 - **Parallel MI** — All iteration FNIs are dispatched concurrently. Each runs through `HandlerDispatch` as if it were a normal FNI. Results are collected via `Task.async_stream`.
 - **Sequential MI** — Iteration FNIs are dispatched one at a time. The shell Task awaits each result before dispatching the next.
@@ -2084,13 +2084,13 @@ When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopChar
 #### Multi-Instance (Parallel)
 
 1. Shell FNI enters → evaluate `evil:inputCollection` → determine iteration count
-2. Shell parks as `:waiting`; emits `MultiInstanceStarted`
+2. Shell parks as `:waiting` (`park_async` + `FlowNodeInstanceStateChanged`); emits `MultiInstanceStarted`
 3. All iteration FNIs are dispatched concurrently via `dispatch_mi_iteration_fni`
 4. Each iteration FNI runs the underlying activity handler with a `loop.*` overlay in the FEEL context
 5. As results arrive via `{:fni_result, iteration_fni_id, result}`:
    - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload` — P86), check `completionCondition` / `evil:loopBreakCondition`
    - On failure: persist iteration FNI as `:fatal`; remaining iterations continue (unless break condition)
-6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI
+6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI. `evil:outputCollection` is a **variable name** (handbook), not a FEEL expression that replaces the whole payload. The shell `output_token` is always a map: the incoming token plus `outputCollection → [iteration output payloads]`. An empty collection uses the same helper (zero-length list under that name). If the text happens to evaluate as FEEL to a map, that map is used as the full payload.
 
 #### Multi-Instance (Sequential)
 
@@ -2099,7 +2099,7 @@ Same as parallel but iterations are dispatched one at a time. After each iterati
 #### Standard Loop (while-do / do-while)
 
 1. Shell FNI enters → evaluate `loopCondition` (if `testBefore=true`, check before first iteration)
-2. Shell parks as `:waiting`; emits `MultiInstanceStarted` (with `loopType: "standard_loop"`)
+2. Shell parks as `:waiting` (`park_async` + `FlowNodeInstanceStateChanged`); emits `MultiInstanceStarted` (with `loopType: "standard_loop"`)
 3. Each iteration creates an iteration FNI, runs the activity handler
 4. After each iteration: evaluate `loopCondition`; if still `true` and under `loopMaximum`, dispatch next iteration
 5. When condition becomes `false` or max reached: emit `MultiInstanceCompleted`, finish shell FNI
