@@ -122,17 +122,59 @@ defmodule EvilEngine.Test.DbAssertions do
       end
   end
 
+  @doc "True when Repo is the Ecto SQL Sandbox, not `DBConnection.ConnectionPool`."
+  @spec sandbox_pool?() :: boolean()
+  def sandbox_pool? do
+    Keyword.get(EvilEngine.Persistence.Repo.config(), :pool) == Ecto.Adapters.SQL.Sandbox
+  end
+
+  @doc """
+  Hard-delete all persistence rows.
+
+  Used when load tests run on `DBConnection.ConnectionPool` (no sandbox
+  rollback). Safe to call on an empty database.
+  """
+  @spec truncate_persistence_tables() :: :ok
+  def truncate_persistence_tables do
+    EvilEngine.Persistence.Repo.query!("""
+    TRUNCATE
+      flow_node_instances,
+      process_instances,
+      gateway_pending_arrivals,
+      data_objects,
+      data_object_writes,
+      process_instance_events,
+      process_versions,
+      processes,
+      decision_versions,
+      decision_definitions,
+      timer_start_schedules,
+      pending_messages,
+      pending_signals,
+      messages,
+      signals
+    RESTART IDENTITY CASCADE
+    """)
+
+    :ok
+  end
+
   @doc """
   Re-assert `{:shared, self()}` on both persistence repos.
 
   Called after a Process Instance drain and from sandbox-retry so a killed
   FNI that was mid-write cannot leave later assertions in `:manual` mode.
+  No-op when Repo is a real connection pool (P89).
   """
   def restore_sandbox_shared_mode do
-    Enum.each(
-      [EvilEngine.Persistence.Repo, EvilEngine.Persistence.ReadRepo],
-      &restore_repo_shared_mode/1
-    )
+    if sandbox_pool?() do
+      Enum.each(
+        [EvilEngine.Persistence.Repo, EvilEngine.Persistence.ReadRepo],
+        &restore_repo_shared_mode/1
+      )
+    else
+      :ok
+    end
   end
 
   defp restore_repo_shared_mode(repo) do
@@ -256,9 +298,7 @@ defmodule EvilEngine.Test.DbAssertions do
            "Expected all FNIs on PI #{process_instance_id} to be terminal " <>
              "(#{inspect(@terminal_fni_states)}), but found " <>
              "#{length(non_terminal_flow_node_instances)} non-terminal: " <>
-             inspect(
-               Enum.map(non_terminal_flow_node_instances, &{&1.flow_node_id, &1.state})
-             )
+             inspect(Enum.map(non_terminal_flow_node_instances, &{&1.flow_node_id, &1.state}))
 
     flow_node_instances
   end
@@ -463,7 +503,8 @@ defmodule EvilEngine.Test.DbAssertions do
     end)
   end
 
-  defp boundary_event?(flow_node_instance), do: flow_node_instance.flow_node_type == "boundary_event"
+  defp boundary_event?(flow_node_instance),
+    do: flow_node_instance.flow_node_type == "boundary_event"
 
   defp flow_node_label(flow_node_instance) do
     "#{flow_node_instance.id} (#{flow_node_instance.flow_node_id})"

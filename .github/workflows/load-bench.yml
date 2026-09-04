@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 90
     env:
       MIX_ENV: test
+      EVIL_LOAD_TEST_POOL: "1"
     services:
       postgres:
         image: postgres:16-alpine

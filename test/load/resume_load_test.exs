@@ -28,7 +28,7 @@ defmodule EvilEngine.Load.ResumeLoadTest do
   | L5   | 15,422 ms |   80 s |
   | L6   | 46,340 ms |  232 s |
   | L7   |  8,432 ms |   43 s |
-  | L8   | ~2.1ms/PI | 3ms/PI |
+  | L8   | ~2.1ms/PI | 11ms/PI |
   """
 
   use EvilEngine.ExecutionCase, async: false
@@ -361,7 +361,9 @@ defmodule EvilEngine.Load.ResumeLoadTest do
         )
 
       assert length(seeded) == batch_size
-      assert elapsed_ms < batch_size * 3
+      # 5× of ~2.1ms/PI Linux baseline. The old 3ms/PI cap was ~1.4× and
+      # failed on GitHub ubuntu-latest (2 vCPU) at 3.2ms/PI.
+      assert elapsed_ms < batch_size * 11
 
       LoadHelpers.cleanup_seeded_pis(seeded)
     end

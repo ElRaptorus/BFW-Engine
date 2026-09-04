@@ -1119,7 +1119,7 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 **Correct approach:** Production `config/config.exs` must set `:core_timers, :persistence_module` to `EvilEngine.Persistence.TimerStartScheduleAdapter` (Ash + the operational `timer_start_schedules` table). Test env keeps NoOp; `ExecutionCase` switches integration tests to the adapter. PI-scoped catch/boundary timers stay in FNI `type_properties` plus Scheduler ETS — there is no `engine_timers` table.
 
-**Related test isolation:** Cycle Timer Start registrations stay in Scheduler ETS until `unregister_timer_starts/1`. Integration and conformance share one BEAM in `coverage_runner.exs`, so a leftover `R/PT1S` schedule can delay or starve a later `PT0S` boundary (C83/C91: expected two final tokens, got one). `ExecutionCase` setup calls `EvilEngine.Timers.Scheduler.reset_state/0` after terminating leftover PIs.
+**Related test isolation:** Cycle Timer Start registrations stay in Scheduler ETS until `unregister_timer_starts/1`. Integration and conformance share one BEAM in `coverage_runner.exs`, so a leftover `R/PT1S` schedule can delay or starve a later `PT0S` boundary (C83/C91: expected two final tokens, got one). `ExecutionCase` setup terminates leftover PIs, checks out the sandbox (or truncates the pool), then calls `Scheduler.reset_state/0` (P90).
 
 ## P70: Error Boundary catch codes resolve `errorRef`; catch-all ranks after specific; `fail_async` is the production Service Task failure path
 
@@ -1308,5 +1308,29 @@ Link Catch events and None (untyped) Intermediate Catch events complete synchron
 **Why it happens:** `UserTask.handle_enter` publishes `UserTaskCreated` *before* returning `{:wait}` to the PI. AutoFinisher's `Task` can `finish_user_task` while the FNI is still `:active` → `{:error, :fni_not_waiting}`. Plugin `finish_async` can run before `do_handle_fni_async` `Registry.register`s the FNI → `{:error, :process_instance_not_found}`. Neither path retries, so that PI stays `waiting` forever. Queue-time telemetry handlers left attached after a failed test then `:ets.insert` a dead table (`:badarg`, handler detached). Deploy `Ash.create` inside `Repo.transaction` without `return_notifications?: true` logs missed-notification warnings on every fixture deploy — noise, not the hang.
 
 **Correct approach:** Retry `:fni_not_waiting` / `:fni_not_found` / `:not_found` / `:process_instance_not_found` until the FNI is waiting (`EvilEngine.Test.AsyncCompletionRetry`). Detach queue-time telemetry in `on_exit` and rescue `ArgumentError` on ETS insert. Collect Ash notifications during deploy transactions and `Ash.Notifier.notify/1` after commit.
+
+---
+
+## P89: Load tests must not use the Ecto sandbox — ownership_timeout is not a scale signal
+
+**Mistake:** Reading thousands of `DBConnection.OwnershipError` / HTTP 500 `Process start failed` lines from GitHub load-bench (E8, then PP2) as evidence that Ash/Postgres cannot run 10,000 process instances, or that the runner is merely "overloaded."
+
+**Why it happens:** `config/test.exs` defaults to `pool: Ecto.Adapters.SQL.Sandbox` with `pool_size: System.schedulers_online() * 2` (**4** on GitHub `ubuntu-latest` 2 vCPU). `ExecutionCase` checks out that pool in `{:shared, self()}` with `ownership_timeout: 300_000`. E8's ExUnit timeout is **600_000**. After five minutes the test process still owns the connection; the sandbox kills the owner; every in-flight PI/FNI persist then fails with `cannot find ownership process` / `mode reverts to :manual`. `PersistenceRetry` retries those fatals, so one owner death becomes thousands of log lines. Production uses `DBConnection.ConnectionPool` (write 100 / read 50), not Ownership.
+
+**Correct approach:** Run load tests on a real pool. `mix test.load` and `.github/workflows/load-bench.yml` set `EVIL_LOAD_TEST_POOL=1` so `config/test.exs` uses `DBConnection.ConnectionPool` (`EVIL_LOAD_TEST_POOL_SIZE`, default 16; read pool half of that, minimum 4). `ExecutionCase` skips sandbox checkout in that mode and `TRUNCATE … CASCADE`s runtime tables between tests. Do not raise production pool sizes to paper over sandbox ownership. Do not bump `ownership_timeout` to `:infinity` and keep a single shared connection for 10k PIs.
+
+---
+
+## P90: Checkout the sandbox before `Scheduler.reset_state` — a leftover PI can kill the next test's setup
+
+**Mistake:** Calling `EvilEngine.Timers.Scheduler.reset_state/0` in `ExecutionCase` setup *before* this test process owns the Ecto sandbox, then treating a C174 (or any later) failure in `__ex_unit_setup__` as a broken interrupting timer Event Subprocess.
+
+**Why it happens:** Each ExUnit test is a new process. The previous test is the sandbox owner; when it exits, any still-running PI (non-interrupting ESP child mid-`create_flow_node_instance`, Timer Start spawn, drain timeout) keeps using that connection. `Scheduler.reset_state/0` is ETS-only, but `GenServer.call` waits behind a `:tick` that may persist `timer_start_schedules`. That checkout sees `owner exited` / `client is still using a connection` and crashes the Scheduler. The next test's setup is blamed (C174) even though its body never ran. Shared mode after a later checkout lets a leftover PI grab the *new* connection and deadlock the same way.
+
+**Correct approach:** Terminate leftover PIs, checkout `{shared, self()}` (or truncate on the load-test pool), terminate again, then `reset_state` with retry + `restore_sandbox_shared_mode/0` if the call exits. Drain once more after reset so a tick between drain and reset cannot leave a fresh PI. Do not "fix" C174's timer duration to hide a setup ownership tear.
+
+---
+
+---
 
 

@@ -48,7 +48,7 @@ This means GraphQL queries, REST list/get endpoints, and any `Ash.read` call aut
 | Read | `EVIL_DB_READ_POOL_SIZE` | 50 | GraphQL queries are heavier but far less frequent |
 | Total | — | 150 | 2:1 write-to-read ratio reflects workload asymmetry |
 
-Size Postgres with `max_connections >= (write + read) * engine_nodes + 20`. Production defaults (100 + 50) already exceed Postgres's default `max_connections` of 100; a single-node install needs at least 170 (recommend 200). `config/dev.exs` and `config/test.exs` keep smaller local/sandbox pools.
+Size Postgres with `max_connections >= (write + read) * engine_nodes + 20`. Production defaults (100 + 50) already exceed Postgres's default `max_connections` of 100; a single-node install needs at least 170 (recommend 200). `config/dev.exs` uses a small local pool. `config/test.exs` defaults to the Ecto sandbox (`pool_size: schedulers * 2`); load tests set `EVIL_LOAD_TEST_POOL=1` for a real `ConnectionPool` of 16 write / 8 read (P89) — not the production 100+50, which would exceed GitHub Postgres `max_connections`.
 
 ### Queue tuning (CoDel)
 

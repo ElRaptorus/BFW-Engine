@@ -2,9 +2,9 @@ defmodule EvilEngine.ExecutionCase do
   @moduledoc """
   Case template for execution integration tests.
 
-  Extends `IntegrationCase` with Ecto Sandbox checkout, persistence
-  adapter wiring, and event collector setup so tests can verify
-  DB state and event ordering against real BPMN files.
+  Extends `IntegrationCase` with persistence adapter wiring, event
+  collector setup, and either Ecto Sandbox checkout (integration) or
+  table truncate on a real connection pool (`EVIL_LOAD_TEST_POOL=1`, P89).
 
   Provides two approaches for starting processes:
 
@@ -44,7 +44,20 @@ defmodule EvilEngine.ExecutionCase do
     EvilEngine.BPMN.ModelCache.reset_state()
     terminate_all_process_instances()
     await_supervisor_drain()
-    EvilEngine.Timers.Scheduler.reset_state()
+
+    # Own a connection before Scheduler.reset_state. A leftover PI can still
+    # hold the previous test's sandbox checkout; reset_state then collides
+    # with a Scheduler tick that writes timer_start_schedules (P90).
+    checkout_persistence()
+    terminate_all_process_instances()
+    await_supervisor_drain()
+    EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+
+    reset_scheduler_state()
+    terminate_all_process_instances()
+    await_supervisor_drain()
+    EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+
     ensure_test_secret()
 
     Application.put_env(
@@ -70,16 +83,6 @@ defmodule EvilEngine.ExecutionCase do
       :persistence_module,
       EvilEngine.Persistence.TimerStartScheduleAdapter
     )
-
-    Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.Repo,
-      ownership_timeout: 300_000
-    )
-    Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.Repo, {:shared, self()})
-
-    Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.ReadRepo,
-      ownership_timeout: 300_000
-    )
-    Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.ReadRepo, {:shared, self()})
 
     {:ok, collector_pid} = EvilEngine.Test.EventCollector.start_link(self())
 
@@ -107,6 +110,57 @@ defmodule EvilEngine.ExecutionCase do
     end)
 
     {:ok, collector: collector_pid}
+  end
+
+  defp checkout_persistence do
+    if EvilEngine.Test.DbAssertions.sandbox_pool?() do
+      Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.Repo,
+        ownership_timeout: 300_000
+      )
+
+      Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.Repo, {:shared, self()})
+
+      Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.ReadRepo,
+        ownership_timeout: 300_000
+      )
+
+      Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.ReadRepo, {:shared, self()})
+    else
+      # Real pool (EVIL_LOAD_TEST_POOL=1): previous load tests leave committed
+      # rows. Sandbox rollback does not apply (P89).
+      EvilEngine.Test.DbAssertions.truncate_persistence_tables()
+    end
+  end
+
+  @scheduler_reset_attempts 8
+
+  defp reset_scheduler_state do
+    Enum.reduce_while(1..@scheduler_reset_attempts, :ok, fn attempt, _acc ->
+      case Process.whereis(EvilEngine.Timers.Scheduler) do
+        nil ->
+          if attempt == @scheduler_reset_attempts do
+            raise "EvilEngine.Timers.Scheduler is not running"
+          end
+
+          Process.sleep(50 * attempt)
+          {:cont, :ok}
+
+        _pid ->
+          try do
+            EvilEngine.Timers.Scheduler.reset_state()
+            {:halt, :ok}
+          catch
+            :exit, reason ->
+              if attempt == @scheduler_reset_attempts do
+                exit(reason)
+              end
+
+              EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+              Process.sleep(25 * attempt)
+              {:cont, :ok}
+          end
+      end
+    end)
   end
 
   defp terminate_all_process_instances do
@@ -165,7 +219,9 @@ defmodule EvilEngine.ExecutionCase do
       process_version_id: process_version_id,
       start_event_id: opts[:start_event_id],
       payload: opts[:payload] || %{},
-      identity: opts[:identity] || %EvilEngine.Types.Identity{id: "test-user", roles: ["admin"], groups: []}
+      identity:
+        opts[:identity] ||
+          %EvilEngine.Types.Identity{id: "test-user", roles: ["admin"], groups: []}
     }
 
     case EvilEngine.Execution.start_process_instance(process_instance_options) do
@@ -597,7 +653,8 @@ defmodule EvilEngine.ExecutionCase do
   end
 
   defp do_poll_fni_state(process_instance_id, flow_node_type, expected_state, deadline) do
-    flow_node_instances = EvilEngine.Test.DbAssertions.fetch_flow_node_instances(process_instance_id)
+    flow_node_instances =
+      EvilEngine.Test.DbAssertions.fetch_flow_node_instances(process_instance_id)
 
     match =
       Enum.find(flow_node_instances, fn flow_node_instance ->
@@ -689,7 +746,6 @@ defmodule EvilEngine.ExecutionCase do
           {:DOWN, ^ref, :process, ^pid, _reason} ->
             await_supervisor_drain()
             await_persisted_process_instance(process_instance_id, 5_000)
-
         after
           timeout ->
             Process.demonitor(ref, [:flush])
@@ -744,7 +800,9 @@ defmodule EvilEngine.ExecutionCase do
 
     EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
       case DataObjectResource
-           |> Ash.Query.filter(process_instance_id == ^process_instance_id and data_object_id == ^data_object_id)
+           |> Ash.Query.filter(
+             process_instance_id == ^process_instance_id and data_object_id == ^data_object_id
+           )
            |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
         {:ok, [record]} -> record
         {:ok, []} -> nil
@@ -861,8 +919,16 @@ defmodule EvilEngine.ExecutionCase do
     include_unmatched = Keyword.get(opts, :include_unmatched_details, false)
 
     request_body = %{"input" => input}
-    request_body = if decision_model_id, do: Map.put(request_body, "decisionModelId", decision_model_id), else: request_body
-    request_body = if include_unmatched, do: Map.put(request_body, "includeUnmatchedDetails", true), else: request_body
+
+    request_body =
+      if decision_model_id,
+        do: Map.put(request_body, "decisionModelId", decision_model_id),
+        else: request_body
+
+    request_body =
+      if include_unmatched,
+        do: Map.put(request_body, "includeUnmatchedDetails", true),
+        else: request_body
 
     json_body = Jason.encode!(request_body)
 
@@ -918,10 +984,14 @@ defmodule EvilEngine.ExecutionCase do
     request_body = %{"input" => input}
 
     request_body =
-      if decision_model_id, do: Map.put(request_body, "decisionModelId", decision_model_id), else: request_body
+      if decision_model_id,
+        do: Map.put(request_body, "decisionModelId", decision_model_id),
+        else: request_body
 
     request_body =
-      if include_unmatched, do: Map.put(request_body, "includeUnmatchedDetails", true), else: request_body
+      if include_unmatched,
+        do: Map.put(request_body, "includeUnmatchedDetails", true),
+        else: request_body
 
     json_body = Jason.encode!(request_body)
 

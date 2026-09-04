@@ -223,7 +223,8 @@ defmodule EvilEngine.Umbrella.MixProject do
       "test.examples": ["test apps/peripheral_plugins/test/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
-      "test.load": ["run test/load_runner.exs"],
+      # Sets EVIL_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
+      "test.load": &run_load_tests/1,
       "test.conformance": ["run test/conformance_runner.exs"],
       # Integration + conformance under one :cover session; exports
       # cover/umbrella.coverdata (and copies it into each apps/*/cover/).
@@ -265,6 +266,35 @@ defmodule EvilEngine.Umbrella.MixProject do
         "sobelow --root apps/api_web --router apps/api_web/lib/evil_engine_web/http/router.ex --skip Config.HTTPS --threshold medium"
       ]
     ]
+  end
+
+  defp run_load_tests(args) do
+    run_argv =
+      case args do
+        [] -> ["test/load_runner.exs"]
+        extra -> ["test/load_runner.exs", "--" | extra]
+      end
+
+    if System.get_env("EVIL_LOAD_TEST_POOL") in ["1", "true"] do
+      Mix.Task.run("run", run_argv)
+    else
+      # config/test.exs is evaluated when Mix starts. Setting the env var in
+      # this already-booted VM is too late — re-exec so Repo uses a real pool.
+      environment =
+        System.get_env()
+        |> Map.put("EVIL_LOAD_TEST_POOL", "1")
+        |> Map.put("MIX_ENV", "test")
+
+      {_output, exit_code} =
+        System.cmd("mix", ["run" | run_argv],
+          env: environment,
+          into: IO.stream(:stdio, :line)
+        )
+
+      if exit_code != 0 do
+        Mix.raise("mix test.load failed with exit code #{exit_code}")
+      end
+    end
   end
 
   defp apply_dep_patches(_args) do

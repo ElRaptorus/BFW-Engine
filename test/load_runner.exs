@@ -7,13 +7,14 @@
 # opt-in, run explicitly by developers or a separate CI job.
 #
 # Usage:
-#   MIX_ENV=test mix run test/load_runner.exs
-#
-# Or through the mix alias:
 #   mix test.load
 #
+# The alias sets EVIL_LOAD_TEST_POOL=1 (real DBConnection.ConnectionPool).
+# Do not run this file under the Ecto sandbox — E8 exceeds ownership_timeout
+# and then every in-flight PI logs OwnershipError (P89).
+#
 # Optional subset (same argv pattern as test/integration_runner.exs):
-#   MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
+#   EVIL_LOAD_TEST_POOL=1 MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
 
 Logger.configure(level: :warning)
 
@@ -21,6 +22,14 @@ support_dir = Path.expand("support", __DIR__)
 
 for file <- Path.wildcard(Path.join(support_dir, "*.ex")) do
   Code.require_file(file)
+end
+
+if EvilEngine.Test.DbAssertions.sandbox_pool?() do
+  IO.puts(:stderr, """
+  [load] WARNING: Repo is still Ecto.Adapters.SQL.Sandbox.
+  E8 can exceed ownership_timeout (300s) and cascade OwnershipError (P89).
+  Run via `mix test.load` so EVIL_LOAD_TEST_POOL=1 is set before Mix starts.
+  """)
 end
 
 {:ok, _} = EvilEngine.Test.BenchmarkReporter.start_link()

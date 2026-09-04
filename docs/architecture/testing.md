@@ -115,7 +115,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
 | Module | Purpose |
 |---|---|
-| `ExecutionCase` | Case template: Ecto Sandbox checkout, persistence adapter wiring, event collector setup, PI cleanup |
+| `ExecutionCase` | Case template: persist adapter + event collector; sandbox checkout (or pool truncate) **before** `Scheduler.reset_state` (P90); PI cleanup |
 | `EventCollector` + `EventCollector.Sink` | EventSink-based event accumulator for ordered sequence assertions |
 | `BpmnLoader` | Parse `.bpmn` fixture → `ModelCache.put_new/2` in one call |
 | `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `await_child_process_instance_ids/2`, `fetch_flow_node_instances/1`, `assert_pi_state!/2` (always runs `assert_execution_chain!/2` unless `verify_execution_chain: false`: non-boundary `input_token` map before input mapping, finished non-boundary `output_token` map after output mapping, timestamps, all FNIs terminal on a terminal PI, Started → optional `active→waiting` StateChanged → Finished with matching `terminal_state`; parked types plus MI/loop shells with iterations must have StateChanged — P87), `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes (P45/P82). `fetch_process_instance/1` returns `nil` only for a genuine not-found. |
@@ -400,7 +400,7 @@ Service Task end-to-end.
 
 ### 12.5 Load tests
 
-All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`) or individually with `mix test test/load/<file>.exs --include load`. Without `:test`, `ExecutionCase` cannot wrap `DBConnection.ConnectionPool` and every HTTP-start load test fails. CI `load-bench.yml` already sets `MIX_ENV: test`.
+All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `EVIL_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
 
 #### Execution load tests (`execution_load_test.exs`)
 
@@ -408,15 +408,15 @@ Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks vi
 
 #### Resume load tests (`resume_load_test.exs`)
 
-Seed PIs directly via Ash writes (bypassing HTTP), then measure `ResumeRunner.resume_all()` wall-clock time. Tests L1–L8 cover 100 to 10,000 PIs with varying FNI counts and process types. L8 measures raw DB seeding throughput.
+Seed PIs directly via Ash writes (bypassing HTTP), then measure `ResumeRunner.resume_all()` wall-clock time. Tests L1–L8 cover 100 to 10,000 PIs with varying FNI counts and process types. L8 measures raw DB seeding throughput; its ceiling is 11 ms/PI (5× the ~2.1 ms/PI Linux baseline). The previous 3 ms/PI cap was only ~1.4× and failed on GitHub `ubuntu-latest` (2 vCPU) at 3.2 ms/PI.
 
 #### Pool pressure tests (`pool_pressure_test.exs`)
 
-Concurrent mixed-workload tests that exercise execution writes and GraphQL reads simultaneously against the dual-pool architecture. PI starts use `Task.async_stream` with configurable `max_concurrency` (default 20). PP1: 500 concurrent PIs + 50 GraphQL readers. PP2: 1,000 mixed PIs + 100 GraphQL readers (GraphQL tasks are **unlinked** — a sandbox `ConnectionError` on a reader must not EXIT the test process). PP3: burst-start 200 PIs while polling GraphQL continuously. Assertions: **zero `DBConnection.ConnectionError` telemetry** (production-pool signal), all PIs reach terminal state, P99 `queue_time_ms` < 1,000ms. PP1/PP3 also require GraphQL HTTP 200; PP2 treats GraphQL errors on the shared sandbox checkout as P82 noise.
+Concurrent mixed-workload tests that exercise execution writes and GraphQL reads simultaneously. PI starts use `Task.async_stream` with configurable `max_concurrency` (default 20). PP1: 500 concurrent PIs + 50 GraphQL readers. PP2: 1,000 mixed PIs + 100 GraphQL readers (GraphQL tasks are **unlinked** so a reader crash must not EXIT the test process). PP3: burst-start 200 PIs while polling GraphQL continuously. Assertions: **zero `DBConnection.ConnectionError` telemetry**, all PIs reach terminal state, P99 `queue_time_ms` < 1,000ms. PP1/PP3 also require GraphQL HTTP 200. Under the sandbox these tests were not a production-pool signal (P82/P89); `mix test.load` uses a real pool.
 
 #### Resume pressure tests (`resume_pressure_test.exs`)
 
-RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Concurrent Absinthe/Ash GraphQL during resume (or immediately after, while thousands of PI processes still share the sandbox checkout) aborts the owner connection (P82). Production uses a pooled repo. The suite therefore records resume throughput only; GraphQL-under-resume is not representable in the shared sandbox.
+RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Concurrent Absinthe/Ash GraphQL during resume used to abort the Ecto sandbox owner (P82). Load tests now use a real connection pool (P89); GraphQL-under-resume is still omitted from RP1/RP2 so the recorded KPI stays resume throughput only.
 
 #### DMN load tests (`dmn_load_test.exs`)
 
@@ -470,6 +470,7 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 | `LoadHelpers.queue_time_max/1` | Compute max from collected samples |
 | `LoadHelpers.start_connection_error_collector/0` | Track `DBConnection.ConnectionError` events via telemetry |
 | `LoadHelpers.connection_error_count/1` | Read the connection error count |
+| `DbAssertions.truncate_persistence_tables/0` | `TRUNCATE … CASCADE` between load tests when not on the sandbox |
 | `CompletionCounter` | Lock-free PI completion counter via `:atomics` + telemetry; `start(roots_only: true)` counts only root terminal PIs |
 | `BenchmarkReporter` | In-memory workload accumulator; `write!/1` emits schemaVersion 1 JSON |
 | `LoadRunnerReport` | Post-run hook: writes report path, applies exit codes 1 (test failure) / 2 (baseline regression) |
@@ -493,6 +494,6 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
 | Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
-| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (90-minute job timeout). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (90-minute job timeout). Job env sets `MIX_ENV: test` and `EVIL_LOAD_TEST_POOL: "1"` (P89). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
 | Baseline | Does **not** set `EVIL_LOAD_BASELINE_PATH` — download the artifact and compare locally |

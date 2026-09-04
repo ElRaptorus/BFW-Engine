@@ -2,27 +2,71 @@ import Config
 
 config :logger, level: :warning
 
-config :peripheral_persistence, EvilEngine.Persistence.Repo,
-  username: "evil_engine",
-  password: "evil_engine",
-  hostname: "localhost",
-  port: 5543,
-  database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2,
-  # Load tests (L6 10k resume orphan sweep) hold the shared sandbox connection
-  # longer than the 15s runtime default. Keep sandbox {:shared, self()}.
-  timeout: 120_000
+# Integration/conformance use the Ecto sandbox (one shared connection per
+# test, rolled back at the end). Load tests must not: E8 owns that
+# connection longer than ownership_timeout (300s) and then every PI
+# explodes with OwnershipError (P89). `mix test.load` and the GitHub
+# load-bench job set EVIL_LOAD_TEST_POOL=1 so Repo uses a real pool.
+load_test_pool? = System.get_env("EVIL_LOAD_TEST_POOL") in ["1", "true"]
 
-config :peripheral_persistence, EvilEngine.Persistence.ReadRepo,
-  username: "evil_engine",
-  password: "evil_engine",
-  hostname: "localhost",
-  port: 5543,
-  database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2,
-  timeout: 120_000
+load_test_write_pool_size =
+  String.to_integer(System.get_env("EVIL_LOAD_TEST_POOL_SIZE") || "16")
+
+load_test_read_pool_size = max(div(load_test_write_pool_size, 2), 4)
+
+repo_pool =
+  if load_test_pool? do
+    [
+      pool: DBConnection.ConnectionPool,
+      pool_size: load_test_write_pool_size,
+      queue_target: 5_000,
+      queue_interval: 10_000,
+      timeout: 120_000
+    ]
+  else
+    [
+      pool: Ecto.Adapters.SQL.Sandbox,
+      pool_size: System.schedulers_online() * 2,
+      timeout: 120_000
+    ]
+  end
+
+read_repo_pool =
+  if load_test_pool? do
+    [
+      pool: DBConnection.ConnectionPool,
+      pool_size: load_test_read_pool_size,
+      queue_target: 5_000,
+      queue_interval: 10_000,
+      timeout: 120_000
+    ]
+  else
+    [
+      pool: Ecto.Adapters.SQL.Sandbox,
+      pool_size: System.schedulers_online() * 2,
+      timeout: 120_000
+    ]
+  end
+
+config :peripheral_persistence,
+       EvilEngine.Persistence.Repo,
+       [
+         username: "evil_engine",
+         password: "evil_engine",
+         hostname: "localhost",
+         port: 5543,
+         database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
+       ] ++ repo_pool
+
+config :peripheral_persistence,
+       EvilEngine.Persistence.ReadRepo,
+       [
+         username: "evil_engine",
+         password: "evil_engine",
+         hostname: "localhost",
+         port: 5543,
+         database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
+       ] ++ read_repo_pool
 
 config :api_web, EvilEngineWeb.Http.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
