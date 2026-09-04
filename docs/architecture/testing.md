@@ -404,7 +404,7 @@ All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix te
 
 #### Execution load tests (`execution_load_test.exs`)
 
-Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks via EventSink, assert all PIs reach terminal state within time ceilings. Tests E1–E5 cover single fixture types (100–1,000 PIs). E6 mixes all 5 fixture types (5,000 PIs). E7 is a stress test with 10,000 linear PIs. E6 and E7 additionally capture `queue_time` telemetry and assert P99 checkout wait < 1,000ms.
+Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks via EventSink, assert all PIs reach terminal state within time ceilings. Tests E1–E5 cover single fixture types (100–1,000 PIs). E6 mixes all 5 fixture types (5,000 PIs). E7 is a stress test with 10,000 linear PIs. E6 and E7 additionally capture `queue_time` telemetry and assert P99 checkout wait < 1,000ms. AutoFinisher and the echo service-task handlers retry `:fni_not_waiting` / `:process_instance_not_found` (P88) so a single early finish does not leave one PI waiting forever. E6's elapsed ceiling is 180 s on GitHub `ubuntu-latest` (2 vCPU), not 5× the Mac baseline.
 
 #### Resume load tests (`resume_load_test.exs`)
 
@@ -420,7 +420,7 @@ RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resum
 
 #### DMN load tests (`dmn_load_test.exs`)
 
-DMN decision evaluation throughput under sustained load. Each measured batch terminates remaining PI processes afterward so later batches are not inflated by leftover BEAM processes.
+DMN decision evaluation throughput under sustained load. Each measured batch terminates remaining PI processes afterward so later batches are not inflated by leftover BEAM processes. Assert ceilings are ~5× the 2026-05-21 M-series Mac averages (same multiplier as execution/resume). The original 3× Mac ceilings are too tight for GitHub `ubuntu-latest` (2 vCPU): D7 averaged 16,583 ms against a 14,937 ms cap.
 
 #### Standard execution workloads (E8 / E9)
 

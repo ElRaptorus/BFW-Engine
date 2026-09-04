@@ -1299,3 +1299,14 @@ Retry reuses FNI IDs, so `EventCollector` may still hold `FlowNodeInstanceFinish
 
 Link Catch events and None (untyped) Intermediate Catch events complete synchronously when the token arrives — they must not be required to emit `active → waiting`. Message, signal, timer, and conditional catches must.
 
+---
+
+## P88: Load-test finishers must retry `:fni_not_waiting` — `UserTaskCreated` races the PI wait transition
+
+**Mistake:** Treating GitHub load-bench failures (`assert average < ceiling`, or `{:timeout, 4999}` of 5,000) as timing-ceiling misses only, and leaving AutoFinisher / echo handlers as a single fire-and-forget finish.
+
+**Why it happens:** `UserTask.handle_enter` publishes `UserTaskCreated` *before* returning `{:wait}` to the PI. AutoFinisher's `Task` can `finish_user_task` while the FNI is still `:active` → `{:error, :fni_not_waiting}`. Plugin `finish_async` can run before `do_handle_fni_async` `Registry.register`s the FNI → `{:error, :process_instance_not_found}`. Neither path retries, so that PI stays `waiting` forever. Queue-time telemetry handlers left attached after a failed test then `:ets.insert` a dead table (`:badarg`, handler detached). Deploy `Ash.create` inside `Repo.transaction` without `return_notifications?: true` logs missed-notification warnings on every fixture deploy — noise, not the hang.
+
+**Correct approach:** Retry `:fni_not_waiting` / `:fni_not_found` / `:not_found` / `:process_instance_not_found` until the FNI is waiting (`EvilEngine.Test.AsyncCompletionRetry`). Detach queue-time telemetry in `on_exit` and rescue `ArgumentError` on ETS insert. Collect Ash notifications during deploy transactions and `Ash.Notifier.notify/1` after commit.
+
+

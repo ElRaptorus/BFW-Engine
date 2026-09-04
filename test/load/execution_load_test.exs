@@ -18,7 +18,10 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   except E8/E9 (2026-09-02, Linux, Postgres in Docker). E5's ceiling is
   60 s (not 5×) because GitHub `ubuntu-latest` (2 vCPU) plus the
   AutoFinisher HTTP round-trip routinely exceeds 20 s for the last
-  stragglers. E8's 5× ceiling would exceed the 600 s test timeout, so
+  stragglers. E6's ceiling is 180 s (not 5×) for the same runner: a
+  mixed 5,000-PI start loop already takes ~100 s there, and a single
+  missed AutoFinisher/echo finish used to hang at 4,999/5,000 (P88).
+  E8's 5× ceiling would exceed the 600 s test timeout, so
   the assert is capped at 600 s.
 
   | Test | Baseline  | Ceiling |
@@ -28,7 +31,7 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   | E3   |  3,628 ms |   18 s  |
   | E4   |  4,267 ms |   21 s  |
   | E5   |  3,896 ms |   60 s  |
-  | E6   | 23,308 ms |  117 s  |
+  | E6   | 23,308 ms |  180 s  |
   | E7   | 32,657 ms |  163 s  |
   | E8   | 206,507 ms |  600 s |
   | E9 1 KiB | 11,843 ms | 60 s |
@@ -290,7 +293,7 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
     IO.puts("[BENCH] exec_5000_mixed P99 queue_time: #{Float.round(p99_queue_ms, 1)}ms")
 
     assert CompletionCounter.count(counter) >= 5_000
-    assert elapsed_ms < 120_000
+    assert elapsed_ms < 180_000
     assert p99_queue_ms < 1_000, "P99 queue_time #{p99_queue_ms}ms exceeds 1000ms ceiling"
 
     LoadHelpers.stop_queue_time_collector(queue_collector)

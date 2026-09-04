@@ -170,12 +170,22 @@ defmodule EvilEngine.Test.LoadHelpers do
       handler_id,
       [:evil_engine, :db, :query],
       fn _event, measurements, _metadata, config ->
-        if is_number(measurements[:queue_time_ms]) do
-          :ets.insert(config.table, {:sample, measurements[:queue_time_ms]})
+        queue_time_ms = measurements[:queue_time_ms]
+
+        if is_number(queue_time_ms) do
+          try do
+            :ets.insert(config.table, {:sample, queue_time_ms})
+          rescue
+            ArgumentError -> :ok
+          end
         end
       end,
       %{table: table}
     )
+
+    # Test crash skips `stop_queue_time_collector/1`; the ETS table dies with
+    # the test process but the telemetry handler stays attached (P88).
+    ExUnit.Callbacks.on_exit(fn -> :telemetry.detach(handler_id) end)
 
     %{table: table, handler_id: handler_id}
   end

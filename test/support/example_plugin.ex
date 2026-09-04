@@ -66,19 +66,21 @@ defmodule EvilEngine.Test.ExamplePlugin.EchoHandler do
   """
   @behaviour EvilEngine.Plugin.ServiceTaskHandler
 
+  alias EvilEngine.Test.AsyncCompletionRetry
+
   @impl true
   def handle_enter(flow_node, token, context) do
     flow_node_instance_id = context.flow_node_instance_id
     facade = EvilEngine.Test.ExamplePlugin.FacadeStore.get()
 
     spawn(fn ->
-      Process.sleep(50)
-
-      facade.service_tasks.finish_async.(flow_node_instance_id, %{
-        "handled_by" => "echo",
-        "flow_node_id" => flow_node.id,
-        "input" => token.payload
-      })
+      AsyncCompletionRetry.until_ok(fn ->
+        facade.service_tasks.finish_async.(flow_node_instance_id, %{
+          "handled_by" => "echo",
+          "flow_node_id" => flow_node.id,
+          "input" => token.payload
+        })
+      end)
     end)
 
     {:async, flow_node_instance_id}
@@ -93,19 +95,21 @@ defmodule EvilEngine.Test.ExamplePlugin.AsyncEchoHandler do
   """
   @behaviour EvilEngine.Plugin.ServiceTaskHandler
 
+  alias EvilEngine.Test.AsyncCompletionRetry
+
   @impl true
   def handle_enter(_flow_node, token, context) do
     flow_node_instance_id = context.flow_node_instance_id
     facade = EvilEngine.Test.ExamplePlugin.FacadeStore.get()
 
     spawn(fn ->
-      Process.sleep(100)
-
-      facade.service_tasks.finish_async.(flow_node_instance_id, %{
-        "handled_by" => "async_echo",
-        "async" => true,
-        "input" => token.payload
-      })
+      AsyncCompletionRetry.until_ok(fn ->
+        facade.service_tasks.finish_async.(flow_node_instance_id, %{
+          "handled_by" => "async_echo",
+          "async" => true,
+          "input" => token.payload
+        })
+      end)
     end)
 
     {:async, flow_node_instance_id}

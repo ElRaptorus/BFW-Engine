@@ -234,7 +234,7 @@ defmodule EvilEngine.Api do
             enabled: is_executable,
             created_at: DateTime.utc_now()
           })
-          |> Ash.create(authorize?: false)
+          |> ash_create()
 
         process
     end
@@ -300,7 +300,7 @@ defmodule EvilEngine.Api do
   def create_process_version(attrs) do
     Resources.ProcessVersion
     |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create(authorize?: false)
+    |> ash_create()
     |> case do
       {:ok, version} ->
         {:ok, version}
@@ -334,6 +334,52 @@ defmodule EvilEngine.Api do
   end
 
   defp identity_violation?(_), do: false
+
+  # Ash cannot deliver notifiers from inside `Repo.transaction/1`. Collect
+  # notifications while a stash is active and flush after commit (P88).
+  defp ash_create(changeset) do
+    case Ash.create(changeset, authorize?: false, return_notifications?: true) do
+      {:ok, record, notifications} ->
+        collect_ash_notifications(notifications)
+        {:ok, record}
+
+      {:ok, record} ->
+        {:ok, record}
+
+      error ->
+        error
+    end
+  end
+
+  defp stash_ash_notifications do
+    Process.put(:evil_engine_ash_notifications, [])
+    :ok
+  end
+
+  defp collect_ash_notifications(notifications) do
+    wrapped = List.wrap(notifications)
+
+    case Process.get(:evil_engine_ash_notifications) do
+      nil ->
+        _notified = Ash.Notifier.notify(wrapped)
+        :ok
+
+      accumulated ->
+        Process.put(:evil_engine_ash_notifications, accumulated ++ wrapped)
+        :ok
+    end
+  end
+
+  defp flush_ash_notifications({:ok, _result}) do
+    notifications = Process.delete(:evil_engine_ash_notifications) || []
+    _notified = Ash.Notifier.notify(notifications)
+    :ok
+  end
+
+  defp flush_ash_notifications(_tx_result) do
+    Process.delete(:evil_engine_ash_notifications)
+    :ok
+  end
 
   @doc "Soft-delete a ProcessVersion."
   @spec soft_delete_process_version(struct(), map(), keyword()) ::
@@ -448,6 +494,7 @@ defmodule EvilEngine.Api do
 
   defp do_persist_deploy_batch(process_versions, deployer, opts) do
     source = Keyword.get(opts, :source, derive_source(deployer))
+    stash_ash_notifications()
 
     tx_result =
       Repo.transaction(fn ->
@@ -456,6 +503,7 @@ defmodule EvilEngine.Api do
         |> Enum.reverse()
       end)
 
+    flush_ash_notifications(tx_result)
     unwrap_deploy_result(tx_result, source)
   end
 
@@ -1421,6 +1469,7 @@ defmodule EvilEngine.Api do
 
   defp do_deploy_dmn_batch(decision_versions, deployer, opts) do
     source = Keyword.get(opts, :source, derive_source(deployer))
+    stash_ash_notifications()
 
     tx_result =
       Repo.transaction(fn ->
@@ -1429,6 +1478,7 @@ defmodule EvilEngine.Api do
         |> Enum.reverse()
       end)
 
+    flush_ash_notifications(tx_result)
     unwrap_dmn_deploy_result(tx_result, source)
   end
 
@@ -1950,7 +2000,7 @@ defmodule EvilEngine.Api do
             enabled: true,
             created_at: DateTime.utc_now()
           })
-          |> Ash.create(authorize?: false)
+          |> ash_create()
 
         definition
     end
@@ -1959,7 +2009,7 @@ defmodule EvilEngine.Api do
   defp create_decision_version(attrs) do
     Resources.DecisionVersion
     |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create(authorize?: false)
+    |> ash_create()
     |> case do
       {:ok, version} ->
         {:ok, version}

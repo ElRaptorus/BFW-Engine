@@ -4,12 +4,13 @@ defmodule EvilEngine.Test.AutoFinisher do
 
   Used by execution load tests to simulate an API consumer that immediately
   completes every user task. Registers on the EngineEventBus and listens
-  for `UserTaskCreated` events, then spawns a fire-and-forget task that
-  calls `Execution.finish_user_task/4` with a dummy result.
+  for `UserTaskCreated` events, then spawns a task that retries
+  `Execution.finish_user_task/4` until the FNI is waiting (P88).
   """
 
   @behaviour EvilEngine.Plugin.EventSink
 
+  alias EvilEngine.Test.AsyncCompletionRetry
   alias EvilEngine.Types.Event.UserTaskCreated
 
   @default_identity %EvilEngine.Types.Identity{
@@ -30,12 +31,14 @@ defmodule EvilEngine.Test.AutoFinisher do
   @impl true
   def handle_event(%UserTaskCreated{} = event, state) do
     Task.start(fn ->
-      EvilEngine.Execution.finish_user_task(
-        event.process_instance_id,
-        event.flow_node_instance_id,
-        @default_result,
-        @default_identity
-      )
+      AsyncCompletionRetry.until_ok(fn ->
+        EvilEngine.Execution.finish_user_task(
+          event.process_instance_id,
+          event.flow_node_instance_id,
+          @default_result,
+          @default_identity
+        )
+      end)
     end)
 
     {:ok, state}

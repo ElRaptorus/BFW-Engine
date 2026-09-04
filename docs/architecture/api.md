@@ -648,7 +648,7 @@ These `EvilEngine.Api` functions centralize claim checks previously scattered ac
 | `finish_user_task/4` | `(fni_id, result, Identity.t(), keyword())` | Lane access | User/manual task type, waiting state |
 | `cancel_user_task/4` | `(fni_id, reason, Identity.t(), keyword())` | Lane access | User/manual task type, waiting state |
 
-`persist_deploy_batch/3` remains available for plugins that supply pre-parsed data.
+`persist_deploy_batch/3` remains available for plugins that supply pre-parsed data. Creates inside the transaction use `return_notifications?: true`; `Ash.Notifier.notify/1` runs after commit so Ash does not warn about missed notifications (P88).
 
 `trigger_timer_event/3` validation pipeline: `get_flow_node_instance/1` → `validate_timer_event_type/1` (position + `event_type: "timer"`) → `validate_fni_active_or_waiting/1` → `Validation.check_lane_access/3` → `Execution.trigger_timer_event/2`.
 
@@ -686,7 +686,7 @@ The `EvilEngine.Api` module exposes DMN operations via the same facade convergen
 | `undeploy_decision/3` | `(model_id, Identity.t(), keyword())` | Full orchestration: lookup + claim check + soft-delete all versions. Claim: `delete_dmn`. |
 | `find_latest_decision_versions_by_definition_ids/1` | `([binary()]) :: %{binary() => struct()}` | Bulk-fetch latest version per definition. |
 
-`deploy_dmn_batch/3` mirrors the BPMN `persist_deploy_batch/3` pattern: it runs inside a `Repo.transaction`, rolls back on duplicate version conflicts, and primes the `DMN.ModelCache` after a successful commit.
+`deploy_dmn_batch/3` mirrors the BPMN `persist_deploy_batch/3` pattern: it runs inside a `Repo.transaction`, rolls back on duplicate version conflicts, primes the `DMN.ModelCache` after a successful commit, and flushes Ash notifications after commit (P88).
 
 `evaluate_decision/3` accepts options:
 - `:decision_model_id` — target a specific decision within a multi-decision DMN model
