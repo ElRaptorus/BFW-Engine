@@ -1,4 +1,4 @@
-name: Benchmark
+name: Load benchmarks
 
 on:
   workflow_dispatch:
@@ -32,11 +32,6 @@ jobs:
           --health-retries=12
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          check-latest: true
 
       - uses: erlef/setup-beam@v1
         with:

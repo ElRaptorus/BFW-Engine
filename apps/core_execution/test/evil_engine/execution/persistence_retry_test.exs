@@ -145,6 +145,33 @@ defmodule EvilEngine.Execution.PersistenceRetryTest do
     end
   end
 
+  describe "with_retry/3 non-retryable invalid" do
+    test "does not retry errors whose reason carries class: :invalid" do
+      counter = :counters.new(1, [:atomics])
+      invalid = %{class: :invalid, message: "no such input"}
+
+      log =
+        capture_log(fn ->
+          result =
+            PersistenceRetry.with_retry(
+              fn ->
+                :counters.add(counter, 1, 1)
+                {:error, invalid}
+              end,
+              "test_invalid",
+              max_attempts: 5,
+              initial_backoff_ms: 50
+            )
+
+          assert result == {:error, invalid}
+        end)
+
+      assert :counters.get(counter, 1) == 1
+      assert log =~ "[PersistenceRetry] test_invalid failed with non-retryable error"
+      refute log =~ "retrying in"
+    end
+  end
+
   describe "with_retry/3 reads config defaults" do
     test "uses application env for max_attempts when not overridden" do
       previous = Application.get_env(:core_execution, :persistence_retry_max_attempts)

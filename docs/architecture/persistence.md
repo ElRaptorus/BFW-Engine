@@ -65,7 +65,7 @@ These parameters are applied to both repos via the `db_pool_tuning` config block
 
 ## Persistence Retry
 
-All persistence adapter calls are wrapped with `PersistenceRetry.with_retry/3`, which provides bounded exponential backoff on top of DBConnection's checkout retries.
+All persistence adapter calls are wrapped with `PersistenceRetry.with_retry/3`, which provides bounded exponential backoff on top of DBConnection's checkout retries. Retries apply to transient `{:error, _}` results; reasons with `class: :invalid` are returned immediately (see `docs/architecture/execution.md` §Persistence Resilience).
 
 | Parameter | Default | Env var |
 |-----------|---------|---------|

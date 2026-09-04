@@ -27,6 +27,12 @@ defmodule EvilEngine.Execution.PersistenceRetry do
   Retry runs in the calling process. For PI-level calls this is the
   `:gen_statem` process; for `FniLifecycle.finish/4` this is the handler
   Task. `Process.sleep/1` yields the BEAM scheduler — no busy-waiting.
+
+  Retries are for **transient** adapter failures (`{:error, _}`). Errors
+  whose reason map/struct carries `class: :invalid` (Ash contract
+  violations such as `NoSuchInput`) are returned immediately — retrying
+  them cannot succeed and blocks the PI gen_statem for the full backoff
+  budget. Core must not import Ash; the check matches the map key only.
   """
 
   require Logger
@@ -58,25 +64,40 @@ defmodule EvilEngine.Execution.PersistenceRetry do
       {:ok, _} = success ->
         success
 
-      {:error, reason} = error when attempt >= max_attempts ->
-        Logger.error(
-          "[PersistenceRetry] #{label} failed after #{attempt}/#{max_attempts} attempts: #{inspect(reason)}"
-        )
+      {:error, reason} = error ->
+        cond do
+          non_retryable?(reason) ->
+            Logger.error(
+              "[PersistenceRetry] #{label} failed with non-retryable error: #{inspect(reason)}"
+            )
 
-        error
+            error
 
-      {:error, reason} ->
-        backoff_ms = compute_backoff(attempt, initial_backoff_ms)
+          attempt >= max_attempts ->
+            Logger.error(
+              "[PersistenceRetry] #{label} failed after #{attempt}/#{max_attempts} attempts: #{inspect(reason)}"
+            )
 
-        Logger.warning(
-          "[PersistenceRetry] #{label} failed (attempt #{attempt}/#{max_attempts}), " <>
-            "retrying in #{backoff_ms}ms: #{inspect(reason)}"
-        )
+            error
 
-        Process.sleep(backoff_ms)
-        do_retry(fun, label, attempt + 1, max_attempts, initial_backoff_ms)
+          true ->
+            backoff_ms = compute_backoff(attempt, initial_backoff_ms)
+
+            Logger.warning(
+              "[PersistenceRetry] #{label} failed (attempt #{attempt}/#{max_attempts}), " <>
+                "retrying in #{backoff_ms}ms: #{inspect(reason)}"
+            )
+
+            Process.sleep(backoff_ms)
+            do_retry(fun, label, attempt + 1, max_attempts, initial_backoff_ms)
+        end
     end
   end
+
+  # Ash.Error.Invalid (and siblings) set `class: :invalid`. Core must not
+  # import Ash; matching the map key keeps the adapter boundary intact.
+  defp non_retryable?(%{class: :invalid}), do: true
+  defp non_retryable?(_reason), do: false
 
   defp compute_backoff(attempt, initial_backoff_ms) do
     base = initial_backoff_ms * Integer.pow(2, attempt - 1)

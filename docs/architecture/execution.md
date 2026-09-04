@@ -1065,7 +1065,7 @@ Wraps each adapter call with bounded exponential backoff:
 | Max attempts | 5 | `EVIL_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
 | Initial backoff | 100ms | `EVIL_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
 
-Backoff formula: `initial_ms * 2^(attempt - 1) + random(0..50)`. Total worst-case delay: ~3.1s (100 + 200 + 400 + 800 + 1600ms plus jitter). Retries on `{:error, _}` only; `:ok` and `{:ok, _}` are never retried. Logs `Logger.warning` on each retry and `Logger.error` on exhaustion.
+Backoff formula: `initial_ms * 2^(attempt - 1) + random(0..50)`. Total worst-case delay: ~3.1s (100 + 200 + 400 + 800 + 1600ms plus jitter). Retries on **transient** `{:error, _}` only; `:ok` and `{:ok, _}` are never retried. Errors whose reason carries `class: :invalid` (Ash contract violations such as `NoSuchInput`) are **not** retried — they cannot succeed on a second attempt and would stall the PI gen_statem for the full backoff budget. Core matches the map key and must not import Ash. Logs `Logger.warning` on each retry and `Logger.error` on exhaustion or non-retryable rejection.
 
 #### Fail-fast vs. log-and-continue
 
@@ -2088,7 +2088,7 @@ When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopChar
 3. All iteration FNIs are dispatched concurrently via `dispatch_mi_iteration_fni`
 4. Each iteration FNI runs the underlying activity handler with a `loop.*` overlay in the FEEL context
 5. As results arrive via `{:fni_result, iteration_fni_id, result}`:
-   - On success: persist iteration FNI as `:finished`, check `completionCondition` / `evil:loopBreakCondition`
+   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload` — P86), check `completionCondition` / `evil:loopBreakCondition`
    - On failure: persist iteration FNI as `:fatal`; remaining iterations continue (unless break condition)
 6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI
 

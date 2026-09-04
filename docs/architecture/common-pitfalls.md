@@ -525,6 +525,8 @@ The `label` argument is a human-readable string used in log messages. Include en
 
 After retry exhaustion, the caller decides the policy: fail-fast (critical creation and mid-flight writes) or log-and-continue (PI terminal transitions). See the ImplementationPlan and the Persistence Resilience section in `execution.md` for the full classification.
 
+`PersistenceRetry` must **not** retry Ash contract violations (`class: :invalid`, e.g. `NoSuchInput`). Those are bugs in the persist map, not transient DB errors; retrying them burns ~3.1s on the PI gen_statem per call and floods logs. The wrapper matches `%{class: :invalid}` without importing Ash.
+
 **Coverage:** As of the DB pool hardening work, `PersistenceRetry` wraps:
 
 - **PI/FNI lifecycle** — all `create_*`, `update_*` adapter calls in `FniLifecycle` and `ProcessInstance`
@@ -1270,4 +1272,14 @@ The same class of race applies whenever a test publishes a competing event (mess
 **Why it happens:** Ash and Ecto schemas accept string UUIDs and dump them in the type layer. Raw SQL binds parameters with Postgrex's `:uuid` encoder, which wants the 16-byte binary. UUIDv7 primary keys look like ordinary strings in Elixir maps, so the mismatch is easy to miss until the first raw `DELETE` / `SELECT`.
 
 **Correct approach:** `{:ok, binary} = Ecto.UUID.dump(uuid_string)` (or a shared `dump_uuid!/1` helper) before every UUID argument to `EctoSQL.query`. `ProcessInstancePurge` and its tests do this for eligibility, descendant walks, and cascade deletes. Do not pass `Ash.UUIDv7` strings straight into `ANY($1::uuid[])`.
+
+---
+
+## P86: Ash `:update_finished` accepts `output_token`, not `output_payload`
+
+**Mistake:** Passing `output_payload:` in the persist map to `adapter.update_flow_node_instance(id, :update_finished, changes)`. Ash rejects it with `NoSuchInput`. The MI iteration finish path (`persist_mi_iteration_finished/4`) did this; `PersistenceRetry` then retried the same invalid map five times per iteration.
+
+**Why it happens:** `%FlowNodeResult{}` names the in-memory field `output_payload`. The Ash resource `FlowNodeInstance` and the DB column are `output_token`. `FniLifecycle.persist_and_emit_finish/7` already maps `output_token: output_payload`. A parallel persist helper that copies the struct field name 1:1 bypasses that mapping. Because `handle_mi_iteration_ok/4` ignores `_persist_result` and still emits events, integration tests that only assert PI finished / events pass while the iteration FNI row never gets an output token.
+
+**Correct approach:** Always use the Ash accept list (`:output_token`, not `:output_payload`) when calling `:update_finished`. Assert iteration FNI `output_token` in persistence after an MI run — event presence is not enough. `PersistenceRetry` must not retry `class: :invalid` (see P27).
 

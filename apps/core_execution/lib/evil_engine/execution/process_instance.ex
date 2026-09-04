@@ -3928,7 +3928,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
         adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
           state: "finished",
           finished_at: DateTime.utc_now(),
-          output_payload: to_json_safe(output_payload),
+          output_token: to_json_safe(output_payload),
           type_properties: type_properties
         })
       end,

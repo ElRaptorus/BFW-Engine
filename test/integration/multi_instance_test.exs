@@ -45,6 +45,25 @@ defmodule EvilEngine.Integration.MultiInstanceTest do
       assert multi_instance_completed != nil
       assert multi_instance_completed.completed_iterations == 3
       assert multi_instance_completed.early_break == false
+
+      iteration_records =
+        EvilEngine.Persistence.Resources.FlowNodeInstance
+        |> Ash.Query.filter(
+          process_instance_id == ^process_instance_id and not is_nil(multi_instance_id)
+        )
+        |> Ash.read!(authorize?: false)
+
+      finished_iterations =
+        Enum.filter(iteration_records, fn record ->
+          record.state == "finished" and is_integer(record.iteration_index)
+        end)
+
+      assert length(finished_iterations) == 3
+
+      for record <- finished_iterations do
+        assert is_map(record.output_token),
+               "iteration FNI #{record.id} must persist output_token on :update_finished, got #{inspect(record.output_token)}"
+      end
     end
 
     test "1.2 parallel MI user task — finish each iteration", %{collector: _collector} do

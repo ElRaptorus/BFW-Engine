@@ -491,7 +491,7 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 | Step | Detail |
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
-| Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Node `24.20`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** |
-| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (90-minute job timeout) |
+| Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (90-minute job timeout). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
 | Baseline | Does **not** set `EVIL_LOAD_BASELINE_PATH` — download the artifact and compare locally |
