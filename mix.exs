@@ -193,6 +193,8 @@ defmodule EvilEngine.Umbrella.MixProject do
         "test.coverdata": :test,
         "test.full": :test,
         "test.load": :test,
+        "test.load.durability": :test,
+        "test.load.all": :test,
         quality: :test
       ]
     ]
@@ -225,6 +227,8 @@ defmodule EvilEngine.Umbrella.MixProject do
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
       # Sets EVIL_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
       "test.load": &run_load_tests/1,
+      "test.load.durability": &run_load_durability_tests/1,
+      "test.load.all": &run_load_all_tests/1,
       "test.conformance": ["run test/conformance_runner.exs"],
       # Integration + conformance under one :cover session; exports
       # cover/umbrella.coverdata (and copies it into each apps/*/cover/).
@@ -269,13 +273,31 @@ defmodule EvilEngine.Umbrella.MixProject do
   end
 
   defp run_load_tests(args) do
+    run_load_suite(args, %{})
+  end
+
+  defp run_load_durability_tests(args) do
+    run_load_suite(args, %{"EVIL_LOAD_DURABILITY" => "1"})
+  end
+
+  defp run_load_all_tests(args) do
+    run_load_suite(args, %{"EVIL_LOAD_DURABILITY" => "all"})
+  end
+
+  defp run_load_suite(args, extra_environment) do
     run_argv =
       case args do
         [] -> ["test/load_runner.exs"]
         extra -> ["test/load_runner.exs", "--" | extra]
       end
 
-    if System.get_env("EVIL_LOAD_TEST_POOL") in ["1", "true"] do
+    Enum.each(extra_environment, fn {key, value} ->
+      System.put_env(key, value)
+    end)
+
+    pool_ready? = System.get_env("EVIL_LOAD_TEST_POOL") in ["1", "true"]
+
+    if pool_ready? do
       Mix.Task.run("run", run_argv)
     else
       # config/test.exs is evaluated when Mix starts. Setting the env var in
@@ -284,6 +306,7 @@ defmodule EvilEngine.Umbrella.MixProject do
         System.get_env()
         |> Map.put("EVIL_LOAD_TEST_POOL", "1")
         |> Map.put("MIX_ENV", "test")
+        |> Map.merge(extra_environment)
 
       {_output, exit_code} =
         System.cmd("mix", ["run" | run_argv],

@@ -30,8 +30,13 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 
 ## Requirements
 
+- Blood
+- Skulls
 - Elixir 1.20.5 / OTP 29
+- Erlang 29
+- Blood
 - Rust 1.98+ (Required for FEEL evaluator)
+- Skulls
 
 `asdf` is recommended, but not strictly necessary.
 
@@ -327,7 +332,7 @@ mix coveralls.html        # HTML coverage report under cover/
 | **Unit tests**        | `mix test`             | 900+ tests across all umbrella apps. Covers types, BPMN parser/validator, FEEL expressions, DMN parser/evaluator, PI/FNI state machine, etc.                                                                               |
 | **Integration tests** | `mix test.integration` | 600+ full-stack tests with DB. Each test runs the entire Toolchain, from HTTP API to Persistence Layer, as a normal end user would.  |
 | **Conformance tests** | `mix test.conformance` | 170+ tests driven by YAML specs for each supported Element.                                                                          |
-| **Load tests**        | `mix test.load`        | Standalone Load- and Stress-tests, using varying types of BPMNs (from linear to 10 parallel paths with heavy multi instance and calls to DMNs with 5-500 rules). Execution runs the full API-driven lifecycle (deploy, start via api, execute, persist, finish) with 10-10.000 PIs     |
+| **Load tests**        | `mix test.load`        | Standalone load tests (linear through mixed BPMN, DMN 10–500 rules). Full API lifecycle, 10–10,000 process instances. Durability (20k / 50k / 100k): `mix test.load.durability` (that file only) or `mix test.load.all` (default suite + durability, one JSON). Local / large-runner only; not the GitHub job. |
 | **Coverage**          | `mix coveralls.html`   | Creates a HTML coverage report under `cover/`       |
 
 ---

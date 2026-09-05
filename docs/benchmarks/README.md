@@ -9,7 +9,7 @@ Internal test names (`E8`, `RP1`, …) are listed only in a short appendix on ea
 |--------|------|---------|-----------------|
 | [GitHub Actions](2026-09-04_01_github-actions.md) | 2026-09-04 | Shared 2-vCPU CI runner | Floor: how slow is a tiny, contended box? |
 | [MacBook Air M4](2026-09-04_02_macbook-air-m4.md) | 2026-09-04 | Laptop, 16 GB, Apple M4 | A current personal computer, database in Docker |
-| [Comparison and outlook](2026-09-04_03_comparison-and-outlook.md) | 2026-09-04 | GitHub, M4, and this Linux workstation (i7-8700, 32 GB, Manjaro) | What changes with hardware, and a cautious server estimate |
+| [Comparison and outlook](2026-09-04_03_comparison-and-outlook.md) | 2026-09-04 | Comparison and learnings | What changes with hardware, and a cautious server estimate |
 
 Raw JSON from `mix test.load` is **not** committed (see `.gitignore`). These markdown files are the published analysis.
 
@@ -71,6 +71,13 @@ The mixed 10,000-instance run only counts **root** instances as complete, so chi
 ```bash
 # Postgres: scripts/create-test-db.sh  (postgres:16-alpine on port 5543)
 mix test.load
+
+# 20k / 50k / 100k per shape. Can potentially take well over an hour, depending on the host machine.
+# Don't try this at home (or with GH Actions).
+mix test.load.durability
+
+# Default suite + durability in one process, one JSON
+mix test.load.all
 ```
 
-That alias uses a real database connection pool (not the unit-test sandbox). It writes a JSON file under `test/load/reports/` (gitignored). How the suite is wired is documented for contributors in [architecture/testing.md](../architecture/testing.md) §12.5.
+These tests use a real connection pool (not the unit-test sandbox). They write a JSON file under `test/load/reports/` (gitignored).

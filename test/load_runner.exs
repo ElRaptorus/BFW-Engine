@@ -8,10 +8,19 @@
 #
 # Usage:
 #   mix test.load
+#   mix test.load.durability
+#   mix test.load.all
 #
 # The alias sets EVIL_LOAD_TEST_POOL=1 (real DBConnection.ConnectionPool).
 # Do not run this file under the Ecto sandbox — E8 exceeds ownership_timeout
 # and then every in-flight PI logs OwnershipError (P89).
+#
+# Durability tests (20k / 50k / 100k HTTP execution) are tagged
+# `:durability` and excluded by default.
+#   mix test.load.durability  → EVIL_LOAD_DURABILITY=1  (that file only)
+#   mix test.load.all         → EVIL_LOAD_DURABILITY=all (default suite + durability)
+# One JSON report either way. Not for GitHub ubuntu-latest — a 100k mixed
+# run is ~1 hour on that runner.
 #
 # Optional subset (same argv pattern as test/integration_runner.exs):
 #   EVIL_LOAD_TEST_POOL=1 MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
@@ -34,10 +43,32 @@ end
 
 {:ok, _} = EvilEngine.Test.BenchmarkReporter.start_link()
 
-ExUnit.start(autorun: false, trace: true, timeout: 300_000)
+durability_mode = System.get_env("EVIL_LOAD_DURABILITY")
+durability_only? = durability_mode in ["1", "true"]
+include_durability? = durability_only? or durability_mode == "all"
+
+exunit_opts =
+  cond do
+    durability_only? ->
+      IO.puts("[load] Durability suite only (20k / 50k / 100k per shape). This can take hours.")
+      [autorun: false, trace: true, timeout: 300_000, include: [:durability], exclude: [:test]]
+
+    include_durability? ->
+      IO.puts(
+        "[load] Default suite + durability (20k / 50k / 100k per shape). This can take hours."
+      )
+
+      [autorun: false, trace: true, timeout: 300_000]
+
+    true ->
+      [autorun: false, trace: true, timeout: 300_000, exclude: [:durability]]
+  end
+
+ExUnit.start(exunit_opts)
 
 relative_test_trees =
   case System.argv() |> Enum.reject(&(&1 == "--")) do
+    [] when durability_only? -> ["load/execution_durability_load_test.exs"]
     [] -> ["load"]
     relative_paths -> relative_paths
   end

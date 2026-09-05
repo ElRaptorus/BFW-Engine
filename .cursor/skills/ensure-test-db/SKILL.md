@@ -56,7 +56,8 @@ This script:
 1. Creates a `postgres:16-alpine` container named `evil-engine-postgres-test`
 2. Exposes port **5543** (maps to container port 5432)
 3. Sets credentials: user `evil_engine`, password `evil_engine`, database `evil_engine_dev`
-4. Runs `MIX_ENV=test mix ecto.create && MIX_ENV=test mix ecto.migrate`
+4. Starts Postgres with `max_connections=200` (load-test pools are 50 write + 25 read; production defaults need 170+)
+5. Runs `MIX_ENV=test mix ecto.create && MIX_ENV=test mix ecto.migrate`
 
 Then proceed to Step 3.
 

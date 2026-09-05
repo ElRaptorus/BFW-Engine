@@ -22,7 +22,8 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   mixed 5,000-PI start loop already takes ~100 s there, and a single
   missed AutoFinisher/echo finish used to hang at 4,999/5,000 (P88).
   E8's 5× ceiling would exceed the 600 s test timeout, so
-  the assert is capped at 600 s.
+  the assert is capped at 600 s. E10–E12 (single-shape 10,000) use the
+  same 600 s cap until a first measured baseline exists.
 
   | Test | Baseline  | Ceiling |
   |------|-----------|---------|
@@ -34,6 +35,9 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   | E6   | 23,308 ms |  180 s  |
   | E7   | 32,657 ms |  163 s  |
   | E8   | 206,507 ms |  600 s |
+  | E10  | no baseline yet (first 10k parallel-only) | 600 s |
+  | E11  | no baseline yet (first 10k MI-only) | 600 s |
+  | E12  | no baseline yet (first 10k call-activity-only) | 600 s |
   | E9 1 KiB | 11,843 ms | 60 s |
   | E9 16 KiB | 19,652 ms | 99 s |
   | E9 64 KiB | 30,713 ms | 154 s |
@@ -51,6 +55,9 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
   @payload_cap_bytes 65_536
   @mi_start_body %{"payload" => %{"items" => [1, 2, 3]}}
+  @shape_10000_count 10_000
+  @shape_10000_await_ms 480_000
+  @shape_10000_ceiling_ms 600_000
   @e9_elapsed_ceilings_ms %{
     "1kib" => 60_000,
     "16kib" => 99_000,
@@ -400,6 +407,40 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   end
 
   # -------------------------------------------------------------------
+  # E10–E12: 10,000 of each E8 shape, run alone
+  # Linear 10,000 is E7. These isolate whether mixed 10,000 is a
+  # weighted average of extra FNIs or one pathological shape.
+  # -------------------------------------------------------------------
+
+  @tag :load
+  @tag timeout: 600_000
+  test "E10: 10,000 parallel-gateway PIs" do
+    run_shape_10000("exec_10000_parallel_gateway",
+      deploy: ["parallel_gateway_two_branches.bpmn"],
+      start: {"ParallelGatewayTwoBranches", %{}}
+    )
+  end
+
+  @tag :load
+  @tag timeout: 600_000
+  test "E11: 10,000 parallel multi-instance script-task PIs" do
+    run_shape_10000("exec_10000_mi_parallel_script",
+      deploy: ["mi_parallel_script_task.bpmn"],
+      start: {"mi-parallel-script-task", @mi_start_body}
+    )
+  end
+
+  @tag :load
+  @tag timeout: 600_000
+  test "E12: 10,000 call-activity PIs" do
+    run_shape_10000("exec_10000_call_activity",
+      deploy: ["call_activity_child.bpmn", "call_activity_basic.bpmn"],
+      start: {"CallActivityBasic", %{}},
+      roots_only: true
+    )
+  end
+
+  # -------------------------------------------------------------------
 
   @tag :load
   @tag :e9
@@ -436,6 +477,46 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
 
       CompletionCounter.stop(counter)
     end
+  end
+
+  defp run_shape_10000(workload_id, opts) do
+    bpmn_files = Keyword.fetch!(opts, :deploy)
+    {process_model_id, body} = Keyword.fetch!(opts, :start)
+    count_roots_only = Keyword.get(opts, :roots_only, false)
+
+    Enum.each(bpmn_files, fn bpmn_file ->
+      {201, _} = http_deploy(bpmn_file)
+    end)
+
+    counter = CompletionCounter.start(roots_only: count_roots_only)
+    queue_collector = LoadHelpers.start_queue_time_collector()
+
+    {elapsed_ms, _} =
+      LoadHelpers.measure(
+        workload_id,
+        fn ->
+          for _ <- 1..@shape_10000_count do
+            {201, _} = http_start_with_sandbox_retry(process_model_id, body)
+          end
+
+          {:ok, _} =
+            CompletionCounter.await(counter, @shape_10000_count, @shape_10000_await_ms)
+        end,
+        id: workload_id,
+        kind: :execution,
+        process_count: @shape_10000_count,
+        queue_time_collector: queue_collector
+      )
+
+    p99_queue_ms = LoadHelpers.queue_time_p99(queue_collector)
+    IO.puts("[BENCH] #{workload_id} P99 queue_time: #{Float.round(p99_queue_ms, 1)}ms")
+
+    assert CompletionCounter.count(counter) >= @shape_10000_count
+    assert elapsed_ms < @shape_10000_ceiling_ms
+    assert p99_queue_ms < 1_000, "P99 queue_time #{p99_queue_ms}ms exceeds 1000ms ceiling"
+
+    LoadHelpers.stop_queue_time_collector(queue_collector)
+    CompletionCounter.stop(counter)
   end
 
   defp payload_of_bytes(byte_count) do

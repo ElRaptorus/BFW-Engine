@@ -400,7 +400,9 @@ Service Task end-to-end.
 
 ### 12.5 Load tests
 
-All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `EVIL_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
+All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `EVIL_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Default load-test pool is 50 write / 25 read (`EVIL_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
+
+Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability (one JSON report). Both aliases set `EVIL_LOAD_DURABILITY` (`1` vs `all`). Do not add durability to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
 
 #### Execution load tests (`execution_load_test.exs`)
 
@@ -427,13 +429,30 @@ DMN decision evaluation throughput under sustained load. Each measured batch ter
 | Test | Workload id(s) | What it exercises |
 |------|----------------|-------------------|
 | E8 | `exec_10000_mixed_standard` | 10,000 root PIs round-robin across linear, parallel gateway, parallel multi-instance script task, and Call Activity fixtures |
+| E10 | `exec_10000_parallel_gateway` | 10,000 root PIs, parallel gateway two-branch fixture only |
+| E11 | `exec_10000_mi_parallel_script` | 10,000 root PIs, parallel multi-instance script task (collection of 3) |
+| E12 | `exec_10000_call_activity` | 10,000 root PIs, Call Activity + child; `CompletionCounter` is `roots_only: true` |
 | E9 | `exec_1000_linear_payload_1kib`, `_16kib`, `_64kib` | 1,000 linear PIs each at 1 KiB, 16 KiB, and ~64 KiB start payloads (JSON-encoded size capped at the engine payload limit) |
 
-E8 uses `CompletionCounter.start(roots_only: true)` so Call Activity child PIs do not satisfy the await early — only root terminal PIs increment the counter. E9 uses the default counter (all terminal PIs).
+E8 uses `CompletionCounter.start(roots_only: true)` so Call Activity child PIs do not satisfy the await early — only root terminal PIs increment the counter. E12 does the same. E9 uses the default counter (all terminal PIs). E7 is the linear 10,000 counterpart of E10–E12 (same count, start→end fixture).
+
+#### Durability execution (`execution_durability_load_test.exs`)
+
+Opt-in volume runs. Same HTTP lifecycle as E7/E8/E10–E12. `mix test.load` excludes `@tag :durability`. `mix test.load.durability` runs only this file. `mix test.load.all` runs the default suite and then these tests in the same ExUnit process (one JSON).
+
+| Test name | Workload id | Count | Fixture |
+|-----------|-------------|------:|---------|
+| D: 20000 / 50000 / 100000 linear PIs | `exec_<n>_linear` | 20k / 50k / 100k | `linear_start_end.bpmn` |
+| D: … parallel_gateway PIs | `exec_<n>_parallel_gateway` | same | two-branch parallel gateway |
+| D: … mi_parallel_script PIs | `exec_<n>_mi_parallel_script` | same | parallel MI script task (collection of 3) |
+| D: … call_activity PIs | `exec_<n>_call_activity` | same | Call Activity + child; `roots_only: true` |
+| D: … mixed PIs | `exec_<n>_mixed_standard` | same | E8 round-robin; `roots_only: true` |
+
+Ceilings are first-run wall-clock caps (20k: 20 min, 50k: 45 min, 100k: 90 min; ExUnit timeout is higher). Queue P99 must stay under 1,000 ms. There is no 30,000 step.
 
 #### Hot-path triage
 
-A recorded KPI is a **hot path** only if E6/E7/E8 P99 `queue_time_ms` is ≥ 1 000, E8 wall time exceeds 5× the first measured baseline (206 507 ms on 2026-09-02; the test assert is capped at 600 s because 5× would exceed the timeout), `:erlang.memory()[:total]` is still climbing after `terminate_all_process_instances`, or resume/seeding throughput falls implausibly below the existing L-test ceilings. End-of-suite `memoryBytes.total` on the JSON report is a snapshot at write time, not a leak detector.
+A recorded KPI is a **hot path** only if E6/E7/E8/E10/E11/E12 P99 `queue_time_ms` is ≥ 1 000, E8 wall time exceeds 5× the first measured baseline (206 507 ms on 2026-09-02; the test assert is capped at 600 s because 5× would exceed the timeout), `:erlang.memory()[:total]` is still climbing after `terminate_all_process_instances`, or resume/seeding throughput falls implausibly below the existing L-test ceilings. End-of-suite `memoryBytes.total` on the JSON report is a snapshot at write time, not a leak detector.
 
 The first Phase 7 standard run (2026-09-03, Linux, Postgres in Docker) found **no hot path**. A later full suite on the same machine recorded E6 57 582 ms with queue P99 17 ms; E7 83 908 ms / 8 ms; E8 198 542 ms / 18 ms (first E8 baseline 206 507 ms). E9 1 KiB / 16 KiB / 64 KiB completed in 7 415 / 10 577 / 16 006 ms. Resume and seeding L-tests stayed inside their existing ceilings. Core was not rewritten.
 
@@ -457,7 +476,7 @@ Runtime snapshot fields (`beamProcessCount`, `memoryBytes`, `garbageCollection`)
 
 Optional baseline compare: set `EVIL_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
 
-Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load` or the dispatch workflow below.
+Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load`, `mix test.load.durability`, `mix test.load.all`, or the dispatch workflow below.
 
 #### Test helpers
 
@@ -494,6 +513,6 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
 | Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
-| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (90-minute job timeout). Job env sets `MIX_ENV: test` and `EVIL_LOAD_TEST_POOL: "1"` (P89). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `EVIL_LOAD_TEST_POOL: "1"` (P89), and `EVIL_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
 | Baseline | Does **not** set `EVIL_LOAD_BASELINE_PATH` — download the artifact and compare locally |
