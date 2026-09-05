@@ -22,6 +22,7 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 - **Configuration**: see [docs/architecture/configuration.md](./docs/architecture/configuration.md).
 - **Database schema**: see [docs/Schema.md](./docs/Schema.md).
 - **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
+- **Load benchmarks**: see [docs/benchmarks/](./docs/benchmarks/README.md).
 
 > **Status**: **Phase 6 completed** BPMN Spec coverage achieved. Ready for full scale battle testing and hardening.
 
@@ -84,6 +85,7 @@ browser, or serve it locally with a http server of your choice.
 | **API Reference**      | REST endpoints, GraphQL schema, authentication, WebSocket channels              |
 | **Plugin Development** | Behaviours, engine facade, service task handlers, event sinks, built-in plugins |
 | **Operations Guide**   | Deployment, database admin, security, observability, troubleshooting            |
+| **Load benchmarks**    | Curated reports of a few load tests ([docs/benchmarks/](./docs/benchmarks/README.md)) |
 | **Cheatsheets**        | Environment variables, API endpoints, plugin behaviours                         |
 
 The docs include full-text search and are navigable by use case (e.g., "I
@@ -321,12 +323,12 @@ mix coveralls.html        # HTML coverage report under cover/
 ### Test suite
 
 | Layer                 | Command                | Coverage                                                                                                                                                                                                                                                                                                                                                                                                            |
-| --------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Unit tests**        | `mix test`             | 900+ tests across all umbrella apps. Covers types, BPMN parser/validator, FEEL expressions, DMN parser/evaluator, PI/FNI state machine, etc.                                                                                                                                                                                                                                                                        |
-| **Integration tests** | `mix test.integration` | 600+ full-stack tests with DB. Each test runs the entire Toolchain, from HTTP API to Persistence Layer, as a normal end user would.                                                                                                                                                                                                                                                                                 |
-| **Conformance tests** | `mix test.conformance` | 170+ tests driven by YAML specs for each supported Element.                                                                                                                                                                                                                                                                                                                                                         |
-| **Load tests**        | `mix test.load`        | Opt-in benchmarks (not in `mix quality`). Uses a real `DBConnection.ConnectionPool` (`EVIL_LOAD_TEST_POOL=1`), not the Ecto sandbox. **Resume** — resume 100–10,000 PIs across varying process types and FNI counts, plus seeding throughput at 1K/5K/10K batch sizes. **Execution** — full API-driven lifecycle: deploy via HTTP, start 100–10,000 PIs through the API across fixture types (including E8 mixed linear/parallel/MI/Call Activity at 10k and E9 payload sweeps), with auto-finishing of user tasks via an EngineEventBus sink. Each run writes a structured JSON report to `test/load/reports/<timestamp>.json` (gitignored). Optional `EVIL_LOAD_BASELINE_PATH` enables 20% KPI regression compare locally. GitHub Actions workflow **Load benchmarks** (`workflow_dispatch` only) runs the suite and uploads the JSON artifact — not gated on PRs. |
-| **Coverage**          | `mix coveralls.html`   | HTML coverage report under `cover/`. Local only — does not upload to coveralls.io.                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit tests**        | `mix test`             | 900+ tests across all umbrella apps. Covers types, BPMN parser/validator, FEEL expressions, DMN parser/evaluator, PI/FNI state machine, etc.                                                                               |
+| **Integration tests** | `mix test.integration` | 600+ full-stack tests with DB. Each test runs the entire Toolchain, from HTTP API to Persistence Layer, as a normal end user would.  |
+| **Conformance tests** | `mix test.conformance` | 170+ tests driven by YAML specs for each supported Element.                                                                          |
+| **Load tests**        | `mix test.load`        | Standalone Load- and Stress-tests, using varying types of BPMNs (from linear to 10 parallel paths with heavy multi instance and calls to DMNs with 5-500 rules). Execution runs the full API-driven lifecycle (deploy, start via api, execute, persist, finish) with 10-10.000 PIs     |
+| **Coverage**          | `mix coveralls.html`   | Creates a HTML coverage report under `cover/`       |
 
 ---
 
