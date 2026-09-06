@@ -1331,6 +1331,14 @@ Link Catch events and None (untyped) Intermediate Catch events complete synchron
 
 ---
 
+## P91: Ash 3.33+ requires `default_string_length_count` or resource compile fails
+
+**Mistake:** After `mix deps.get` pulls Ash 3.33+, treating `mix deps.compile` / `mix compile` failure in `peripheral_persistence` resources as a broken resource DSL.
+
+**Why it happens:** Ash 3.33 added `Ash.Resource.Transformers.RequireStringLengthCountConfig`. Every resource with `:string` / `:ci_string` length constraints (or `string_length` validations) refuses to compile until `config :ash, default_string_length_count` is set. The error names the first resource (`EvilEngine.Persistence.Resources.Process`), not the missing config file.
+
+**Correct approach:** Set `config :ash, default_string_length_count: :codepoints` in `config/config.exs`. That counts Unicode codepoints, which matches PostgreSQL `LENGTH` / `char_length`. Do not use `:mixed` unless you intentionally want Elixir grapheme counts that can disagree with SQL (a single grapheme can contain unbounded combining characters, so `max_length` would not bound stored size). Individual attributes can still override with the `length_count` constraint.
+
 ---
 
 

@@ -27,6 +27,7 @@ parent_document: "../ImplementationPlan.md"
 | `config :peripheral_plugins, :inbeam_apps` | OTP app atoms to load as in-BEAM plugins (from `EVIL_PLUGINS_INBEAM`). |
 | `config :peripheral_plugins, :include_plugins` | Include-only list of plugin names (from `EVIL_PLUGINS_INCLUDE`); when non-empty, only listed names load. |
 | `config :peripheral_plugins, :exclude_plugins` | Exclude list of plugin names (from `EVIL_PLUGINS_EXCLUDE`); **exclude wins** over include on the same name. |
+| `config :ash, :default_string_length_count` | Required since Ash 3.33. Set to `:codepoints` in `config/config.exs` so `min_length` / `max_length` match PostgreSQL `LENGTH`. Compile fails without it. |
 
 Notable env vars:
 

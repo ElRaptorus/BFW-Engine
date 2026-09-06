@@ -24,11 +24,17 @@ config :ash, :json_library, Jason
 # --- Ash ------------------------------------------------------------------
 # Per the plan, Ash is the primary data-modelling framework (§1). The
 # `peripheral_persistence` app owns the Ash domains and the Repo.
+#
+# `default_string_length_count` is required since Ash 3.33. `:codepoints`
+# matches PostgreSQL `LENGTH` / `char_length`, so `min_length` / `max_length`
+# constraints agree with what the data layer stores.
+# https://hexdocs.pm/ash/backwards-compatibility-config.html#default_string_length_count
 config :ash,
   include_embedded_source_by_default?: false,
   custom_types: [],
   known_types: [],
   default_page_type: :keyset,
+  default_string_length_count: :codepoints,
   policies: [no_filter_static_forbidden_reads?: false]
 
 config :peripheral_persistence,
