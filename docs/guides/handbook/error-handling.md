@@ -50,7 +50,7 @@ These two states represent fundamentally different situations:
 
 ## Payload Cap
 
-Every user-supplied payload is checked against `EVIL_TOKEN_MAX_BYTES` (default 64 KiB, configurable). This applies to:
+Every user-supplied payload is checked against `TDE_TOKEN_MAX_BYTES` (default 64 KiB, configurable). This applies to:
 
 - PI start payload
 - User Task completion results

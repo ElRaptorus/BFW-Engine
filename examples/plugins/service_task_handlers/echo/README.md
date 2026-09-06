@@ -18,7 +18,7 @@ immediately completes the FNI via the engine facade.
    config :my_plugin, :plugin_module, Examples.ServiceTaskHandlers.Echo.EchoPlugin
    ```
 
-3. Add your OTP app name to `EVIL_PLUGINS_INBEAM`.
+3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
 
 ## Lifecycle
 

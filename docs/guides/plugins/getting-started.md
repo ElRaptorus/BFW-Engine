@@ -53,13 +53,13 @@ Highest performance. The plugin is an OTP application bundled into the engine re
 
 1. Add your plugin as a dependency of the engine release
 2. Set the plugin module in application env: `config :my_plugin, :plugin_module, MyPlugin`
-3. Add the OTP app name to `EVIL_PLUGINS_INBEAM`: `EVIL_PLUGINS_INBEAM=my_plugin`
+3. Add the OTP app name to `TDE_PLUGINS_INBEAM`: `TDE_PLUGINS_INBEAM=my_plugin`
 
 The plugin's `Application.start/2` should be a no-op stub. Registration happens exclusively through `on_load`.
 
 ### Sidecar Plugins — **not in v1 (PLUG-D1)**
 
-The gRPC sidecar host is **deferred**. `EVIL_PLUGINS_SIDECAR_DIR` and related env vars are reserved no-ops; there is no process scanner and no plugin protocol in v1.
+The gRPC sidecar host is **deferred**. `TDE_PLUGINS_SIDECAR_DIR` and related env vars are reserved no-ops; there is no process scanner and no plugin protocol in v1.
 
 For non-Elixir work in v1, use:
 
@@ -73,8 +73,8 @@ The sidecar design is retained in [plugins.md](../../architecture/plugins.md) §
 
 | Env Var | Purpose |
 |---------|---------|
-| `EVIL_PLUGINS_INCLUDE` | Only load listed plugins |
-| `EVIL_PLUGINS_EXCLUDE` | Never load listed plugins (wins on conflict) |
+| `TDE_PLUGINS_INCLUDE` | Only load listed plugins |
+| `TDE_PLUGINS_EXCLUDE` | Never load listed plugins (wins on conflict) |
 
 ## Available Behaviours
 

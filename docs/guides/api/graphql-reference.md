@@ -4,7 +4,7 @@ Endpoint: `POST /api/v1/graphql`
 
 GraphQL is **strictly query-only**. All commands are REST (and the plugin facade). Real-time events use Phoenix Channels — see [WebSocket API](websocket.md).
 
-GraphQL Playground: `/admin/graphiql` (devtools-only — disabled in prod unless `EVIL_DEVTOOLS_ENABLED=true`; pre-loaded with example query tabs)
+GraphQL Playground: `/admin/graphiql` (devtools-only — disabled in prod unless `TDE_DEVTOOLS_ENABLED=true`; pre-loaded with example query tabs)
 
 Authentication: same JWT as REST — see [Authentication](authentication.md).
 

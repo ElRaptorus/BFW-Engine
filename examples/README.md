@@ -128,7 +128,7 @@ Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_sdk` pac
 1. Browse the example that matches your use case
 2. Copy the `lib/` files into your own OTP application
 3. Set `:plugin_module` in your app's config
-4. Add your app to `EVIL_PLUGINS_INBEAM`
+4. Add your app to `TDE_PLUGINS_INBEAM`
 5. See each example's README for detailed steps
 
 ### Tests

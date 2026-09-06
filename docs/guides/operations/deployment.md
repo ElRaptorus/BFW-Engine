@@ -29,9 +29,9 @@ docker compose up --build
 
 | Env Var | Description |
 |---------|-------------|
-| `EVIL_DATABASE_URL` | PostgreSQL connection string (or use individual `EVIL_DATABASE_*` vars) |
-| `EVIL_HTTP_SECRET_KEY_BASE` | Phoenix secret (min 64 chars, generate with `mix phx.gen.secret`) |
-| JWT key | At least one of `EVIL_JWT_HS256_SECRET` or `EVIL_JWT_JWKS_URL` (unless `EVIL_AUTH_DISABLED=true`) |
+| `TDE_DATABASE_URL` | PostgreSQL connection string (or use individual `TDE_DATABASE_*` vars) |
+| `TDE_HTTP_SECRET_KEY_BASE` | Phoenix secret (min 64 chars, generate with `mix phx.gen.secret`) |
+| JWT key | At least one of `TDE_JWT_HS256_SECRET` or `TDE_JWT_JWKS_URL` (unless `TDE_AUTH_DISABLED=true`) |
 
 For the complete environment variable reference, see the copy-paste block in the architecture configuration documentation.
 
@@ -75,13 +75,13 @@ readinessProbe:
 
 ## Seeding Directory
 
-Set `EVIL_SEEDING_DIRECTORY` to auto-deploy `.bpmn` files at startup. Failing files are skipped without halting boot. See [Deploying Processes](../handbook/deploying-processes.md).
+Set `TDE_SEEDING_DIRECTORY` to auto-deploy `.bpmn` files at startup. Failing files are skipped without halting boot. See [Deploying Processes](../handbook/deploying-processes.md).
 
 ## Ports
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `EVIL_HTTP_PORT` | `4000` | HTTP, GraphQL, and WebSocket |
+| `TDE_HTTP_PORT` | `4000` | HTTP, GraphQL, and WebSocket |
 
 ## FEEL NIF Scheduler Tuning
 

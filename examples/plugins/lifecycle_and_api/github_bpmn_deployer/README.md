@@ -63,7 +63,7 @@ end
 ```
 
 3. Set the required environment variables
-4. Add your OTP app name to `EVIL_PLUGINS_INBEAM`
+4. Add your OTP app name to `TDE_PLUGINS_INBEAM`
 
 ## Example: repository layout
 

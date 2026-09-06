@@ -3,10 +3,10 @@ defmodule Mix.Tasks.Evil.Partitions.Ensure do
   Pre-create monthly/quarterly/half-yearly/yearly partitions for all
   partitioned audit tables.
 
-  Reads `EVIL_PARTITION_INTERVAL` (default `quarterly`) and
-  `EVIL_PARTITION_AHEAD_MONTHS` (default `3`) from config.
+  Reads `TDE_PARTITION_INTERVAL` (default `quarterly`) and
+  `TDE_PARTITION_AHEAD_MONTHS` (default `3`) from config.
 
-  When `EVIL_PARTITION_INTERVAL=off`, this task is a no-op.
+  When `TDE_PARTITION_INTERVAL=off`, this task is a no-op.
 
   ## Usage
 

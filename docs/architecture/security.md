@@ -1,5 +1,5 @@
 ---
-title: "Evil Engine — Security"
+title: "Daemon Engine — Security"
 parent_document: "../ImplementationPlan.md"
 ---
 
@@ -32,7 +32,7 @@ trust boundary is drawn at the HTTP edge:
 | **On the trust boundary** | Authenticated + authorized | REST/GraphQL/WS callers with valid JWT |
 | **Outside the trust boundary** | Untrusted | Network clients without JWT. A future gRPC sidecar host (PLUG-D1, deferred) would also sit here as OS child processes |
 
-v1 plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation. The sidecar design in [plugins.md](plugins.md) §9.2.3 (separate OS processes, gRPC, `EVIL_PLUGINS_SIDECAR_DIR`) is deferred post-v1.
+v1 plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation. The sidecar design in [plugins.md](plugins.md) §9.2.3 (separate OS processes, gRPC, `TDE_PLUGINS_SIDECAR_DIR`) is deferred post-v1.
 
 ---
 
@@ -42,13 +42,13 @@ v1 plugins are **in-BEAM only** and sit inside the trust boundary with a privile
 
 | Algorithm family | Configuration | Library |
 |-----------------|---------------|---------|
-| HS256 | `EVIL_JWT_HS256_SECRET` (min 32 bytes) | Joken + JOSE |
-| RS256 / ES256 | `EVIL_JWT_JWKS_URL` (JWKS with caching + refresh + retry) | Joken + JOSE |
+| HS256 | `TDE_JWT_HS256_SECRET` (min 32 bytes) | Joken + JOSE |
+| RS256 / ES256 | `TDE_JWT_JWKS_URL` (JWKS with caching + refresh + retry) | Joken + JOSE |
 
 Both can coexist — the engine tries JWKS first, falls back to HS256. At least one
-must be configured unless `EVIL_AUTH_DISABLED=true`.
+must be configured unless `TDE_AUTH_DISABLED=true`.
 
-**`EVIL_AUTH_DISABLED`:** When `true`, disables JWT verification entirely.
+**`TDE_AUTH_DISABLED`:** When `true`, disables JWT verification entirely.
 All requests receive a synthetic anonymous Identity with least-privilege defaults.
 The engine logs a `warn` every 60 seconds while active. Not suitable for production
 ([authorization.md](authorization.md) §1.1).
@@ -154,7 +154,7 @@ concern.
 ## Input Validation
 
 - **JSON Schema 2020-12** on every inbound payload: triggers, task completions, data contracts. Strict mode is always on. Library: `ex_json_schema`.
-- **Payload cap**: `EVIL_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [configuration.md](configuration.md) for the env var reference.
+- **Payload cap**: `TDE_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [configuration.md](configuration.md) for the env var reference.
 - **BPMN linter gate**: deploy-time validation of `<evil:linterRulesetScore>` entries against configured thresholds. See [configuration.md](configuration.md) §14.5.
 
 ---
@@ -180,12 +180,12 @@ partition DDL exists.
 | Plugin tier | Process isolation | Identity | Trust rationale |
 |-------------|------------------|----------|-----------------|
 | **In-BEAM** (OTP app) | None — same BEAM VM | `plugin:<name>` (privileged, bypasses claim checks) | Operator compiled it into the release; same trust as engine code |
-| **Sidecar** (gRPC) | Full OS-process isolation (design only) | `plugin:<name>` (privileged, via gRPC bridge) | **Not in v1 (PLUG-D1).** Spec: operator would place it in `EVIL_PLUGINS_SIDECAR_DIR`; binary would run as a child process |
+| **Sidecar** (gRPC) | Full OS-process isolation (design only) | `plugin:<name>` (privileged, via gRPC bridge) | **Not in v1 (PLUG-D1).** Spec: operator would place it in `TDE_PLUGINS_SIDECAR_DIR`; binary would run as a child process |
 
 Both tiers:
 - Run with a privileged identity that bypasses all engine claim checks ([authorization.md](authorization.md) §7).
 - Are audited — every `EvilEngine.Api.*` call records the plugin identity in the audit trail.
-- Can be include-listed / exclude-listed via `EVIL_PLUGINS_INCLUDE` / `EVIL_PLUGINS_EXCLUDE` ([plugins.md](plugins.md) §9.2).
+- Can be include-listed / exclude-listed via `TDE_PLUGINS_INCLUDE` / `TDE_PLUGINS_EXCLUDE` ([plugins.md](plugins.md) §9.2).
 - Are quarantined on repeated failure ([plugins.md](plugins.md) §9.3).
 
 Per-plugin authorization scoping (per-plugin claim sets, per-action allow/deny) is a v2 concern.
@@ -194,9 +194,9 @@ Per-plugin authorization scoping (per-plugin claim sets, per-action allow/deny) 
 
 ## Secrets Management
 
-- All secrets are read from environment variables (`EVIL_JWT_HS256_SECRET`, `EVIL_DATABASE_URL`, etc.) or a configurable secret-provider behaviour.
+- All secrets are read from environment variables (`TDE_JWT_HS256_SECRET`, `TDE_DATABASE_URL`, etc.) or a configurable secret-provider behaviour.
 - **No hard-coded secrets** anywhere in the codebase — enforced by `mix sobelow` in CI.
-- In test environments, `engine_sdk.MintTestToken` uses `EVIL_JWT_HS256_SECRET` to sign test JWTs.
+- In test environments, `engine_sdk.MintTestToken` uses `TDE_JWT_HS256_SECRET` to sign test JWTs.
 
 ---
 
@@ -228,7 +228,7 @@ documentation alongside the TLS examples.
 configuration that the reverse proxy already owns and create a second source of
 truth for allowed origins. If a future deployment model removes the reverse
 proxy (e.g. edge-deployed engine with native TLS), a `corsica` Plug gated
-behind an `EVIL_CORS_ALLOWED_ORIGINS` env var becomes the natural upgrade path.
+behind an `TDE_CORS_ALLOWED_ORIGINS` env var becomes the natural upgrade path.
 
 ---
 
@@ -244,7 +244,7 @@ making reflected/stored XSS via API responses a non-issue.
 |---------|----------|------------|
 | `/stats` HTML dashboard | Low — renders server-side counters, no user-supplied content | Phoenix templates with default auto-escaping; no `raw`/`Phoenix.HTML.raw` calls |
 | Swagger UI (`/api/docs`) | Low — static asset bundle | Served from a pinned, vendored release; no dynamic interpolation |
-| Admin UIs (non-production) | Low — dev-only, no user-supplied rendering | `EVIL_AUTH_DISABLED` required or valid admin JWT |
+| Admin UIs (non-production) | Low — dev-only, no user-supplied rendering | `TDE_AUTH_DISABLED` required or valid admin JWT |
 
 **Engine-level controls:**
 
@@ -288,9 +288,9 @@ high request volume:
 
 | Control | Effect |
 |---------|--------|
-| **Payload cap** | `EVIL_TOKEN_MAX_BYTES` (default 64 KiB) — rejects oversize bodies before allocation, preventing memory exhaustion via large payloads |
+| **Payload cap** | `TDE_TOKEN_MAX_BYTES` (default 64 KiB) — rejects oversize bodies before allocation, preventing memory exhaustion via large payloads |
 | **Bandit/Cowboy connection limits** | The HTTP server enforces configurable `max_connections` (Bandit default: 16384) and `idle_timeout` — prevents connection-pool exhaustion |
-| **Ecto pool size** | Database connection pools (`EVIL_DB_POOL_SIZE`, production default 100 for writes; `EVIL_DB_READ_POOL_SIZE`, production default 50 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres. Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` |
+| **Ecto pool size** | Database connection pools (`TDE_DB_POOL_SIZE`, production default 100 for writes; `TDE_DB_READ_POOL_SIZE`, production default 50 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres. Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` |
 | **Plugin quarantine** | Repeatedly-failing plugins are quarantined ([plugins.md](plugins.md) §9.3), preventing a misbehaving plugin from amplifying load |
 | **JWT validation is stateless** | No database lookup on auth — a flood of invalid JWTs costs CPU (JOSE signature verification) but does not hit the database |
 
@@ -392,7 +392,7 @@ reference when commissioning a penetration test.
 | **A02 — Cryptographic Failures** | Addressed | JWT via JOSE (HS256 min-32-byte / RS256 / ES256); no custom crypto; secrets from env vars; `mix sobelow` enforces no hardcoded secrets |
 | **A03 — Injection** | Addressed | SQL: Ash/Ecto parameterization (zero string interpolation). NoSQL: not applicable. LDAP: not applicable. OS command: no `System.cmd` with user input. FEEL expressions: sandboxed evaluator with no side effects |
 | **A04 — Insecure Design** | Addressed | Threat model documented (see above); defense-in-depth via payload cap, plugin quarantine, uniform error responses |
-| **A05 — Security Misconfiguration** | Partially addressed | `mix sobelow` in CI; no debug endpoints in production; `EVIL_AUTH_DISABLED` logs persistent warnings. Gap: no startup-time config validator beyond individual env var checks |
+| **A05 — Security Misconfiguration** | Partially addressed | `mix sobelow` in CI; no debug endpoints in production; `TDE_AUTH_DISABLED` logs persistent warnings. Gap: no startup-time config validator beyond individual env var checks |
 | **A06 — Vulnerable Components** | Addressed | `mix deps.audit` in CI; `mix sobelow` for Elixir-specific vulnerabilities; Dependabot / Renovate recommended for automated PR-level checks |
 | **A07 — Auth Failures** | Addressed | Stateless JWT; constant-time HMAC; uniform 401 responses; no session management; no login endpoint. Brute-force: delegated to IdP + proxy (see above) |
 | **A08 — Data Integrity Failures** | Addressed | JWT signature verification on every request; BPMN deploy-time linter gate; JSON Schema validation on all inbound payloads; no deserialization of untrusted binary formats |
@@ -405,11 +405,11 @@ reference when commissioning a penetration test.
 |-----------------|-------------|
 | **Error message information leakage** | Production error responses use structured JSON with fixed keys — no stack traces, no internal module names, no SQL fragments |
 | **HTTP verb tampering** | Phoenix router enforces method matching; unmatched verbs return 404 |
-| **Request body size limit** | `EVIL_TOKEN_MAX_BYTES` at the application layer; Bandit/Cowboy `max_request_body_size` at the HTTP server layer |
+| **Request body size limit** | `TDE_TOKEN_MAX_BYTES` at the application layer; Bandit/Cowboy `max_request_body_size` at the HTTP server layer |
 | **Timeout and resource exhaustion** | Bandit `idle_timeout` + `request_timeout`; Ecto pool checkout timeout; GenServer call timeouts on engine internals |
 | **Directory traversal** | Not applicable — the engine does not serve static files from user-supplied paths; BPMN upload is parsed as XML, not stored as a file |
 | **WebSocket abuse** | Channel authentication via JWT on connect; topic-level authorization (lane filtering); idle connection timeout |
-| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: EVIL_GRAPHQL_MAX_COMPLEXITY` (default 1000) on `Absinthe.Plug`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `EVIL_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `EVIL_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). All limits configurable at runtime without recompiling. |
+| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: TDE_GRAPHQL_MAX_COMPLEXITY` (default 1000) on `Absinthe.Plug`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `TDE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `TDE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). All limits configurable at runtime without recompiling. |
 
 ---
 
@@ -423,8 +423,8 @@ the recommended workaround.
 |-----|-----------|------------|
 | ~~Pluggable authentication~~ | **Implemented** via `@behaviour EvilEngine.Plugin.AuthProvider`. Pluggable claim resolution deferred to v2 | Register a custom provider via `facade.register_auth_provider.(module)` |
 | **Plugin-tier authorization** (per-plugin claim sets, per-action allow/deny) | Plugins are inside the trust boundary by design | Operator controls which plugins are loaded via allow/deny lists |
-| **OpenTelemetry export** (OTLP logs, metrics, traces) | Minimal observability stack in v1 | Plugin `EventSink` for Datadog/Loki/Kafka; `/stats` JSON for counters; optional `GET /metrics` when `EVIL_METRICS_ENABLED=true` |
+| **OpenTelemetry export** (OTLP logs, metrics, traces) | Minimal observability stack in v1 | Plugin `EventSink` for Datadog/Loki/Kafka; `/stats` JSON for counters; optional `GET /metrics` when `TDE_METRICS_ENABLED=true` |
 | **Push-gateway / remote-write for Prometheus** | Engine exposes pull-only `/metrics` | Run Prometheus scrape against the engine or federate via your own agent |
 | **Per-plugin capability scoping** | Deferred to v2 alongside tenant-isolation model | Trust plugins implicitly; use allow/deny lists to limit which plugins load |
 | **Cross-cluster message routing** | Single-node deployment expected in v1 | Messages reach only same-node subscriptions |
-| **Content-addressed blob store** | Complexity vs. payoff at v1 scale | `EVIL_TOKEN_MAX_BYTES` caps individual payloads; LZ4 compression reduces storage |
+| **Content-addressed blob store** | Complexity vs. payoff at v1 scale | `TDE_TOKEN_MAX_BYTES` caps individual payloads; LZ4 compression reduces storage |

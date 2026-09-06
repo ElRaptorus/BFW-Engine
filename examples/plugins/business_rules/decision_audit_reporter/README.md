@@ -56,7 +56,7 @@ The audit report map includes:
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionAuditReporter.DecisionAuditReporterPlugin` and list your app in `EVIL_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionAuditReporter.DecisionAuditReporterPlugin` and list your app in `TDE_PLUGINS_INBEAM`.
 3. Deploy `dmn/employee_benefits.dmn` and `bpmn/employee_benefits_process.bpmn`.
 4. Start process instances during the collection window (default 60 s).
 5. Inspect engine logs for lines prefixed with `decision_audit_reporter:`.

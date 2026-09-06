@@ -71,7 +71,7 @@ The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>insura
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
 2. Deploy `dmn/insurance_pricing.dmn` via the engine API or Studio.
-3. Set `:plugin_module` to `Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterPlugin` and list your app in `EVIL_PLUGINS_INBEAM`.
+3. Set `:plugin_module` to `Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterPlugin` and list your app in `TDE_PLUGINS_INBEAM`.
 4. Start the engine; on plugin ready the worker runs the smoke test sweep.
 5. Inspect engine logs for lines prefixed with `decision_service_smoke_tester:`.
 6. Run unit tests:

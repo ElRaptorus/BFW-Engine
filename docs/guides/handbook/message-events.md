@@ -96,7 +96,7 @@ A published message `(name, correlation_value)` delivers to every subscription w
 
 ## Pending Messages
 
-When a message is published but no subscription or Message Start Event matches, the engine inserts a row into `pending_messages` with a configurable TTL (default `PT60S` via `EVIL_MESSAGE_PENDING_TTL`).
+When a message is published but no subscription or Message Start Event matches, the engine inserts a row into `pending_messages` with a configurable TTL (default `PT60S` via `TDE_MESSAGE_PENDING_TTL`).
 
 | Event | Behaviour |
 |-------|-----------|

@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Evil.Retention.Purge do
   @moduledoc """
-  Hard-delete aged terminal process-instance trees per `EVIL_RETENTION_*_DAYS`.
+  Hard-delete aged terminal process-instance trees per `TDE_RETENTION_*_DAYS`.
 
   Only root process instances are selected. A root is skipped when any
   descendant is still `running` or `suspended`. Unset days knobs mean
@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Evil.Retention.Purge do
           Mix.raise("Retention purge failed: #{inspect(reason)}")
       end
     else
-      Mix.shell().info("No EVIL_RETENTION_*_DAYS configured; nothing to purge")
+      Mix.shell().info("No TDE_RETENTION_*_DAYS configured; nothing to purge")
     end
   end
 

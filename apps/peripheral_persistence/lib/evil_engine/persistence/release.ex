@@ -32,9 +32,9 @@ defmodule EvilEngine.Persistence.Release do
 
   @doc """
   Pre-create partitions for every partitioned audit table,
-  `EVIL_PARTITION_AHEAD_MONTHS` into the future.
+  `TDE_PARTITION_AHEAD_MONTHS` into the future.
 
-  The partition interval is controlled by `EVIL_PARTITION_INTERVAL`
+  The partition interval is controlled by `TDE_PARTITION_INTERVAL`
   (monthly, quarterly, half_yearly, yearly, off). When `off`, this
   is a no-op.
 
@@ -55,7 +55,7 @@ defmodule EvilEngine.Persistence.Release do
 
   @doc """
   Hard-delete aged terminal process-instance trees per
-  `EVIL_RETENTION_*_DAYS`.
+  `TDE_RETENTION_*_DAYS`.
 
   Pass `dry_run: true` to count eligible roots without deleting.
 

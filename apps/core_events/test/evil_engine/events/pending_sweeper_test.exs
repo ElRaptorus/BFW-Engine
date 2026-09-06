@@ -47,7 +47,7 @@ defmodule EvilEngine.Events.PendingSweeperTest do
   end
 
   describe "sweep interval configuration" do
-    test "uses EVIL_PENDING_SWEEPER_INTERVAL from application env" do
+    test "uses TDE_PENDING_SWEEPER_INTERVAL from application env" do
       configure_mock_adapters(self())
       Application.put_env(:core_events, :pending_sweeper_interval, 40)
 

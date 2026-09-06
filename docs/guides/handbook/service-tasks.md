@@ -77,7 +77,7 @@ There is no dedicated REST endpoint for async completion — it is plugin-side o
 
 ## Payload Cap
 
-The output payload from a Service Task handler is checked against `EVIL_TOKEN_MAX_BYTES`. If the output exceeds the cap, the FNI transitions to `fatal`. See [Error Handling](error-handling.md) for details.
+The output payload from a Service Task handler is checked against `TDE_TOKEN_MAX_BYTES`. If the output exceeds the cap, the FNI transitions to `fatal`. See [Error Handling](error-handling.md) for details.
 
 ## Custom Handlers
 

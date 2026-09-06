@@ -1,5 +1,5 @@
 ---
-title: Evil Engine — Data Model
+title: Daemon Engine — Data Model
 parent_document: ../ImplementationPlan.md
 ---
 
@@ -7,7 +7,7 @@ parent_document: ../ImplementationPlan.md
   Extracted from ImplementationPlan.md §4 ("Data model (Postgres)").
 -->
 
-# Evil Engine — Data Model
+# Daemon Engine — Data Model
 
 See [`Schema.md`](../Schema.md) for the visual ER diagram.
 
@@ -123,7 +123,7 @@ process_instances
   started_at                      timestamptz
   finished_at                     timestamptz NULL
   started_by                      jsonb         -- identity claim
-  started_with_context            jsonb COMPRESSION lz4   -- readonly process context (concept §Process Context); capped at EVIL_TOKEN_MAX_BYTES
+  started_with_context            jsonb COMPRESSION lz4   -- readonly process context (concept §Process Context); capped at TDE_TOKEN_MAX_BYTES
                                                 -- NOTE: there is no `final_token` column — the PI's "final token(s)"
                                                 --   are derivable from End-Event FNIs' `output_token` via GraphQL's
                                                 --   `finalTokens: [Json!]` Ash calculation ([`api.md`](./api.md) §10.2). For `finished` PIs
@@ -163,8 +163,8 @@ flow_node_instances
   finished_at                     timestamptz NULL
   previous_flow_node_instance_ids uuid[]        -- array to support joins (parallel/inclusive)
   triggerer_flow_node_instance_id uuid NULL
-  input_token                     jsonb COMPRESSION lz4   -- capped at EVIL_TOKEN_MAX_BYTES at write_result/handler-return time
-  output_token                    jsonb COMPRESSION lz4 NULL   -- capped at EVIL_TOKEN_MAX_BYTES; retained in v1 (derived final tokens
+  input_token                     jsonb COMPRESSION lz4   -- capped at TDE_TOKEN_MAX_BYTES at write_result/handler-return time
+  output_token                    jsonb COMPRESSION lz4 NULL   -- capped at TDE_TOKEN_MAX_BYTES; retained in v1 (derived final tokens
                                                                 --   is a smaller win with gateway-transform edge cases; defer)
   type_properties                 jsonb COMPRESSION lz4   -- per-element runtime-relevant snapshot
   INDEX (process_instance_id)
@@ -206,7 +206,7 @@ gateway_pending_arrivals   -- parallel / inclusive gateway join buffering
                                                  -- delivered this arrival. Useful for debugging.
   arrived_payload            jsonb COMPRESSION lz4 NOT NULL
                                                  -- the token payload as seen from this branch, capped
-                                                 -- at EVIL_TOKEN_MAX_BYTES.
+                                                 -- at TDE_TOKEN_MAX_BYTES.
   arrived_at                 timestamptz NOT NULL
   UNIQUE (gateway_flow_node_instance_id, source_branch_sequence_flow_id)
                                                  -- one row per (gateway, branch); a second arrival on
@@ -226,7 +226,7 @@ data_objects        -- CURRENT-VALUE snapshot, one row per (PI, DO), upserted on
   flow_node_instance_id uuid FK flow_node_instances NOT NULL  -- FNI of the write that created this snapshot
   value                 jsonb COMPRESSION lz4   -- JSON value; `jsonb 'null'` is a legitimate written value.
                                       -- Row absence (not jsonb null) means "never written" / unset.
-                                      -- Capped at EVIL_TOKEN_MAX_BYTES at DOA-commit time.
+                                      -- Capped at TDE_TOKEN_MAX_BYTES at DOA-commit time.
   created_at            timestamptz NOT NULL     -- timestamp of this snapshot (== the write that produced it)
   UNIQUE (process_instance_id, data_object_id)
 ```
@@ -243,7 +243,7 @@ process_instance_events
   -- NO LONGER POPULATED: the built-in `database` EventSink was removed. This table
   -- is retained for migration compatibility but stays empty on fresh installs. Historical
   -- audit-trail design used the `database` sink to write rows here when
-  -- `EVIL_EVENT_SINK_DATABASE=on`; that env var and sink no longer exist. Operators who
+  -- `TDE_EVENT_SINK_DATABASE=on`; that env var and sink no longer exist. Operators who
   -- need a SQL-queryable event log register a plugin sink instead. The Studio debugger's
   -- BPMN-flow view does NOT require this table (it reconstructs from the always-on
   -- kernel tables: flow_node_instances with triggerer_flow_node_instance_id,
@@ -276,7 +276,7 @@ process_instance_events
                                     -- to the kernel-state `data_object_writes` row (write_id) so subscribers
                                     -- can join rather than duplicate the full value. Cap applies via the emitting
                                     -- write_* boundary (the caller has already rejected oversize payloads; the
-                                    -- event-persist step cannot see anything over EVIL_TOKEN_MAX_BYTES).
+                                    -- event-persist step cannot see anything over TDE_TOKEN_MAX_BYTES).
   PRIMARY KEY (id, occurred_at)     -- composite because partition key must be in PK
   INDEX (process_instance_id, occurred_at)
   INDEX (event_type, occurred_at)
@@ -285,7 +285,7 @@ process_instance_events
 -- ENGINE-LEVEL AUDIT tables — they have no PI FK (the relation to PIs is via `messages.correlations[]`
 -- / broadcast semantics), so they are NOT cleaned up by Pass A (`mix evil.retention.purge`).
 -- Pass B is operator SQL ([`database.md`](../guides/operations/database.md)) using
--- `EVIL_RETENTION_ENGINE_AUDIT_DAYS` as a cutoff convention ([`configuration.md`](./configuration.md) §14.3, §14.6).
+-- `TDE_RETENTION_ENGINE_AUDIT_DAYS` as a cutoff convention ([`configuration.md`](./configuration.md) §14.3, §14.6).
 -- Operational-state rows (pending_messages
 -- state='pending', pending_signals state='pending') are NEVER retention-eligible.
 -- There are no `escalations`, `compensations`, or `engine_timers` tables.
@@ -294,11 +294,11 @@ process_instance_events
 messages
   -- PARTITIONED: PARTITION BY RANGE (published_at), one partition per calendar month.
   -- Same partitioning scheme as process_instance_events. Partitions are pre-created
-  -- by `mix evil.partitions.ensure` gated by EVIL_PARTITION_AHEAD_MONTHS. Composite primary
+  -- by `mix evil.partitions.ensure` gated by TDE_PARTITION_AHEAD_MONTHS. Composite primary
   -- key (id, published_at) because the partition key must be in the PK.
   id                       uuid NOT NULL (UUIDv7 — natural time sort)
   message_name             text      NOT NULL
-  payload                  jsonb COMPRESSION lz4      -- LZ4; capped at EVIL_TOKEN_MAX_BYTES at publish time
+  payload                  jsonb COMPRESSION lz4      -- LZ4; capped at TDE_TOKEN_MAX_BYTES at publish time
   correlation_value        text      NULL        -- stamped at publish time ([`routing.md`](./routing.md) §3.5.2). NULL == :none (the "no-key" bucket)
   origin                   jsonb                 -- { source: "api"|"pi", process_instance_id?, flow_node_instance_id? }
   published_at             timestamptz NOT NULL  -- partition key
@@ -321,7 +321,7 @@ pending_messages    -- [`routing.md`](./routing.md) §3.5.4 — unmatched publis
   -- touched — they either transition naturally (TTL sweeper at [`routing.md`](./routing.md) §3.5.4) or survive
   -- until the next engine boot for resume-time re-subscription drain ([`routing.md`](./routing.md) §3.5.5).
   --
-  -- DELETE-ON-TRANSITION: if EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false (default
+  -- DELETE-ON-TRANSITION: if TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false (default
   -- true), the row is physically deleted on deliver/expire/cancel, so this table holds only
   -- rows still in state='pending'. Operators choose between audit-retention (default) and
   -- zero-retention for this table specifically.
@@ -331,7 +331,7 @@ pending_messages    -- [`routing.md`](./routing.md) §3.5.4 — unmatched publis
   correlation_value        text NULL             -- denormalized for index; NULL == :none
   payload                  jsonb COMPRESSION lz4 -- LZ4; denormalized snapshot so delivery doesn't re-read messages
   published_at             timestamptz NOT NULL  -- partition key
-  expires_at               timestamptz NOT NULL  -- published_at + EVIL_MESSAGE_PENDING_TTL
+  expires_at               timestamptz NOT NULL  -- published_at + TDE_MESSAGE_PENDING_TTL
   state                    text NOT NULL         -- pending | delivered | expired | cancelled
   delivered_at             timestamptz NULL      -- set when state transitions to 'delivered'
   expired_at               timestamptz NULL      -- set when state transitions to 'expired'
@@ -354,7 +354,7 @@ signals    -- engine-level audit table. No payload, no correlation_value — sig
                                                  -- Length 0 = unmatched at publish (see pending_signals).
                                                  -- Length ≥ 1 = broadcast to every matching subscription at publish
                                                  --   PLUS every subscription that drained the pending_signals row
-                                                 --   within EVIL_SIGNAL_PENDING_TTL.
+                                                 --   within TDE_SIGNAL_PENDING_TTL.
   started_process_instance_ids jsonb NOT NULL DEFAULT '[]'::jsonb
                                                  -- array of PI IDs started via Signal Start Events.
   PRIMARY KEY (id, published_at)
@@ -372,14 +372,14 @@ pending_signals    -- [`routing.md`](./routing.md) §3.5.6 — signals published
   -- touched — they either transition naturally (TTL sweeper) or survive engine
   -- boot for resume-time re-subscription drain ([`routing.md`](./routing.md) §3.5.6).
   --
-  -- DELETE-ON-TRANSITION: if EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false (default
+  -- DELETE-ON-TRANSITION: if TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false (default
   -- true), the row is physically deleted on deliver/expire/cancel. Same semantics as
-  -- EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION.
+  -- TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION.
   id                       uuid NOT NULL (UUIDv7)
   signal_id                uuid NOT NULL         -- logical FK to signals (same partition scheme)
   signal_name              text NOT NULL         -- denormalized for index
   published_at             timestamptz NOT NULL  -- partition key
-  expires_at               timestamptz NOT NULL  -- published_at + EVIL_SIGNAL_PENDING_TTL
+  expires_at               timestamptz NOT NULL  -- published_at + TDE_SIGNAL_PENDING_TTL
   state                    text NOT NULL DEFAULT 'pending'  -- pending → delivered | expired
   delivered_at             timestamptz NULL      -- set when claimed by first subscriber
   expired_at               timestamptz NULL      -- set by PendingSweeper
@@ -455,7 +455,7 @@ data_object_writes   -- append-only history, one row per Data Object write.
                                                     -- the FNI whose execution caused the write
   value                    jsonb COMPRESSION lz4
                                                     -- value written. jsonb 'null' is legitimate.
-                                                    -- LZ4-compressed; capped at EVIL_TOKEN_MAX_BYTES at DOA-commit time.
+                                                    -- LZ4-compressed; capped at TDE_TOKEN_MAX_BYTES at DOA-commit time.
   created_at               timestamptz NOT NULL
                                                     -- every row is DOA-originated — there is no
                                                     --   handler-facing write_data_object/2 facade in v1 (see [`../ImplementationPlan.md`](../ImplementationPlan.md) §16.4
@@ -485,7 +485,7 @@ computes pending user-task and waiting-FNI counts with live Ash queries against
 | "Never the DB bottleneck" | Partial indexes on `state='running'`/`'active'` keep working set small; JSONB GIN for free-form queries; materialized views for heavy aggregates |
 | "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log (table exists; built-in DatabaseSink removed so it stays empty unless a plugin sink writes it) + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
 | "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state IN ('active','waiting')` (in-flight token payload lives on `input_token`) + `gateway_pending_arrivals` (for half-completed joins). PI-scoped timers resume from FNI `type_properties` into Scheduler ETS. There is no `engine_timers` table. |
-| "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `EVIL_TOKEN_MAX_BYTES` |
-| "Bounded engine-wide audit-table growth" | Operator SQL (Pass B recipe in [database.md](../guides/operations/database.md)) closes the gap PI-tree Mix purge left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned on `published_at` (`EvilEngine.Persistence.Partitions`). Single unused convention `EVIL_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded. Optional `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. `timer_start_schedules` is operational — do not DELETE it. Recommend `pg_partman` for `DETACH`/`DROP` of old partitions. |
+| "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `TDE_TOKEN_MAX_BYTES` |
+| "Bounded engine-wide audit-table growth" | Operator SQL (Pass B recipe in [database.md](../guides/operations/database.md)) closes the gap PI-tree Mix purge left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned on `published_at` (`EvilEngine.Persistence.Partitions`). Single unused convention `TDE_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded. Optional `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. `timer_start_schedules` is operational — do not DELETE it. Recommend `pg_partman` for `DETACH`/`DROP` of old partitions. |
 | "No duplicated rows per tick" | Snapshot tables are **updated in place**; events are only inserted on real state transitions or domain events |
 | "Leverage SQL" | All heavy queries are plain SQL. No client-side filtering. GraphQL queries translate 1:1 to Ecto queries via AshPostgres |

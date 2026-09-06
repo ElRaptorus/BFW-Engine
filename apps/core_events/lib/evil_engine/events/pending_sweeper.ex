@@ -3,7 +3,7 @@ defmodule EvilEngine.Events.PendingSweeper do
   Periodic GenServer that expires pending messages and pending signals
   past their TTL.
 
-  Ticks at `EVIL_PENDING_SWEEPER_INTERVAL` (default 10 000 ms). On
+  Ticks at `TDE_PENDING_SWEEPER_INTERVAL` (default 10 000 ms). On
   each tick, transitions all `pending_messages` and `pending_signals`
   rows with `state='pending' AND expires_at <= now()` to
   `state='expired'`.

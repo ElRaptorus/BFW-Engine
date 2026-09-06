@@ -1,5 +1,5 @@
 ---
-title: "Evil Engine — Message/Signal/Escalation Routing"
+title: "Daemon Engine — Message/Signal/Escalation Routing"
 parent_document: "../ImplementationPlan.md"
 ---
 
@@ -49,14 +49,14 @@ A published message `(name, payload, correlation_value)` flows through
 #### 3.5.4 Unmatched publishes (pending with TTL)
 
 Pending messages are held in the durable `pending_messages` table ([data-model.md](./data-model.md) §4.3) for
-`EVIL_MESSAGE_PENDING_TTL` (default 60 s) so that a subscription registering
+`TDE_MESSAGE_PENDING_TTL` (default 60 s) so that a subscription registering
 shortly after publish still catches the message.
 
-- On publish with zero matches (§3.5.3 step 6): insert a `pending_messages` row with `state='pending'`, `expires_at = published_at + EVIL_MESSAGE_PENDING_TTL`.
+- On publish with zero matches (§3.5.3 step 6): insert a `pending_messages` row with `state='pending'`, `expires_at = published_at + TDE_MESSAGE_PENDING_TTL`.
 - On every subscription register (`MessageSubscriptions.register/1`): drain pending messages for that `(name, expected_correlation_value)` — any pending rows still inside TTL are delivered immediately via §3.5.3 step 3 and their `state` set to `'delivered'`.
 - A periodic sweeper (every 10 s by default) transitions expired `pending` rows to `state='expired'` and emits a `warn` JSON log carrying the `message_id`, `name`, and `correlation_value`.
 - `pending_messages` never holds Signals or Escalations — those are not TTL'd.
-- **Delete-on-transition**: the post-transition row lifetime is governed by `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` (default `true`). With the default, rows in `delivered`/`expired`/`cancelled` state persist until operator SQL ages them out (delivery-attempt audit). With the flag set to `false`, the engine physically deletes the row on deliver/expire/cancel (`destroy_if_pending` still requires `state == 'pending'`), so the table holds only rows still in flight.
+- **Delete-on-transition**: the post-transition row lifetime is governed by `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` (default `true`). With the default, rows in `delivered`/`expired`/`cancelled` state persist until operator SQL ages them out (delivery-attempt audit). With the flag set to `false`, the engine physically deletes the row on deliver/expire/cancel (`destroy_if_pending` still requires `state == 'pending'`), so the table holds only rows still in flight.
 - **Orphan pending cleanup**: when a publish delivers to at least one live subscriber or triggers a Message Start Event, the publisher cancels all existing `pending_messages` rows for that `(message_name, correlation_value)` via `cancel_pending_for_message/2`. This prevents stale pending rows from earlier zero-match publishes from being drained by the next subscriber that registers after a live delivery.
 - **`skip_pending` flag**: REST API message triggers (`POST /messages/:name/trigger`) pass `skip_pending: true` through `Api.publish_message/5` to the publisher. When set, the publisher never inserts a `pending_messages` row even on zero-match. BPMN throws and plugin facade calls follow the standard pending-with-TTL behavior.
 
@@ -135,7 +135,7 @@ time.
 
 **Pending signal behavior.** When a signal has zero listeners and zero start
 events at publish time, it is cached in `pending_signals` with a configurable
-TTL (default `PT60S`, env `EVIL_SIGNAL_PENDING_TTL`, wired as
+TTL (default `PT60S`, env `TDE_SIGNAL_PENDING_TTL`, wired as
 `config :core_events, :signal_pending_ttl`). The first subscriber that
 registers and claims a pending row consumes it (FIFO drain per
 `signal_name`) — subsequent subscribers do not receive that pending signal.
@@ -162,7 +162,7 @@ races.
 
 **TTL sweeper.** `EvilEngine.Events.PendingSweeper` scans `pending_messages`
 and `pending_signals` on one tick (every 10 s by
-default, `EVIL_PENDING_SWEEPER_INTERVAL`), flipping expired `pending` rows to
+default, `TDE_PENDING_SWEEPER_INTERVAL`), flipping expired `pending` rows to
 `expired`. Escalations are not held in a pending table (escalation D1).
 
 **Resume.** On engine boot, signal subscriptions re-register as each PI

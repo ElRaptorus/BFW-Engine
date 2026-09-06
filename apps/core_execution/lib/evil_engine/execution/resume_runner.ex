@@ -29,7 +29,7 @@ defmodule EvilEngine.Execution.ResumeRunner do
   supervisor at boot. Drives the persistence adapter's paginated
   `list_running_process_instances/1` callback in a tail-recursive loop
   until the cursor is exhausted, processing one batch at a time. Peak
-  memory is bounded by `EVIL_RESUME_BATCH_SIZE` (default `1000`)
+  memory is bounded by `TDE_RESUME_BATCH_SIZE` (default `1000`)
   multiplied by per-PI row size.
 
   Returns `{:ok, count}` with the number of successfully resumed PIs.
@@ -177,7 +177,7 @@ defmodule EvilEngine.Execution.ResumeRunner do
     })
   end
 
-  # Resume bypasses EVIL_MAX_CONCURRENT_PIS so PI trees come back whole.
+  # Resume bypasses TDE_MAX_CONCURRENT_PIS so PI trees come back whole.
   # When that leaves the engine over the configured cap, emit EngineOverloaded
   # so operators see the oversubscription. Remaining resumes are never refused.
   defp maybe_publish_resume_overload do

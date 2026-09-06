@@ -1,9 +1,9 @@
 defmodule EvilEngine.Auth.JwksCache do
   @moduledoc """
   Periodically fetches and caches the JWKS (JSON Web Key Set) from the
-  configured `EVIL_JWT_JWKS_URL`.
+  configured `TDE_JWT_JWKS_URL`.
 
-  Refresh interval: `EVIL_JWKS_REFRESH_SECONDS` (default 3600).
+  Refresh interval: `TDE_JWKS_REFRESH_SECONDS` (default 3600).
   On failure the stale keyset is retained until the next successful
   fetch; a warning is logged on every failed attempt.
   """

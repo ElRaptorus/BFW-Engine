@@ -2,7 +2,7 @@ defmodule EvilEngine.Plugins.Loader do
   @moduledoc """
   In-BEAM plugin lifecycle driver.
 
-  Reads `EVIL_PLUGINS_INBEAM` (`:peripheral_plugins, :inbeam_apps`),
+  Reads `TDE_PLUGINS_INBEAM` (`:peripheral_plugins, :inbeam_apps`),
   discovers `@behaviour EvilEngine.Plugin` modules via each OTP app's
   `:plugin_module` application env key, applies include/exclude filtering,
   and drives the `on_load/1` → `on_ready/1` lifecycle.

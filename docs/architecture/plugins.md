@@ -1,5 +1,5 @@
 ---
-title: "Evil Engine — Plugin System & SDKs"
+title: "Daemon Engine — Plugin System & SDKs"
 parent_document: "../ImplementationPlan.md"
 ---
 
@@ -100,7 +100,7 @@ Highest performance, idiomatic Elixir.
   exists only so the BEAM loads the plugin's modules; it MUST NOT call
   `EvilEngine.Plugin.Registry.register/2` itself.
 - **Discovery**: at engine boot, `peripheral_plugins` reads
-  `EVIL_PLUGINS_INBEAM` (whitespace- or comma-separated list of OTP-app
+  `TDE_PLUGINS_INBEAM` (whitespace- or comma-separated list of OTP-app
   names — [configuration.md](./configuration.md) §14.3). For each entry, it locates the declared `@behaviour
   EvilEngine.Plugin` module via `Application.get_env(app_name, :plugin_module)`.
   OTP application specs do **not** support arbitrary keys like `:plugin_module`; the
@@ -108,11 +108,11 @@ Highest performance, idiomatic Elixir.
   `Application.put_env/3` from `Application.start/2`, or `config :my_plugin,
   :plugin_module, MyPlugin` in the host release). See in
   [`../ImplementationPlan.md` §0](../ImplementationPlan.md).
-- **Include / exclude lists**: cross-checked against `EVIL_PLUGINS_INCLUDE` /
-  `EVIL_PLUGINS_EXCLUDE` ([configuration.md](./configuration.md) §14.3). Exclude wins on conflict; a name appearing
+- **Include / exclude lists**: cross-checked against `TDE_PLUGINS_INCLUDE` /
+  `TDE_PLUGINS_EXCLUDE` ([configuration.md](./configuration.md) §14.3). Exclude wins on conflict; a name appearing
   in both lists is rejected with a startup log line (`:ambiguous_policy`).
 - The engine then calls `on_load(engine_facade)` on each surviving
-  plugin in the order they appear in `EVIL_PLUGINS_INBEAM`. Sequential,
+  plugin in the order they appear in `TDE_PLUGINS_INBEAM`. Sequential,
   not parallel.
 - **Concurrency**: each plugin's worker processes (anything spun up
   inside `on_load`) live under a per-plugin OTP supervisor inside
@@ -135,7 +135,7 @@ Highest performance, idiomatic Elixir.
 #### 9.2.3 Sidecar plugins
 
 > **Deferred — not in v1 (PLUG-D1).** There is no `SidecarLoader`, no plugin
-> gRPC protocol, and no process host. `EVIL_PLUGINS_SIDECAR_*` env vars are
+> gRPC protocol, and no process host. `TDE_PLUGINS_SIDECAR_*` env vars are
 > reserved no-ops. The remainder of this section is the retained design for
 > a possible post-v1 revisit, not a v1 contract. Non-Elixir code in v1 uses
 > the built-in HTTP Service Task, REST/GraphQL/WebSocket, or an in-BEAM
@@ -145,7 +145,7 @@ Language-agnostic. The engine drives discovery and lifecycle from a
 filesystem directory.
 
 - **Default discovery directory**: `~/.evil/engine/plugins`,
-  configurable via `EVIL_PLUGINS_SIDECAR_DIR` ([configuration.md](./configuration.md) §14.3). Setting the dir to
+  configurable via `TDE_PLUGINS_SIDECAR_DIR` ([configuration.md](./configuration.md) §14.3). Setting the dir to
   an empty string disables sidecar loading entirely.
 - Each immediate subdirectory is a candidate plugin and contains a
   `plugin.toml` manifest:
@@ -158,7 +158,7 @@ filesystem directory.
   env       = { DD_API_KEY_REF = "vault:secret/datadog#api_key" }
   ```
 - **Scan order**: deterministic, alphabetical by directory name.
-- **Include / exclude lists**: same `EVIL_PLUGINS_INCLUDE` / `EVIL_PLUGINS_EXCLUDE`
+- **Include / exclude lists**: same `TDE_PLUGINS_INCLUDE` / `TDE_PLUGINS_EXCLUDE`
   rules as the in-BEAM tier. The names matched are the manifest's
   `name`, not the directory name.
 - For each surviving plugin the engine spawns the manifest-declared
@@ -173,7 +173,7 @@ filesystem directory.
   `EngineReady` message on every active gRPC stream — that is the
   sidecar-side `on_ready`.
 - A sidecar process exit triggers reconnect-with-backoff; after
-  `EVIL_PLUGINS_SIDECAR_RECONNECT_LIMIT` consecutive failures ([configuration.md](./configuration.md) §14.3,
+  `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` consecutive failures ([configuration.md](./configuration.md) §14.3,
   default `5`) the plugin is **quarantined** and an
   `Event.PluginQuarantined` is published on `EngineEventBus` ([event-system.md](./event-system.md) §3.3.2).
   Quarantined plugins are not auto-revived in v1; operator restarts the
@@ -185,7 +185,7 @@ filesystem directory.
 > (project root). That CI obligation is **not in v1** (PLUG-D1). If the sidecar
 > host is revisited post-v1, fixtures would live there: `plugin.toml` + runnable
 > binary/script per subdirectory, covering Elixir (escript), Python, Ruby, C#
-> (dotnet), and Node.js, with `EVIL_PLUGINS_SIDECAR_DIR` pointed at the fixture
+> (dotnet), and Node.js, with `TDE_PLUGINS_SIDECAR_DIR` pointed at the fixture
 > directory and reset after the run. See [`testing.md`](./testing.md) §12.4.8.
 
 #### 9.2.4 `HandlerContext` (Core → `FlowNodeHandler`)
@@ -285,7 +285,7 @@ The Loader's facade closure also logs a warning when any registration error is r
 - Sidecar timeouts have configurable limits; on timeout the associated operation returns `:plugin_timeout` and the FNI transitions to `fatal`.
 - **`on_load` failure (raise / `{:error, _}` return / sidecar `Hello` timeout):** the offending plugin is **quarantined** — it is *not* registered, no further callbacks fire on it, and an `Event.PluginQuarantined{plugin_name, tier, reason, occurred_at}` is published on `EngineEventBus`. Engine boot continues with the remaining plugins. Operators inspect the `plugins` block of `/stats` ([`../ImplementationPlan.md` §11.2](../ImplementationPlan.md)) to see degraded plugins. Quarantined plugins do not auto-revive in v1; operator restarts the engine.
 - **Sidecar discovery failures** (manifest invalid, `exec` binary missing, gRPC handshake timeout, manifest excluded by policy) are handled identically: the candidate is rejected with a structured log line (`reason: :manifest_invalid` / `:exec_missing` / `:hello_timeout` / `:denied_by_policy`), `Event.PluginQuarantined` is published, scan continues with the next directory.
-- **In-BEAM discovery failures** (named OTP app in `EVIL_PLUGINS_INBEAM` not loaded, missing `:plugin_module` in **application env**, name in `EVIL_PLUGINS_EXCLUDE`) are handled identically. A name appearing in both `EVIL_PLUGINS_INCLUDE` and `EVIL_PLUGINS_EXCLUDE` is rejected with `reason: :ambiguous_policy`.
+- **In-BEAM discovery failures** (named OTP app in `TDE_PLUGINS_INBEAM` not loaded, missing `:plugin_module` in **application env**, name in `TDE_PLUGINS_EXCLUDE`) are handled identically. A name appearing in both `TDE_PLUGINS_INCLUDE` and `TDE_PLUGINS_EXCLUDE` is rejected with `reason: :ambiguous_policy`.
 
 ### 9.4 Default built-in plugins
 

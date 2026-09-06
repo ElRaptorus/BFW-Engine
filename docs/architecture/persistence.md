@@ -44,11 +44,11 @@ This means GraphQL queries, REST list/get endpoints, and any `Ash.read` call aut
 
 | Pool | Env var | Default | Rationale |
 |------|---------|---------|-----------|
-| Write | `EVIL_DB_POOL_SIZE` | 100 | Execution writes are individually fast but massively concurrent |
-| Read | `EVIL_DB_READ_POOL_SIZE` | 50 | GraphQL queries are heavier but far less frequent |
+| Write | `TDE_DB_POOL_SIZE` | 100 | Execution writes are individually fast but massively concurrent |
+| Read | `TDE_DB_READ_POOL_SIZE` | 50 | GraphQL queries are heavier but far less frequent |
 | Total | — | 150 | 2:1 write-to-read ratio reflects workload asymmetry |
 
-Size Postgres with `max_connections >= (write + read) * engine_nodes + 20`. Production defaults (100 + 50) already exceed Postgres's default `max_connections` of 100; a single-node install needs at least 170 (recommend 200). `config/dev.exs` uses a small local pool. `config/test.exs` defaults to the Ecto sandbox (`pool_size: schedulers * 2`); load tests set `EVIL_LOAD_TEST_POOL=1` for a real `ConnectionPool` of 50 write / 25 read (`EVIL_LOAD_TEST_POOL_SIZE`, P89). That total (75) stays under GitHub Actions' stock Postgres `max_connections` of 100. Production 100+50 would exceed that service-container limit. `scripts/create-test-db.sh` starts Postgres with `max_connections=200` so a local Docker database can host the load-test pools with headroom.
+Size Postgres with `max_connections >= (write + read) * engine_nodes + 20`. Production defaults (100 + 50) already exceed Postgres's default `max_connections` of 100; a single-node install needs at least 170 (recommend 200). `config/dev.exs` uses a small local pool. `config/test.exs` defaults to the Ecto sandbox (`pool_size: schedulers * 2`); load tests set `TDE_LOAD_TEST_POOL=1` for a real `ConnectionPool` of 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`, P89). That total (75) stays under GitHub Actions' stock Postgres `max_connections` of 100. Production 100+50 would exceed that service-container limit. `scripts/create-test-db.sh` starts Postgres with `max_connections=200` so a local Docker database can host the load-test pools with headroom.
 
 ### Queue tuning (CoDel)
 
@@ -56,10 +56,10 @@ Both pools use DBConnection's CoDel algorithm for overload shedding:
 
 | Parameter | Env var | Default | Description |
 |-----------|---------|---------|-------------|
-| Queue target | `EVIL_DB_QUEUE_TARGET` | 100ms | CoDel target latency |
-| Queue interval | `EVIL_DB_QUEUE_INTERVAL` | 2000ms | CoDel measurement interval |
-| Checkout timeout | `EVIL_DB_CHECKOUT_TIMEOUT` | 15,000ms | Max wait for a connection |
-| Checkout retries | `EVIL_DB_CHECKOUT_RETRIES` | 3 | DBConnection Layer 1 retries |
+| Queue target | `TDE_DB_QUEUE_TARGET` | 100ms | CoDel target latency |
+| Queue interval | `TDE_DB_QUEUE_INTERVAL` | 2000ms | CoDel measurement interval |
+| Checkout timeout | `TDE_DB_CHECKOUT_TIMEOUT` | 15,000ms | Max wait for a connection |
+| Checkout retries | `TDE_DB_CHECKOUT_RETRIES` | 3 | DBConnection Layer 1 retries |
 
 These parameters are applied to both repos via the `db_pool_tuning` config block in `config/runtime.exs`.
 
@@ -69,8 +69,8 @@ All persistence adapter calls are wrapped with `PersistenceRetry.with_retry/3`, 
 
 | Parameter | Default | Env var |
 |-----------|---------|---------|
-| Max attempts | 5 | `EVIL_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
-| Initial backoff | 100ms | `EVIL_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
+| Max attempts | 5 | `TDE_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
+| Initial backoff | 100ms | `TDE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
 
 Coverage includes PI/FNI lifecycle, boundary orchestration, resume reads, retry orchestration, and message/signal persistence adapters. See `docs/architecture/execution.md` for the full call-site table.
 
@@ -86,7 +86,7 @@ Coverage includes PI/FNI lifecycle, boundary orchestration, resume reads, retry 
 | `evil_engine.db.query.total_time_ms` | distribution | `repo` |
 | `evil_engine.db.query.count` | counter | `repo` |
 
-A warning log is emitted when `queue_time` exceeds the configurable threshold (`EVIL_DB_QUEUE_TIME_WARNING_MS`, default 500ms).
+A warning log is emitted when `queue_time` exceeds the configurable threshold (`TDE_DB_QUEUE_TIME_WARNING_MS`, default 500ms).
 
 ### Pool metrics
 
@@ -135,7 +135,7 @@ Sampled every 10s by the telemetry poller via `EvilEngine.Telemetry.Measurements
 
 The dual-repo architecture is designed to be replica-ready. When a physical read replica is introduced:
 
-1. Point `ReadRepo` at the replica's connection string via a separate `EVIL_DB_READ_URL` env var
+1. Point `ReadRepo` at the replica's connection string via a separate `TDE_DB_READ_URL` env var
 2. All read traffic (GraphQL, REST list/get) automatically routes to the replica
 3. Write traffic continues using the primary via `Repo`
 

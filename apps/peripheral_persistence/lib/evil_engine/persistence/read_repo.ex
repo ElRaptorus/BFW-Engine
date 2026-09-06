@@ -3,7 +3,7 @@ defmodule EvilEngine.Persistence.ReadRepo do
   Read-only `AshPostgres.Repo` for GraphQL queries and REST reads.
 
   Connects to the same PostgreSQL database as the write `Repo`, but
-  uses a separate connection pool (`EVIL_DB_READ_POOL_SIZE`, default 50).
+  uses a separate connection pool (`TDE_DB_READ_POOL_SIZE`, default 50).
   This isolates read traffic from latency-critical execution writes.
 
   Pool tuning parameters are shared with the write Repo via the

@@ -1,6 +1,6 @@
 defmodule EvilEngine.Umbrella.MixProject do
   @moduledoc """
-  Umbrella root for the Evil Engine — a BPMN 2.0 workflow engine.
+  Umbrella root for the Daemon Engine — a BPMN 2.0 workflow engine.
 
   Each subsystem lives under `apps/` as its own OTP application, per the
   Domain-Driven layout described in `docs/ImplementationPlan.md` §2.
@@ -23,7 +23,7 @@ defmodule EvilEngine.Umbrella.MixProject do
     [
       apps_path: "apps",
       version: @version,
-      name: "Evil Engine",
+      name: "Daemon Engine",
       source_url: "https://github.com/ElRaptorus/ThomasTheDaemonEngine",
       homepage_url: "https://github.com/ElRaptorus/ThomasTheDaemonEngine",
       start_permanent: Mix.env() == :prod,
@@ -225,7 +225,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       "test.examples": ["test apps/peripheral_plugins/test/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
-      # Sets EVIL_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
+      # Sets TDE_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
       "test.load": &run_load_tests/1,
       "test.load.durability": &run_load_durability_tests/1,
       "test.load.all": &run_load_all_tests/1,
@@ -277,11 +277,11 @@ defmodule EvilEngine.Umbrella.MixProject do
   end
 
   defp run_load_durability_tests(args) do
-    run_load_suite(args, %{"EVIL_LOAD_DURABILITY" => "1"})
+    run_load_suite(args, %{"TDE_LOAD_DURABILITY" => "1"})
   end
 
   defp run_load_all_tests(args) do
-    run_load_suite(args, %{"EVIL_LOAD_DURABILITY" => "all"})
+    run_load_suite(args, %{"TDE_LOAD_DURABILITY" => "all"})
   end
 
   defp run_load_suite(args, extra_environment) do
@@ -295,7 +295,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       System.put_env(key, value)
     end)
 
-    pool_ready? = System.get_env("EVIL_LOAD_TEST_POOL") in ["1", "true"]
+    pool_ready? = System.get_env("TDE_LOAD_TEST_POOL") in ["1", "true"]
 
     if pool_ready? do
       Mix.Task.run("run", run_argv)
@@ -304,7 +304,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       # this already-booted VM is too late — re-exec so Repo uses a real pool.
       environment =
         System.get_env()
-        |> Map.put("EVIL_LOAD_TEST_POOL", "1")
+        |> Map.put("TDE_LOAD_TEST_POOL", "1")
         |> Map.put("MIX_ENV", "test")
         |> Map.merge(extra_environment)
 

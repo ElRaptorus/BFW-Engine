@@ -48,11 +48,11 @@ Load level lives on **`GET /stats`** (`engine.load`: `normal` / `elevated` / `cr
 
 ## Prometheus (`GET /metrics`)
 
-`GET /metrics` is public Prometheus text (`text/plain; version=0.0.4`). It is **on by default** via `EVIL_METRICS_ENABLED=true`. Set `EVIL_METRICS_ENABLED=false` to return 404.
+`GET /metrics` is public Prometheus text (`text/plain; version=0.0.4`). It is **on by default** via `TDE_METRICS_ENABLED=true`. Set `TDE_METRICS_ENABLED=false` to return 404.
 
 The scrape endpoint is **unauthenticated**. Restrict it at the network edge if the engine is reachable from untrusted networks.
 
-OpenTelemetry does **not** ship. There are no `EVIL_OTEL_*` variables.
+OpenTelemetry does **not** ship. There are no `TDE_OTEL_*` variables.
 
 ## Event Sinks
 
@@ -62,14 +62,14 @@ The engine routes typed events through `EngineEventBus` to **three** built-in si
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `EVIL_EVENT_SINK_CONSOLE` | `on` | Enable/disable |
-| `EVIL_LOG_MIN_SEVERITY` | `info` | Floor: `error`, `warn`, `info`, `debug`, `verbose` |
+| `TDE_EVENT_SINK_CONSOLE` | `on` | Enable/disable |
+| `TDE_LOG_MIN_SEVERITY` | `info` | Floor: `error`, `warn`, `info`, `debug`, `verbose` |
 
 ### Telemetry Sink
 
 | Env Var | Default |
 |---------|---------|
-| `EVIL_EVENT_SINK_TELEMETRY` | `on` |
+| `TDE_EVENT_SINK_TELEMETRY` | `on` |
 
 Disabling this makes `/stats` counters permanently zero.
 
@@ -77,9 +77,9 @@ Disabling this makes `/stats` counters permanently zero.
 
 | Env Var | Default |
 |---------|---------|
-| `EVIL_EVENT_SINK_WEBSOCKET` | `on` |
+| `TDE_EVENT_SINK_WEBSOCKET` | `on` |
 
-There is no `EVIL_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded. Console severity is `EVIL_LOG_MIN_SEVERITY` only.
+There is no `TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded. Console severity is `TDE_LOG_MIN_SEVERITY` only.
 
 ## Logging
 

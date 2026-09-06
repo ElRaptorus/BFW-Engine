@@ -180,7 +180,7 @@ defmodule EvilEngine.Integration.StartEndpointTest do
   # Bad paths — payload errors
   # -------------------------------------------------------------------------
 
-  describe "B7: payload exceeds EVIL_TOKEN_MAX_BYTES" do
+  describe "B7: payload exceeds TDE_TOKEN_MAX_BYTES" do
     test "returns 413 payload_too_large" do
       {201, _} = http_deploy("linear_start_end.bpmn")
 

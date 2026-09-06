@@ -1,10 +1,10 @@
 ---
-title: Evil Engine — Implementation Plan
+title: Daemon Engine — Implementation Plan
 date: 2026-04-24
 status: APPROVED
 ---
 
-# Evil Engine — Implementation Plan
+# Daemon Engine — Implementation Plan
 
 > Working title: *"The Anvil of Khorne"*.
 > This document is the concrete, phase-by-phase implementation plan derived from
@@ -36,13 +36,12 @@ Sections extracted to `architecture/*.md` are marked with a
 
 ## Table of Contents
 
-0. [Design Decisions](#0-design-decisions)
-1. [Tech stack (final)](#1-tech-stack-final)
+1. [Tech stack](#1-tech-stack)
 2. [High-level architecture (DDD domains)](#2-high-level-architecture-ddd-domains)
 3. [Runtime architecture](#3-runtime-architecture)
 4. [Data model](#4-data-model-postgres)
-5. [Process Instance specification (fleshed out)](#5-process-instance-specification-fleshed-out)
-6. [Flow Node Instance specification (fleshed out)](#6-flow-node-instance-specification-fleshed-out)
+5. [Process Instance specification](#5-process-instance-specification)
+6. [Flow Node Instance specification](#6-flow-node-instance-specification)
 7. [BPMN element coverage](#7-bpmn-element-coverage-per-priority-tier)
 8. [Expression engine (FEEL)](#8-expression-engine-feel)
 9. [Plugin system & SDKs](#9-plugin-system--sdks)
@@ -54,95 +53,10 @@ Sections extracted to `architecture/*.md` are marked with a
 15. [Phases, priorities & order](#15-phases-priorities--order)
 16. [Open items, defaults, and risks](#16-open-items-defaults-and-risks)
 
----
-
-## 0. Design Decisions
-
-Significant design decisions made during implementation. Each entry records the decision, when it was made (phase), and a brief rationale. Add new rows here when a meaningful architectural choice diverges from the original plan or establishes a lasting pattern.
-
-| ID | Phase | Decision | Rationale |
-|----|-------|----------|-----------|
-| D1 | Phase 4 | **No pending-escalation cache; deterministic propagation.** The `pending_escalations` table, `PendingSweeper` involvement, and all late-catch drain logic (§3.5.7.1) were dropped. Escalation boundaries are pre-spawned in `:waiting` state when the host activity starts — there is no publish-before-register race condition for escalations. Propagation follows the existing parent-chain message-passing architecture (one handler Task + PI per scope level), which is deterministic and synchronous. | Eliminates a DB table, sweeper involvement, and complex late-catch semantics. The race condition that motivated the pending-escalation hold does not exist for Escalation Boundaries (unlike Messages, which are sent from outside the engine). |
-| CG-D1 | Phase 5 | **Complex Split is opinionated inclusive-style, no unconditional fall-through.** Every outgoing flow must be conditional or the `default`; an unmarked non-default flow is a **runtime fatal** `:complex_gateway_unconditional_flow` (WIP diagrams still deploy; Studio lints warning/error by ruleset). Default fires only when zero conditionals match. | Catches the classic "forgot a condition, so it always fires" Inclusive-split bug when the split is entered, without blocking incomplete diagrams at deploy. |
-| CG-D2 | Phase 5 | **Complex Join is a single-fire threshold join.** Fires once when the FEEL `activationCondition` becomes true; deliberately no re-fire / reset. | Avoids the BPMN spec's oscillation-prone reset semantics; keeps the join deterministic. |
-| CG-D3 | Phase 5 | **Twist 1 — dead-path exhaustion is an error.** When every incoming branch is arrived-or-dead and the condition is still false → fatal `complex_join_condition_unmet`. | An impossible quorum fails loudly and immediately rather than leaving the PI silently stuck forever. |
-| CG-D4 | Phase 5 | **Twist 2 — firing cancels the losers in the SESE region.** On fire, all still-active/waiting FNIs inside the region bounded by the paired split are interrupted (`cancelled_by_complex_join`). | Turns "fastest N-of-M" into a clean scoped mini-terminate; no stragglers, no orphaned tasks/timers/child PIs. |
-| CG-D5 | Phase 5 | **Strict 1:1 join↔split pairing (SESE).** A Complex Join must pair to exactly one Complex Split; zero / ambiguous / non-SESE pairing is a deploy error. | Makes "which branches get cancelled" unambiguous and bounded. |
-| CG-D7 | Phase 5 | **Threshold bindings are `activatedCount` / `incomingCount`.** Injected as top-level FEEL bindings while evaluating the join's `activationCondition`. | Matches the seeded `activatedCount >= 2` fixture and reads naturally for quorum conditions. |
-| CG-D10 | Phase 5 | **Pairing rule `S = idom_complex(J)`.** The paired split is the nearest enclosing Complex Split that dominates the join (immediate dominator restricted to Complex Splits); region = `forward_reachable(S) ∩ backward_reachable(J) \ {S,J}`. | Deterministic; always picks the innermost enclosing split, so nested regions are strictly contained (laminar) and never partially overlap. |
-| D2 | Phase 5 | **Subprocess Start-Event isolation via a core parent-presence invariant.** A Start Event nested in an embedded / event / (future) transactional subprocess is never externally startable. The authoritative guard is intrinsic to `Execution.start_process_instance/1`: `subprocess_node_id` present ⇒ `parent_process_instance_id` required, else `{:error, :orphan_subprocess_start}`. The public start surface (REST + `Api` facade) excludes `subprocess_node_id`; extraneous request params are **ignored**, not rejected, consistent with other endpoints. A deploy-time `duplicate_flow_node_id` validator enforces global flow-node ID uniqueness across a process and every nested subprocess scope. | A single chokepoint (every entry point — REST, plugin, Call Activity, SubProcess, ESP — flows through it) converts today's incidental data-scoping protection into an explicit, regression-tested invariant, without adding noisy per-key rejection. Global unique IDs remove start-event/subprocess resolution ambiguity. A request-validation layer that *rejects* unknown params is acknowledged as useful but separate/out-of-scope. |
-| ESP-D1 | Phase 5 | **An Event Subprocess (ESP) executes as a child ProcessInstance of its scope PI**, reusing the embedded-subprocess synthetic-model machinery (`ModelCache.fetch_subprocess_model/2`, `start_process_instance/1` with `subprocess_node_id`). | The inner graph is already stored in `type_data`; child-PI spawn, resume, and abort/fatal/error/escalation cascade already exist for embedded subprocesses. Minimal new runtime surface. |
-| ESP-D2 | Phase 5 | **The scope PI owns ESP trigger subscriptions.** On init and resume it scans its `flow_nodes` for `triggered_by_event: true` subprocesses and registers each trigger (message/signal subscription, timer arm, conditional waiter); Error/Escalation are resolved reactively at raise time. Triggers lie dormant until fired. | Attaches the handler to the whole scope (not one activity, unlike boundary events); matches "dormant, observe until triggered". |
-| ESP-D3 | Phase 5 | **Interrupting ESP** interrupts every *other* active/waiting FNI in the scope via `interrupt_remaining_fnis` (reason `:interrupted_by_event_subprocess`) — which does **not** stop the PI — tears down the other triggers, then spawns the ESP child; on completion the scope finishes normally. | Reuses the "interrupt siblings, keep PI alive" primitive (Terminate End Event, Complex Gateway Twist 2). Single-threaded in the PI's `gen_statem`; cannot target the scope PI itself. |
-| ESP-D4 | Phase 5 | **Non-interrupting ESP** spawns a parallel child PI, keeps the trigger armed (re-arms) for multiple concurrent instances, and the scope PI continues; the scope does not finish until the main flow and all ESP child PIs are done. | Standard BPMN non-interrupting semantics; reuses the `active_count`-driven completion loop. |
-| ESP-D5 | Phase 5 | **Trigger sourcing per start type:** Message = correlation subscription (kind `:event_subprocess_start`); Signal = signal subscription (same kind); Timer = PI-scoped `Scheduler` arm relative to scope activation (date/duration once, cycle re-arms); Conditional = scope-PI edge-triggered waiter; Error/Escalation = reactive scope resolution at raise time. | Correlation/timer/condition are relative to scope activation, not deployment. Error/escalation are scoped catchers on the propagation path. |
-| ESP-D6 | Phase 5 | **Conflict-resolution law: proximity first, specificity second.** Error/escalation propagate outward; at each step the candidate set is boundaries on the activity being exited, then the ESP starts of the directly-containing scope, then bubble outward — first match wins. Within one candidate set, specific code beats catch-all. A boundary and an ESP are never in the same set, so boundary-vs-ESP is always decided by proximity. Message = tiered (see ESP-D13); Signal = broadcast-all; Timer/Conditional = independent. | Spec-aligned (BPMN outward propagation, innermost-scope-wins) and deterministic. Reuses `EscalationResolver` and `EventSubprocessResolver` specificity ranking. |
-| ESP-D7 | Phase 5 | **Deploy-time ESP validation:** exactly one start event; typed start (never None); an Error start must be interrupting (`event_subprocess_error_start_must_interrupt`); the shell must have no incoming/outgoing sequence flows (`event_subprocess_has_sequence_flow`). Inner structural validation runs recursively (like embedded subprocess). "≥1 End Event" stays a runtime check. | Prevents undeployable diagrams while keeping WIP tolerance for end-event completeness. |
-| ESP-D8 | Phase 5 | **The ESP inner scope may contain any supported flow node**, including Call Activities, Embedded Subprocesses, and nested Event Subprocesses at arbitrary depth. | It runs as a full child PI; capability is inherited. |
-| ESP-D9 | Phase 5 | **Lanes are orthogonal to ESP triggering** — triggers are never lane-gated; inner activities may carry lane assignments (inherited like embedded subprocess). | BPMN: event subprocesses stand above lanes. |
-| ESP-D10 | Phase 5 | **Resume** re-registers dormant triggers during scope-PI resume (same scan as fresh init); a triggered-but-incomplete ESP is reattached via its shell FNI's `child_process_instance_id` (existing embedded reattach path). | Reuses existing child-PI resume plus one scan step. |
-| ESP-D11 | Phase 5 | **Retry/Abort/Fatal:** ESP child PIs are ordinary child PIs covered by tree-reset, abort cascade, and fatal cascade via the shell FNI callbacks. An uncaught error/escalation raised by the ESP child itself is offered to the shell's own boundary, then propagates to the scope PI's own parent — never back into the same scope. | Consistent with "the handler cannot re-handle its own escape". |
-| ESP-D12 | Phase 5 | **A running ESP is a shell FNI** (`flow_node_id` = ESP shell id, `type: :sub_process`) owning `child_process_instance_id` and participating in `active_count`. Interrupting → one shell FNI; non-interrupting → one shell FNI per fire. | Makes completion tracking, resume, and abort cascade fall out of existing FNI machinery. |
-| ESP-D13 | Phase 5 | **An ESP Message Start is a gated Start Event** subject to catch-wins-over-start: any active inline Message Catch/Boundary with a matching `(name, correlation)` always beats it (and beats a standalone start). The ESP message start registers with an informational `:event_subprocess_start` kind but is excluded from the delivery set and fires only when `deliveries == []`. | User directive: Catch/Boundary always beats a Start Event regardless of where it lies. Spec-aligned. |
-| ESP-D13b | Phase 5 | **An ESP Message Start beats a Standalone Message Start** when no catch consumes the message: the running instance handles it and no new PI is created. Precedence ladder: inline catch/boundary → ESP message start → standalone message start. | Correlate to the in-flight instance before creating a new one. |
-| ESP-D13c | Phase 5 | **Signal ESP starts keep broadcast-all simultaneous semantics** — an ESP signal start fires alongside signal catches/boundaries and standalone signal starts. The message catch-wins-over-start gate does not apply to signals. | Signals are not point-to-point; the "catch beats start" directive was scoped to messages. |
-| ESP-D14 | Phase 5 | **Scope:** Message/Signal/Timer/Error/Escalation/Conditional starts. **Compensation start** added in Phase 5.4 (see COMP-D1, COMP-D5). | Compensation start triggers consume a thrown compensation for the containing scope and run the ESP inner flow. |
-| ESP-D15 | Phase 5 | **An ESP inner Start Event is never externally startable** — it is spawned only by the scope PI's trigger machinery, always with both `subprocess_node_id` and `parent_process_instance_id`. This is the Subprocess Start-Event Isolation invariant (see **D2** above); cross-referenced, not duplicated. | Guarantees ESP starts are scope-owned; a user/plugin/Call Activity can never trigger an ESP inner start directly. |
-| ESP-D16 | Phase 5 | **The ESP child PI is announced with the existing `SubProcessChildStarted` event carrying a new mandatory `is_event_subprocess` boolean** (`true` for ESP shells, `false` for embedded / plain shells); the richer `EventSubprocessTriggered` event is emitted in addition for engine-level observers. | Deterministic, reuses the SP-13 root-PI WebSocket fan-out, and the flag lets third-party consumers react ESP-specifically. |
-| ESP-D17 | Phase 5 | **Coordinated Studio↔Engine linter-score contract fix (Studio authoritative).** The engine's process-level `<evil:linterRulesetScore>` parser + `LinterGate` are rewritten to consume the Studio's definitions-level `<evil:Properties>/<evil:LinterRulesetScore>` shape (attributes `rulesetId`, `scorePercent`, `complianceStatus`, `computedAtIso`, `schemaVersion`, `maxPoints`, `penaltyPoints`, `rawErrorFindings`, `rawWarningFindings`). | The old engine path was dead code against real Studio output; fixing it unblocks deployment of any Studio-linted diagram, ESP included. |
-| COMP-D1 | Phase 5 | **Compensation-only scope (v1).** Compensate Throw, Compensate End, Compensation Boundary, Compensation-start Event Subprocess, plus `isForCompensation` + `<bpmn:association>` parsing. Transaction + Cancel End/Boundary are a follow-up that depends on this work. | Compensation is useful standalone (saga pattern, escalation-drives-rollback) and is the prerequisite for transaction/cancel. Building the smaller feature first reduces risk. |
-| COMP-D2 | Phase 5 | **Sequential strict reverse-completion order (LIFO), one handler at a time.** `activityRef` targets a single activity; absent `activityRef` broadcasts to all completed activities in scope in reverse completion order. | Matches BPMN 2.0 §10.6 and the Camunda/Flowable implementations. Sequential execution is simpler to reason about and resume; parallel compensation is a documented follow-up. |
-| COMP-D3 | Phase 5 | **Re-derive the compensation registry on resume from persisted finished FNIs + the BPMN model (no new registry table).** In-flight throw runs resume from a persisted cursor stored in `type_properties`. | Same "reconstructed vs re-derived" philosophy used for join routing. No schema migration needed; the registry is a cheap runtime view over data already persisted by the FNI lifecycle. |
-| COMP-D4 | Phase 5 | **Compensation End is non-interrupting to parallel branches.** It consumes its token like a None End Event (not a Terminate). When the PI quiesces with `compensation_end_reached` and no stronger terminal (error/escalation/terminate), the PI terminal state is `:compensated`; otherwise `:finished`. | Matches BPMN 2.0 §10.6 and Camunda: "a compensation end event triggers compensation and the current path of execution is ended; same behavior as a compensation intermediate throwing event." A Compensate End only ends its own path. |
-| COMP-D5 | Phase 5 | **Compensation Start event is legal only inside a `triggeredByEvent` subprocess.** This is the only hard compensation-position rule enforced at deploy time; all other compensation checks (missing association, unresolved `activityRef`) are linter/runtime concerns. | Mirrors the ESP-D7 style. The deploy-time validator stays lenient (WIP diagrams can be deployed); structural correctness beyond this rule is the Studio linter's job. |
-| COMP-D6 | Phase 5 | **State model: only PI terminal `:compensated` ships in v1.** No `compensating` PI state and no new FNI state. "Compensation is active / what got compensated" is expressed via `CompensationTriggered` / `ActivityCompensated` events + `type_properties` markers on the involved FNIs. | Avoids duplicating every `:running` gen_statem clause for a `:compensating` state; preserves the "finished is terminal" FNI invariant that retry/resume rely on. A live `compensating` indicator is a deferred follow-up. |
-| COMP-D7 | Phase 5 | **Responsibility split: thin handlers + `CompensationResolver` + `ProcessInstance.CompensationOrchestrator`.** Handlers return a tuple tag; the resolver does model matching; the orchestrator builds ordered plans (no spawning); the PI stays a thin executor. | Follows the anti-god-module pattern established by `BoundaryOrchestrator` (which documents "does not spawn FNIs — those remain in ProcessInstance"). All matching/ordering logic sits in pure, unit-testable modules. |
-| COMP-D8 | Phase 5 | **Subprocess / Call Activity scope (v1): atomic-unit compensation only.** Embedded subprocesses and call activities are compensated as atomic units via a compensation boundary on the shell + a parent-scope handler. No cross-PI recursion into a child PI's inner completed activities. | Deep hierarchical recursion into embedded-subprocess internals is spec-correct but materially larger, touching child-PI boundary and resume/registry design. Call-activity non-propagation is permanent per BPMN spec. |
-| TX-D1 | Phase 5 | **Transaction is a SubProcess variant, not a separate type.** Parser maps `bpmn:transaction` to `:sub_process` with `is_transaction: true` on `FlowNodeData.SubProcess`. Handler routing branches on this flag to use `TransactionSubProcess`. | Reuses 95% of the embedded subprocess infrastructure (ModelCache, boundary orchestration, resume, retry). Mirrors how ESP was added (`triggered_by_event: true`). |
-| TX-D2 | Phase 5 | **New PI terminal state: `:cancelled`.** When a child PI is cancelled via Cancel End Event, it transitions to `:cancelled`. Distinct from `:aborted` (API kill switch) and `:compensated` (explicit compensation throw/end). | Clean state semantics matching the three Terminal-but-handled states family. |
-| TX-D3 | Phase 5 | **Cancel End fires automatic LIFO compensation within the child PI.** Sequence: (1) Cancel End → child PI interrupts siblings, (2) child PI runs LIFO compensation for completed activities via `CompensationOrchestrator`, (3) child PI transitions to `:cancelled` and notifies parent. | Compensation runs inside the child PI's scope (correct scoping per BPMN §10.4.3). Parent only sees the final `:cancelled` state. |
-| TX-D4 | Phase 5 | **Cancel Boundary is reactive (Error-model), not subscription-based (Timer/Message-model).** The Transaction handler Task awaits `{:child_pi_cancelled, ...}` and routes through `BoundaryResolver.find_matching_cancel_boundary/2`. | Cancel is deterministic and internal — there is no external event source to subscribe to. Same pattern as Error Boundary on Call Activity / Embedded Subprocess. |
-| TX-D5 | Phase 5 | **No nested transactions in v1.** Deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. Embedded subprocesses and call activities inside a transaction are allowed and compensated as atomic units (COMP-D8). | Nested transactions add complexity with little practical value. No mainstream engine supports them well. |
-| TX-D6 | Phase 5 | **`method` attribute parsed and stored but not executed.** No wire-level transaction protocol integration (WS-AT, WS-BA). | Matches Camunda, Flowable, jBPM. The attribute is preserved in the model for BPMN fidelity. |
-| TX-D7 | Phase 5 | **Hazard (uncaught error) does NOT trigger compensation.** An error propagating out of the transaction without an error boundary fatals the child PI. No compensation runs. Parent sees `{:child_pi_fatal, ...}`. | Spec-correct (BPMN 2.0 §13.4.6). Modelers who want compensation on error should wire an Error Boundary inside the transaction that routes to a Compensate Throw before the Cancel End. |
-| TX-D8 | Phase 5 | **Retry restrictions: no checkpoint inside a transaction scope AND no retry of any nested PI below a transaction.** `resetToFlowNodeInstanceId` pointing inside a cancelled transaction → `retry_checkpoint_inside_transaction`. Retrying any PI with a transaction ancestor → `retry_inside_transaction_scope`. Applies transitively to TX → SP → CA chains. | Atomicity: once a transaction exists in the process tree, all nested PIs are part of that atomic scope. The correct approach is always to retry from the transaction shell or further upstream. |
-| TX-D9 | Phase 5 | **`:cancelled` is NOT retryable.** Like `:compensated` and `:escalated`, a `:cancelled` PI represents a handled business outcome, not a failure. The parent continues via the Cancel Boundary. | Consistent with the "terminal-but-handled" family of states. |
-| AH-D1 | Phase 1 | **Reuse `:sub_process` atom + `is_ad_hoc: true` on `FlowNodeData.SubProcess`** (same pattern as `is_transaction`). No separate `:adhoc_sub_process` atom. | Minimizes wire-format changes. Engine SDK `FlowNodeType.SubProcess` already covers embedded/transaction/ESP; the discriminant lives in `type_data` and SDK `SubProcessTypeData`. |
-| AH-D2 | Phase 4 | **PI GenServer uses a Strategy Module pattern (`ProcessInstance.Mode` behaviour)** to keep the PI itself unopinionated. Three divergence points (start event resolution, initial dispatch, completion check) delegate to a `Mode` implementation. `StandardMode` preserves current behavior byte-identically; `AdHocMode` overrides: skip start event → no-op initial dispatch → complete on explicit signal. | Isolates all ad-hoc divergence into one module instead of scattering `if is_ad_hoc` branches through the PI. `StandardMode` extraction is a pure refactor, independently testable before `AdHocMode` exists. |
-| AH-D3 | Phase 4 | **Two execution models selected via the `implementation` attribute:** Engine-managed (FEEL `evil:activeElements` determines active elements) when absent, Plugin-managed (async handler + facade API) when set. | Engine-managed is the deterministic path (Camunda's `activeElementsCollection` analog); Plugin-managed is the dynamic path for AI agents and external systems. |
-| AH-D4 | Phase 1 | **`completionCondition` is a standard BPMN FEEL expression** (not `evil:*`), evaluated after each inner activity completes. | Spec-compliant; reuses the existing FEEL precompilation pipeline. |
-| AH-D5 | Phase 1 | **`ordering` attribute: `Parallel` (default) or `Sequential`.** A missing `ordering` defaults silently to Parallel; the validator only rejects unrecognizable non-nil values. The Studio linter produces an advisory warning for an absent `ordering`. | Spec-compliant; Sequential means only one inner activity active at a time. |
-| AH-D6 | Phase 1 | **`cancelRemainingInstances` attribute: boolean, default `true`.** When the completion condition fires and this is `true`, remaining FNIs are interrupted; when `false`, active FNIs drain naturally. | Spec-compliant. |
-| AH-D7 | Phase 2 | **No Start Events or End Events inside the ad-hoc subprocess** — deploy-time validation rejects them. The child PI uses a synthetic "auto-start" mechanism that enables all activities without incoming sequence flows. | BPMN 2.0 spec §10.2.5 forbids them. |
-| AH-D8 | Phase 4 | **Inner activities with no incoming sequence flows are the "enabled set"** — available for activation from the start. Activities with incoming flows become enabled when their predecessor completes. | BPMN 2.0 spec §13.3.5 execution semantics. |
-| AH-D9 | Phase 4 | **Auto-complete when neither `completionCondition` nor `implementation` is set:** the subprocess completes once every inner activity has been performed at least once. Plugin-managed mode ignores this — the plugin calls `complete` explicitly. | Spec default behavior. |
-| AH-D10 | Phase 3 | **New engine events `AdHocActivityActivated` (per activation) and `AdHocSubProcessCompleted` (on completion).** Child PI spawn reuses `SubProcessChildStarted` with a new `isAdHocSubprocess: true` flag. | Provides a full audit trail for the debugger and AI-agent observability. |
-| AH-D11 | Phase 8 | **Studio `BpmnElementType.AdHocSubprocess`** — new enum value + dedicated interface, following the Transaction pattern. | Allows targeted pane visibility, help texts, linter rules, and icon mapping in the Studio. |
-| AH-D12 | Phase 1 | **`evil:activeElements` FEEL extension** returns a list of element IDs to auto-activate. When absent, all enabled activities (no incoming flows) auto-start. | Gives fine-grained control over which inner activities are activated on entry (Camunda's `activeElementsCollection` pattern); the key control mechanism for plugins and AI agents. |
-| AH-D13 | Phase 1 | **All boundary event types supported on the ad-hoc subprocess shell** (Error, Timer, Message, Signal, Escalation, Conditional, Compensation) — same set as embedded subprocess. | Error boundaries are particularly useful for catching failures in plugin-managed mode; Timer boundaries enable timeout patterns. |
-| AH-D14 | Phase 1 | **Data pipeline support on ad-hoc subprocess:** `evil:inputMapping`, `evil:outputMapping`, `evil:payloadContract`, `evil:resultContract`. | Consistent with all other subprocess types; input mappings shape the child PI's initial token, output mappings shape the parent's continuation token. |
-| AH-D15 | Phase 2 | **Nesting rules:** ad-hoc inside embedded subprocess is allowed, and embedded subprocess/call activity inside ad-hoc is allowed ("complex tools"). Ad-hoc inside ad-hoc is rejected (nesting restriction, same as nested transactions). **Ad-hoc inside event subprocess is rejected** as an opinionated platform decision (not a spec violation). | An unstructured toolbox as an event handler is counter-intuitive; the restriction avoids a confusing combination without a clear use case. |
-| AH-D16 | Phase 4 | **Plugins (and engine-managed mode) can activate the same inner activity multiple times;** each activation creates a new FNI. | BPMN spec §10.2.5 permits activities to be "executed several times". Essential for the AI-agent pattern (calling the same tool repeatedly with different parameters). |
-| AH-D17 | Phase 6 | **Retry restriction:** `resetToFlowNodeInstanceId` must not point inside an ad-hoc subprocess scope. Ad-hoc child PIs are retried as a unit by retrying the shell FNI. | Same pattern as Transaction (TX-D8); the inner scope's non-deterministic execution order makes mid-scope retry meaningless. |
-| AH-D18 | Phase 2 | **Engine-managed sequential ad-hoc requires `evil:activeElements`.** When `ordering="Sequential"` and no `implementation` is set, the validator and Studio linter reject the diagram if `evil:activeElements` is absent. Parallel ordering and plugin-managed mode are unaffected. | Without an explicit FEEL expression ordering the activities, the engine has no deterministic basis for choosing which activity to execute next. |
-| PMG-D1 | Phase 6 | **`FlowNodeType` GraphQL enum is struct-aligned (21 values, one per `FlowNodeData.*` module), not the earlier speculative flattened enum** (`MESSAGE_CATCH_EVENT`, `EMBEDDED_SUBPROCESS`, etc. folded into node type). Event *kind* is exposed separately via an `EventDefinition` union (11 members) on the five event-position node types. | The stated test criterion — "every `FlowNodeData.*` struct has a matching GraphQL concrete type" — is only satisfiable by a struct-aligned enum; a flattened enum cannot be mechanically derived from (or verified against) the structs. |
-| PMG-D2 | Phase 6 | **`ProcessModel` exposes both a nested `flowNodes` tree (recursing via `SubProcessNode.flowNodes`) and a flat `allFlowNodes` index** (every scope, each entry carrying `parentSubProcessId`). `FlowNodeInstance.flowNode` resolves against the flat index. | A tree-only shape fails for every FNI inside an embedded/event/ad-hoc/transaction subprocess (those nodes live under nested `type_data`, not the top level) — a mainline case, not an edge case, since embedded subprocesses already run as child PIs against synthetic inner-scope models. A flat-only shape loses the tree structure the Studio needs for the canvas. |
-| PMG-D3 | Phase 6 | **Field mapping is a declarative per-struct field table with a compile-time completeness check** (`EvilEngineWeb.Graphql.ModelSchema.FieldTable.verify!/0`), not typespec introspection. Every key of every `EvilEngine.BPMN.Model.*` struct must be either mapped to a GraphQL field or explicitly excluded (with a reason), or `mix compile` fails. `verify!/0` does not inspect Absinthe types; `ModelGraphIntrospectionTest` asserts every `exposed` atom exists on the mapped GraphQL type. | Elixir structs carry no runtime field types (only `@type t`), so fully automatic typespec-derived generation is brittle for union/nested specs. The completeness check delivers the property that actually matters — a new struct field cannot silently leak a compiled artifact or silently vanish — without requiring a typespec-AST interpreter. |
-| PMG-D4 | Phase 6 | **All of GraphQL Model graph + `evil_engine_sdk` re-exports + extension manifest + TS client fragment support ship in one work-package series**, not staggered across separate Phase 6 items. | The TS client cannot express the Model graph's polymorphic `FlowNode` interface with its pre-existing flat `fields: string[]` selection builder — without the client work landing in the same series, the Engine-side feature would be unreachable from the Studio on merge day. |
-| PMG-D5 | Phase 6 | **The Engine ships an extension *vocabulary* manifest (`mix evil.gen.extension_manifest` → `extension-manifest.json`), not a generated `bpmn-moddle` descriptor.** The Studio keeps `evil-platform.json` hand-written; a Studio-side bidirectional conformance test checks it against the manifest (manifest → descriptor: every manifest element authorable; descriptor → manifest: every `evil:*` type in the descriptor is in the manifest, modulo an `extensible` exemption). | Roughly half of a moddle descriptor's semantic content (`meta.allowedIn`, the moddle type hierarchy, `xml.tagAlias`) has no counterpart in `sax_handler.ex`, which has no `allowed_in` concept and matches extension elements contextually by name. Generating that data would mean inventing it on the Engine side and moving an authoring-time modelling concern into the wrong repository. |
-| PMG-D6 | Phase 6 | **The TS SDK's client-side BPMN parser (`parseBpmn()`) is kept, not deprecated,** and remains the authoring-path parser for undeployed XML (linter, modeler) where no `process_version_id` exists and therefore no `ModelCache` entry to resolve against. The Model graph serves runtime/deployed read paths only. | Two representations persist with non-overlapping ownership rather than one being a strict replacement. This makes keeping the TS parser in sync with the Elixir structs a required, ongoing companion task (not made obsolete by the Model graph), which is why the pre-existing SDK/Elixir parser drift (nine defect classes, see the WP-0 work package) was repaired directly rather than deferred. |
-| PMG-D7 | Phase 6 | **Corrected stale package naming in docs: `@evil/engine-client` → `@elraptorus/daemonengine_client`** (transport) and **`@elraptorus/daemonengine_sdk`** (contract layer, ships the extension manifest). | `@evil/engine-client` was leftover wording from an earlier naming scheme that never matched the actual published npm packages; corrected everywhere it appeared (`ImplementationPhases.md`, `Architecture.md`, `Glossary.md`, `architecture/plugins.md`, `architecture/api.md`). |
-| PLUG-D1 | Phase 6 | **v1 plugin tier is in-BEAM only.** The gRPC sidecar host (directory scan, `plugin.toml`, Port spawn, bidirectional facade, five-language fixtures) is **deferred** post-v1. Revisit only if a real need for engine-managed non-Elixir Service Task workers appears. v1 path for non-Elixir code: built-in HTTP Service Task, REST/GraphQL/WebSocket, or an in-BEAM plugin that execs a local interpreter (cookbook, Phase 7). | Full sidecar parity duplicates HTTP + in-BEAM, is internally underspecified (UDS vs TCP vs port hint), and would tax proto/SDK/CI forever for little unique capability. |
-| ESC-API-D1 | Follow-on after Phase 3/4 | **REST escalation trigger is `POST /escalations/{escalation_code}/trigger`.** Boolean claim `trigger_escalation` via `Validation.check_claim/3`. Engine-wide waiter delivery: Event Subprocess starts plus waiting Escalation Boundary FNIs. No parent-chain walk, no `:escalated` on unmatched PIs, no pending table, no payload. Response `{escalationCode, deliveries, pending: false}`. `throwType: "api_trigger"` on EscalationRaised. Do not revive `POST /triggers/escalations`. | Studio debugger and plugins need a signal-like inject path. A modeled BPMN throw is a different operation. |
-| TIM-D2 | Follow-on after Phase 3/4 | **Hard-drop unpublished `TimerArmed` / `TimerCancelled` typed events.** Keep `TimerFired` on the EngineEventBus and Scheduler telemetry `[:evil_engine, :timer, :armed|:fired|:cancelled]`. Waiting-timer due-time remains FNI `typeProperties.fire_at`. | Those structs were never published. Studio never subscribed. Reserved unpublished event types are not kept as stubs. |
-| MSG-D1 | Follow-on after Phase 3/4 | **Hard-drop `evil:payload` / `evil:eventMapping`.** Message shaping is only `evil:inputMapping` / `evil:outputMapping` (one-sided: throw/Send consume input mappings; catch/Receive consume output mappings). Leftover XML tags are silently ignored. No parser keep, no GraphQL fields, no SDK type keys, no Studio debugger panes. | April 2026 specified a second FEEL blob on the event definition. June 2026 Message Events (D-MSG-1) shipped mappings instead and never called the old fields. Pre-beta: no compatibility shim. |
-| DOC-D1 | Follow-on after Phase 3/4 | **Drop tables `escalations`, `compensations`, `engine_timers` from spec, ER, retention Pass B, and the EngineAuditPurged union.** Keep escalation/compensation runtime (handlers, events, registries). Historical D1 sentences about dropping `pending_escalations` stay. Pass B is exactly `messages`, `pending_messages`, `signals`, `pending_signals`. Timer Start rows are operational, deleted on undeploy/unregister only; Pass B must not DELETE them. | Those three tables were never migrated. Documenting them as specified-not-migrated kept a false backlog. |
-| API-D1 | Follow-on after Phase 3/4 | **Drop `POST /process-instances/{id}/restart` entirely.** Retry is `PUT /process-instances/{id}/retry`. | Restart was specified-not-implemented. Retry already covers the operator need. |
-| RET-D1 | Phase 7 | **Thin retention: Mix task + KEEP_AFTER_TRANSITION; no RetentionRunner GenServer.** Operators schedule `mix evil.retention.purge` / `Release.purge_retention/0`. Pass B is operator SQL (and `pg_partman` for partitions). REST purge, per-PI bus events, and in-engine Pass B are non-goals. `EVIL_RETENTION_CANCELLED_DAYS` purges cancelled trees. REST `DELETE /process-instances/{id}` stays soft-delete and still omits `cancelled`. | Cron/systemd already owns the interval. A GenServer, REST purge, and per-PI events add surface without operator value. Postgres (SQL + pg_partman) owns append-only audit/partition lifecycle. |
 
 ---
 
-## 1. Tech stack (final)
+## 1. Tech stack
 
 ### Primary stack
 
@@ -492,7 +406,7 @@ Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1
 
 **B. Event-bus sinks** (routed through `EngineEventBus`, §3.3.2 — each sink toggled independently):
 
-- **`console` sink** (default ON) — structured JSON to stdout via `logger_json`, filtered by `EVIL_LOG_MIN_SEVERITY`.
+- **`console` sink** (default ON) — structured JSON to stdout via `logger_json`, filtered by `TDE_LOG_MIN_SEVERITY`.
 - **`telemetry` sink** (default ON, owned by `peripheral_telemetry`) — increments in-process `:telemetry` counters backing `/stats` (§11). Includes per-process-model write-count counters for Data Objects.
 - **`websocket` sink** (default ON, owned by `api_web`) — broadcasts the typed event on the WebSocket channel for subscribed clients. Data Object writes push `%Event.DataObjectWritten{}` so live debuggers/UIs can render the new value without re-querying. `debug`/`verbose` severities excluded by default to avoid flooding long-lived Studio connections.
 - **plugin sinks** — any number of `@behaviour EvilEngine.Plugin.EventSink` implementations registered on boot (§9.1). Example plugin targets: Datadog, Prometheus push-gateway, Kafka topic, custom S3 JSONL archive, a replica Postgres with different retention policy.
@@ -525,11 +439,11 @@ index rationale, and the schema-to-requirement mapping.
 
 ---
 
-## 5. Process Instance specification (fleshed out)
+## 5. Process Instance specification
 
 Resolves the `AGENT: Describe in detail the properties, lifecycle, the responsibilities and functions of a Process Instance` marker in concept §Process Instance Handler Semantics.
 
-### 5.1 Properties (final list)
+### 5.1 Properties
 
 Locked-in from concept + additions:
 
@@ -546,13 +460,13 @@ Locked-in from concept + additions:
 | `state` | enum | lifecycle | mutable (monotone-ish) |
 | `started_at` / `finished_at` | timestamptz | lifecycle | set-once |
 | `started_by` | Identity | JWT claim at start | immutable |
-| `started_with_context` | jsonb | Start-request payload | immutable (readonly context); capped at `EVIL_TOKEN_MAX_BYTES` at start time |
+| `started_with_context` | jsonb | Start-request payload | immutable (readonly context); capped at `TDE_TOKEN_MAX_BYTES` at start time |
 | `process_version_id` | uuid FK -> `process_versions.id` | deploy-time pinning; AST resolved through `EvilEngine.BPMN.ModelCache.fetch/1` | immutable |
 | `final_tokens` *(derived)* | `[jsonb]!` calc | joined from End-Event FNIs' `output_token` on query | derived — no persistent column. `null` for non-`finished` terminal states |
 
 The **readonly process context** (concept §Process Context) is set once at start and can never be written to during execution — only read by FEEL (`context.*`) and by Flow Node Instances. Write-capable persistent state uses Data Objects only.
 
-### 5.2 States — resolved
+### 5.2 States
 
 The original concept's state list stays intact. Final conflict resolution (original concept §Process Instance States):
 
@@ -566,7 +480,7 @@ The original concept's state list stays intact. Final conflict resolution (origi
 
 **Rule**: transition to a higher-weight state always overrides a lower-weight pending transition, even if the lower-weight end was reached chronologically first, *unless* the lower-weight state has already been durably persisted (= event log entry committed).
 
-### 5.3 Lifecycle events — final list
+### 5.3 Lifecycle events
 
 The original concept's list extended per `AGENT: Add more events as required`:
 
@@ -603,7 +517,7 @@ onBoundaryTriggered     — an attached Boundary Event fired
 onTokenSplit / onTokenMerged — parallel/inclusive gateway operations
 ```
 
-### 5.4 Access points — final list
+### 5.4 Access points
 
 The original concept's list extended per `AGENT: Add more access points as required`:
 
@@ -634,7 +548,7 @@ FinishAsyncServiceTask(flowNodeInstanceId, result, identity)
   --   carrying the async marker set when the handler returned {:async, flow_node_instance_id}.
   --   Treated identically to a synchronous {:ok, FlowNodeResult} return: the engine
   --   applies dataOutputAssociations, advances the token, emits Event.FlowNodeInstanceFinished.
-  -- size-cap: `result` is checked against EVIL_TOKEN_MAX_BYTES.
+  -- size-cap: `result` is checked against TDE_TOKEN_MAX_BYTES.
 FailAsyncServiceTask(flowNodeInstanceId, errorCode, errorMessage, identity)
   -- report failure of an async Service Task plugin's work. Treated identically
   --   to a synchronous {:error, reason} return: transitions FNI to `fatal` (per the
@@ -663,7 +577,7 @@ read_token(self_fni) -> Token
 write_result(self_fni, result) -> :ok | {:error, :payload_too_large, %{size: pos_integer, limit: pos_integer}}
   -- Stores `result` into the FNI's output_token.
   -- size-cap: before storing, the facade measures the JSON-byte-size of the
-  --   canonicalized `result` and compares against EVIL_TOKEN_MAX_BYTES (default
+  --   canonicalized `result` and compares against TDE_TOKEN_MAX_BYTES (default
   --   65536 / 64 KiB). On overflow:
   --     * return {:error, :payload_too_large, %{size: N, limit: M}};
   --     * the calling FNI transitions to `fatal` with structured reason
@@ -690,7 +604,7 @@ get_identity() -> Identity
 evaluate_expression(feel_source, extra_bindings \\ %{}) -> {:ok, any} | {:error, reason}
 publish_message(name, payload)
   -- Routes up; PI forwards to Core.Events.
-  -- size-cap: `payload` measured against EVIL_TOKEN_MAX_BYTES at entry.
+  -- size-cap: `payload` measured against TDE_TOKEN_MAX_BYTES at entry.
   --   Overflow → {:error, :payload_too_large, ...}; FNI transitions to `fatal`
   --   with structured reason %{kind: :payload_too_large, field: :message_payload,
   --   message_name: name, size: N, limit: M}. No messages row inserted.
@@ -728,9 +642,9 @@ This module is the **only** way FNIs affect the PI. No direct state mutation fro
 
 ---
 
-## 6. Flow Node Instance specification (fleshed out)
+## 6. Flow Node Instance specification
 
-### 6.1 Properties (final list)
+### 6.1 Properties
 
 From concept + additions:
 
@@ -750,12 +664,12 @@ From concept + additions:
 | `type_properties` | jsonb | per-type state (e.g. retry count, async-dispatch marker for <code>{:async, flow_node_instance_id}</code> Service Task returns ) |
 | `error_info` | jsonb? | when state is fatal |
 
-### 6.2 States — final
+### 6.2 States
 
 Stated in the original concept with one addition (`Waiting` promoted from lifecycle event to formal state):
 `Active | Waiting | Finished | Fatal | Aborted | Interrupted`
 
-### 6.3 Lifecycle events — final
+### 6.3 Lifecycle events
 
 The original concept's list extended:
 
@@ -1195,7 +1109,7 @@ non-goals.
 > Configuration and runtime behavior: [`architecture/configuration.md`](./architecture/configuration.md)
 
 Docker on debian:12-slim with `mix release`; docker-compose (engine +
-postgres only in v1). Configuration via env vars (`EVIL_*`) with
+postgres only in v1). Configuration via env vars (`TDE_*`) with
 `runtime.exs` and optional `/etc/evil-engine/engine.toml`. The full env
 vars table (~50 entries) is in the configuration doc. Also covered: the
 linter-score deploy gate, zero-downtime deploy options, and Mix-scheduled
@@ -1229,7 +1143,7 @@ agent-defaulted decisions left in this plan.**
 
 ### 16.2 Open technical questions (to be answered during phases)
 
-1. **FEEL library maturity** — resolved at Phase 0 end when `feel_ex` (or chosen lib) is evaluated against DMN FEEL TCK; if fails, subset implementation kicks in.
+1. **FEEL library maturity** at Phase 0 end when `feel_ex` (or chosen lib) is evaluated against DMN FEEL TCK; if fails, subset implementation kicks in.
 2. **Inclusive-gateway deploy-time analysis** — the BPMN spec allows constructs that are statically ambiguous for inclusive joins. Phase 4 will define which constructs are accepted and which are rejected at deploy time.
 3. **Compensation ordering across subprocesses nested inside call activities** — the spec defers to implementation; we will fix a deterministic order ("nearest first, then outwards") in Phase 3.
 4. **Data Contract referencing** — inline (CDATA in BPMN) vs external URI (fetched at deploy time). Phase 1 will pick one; the other can be added later.
@@ -1262,26 +1176,26 @@ agent-defaulted decisions left in this plan.**
 - **Cross-cluster / multi-node message routing.** Routing is per-node; when the engine clusters, a future design will address cross-node delivery. For v1, messages published on one node reach only subscriptions on that same node; single-node deployment is expected.
 - **External / API-level Data Object write endpoint.** There is no `PUT /process-instances/{id}/data-objects/{name}` in v1. All writes originate from a Flow Node's execution via `dataOutputAssociation` (this is now the **only** write path; see non-goal "Handler-API Data Object writes" below). External observers can only **read** Data Objects (via GraphQL); writing from outside a PI would bypass the FNI-attribution invariant.
 - **Handler-API Data Object writes.** There is no `write_data_object/2` function on the PI Facade in v1. All Data Object writes originate from `bpmn:dataOutputAssociation` on a Flow Node — handlers produce DO values exclusively by returning the corresponding fields on their FlowNodeResult, which the DOA then projects at FNI-commit time. The prior two-write-path model (DOA + handler-API) added surface area without a clear BPMN-spec justification (DOA is what BPMN defines; the facade function was an ergonomic shortcut for mid-execution progress writes and streaming aggregators). Removing it tightens the FNI-attribution invariant — one write ↔ one owning FNI, trivially — and drops the `source` column from `data_object_writes`. Use cases the facade was meant to serve (progress/checkpoint DOs, streaming aggregators) are covered equivalently in v1 by modeling the Flow Node as a sequence of small Flow Nodes each with their own DOA, or by using token-passing through a parallel monitoring branch. v2 may revive a narrower handler-facing write path if the load-test data shows real demand.
-- **Built-in database event sink.** Removed. A fresh engine install does not write `process_instance_events` rows; that table is retained for migration compatibility and stays empty. Operators running external observability (Datadog, Loki, Kafka, etc.) register plugin sinks. Debugger BPMN-flow reconstruction does **not** require a DB sink (see §11.1): `flow_node_instances.triggerer_flow_node_instance_id`, `process_instances.triggerer_flow_node_instance_id` / `parent_process_instance_id`, and the always-on `messages` / `signals` / `data_object_writes` tables plus FNI `type_properties` / `timer_start_schedules` already carry the full sender↔receiver trail for every BPMN-element-sourced event, live or historical. There is no `EVIL_EVENT_SINK_DATABASE` env var.
+- **Built-in database event sink.** Removed. A fresh engine install does not write `process_instance_events` rows; that table is retained for migration compatibility and stays empty. Operators running external observability (Datadog, Loki, Kafka, etc.) register plugin sinks. Debugger BPMN-flow reconstruction does **not** require a DB sink (see §11.1): `flow_node_instances.triggerer_flow_node_instance_id`, `process_instances.triggerer_flow_node_instance_id` / `parent_process_instance_id`, and the always-on `messages` / `signals` / `data_object_writes` tables plus FNI `type_properties` / `timer_start_schedules` already carry the full sender↔receiver trail for every BPMN-element-sourced event, live or historical. There is no `TDE_EVENT_SINK_DATABASE` env var.
 - **Event replay / backfill into `process_instance_events`.** Not applicable — the built-in database sink is gone. Historical typed events are not recoverable from that table. Capture events through a plugin sink if a flat event log is required.
 - **At-least-once delivery guarantees on sinks.** `EngineEventBus` is **at-most-once** per sink. Sinks that need stronger guarantees (Kafka with `acks=all`, for example) must implement buffering + retry inside their own `handle_event/2`. The engine exposes no queueing / DLQ / ACK protocol in v1.
 - **`Event.SinkFailed` auto-recovery.** A crashing sink is isolated (the other sinks keep running) and emits `Event.SinkFailed` for observability, but the engine does not retry the failed event into that sink, does not auto-disable persistently-failing sinks, and does not escalate sink failures to `/health`.
 - **Automatic archival to external storage.** The Mix purge deletes aged terminal PI trees locally. Shipping purged data to S3 / GCS / cold-storage Postgres before deletion is an operator concern; the engine ships no `Event.RetentionPurged` and no built-in archival adapter.
-- **Continuous partition-automation.** `process_instance_events` and `data_object_writes` are partitioned by timestamp, but v1 uses a boot-time `mix evil.partitions.ensure` (looking `EVIL_PARTITION_AHEAD_MONTHS` ahead) rather than an in-engine `pg_partman` worker. Operators whose engine never restarts for many months should schedule `pg_partman` (or equivalent) — boot-time ensure is not a partman replacement.
+- **Continuous partition-automation.** `process_instance_events` and `data_object_writes` are partitioned by timestamp, but v1 uses a boot-time `mix evil.partitions.ensure` (looking `TDE_PARTITION_AHEAD_MONTHS` ahead) rather than an in-engine `pg_partman` worker. Operators whose engine never restarts for many months should schedule `pg_partman` (or equivalent) — boot-time ensure is not a partman replacement.
 - **Partition-drop archival in the engine.** `DETACH PARTITION` / `DROP PARTITION` is an operator `pg_partman` (or equivalent) job, not a v1 engine feature. The Mix task uses set-based `DELETE` per root tree.
 - **Per-PI retention overrides.** Retention is per-terminal-state max-age, engine-globally. There is no `<evil:retainForever>` extension, no API to pin a specific PI against purge, and no tag-based policy.
-- **Auto-enabled retention defaults.** Every `EVIL_RETENTION_*_DAYS` env var is unset by default; a fresh engine installation never deletes anything until the operator explicitly sets at least one and schedules the Mix task.
+- **Auto-enabled retention defaults.** Every `TDE_RETENTION_*_DAYS` env var is unset by default; a fresh engine installation never deletes anything until the operator explicitly sets at least one and schedules the Mix task.
 - **Catalog-row retention.** `processes` and `process_versions` are never touched by the Mix purge or by operator SQL recipes. Their lifecycle remains governed by soft-delete.
 - **Event-level retention within a PI.** In v1 a PI's leftover `process_instance_events` rows live as long as the PI row does.
 - **RetentionRunner GenServer / REST purge / per-PI bus events / in-engine Pass B.** Non-goals (RET-D1). `purge_audit_data` is unused. Pass B is the SQL recipe in `docs/guides/operations/database.md`.
-- **Per-table retention granularity for engine-audit tables.** One operator convention — `EVIL_RETENTION_ENGINE_AUDIT_DAYS` — covers the four engine-audit tables in the SQL recipe. There is no `EVIL_RETENTION_MESSAGES_DAYS`. Operators who need asymmetric cutoffs vary the SQL.
+- **Per-table retention granularity for engine-audit tables.** One operator convention — `TDE_RETENTION_ENGINE_AUDIT_DAYS` — covers the four engine-audit tables in the SQL recipe. There is no `TDE_RETENTION_MESSAGES_DAYS`. Operators who need asymmetric cutoffs vary the SQL.
 - **Manual purge mutation for engine-audit tables.** There is no REST `purgeEngineAudit`. Operators run the SQL recipe under the admin DB role.
 - **PI-cascade deletion of engine-audit rows.** When a PI tree is purged, corresponding `messages` / `signals` rows that *happened to reference* that PI are **not** deleted with it.
 - **Partition-drop archival for engine-audit tables.** Same stance as PI-scoped partitions — operator `pg_partman`, not an engine Pass B.
 - **Content-addressed blob store for large payloads.** A `payload_blobs(hash, bytes, refcount)` table with write-path SHA-256 + upsert and read-path JOIN was considered for v1 to eliminate within-PI / cross-PI JSONB duplication. Deferred post-v1 on complexity-vs-payoff grounds: the write-path hash+upsert contention, read-path JOIN, and GC (refcount or mark-and-sweep) add non-trivial operational surface area for a payoff that is dominated by within-PI dedup (cross-PI dedup requires bitwise-identical payloads, which identity/trace fields usually break). Phase 5 load tests decide whether to revisit.
 - **`flow_node_instances.output_token` elimination.** `output_token` is a persistence shadow of the next FNI's `input_token` for typical transitions, and a true kernel artifact only when a gateway or transform sits between two FNIs. Dropping it would require a join-heavy "effective output" projection and break the current FNI-local debugging shape. Deferred post-v1; revisit only if Phase 5 load tests show `output_token` is a dominant storage cost.
 - **Cross-PI token deduplication.** The assumption "1000 PIs carrying the same 20 KiB webshop order stored once" only holds when tokens are bitwise-identical after canonicalization. Real-world PIs carry identity, correlation, and trace fields that break cross-PI hash-equality; cross-PI dedup is an observed minority of total JSONB volume. Any future blob-store design must justify itself primarily on within-PI dedup, not cross-PI.
-- **Per-process / per-endpoint payload-cap overrides.** `EVIL_TOKEN_MAX_BYTES` is engine-global. There is no `<evil:tokenMaxBytes>` extension, no per-endpoint override, and no per-caller override. Workloads with radically different legitimate payload sizes run on separate engine deployments or raise the global cap.
+- **Per-process / per-endpoint payload-cap overrides.** `TDE_TOKEN_MAX_BYTES` is engine-global. There is no `<evil:tokenMaxBytes>` extension, no per-endpoint override, and no per-caller override. Workloads with radically different legitimate payload sizes run on separate engine deployments or raise the global cap.
 - **Cross-PI linkage of `messages.correlations[]` to FNIs.** The `correlations` array stores `{process_instance_id, flow_node_instance_id, delivered_at}` entries. After a PI is purged, the `process_instance_id` / `flow_node_instance_id` values in any surviving `messages` rows become dangling references (pointing at rows that no longer exist). This is accepted as a documented audit artifact — the `messages` row is still an honest record of "this message was delivered to PI X at time T"; consumers joining these IDs against `process_instances` / `flow_node_instances` must handle missing rows gracefully.
 
 ---

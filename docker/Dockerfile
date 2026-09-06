@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Multi-stage build for the Evil Engine release per §14.1 of
+# Multi-stage build for the Daemon Engine release per §14.1 of
 # `docs/ImplementationPlan.md`.
 #
 #   * Base: debian:12-slim (D16)

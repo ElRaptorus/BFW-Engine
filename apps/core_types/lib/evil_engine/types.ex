@@ -1,7 +1,7 @@
 defmodule EvilEngine.Types do
   @moduledoc """
   Umbrella namespace for every cross-cutting, behaviour-free struct /
-  type alias in the Evil Engine.
+  type alias in the Daemon Engine.
 
   Every type lives in its own module under this namespace; this
   module itself has no code.

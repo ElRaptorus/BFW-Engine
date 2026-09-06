@@ -39,7 +39,7 @@ Output mappings on the Business Rule Task forward `approved`, `maxAmount`, and `
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or load the example path in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.ExplainDecision.ExplainDecisionPlugin` and add your app to `EVIL_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.ExplainDecision.ExplainDecisionPlugin` and add your app to `TDE_PLUGINS_INBEAM`.
 3. Deploy `dmn/loan_eligibility.dmn` via `POST /decisions` (claim `deploy_dmn`).
 4. Deploy `bpmn/loan_approval_with_explanation.bpmn` via `POST /processes`.
 5. Start a process instance with applicant data, for example:

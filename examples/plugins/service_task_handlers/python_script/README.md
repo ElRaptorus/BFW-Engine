@@ -30,7 +30,7 @@ to a temp file and redirects stdin.
    config :python_script_example, :timeout_milliseconds, 30_000
    ```
 
-3. Add your OTP app name to `EVIL_PLUGINS_INBEAM`.
+3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
 
 ## BPMN dispatch
 

@@ -1,6 +1,6 @@
 # Umbrella-wide compile-time defaults. Per-env overrides live in
 # `dev.exs` / `test.exs` / `prod.exs`. Runtime-only, environment-driven
-# settings (the `EVIL_*` vars documented in ImplementationPlan.md §14.3)
+# settings (the `TDE_*` vars documented in ImplementationPlan.md §14.3)
 # live in `runtime.exs`.
 import Config
 
@@ -108,7 +108,7 @@ config :peripheral_telemetry,
   db_queue_time_warning_ms: 500
 
 # --- GraphQL safety limits (S-4) -----------------------------------------
-# Runtime overrides are read from EVIL_GRAPHQL_* in runtime.exs.
+# Runtime overrides are read from TDE_GRAPHQL_* in runtime.exs.
 config :api_web,
   graphql_max_depth: 16,
   graphql_max_complexity: 1000,

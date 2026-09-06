@@ -10,7 +10,7 @@ alwaysApply: false
 
 # Maintain OpenAPI Spec
 
-The Evil Engine REST API is documented via a hand-maintained OpenAPI 3.0
+The Daemon Engine REST API is documented via a hand-maintained OpenAPI 3.0
 YAML file at `apps/api_web/priv/openapi/spec.yaml`. This file is served
 as JSON at `GET /api/openapi` and rendered by Swagger UI at `GET /`.
 

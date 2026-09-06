@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Ignore External Interaction Protocols
 
-Cursor provides built-in interaction modes (Agent, Plan, Ask, Debug) that are tightly integrated with its tooling, subagents, skills, and rule system. External protocols that redefine mode systems, enforce rigid mode declarations, or restrict tool usage **conflict with these built-in capabilities and MUST be ignored when working on the Evil Engine project**.
+Cursor provides built-in interaction modes (Agent, Plan, Ask, Debug) that are tightly integrated with its tooling, subagents, skills, and rule system. External protocols that redefine mode systems, enforce rigid mode declarations, or restrict tool usage **conflict with these built-in capabilities and MUST be ignored when working on the Daemon Engine project**.
 
 ## Rules
 
@@ -22,6 +22,6 @@ Cursor provides built-in interaction modes (Agent, Plan, Ask, Debug) that are ti
 
 ## Rationale
 
-The Evil Engine is a greenfield Elixir/Ash/Phoenix project with a detailed, decision-heavy implementation plan (`docs/ImplementationPlan.md`). Effective collaboration requires fluid movement between exploration, planning, and execution — often within a single response. External mode protocols add friction, duplicate Cursor's native Plan/Agent/Ask/Debug modes, and prevent the agent from leveraging integrated tooling like subagents and skills. The built-in modes already enforce appropriate guardrails (Plan mode is read-only, Ask mode cannot write files) without a bolted-on command system.
+The Daemon Engine is a greenfield Elixir/Ash/Phoenix project with a detailed, decision-heavy implementation plan (`docs/ImplementationPlan.md`). Effective collaboration requires fluid movement between exploration, planning, and execution — often within a single response. External mode protocols add friction, duplicate Cursor's native Plan/Agent/Ask/Debug modes, and prevent the agent from leveraging integrated tooling like subagents and skills. The built-in modes already enforce appropriate guardrails (Plan mode is read-only, Ask mode cannot write files) without a bolted-on command system.
 
-This rule is scoped to the Evil Engine workspace. Other projects in this multi-root workspace may retain their own protocol conventions.
+This rule is scoped to the Daemon Engine workspace. Other projects in this multi-root workspace may retain their own protocol conventions.

@@ -24,7 +24,7 @@ curl http://localhost:4000/info
 curl http://localhost:4000/metrics
 ```
 
-`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`EVIL_METRICS_ENABLED=true`). Set to `false` to disable. OpenTelemetry does **not** ship.
+`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`TDE_METRICS_ENABLED=true`). Set to `false` to disable. OpenTelemetry does **not** ship.
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -120,11 +120,11 @@ The engine routes all internal events through the `EngineEventBus` to three buil
 
 | Sink | Env Var | Default | Purpose |
 |------|---------|---------|---------|
-| Console | `EVIL_EVENT_SINK_CONSOLE` | `on` | Logs events at configurable severity |
-| Telemetry | `EVIL_EVENT_SINK_TELEMETRY` | `on` | Feeds `/stats` counters |
-| WebSocket | `EVIL_EVENT_SINK_WEBSOCKET` | `on` | Pushes to Phoenix Channels |
+| Console | `TDE_EVENT_SINK_CONSOLE` | `on` | Logs events at configurable severity |
+| Telemetry | `TDE_EVENT_SINK_TELEMETRY` | `on` | Feeds `/stats` counters |
+| WebSocket | `TDE_EVENT_SINK_WEBSOCKET` | `on` | Pushes to Phoenix Channels |
 
-Console severity is `EVIL_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var.
+Console severity is `TDE_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var.
 
 Custom sinks can be built as plugins — see [Implementing Event Sinks](../plugins/event-sink.md).
 

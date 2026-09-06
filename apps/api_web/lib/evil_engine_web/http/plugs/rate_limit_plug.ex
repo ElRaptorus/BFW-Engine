@@ -4,11 +4,11 @@ defmodule EvilEngineWeb.Http.Plugs.RateLimitPlug do
 
   Applies a global (not per-client) rate limit on process instance start
   requests. The algorithm tracks request count within a sliding window
-  that resets after `EVIL_PI_START_RATE_WINDOW_MS` milliseconds from the
+  that resets after `TDE_PI_START_RATE_WINDOW_MS` milliseconds from the
   first request in that window. When the count reaches the limit, returns
   429 with a `Retry-After` header.
 
-  Disabled by default (`EVIL_PI_START_RATE_LIMIT=0`). The plug self-filters:
+  Disabled by default (`TDE_PI_START_RATE_LIMIT=0`). The plug self-filters:
   only `POST` requests matching `["processes", _model_id, "start"]` are subject
   to rate limiting; all other requests pass through unchanged.
   """

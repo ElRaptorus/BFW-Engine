@@ -6,14 +6,14 @@ config :logger, level: :warning
 # test, rolled back at the end). Load tests must not: E8 owns that
 # connection longer than ownership_timeout (300s) and then every PI
 # explodes with OwnershipError (P89). `mix test.load` and the GitHub
-# load-bench job set EVIL_LOAD_TEST_POOL=1 so Repo uses a real pool.
+# load-bench job set TDE_LOAD_TEST_POOL=1 so Repo uses a real pool.
 # Write pool default 50 (read = half, minimum 4). GitHub Actions Postgres
 # services cannot raise max_connections above 100, so 50+25=75 is the
 # headroom-safe size — not production 100+50 (P89).
-load_test_pool? = System.get_env("EVIL_LOAD_TEST_POOL") in ["1", "true"]
+load_test_pool? = System.get_env("TDE_LOAD_TEST_POOL") in ["1", "true"]
 
 load_test_write_pool_size =
-  String.to_integer(System.get_env("EVIL_LOAD_TEST_POOL_SIZE") || "50")
+  String.to_integer(System.get_env("TDE_LOAD_TEST_POOL_SIZE") || "50")
 
 load_test_read_pool_size = max(div(load_test_write_pool_size, 2), 4)
 

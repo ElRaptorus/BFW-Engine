@@ -1,5 +1,5 @@
 ---
-title: Evil Engine — API Design
+title: Daemon Engine — API Design
 parent_document: ../ImplementationPlan.md
 ---
 
@@ -62,7 +62,7 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 | `GET` | `/processes/{model_id}` | Process metadata (optional `?includeXml=true` for latest version's BPMN XML) |
 | `GET` | `/processes/{model_id}/versions` | Version history (optional `?includeXml=true` per version) |
 | `POST` | `/processes` | Deploy one or more BPMN definitions in a single **atomic batch**. Body: `{ "sources": ["<xml>", ...] }` (JSON array of BPMN XML strings). Each source must carry `<evil:version>`. On deploy, `Process.enabled` is synced to the BPMN `isExecutable` flag. When the linter-score gate is enabled ([configuration.md](./configuration.md) §14.5), each source is checked; on failure, returns `422` with `error: "linter_gate_failed"` and `failures`. On success, returns `201` with `deployed: [...]` |
-| `POST` | `/processes/{model_id}/start` | Start a new PI from the latest non-deleted version of an enabled process. Body: `{startEventId?, payload?, context?, businessKey?}`. `context` is an optional opaque JSON object stored as `started_with_context` on the PI, accessible as `context.*` in FEEL expressions. When omitted, context is empty. Returns `201` with `{process_instance_id, process_model_id, version, state}`. Errors: `404` (not found / no active version), `403` (disabled), `422` (ambiguous start event / not found), `413` (payload too large), `429` with `Retry-After` when the global start rate limit is exceeded (`EVIL_PI_START_RATE_LIMIT` > 0; Layer 2), `503` with `Retry-After` when `EVIL_MAX_CONCURRENT_PIS` is exceeded (Layer 1), `401` (unauthenticated / expired JWT) |
+| `POST` | `/processes/{model_id}/start` | Start a new PI from the latest non-deleted version of an enabled process. Body: `{startEventId?, payload?, context?, businessKey?}`. `context` is an optional opaque JSON object stored as `started_with_context` on the PI, accessible as `context.*` in FEEL expressions. When omitted, context is empty. Returns `201` with `{process_instance_id, process_model_id, version, state}`. Errors: `404` (not found / no active version), `403` (disabled), `422` (ambiguous start event / not found), `413` (payload too large), `429` with `Retry-After` when the global start rate limit is exceeded (`TDE_PI_START_RATE_LIMIT` > 0; Layer 2), `503` with `Retry-After` when `TDE_MAX_CONCURRENT_PIS` is exceeded (Layer 1), `401` (unauthenticated / expired JWT) |
 | `PUT` | `/processes/{model_id}/enable` | Enable the process (204 No Content) |
 | `PUT` | `/processes/{model_id}/disable` | Disable the process (204 No Content) |
 | `DELETE` | `/processes/{model_id}` | **Undeploy** a process: deletes all versions. Rejects with 409 if non-terminal PIs exist on any version. Requires `delete_bpmn=true`. Returns 404 for unknown or already-undeployed processes |
@@ -70,11 +70,11 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 
 #### 10.1.0.1 Public `/health`, `/metrics`, process-start back-pressure, and deprecation
 
-**`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `EVIL_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `evil_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
+**`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `TDE_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `evil_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
 
-**`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `EVIL_METRICS_ENABLED` is `true` (default). Metric definitions live in `EvilEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, returns **404** with JSON `{"error":"metrics_disabled"}`.
+**`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `TDE_METRICS_ENABLED` is `true` (default). Metric definitions live in `EvilEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, returns **404** with JSON `{"error":"metrics_disabled"}`.
 
-**`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `EVIL_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `EVIL_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
+**`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `TDE_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `TDE_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
 
 **Deprecation headers (RFC 8594)** — Routes mark themselves by setting `conn.private[:deprecated]` to `%{successor: path, sunset: optional_datetime}` (via `plug :put_private` or scope options). `DeprecationPlug` injects `Deprecation`, `Link` (`rel="successor-version"`), and optional `Sunset` on responses. Full rules: [§10.5](#105-deprecation-headers-rfc-8594).
 
@@ -84,10 +84,10 @@ Additional trigger-style paths in the table below remain **specified** for v1 pa
 |---|---|---|
 | `GET` | `/health` | Liveness/readiness; **no auth**; **204 No Content**. Load is `engine.load` on `GET /stats` |
 | `GET` | `/info` | Engine id/name/version/uptime/feature flags; **no auth** |
-| `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`EVIL_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
+| `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`TDE_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
 | `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md) §11.2) |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
-| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `EVIL_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md) §14.3). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
+| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `TDE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md) §14.3). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
 | `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
 | `PUT` | `/user-tasks/{fniId}/finish` | Complete with result |
 | `PUT` | `/user-tasks/{fniId}/cancel` | |
@@ -172,7 +172,7 @@ Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activ
 
 ##### 10.1.1 Payload size limits
 
-Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `EVIL_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
+Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `TDE_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
 
 On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structured body:
 
@@ -189,7 +189,7 @@ No engine state changes on a 413 — the PI is not started, the message is not p
 
 The cap is enforced identically whether the payload comes through REST (above) or through the plugin facade (`EvilEngine.Api.*` / `engine_facade`). Overflow on REST returns HTTP 413 as shown; overflow on the facade returns `{:error, :payload_too_large, %{field, size, limit}}` with the same shape. There are no GraphQL mutations, so GraphQL never carries a command payload.
 
-Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * EVIL_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return the standard Phoenix `413` before the per-field cap check runs.
+Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * TDE_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return the standard Phoenix `413` before the per-field cap check runs.
 
 ### 10.2 GraphQL surface (query-only)
 
@@ -460,7 +460,7 @@ See [configuration.md](./configuration.md) §14.6 and [database.md](../guides/op
 
 ### 10.4 OpenAPI + GraphQL SDL
 
-- OpenAPI 3.x served at `GET /api/openapi`; Swagger UI at `GET /` (path to the spec configured in the plug). All three devtools routes are gated by `EVIL_DEVTOOLS_ENABLED` (defaults to `false` in prod). The OpenAPI spec can be individually re-enabled via `EVIL_EXPOSE_OPENAPI_SPEC=true`.
+- OpenAPI 3.x served at `GET /api/openapi`; Swagger UI at `GET /` (path to the spec configured in the plug). All three devtools routes are gated by `TDE_DEVTOOLS_ENABLED` (defaults to `false` in prod). The OpenAPI spec can be individually re-enabled via `TDE_EXPOSE_OPENAPI_SPEC=true`.
 - GraphQL Playground at `/admin/graphiql` (devtools-only, pre-loaded with example query tabs). SDL export endpoint is not currently implemented.
 - Client generation is CI-driven ([plugins.md](./plugins.md) §9.5).
 
@@ -552,7 +552,7 @@ Retries a terminal (fatal, aborted, or error) process instance. The Api facade (
 | 422 | `retry_checkpoint_is_ebg_loser` | Checkpoint FNI was interrupted by an Event-Based Gateway race — retry at the gateway or upstream instead |
 | 422 | `retry_checkpoint_is_join_gateway` | Checkpoint FNI is a parallel/inclusive join gateway — retry at the fork or upstream instead |
 | 422 | `retry_checkpoint_is_non_retryable` | Checkpoint FNI was interrupted by a BPMN flow mechanism (boundary cancellation, EBG, Terminate/Error End Event) — retry without a checkpoint or select a different flow node |
-| 503 | `engine_at_capacity` | `EVIL_MAX_CONCURRENT_PIS` limit reached |
+| 503 | `engine_at_capacity` | `TDE_MAX_CONCURRENT_PIS` limit reached |
 
 **Version resolution flow:** The Api layer resolves the version using `CalledElementResolver`:
 - No `version` → same version (`pi_data.process_version_id`)

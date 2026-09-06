@@ -1,5 +1,5 @@
 ---
-title: Evil Engine — Observability
+title: Daemon Engine — Observability
 parent_document: ../ImplementationPlan.md
 ---
 
@@ -10,7 +10,7 @@ parent_document: ../ImplementationPlan.md
 Core observability stays intentionally small: structured JSON logs + a
 `/stats` JSON snapshot. **Phase 2** adds an optional public **`GET /metrics`**
 Prometheus exposition endpoint (`telemetry_metrics_prometheus_core` from Hex `~> 1.1`, not GitHub `main`), gated by
-`EVIL_METRICS_ENABLED` (see [configuration.md](./configuration.md)). No OpenTelemetry and no distributed tracing in v1.
+`TDE_METRICS_ENABLED` (see [configuration.md](./configuration.md)). No OpenTelemetry and no distributed tracing in v1.
 Every typed engine event is fanned out through `EngineEventBus` to a set of
 pluggable sinks ([§3.3](./event-system.md)); this section describes what each sink surfaces and how operators
 turn on the ones they want.
@@ -21,7 +21,7 @@ Everything observable the engine produces at runtime (PI/FNI transitions, messag
 
 | Sink | Default | What the operator sees | When to enable/disable |
 |---|---|---|---|
-| `console` | ON | Structured JSON lines on stdout, one per event at or above `EVIL_LOG_MIN_SEVERITY` (default `info`). Captured by whatever log-collector the container runtime provides (`kubectl logs`, `docker logs`, Loki, Cloudwatch, …) | Disable for pure-library embeds; leave on otherwise — extremely cheap |
+| `console` | ON | Structured JSON lines on stdout, one per event at or above `TDE_LOG_MIN_SEVERITY` (default `info`). Captured by whatever log-collector the container runtime provides (`kubectl logs`, `docker logs`, Loki, Cloudwatch, …) | Disable for pure-library embeds; leave on otherwise — extremely cheap |
 | `telemetry` | ON | In-process `:telemetry` counters (see §11.2). No output channel of its own; feeds `/stats` | Do not disable except in benchmarks; `/stats` loses all counters otherwise |
 | `websocket` | ON | Live push to connected Phoenix Channels clients (`process_instance:<id>`, `engine:*`). `debug`/`verbose` severities excluded by default to avoid flooding long-lived Studio connections | Disable when no WS consumers exist; saves negligible CPU |
 | `database` | **OFF** | Inserts rows into `process_instance_events` ([§4.3](./data-model.md)). Enables GraphQL-based historical queries over the engine's typed-event log | **Enable when a flat, SQL-queryable log of every typed engine event is wanted** — compliance audit, severity sweeps (`warn`/`error` across time ranges), handler-retry traces, or surfacing plugin-emitted out-of-BPMN-flow events in a log panel. **Not required** to render the BPMN-flow view of a PI (see caveat below) |
@@ -43,7 +43,7 @@ Together these reconstruct the full sender↔receiver pattern for every BPMN-ele
 ### 11.2 Logs
 
 - The `console` sink emits events as **structured JSON** (`logger_json` formatter) — this is the primary log surface in v1.
-- Severity levels: `error | warn | info | debug | verbose` (maps to concept's "Verbose"). Configured globally via `EVIL_LOG_MIN_SEVERITY` (default `info`).
+- Severity levels: `error | warn | info | debug | verbose` (maps to concept's "Verbose"). Configured globally via `TDE_LOG_MIN_SEVERITY` (default `info`).
 - Every log line carries: `engine_id`, `process_instance_id?`, `flow_node_instance_id?`, `identity.id?`, plus the event-specific payload from `EvilEngine.Types.Event.*`.
 - Engine-internal logs outside the event bus (startup banners, sink-failure warnings) use the same JSON formatter and share the same severity level. Mix retention purge logs counts to stdout; there is no RetentionRunner heartbeat.
 - **API error audit trail:** Every REST error response is logged by `ErrorResponse` (`:error` for 5xx, `:warning` for 4xx). Auth failures, payload-cap violations, rate-limit rejections, and rescued exceptions in message/signal controllers are logged separately with additional context. GraphQL errors are logged by the `ErrorLogger` Absinthe phase. See [api.md §Audit-trail logging](api.md#audit-trail-logging).
@@ -88,7 +88,7 @@ Primary JSON runtime snapshot (authenticated). Returns the current in-memory sna
 
 Backed by the `telemetry` event sink ([§3.3.3](./event-system.md)), which increments in-process `:telemetry` counters on every event. The snapshot is assembled lazily on request; there is no in-memory ring buffer and no time-series retention inside the engine.
 
-**`GET /metrics` (Phase 2, public):** When `EVIL_METRICS_ENABLED` is `true` (default), `EvilEngine.Telemetry.Metrics` registers a Prometheus reporter (`TelemetryMetricsPrometheus.Core`) plus a poller (`EvilEngine.Telemetry.Measurements`) that samples active PI count, PI capacity ratio, BEAM VM memory/run-queue/process-count gauges, and evaluates overload threshold transitions (event bus publishes `Event.EngineOverloaded` on upward crossings and `Event.EngineRecovered` on recovery to normal, only on level changes, not every tick). Scrape output is plain text; when metrics are disabled the HTTP handler returns `404` with `{"error":"metrics_disabled"}`.
+**`GET /metrics` (Phase 2, public):** When `TDE_METRICS_ENABLED` is `true` (default), `EvilEngine.Telemetry.Metrics` registers a Prometheus reporter (`TelemetryMetricsPrometheus.Core`) plus a poller (`EvilEngine.Telemetry.Measurements`) that samples active PI count, PI capacity ratio, BEAM VM memory/run-queue/process-count gauges, and evaluates overload threshold transitions (event bus publishes `Event.EngineOverloaded` on upward crossings and `Event.EngineRecovered` on recovery to normal, only on level changes, not every tick). Scrape output is plain text; when metrics are disabled the HTTP handler returns `404` with `{"error":"metrics_disabled"}`.
 
 #### Prometheus metric catalog
 
@@ -120,7 +120,7 @@ Backed by the `telemetry` event sink ([§3.3.3](./event-system.md)), which incre
 | `evil_engine.db.pool.checked_out` | last_value | repo | `[:evil_engine, :db, :pool]` (poller, 10s) |
 | `evil_engine.db.pool.idle` | last_value | repo | `[:evil_engine, :db, :pool]` (poller, 10s) |
 
-**DB pool pressure detection:** `DbQueryHandler` attaches to each Repo's Ecto `:query` telemetry event and re-emits standardized `[:evil_engine, :db, :query]` events with millisecond-precision `queue_time_ms`. When checkout wait exceeds `EVIL_DB_QUEUE_TIME_WARNING_MS` (default 500ms), a warning is logged. The `repo` tag distinguishes the write pool (`:write`) from the read pool (`:read`) in dual-pool configurations.
+**DB pool pressure detection:** `DbQueryHandler` attaches to each Repo's Ecto `:query` telemetry event and re-emits standardized `[:evil_engine, :db, :query]` events with millisecond-precision `queue_time_ms`. When checkout wait exceeds `TDE_DB_QUEUE_TIME_WARNING_MS` (default 500ms), a warning is logged. The `repo` tag distinguishes the write pool (`:write`) from the read pool (`:read`) in dual-pool configurations.
 
 **`GET /health`** returns 204 No Content — a lightweight liveness probe for Kubernetes / Docker. No body.
 

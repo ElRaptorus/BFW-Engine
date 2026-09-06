@@ -37,7 +37,7 @@ The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>tax-ra
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionRegressionTester.RegressionTesterPlugin` and list your app in `EVIL_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionRegressionTester.RegressionTesterPlugin` and list your app in `TDE_PLUGINS_INBEAM`.
 3. Start the engine; on plugin ready the worker deploys both DMN versions and runs the comparison.
 4. Inspect engine logs for lines prefixed with `decision_regression_tester:`.
 5. Run unit tests:

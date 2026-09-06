@@ -4,7 +4,7 @@ defmodule EvilEngine.Persistence.Resources.DataObjectWrite do
 
   Append-only audit trail of every value written to a Data Object.
   The underlying table may be partitioned by `created_at` depending
-  on `EVIL_PARTITION_INTERVAL`.
+  on `TDE_PARTITION_INTERVAL`.
 
   Writes are performed via raw Ecto in `ExecutionAdapter` (not through
   Ash actions) because the partitioned table requires direct SQL INSERT.

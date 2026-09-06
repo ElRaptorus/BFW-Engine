@@ -31,7 +31,7 @@ Never interpolate payload fields into the shell command.
    config :node_script_example, :timeout_milliseconds, 30_000
    ```
 
-3. Add your OTP app name to `EVIL_PLUGINS_INBEAM`.
+3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
 
 ## BPMN dispatch
 

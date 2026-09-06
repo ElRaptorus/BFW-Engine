@@ -49,7 +49,7 @@ See `loader_test.exs` `on_ready` cases.
 
 This example is intentionally **not** a successful registration. Point
 `:plugin_module` at `Examples.Plugins.QuarantineDemo.QuarantineDemoPlugin` and add
-the OTP app to `EVIL_PLUGINS_INBEAM` only when you want to watch quarantine on a
+the OTP app to `TDE_PLUGINS_INBEAM` only when you want to watch quarantine on a
 scratch engine.
 
 ```elixir

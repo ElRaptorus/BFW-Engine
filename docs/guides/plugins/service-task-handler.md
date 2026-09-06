@@ -157,7 +157,7 @@ end
 
 ## Payload Cap
 
-Handler output (passed to `finish_async`) is checked against `EVIL_TOKEN_MAX_BYTES` during the output pipeline. Oversized output causes the FNI to transition to `fatal`. See [Error Handling](../handbook/error-handling.md).
+Handler output (passed to `finish_async`) is checked against `TDE_TOKEN_MAX_BYTES` during the output pipeline. Oversized output causes the FNI to transition to `fatal`. See [Error Handling](../handbook/error-handling.md).
 
 ## Related
 

@@ -1081,11 +1081,11 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 ## P64: The GraphQL depth limit was sized for the flat persistence graph — recursive `SubProcessNode.flowNodes` needs headroom
 
-**Mistake:** Treating `EVIL_GRAPHQL_MAX_DEPTH` (default 16) as generous for the Process Model graph because it was generous for `processInstance { flowNodeInstances { ... } }`.
+**Mistake:** Treating `TDE_GRAPHQL_MAX_DEPTH` (default 16) as generous for the Process Model graph because it was generous for `processInstance { flowNodeInstances { ... } }`.
 
 **Why it happens:** `SubProcessNode.flowNodes` is genuinely recursive (`SubProcessNode implements FlowNode`, and `flowNodes: [FlowNode!]!` can itself contain `SubProcessNode`s). A debugger-shaped query selecting `flowNode { ... on SubProcessNode { flowNodes { ... on SubProcessNode { flowNodes { ... } } } } }` for a diagram with embedded subprocesses nested a few levels deep can hit a persistence-graph-sized limit well before it hits any genuinely excessive query.
 
-**Correct approach:** The default is **16**, sized for `getProcessInstance → processVersion → processModel → flowNodes` plus the SDK helper's default recursion depth of 4. `graphql_model_graph_wp7_test.exs` pins a regression test asserting the canonical `buildProcessModelSelection(4)`-shaped query returns data with no errors, and that the configured limit stays at least 16. If `EVIL_GRAPHQL_MAX_DEPTH` is ever lowered, or a client raises its recursion depth past what the SDK helper defaults to, re-run that test before assuming the change is safe.
+**Correct approach:** The default is **16**, sized for `getProcessInstance → processVersion → processModel → flowNodes` plus the SDK helper's default recursion depth of 4. `graphql_model_graph_wp7_test.exs` pins a regression test asserting the canonical `buildProcessModelSelection(4)`-shaped query returns data with no errors, and that the configured limit stays at least 16. If `TDE_GRAPHQL_MAX_DEPTH` is ever lowered, or a client raises its recursion depth past what the SDK helper defaults to, re-run that test before assuming the change is safe.
 
 ## P65: `FieldTable.verify!/0` does not prove a GraphQL field exists
 
@@ -1105,7 +1105,7 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 ## P68: Do not put `max_children` on the DynamicSupervisor / do not queue leftover PIs for later resume
 
-**Mistake:** Setting `max_children` on `EvilEngine.Execution.Supervisor` from `EVIL_MAX_CONCURRENT_PIS`, or queueing PIs that exceed the cap for a later resume pass.
+**Mistake:** Setting `max_children` on `EvilEngine.Execution.Supervisor` from `TDE_MAX_CONCURRENT_PIS`, or queueing PIs that exceed the cap for a later resume pass.
 
 **Why it happens:** The env var looks like a supervisor limit. Queueing leftovers seems like a way to honor the cap at boot.
 
@@ -1153,9 +1153,9 @@ Any new state that is accumulated on the shell node (not on the inner scope's `c
 
 **Mistake:** Starting the production Docker image (or a `MIX_ENV=prod` release) against stock `postgres:16-alpine` (`max_connections=100`).
 
-**Why it happens:** `config/runtime.exs` defaults `EVIL_DB_POOL_SIZE` to 100 and `EVIL_DB_READ_POOL_SIZE` to 50. Ecto checks those connections out at boot. Postgres rejects the overflow with `FATAL 53300 (too_many_connections)`, the engine never listens, and `GET /health` never returns 204.
+**Why it happens:** `config/runtime.exs` defaults `TDE_DB_POOL_SIZE` to 100 and `TDE_DB_READ_POOL_SIZE` to 50. Ecto checks those connections out at boot. Postgres rejects the overflow with `FATAL 53300 (too_many_connections)`, the engine never listens, and `GET /health` never returns 204.
 
-**Correct approach:** Start Postgres as `postgres -c max_connections=200` (`docker-compose.yml`, `docker-compose.dev.yml`, CI Docker smoke). GitHub Actions **service** containers cannot override the Postgres command — size pools down there (`EVIL_DB_POOL_SIZE` / `EVIL_DB_READ_POOL_SIZE`) instead. See [persistence.md](./persistence.md) and [configuration.md](./configuration.md).
+**Correct approach:** Start Postgres as `postgres -c max_connections=200` (`docker-compose.yml`, `docker-compose.dev.yml`, CI Docker smoke). GitHub Actions **service** containers cannot override the Postgres command — size pools down there (`TDE_DB_POOL_SIZE` / `TDE_DB_READ_POOL_SIZE`) instead. See [persistence.md](./persistence.md) and [configuration.md](./configuration.md).
 
 ## P74: Docker smoke must assert `GET /health` HTTP 204 — not JSON `"status":"ok"`
 
@@ -1317,7 +1317,7 @@ Link Catch events and None (untyped) Intermediate Catch events complete synchron
 
 **Why it happens:** `config/test.exs` defaults to `pool: Ecto.Adapters.SQL.Sandbox` with `pool_size: System.schedulers_online() * 2` (**4** on GitHub `ubuntu-latest` 2 vCPU). `ExecutionCase` checks out that pool in `{:shared, self()}` with `ownership_timeout: 300_000`. E8's ExUnit timeout is **600_000**. After five minutes the test process still owns the connection; the sandbox kills the owner; every in-flight PI/FNI persist then fails with `cannot find ownership process` / `mode reverts to :manual`. `PersistenceRetry` retries those fatals, so one owner death becomes thousands of log lines. Production uses `DBConnection.ConnectionPool` (write 100 / read 50), not Ownership.
 
-**Correct approach:** Run load tests on a real pool. `mix test.load` and `.github/workflows/load-bench.yml` set `EVIL_LOAD_TEST_POOL=1` so `config/test.exs` uses `DBConnection.ConnectionPool` (`EVIL_LOAD_TEST_POOL_SIZE`, default 50 write / 25 read). GitHub Actions Postgres **service** containers cannot raise `max_connections` above the image default of 100, so the load-test pools stay at 75 total — not production 100+50. `ExecutionCase` skips sandbox checkout in that mode and `TRUNCATE … CASCADE`s runtime tables between tests. Do not raise production pool sizes to paper over sandbox ownership. Do not bump `ownership_timeout` to `:infinity` and keep a single shared connection for 10k PIs.
+**Correct approach:** Run load tests on a real pool. `mix test.load` and `.github/workflows/load-bench.yml` set `TDE_LOAD_TEST_POOL=1` so `config/test.exs` uses `DBConnection.ConnectionPool` (`TDE_LOAD_TEST_POOL_SIZE`, default 50 write / 25 read). GitHub Actions Postgres **service** containers cannot raise `max_connections` above the image default of 100, so the load-test pools stay at 75 total — not production 100+50. `ExecutionCase` skips sandbox checkout in that mode and `TRUNCATE … CASCADE`s runtime tables between tests. Do not raise production pool sizes to paper over sandbox ownership. Do not bump `ownership_timeout` to `:infinity` and keep a single shared connection for 10k PIs.
 
 ---
 

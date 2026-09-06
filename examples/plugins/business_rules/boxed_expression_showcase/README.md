@@ -85,7 +85,7 @@ Log lines are prefixed with `boxed_expression_showcase:` and include `process` a
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcasePlugin` and list your app in `EVIL_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcasePlugin` and list your app in `TDE_PLUGINS_INBEAM`.
 3. Start the engine; on plugin ready the worker deploys DMN + BPMN and runs the showcase.
 4. Inspect engine logs for lines prefixed with `boxed_expression_showcase:`.
 5. Run unit tests:

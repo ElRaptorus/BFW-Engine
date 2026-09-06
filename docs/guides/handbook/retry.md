@@ -53,7 +53,7 @@ Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
 | 422 | PI is not retryable, checkpoint restriction, or version migration is incompatible |
 | 401 | Missing or invalid authentication |
 | 403 | Caller lacks `retry_process_instance` permission for this PI |
-| 503 | Engine at capacity (`EVIL_MAX_CONCURRENT_PIS` reached) |
+| 503 | Engine at capacity (`TDE_MAX_CONCURRENT_PIS` reached) |
 
 ### HTTP 422 restriction codes
 

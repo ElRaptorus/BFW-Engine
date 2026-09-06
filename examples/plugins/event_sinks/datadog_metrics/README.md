@@ -13,7 +13,7 @@ into counter-style metric entries, buffers them, and flushes in batches.
 1. Copy `lib/datadog_plugin.ex` and `lib/datadog_sink.ex` into your OTP application.
 2. Replace the placeholder API key (or load it from vault or environment variables).
 3. Implement `default_on_flush/2` in `DatadogSink` to POST to DataDog’s metrics API.
-4. Set `:plugin_module` in application env and add your app name to `EVIL_PLUGINS_INBEAM`
+4. Set `:plugin_module` in application env and add your app name to `TDE_PLUGINS_INBEAM`
    (same pattern as other in-BEAM examples).
 
 ## Metric naming

@@ -1,5 +1,5 @@
 ---
-description: Test conventions, infrastructure, and directory layout for Evil Engine
+description: Test conventions, infrastructure, and directory layout for Daemon Engine
 globs: "**/test/**/*.exs"
 alwaysApply: false
 ---

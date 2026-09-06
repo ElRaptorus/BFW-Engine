@@ -14,12 +14,12 @@ defmodule EvilEngineWeb.Graphql.Schema do
 
   Safety limits (S-4):
   - Depth limiting via `EvilEngineWeb.Graphql.Phases.DepthLimit` (env:
-    `EVIL_GRAPHQL_MAX_DEPTH`, default 16, sized for recursive
+    `TDE_GRAPHQL_MAX_DEPTH`, default 16, sized for recursive
     `SubProcessNode.flowNodes` — see WP-7 / `common-pitfalls.md` §P64).
   - Introspection blocking via `EvilEngineWeb.Graphql.Phases.BlockIntrospection`
-    (env: `EVIL_GRAPHQL_INTROSPECTION_DISABLED`, default false).
+    (env: `TDE_GRAPHQL_INTROSPECTION_DISABLED`, default false).
   - Complexity limiting is configured on the `Absinthe.Plug` forward in the
-    router (env: `EVIL_GRAPHQL_MAX_COMPLEXITY`, default 1000).
+    router (env: `TDE_GRAPHQL_MAX_COMPLEXITY`, default 1000).
 
   Dataloader is registered as `:model_cache` (see `context/1`), batching
   `EvilEngine.BPMN.ModelCache.fetch/1` per distinct `process_version_id`.

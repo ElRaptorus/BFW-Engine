@@ -81,7 +81,7 @@ services:
   engine:
     image: your-engine-image
     environment:
-      EVIL_PLUGINS_INBEAM: "incident_reporter"
+      TDE_PLUGINS_INBEAM: "incident_reporter"
     depends_on:
       - rabbitmq
       - postgres

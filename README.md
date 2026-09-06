@@ -57,7 +57,7 @@ mix compile
 ## Running locally (docker-compose)
 
 The dev compose stack contains an Engine and a Postgres DB.
-Prometheus scrape is `GET /metrics` (on by default via `EVIL_METRICS_ENABLED`). OpenTelemetry does not ship yet.
+Prometheus scrape is `GET /metrics` (on by default via `TDE_METRICS_ENABLED`). OpenTelemetry does not ship yet.
 
 ```bash
 docker compose up --build

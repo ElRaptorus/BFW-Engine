@@ -3,7 +3,7 @@ defmodule EvilEngine.Events.Sinks.Console do
   Structured JSON log sink. Default ON.
 
   Emits each accepted event as a structured JSON line to stdout via
-  `Logger`. Filtered by `EVIL_LOG_MIN_SEVERITY` (default `info`).
+  `Logger`. Filtered by `TDE_LOG_MIN_SEVERITY` (default `info`).
   """
 
   @behaviour EvilEngine.Plugin.EventSink

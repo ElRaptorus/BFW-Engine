@@ -13,7 +13,7 @@ The cap is enforced as a soft pre-check inside `Execution.start_process_instance
 not on the underlying `DynamicSupervisor`. This has two practical consequences:
 
 - **Resume bypasses the cap.** At engine startup, `ResumeRunner` brings every
-  `:running` PI back online regardless of `EVIL_MAX_CONCURRENT_PIS`. The cap may
+  `:running` PI back online regardless of `TDE_MAX_CONCURRENT_PIS`. The cap may
   briefly be exceeded while resume is in progress and immediately after; new
   starts via the public API are then rejected until enough PIs terminate to
   bring the active count back below the limit. This is a deliberate v1 choice —
@@ -27,7 +27,7 @@ not on the underlying `DynamicSupervisor`. This has two practical consequences:
 
 | Variable | Default | Description |
 |---|---|---|
-| `EVIL_MAX_CONCURRENT_PIS` | `infinity` | Maximum number of concurrent PIs **accepted via new starts**. Set to a positive integer (≥ 1) to enable. The engine refuses to start if the value is ≤ 0. Resume is unaffected by this setting. |
+| `TDE_MAX_CONCURRENT_PIS` | `infinity` | Maximum number of concurrent PIs **accepted via new starts**. Set to a positive integer (≥ 1) to enable. The engine refuses to start if the value is ≤ 0. Resume is unaffected by this setting. |
 
 ### Sizing guidance
 
@@ -35,7 +35,7 @@ The PI cap should be tuned relative to your DB connection pools and available
 memory.
 
 **Dual-pool model:** The engine uses separate connection pools for writes
-(`EVIL_DB_POOL_SIZE`, production default 100) and reads (`EVIL_DB_READ_POOL_SIZE`, production default 50).
+(`TDE_DB_POOL_SIZE`, production default 100) and reads (`TDE_DB_READ_POOL_SIZE`, production default 50).
 Execution writes (PI/FNI lifecycle, message/signal persistence) use the write pool.
 GraphQL queries and REST list/get endpoints use the read pool. This prevents heavy
 queries from starving execution writes.
@@ -45,7 +45,7 @@ queries from starving execution writes.
   concurrent PIs with headroom.
 - **Read pool** — sized for the expected number of concurrent Studio users.
   The default 2:1 write-to-read ratio (100 write / 50 read) reflects the
-  typical workload asymmetry. Adjust `EVIL_DB_READ_POOL_SIZE` if many
+  typical workload asymmetry. Adjust `TDE_DB_READ_POOL_SIZE` if many
   users query simultaneously.
 - **Total connections** — size Postgres with
   `max_connections >= (write + read) * engine_nodes + 20`. Production
@@ -79,8 +79,8 @@ requests within a sliding window. When the bucket is empty, the API returns
 
 | Variable | Default | Description |
 |---|---|---|
-| `EVIL_PI_START_RATE_LIMIT` | `0` (disabled) | Maximum starts per window. Set to a positive integer to enable. |
-| `EVIL_PI_START_RATE_WINDOW_MS` | `1000` | Window duration in milliseconds. |
+| `TDE_PI_START_RATE_LIMIT` | `0` (disabled) | Maximum starts per window. Set to a positive integer to enable. |
+| `TDE_PI_START_RATE_WINDOW_MS` | `1000` | Window duration in milliseconds. |
 
 The rate limit is **global** (not per-client) and applies only to the start
 endpoint. All other routes are unaffected.
@@ -110,7 +110,7 @@ every 10 seconds:
 
 `GET /health` returns **204 No Content**. It does not include a `load` field.
 
-Read load from **`GET /stats`**: `engine.load` is `"normal"`, `"elevated"`, or `"critical"`. When `EVIL_MAX_CONCURRENT_PIS` is `infinity` (default), `load` is always `"normal"`.
+Read load from **`GET /stats`**: `engine.load` is `"normal"`, `"elevated"`, or `"critical"`. When `TDE_MAX_CONCURRENT_PIS` is `infinity` (default), `load` is always `"normal"`.
 
 ### EngineOverloaded / EngineRecovered events
 

@@ -23,7 +23,7 @@ FNI through the engine facade.
 ## Usage
 
 Copy `lib/` into your OTP app, register the plugin module under `:plugin_module`,
-and list the app in `EVIL_PLUGINS_INBEAM`. Populate earlier nodes so the token
+and list the app in `TDE_PLUGINS_INBEAM`. Populate earlier nodes so the token
 carries `"enrichment_url"` before this task runs.
 
 ## Further reading

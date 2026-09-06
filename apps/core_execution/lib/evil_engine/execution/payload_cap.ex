@@ -1,6 +1,6 @@
 defmodule EvilEngine.Execution.PayloadCap do
   @moduledoc """
-  Core-domain guard enforcing the `EVIL_TOKEN_MAX_BYTES` hard payload cap.
+  Core-domain guard enforcing the `TDE_TOKEN_MAX_BYTES` hard payload cap.
 
   This is the **authoritative enforcement site** — every payload-producing
   operation in the engine must go through `check/2` before persisting. The
@@ -17,7 +17,7 @@ defmodule EvilEngine.Execution.PayloadCap do
   @min_cap_bytes 1024
 
   @doc """
-  Checks whether `payload` fits within `EVIL_TOKEN_MAX_BYTES`.
+  Checks whether `payload` fits within `TDE_TOKEN_MAX_BYTES`.
 
   Returns `:ok` when the canonicalized JSON byte size is within the limit.
   Returns `{:error, :payload_too_large, details}` when it exceeds the cap.

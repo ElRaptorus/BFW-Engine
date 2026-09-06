@@ -39,7 +39,7 @@ The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>order-
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or load the example path in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionTracePublisher.TracePublisherPlugin` and add your app to `EVIL_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionTracePublisher.TracePublisherPlugin` and add your app to `TDE_PLUGINS_INBEAM`.
 3. Deploy `dmn/order_risk_rules.dmn` via `POST /decisions`.
 4. Deploy `bpmn/order_risk_assessment.bpmn` via `POST /processes`.
 5. Start process instances with input such as:

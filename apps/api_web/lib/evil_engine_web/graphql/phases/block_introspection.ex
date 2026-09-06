@@ -4,7 +4,7 @@ defmodule EvilEngineWeb.Graphql.Phases.BlockIntrospection do
   root fields when introspection is disabled.
 
   Enabled by `Application.get_env(:api_web, :graphql_introspection_disabled, false)`,
-  which is wired to the `EVIL_GRAPHQL_INTROSPECTION_DISABLED` environment
+  which is wired to the `TDE_GRAPHQL_INTROSPECTION_DISABLED` environment
   variable. Defaults to `false` so development and test environments retain
   full introspection.
 

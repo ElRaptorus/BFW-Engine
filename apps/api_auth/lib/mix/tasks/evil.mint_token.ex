@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Evil.MintToken do
 
   The signing secret is resolved in order:
 
-  1. `EVIL_JWT_HS256_SECRET` environment variable
+  1. `TDE_JWT_HS256_SECRET` environment variable
   2. Application config `:api_auth, :hs256_secret`
   3. The default dev secret `BloodForTheBloodGod!_SkullsForTheSkullThrone!`
 
@@ -145,7 +145,7 @@ defmodule Mix.Tasks.Evil.MintToken do
 
   defp sign_and_print(opts, exp_seconds, full_claims, extra_claims) do
     secret =
-      System.get_env("EVIL_JWT_HS256_SECRET") ||
+      System.get_env("TDE_JWT_HS256_SECRET") ||
         Application.get_env(:api_auth, :hs256_secret) ||
         @default_secret
 

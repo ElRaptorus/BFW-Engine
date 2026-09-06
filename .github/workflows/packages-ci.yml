@@ -122,25 +122,25 @@ jobs:
 
       - name: Start engine
         env:
-          EVIL_DATABASE_HOST: localhost
-          EVIL_DATABASE_PORT: "5432"
-          EVIL_DATABASE_NAME: evil_engine_dev
-          EVIL_DATABASE_USER: evil_engine
-          EVIL_DATABASE_PASS: evil_engine
+          TDE_DATABASE_HOST: localhost
+          TDE_DATABASE_PORT: "5432"
+          TDE_DATABASE_NAME: evil_engine_dev
+          TDE_DATABASE_USER: evil_engine
+          TDE_DATABASE_PASS: evil_engine
           # Production defaults are 100 write + 50 read. GitHub Actions
           # service containers cannot override Postgres' max_connections
           # (100), so size the pools down for this job.
-          EVIL_DB_POOL_SIZE: "10"
-          EVIL_DB_READ_POOL_SIZE: "5"
-          EVIL_HTTP_PORT: "4100"
-          EVIL_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-          EVIL_ENGINE_ID: "evil-engine-ci-integration"
-          EVIL_ENGINE_NAME: "Evil Engine (CI Integration)"
-          EVIL_TOKEN_MAX_BYTES: "65536"
-          EVIL_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-          EVIL_EVENT_SINK_CONSOLE: "on"
-          EVIL_EVENT_SINK_TELEMETRY: "on"
-          EVIL_EVENT_SINK_WEBSOCKET: "on"
+          TDE_DB_POOL_SIZE: "10"
+          TDE_DB_READ_POOL_SIZE: "5"
+          TDE_HTTP_PORT: "4100"
+          TDE_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+          TDE_ENGINE_ID: "evil-engine-ci-integration"
+          TDE_ENGINE_NAME: "Daemon Engine (CI Integration)"
+          TDE_TOKEN_MAX_BYTES: "65536"
+          TDE_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+          TDE_EVENT_SINK_CONSOLE: "on"
+          TDE_EVENT_SINK_TELEMETRY: "on"
+          TDE_EVENT_SINK_WEBSOCKET: "on"
         run: |
           _build/prod/rel/evil_engine/bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
           _build/prod/rel/evil_engine/bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"

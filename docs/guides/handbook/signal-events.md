@@ -102,7 +102,7 @@ There is no catch-wins-over-start gating (unlike messages). A single signal broa
 
 ## Pending Signals
 
-When a signal is published but no subscription and no Signal Start Event matches, the engine inserts a row into `pending_signals` with a configurable TTL (default `PT60S` via `EVIL_SIGNAL_PENDING_TTL`).
+When a signal is published but no subscription and no Signal Start Event matches, the engine inserts a row into `pending_signals` with a configurable TTL (default `PT60S` via `TDE_SIGNAL_PENDING_TTL`).
 
 | Event | Behaviour |
 |-------|-----------|

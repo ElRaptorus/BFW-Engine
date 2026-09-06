@@ -1,5 +1,5 @@
 ---
-title: "Evil Engine — Event System"
+title: "Daemon Engine — Event System"
 parent_document: "../ImplementationPlan.md"
 ---
 
@@ -7,7 +7,7 @@ parent_document: "../ImplementationPlan.md"
 
 ## Overview
 
-The Evil Engine routes runtime notifications through two complementary mechanisms: in-process `Phoenix.PubSub` for coordination between process instances and internal subsystems, and `EngineEventBus` as the single typed fan-out surface for every `EvilEngine.Types.Event.*` payload. Telemetry in `core_execution` mirrors that public contract: each `:telemetry.execute/3` pairs with one `EngineEventBus.publish/1`. Observability, audit, live clients, and plugin integrations consume events only via registered `@behaviour EvilEngine.Plugin.EventSink` implementations — parallel, crash-isolated, and intentionally at-most-once per sink. The sections below preserve the architecture detail from the implementation plan without truncation.
+The Daemon Engine routes runtime notifications through two complementary mechanisms: in-process `Phoenix.PubSub` for coordination between process instances and internal subsystems, and `EngineEventBus` as the single typed fan-out surface for every `EvilEngine.Types.Event.*` payload. Telemetry in `core_execution` mirrors that public contract: each `:telemetry.execute/3` pairs with one `EngineEventBus.publish/1`. Observability, audit, live clients, and plugin integrations consume events only via registered `@behaviour EvilEngine.Plugin.EventSink` implementations — parallel, crash-isolated, and intentionally at-most-once per sink. The sections below preserve the architecture detail from the implementation plan without truncation.
 
 ## Event Bus Layers
 
@@ -65,7 +65,7 @@ Config keys:
 
 | Sink | Module | Default | Filtering | Purpose |
 |---|---|---|---|---|
-| `console` | `EvilEngine.Events.Sinks.Console` | **ON** | global `EVIL_LOG_MIN_SEVERITY` (default `info`; values `error`/`warn`/`info`/`debug`/`verbose`) | Structured JSON via `logger_json` to stdout; consumed by whatever log aggregator the operator runs (Loki, Cloudwatch, `kubectl logs`, Docker logging drivers) |
+| `console` | `EvilEngine.Events.Sinks.Console` | **ON** | global `TDE_LOG_MIN_SEVERITY` (default `info`; values `error`/`warn`/`info`/`debug`/`verbose`) | Structured JSON via `logger_json` to stdout; consumed by whatever log aggregator the operator runs (Loki, Cloudwatch, `kubectl logs`, Docker logging drivers) |
 | `telemetry` | `EvilEngine.Telemetry.Sink` (in `peripheral_telemetry`) | **ON** | none (always accepts, increments are O(1)) | Increments in-process `:telemetry` counters that back `/stats` ([observability.md](./observability.md)) |
 | `websocket` | `EvilEngineWeb.Ws.Sinks.WebSocket` (in `api_web`) | **ON** | severity threshold (`info`+ by default; `debug`/`verbose` disabled to avoid flooding connected Studio clients) | Live Phoenix Channels push to subscribed clients, e.g. Studio debugger |
 
@@ -156,7 +156,7 @@ Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1
 
 **B. Event-bus sinks** (routed through `EngineEventBus`, [EngineEventBus + EventSinks](#engineeventbus--eventsinks) — each sink toggled independently):
 
-- **`console` sink** (default ON) — structured JSON to stdout via `logger_json`, filtered by `EVIL_LOG_MIN_SEVERITY`.
+- **`console` sink** (default ON) — structured JSON to stdout via `logger_json`, filtered by `TDE_LOG_MIN_SEVERITY`.
 - **`telemetry` sink** (default ON, owned by `peripheral_telemetry`) — increments in-process `:telemetry` counters backing `/stats` ([observability.md](./observability.md)). Includes per-process-model write-count counters for Data Objects.
 - **`websocket` sink** (default ON, owned by `api_web`) — broadcasts the typed event on the WebSocket channel for subscribed clients. Data Object writes push `%Event.DataObjectWritten{}` so live debuggers/UIs can render the new value without re-querying. `debug`/`verbose` severities excluded by default to avoid flooding long-lived Studio connections.
 - **plugin sinks** — any number of `@behaviour EvilEngine.Plugin.EventSink` implementations registered on boot ([plugins.md](./plugins.md)). Example plugin targets: Datadog, Prometheus push-gateway, Kafka topic, custom S3 JSONL archive, a replica Postgres with different retention policy. Users who need DB-backed event storage implement this as a plugin sink with its own connection pool.

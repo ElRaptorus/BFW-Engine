@@ -55,7 +55,7 @@ curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/finish \
 | `204`  | Task completed successfully (no body) |
 | `403`  | Caller can see the task (`"read"` or `observe_all`) but lacks `"write"` |
 | `404`  | FNI not found or invisible to caller (no observe of that lane) |
-| `413`  | Result payload exceeds `EVIL_TOKEN_MAX_BYTES` |
+| `413`  | Result payload exceeds `TDE_TOKEN_MAX_BYTES` |
 | `422`  | Task not in `waiting` state, or result contract violation |
 
 ### Authorization

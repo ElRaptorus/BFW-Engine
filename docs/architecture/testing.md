@@ -1,5 +1,5 @@
 ---
-title: "Evil Engine — Testing Strategy"
+title: "Daemon Engine — Testing Strategy"
 parent_document: "../ImplementationPlan.md"
 ---
 
@@ -192,7 +192,7 @@ and skipped with a recorded reason:
 - **S10 — Cross-PI messaging (single-recipient)**: intermediate throw from one PI correlates to an intermediate catch in exactly one sibling PI (both share the same `<evil:correlationKey>` value); asserts `messages.correlations` has length 1, `messages.correlation_value` is non-null, the target FNI advances, and no other PI is touched.
 - **S10a — Broadcast-within-key (serial-letter)**: three sibling PIs all subscribe to the same message name and evaluate their `<evil:correlationKey>` to the same value. A single `POST /messages/{message_name}/trigger` (or intermediate throw) with that correlation delivers to **all three** — assert `messages.correlations` has length 3, each target FNI advances, and `correlations[].flow_node_instance_id` is distinct across the three.
 - **S10b — Catch-wins-over-Start**: a process has a Message Start Event on name `M`. One PI of that process is already running and waiting on an intermediate catch for `M` with correlation value `K`. A `POST /messages/{message_name}/trigger` with `correlation=K` arrives. Assert: **no new PI** is started, the existing PI's catch advances, `messages.correlations` has length 1, `response.startedProcessInstanceIds` is empty. A second publish with `correlation=K'` (no matching subscription) starts exactly one new PI via the Start Event.
-- **S10c — Pending-TTL rematch**: `EVIL_MESSAGE_PENDING_TTL=PT30S`. Publish a message with correlation `K` at T0 — no subscription exists, `pending_messages` row written with `state='pending'`. At T+10s, start a PI whose intermediate catch evaluates `<evil:correlationKey>` to `K`. Assert the pending row transitions to `state='delivered'`, the catch advances, and `messages.correlations` is populated with the late subscription.
+- **S10c — Pending-TTL rematch**: `TDE_MESSAGE_PENDING_TTL=PT30S`. Publish a message with correlation `K` at T0 — no subscription exists, `pending_messages` row written with `state='pending'`. At T+10s, start a PI whose intermediate catch evaluates `<evil:correlationKey>` to `K`. Assert the pending row transitions to `state='delivered'`, the catch advances, and `messages.correlations` is populated with the late subscription.
 - **S10d — Pending-TTL expiry**: same setup as S10c but no matching subscription arrives before T+30s. The sweeper transitions the pending row to `state='expired'`, a `warn` log line is emitted with the `message_id`, and a subsequent subscription with the same key at T+40s does **not** receive the expired message.
 - **S10e — Pending-rematched after restart**: publish at T0; `SIGKILL` the engine at T+5s; restart at T+10s. The surviving `pending_messages` row is still `state='pending'` with `expires_at = T+30s`. A PI deployed post-restart (or resumed from disk) registers a matching subscription at T+15s — assert the row flips to `state='delivered'` and the subscription receives the payload; assert the resumed subscription's `expected_correlation_value` equals the pending row's `correlation_value` (i.e. the post-restart re-evaluation of `<evil:correlationKey>` against restored state produced the same value).
 - **S10f — Mixed Intermediate Catch + Boundary on the same key**: a running PI has both an intermediate catch AND a message-boundary attached to a parallel Service Task, both subscribing to the same `(name, correlation_value)`. Assert that a single publish delivers to **both** (broadcast-within-key), the catch advances its flow, and the boundary interrupts the task.
@@ -253,7 +253,7 @@ state **after** the root PI reaches a terminal state (polled via the GraphQL
 - ~~For every `data_object_writes` row there is exactly one `process_instance_events` row with `event_type = 'data_object.written'` whose payload carries the matching `write_id` (1:1 correspondence).~~ **Superseded:** the built-in database sink was removed; `process_instance_events` is no longer populated. Integration tests assert `data_object_writes` rows only.
 - Contract-violation path: when a scenario forces a `<evil:valueContract>` violation, assert that `data_object_writes` has **zero** rows for that attempted write and the FNI transitioned to `fatal`. Independently, assert that no `%Event.DataObjectWritten{}` was emitted on `EngineEventBus` for that attempt — the contract check happens **before** the write transaction, so sinks never see the rejected write.
 
-**Audit trail (`process_instance_events`) — The built-in database sink that populated this table was removed. The table is retained for migration compatibility but stays empty. The historical assertion bundle below applied when `EVIL_EVENT_SINK_DATABASE=on` was set in test config; it is no longer exercised:
+**Audit trail (`process_instance_events`) — The built-in database sink that populated this table was removed. The table is retained for migration compatibility but stays empty. The historical assertion bundle below applied when `TDE_EVENT_SINK_DATABASE=on` was set in test config; it is no longer exercised:
 
 - Every event row the fixture declares is present, matched by `(event_type, flow_node_instance_id, previous_flow_node_instance_id)`.
 - No unexpected event rows exist (set-equality, same as FNI rule).
@@ -299,12 +299,12 @@ Negative-path integration tests for the deploy surface:
 
 - BPMN missing or blank `<evil:version>` → `422`, matches deploy-time validation.
 - BPMN failing the configured linter gate ([configuration.md](configuration.md) §14.5) → `422` with structured `failures` body. Every `reason` code is exercised at least once across the fixture set: `ruleset_missing`, `score_below_minimum`, `errors_exceed_maximum`, `warnings_exceed_maximum`, `compliance_status_mismatch`, `schema_version_mismatch`.
-- Seeding-Directory variant of the above: the same bad BPMN placed in `EVIL_SEEDING_DIRECTORY` → file is skipped, an `error` JSON log is emitted carrying the filename and failures, engine startup continues, no `process_version` row is created.
+- Seeding-Directory variant of the above: the same bad BPMN placed in `TDE_SEEDING_DIRECTORY` → file is skipped, an `error` JSON log is emitted carrying the filename and failures, engine startup continues, no `process_version` row is created.
 - Deleted version: `POST /processes/{model_id}/start` against a deleted version is rejected with the documented error code; existing running PIs on that version continue to run and resume cleanly across a restart.
 
 #### 12.4.6 Payload-cap rejection scenarios
 
-Negative-path integration tests exercising `EVIL_TOKEN_MAX_BYTES` enforcement at every boundary identified in §5.5 and §10.1.1. All tests run with the default cap of `65536` bytes unless stated. The helpers `mint_payload(n_bytes)` and `oversize_payload()` = `mint_payload(65537)` are shared across fixtures.
+Negative-path integration tests exercising `TDE_TOKEN_MAX_BYTES` enforcement at every boundary identified in §5.5 and §10.1.1. All tests run with the default cap of `65536` bytes unless stated. The helpers `mint_payload(n_bytes)` and `oversize_payload()` = `mint_payload(65537)` are shared across fixtures.
 
 - **CAP-WRITE-RESULT**: a Script Task handler calls `write_result/2` with `oversize_payload()`. **Assert:** facade returns `{:error, :payload_too_large, %{size: 65537, limit: 65536}}`; FNI row ends with `state='fatal'` and `reason = %{kind: :payload_too_large, field: :fni_output, size: 65537, limit: 65536}`; no downstream FNI is ever created; PI row transitions to `state='fatal'`. No `:payload_too_large`-specific event type is emitted (per §16.4).
 - **CAP-WRITE-DO**: a Service Task is modeled with a `dataOutputAssociation` targeting `order_payload`, and its handler returns a FlowNodeResult whose `outputs.order_payload` is `oversize_payload()`. **Assert:** the DOA-driven write pipeline evaluates contract validation **before** the payload cap check (code order: resolve target → evaluate value → validate contract → check cap); with a valid contract the cap check rejects with `{:error, :payload_too_large, ...}`; no `data_objects` row inserted or updated; no `data_object_writes` row created; no `Event.DataObjectWritten` reaches `EngineEventBus` (all three built-in sinks report zero deliveries for that event); the owning Service Task FNI transitions to `fatal` with `field: :data_object, data_object_id: "order_payload"` in the structured reason (the DOA cap-check is attributed to the FNI whose completion triggered the DOA).
@@ -313,7 +313,7 @@ Negative-path integration tests exercising `EVIL_TOKEN_MAX_BYTES` enforcement at
 - **CAP-TRIGGER-MSG**: `POST /messages/{message_name}/trigger` with an oversize `payload`. **Assert:** HTTP 413 with structured body; **no** `messages` row, **no** delivery, **no** Message Start Event fires (even if one exists for the supplied name). GraphQL has no command equivalent (query-only).
 - **CAP-TASK-FINISH**: `PUT /user-tasks/{fniId}/finish` with an oversize `result`. **Assert:** HTTP 413; the User Task FNI remains in state `active` (not `fatal` on this path — the cap guards the API layer before the facade is touched, and the user is expected to retry with a smaller payload); the PI continues running; no state mutations are observable.
 - **CAP-EXACTLY-AT-LIMIT**: every boundary above is repeated with `mint_payload(65536)` (exactly at the cap). **Assert:** every call succeeds; no `:payload_too_large` signal anywhere; normal execution proceeds; subsequent calls with `mint_payload(65537)` on the same PI still fail as expected (cap is stateless per-call).
-- **CAP-CONFIGURABLE**: the full matrix is rerun with `EVIL_TOKEN_MAX_BYTES=131072`. **Assert:** all `CAP-*` tests that previously failed at 65537 now succeed; fresh failures appear at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `EVIL_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
+- **CAP-CONFIGURABLE**: the full matrix is rerun with `TDE_TOKEN_MAX_BYTES=131072`. **Assert:** all `CAP-*` tests that previously failed at 65537 now succeed; fresh failures appear at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `TDE_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
 - **CAP-MEMORY-BEHAVIOR**: a micro-load variant (50 req/s for 30 s, alternating at-cap and cap+1-byte payloads across every boundary). **Assert:** engine RSS stays flat ±5 MB; GenServer mailbox depths stay bounded; no partial work leaks into `flow_node_instances` or `messages` tables. Validates the "enforcement precedes allocation that scales with payload size" invariant.
 
 #### 12.4.7 Token-storage shape assertions
@@ -392,7 +392,7 @@ Service Task end-to-end.
 |----|----------|---------|
 | (i) | Happy-path sidecar Service Task | Plugin discovered, handshake succeeds, handler registered, Service Task executes, result returned through registry |
 | (ii) | Sidecar crash mid-execution → reconnect | Binary killed mid-handle → Port restarts → in-flight FNI fails gracefully |
-| (iii) | Repeated crash → quarantine | Crash count exceeds `EVIL_PLUGINS_SIDECAR_RECONNECT_LIMIT` → `Event.PluginQuarantined` emitted, no further reconnects |
+| (iii) | Repeated crash → quarantine | Crash count exceeds `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` → `Event.PluginQuarantined` emitted, no further reconnects |
 | (iv) | Malformed `plugin.toml` | Plugin quarantined, engine boots, other plugins unaffected |
 | (v) | Deny-listed manifest | Plugin not spawned, structured log emitted |
 | (vi) | Multi-language proof | One fixture per language passes full discover → handshake → register → execute cycle |
@@ -400,9 +400,9 @@ Service Task end-to-end.
 
 ### 12.5 Load tests
 
-All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `EVIL_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Default load-test pool is 50 write / 25 read (`EVIL_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
+All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Default load-test pool is 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
 
-Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability (one JSON report). Both aliases set `EVIL_LOAD_DURABILITY` (`1` vs `all`). Do not add durability to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
+Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability (one JSON report). Both aliases set `TDE_LOAD_DURABILITY` (`1` vs `all`). Do not add durability to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
 
 #### Execution load tests (`execution_load_test.exs`)
 
@@ -474,7 +474,7 @@ After every run — including when ExUnit reports failures — the runner writes
 
 Runtime snapshot fields (`beamProcessCount`, `memoryBytes`, `garbageCollection`) are **top-level** on the report — they are not duplicated inside each workload object.
 
-Optional baseline compare: set `EVIL_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
+Optional baseline compare: set `TDE_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
 
 Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load`, `mix test.load.durability`, `mix test.load.all`, or the dispatch workflow below.
 
@@ -513,6 +513,6 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
 | Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
-| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `EVIL_LOAD_TEST_POOL: "1"` (P89), and `EVIL_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `TDE_LOAD_TEST_POOL: "1"` (P89), and `TDE_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
-| Baseline | Does **not** set `EVIL_LOAD_BASELINE_PATH` — download the artifact and compare locally |
+| Baseline | Does **not** set `TDE_LOAD_BASELINE_PATH` — download the artifact and compare locally |

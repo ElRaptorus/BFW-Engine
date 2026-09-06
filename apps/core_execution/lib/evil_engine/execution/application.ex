@@ -15,11 +15,11 @@ defmodule EvilEngine.Execution.Application do
 
   @impl true
   def start(_type, _args) do
-    # Cap enforcement (`EVIL_MAX_CONCURRENT_PIS`) lives in
+    # Cap enforcement (`TDE_MAX_CONCURRENT_PIS`) lives in
     # `Execution.start_process_instance/1` as a soft client-side pre-check, NOT
     # on the supervisor itself. This lets `ResumeRunner` bypass the cap entirely
     # at boot — every `:running` PI from the DB is brought back online,
-    # regardless of `EVIL_MAX_CONCURRENT_PIS`. The cap applies only to new starts
+    # regardless of `TDE_MAX_CONCURRENT_PIS`. The cap applies only to new starts
     # via the public API. See `docs/architecture/execution.md` Resume on Startup.
     children = [
       {Registry, keys: :unique, name: EvilEngine.Execution.Registry},

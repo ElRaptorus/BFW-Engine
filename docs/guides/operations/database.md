@@ -6,30 +6,30 @@ The engine requires PostgreSQL 16+ for JSONB support and LZ4 toast compression.
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `EVIL_DATABASE_URL` | -- | Full connection string (preferred) |
-| `EVIL_DATABASE_HOST` | -- | Hostname (alternative to URL) |
-| `EVIL_DATABASE_PORT` | `5432` | Port |
-| `EVIL_DATABASE_NAME` | -- | Database name |
-| `EVIL_DATABASE_USER` | -- | Username |
-| `EVIL_DATABASE_PASS` | -- | Password |
-| `EVIL_DB_POOL_SIZE` | `100` | Write pool size (PI/FNI lifecycle, deploys, message/signal persistence) |
-| `EVIL_DB_READ_POOL_SIZE` | `50` | Read pool size (GraphQL queries, REST list/get endpoints) |
-| `EVIL_DB_CHECKOUT_RETRIES` | `3` | DBConnection retries on mid-query disconnect (Layer 1) |
-| `EVIL_DB_QUEUE_TARGET` | `100` | CoDel target latency (ms) |
-| `EVIL_DB_QUEUE_INTERVAL` | `2000` | CoDel measurement interval (ms) |
-| `EVIL_DB_CHECKOUT_TIMEOUT` | `15000` | Max wait for a pool connection (ms) |
-| `EVIL_DB_QUEUE_TIME_WARNING_MS` | `500` | Log warning when queue_time exceeds this threshold (ms) |
-| `EVIL_DB_IPV6` | `false` | Connect over IPv6 |
-| `EVIL_DB_SSL` | `false` | Enable SSL |
+| `TDE_DATABASE_URL` | -- | Full connection string (preferred) |
+| `TDE_DATABASE_HOST` | -- | Hostname (alternative to URL) |
+| `TDE_DATABASE_PORT` | `5432` | Port |
+| `TDE_DATABASE_NAME` | -- | Database name |
+| `TDE_DATABASE_USER` | -- | Username |
+| `TDE_DATABASE_PASS` | -- | Password |
+| `TDE_DB_POOL_SIZE` | `100` | Write pool size (PI/FNI lifecycle, deploys, message/signal persistence) |
+| `TDE_DB_READ_POOL_SIZE` | `50` | Read pool size (GraphQL queries, REST list/get endpoints) |
+| `TDE_DB_CHECKOUT_RETRIES` | `3` | DBConnection retries on mid-query disconnect (Layer 1) |
+| `TDE_DB_QUEUE_TARGET` | `100` | CoDel target latency (ms) |
+| `TDE_DB_QUEUE_INTERVAL` | `2000` | CoDel measurement interval (ms) |
+| `TDE_DB_CHECKOUT_TIMEOUT` | `15000` | Max wait for a pool connection (ms) |
+| `TDE_DB_QUEUE_TIME_WARNING_MS` | `500` | Log warning when queue_time exceeds this threshold (ms) |
+| `TDE_DB_IPV6` | `false` | Connect over IPv6 |
+| `TDE_DB_SSL` | `false` | Enable SSL |
 
-`EVIL_DATABASE_URL` takes precedence over individual vars. Both the write pool (`Repo`) and read pool (`ReadRepo`) connect to the same database URL.
+`TDE_DATABASE_URL` takes precedence over individual vars. Both the write pool (`Repo`) and read pool (`ReadRepo`) connect to the same database URL.
 
 ### Dual-Pool Architecture
 
 The engine uses two Ecto repos with separate connection pools:
 
-- **Write pool** (`EvilEngine.Persistence.Repo`, `EVIL_DB_POOL_SIZE`) — handles all mutations: PI/FNI state writes, deployments, message/signal persistence, retry orchestration.
-- **Read pool** (`EvilEngine.Persistence.ReadRepo`, `EVIL_DB_READ_POOL_SIZE`) — handles all reads: GraphQL queries, REST list/get, Ash read actions.
+- **Write pool** (`EvilEngine.Persistence.Repo`, `TDE_DB_POOL_SIZE`) — handles all mutations: PI/FNI state writes, deployments, message/signal persistence, retry orchestration.
+- **Read pool** (`EvilEngine.Persistence.ReadRepo`, `TDE_DB_READ_POOL_SIZE`) — handles all reads: GraphQL queries, REST list/get, Ash read actions.
 
 The 2:1 default (100 write / 50 read) reflects workload asymmetry: tens of thousands of PIs produce massively concurrent writes, while a comparatively small number of Studio users issue read queries. Adjust based on your workload profile.
 
@@ -39,9 +39,9 @@ Size PostgreSQL with `max_connections >= (write + read) * engine_nodes + 20`. Pr
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `EVIL_DB_CHECKOUT_RETRIES` | `3` | DBConnection-level retries on mid-query disconnect (Layer 1) |
-| `EVIL_PERSISTENCE_RETRY_MAX_ATTEMPTS` | `5` | Application-level retry attempts per adapter call (Layer 2) |
-| `EVIL_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` | `100` | Initial backoff before first retry; doubles on each attempt (Layer 2) |
+| `TDE_DB_CHECKOUT_RETRIES` | `3` | DBConnection-level retries on mid-query disconnect (Layer 1) |
+| `TDE_PERSISTENCE_RETRY_MAX_ATTEMPTS` | `5` | Application-level retry attempts per adapter call (Layer 2) |
+| `TDE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` | `100` | Initial backoff before first retry; doubles on each attempt (Layer 2) |
 
 Layer 1 handles transparent reconnection at the pool level. Layer 2 (`PersistenceRetry`) wraps all adapter calls with bounded exponential backoff and jitter. Total worst-case retry window: ~3.1s. See `docs/architecture/execution.md` §Persistence Resilience for the fail-fast vs. log-and-continue classification.
 
@@ -89,11 +89,11 @@ bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"  # pro
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `EVIL_PARTITION_AHEAD_MONTHS` | `3` | Future partition lead time |
+| `TDE_PARTITION_AHEAD_MONTHS` | `3` | Future partition lead time |
 
 ## Retention Policies
 
-Pass A is `mix evil.retention.purge` (cron/systemd) or `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`. Unset `EVIL_RETENTION_*_DAYS` → the task is a no-op. There is no RetentionRunner GenServer.
+Pass A is `mix evil.retention.purge` (cron/systemd) or `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`. Unset `TDE_RETENTION_*_DAYS` → the task is a no-op. There is no RetentionRunner GenServer.
 
 ```bash
 mix evil.retention.purge
@@ -110,18 +110,18 @@ Example cron (daily 03:00 UTC):
 
 | Env Var | Purpose |
 |---------|---------|
-| `EVIL_RETENTION_FINISHED_DAYS` | Max age for `finished` PIs |
-| `EVIL_RETENTION_ERROR_DAYS` | Max age for `error` PIs |
-| `EVIL_RETENTION_FATAL_DAYS` | Max age for `fatal` PIs |
-| `EVIL_RETENTION_ABORTED_DAYS` | Max age for `aborted` PIs |
-| `EVIL_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
-| `EVIL_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
-| `EVIL_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
-| `EVIL_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
-| `EVIL_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
-| `EVIL_RETENTION_ENGINE_AUDIT_DAYS` | Unused engine convention for the Pass B SQL cutoff below |
-| `EVIL_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | `false` = destroy pending message rows on deliver/expire/cancel |
-| `EVIL_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same for pending signals |
+| `TDE_RETENTION_FINISHED_DAYS` | Max age for `finished` PIs |
+| `TDE_RETENTION_ERROR_DAYS` | Max age for `error` PIs |
+| `TDE_RETENTION_FATAL_DAYS` | Max age for `fatal` PIs |
+| `TDE_RETENTION_ABORTED_DAYS` | Max age for `aborted` PIs |
+| `TDE_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
+| `TDE_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
+| `TDE_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
+| `TDE_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
+| `TDE_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
+| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | Unused engine convention for the Pass B SQL cutoff below |
+| `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | `false` = destroy pending message rows on deliver/expire/cancel |
+| `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same for pending signals |
 
 ### Safety Invariants
 
@@ -133,7 +133,7 @@ Example cron (daily 03:00 UTC):
 
 ### Pass B — operator SQL (engine-audit tables)
 
-Do **not** DELETE `timer_start_schedules`. Substitute `:cutoff` with `now() - make_interval(days => <EVIL_RETENTION_ENGINE_AUDIT_DAYS>)` (or a literal timestamptz). Never delete `state = 'pending'`.
+Do **not** DELETE `timer_start_schedules`. Substitute `:cutoff` with `now() - make_interval(days => <TDE_RETENTION_ENGINE_AUDIT_DAYS>)` (or a literal timestamptz). Never delete `state = 'pending'`.
 
 ```sql
 -- Preview
@@ -183,7 +183,7 @@ REST/CLI `purge` is deferred / not v1 (`purge_audit_data` unused). Ad-hoc PI-tre
 
 | Env Var | Default |
 |---------|---------|
-| `EVIL_JSONB_COMPRESSION` | `lz4` |
+| `TDE_JSONB_COMPRESSION` | `lz4` |
 
 Applies to new migrations only. Existing data retains its compression until rewritten.
 

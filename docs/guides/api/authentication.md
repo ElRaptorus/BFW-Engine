@@ -6,27 +6,27 @@ The engine uses JWT (JSON Web Token) bearer authentication. All authenticated en
 
 | Algorithm | Config | Use Case |
 |-----------|--------|----------|
-| HS256 | `EVIL_JWT_HS256_SECRET` | Symmetric, shared secret (min 32 bytes) |
-| RS256 / ES256 | `EVIL_JWT_JWKS_URL` | Asymmetric, JWKS endpoint |
+| HS256 | `TDE_JWT_HS256_SECRET` | Symmetric, shared secret (min 32 bytes) |
+| RS256 / ES256 | `TDE_JWT_JWKS_URL` | Asymmetric, JWKS endpoint |
 
 Both can coexist — the engine tries JWKS first, then falls back to HS256.
 
-At least one key source must be configured unless `EVIL_AUTH_DISABLED=true`. The engine refuses to start otherwise.
+At least one key source must be configured unless `TDE_AUTH_DISABLED=true`. The engine refuses to start otherwise.
 
 ## Configuration
 
 | Env Var | Purpose | Default |
 |---------|---------|---------|
-| `EVIL_JWT_HS256_SECRET` | Shared secret for HS256 (min 32 bytes) | -- |
-| `EVIL_JWT_JWKS_URL` | JWKS endpoint for RS256/ES256 | -- |
-| `EVIL_JWKS_REFRESH_SECONDS` | JWKS key refresh interval | `3600` |
-| `EVIL_JWT_AUDIENCE` | Expected `aud` claim (optional) | -- |
-| `EVIL_JWT_ISSUER` | Expected `iss` claim (optional) | -- |
-| `EVIL_AUTH_DISABLED` | Disable JWT verification entirely | `false` |
+| `TDE_JWT_HS256_SECRET` | Shared secret for HS256 (min 32 bytes) | -- |
+| `TDE_JWT_JWKS_URL` | JWKS endpoint for RS256/ES256 | -- |
+| `TDE_JWKS_REFRESH_SECONDS` | JWKS key refresh interval | `3600` |
+| `TDE_JWT_AUDIENCE` | Expected `aud` claim (optional) | -- |
+| `TDE_JWT_ISSUER` | Expected `iss` claim (optional) | -- |
+| `TDE_AUTH_DISABLED` | Disable JWT verification entirely | `false` |
 
 ## Auth Disabled Mode
 
-Setting `EVIL_AUTH_DISABLED=true` disables JWT verification. All requests receive a synthetic anonymous identity with least-privilege defaults. The engine logs a warning every 60 seconds while this mode is active.
+Setting `TDE_AUTH_DISABLED=true` disables JWT verification. All requests receive a synthetic anonymous identity with least-privilege defaults. The engine logs a warning every 60 seconds while this mode is active.
 
 **Not suitable for production.**
 
@@ -62,8 +62,8 @@ Standard claims:
 |-------|---------|
 | `sub` | Subject identifier (user ID). Falls back to `client_id` or `"unknown"` if absent. |
 | `exp` | Expiration time |
-| `aud` | Audience (validated if `EVIL_JWT_AUDIENCE` is set) |
-| `iss` | Issuer (validated if `EVIL_JWT_ISSUER` is set) |
+| `aud` | Audience (validated if `TDE_JWT_AUDIENCE` is set) |
+| `iss` | Issuer (validated if `TDE_JWT_ISSUER` is set) |
 
 Engine-specific claims:
 
@@ -129,9 +129,9 @@ end
 
 | Env Var | Values | Default | Description |
 |---------|--------|---------|-------------|
-| `EVIL_AUTH_PROVIDER` | `builtin`, `plugin` | `builtin` | `builtin` uses the JWT verifier. `plugin` requires a plugin to register a provider; the engine refuses to start if none does. |
+| `TDE_AUTH_PROVIDER` | `builtin`, `plugin` | `builtin` | `builtin` uses the JWT verifier. `plugin` requires a plugin to register a provider; the engine refuses to start if none does. |
 
-Only one auth provider can be active at a time. If multiple plugins register providers, **first-writer wins** — a later registration is rejected (`{:error, :conflict, incumbent_plugin_name}`) and the offending plugin is quarantined. When no plugin registers a provider and `EVIL_AUTH_PROVIDER=builtin`, the built-in JWT provider is used.
+Only one auth provider can be active at a time. If multiple plugins register providers, **first-writer wins** — a later registration is rejected (`{:error, :conflict, incumbent_plugin_name}`) and the offending plugin is quarantined. When no plugin registers a provider and `TDE_AUTH_PROVIDER=builtin`, the built-in JWT provider is used.
 
 See [Plugin Development](../plugins/getting-started.md) for the full plugin lifecycle.
 

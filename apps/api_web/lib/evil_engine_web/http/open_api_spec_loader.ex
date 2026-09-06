@@ -7,7 +7,7 @@ defmodule EvilEngineWeb.Http.OpenApiSpecLoader do
   persistent term for near-zero overhead on subsequent requests.
 
   The `servers` block is not kept in the YAML source — it is injected at
-  load time from the Phoenix endpoint's HTTP port (`EVIL_HTTP_PORT`).
+  load time from the Phoenix endpoint's HTTP port (`TDE_HTTP_PORT`).
   """
 
   @spec spec_json() :: binary()

@@ -76,7 +76,7 @@ defmodule EvilEngine.Auth.JwtVerifierTest do
     end
   end
 
-  describe "verify/1 with issuer validation (EVIL_JWT_ISSUER)" do
+  describe "verify/1 with issuer validation (TDE_JWT_ISSUER)" do
     setup do
       previous = Application.get_env(:api_auth, :issuer)
       on_exit(fn -> Application.put_env(:api_auth, :issuer, previous) end)
@@ -105,7 +105,7 @@ defmodule EvilEngine.Auth.JwtVerifierTest do
       assert {:error, :issuer_mismatch} = JwtVerifier.verify(token)
     end
 
-    test "ignores iss claim when EVIL_JWT_ISSUER is unset" do
+    test "ignores iss claim when TDE_JWT_ISSUER is unset" do
       Application.put_env(:api_auth, :issuer, nil)
       token = AuthHelper.sign_jwt(%{"sub" => "user-1", "iss" => "https://anything.example.com"})
 
@@ -114,7 +114,7 @@ defmodule EvilEngine.Auth.JwtVerifierTest do
     end
   end
 
-  describe "verify/1 with audience validation (EVIL_JWT_AUDIENCE)" do
+  describe "verify/1 with audience validation (TDE_JWT_AUDIENCE)" do
     setup do
       previous = Application.get_env(:api_auth, :audience)
       on_exit(fn -> Application.put_env(:api_auth, :audience, previous) end)
@@ -157,7 +157,7 @@ defmodule EvilEngine.Auth.JwtVerifierTest do
       assert {:error, :audience_mismatch} = JwtVerifier.verify(token)
     end
 
-    test "ignores aud claim when EVIL_JWT_AUDIENCE is unset" do
+    test "ignores aud claim when TDE_JWT_AUDIENCE is unset" do
       Application.put_env(:api_auth, :audience, nil)
       token = AuthHelper.sign_jwt(%{"sub" => "user-1", "aud" => "anything"})
 

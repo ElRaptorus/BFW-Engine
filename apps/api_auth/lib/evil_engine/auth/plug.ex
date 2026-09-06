@@ -3,7 +3,7 @@ defmodule EvilEngine.Auth.Plug do
   Plug pipeline that extracts and verifies JWT tokens from the
   `Authorization: Bearer <token>` header.
 
-  When `EVIL_AUTH_DISABLED=true`, injects a synthetic anonymous
+  When `TDE_AUTH_DISABLED=true`, injects a synthetic anonymous
   `%EvilEngine.Types.Identity{}` with least-privilege defaults.
 
   ## Conn assigns

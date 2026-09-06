@@ -8,21 +8,21 @@ See [Authentication](../api/authentication.md) for the full JWT setup including 
 
 ### Key Requirements
 
-- **HS256:** `EVIL_JWT_HS256_SECRET` must be at least 32 bytes
-- **JWKS:** `EVIL_JWT_JWKS_URL` for RS256/ES256 keys, auto-refreshed every `EVIL_JWKS_REFRESH_SECONDS` (default 3600)
-- At least one key source must be configured unless `EVIL_AUTH_DISABLED=true`
+- **HS256:** `TDE_JWT_HS256_SECRET` must be at least 32 bytes
+- **JWKS:** `TDE_JWT_JWKS_URL` for RS256/ES256 keys, auto-refreshed every `TDE_JWKS_REFRESH_SECONDS` (default 3600)
+- At least one key source must be configured unless `TDE_AUTH_DISABLED=true`
 
 ### Key Rotation
 
-JWKS keys are refreshed automatically. For HS256, rotate by updating `EVIL_JWT_HS256_SECRET` and restarting. During rotation, temporarily accept both old and new secrets by running two engine instances or using JWKS with both keys.
+JWKS keys are refreshed automatically. For HS256, rotate by updating `TDE_JWT_HS256_SECRET` and restarting. During rotation, temporarily accept both old and new secrets by running two engine instances or using JWKS with both keys.
 
 ## Auth Disabled Mode
 
-`EVIL_AUTH_DISABLED=true` disables all JWT verification. The engine logs a warning every 60 seconds. **Do not use in production** — all requests receive an anonymous identity with least-privilege defaults.
+`TDE_AUTH_DISABLED=true` disables all JWT verification. The engine logs a warning every 60 seconds. **Do not use in production** — all requests receive an anonymous identity with least-privilege defaults.
 
 ## Payload Cap
 
-`EVIL_TOKEN_MAX_BYTES` (default 64 KiB) limits the size of every user-supplied payload. This protects against memory exhaustion from oversized request bodies. See [Error Handling](../handbook/error-handling.md) for the rejection behavior.
+`TDE_TOKEN_MAX_BYTES` (default 64 KiB) limits the size of every user-supplied payload. This protects against memory exhaustion from oversized request bodies. See [Error Handling](../handbook/error-handling.md) for the rejection behavior.
 
 ## Plugin Trust Boundary
 
@@ -40,7 +40,7 @@ The engine provides guardrails:
 
 v1 does **not** host sidecar plugins. Crash isolation is OTP-process isolation for in-BEAM plugins, which sit inside the trust boundary.
 
-The post-v1 design (separate OS processes, gRPC over Unix-domain sockets, reconnect limit `EVIL_PLUGINS_SIDECAR_RECONNECT_LIMIT`) is documented in [plugins.md](../../architecture/plugins.md) §9.2.3. Those env vars are reserved no-ops today.
+The post-v1 design (separate OS processes, gRPC over Unix-domain sockets, reconnect limit `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT`) is documented in [plugins.md](../../architecture/plugins.md) §9.2.3. Those env vars are reserved no-ops today.
 
 ## Authorization
 
@@ -50,9 +50,9 @@ Plugins bypass claim checks (they are within the operator's trust boundary) but 
 
 ## Telemetry Security
 
-`GET /metrics` is public Prometheus text, default **on** (`EVIL_METRICS_ENABLED=true`). The scrape is **unauthenticated**. Restrict it at the network edge (firewall, ingress, or bind the engine to a private network). Set `EVIL_METRICS_ENABLED=false` to disable the endpoint (404).
+`GET /metrics` is public Prometheus text, default **on** (`TDE_METRICS_ENABLED=true`). The scrape is **unauthenticated**. Restrict it at the network edge (firewall, ingress, or bind the engine to a private network). Set `TDE_METRICS_ENABLED=false` to disable the endpoint (404).
 
-OpenTelemetry does **not** ship. There are no `EVIL_OTEL_*` variables. `/stats` remains JWT-gated.
+OpenTelemetry does **not** ship. There are no `TDE_OTEL_*` variables. `/stats` remains JWT-gated.
 
 ## Related
 

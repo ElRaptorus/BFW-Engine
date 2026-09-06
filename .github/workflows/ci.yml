@@ -166,16 +166,16 @@ jobs:
             --name engine \
             --network ci-net \
             -p 4000:4000 \
-            -e EVIL_DATABASE_HOST=postgres \
-            -e EVIL_DATABASE_PORT=5432 \
-            -e EVIL_DATABASE_NAME=evil_engine_ci \
-            -e EVIL_DATABASE_USER=evil_engine \
-            -e EVIL_DATABASE_PASS=evil_engine \
-            -e EVIL_HTTP_PORT=4000 \
-            -e EVIL_HTTP_SECRET_KEY_BASE=ci-only-secret-key-base-must-be-at-least-64-characters-long-for-phoenix \
-            -e EVIL_AUTH_DISABLED=true \
-            -e EVIL_ENGINE_ID=evil-engine-ci \
-            -e EVIL_ENGINE_NAME="Evil Engine (CI)" \
+            -e TDE_DATABASE_HOST=postgres \
+            -e TDE_DATABASE_PORT=5432 \
+            -e TDE_DATABASE_NAME=evil_engine_ci \
+            -e TDE_DATABASE_USER=evil_engine \
+            -e TDE_DATABASE_PASS=evil_engine \
+            -e TDE_HTTP_PORT=4000 \
+            -e TDE_HTTP_SECRET_KEY_BASE=ci-only-secret-key-base-must-be-at-least-64-characters-long-for-phoenix \
+            -e TDE_AUTH_DISABLED=true \
+            -e TDE_ENGINE_ID=evil-engine-ci \
+            -e TDE_ENGINE_NAME="Daemon Engine (CI)" \
             engine:ci
 
       - name: Verify health endpoint

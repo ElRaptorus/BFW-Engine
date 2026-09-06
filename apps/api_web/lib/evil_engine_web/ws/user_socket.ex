@@ -4,7 +4,7 @@ defmodule EvilEngineWeb.Ws.UserSocket do
 
   Clients connect with a JWT token as the `token` parameter. The
   token is validated during `connect/3`; if auth is disabled
-  (`EVIL_AUTH_DISABLED=true`), any connection is accepted.
+  (`TDE_AUTH_DISABLED=true`), any connection is accepted.
 
   ## Topics
 

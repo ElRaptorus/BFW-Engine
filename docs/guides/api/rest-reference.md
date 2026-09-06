@@ -1,6 +1,6 @@
 # REST API Reference
 
-Base URL: `http://localhost:4000` (configurable via `EVIL_HTTP_PORT`).
+Base URL: `http://localhost:4000` (configurable via `TDE_HTTP_PORT`).
 
 OpenAPI spec: `GET /api/openapi`. Swagger UI: `GET /`.
 
@@ -22,7 +22,7 @@ as plain text (`text/plain; version=0.0.4`).
 | Status | Condition |
 |---|---|
 | 200 | Metrics enabled (default) |
-| 404 | `EVIL_METRICS_ENABLED=false` |
+| 404 | `TDE_METRICS_ENABLED=false` |
 
 No authentication required (designed for Prometheus scraper access).
 
@@ -33,7 +33,7 @@ Engine identity and feature flags. No authentication required.
 ```json
 {
   "engineId": "evil-engine-local",
-  "engineName": "Evil Engine (local)",
+  "engineName": "Daemon Engine (local)",
   "version": "0.0.1",
   "startedAt": "2026-05-03T15:00:00Z"
 }
@@ -354,7 +354,7 @@ See [Ad-hoc Subprocesses](../handbook/adhoc-subprocesses.md). No GraphQL writes.
 
 ## Payload Cap
 
-All endpoints accepting user payloads enforce `EVIL_TOKEN_MAX_BYTES` (default 64 KiB). Oversized payloads return:
+All endpoints accepting user payloads enforce `TDE_TOKEN_MAX_BYTES` (default 64 KiB). Oversized payloads return:
 
 **HTTP 413:**
 ```json

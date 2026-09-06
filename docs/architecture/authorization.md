@@ -1,11 +1,11 @@
 ---
-title: Evil Engine — Authorization Model
+title: Daemon Engine — Authorization Model
 date: 2026-04-27
 status: PENDING APPROVAL
 parent_document: ../ImplementationPlan.md (§13)
 ---
 
-# Evil Engine — Authorization Model
+# Daemon Engine — Authorization Model
 
 > This document is the authoritative reference for every authorization rule
 > enforced by the engine in v1. `ImplementationPlan.md` §13 links here;
@@ -28,7 +28,7 @@ a time (first-writer wins). See `ImplementationPlan.md` for details.
 
 ### 1.1 Dev / test override
 
-Setting `EVIL_AUTH_DISABLED=true` turns off JWT verification entirely. All
+Setting `TDE_AUTH_DISABLED=true` turns off JWT verification entirely. All
 incoming requests are assigned a synthetic Identity with `id: "anonymous"`,
 empty roles/groups, and all admin claims set to their **least-privileged**
 defaults (`deploy_bpmn=false`, `abort_process_instance=none`, etc.).
@@ -36,7 +36,7 @@ defaults (`deploy_bpmn=false`, `abort_process_instance=none`, etc.).
 The engine emits a `warn`-severity log line every 60 seconds while auth is
 disabled, so a production deployment cannot run this way silently.
 
-Integration tests use `EVIL_AUTH_DISABLED=false` (the default) and mint JWTs
+Integration tests use `TDE_AUTH_DISABLED=false` (the default) and mint JWTs
 through the `engine_sdk`-shipped `MintTestToken` helper (§10).
 
 ---
@@ -47,14 +47,14 @@ through the `engine_sdk`-shipped `MintTestToken` helper (§10).
 |---|---|
 | `GET /health` | Liveness / readiness probes must work without credentials |
 | `GET /info` | Returns Engine name and version |
-| `GET /api/openapi` | Machine-readable OpenAPI 3.x spec for code generation (devtools-only; opt-in via `EVIL_EXPOSE_OPENAPI_SPEC`) |
+| `GET /api/openapi` | Machine-readable OpenAPI 3.x spec for code generation (devtools-only; opt-in via `TDE_EXPOSE_OPENAPI_SPEC`) |
 | `GET /` | Swagger UI (devtools-only) |
 | `GET /admin/graphiql` | GraphQL Playground with example queries (devtools-only) |
 
 **Devtools gating**: `GET /`, `GET /api/openapi`, and `GET /admin/graphiql` are
-disabled in production by default (`EVIL_DEVTOOLS_ENABLED` defaults to `false`
+disabled in production by default (`TDE_DEVTOOLS_ENABLED` defaults to `false`
 in prod, `true` in dev/test). The OpenAPI spec can be individually re-enabled
-with `EVIL_EXPOSE_OPENAPI_SPEC=true` for production CI pipelines that generate
+with `TDE_EXPOSE_OPENAPI_SPEC=true` for production CI pipelines that generate
 client code.
 
 Everything else — including `GET /stats` — requires a valid JWT.
@@ -471,7 +471,7 @@ EvilEngine.SDK.Test.MintTestToken.mint(%{
 # => "eyJhbGciOiJIUzI1NiIs..."
 ```
 
-Uses the test-config JWT secret (`EVIL_JWT_HS256_SECRET` in test env).
+Uses the test-config JWT secret (`TDE_JWT_HS256_SECRET` in test env).
 Integration tests use this exclusively — no hard-coded tokens, no
 auth-disabled shortcuts.
 
@@ -481,8 +481,8 @@ auth-disabled shortcuts.
 
 | Condition | Behavior |
 |---|---|
-| No `EVIL_JWT_JWKS_URL` and no `EVIL_JWT_HS256_SECRET` and `EVIL_AUTH_DISABLED != true` | **Refuse to start.** Log `error`: "No JWT configuration found. Set EVIL_JWT_JWKS_URL or EVIL_JWT_HS256_SECRET, or set EVIL_AUTH_DISABLED=true for development" |
-| `EVIL_AUTH_DISABLED=true` | Start with auth disabled. Log `warn` every 60s: "JWT authentication is DISABLED — not suitable for production" |
+| No `TDE_JWT_JWKS_URL` and no `TDE_JWT_HS256_SECRET` and `TDE_AUTH_DISABLED != true` | **Refuse to start.** Log `error`: "No JWT configuration found. Set TDE_JWT_JWKS_URL or TDE_JWT_HS256_SECRET, or set TDE_AUTH_DISABLED=true for development" |
+| `TDE_AUTH_DISABLED=true` | Start with auth disabled. Log `warn` every 60s: "JWT authentication is DISABLED — not suitable for production" |
 | JWKS URL unreachable at boot | Start, but log `warn`. JWKS refresh retries on the cached-refresh schedule. Tokens requiring JWKS validation are rejected until the first successful fetch |
 
 ---

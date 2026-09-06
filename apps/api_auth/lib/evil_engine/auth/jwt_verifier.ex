@@ -3,9 +3,9 @@ defmodule EvilEngine.Auth.JwtVerifier do
   Verifies JWT tokens using the configured algorithm(s).
 
   Tries JWKS first (RS256 / ES256), falls back to HS256. At least one
-  must be configured unless `EVIL_AUTH_DISABLED=true`.
+  must be configured unless `TDE_AUTH_DISABLED=true`.
 
-  When `EVIL_JWT_ISSUER` / `EVIL_JWT_AUDIENCE` are configured, the
+  When `TDE_JWT_ISSUER` / `TDE_JWT_AUDIENCE` are configured, the
   corresponding token claims (`iss` / `aud`) must match. If the env
   vars are unset, the corresponding claim is not validated.
 
@@ -26,8 +26,8 @@ defmodule EvilEngine.Auth.JwtVerifier do
   - `{:error, :invalid_signature}` — signature check failed on all algos
   - `{:error, :expired}` — token `exp` claim is in the past
   - `{:error, :not_yet_valid}` — token `nbf` claim is in the future
-  - `{:error, :issuer_mismatch}` — `EVIL_JWT_ISSUER` configured and `iss` does not match
-  - `{:error, :audience_mismatch}` — `EVIL_JWT_AUDIENCE` configured and `aud` does not match
+  - `{:error, :issuer_mismatch}` — `TDE_JWT_ISSUER` configured and `iss` does not match
+  - `{:error, :audience_mismatch}` — `TDE_JWT_AUDIENCE` configured and `aud` does not match
   """
   @spec verify(String.t()) ::
           {:ok, map()}

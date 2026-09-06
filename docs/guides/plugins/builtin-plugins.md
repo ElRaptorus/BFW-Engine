@@ -2,7 +2,7 @@
 
 The engine ships one built-in OTP plugin capability and three built-in event sinks.
 
-The HTTP Service Task handler is registered by `EvilEngine.Plugins.Loader` before user plugins (implementation key `"http"`), so operators can override it. Built-in event sinks are **not** OTP plugins: `SinkRegistrar` attaches them to `EngineEventBus` at boot. They implement `@behaviour EvilEngine.Plugin.EventSink` but are not loaded via `EVIL_PLUGINS_INBEAM`.
+The HTTP Service Task handler is registered by `EvilEngine.Plugins.Loader` before user plugins (implementation key `"http"`), so operators can override it. Built-in event sinks are **not** OTP plugins: `SinkRegistrar` attaches them to `EngineEventBus` at boot. They implement `@behaviour EvilEngine.Plugin.EventSink` but are not loaded via `TDE_PLUGINS_INBEAM`.
 
 There is no `evil:postgres_persistence` plugin. Execution persistence is `EvilEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`.
 
@@ -35,7 +35,7 @@ Performs asynchronous HTTP requests using the `Req` library (all Service Task ha
 - **Error status:** calls `fail_async_service_task` with code `HTTP_ERROR`
 - **Connection failure:** calls `fail_async_service_task` with code `HTTP_CONNECTION_FAILED`
 - **Timeout:** calls `fail_async_service_task` with code `HTTP_TIMEOUT`
-- **Payload cap:** output is checked against `EVIL_TOKEN_MAX_BYTES` (in the PI's `handle_fni_ok`)
+- **Payload cap:** output is checked against `TDE_TOKEN_MAX_BYTES` (in the PI's `handle_fni_ok`)
 
 ### FEEL Context
 
@@ -53,8 +53,8 @@ Logs engine events at configurable severity.
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `EVIL_EVENT_SINK_CONSOLE` | `on` | Enable/disable |
-| `EVIL_LOG_MIN_SEVERITY` | `info` | Severity floor (`error`/`warn`/`info`/`debug`/`verbose`) |
+| `TDE_EVENT_SINK_CONSOLE` | `on` | Enable/disable |
+| `TDE_LOG_MIN_SEVERITY` | `info` | Severity floor (`error`/`warn`/`info`/`debug`/`verbose`) |
 
 ### Telemetry Sink
 
@@ -62,17 +62,17 @@ Feeds the `/stats` endpoint counters.
 
 | Env Var | Default |
 |---------|---------|
-| `EVIL_EVENT_SINK_TELEMETRY` | `on` |
+| `TDE_EVENT_SINK_TELEMETRY` | `on` |
 
 Disabling this makes all `/stats` counters permanently zero.
 
 ### WebSocket Sink
 
-Pushes events to connected Phoenix Channels clients. There is no separate WebSocket min-severity env var; use `EVIL_LOG_MIN_SEVERITY` for console logging. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded.
+Pushes events to connected Phoenix Channels clients. There is no separate WebSocket min-severity env var; use `TDE_LOG_MIN_SEVERITY` for console logging. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded.
 
 | Env Var | Default |
 |---------|---------|
-| `EVIL_EVENT_SINK_WEBSOCKET` | `on` |
+| `TDE_EVENT_SINK_WEBSOCKET` | `on` |
 
 ## Related
 

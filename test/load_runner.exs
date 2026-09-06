@@ -11,19 +11,19 @@
 #   mix test.load.durability
 #   mix test.load.all
 #
-# The alias sets EVIL_LOAD_TEST_POOL=1 (real DBConnection.ConnectionPool).
+# The alias sets TDE_LOAD_TEST_POOL=1 (real DBConnection.ConnectionPool).
 # Do not run this file under the Ecto sandbox — E8 exceeds ownership_timeout
 # and then every in-flight PI logs OwnershipError (P89).
 #
 # Durability tests (20k / 50k / 100k HTTP execution) are tagged
 # `:durability` and excluded by default.
-#   mix test.load.durability  → EVIL_LOAD_DURABILITY=1  (that file only)
-#   mix test.load.all         → EVIL_LOAD_DURABILITY=all (default suite + durability)
+#   mix test.load.durability  → TDE_LOAD_DURABILITY=1  (that file only)
+#   mix test.load.all         → TDE_LOAD_DURABILITY=all (default suite + durability)
 # One JSON report either way. Not for GitHub ubuntu-latest — a 100k mixed
 # run is ~1 hour on that runner.
 #
 # Optional subset (same argv pattern as test/integration_runner.exs):
-#   EVIL_LOAD_TEST_POOL=1 MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
+#   TDE_LOAD_TEST_POOL=1 MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
 
 Logger.configure(level: :warning)
 
@@ -37,13 +37,13 @@ if EvilEngine.Test.DbAssertions.sandbox_pool?() do
   IO.puts(:stderr, """
   [load] WARNING: Repo is still Ecto.Adapters.SQL.Sandbox.
   E8 can exceed ownership_timeout (300s) and cascade OwnershipError (P89).
-  Run via `mix test.load` so EVIL_LOAD_TEST_POOL=1 is set before Mix starts.
+  Run via `mix test.load` so TDE_LOAD_TEST_POOL=1 is set before Mix starts.
   """)
 end
 
 {:ok, _} = EvilEngine.Test.BenchmarkReporter.start_link()
 
-durability_mode = System.get_env("EVIL_LOAD_DURABILITY")
+durability_mode = System.get_env("TDE_LOAD_DURABILITY")
 durability_only? = durability_mode in ["1", "true"]
 include_durability? = durability_only? or durability_mode == "all"
 

@@ -129,7 +129,7 @@ defmodule EvilEngineWeb.Http.RoutesTest do
       assert conn.status == 200
       body = Jason.decode!(conn.resp_body)
       assert body["openapi"] =~ "3."
-      assert body["info"]["title"] == "Evil Engine API"
+      assert body["info"]["title"] == "Daemon Engine API"
       assert is_map(body["paths"])
       assert Map.has_key?(body["paths"], "/health")
       assert Map.has_key?(body["paths"], "/info")

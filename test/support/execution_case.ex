@@ -4,7 +4,7 @@ defmodule EvilEngine.ExecutionCase do
 
   Extends `IntegrationCase` with persistence adapter wiring, event
   collector setup, and either Ecto Sandbox checkout (integration) or
-  table truncate on a real connection pool (`EVIL_LOAD_TEST_POOL=1`, P89).
+  table truncate on a real connection pool (`TDE_LOAD_TEST_POOL=1`, P89).
 
   Provides two approaches for starting processes:
 
@@ -126,7 +126,7 @@ defmodule EvilEngine.ExecutionCase do
 
       Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.ReadRepo, {:shared, self()})
     else
-      # Real pool (EVIL_LOAD_TEST_POOL=1): previous load tests leave committed
+      # Real pool (TDE_LOAD_TEST_POOL=1): previous load tests leave committed
       # rows. Sandbox rollback does not apply (P89).
       EvilEngine.Test.DbAssertions.truncate_persistence_tables()
     end

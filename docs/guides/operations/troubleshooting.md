@@ -7,26 +7,26 @@ Common issues and their solutions.
 **Symptom:** Boot crashes immediately.
 
 **Checks:**
-- `EVIL_DATABASE_URL` (or individual DB vars) is set and the database is reachable
-- `EVIL_HTTP_SECRET_KEY_BASE` is set and at least 64 characters (generate with `mix phx.gen.secret`)
-- At least one of `EVIL_JWT_HS256_SECRET` or `EVIL_JWT_JWKS_URL` is set (or `EVIL_AUTH_DISABLED=true`)
+- `TDE_DATABASE_URL` (or individual DB vars) is set and the database is reachable
+- `TDE_HTTP_SECRET_KEY_BASE` is set and at least 64 characters (generate with `mix phx.gen.secret`)
+- At least one of `TDE_JWT_HS256_SECRET` or `TDE_JWT_JWKS_URL` is set (or `TDE_AUTH_DISABLED=true`)
 - PostgreSQL version is 16+ (required for JSONB + LZ4)
 
 ## Authentication Failures (401)
 
 **Checks:**
 - JWT is not expired (`exp` claim)
-- The signing key matches what the engine expects (`EVIL_JWT_HS256_SECRET` or JWKS endpoint)
-- `EVIL_JWT_AUDIENCE` / `EVIL_JWT_ISSUER` match the token's `aud` / `iss` if set
-- `EVIL_AUTH_DISABLED` is not accidentally `true` in production (check for the 60s warning log)
+- The signing key matches what the engine expects (`TDE_JWT_HS256_SECRET` or JWKS endpoint)
+- `TDE_JWT_AUDIENCE` / `TDE_JWT_ISSUER` match the token's `aud` / `iss` if set
+- `TDE_AUTH_DISABLED` is not accidentally `true` in production (check for the 60s warning log)
 
 Mint a fresh token: `mix evil.mint_token` or `./scripts/mint-token.sh`.
 
 ## 413 Payload Too Large
 
-**Cause:** Request payload exceeds `EVIL_TOKEN_MAX_BYTES` (default 64 KiB).
+**Cause:** Request payload exceeds `TDE_TOKEN_MAX_BYTES` (default 64 KiB).
 
-**Fix:** If the payload size is legitimate, increase `EVIL_TOKEN_MAX_BYTES`. The minimum is 1024 bytes; there is no maximum.
+**Fix:** If the payload size is legitimate, increase `TDE_TOKEN_MAX_BYTES`. The minimum is 1024 bytes; there is no maximum.
 
 See [Error Handling](../handbook/error-handling.md) for the error response shape.
 
@@ -35,7 +35,7 @@ See [Error Handling](../handbook/error-handling.md) for the error response shape
 **Checks:**
 - The BPMN file includes `<evil:version>` as an extension element inside `<bpmn:extensionElements>`
 - Structural validation passes (valid XML, executable process, no dead ends)
-- If `EVIL_LINTER_GATE` is configured, check the `failures` array in the response for specific rule violations
+- If `TDE_LINTER_GATE` is configured, check the `failures` array in the response for specific rule violations
 
 See [Deploying Processes](../handbook/deploying-processes.md).
 
@@ -60,7 +60,7 @@ See [Service Tasks](../handbook/service-tasks.md).
 ## Event Sinks Not Receiving Events
 
 **Checks:**
-- Verify the sink's env var toggle is `on` (e.g., `EVIL_EVENT_SINK_WEBSOCKET=on`)
+- Verify the sink's env var toggle is `on` (e.g., `TDE_EVENT_SINK_WEBSOCKET=on`)
 - Check the min-severity setting — events below the floor are dropped
 - Check `/stats` for `listeners.event_sinks_count` — it should match expected sink count (three built-in sinks: console, telemetry, websocket)
 
@@ -74,16 +74,16 @@ See [Observability](observability.md).
 - Review logs for `PluginQuarantined` event with the failure reason
 - `on_load` may have raised or returned `{:error, reason}`
 - For in-BEAM: verify the OTP app is in the release and `:plugin_module` is set in app env
-- Sidecar plugins are **not in v1** (PLUG-D1). `EVIL_PLUGINS_SIDECAR_*` env vars do nothing; a missing sidecar binary is not a v1 failure mode.
+- Sidecar plugins are **not in v1** (PLUG-D1). `TDE_PLUGINS_SIDECAR_*` env vars do nothing; a missing sidecar binary is not a v1 failure mode.
 
 Quarantined plugins do not auto-revive — restart the engine after fixing the issue.
 
 ## Database Connection Issues
 
 **Checks:**
-- `EVIL_DATABASE_URL` or individual vars point to a running PostgreSQL instance
-- `EVIL_DB_POOL_SIZE` is appropriate for the workload (production default 100 write / 50 read)
-- If using SSL, set `EVIL_DB_SSL=true`
+- `TDE_DATABASE_URL` or individual vars point to a running PostgreSQL instance
+- `TDE_DB_POOL_SIZE` is appropriate for the workload (production default 100 write / 50 read)
+- If using SSL, set `TDE_DB_SSL=true`
 - Check PostgreSQL max connections setting
 
 ## Resume Not Working After Restart

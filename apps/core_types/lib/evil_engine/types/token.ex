@@ -3,7 +3,7 @@ defmodule EvilEngine.Types.Token do
   A logical marker that moves through a BPMN process graph.
 
   Carries an immutable ID, the owning process instance, the mutable
-  payload (capped by `EVIL_TOKEN_MAX_BYTES`), and a back-pointer
+  payload (capped by `TDE_TOKEN_MAX_BYTES`), and a back-pointer
   to the FNI that produced it.
   """
 

@@ -1,4 +1,4 @@
-# Evil Engine — Database Schema Diagram
+# Daemon Engine — Database Schema Diagram
 
 > **Companion document to [`ImplementationPlan.md`](./ImplementationPlan.md).**
 > The authoritative specification of every column and invariant lives in §4
@@ -118,7 +118,7 @@ erDiagram
     timestamptz started_at
     timestamptz finished_at "nullable"
     jsonb       started_by "identity claim"
-    jsonb       started_with_context "LZ4, capped by EVIL_TOKEN_MAX_BYTES"
+    jsonb       started_with_context "LZ4, capped by TDE_TOKEN_MAX_BYTES"
     jsonb       error_info "nullable, fatal/abort reason"
   }
 
@@ -134,7 +134,7 @@ erDiagram
     timestamptz finished_at "nullable"
     uuid_ARRAY  previous_flow_node_instance_ids
     uuid        triggerer_flow_node_instance_id "nullable"
-    jsonb       input_token "LZ4, EVIL_TOKEN_MAX_BYTES"
+    jsonb       input_token "LZ4, TDE_TOKEN_MAX_BYTES"
     jsonb       output_token "LZ4, nullable"
     jsonb       type_properties "LZ4"
   }
@@ -204,7 +204,7 @@ erDiagram
     text        correlation_value "nullable"
     jsonb       payload "LZ4"
     timestamptz published_at "PARTITION KEY"
-    timestamptz expires_at "= published_at + EVIL_MESSAGE_PENDING_TTL"
+    timestamptz expires_at "= published_at + TDE_MESSAGE_PENDING_TTL"
     text        state "pending|delivered|expired|cancelled"
     timestamptz delivered_at "nullable"
     timestamptz expired_at "nullable"
@@ -226,7 +226,7 @@ erDiagram
     text        signal_name
     jsonb       payload "LZ4"
     timestamptz published_at "PARTITION KEY"
-    timestamptz expires_at "= published_at + EVIL_SIGNAL_PENDING_TTL"
+    timestamptz expires_at "= published_at + TDE_SIGNAL_PENDING_TTL"
     text        state
     timestamptz delivered_at "nullable"
     timestamptz expired_at "nullable"
@@ -275,7 +275,7 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 ### 4.2 Execution state
 
 - **`process_instances`** — one row per Process Instance. Pinned to an immutable `process_version_id` for its lifetime so Resume always sees the originally-deployed BPMN. No `final_token` column (derived via the `finalTokens` GraphQL calc from End-Event FNIs' `output_token`). `ImplementationPlan.md` §4.2.
-- **`flow_node_instances`** — one row per executed Flow Node. Carries `input_token` (always set) + `output_token` (nullable, retained in v1 ) both LZ4-compressed and capped by `EVIL_TOKEN_MAX_BYTES`. Array `previous_flow_node_instance_ids` supports parallel/inclusive joins. `ImplementationPlan.md` §4.2.
+- **`flow_node_instances`** — one row per executed Flow Node. Carries `input_token` (always set) + `output_token` (nullable, retained in v1 ) both LZ4-compressed and capped by `TDE_TOKEN_MAX_BYTES`. Array `previous_flow_node_instance_ids` supports parallel/inclusive joins. `ImplementationPlan.md` §4.2.
 - **`gateway_pending_arrivals`** — one row per (gateway-FNI, incoming-branch) awaiting siblings at a parallel/inclusive join. Atomically deleted when the gateway fires or when the enclosing scope is interrupted. Replaces the former `active_tokens` table. Not partitioned — working set is bounded by the count of currently-waiting joins across all running PIs. `ImplementationPlan.md` §4.2.
 - **`data_objects`** — current-value snapshot per (PI, DO). Upserted on every write; history goes into `data_object_writes`. Row absence means "unset" — distinct from a legitimately-written `jsonb 'null'`. `ImplementationPlan.md` §4.2 / §7.
 
@@ -283,9 +283,9 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 
 - **`process_instance_events`** — **partitioned monthly** by `occurred_at`. Populated only when `database` EventSink is on (default-OFF); otherwise empty and events flow only through live sinks (console/websocket/plugin). **Not required** for debugger BPMN-flow reconstruction — that uses the always-on kernel tables (see `ImplementationPlan.md` §11.1). Enable to obtain a flat, SQL-queryable engine event log (compliance audit, severity sweeps, plugin-emitted out-of-flow events). `ImplementationPlan.md` §4.3.
 - **`messages`** — **partitioned monthly** by `published_at`. One row per published message (via API trigger or Message Throw event). `correlations` JSONB array records who received it (broadcast-within-key ). `ImplementationPlan.md` §3.5.2 / §4.3.
-- **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `EVIL_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible. `ImplementationPlan.md` §4.3.
+- **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `TDE_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible. `ImplementationPlan.md` §4.3.
 - **`signals`** — **partitioned monthly** by `published_at`. Broadcast-to-all semantics (no correlation dimension). `correlations` JSONB array records every delivered subscription. `ImplementationPlan.md` §3.5.6 / §4.3.
-- **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `EVIL_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`. `ImplementationPlan.md` §3.5.6 / §4.3.
+- **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `TDE_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`. `ImplementationPlan.md` §3.5.6 / §4.3.
 - **`pending_escalations`** — **dropped (escalation D1).** Not created, not swept, no late-catch drain. Escalation observability is `Event.EscalationRaised` on EngineEventBus.
 - **`data_object_writes`** — **partitioned** by `created_at`. Append-only history; atomically consistent with the `data_objects` snapshot update. Every row is DOA-originated (the `source` column was dropped since all writes come from `bpmn:dataOutputAssociation`). Always written regardless of sink config — this is kernel state, not an observability sink. `ImplementationPlan.md` §4.3.
 
@@ -308,7 +308,7 @@ must be in the PK.
 
 See `ImplementationPlan.md` §14.6 for the complete housekeeping story —
 per-state retention for PI-scoped tables, single-knob retention for
-engine-audit tables (`EVIL_RETENTION_ENGINE_AUDIT_DAYS`), and the
+engine-audit tables (`TDE_RETENTION_ENGINE_AUDIT_DAYS`), and the
 delete-on-transition switches for the pending tables that exist (`pending_messages`, `pending_signals`).
 
 ## 6. Cross-reference quick index

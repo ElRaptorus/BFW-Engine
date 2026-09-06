@@ -8,7 +8,7 @@ defmodule EvilEngine.BPMN.SeedingRunner do
 
   When the linter gate is configured (`:core_bpmn, :linter_gate`),
   each file is also checked against the gate — unless
-  `EVIL_LINTER_GATE_SKIP_SEEDING=true` (`:core_bpmn, :linter_gate,
+  `TDE_LINTER_GATE_SKIP_SEEDING=true` (`:core_bpmn, :linter_gate,
   :skip_seeding`). Linter gate failures during seeding are logged and
   the file is skipped, never fatal.
 

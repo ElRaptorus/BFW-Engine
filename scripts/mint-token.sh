@@ -8,17 +8,17 @@
 #   ./scripts/mint-token.sh '{"sub":"op-1","lane:default":"write"}'   # clerk
 #   ./scripts/mint-token.sh '{"observe_all":true}'                    # observer
 #   # Lane values MUST be "read" or "write" — boolean true grants nothing.
-#   EVIL_JWT_HS256_SECRET=my-secret ./scripts/mint-token.sh
+#   TDE_JWT_HS256_SECRET=my-secret ./scripts/mint-token.sh
 #
 # The output is a single JWT string, ready for:
 #   curl -H "Authorization: Bearer $(./scripts/mint-token.sh)" http://localhost:4000/stats
 
 set -euo pipefail
 
-SECRET="${EVIL_JWT_HS256_SECRET:-BloodForTheBloodGod!_SkullsForTheSkullThrone!}"
+SECRET="${TDE_JWT_HS256_SECRET:-BloodForTheBloodGod!_SkullsForTheSkullThrone!}"
 
 NOW=$(date +%s)
-EXP=$(( NOW + ${EVIL_TOKEN_EXP_SECONDS:-86400} ))
+EXP=$(( NOW + ${TDE_TOKEN_EXP_SECONDS:-86400} ))
 
 # Default claims; merge with user-supplied JSON if provided.
 DEFAULT_CLAIMS="{\"sub\":\"dev-user\",\"roles\":[\"admin\"],\"groups\":[],\"iat\":${NOW},\"exp\":${EXP}}"

@@ -1,4 +1,4 @@
-# Evil Engine — Architecture Diagram
+# Daemon Engine — Architecture Diagram
 
 > **Companion document to [`ImplementationPlan.md`](./ImplementationPlan.md)
 > and the [`architecture/`](./architecture/index.md) detail documents.**
@@ -169,8 +169,8 @@ internal buffering + retry for at-least-once delivery.
 - **PostgreSQL** is the sole persistent backend. The engine owns its schema
   via AshPostgres migrations; partitioning runs nine tables
   in `PARTITION BY RANGE (timestamp)` with monthly partitions pre-created
-  `EVIL_PARTITION_AHEAD_MONTHS` ahead on each boot.
-- **The Seeding Directory** (`EVIL_SEEDING_DIRECTORY`) is scanned once at boot;
+  `TDE_PARTITION_AHEAD_MONTHS` ahead on each boot.
+- **The Seeding Directory** (`TDE_SEEDING_DIRECTORY`) is scanned once at boot;
   every `*.bpmn` file is deployed through the same code path as `POST
 /processes`, including the linter-score gate.
 - **Observability** integrations (Prometheus, Datadog, Loki, OTel, Kafka) are

@@ -20,7 +20,7 @@ engine core.
    config :my_plugin, :plugin_module, Examples.EventSinks.Sse.SsePlugin
    ```
 
-3. Add your OTP app name to `EVIL_PLUGINS_INBEAM`.
+3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
 
 ## Lifecycle
 

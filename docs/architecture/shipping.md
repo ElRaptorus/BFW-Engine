@@ -1,5 +1,5 @@
 ---
-title: "Evil Engine — Shipping & Deployment"
+title: "Daemon Engine — Shipping & Deployment"
 parent_document: "../ImplementationPlan.md"
 ---
 
@@ -23,7 +23,7 @@ Two services only:
 - `engine` service (image built from repo)
 - `postgres:16` with volume, started as `postgres -c max_connections=200`
 
-Production pool defaults (`EVIL_DB_POOL_SIZE` 100 + `EVIL_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:16-alpine`.
+Production pool defaults (`TDE_DB_POOL_SIZE` 100 + `TDE_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:16-alpine`.
 
 No tracing / metrics sidecars in v1.
 

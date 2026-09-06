@@ -11,7 +11,7 @@ defmodule EvilEngineWeb.Graphql.Phases.DepthLimit do
   not add depth; only `Field` selections do.
 
   Reads `Application.get_env(:api_web, :graphql_max_depth, 16)` at
-  runtime so the limit is configurable via `EVIL_GRAPHQL_MAX_DEPTH` without
+  runtime so the limit is configurable via `TDE_GRAPHQL_MAX_DEPTH` without
   recompiling. Default 16 is sized for the Process Model graph's recursive
   `SubProcessNode.flowNodes` (WP-7); the previous default of 10 was sized
   for the flat persistence graph.

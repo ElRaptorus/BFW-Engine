@@ -14,8 +14,8 @@ defmodule EvilEngine.EngineFacade do
 
   | Field | Type | Description |
   |-------|------|-------------|
-  | `engine_id` | `String.t()` | Value of `EVIL_ENGINE_ID` |
-  | `engine_name` | `String.t()` | Value of `EVIL_ENGINE_NAME` |
+  | `engine_id` | `String.t()` | Value of `TDE_ENGINE_ID` |
+  | `engine_name` | `String.t()` | Value of `TDE_ENGINE_NAME` |
   | `version` | `String.t()` | Release version string |
 
   ### Capability Registration

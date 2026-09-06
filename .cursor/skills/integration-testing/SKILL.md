@@ -1,7 +1,7 @@
 # Integration Testing Skill
 
 > **Use when**: writing integration tests, adding test scenarios, extending test fixtures,
-> or debugging test failures in the Evil Engine project.
+> or debugging test failures in the Daemon Engine project.
 
 ## MANDATORY: Start the Test Database First
 
@@ -498,6 +498,6 @@ Is this about throughput or latency under load?
 
 | Variable | Test default | Purpose |
 |----------|-------------|---------|
-| `EVIL_TOKEN_MAX_BYTES` | `65536` | Default cap; override for CAP-CONFIGURABLE tests |
-| `EVIL_AUTH_DISABLED` | `false` | Use real JWT auth in integration tests |
-| `EVIL_MESSAGE_PENDING_TTL` | `PT30S` | For pending-TTL rematch/expiry tests |
+| `TDE_TOKEN_MAX_BYTES` | `65536` | Default cap; override for CAP-CONFIGURABLE tests |
+| `TDE_AUTH_DISABLED` | `false` | Use real JWT auth in integration tests |
+| `TDE_MESSAGE_PENDING_TTL` | `PT30S` | For pending-TTL rematch/expiry tests |

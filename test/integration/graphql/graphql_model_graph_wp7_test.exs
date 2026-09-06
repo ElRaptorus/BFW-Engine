@@ -314,7 +314,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
       configured_depth = Application.get_env(:api_web, :graphql_max_depth, 16)
 
       assert configured_depth >= 16,
-             "EVIL_GRAPHQL_MAX_DEPTH was re-tuned to 16 for SubProcessNode.flowNodes recursion; " <>
+             "TDE_GRAPHQL_MAX_DEPTH was re-tuned to 16 for SubProcessNode.flowNodes recursion; " <>
                "got #{configured_depth}"
     end
   end

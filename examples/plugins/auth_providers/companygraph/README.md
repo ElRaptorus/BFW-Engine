@@ -71,10 +71,10 @@ The stub logs the registration and returns `:ok`.
    config :my_company_plugin, :plugin_module, MyCompany.CompanyGraphPlugin
    ```
 
-5. Add your plugin's OTP app name to `EVIL_PLUGINS_INBEAM`:
+5. Add your plugin's OTP app name to `TDE_PLUGINS_INBEAM`:
 
    ```
-   EVIL_PLUGINS_INBEAM=my_company_plugin
+   TDE_PLUGINS_INBEAM=my_company_plugin
    ```
 
 ## Configuration
@@ -100,7 +100,7 @@ config :my_company_plugin, :companygraph,
 
 ## Further reading
 
-- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `EVIL_PLUGINS_INBEAM`
+- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `TDE_PLUGINS_INBEAM`
 - [`EvilEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/evil_engine/plugin/auth_provider.ex)
   — the behaviour your provider must implement.
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — full

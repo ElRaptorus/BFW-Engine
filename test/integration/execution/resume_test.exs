@@ -252,7 +252,7 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
       :ok
     end
 
-    test "resumes all PIs ignoring EVIL_MAX_CONCURRENT_PIS; new HTTP starts return 503",
+    test "resumes all PIs ignoring TDE_MAX_CONCURRENT_PIS; new HTTP starts return 503",
          %{collector: _collector} do
       cap = 3
       total = 5

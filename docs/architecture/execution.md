@@ -36,7 +36,7 @@ The execution runtime converts a parsed BPMN model into a running process instan
 
 ### DynamicSupervisor + Registry
 
-The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `EVIL_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass (see [common-pitfalls.md](./common-pitfalls.md) §P68).
+The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `TDE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass (see [common-pitfalls.md](./common-pitfalls.md) §P68).
 
 ### Process Instance (`:gen_statem`)
 
@@ -1039,7 +1039,7 @@ The runtime calls persistence through `EvilEngine.Execution.Persistence.adapter(
 | `finish_fni_with_data_objects/3` | Atomically transition an FNI to `:finished` and persist all Data Object write intents in a single `Repo.transaction`. Called for every FNI completion (including those with zero DOAs). Returns `{:ok, %{writes: [...]}}`. |
 | `write_data_object/1` | Standalone UPSERT snapshot + INSERT audit for a single Data Object. Retained for future use; not called during FNI completion. |
 | `list_data_objects/1` | List current Data Object snapshots for a PI (used for resume rehydration of `data_object_cache`). |
-| `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `EVIL_RESUME_BATCH_SIZE` (default `1000`). |
+| `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `TDE_RESUME_BATCH_SIZE` (default `1000`). |
 | `list_flow_node_instances/1` | Read FNIs needed for resume of a PI: all `:active`/`:waiting` FNIs (re-dispatched / re-attached) plus `:finished` End-Event FNIs (for final-token aggregation across restarts). Other terminal FNIs are skipped — the live PI never reads their history. The finished-End-Event clause is forward-compat with non-interrupting fan-out features (Phase 2 items 13-14, Phase 3+ gateways, Phase 4 compensation); it loads zero extra rows under the current feature set because no PI can produce multiple finished End-Event FNIs in a single execution today. |
 
 The cross-restart multi-End integration test for the End-Event clause is **deferred** until non-interrupting Boundary Events arrive in Phase 2 items 13-14 — the scenario is not buildable in the current BPMN feature set. See the `PF-2 follow-up integration test` sub-bullet appended to those items in `docs/ImplementationPhases.md`.
@@ -1052,7 +1052,7 @@ Persistence adapter calls across the engine are protected by a two-layer retry s
 
 #### Layer 1: `DBConnection.checkout_retries`
 
-Configured on the Repo pool (`config/runtime.exs`). Default: `3` (env `EVIL_DB_CHECKOUT_RETRIES`). Handles the narrow "connection dropped mid-query" case transparently — DBConnection retries with a fresh connection from the pool. No application code involved.
+Configured on the Repo pool (`config/runtime.exs`). Default: `3` (env `TDE_DB_CHECKOUT_RETRIES`). Handles the narrow "connection dropped mid-query" case transparently — DBConnection retries with a fresh connection from the pool. No application code involved.
 
 #### Layer 2: `PersistenceRetry.with_retry/3`
 
@@ -1062,8 +1062,8 @@ Wraps each adapter call with bounded exponential backoff:
 
 | Parameter | Default | Env var |
 |-----------|---------|---------|
-| Max attempts | 5 | `EVIL_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
-| Initial backoff | 100ms | `EVIL_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
+| Max attempts | 5 | `TDE_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
+| Initial backoff | 100ms | `TDE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
 
 Backoff formula: `initial_ms * 2^(attempt - 1) + random(0..50)`. Total worst-case delay: ~3.1s (100 + 200 + 400 + 800 + 1600ms plus jitter). Retries on **transient** `{:error, _}` only; `:ok` and `{:ok, _}` are never retried. Errors whose reason carries `class: :invalid` (Ash contract violations such as `NoSuchInput`) are **not** retried — they cannot succeed on a second attempt and would stall the PI gen_statem for the full backoff budget. Core matches the map key and must not import Ash. Logs `Logger.warning` on each retry and `Logger.error` on exhaustion or non-retryable rejection.
 
@@ -1160,7 +1160,7 @@ EvilEngine.Execution.ApplicationSupervisor (one_for_one)
 
 PI children use `restart: :temporary` — they are not restarted by the DynamicSupervisor on crash. Crash isolation is handled by monitoring FNI Tasks: if an FNI Task crashes, the PI catches the `:DOWN` message and transitions to `:fatal`.
 
-The `ResumeRunner` is started as a one-shot `Task` child. It pages through all PIs with `state == "running"` via `list_running_process_instances(limit: EVIL_RESUME_BATCH_SIZE, after: cursor)`, loads each PI's resume-relevant FNIs, and starts each PI under the DynamicSupervisor with `resume: true`. After all batches are processed, it emits `Event.EngineStarted` and exits normally. On graceful shutdown, <code>Application.prep_stop/1</code> emits `Event.EngineShutdown`.
+The `ResumeRunner` is started as a one-shot `Task` child. It pages through all PIs with `state == "running"` via `list_running_process_instances(limit: TDE_RESUME_BATCH_SIZE, after: cursor)`, loads each PI's resume-relevant FNIs, and starts each PI under the DynamicSupervisor with `resume: true`. After all batches are processed, it emits `Event.EngineStarted` and exits normally. On graceful shutdown, <code>Application.prep_stop/1</code> emits `Event.EngineShutdown`.
 
 ---
 
@@ -1242,7 +1242,7 @@ On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the 
 
 ### Resume flow
 
-1. `ResumeRunner` drives a tail-recursive batch loop: calls `Persistence.adapter().list_running_process_instances(limit: batch_size, after: cursor)` repeatedly, processing one page at a time until `next_cursor: nil`. Page size is configured via `EVIL_RESUME_BATCH_SIZE` (default `1000`); peak memory during resume is bounded by `batch_size × per-PI row size`. A mid-stream DB error logs the cursor and reports how many PIs were resumed before the failure.
+1. `ResumeRunner` drives a tail-recursive batch loop: calls `Persistence.adapter().list_running_process_instances(limit: batch_size, after: cursor)` repeatedly, processing one page at a time until `next_cursor: nil`. Page size is configured via `TDE_RESUME_BATCH_SIZE` (default `1000`); peak memory during resume is bounded by `batch_size × per-PI row size`. A mid-stream DB error logs the cursor and reports how many PIs were resumed before the failure.
 2. For each PI in the batch: loads FNIs via `list_flow_node_instances/1` (PF-2 scope: `:active`/`:waiting` + `:finished` End-Events only), builds resume opts map, starts PI via `DynamicSupervisor.start_child/2`.
 3. `ProcessInstance.init(%{resume: true})` rebuilds the `%State{}` from persisted data
 4. FNI rehydration per state:
@@ -1259,7 +1259,7 @@ On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the 
 | `:finished` (End Event) | Loaded into `flow_node_instance_states` so `build_final_tokens/1` can aggregate the `[FinalToken]` array correctly across restarts |
 | `:finished` (non-End-Event), `:fatal`, `:aborted`, `:interrupted` | Not loaded — see `list_flow_node_instances/1` callback contract above |
 
-**Cap is intentionally bypassed at resume.** `EVIL_MAX_CONCURRENT_PIS` enforces a soft client-side pre-check inside `Execution.start_process_instance/1` (the public-API entry point), NOT on the underlying `DynamicSupervisor` (which runs with `max_children: :infinity`). `ResumeRunner` calls `DynamicSupervisor.start_child/2` directly, so resume always brings every `:running` PI back online — regardless of how many slots the cap permits. Once resume completes, the cap immediately starts rejecting new starts via REST and the plugin facade until enough PIs terminate to bring the active count back below the limit. If a finite cap is configured and `count_active() > limit` after `resume_all/0`, `ResumeRunner` publishes `%Event.EngineOverloaded{}` (same shape as the telemetry poller) so operators see the oversubscription; remaining resumes are never refused. This is a deliberate v1 design choice: a PI tree (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children) must come back as a whole; applying the cap mid-resume would leave a parent running and a child unresumed (or the reverse). Predictable resume is more valuable than strict cap enforcement during the transient boot window. See [`Execution.start_process_instance/1`](../../apps/core_execution/lib/evil_engine/execution.ex) and the `I_cap` integration test in [test/integration/execution/resume_test.exs](../../test/integration/execution/resume_test.exs).
+**Cap is intentionally bypassed at resume.** `TDE_MAX_CONCURRENT_PIS` enforces a soft client-side pre-check inside `Execution.start_process_instance/1` (the public-API entry point), NOT on the underlying `DynamicSupervisor` (which runs with `max_children: :infinity`). `ResumeRunner` calls `DynamicSupervisor.start_child/2` directly, so resume always brings every `:running` PI back online — regardless of how many slots the cap permits. Once resume completes, the cap immediately starts rejecting new starts via REST and the plugin facade until enough PIs terminate to bring the active count back below the limit. If a finite cap is configured and `count_active() > limit` after `resume_all/0`, `ResumeRunner` publishes `%Event.EngineOverloaded{}` (same shape as the telemetry poller) so operators see the oversubscription; remaining resumes are never refused. This is a deliberate v1 design choice: a PI tree (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children) must come back as a whole; applying the cap mid-resume would leave a parent running and a child unresumed (or the reverse). Predictable resume is more valuable than strict cap enforcement during the transient boot window. See [`Execution.start_process_instance/1`](../../apps/core_execution/lib/evil_engine/execution.ex) and the `I_cap` integration test in [test/integration/execution/resume_test.exs](../../test/integration/execution/resume_test.exs).
 
 5. Emits `ProcessInstanceStateChanged{old_state: nil, new_state: :running}`
 6. After all PIs resume, emits `Event.EngineStarted`

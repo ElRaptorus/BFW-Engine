@@ -3,7 +3,7 @@ defmodule EvilEngine.Persistence.Partitions do
   Partition management for time-range partitioned audit tables.
 
   Creates child partitions ahead of time based on the configured
-  `EVIL_PARTITION_INTERVAL` (monthly, quarterly, half_yearly, yearly).
+  `TDE_PARTITION_INTERVAL` (monthly, quarterly, half_yearly, yearly).
   When interval is `:off`, all operations are no-ops.
 
   The declarative `@partitioned_tables` list is the single source of
@@ -35,7 +35,7 @@ defmodule EvilEngine.Persistence.Partitions do
     interval = partition_interval()
 
     if interval == :off do
-      Logger.info("Partitioning disabled (EVIL_PARTITION_INTERVAL=off)")
+      Logger.info("Partitioning disabled (TDE_PARTITION_INTERVAL=off)")
       {:ok, 0}
     else
       ahead_months = partition_ahead_months()

@@ -45,7 +45,7 @@ One step within a PI. When a token reaches a flow node, the engine creates an FN
 
 ### Token
 
-The data flowing through the graph. Each token carries a `payload` map and metadata about its origin. Tokens are subject to the engine-wide size cap (`EVIL_TOKEN_MAX_BYTES`, default 64 KiB).
+The data flowing through the graph. Each token carries a `payload` map and metadata about its origin. Tokens are subject to the engine-wide size cap (`TDE_TOKEN_MAX_BYTES`, default 64 KiB).
 
 ### Final Tokens
 

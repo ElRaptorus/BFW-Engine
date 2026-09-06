@@ -5,7 +5,7 @@ defmodule EvilEngineWeb.Http.Plugs.DevtoolsGatePlug do
   Returns `404 Not Found` when devtools are disabled (production default).
   Accepts an optional `:allow_if` key that names a secondary config flag —
   when that flag is `true`, the request is allowed even if devtools are off.
-  This supports the `EVIL_EXPOSE_OPENAPI_SPEC` opt-in for the spec endpoint.
+  This supports the `TDE_EXPOSE_OPENAPI_SPEC` opt-in for the spec endpoint.
   """
 
   @behaviour Plug
