@@ -1341,4 +1341,16 @@ Link Catch events and None (untyped) Intermediate Catch events complete synchron
 
 ---
 
+## P92: Do not kill Event-Based Gateway siblings that are still `:active`
+
+**Mistake:** When one EBG catch wins, `Process.exit` every other sibling FNI that is `:active` or `:waiting`. A `PT0S` timer catch completes while the message (or signal) sibling is still in `handle_enter/3` — typically inside `park_async` / subscription persist. Killing that Task tears the shared Ecto sandbox connection (or leaves a mid-flight persist). The PI never reaches `:finished` (C150 flake: wait_for_completion 20s timeout).
+
+**Why it happens:** The PI GenServer has already inserted both successor FNIs as `:active` before either handler Task reports. Sequential message processing does **not** mean both handlers have parked. `handle_enter` persist is concurrent with the winner's `{:ok}`.
+
+**Correct approach:** Interrupt `:waiting` siblings immediately. Stamp `:active` siblings with `type_properties.ebg_pending_cancel` and leave the Task running. Continuation-async handlers (`dispatch_handler_result/3`) wait for `{:async_gate, :continue | :cancel}` after sending `{:async}` so a pending loser never calls `FniLifecycle.finish`. When the loser later reports `{:async}` / `{:wait}` / `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Do not complete `PT0S` timer catches synchronously from `handle_enter` — that lets both branches finish before the PI can pick a winner. Do not "fix" C150 by publishing the message or stretching the wait timeout.
+
+Related: StartEventManager tests that assert `Scheduler.armed_count()` must arm timers in the **wall-clock future**. A `reference_time` of `~U[2026-06-01 ...]` is in the past; the 50ms test tick catch-up-fires finite cycles (`R3/PT1H`) until remaining is 0 and `armed_count` is 0.
+
+---
+
 

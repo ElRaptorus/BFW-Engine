@@ -6,12 +6,15 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
   """
   use ExUnit.Case, async: false
 
+  alias EvilEngine.BPMN.Model.FlowNode
+  alias EvilEngine.BPMN.Model.FlowNodeData
   alias EvilEngine.BPMN.ModelCache
   alias EvilEngine.Events.MessagePublisher
   alias EvilEngine.Events.MessageSubscriptions
   alias EvilEngine.Events.SignalPublisher
   alias EvilEngine.Events.SignalSubscriptions
   alias EvilEngine.Execution
+  alias EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator
   alias EvilEngine.Execution.TestSupport.BpmnFactory
   alias EvilEngine.Execution.TestSupport.SchedulerWait
   alias EvilEngine.Timers.Scheduler
@@ -561,6 +564,90 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
       assert aborted_or_interrupted != []
       assert Enum.any?(script_events, &(&1.terminal_state == :fatal))
     end
+  end
+
+  describe "orchestrator — defer interrupt of :active siblings" do
+    test "does not kill an :active sibling; stamps ebg_pending_cancel" do
+      dummy = spawn(fn -> receive do: (:stop -> :ok) end)
+      data = ebg_orchestrator_fixture(dummy, :active)
+
+      updated =
+        EventBasedGatewayOrchestrator.cancel_sibling_catch_flow_node_instances(data, "fni-timer")
+
+      sibling = updated.flow_node_instance_states["fni-msg"]
+      assert sibling.state == :active
+      assert sibling.pid == dummy
+      assert sibling.type_properties.ebg_pending_cancel == true
+      assert Process.alive?(dummy)
+
+      finalized = EventBasedGatewayOrchestrator.interrupt_pending_loser(updated, "fni-msg")
+      assert finalized.flow_node_instance_states["fni-msg"].state == :interrupted
+      refute Process.alive?(dummy)
+    end
+
+    test "waiting sibling is interrupted immediately" do
+      dummy = spawn(fn -> receive do: (:stop -> :ok) end)
+      data = ebg_orchestrator_fixture(dummy, :waiting)
+
+      updated =
+        EventBasedGatewayOrchestrator.cancel_sibling_catch_flow_node_instances(data, "fni-timer")
+
+      assert updated.flow_node_instance_states["fni-msg"].state == :interrupted
+      refute Process.alive?(dummy)
+    end
+  end
+
+  defp ebg_orchestrator_fixture(sibling_pid, sibling_state) do
+    process_model = %{
+      flow_nodes: [
+        %FlowNode{
+          id: "EBG_1",
+          type: :event_based_gateway,
+          type_data: %FlowNodeData.EventBasedGateway{}
+        },
+        %FlowNode{
+          id: "TimerCatch_1",
+          type: :intermediate_catch_event,
+          type_data: %FlowNodeData.IntermediateCatchEvent{}
+        },
+        %FlowNode{
+          id: "MsgCatch_1",
+          type: :task,
+          type_data: %FlowNodeData.Task{}
+        }
+      ],
+      lanes: []
+    }
+
+    %{
+      process_instance_id: "pi-ebg",
+      root_process_instance_id: "pi-ebg",
+      process_model: process_model,
+      conditional_waiters: %{},
+      flow_node_instance_states: %{
+        "fni-gw" => %{
+          flow_node_id: "EBG_1",
+          state: :finished,
+          previous_flow_node_instance_ids: [],
+          pid: nil,
+          type_properties: %{}
+        },
+        "fni-timer" => %{
+          flow_node_id: "TimerCatch_1",
+          state: :finished,
+          previous_flow_node_instance_ids: ["fni-gw"],
+          pid: nil,
+          type_properties: %{}
+        },
+        "fni-msg" => %{
+          flow_node_id: "MsgCatch_1",
+          state: sibling_state,
+          previous_flow_node_instance_ids: ["fni-gw"],
+          pid: sibling_pid,
+          type_properties: %{}
+        }
+      }
+    }
   end
 
   defp await_message_subscription(message_name, timeout \\ 2_000) do

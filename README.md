@@ -1,12 +1,10 @@
 # Thomas the Khornate Daemon Engine
 
-> **This is still an early Access Alpha Build. No guarantees.**
-
 <div align="center">
   <img src="./assets/ThomasTheDaemonEngine.png" alt="" width="400">
 </div>
 
-_The Heresy Train has no Brakes_
+> **The Heresy Train has no Brakes.**
 
 ## What is this Heresy?
 
@@ -16,15 +14,9 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 
 - **User Manual & API Reference**: see [Documentation](#documentation) below.
 - **Philosophy**: see [docs/Philosophy.md](./docs/Philosophy.md).
-- **Specification**: see [docs/ImplementationPlan.md](./docs/ImplementationPlan.md).
-- **Roll-out plan**: see [docs/ImplementationPhases.md](./docs/ImplementationPhases.md).
 - **Architecture**: see [docs/Architecture.md](./docs/Architecture.md).
 - **Configuration**: see [docs/architecture/configuration.md](./docs/architecture/configuration.md).
-- **Database schema**: see [docs/Schema.md](./docs/Schema.md).
-- **Glossary**: see [docs/Glossary.md](./docs/Glossary.md).
 - **Load benchmarks**: see [docs/benchmarks/](./docs/benchmarks/README.md).
-
-> **Status**: **Phase 6 completed** BPMN Spec coverage achieved. Ready for full scale battle testing and hardening.
 
 ---
 

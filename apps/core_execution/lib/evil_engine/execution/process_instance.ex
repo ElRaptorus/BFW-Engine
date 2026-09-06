@@ -538,7 +538,7 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
       ) do
     data = handle_fni_wait(data, flow_node_instance_id, result)
-    {:keep_state, data}
+    maybe_finish_or_continue(data)
   end
 
   # FNI handler returned async — park the FNI in :waiting with async marker.
@@ -550,12 +550,12 @@ defmodule EvilEngine.Execution.ProcessInstance do
       )
       when is_map(extra_type_properties) do
     data = handle_fni_async(data, flow_node_instance_id, extra_type_properties)
-    {:keep_state, data}
+    maybe_finish_or_continue(data)
   end
 
   def running(:info, {:fni_result, flow_node_instance_id, {:async, _ref}}, data) do
     data = handle_fni_async(data, flow_node_instance_id, %{})
-    {:keep_state, data}
+    maybe_finish_or_continue(data)
   end
 
   def running(
@@ -1748,14 +1748,20 @@ defmodule EvilEngine.Execution.ProcessInstance do
   # will be delivered as a separate `{:fni_result, ...}` message.
   defp handle_fni_async(data, flow_node_instance_id, extra_type_properties) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
-      %{state: state} when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
+      %{state: state} = entry when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
+        send_async_gate(entry.pid, :cancel)
         data
 
       nil ->
         data
 
       entry ->
-        do_handle_fni_async(data, flow_node_instance_id, entry, extra_type_properties)
+        if EventBasedGatewayOrchestrator.pending_cancel?(entry) do
+          send_async_gate(entry.pid, :cancel)
+          EventBasedGatewayOrchestrator.interrupt_pending_loser(data, flow_node_instance_id)
+        else
+          do_handle_fni_async(data, flow_node_instance_id, entry, extra_type_properties)
+        end
     end
   end
 
@@ -1804,6 +1810,8 @@ defmodule EvilEngine.Execution.ProcessInstance do
           pid: if(task_alive, do: entry.pid, else: nil),
           type_properties: type_properties
       })
+
+    send_async_gate(entry.pid, :continue)
 
     maybe_register_conditional_waiter(data, flow_node_instance_id, entry, extra_type_properties)
   end
@@ -1936,6 +1944,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
               result,
               esp_throw_fni_id
             )
+
+          EventBasedGatewayOrchestrator.pending_cancel?(entry) ->
+            EventBasedGatewayOrchestrator.interrupt_pending_loser(data, flow_node_instance_id)
 
           true ->
             do_handle_fni_ok(data, flow_node_instance_id, result)
@@ -2070,33 +2081,41 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
 
       entry ->
-        emit_fni_state_changed(data, flow_node_instance_id, entry, :active, :waiting)
-
-        merged_type_properties =
-          Map.merge(entry.type_properties || %{}, result.type_properties || %{})
-
-        _persist_result =
-          if result.metadata[:awaiting_condition] do
-            FniLifecycle.transition_to_waiting_by_id(
-              flow_node_instance_id,
-              merged_type_properties
-            )
-          end
-
-        data =
-          put_in(data.flow_node_instance_states[flow_node_instance_id], %{
-            entry
-            | state: :waiting,
-              pid: nil,
-              type_properties: merged_type_properties,
-              next_flow_node_ids: result.next_flow_node_ids
-          })
-
-        if result.metadata[:awaiting_condition] do
-          maybe_register_conditional_waiter_from_wait(data, flow_node_instance_id, entry)
+        if EventBasedGatewayOrchestrator.pending_cancel?(entry) do
+          EventBasedGatewayOrchestrator.interrupt_pending_loser(data, flow_node_instance_id)
         else
-          data
+          park_waiting_fni(data, flow_node_instance_id, entry, result)
         end
+    end
+  end
+
+  defp park_waiting_fni(data, flow_node_instance_id, entry, result) do
+    emit_fni_state_changed(data, flow_node_instance_id, entry, :active, :waiting)
+
+    merged_type_properties =
+      Map.merge(entry.type_properties || %{}, result.type_properties || %{})
+
+    _persist_result =
+      if result.metadata[:awaiting_condition] do
+        FniLifecycle.transition_to_waiting_by_id(
+          flow_node_instance_id,
+          merged_type_properties
+        )
+      end
+
+    data =
+      put_in(data.flow_node_instance_states[flow_node_instance_id], %{
+        entry
+        | state: :waiting,
+          pid: nil,
+          type_properties: merged_type_properties,
+          next_flow_node_ids: result.next_flow_node_ids
+      })
+
+    if result.metadata[:awaiting_condition] do
+      maybe_register_conditional_waiter_from_wait(data, flow_node_instance_id, entry)
+    else
+      data
     end
   end
 

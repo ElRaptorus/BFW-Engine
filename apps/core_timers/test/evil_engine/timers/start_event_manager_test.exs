@@ -11,7 +11,18 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
     :ok
   end
 
-  defp fixed_reference_time, do: ~U[2026-06-01 10:00:00Z]
+  # Wall-clock future so the 50ms test Scheduler tick cannot treat the armed
+  # entry as due. A stale `~U[2026-06-01 ...]` is in the past: `R3/PT1H`
+  # catch-up fires all remaining cycles in one tick and `armed_count` drops to 0.
+  defp future_reference_time do
+    DateTime.utc_now()
+    |> DateTime.add(30 * 24 * 3600, :second)
+    |> DateTime.truncate(:microsecond)
+  end
+
+  defp far_future_iso, do: "2099-12-25T08:00:00Z"
+
+  defp far_future_datetime, do: ~U[2099-12-25 08:00:00Z]
 
   # -------------------------------------------------------------------------
   # register_timer_starts/4
@@ -23,12 +34,14 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         %{flow_node_id: "TimerStart_1", kind: :duration, iso_spec: "PT1H"}
       ]
 
+      reference_time = future_reference_time()
+
       assert :ok =
                StartEventManager.register_timer_starts(
                  "pv-1",
                  "order-process",
                  specs,
-                 reference_time: fixed_reference_time()
+                 reference_time: reference_time
                )
 
       {:ok, schedules} = PersistenceNoOp.list_all_schedules()
@@ -40,14 +53,14 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       assert schedule.flow_node_id == "TimerStart_1"
       assert schedule.kind == "duration"
       assert schedule.enabled == true
-      assert schedule.next_fire_at == ~U[2026-06-01 11:00:00Z]
+      assert schedule.next_fire_at == DateTime.add(reference_time, 3600, :second)
 
       assert Scheduler.armed_count() == 1
     end
 
     test "registers a date-based timer start event" do
       specs = [
-        %{flow_node_id: "TimerStart_date", kind: :date, iso_spec: "2026-12-25T08:00:00Z"}
+        %{flow_node_id: "TimerStart_date", kind: :date, iso_spec: far_future_iso()}
       ]
 
       assert :ok =
@@ -55,12 +68,12 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
                  "pv-2",
                  "holiday-process",
                  specs,
-                 reference_time: fixed_reference_time()
+                 reference_time: future_reference_time()
                )
 
       {:ok, schedules} = PersistenceNoOp.list_all_schedules()
       schedule = hd(schedules)
-      assert schedule.next_fire_at == ~U[2026-12-25 08:00:00Z]
+      assert schedule.next_fire_at == far_future_datetime()
       assert schedule.cycle_total == nil
     end
 
@@ -69,12 +82,14 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         %{flow_node_id: "TimerStart_cycle", kind: :cycle, iso_spec: "R3/PT30M"}
       ]
 
+      reference_time = future_reference_time()
+
       assert :ok =
                StartEventManager.register_timer_starts(
                  "pv-3",
                  "cycle-process",
                  specs,
-                 reference_time: fixed_reference_time()
+                 reference_time: reference_time
                )
 
       {:ok, schedules} = PersistenceNoOp.list_all_schedules()
@@ -82,7 +97,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       assert schedule.kind == "cycle"
       assert schedule.cycle_total == 3
       assert schedule.cycle_remaining == 3
-      assert schedule.next_fire_at == ~U[2026-06-01 10:30:00Z]
+      assert schedule.next_fire_at == DateTime.add(reference_time, 1800, :second)
     end
 
     test "registers an infinite cycle" do
@@ -95,7 +110,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
                  "pv-4",
                  "inf-process",
                  specs,
-                 reference_time: fixed_reference_time()
+                 reference_time: future_reference_time()
                )
 
       {:ok, schedules} = PersistenceNoOp.list_all_schedules()
@@ -107,7 +122,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
     test "registers multiple specs in one call" do
       specs = [
         %{flow_node_id: "Timer_1", kind: :duration, iso_spec: "PT1H"},
-        %{flow_node_id: "Timer_2", kind: :date, iso_spec: "2026-12-25T08:00:00Z"}
+        %{flow_node_id: "Timer_2", kind: :date, iso_spec: far_future_iso()}
       ]
 
       assert :ok =
@@ -115,7 +130,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
                  "pv-5",
                  "multi-process",
                  specs,
-                 reference_time: fixed_reference_time()
+                 reference_time: future_reference_time()
                )
 
       {:ok, schedules} = PersistenceNoOp.list_all_schedules()
@@ -127,7 +142,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_ref", kind: :duration, iso_spec: "PT1H"}]
 
       StartEventManager.register_timer_starts("pv-ref", "ref-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -144,7 +159,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
                  "pv-6",
                  "bad-process",
                  specs,
-                 reference_time: fixed_reference_time()
+                 reference_time: future_reference_time()
                )
 
       {:ok, schedules} = PersistenceNoOp.list_all_schedules()
@@ -162,7 +177,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_1", kind: :duration, iso_spec: "PT1H"}]
 
       StartEventManager.register_timer_starts("pv-1", "process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       assert Scheduler.armed_count() == 1
@@ -182,11 +197,11 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs_b = [%{flow_node_id: "Timer_B", kind: :duration, iso_spec: "PT2H"}]
 
       StartEventManager.register_timer_starts("pv-a", "process-a", specs_a,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       StartEventManager.register_timer_starts("pv-b", "process-b", specs_b,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       assert Scheduler.armed_count() == 2
@@ -210,7 +225,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_toggle", kind: :cycle, iso_spec: "R3/PT2H"}]
 
       StartEventManager.register_timer_starts("pv-toggle", "toggle-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -226,7 +241,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       StartEventManager.disable_schedule(schedule_id)
 
       {:ok, updated} =
-        StartEventManager.enable_schedule(schedule_id, reference_time: fixed_reference_time())
+        StartEventManager.enable_schedule(schedule_id, reference_time: future_reference_time())
 
       assert updated.enabled == true
       assert updated.next_fire_at != nil
@@ -247,7 +262,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_dur", kind: :duration, iso_spec: "PT1H"}]
 
       StartEventManager.register_timer_starts("pv-dur", "dur-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -261,7 +276,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_dur", kind: :duration, iso_spec: "PT1H"}]
 
       StartEventManager.register_timer_starts("pv-dur", "dur-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -278,7 +293,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       ]
 
       StartEventManager.register_timer_starts("pv-iso", "iso-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       assert Scheduler.armed_count() == 2
@@ -297,7 +312,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_re", kind: :cycle, iso_spec: "R3/PT1H"}]
 
       StartEventManager.register_timer_starts("pv-re", "re-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -306,7 +321,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       StartEventManager.disable_schedule(schedule.id)
       assert Scheduler.armed_count() == 0
 
-      StartEventManager.enable_schedule(schedule.id, reference_time: fixed_reference_time())
+      StartEventManager.enable_schedule(schedule.id, reference_time: future_reference_time())
       assert Scheduler.armed_count() == 1
     end
   end
@@ -320,7 +335,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_oneshot", kind: :duration, iso_spec: "PT1H"}]
 
       StartEventManager.register_timer_starts("pv-fire", "fire-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -336,7 +351,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_cycle_fire", kind: :cycle, iso_spec: "R3/PT30M"}]
 
       StartEventManager.register_timer_starts("pv-cycle-fire", "cycle-fire", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -353,7 +368,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "Timer_exhaust", kind: :cycle, iso_spec: "R1/PT30M"}]
 
       StartEventManager.register_timer_starts("pv-exhaust", "exhaust", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
@@ -379,11 +394,11 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
     test "list_schedules returns all registered schedules" do
       specs = [
         %{flow_node_id: "T1", kind: :duration, iso_spec: "PT1H"},
-        %{flow_node_id: "T2", kind: :date, iso_spec: "2026-12-25T08:00:00Z"}
+        %{flow_node_id: "T2", kind: :date, iso_spec: far_future_iso()}
       ]
 
       StartEventManager.register_timer_starts("pv-list", "list-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, schedules} = StartEventManager.list_schedules()
@@ -394,7 +409,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
       specs = [%{flow_node_id: "T1", kind: :duration, iso_spec: "PT1H"}]
 
       StartEventManager.register_timer_starts("pv-get", "get-process", specs,
-        reference_time: fixed_reference_time()
+        reference_time: future_reference_time()
       )
 
       {:ok, [schedule]} = StartEventManager.list_schedules()
@@ -490,7 +505,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         kind: "cycle",
         iso_spec: "R3/PT1H",
         enabled: true,
-        next_fire_at: ~U[2026-12-25 08:00:00Z]
+        next_fire_at: far_future_datetime()
       })
 
       PersistenceNoOp.create_schedule(%{
@@ -501,7 +516,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         kind: "cycle",
         iso_spec: "R/PT30M",
         enabled: true,
-        next_fire_at: ~U[2026-12-31 00:00:00Z]
+        next_fire_at: ~U[2099-12-31 00:00:00Z]
       })
 
       PersistenceNoOp.create_schedule(%{
@@ -526,7 +541,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         kind: "duration",
         iso_spec: "PT1H",
         enabled: true,
-        next_fire_at: ~U[2026-12-25 08:00:00Z]
+        next_fire_at: far_future_datetime()
       })
 
       PersistenceNoOp.create_schedule(%{
@@ -537,7 +552,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         kind: "date",
         iso_spec: "2026-12-31T00:00:00Z",
         enabled: true,
-        next_fire_at: ~U[2026-12-31 00:00:00Z]
+        next_fire_at: ~U[2099-12-31 00:00:00Z]
       })
 
       assert :ok = StartEventManager.reload_start_schedules()
@@ -553,7 +568,7 @@ defmodule EvilEngine.Timers.StartEventManagerTest do
         kind: "cycle",
         iso_spec: "R5/PT30M",
         enabled: true,
-        next_fire_at: ~U[2026-06-01 10:30:00Z],
+        next_fire_at: far_future_datetime(),
         cycle_total: 5,
         cycle_remaining: 3
       })

@@ -698,8 +698,7 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       {:fni_result, flow_node_instance_id, {:async, flow_node_instance_id, type_properties}}
     )
 
-    final_result = continuation_function.()
-    send(process_instance_pid, {:fni_result, flow_node_instance_id, final_result})
+    run_async_continuation(process_instance_pid, flow_node_instance_id, continuation_function)
   end
 
   def dispatch_handler_result(
@@ -713,12 +712,31 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
       {:fni_result, flow_node_instance_id, {:async, flow_node_instance_id}}
     )
 
-    final_result = continuation_function.()
-    send(process_instance_pid, {:fni_result, flow_node_instance_id, final_result})
+    run_async_continuation(process_instance_pid, flow_node_instance_id, continuation_function)
   end
 
   def dispatch_handler_result(process_instance_pid, flow_node_instance_id, result) do
     send(process_instance_pid, {:fni_result, flow_node_instance_id, result})
+  end
+
+  @doc false
+  @spec send_async_gate(pid() | nil, :continue | :cancel) :: :ok
+  def send_async_gate(nil, _decision), do: :ok
+
+  def send_async_gate(pid, decision) when decision in [:continue, :cancel] do
+    send(pid, {:async_gate, decision})
+    :ok
+  end
+
+  defp run_async_continuation(process_instance_pid, flow_node_instance_id, continuation_function) do
+    receive do
+      {:async_gate, :continue} ->
+        final_result = continuation_function.()
+        send(process_instance_pid, {:fni_result, flow_node_instance_id, final_result})
+
+      {:async_gate, :cancel} ->
+        :ok
+    end
   end
 
   @spec parse_fni_state(atom() | String.t()) :: atom()

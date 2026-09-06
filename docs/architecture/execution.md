@@ -675,12 +675,11 @@ The gateway is **diverging-only**: if `incoming_count > 1`, the handler rejects 
 When any successor FNI completes (returns `{:ok, ...}` to the PI), the PI's `handle_fni_ok` callback invokes `EventBasedGatewayOrchestrator.cancel_sibling_catch_flow_node_instances/2`. This module:
 
 1. Identifies sibling catch FNIs by matching `previous_flow_node_instance_ids` — all FNIs that share the same EBG FNI ID as their predecessor.
-2. Kills each sibling's handler Task (`Process.exit(pid, :kill)`).
-3. Invokes `handle_aborted/1` on each sibling's handler (timer cancellation, subscription deregistration).
-4. Persists each sibling as `:interrupted` with `type_properties: %{"reason" => "event_based_gateway_sibling_cancelled"}`.
-5. Emits `FlowNodeInstanceFinished` with `terminal_state: :interrupted` for each cancelled sibling.
+2. **Waiting siblings** are interrupted immediately: handler Task is shut down, `handle_aborted/1` runs (timer cancel / subscription deregister), the FNI is persisted as `:interrupted` with `type_properties.reason == "event_based_gateway_sibling_cancelled"`, and `FlowNodeInstanceFinished` is emitted with `terminal_state: :interrupted`.
+3. **Active siblings** (handler still in `handle_enter/3`, often mid-persist) are **not** killed. They are stamped with `type_properties.ebg_pending_cancel: true` and left `:active`. Continuation-async handlers wait for an `{:async_gate, :continue | :cancel}` from the PI after parking; a pending loser gets `:cancel` and never runs `FniLifecycle.finish`. When that FNI later reports `{:async}`, `{:wait}`, or `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Killing an `:active` Task races the enter-path persist and can stall the PI (see common-pitfalls P92).
+4. After an async/wait park (including a pending-loser interrupt), the PI runs `maybe_finish_or_continue/1` so a tree whose only remaining live FNI was that loser can reach `:finished`.
 
-**Race safety:** The PI is a `gen_statem`; all FNI results arrive as messages processed sequentially. A stale result guard in `handle_fni_ok` drops results for FNIs that are no longer `:active`/`:waiting`, preventing double-completion. The EBG FNI itself transitions to `:finished` before any successor is dispatched, so it never races with its own children.
+**Race safety:** The PI is a `gen_statem`; all FNI results arrive as messages processed sequentially. A stale result guard in `handle_fni_ok` drops results for FNIs that are no longer `:active`/`:waiting`, preventing double-completion. Pending-cancel stamps cover the window where a `PT0S` timer (or other already-due catch) completes before a sibling has left `:active`. The EBG FNI itself transitions to `:finished` before any successor is dispatched, so it never races with its own children.
 
 #### Allowed successor types
 
