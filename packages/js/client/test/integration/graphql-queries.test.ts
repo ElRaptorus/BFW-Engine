@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { UnauthorizedError } from '@elraptorus/daemonengine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
 import {
-  ensureEngineReachable,
-  createAdminClient,
-  createUnauthenticatedClient,
-  createExpiredTokenClient,
-  deployFixture,
-  deployDmnFixture,
   cleanupInstances,
+  createAdminClient,
+  createExpiredTokenClient,
+  createUnauthenticatedClient,
+  deployDmnFixture,
+  deployFixture,
+  ensureEngineReachable,
   waitForState,
 } from '../support/test-engine.js';
-import { UnauthorizedError } from '@elraptorus/daemonengine_sdk';
 
 let adminClient: DaemonEngineClient;
 let unauthenticatedClient: DaemonEngineClient;
@@ -126,6 +127,21 @@ describe('GraphQL Queries', () => {
       expect(instance.state).toBeDefined();
     });
 
+    it('loads a process instance with the Model graph (debugger open query)', async () => {
+      const record = await adminClient.graphql.getProcessInstanceWithModel(processInstanceId, {
+        fields: ['id', 'state'],
+        flowNodeDepth: 0,
+      });
+      expect(record).not.toBeNull();
+      expect(record?.id).toBe(processInstanceId);
+      const processVersion = record?.processVersion as Record<string, unknown> | undefined;
+      expect(processVersion).toBeDefined();
+      expect(processVersion?.processModel).toBeDefined();
+      const flowNodeInstances = record?.flowNodeInstances as unknown[] | undefined;
+      expect(Array.isArray(flowNodeInstances)).toBe(true);
+      expect(flowNodeInstances?.length).toBeGreaterThan(0);
+    });
+
     it('returns errorInfo for a fatal process instance', async () => {
       const instance = await adminClient.graphql.getProcessInstance(fatalProcessInstanceId, {
         fields: ['id', 'state', 'errorInfo'],
@@ -217,9 +233,7 @@ describe('GraphQL Queries', () => {
         pagination: { mode: 'offset', limit: 10, offset: 0 },
       });
       expect(result.data.length).toBeGreaterThan(0);
-      const definition = result.data.find(
-        (entry) => entry.decisionDefinitionId === DECISION_DEFINITION_ID,
-      );
+      const definition = result.data.find((entry) => entry.decisionDefinitionId === DECISION_DEFINITION_ID);
       expect(definition).toBeDefined();
       expect(definition!.id).toBeDefined();
       expect(definition!.name).toBeDefined();
@@ -337,10 +351,9 @@ describe('GraphQL Queries', () => {
 
   describe('bad paths - data', () => {
     it('returns null or empty for nonexistent process instance', async () => {
-      const result = await adminClient.graphql.getProcessInstance(
-        '00000000-0000-0000-0000-000000000000',
-        { fields: ['id', 'state'] },
-      );
+      const result = await adminClient.graphql.getProcessInstance('00000000-0000-0000-0000-000000000000', {
+        fields: ['id', 'state'],
+      });
       expect(result).toBeNull();
     });
   });

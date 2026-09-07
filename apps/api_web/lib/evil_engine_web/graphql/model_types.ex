@@ -339,6 +339,10 @@ defmodule EvilEngineWeb.Graphql.ModelTypes do
   # Concrete FlowNode*Node object types (21, one per FlowNodeData struct)
   # ---------------------------------------------------------------------
 
+  # Task / Parallel Gateway / Event-Based Gateway have no type-specific
+  # fields beyond the FlowNode interface. GraphQL clients must not emit
+  # empty inline fragments (`... on TaskNode { }`) for these types —
+  # Absinthe rejects empty selection sets as `syntax error before: '}'`.
   object :task_node do
     interface(:flow_node)
     common_flow_node_fields()

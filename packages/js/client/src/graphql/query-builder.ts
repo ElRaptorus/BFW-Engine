@@ -138,6 +138,9 @@ function buildSelectionSet(
       const snakeRelation = toSnakeCase(relation);
       const nestedArgs = buildNestedIncludeArgs(config);
       const nestedFields = config.fields.map((field) => `${prefix}    ${toSnakeCase(field)}`);
+      if (nestedFields.length === 0) {
+        nestedFields.push(`${prefix}    __typename`);
+      }
       const argSuffix = nestedArgs ? `(${nestedArgs})` : '';
       lines.push(`${prefix}${snakeRelation}${argSuffix} {`);
       lines.push(...nestedFields);
@@ -170,11 +173,18 @@ function renderSelectionField(field: SelectionField, prefix: string): string[] {
 
   if (field.on) {
     for (const [typeName, fragmentFields] of Object.entries(field.on)) {
-      body.push(`${prefix}  ... on ${typeName} {`);
+      const fragmentBody: string[] = [];
       for (const fragmentField of fragmentFields) {
-        body.push(...renderSelectionField(fragmentField, `${prefix}    `));
+        fragmentBody.push(...renderSelectionField(fragmentField, `${prefix}    `));
       }
-      body.push(`${prefix}  }`);
+      // GraphQL forbids empty selection sets. Types whose extra-field list is
+      // empty (TaskNode, ParallelGatewayNode, EventBasedGatewayNode) are
+      // covered by the interface common fields — emitting `... on TaskNode { }`
+      // is a syntax error (`syntax error before: '}'` in Absinthe).
+      if (fragmentBody.length === 0) {
+        continue;
+      }
+      body.push(`${prefix}  ... on ${typeName} {`, ...fragmentBody, `${prefix}  }`);
     }
   }
 

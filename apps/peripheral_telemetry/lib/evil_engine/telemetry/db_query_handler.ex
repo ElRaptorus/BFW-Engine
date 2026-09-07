@@ -56,7 +56,7 @@ defmodule EvilEngine.Telemetry.DbQueryHandler do
     decode_time_ms = native_to_ms(measurements[:decode_time])
     total_time_ms = native_to_ms(measurements[:total_time])
 
-    source = metadata[:source] || "unknown"
+    source = source_from_metadata(metadata)
 
     :telemetry.execute(
       [:evil_engine, :db, :query],
@@ -103,4 +103,34 @@ defmodule EvilEngine.Telemetry.DbQueryHandler do
   defp warning_threshold_ms do
     Application.get_env(:peripheral_telemetry, :db_queue_time_warning_ms, @queue_time_warning_ms)
   end
+
+  @doc false
+  @spec source_from_metadata(map()) :: String.t()
+  def source_from_metadata(metadata) when is_map(metadata) do
+    stringify_source(metadata[:source]) ||
+      table_name_from_query(metadata[:query]) ||
+      "unknown"
+  end
+
+  defp stringify_source(source) when is_binary(source) and source != "", do: source
+
+  defp stringify_source(source) when is_atom(source) and not is_nil(source),
+    do: Atom.to_string(source)
+
+  defp stringify_source({_prefix, source}), do: stringify_source(source)
+  defp stringify_source(_source), do: nil
+
+  @doc false
+  @spec table_name_from_query(term()) :: String.t() | nil
+  def table_name_from_query(query) when is_binary(query) do
+    case Regex.run(
+           ~r/(?:INTO|UPDATE|FROM)\s+(?:(?:public|"public")\.)?"?([A-Za-z0-9_]+)"?/i,
+           query
+         ) do
+      [_whole, table_name] -> table_name
+      _no_match -> nil
+    end
+  end
+
+  def table_name_from_query(_query), do: nil
 end

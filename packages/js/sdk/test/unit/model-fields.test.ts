@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+
 import {
   EVENT_DEFINITION_FRAGMENTS,
   FLOW_NODE_COMMON_FIELDS,
   FLOW_NODE_TYPE_FIELDS,
+  type SelectionField,
   buildFlowNodeSelection,
   buildProcessModelSelection,
-  type SelectionField,
 } from '../../src/graphql/model-fields.js';
 
 const NODE_TYPE_NAMES = [
@@ -63,12 +64,19 @@ describe('EVENT_DEFINITION_FRAGMENTS', () => {
 });
 
 describe('buildFlowNodeSelection', () => {
-  it('selects the flowNode field with common fields and a fragment per node type', () => {
+  it('selects the flowNode field with common fields and a fragment per node type that has extra fields', () => {
     const selection = buildFlowNodeSelection();
+    const typesWithExtraFields = Object.entries(FLOW_NODE_TYPE_FIELDS)
+      .filter(([, fields]) => fields.length > 0)
+      .map(([typeName]) => typeName)
+      .sort();
 
     expect(selection.name).toBe('flowNode');
     expect(fieldNames(selection.fields ?? [])).toEqual(fieldNames(FLOW_NODE_COMMON_FIELDS));
-    expect(Object.keys(selection.on ?? {}).sort()).toEqual([...NODE_TYPE_NAMES].sort());
+    expect(Object.keys(selection.on ?? {}).sort()).toEqual(typesWithExtraFields);
+    expect(selection.on).not.toHaveProperty('TaskNode');
+    expect(selection.on).not.toHaveProperty('ParallelGatewayNode');
+    expect(selection.on).not.toHaveProperty('EventBasedGatewayNode');
   });
 
   it('omits nested flowNodes on SubProcessNode at depth 0', () => {

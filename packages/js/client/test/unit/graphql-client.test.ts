@@ -437,6 +437,10 @@ describe('GraphqlClient', () => {
       expect(body.query).not.toMatch(/flow_node_instances\s*\{\s*results/);
       expect(body.query).toMatch(/SendTaskNode/);
       expect(body.query).toMatch(/out_mappings/);
+      expect(body.query).not.toMatch(/\.\.\. on \w+ \{\s*\}/);
+      expect(body.query).not.toContain('... on TaskNode');
+      expect(body.query).not.toContain('... on ParallelGatewayNode');
+      expect(body.query).not.toContain('... on EventBasedGatewayNode');
       expect(result).not.toBeNull();
       expect(result?.id).toBe('pi-1');
     });

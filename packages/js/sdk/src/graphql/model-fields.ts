@@ -105,7 +105,14 @@ const SEQUENCE_FLOW_FIELDS: SelectionField[] = [
   'isDefault',
 ];
 
-/** Per-type extra fields (beyond `FLOW_NODE_COMMON_FIELDS`) for the 21 concrete `*Node` types. */
+/**
+ * Per-type extra fields (beyond `FLOW_NODE_COMMON_FIELDS`) for the 21 concrete
+ * `*Node` types. Empty arrays mean the type has **no** extra fields — common
+ * interface fields already cover it. Those entries must **not** be serialized
+ * as `... on TaskNode { }`: GraphQL forbids empty selection sets, and Absinthe
+ * reports `syntax error before: '}'`. `buildFlowNodeSelection` omits empty
+ * `on` entries; the client query builder also skips empty fragments.
+ */
 export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
   TaskNode: [],
   UserTaskNode: [
@@ -201,11 +208,7 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
   EventBasedGatewayNode: [],
   ComplexGatewayNode: ['activationCondition'],
   UnknownNode: ['elementName', 'attributes'],
-  StartEventNode: [
-    { name: 'eventDefinition', on: EVENT_DEFINITION_FRAGMENTS },
-    'resultContract',
-    'isInterrupting',
-  ],
+  StartEventNode: [{ name: 'eventDefinition', on: EVENT_DEFINITION_FRAGMENTS }, 'resultContract', 'isInterrupting'],
   EndEventNode: [
     { name: 'eventDefinition', on: EVENT_DEFINITION_FRAGMENTS },
     { name: 'inMappings', fields: MAPPING_FIELDS },
@@ -242,7 +245,12 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
  *   include. `0` (default) omits nested flow nodes entirely.
  */
 export function buildFlowNodeSelection(depth = 0): NestedSelectionField {
-  const on: Record<string, SelectionField[]> = { ...FLOW_NODE_TYPE_FIELDS };
+  const on: Record<string, SelectionField[]> = {};
+  for (const [typeName, fields] of Object.entries(FLOW_NODE_TYPE_FIELDS)) {
+    if (fields.length > 0) {
+      on[typeName] = [...fields];
+    }
+  }
 
   if (depth > 0) {
     const nested = buildFlowNodeSelection(depth - 1);

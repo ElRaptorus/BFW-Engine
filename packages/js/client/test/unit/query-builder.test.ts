@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { buildListQuery, buildGetQuery } from '../../src/graphql/query-builder.js';
+import { describe, expect, it } from 'vitest';
+
+import { buildGetQuery, buildListQuery } from '../../src/graphql/query-builder.js';
 
 describe('buildListQuery', () => {
   it('builds a basic list query with field selection', () => {
@@ -325,6 +326,32 @@ describe('SelectionField support (Phase 6.1, WP-6 — polymorphic Model graph)',
     expect(query).toContain('__typename');
   });
 
+  it('omits empty inline fragments so Absinthe does not reject `... on TaskNode { }`', () => {
+    const { query } = buildGetQuery('pi-1', {
+      resourceName: 'processInstance',
+      fields: [
+        'id',
+        {
+          name: 'flowNode',
+          fields: ['id'],
+          on: {
+            TaskNode: [],
+            ParallelGatewayNode: [],
+            EventBasedGatewayNode: [],
+            ServiceTaskNode: ['implementation'],
+          },
+        },
+      ],
+    });
+
+    expect(query).not.toMatch(/\.\.\. on TaskNode \{\s*\}/);
+    expect(query).not.toMatch(/\.\.\. on ParallelGatewayNode \{\s*\}/);
+    expect(query).not.toMatch(/\.\.\. on EventBasedGatewayNode \{\s*\}/);
+    expect(query).not.toContain('... on TaskNode');
+    expect(query).toContain('... on ServiceTaskNode {');
+    expect(query).toContain('implementation');
+  });
+
   it('still accepts a flat string[] fields array (backward compatible)', () => {
     const { query } = buildListQuery({
       resourceName: 'processModels',
@@ -335,5 +362,19 @@ describe('SelectionField support (Phase 6.1, WP-6 — polymorphic Model graph)',
     expect(query).toContain('id');
     expect(query).toContain('name');
     expect(query).not.toContain('__typename');
+  });
+
+  it('injects __typename when an include relation has an empty field list', () => {
+    const { query } = buildGetQuery('pi-1', {
+      resourceName: 'processInstance',
+      fields: ['id'],
+      include: {
+        flowNodeInstances: { fields: [] },
+      },
+    });
+
+    expect(query).toContain('flow_node_instances {');
+    expect(query).toContain('__typename');
+    expect(query).not.toMatch(/flow_node_instances \{\s*\}/);
   });
 });
