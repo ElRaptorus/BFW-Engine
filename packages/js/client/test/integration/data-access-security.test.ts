@@ -45,7 +45,7 @@ afterAll(async () => {
 // Soft-Delete Tests
 // ---------------------------------------------------------------------------
 
-describe.sequential('Soft-Delete Invisibility', () => {
+describe('Soft-Delete Invisibility', { concurrent: false }, () => {
   // 5.1
   describe('soft-deleted PI invisible via GraphQL', () => {
     it('admin cannot see soft-deleted PI via get or list', async () => {
@@ -164,7 +164,7 @@ describe.sequential('Soft-Delete Invisibility', () => {
 // Claim-Scoped Visibility Tests
 // ---------------------------------------------------------------------------
 
-describe.sequential('Claim-Scoped Visibility', () => {
+describe('Claim-Scoped Visibility', { concurrent: false }, () => {
   // 5.5
   describe('starter-only read', () => {
     it('Actor B (wrong lane) cannot see PI on accounting lane', async () => {

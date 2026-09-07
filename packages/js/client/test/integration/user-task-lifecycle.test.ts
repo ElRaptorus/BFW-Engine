@@ -47,7 +47,7 @@ afterAll(async () => {
   adminClient.notifications.disconnect();
 });
 
-describe.sequential('User Task Lifecycle', () => {
+describe('User Task Lifecycle', { concurrent: false }, () => {
   describe('happy paths', () => {
     it('finishes a user task and process instance completes', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);

@@ -33,7 +33,7 @@ afterAll(() => {
   readOnlyClient?.dispose();
 });
 
-describe.sequential('Decision lifecycle (integration)', () => {
+describe('Decision lifecycle (integration)', { concurrent: false }, () => {
   it('deploys a DMN fixture', async () => {
     const source = readDmnFixture('simple_unique.dmn');
     const response = await adminClient.decisions.deploy(source);

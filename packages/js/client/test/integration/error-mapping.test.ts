@@ -47,7 +47,7 @@ afterAll(async () => {
   adminClient.notifications.disconnect();
 });
 
-describe.sequential('Error Mapping', () => {
+describe('Error Mapping', { concurrent: false }, () => {
   describe('ParseError from invalid XML', () => {
     it('maps parse_error with failures array', async () => {
       try {

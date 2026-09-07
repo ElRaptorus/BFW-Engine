@@ -39,7 +39,7 @@ afterAll(async () => {
   adminClient.notifications.disconnect();
 });
 
-describe.sequential('Global Engine Events (engine:events channel)', () => {
+describe('Global Engine Events (engine:events channel)', { concurrent: false }, () => {
   // 4.1 — uses user-task fixture so the PI stays alive long enough for
   // FNI events to propagate through the EventBus → PubSub → Channel pipeline.
   describe('subscribe before PI start', () => {

@@ -35,7 +35,7 @@ afterAll(async () => {
   adminClient.notifications.disconnect();
 });
 
-describe.sequential('Process Definition Lifecycle Events', () => {
+describe('Process Definition Lifecycle Events', { concurrent: false }, () => {
   describe('ProcessDefinitionDeployed', () => {
     it('emits a deploy event when a process is deployed via REST', async () => {
       const subscription = await adminClient!.notifications.onEngineEvent(() => {});

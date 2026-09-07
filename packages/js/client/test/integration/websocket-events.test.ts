@@ -48,7 +48,7 @@ afterAll(async () => {
   adminClient.notifications.disconnect();
 });
 
-describe.sequential('WebSocket Events', () => {
+describe('WebSocket Events', { concurrent: false }, () => {
   describe('connection lifecycle', () => {
     it('connect resolves when notifications are established in beforeAll', () => {
       expect(adminClient).toBeDefined();

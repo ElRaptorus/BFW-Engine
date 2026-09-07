@@ -57,7 +57,7 @@ afterAll(async () => {
   adminClient.notifications.disconnect();
 });
 
-describe.sequential('Claim Authorization', () => {
+describe('Claim Authorization', { concurrent: false }, () => {
   describe('deploy_bpmn claim', () => {
     it('client with deploy_bpmn can enable a process definition', async () => {
       await deployerClient.processes.enable(PASSTHROUGH_PROCESS_MODEL_ID);

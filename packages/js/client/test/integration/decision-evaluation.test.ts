@@ -62,7 +62,7 @@ afterAll(async () => {
   adminClient?.dispose();
 });
 
-describe.sequential('Decision evaluation (integration)', () => {
+describe('Decision evaluation (integration)', { concurrent: false }, () => {
   it('deploys DMN and evaluates', async () => {
     const result = await adminClient.decisions.evaluate(discountDefinitionsId, { age: 25 });
     expect(result.hitPolicy).toBe('unique');

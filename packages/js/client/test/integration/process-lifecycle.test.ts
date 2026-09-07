@@ -35,7 +35,7 @@ afterAll(async () => {
   await cleanupInstances(adminClient);
 });
 
-describe.sequential('Process Lifecycle', () => {
+describe('Process Lifecycle', { concurrent: false }, () => {
   describe('happy paths', () => {
     it('lists deployed processes', async () => {
       const processes = await adminClient.processes.getAll();
