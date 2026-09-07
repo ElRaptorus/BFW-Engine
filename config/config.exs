@@ -109,9 +109,11 @@ config :peripheral_telemetry,
 
 # --- GraphQL safety limits (S-4) -----------------------------------------
 # Runtime overrides are read from TDE_GRAPHQL_* in runtime.exs.
+# Complexity default 10000 is sized for the Studio debugger snapshot
+# (`dataObjectValues` with limit 500 → AshGraphql score 6500).
 config :api_web,
   graphql_max_depth: 16,
-  graphql_max_complexity: 1000,
+  graphql_max_complexity: 10_000,
   graphql_introspection_disabled: false
 
 import_config "#{config_env()}.exs"

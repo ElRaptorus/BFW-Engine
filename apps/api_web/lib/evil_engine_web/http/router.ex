@@ -128,7 +128,7 @@ defmodule EvilEngineWeb.Http.Router do
     forward "/graphql", Absinthe.Plug,
       schema: EvilEngineWeb.Graphql.Schema,
       analyze_complexity: true,
-      max_complexity: Application.compile_env(:api_web, :graphql_max_complexity, 1000),
+      max_complexity: Application.compile_env(:api_web, :graphql_max_complexity, 10_000),
       pipeline: {EvilEngineWeb.Graphql.PipelineModifier, :pipeline}
   end
 

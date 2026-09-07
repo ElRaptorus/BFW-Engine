@@ -409,7 +409,7 @@ reference when commissioning a penetration test.
 | **Timeout and resource exhaustion** | Bandit `idle_timeout` + `request_timeout`; Ecto pool checkout timeout; GenServer call timeouts on engine internals |
 | **Directory traversal** | Not applicable — the engine does not serve static files from user-supplied paths; BPMN upload is parsed as XML, not stored as a file |
 | **WebSocket abuse** | Channel authentication via JWT on connect; topic-level authorization (lane filtering); idle connection timeout |
-| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: TDE_GRAPHQL_MAX_COMPLEXITY` (default 1000) on `Absinthe.Plug`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `TDE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `TDE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). All limits configurable at runtime without recompiling. |
+| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: TDE_GRAPHQL_MAX_COMPLEXITY` (default **10000**, sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot which AshGraphql scores at 6500) applied at request time by `EvilEngineWeb.Graphql.PipelineModifier`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `TDE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `TDE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). Depth and complexity are read from `Application.get_env/3` at request time — no recompile required. |
 
 ---
 

@@ -258,6 +258,16 @@ const flowNodeSelection: SelectionField = {
 };
 ```
 
+## Safety limits
+
+| Env var | Default | Meaning |
+|---------|---------|---------|
+| `TDE_GRAPHQL_MAX_DEPTH` | `16` | Max field nesting. Sized for recursive `SubProcessNode.flowNodes`. |
+| `TDE_GRAPHQL_MAX_COMPLEXITY` | `10000` | Max query complexity. Paginated lists score as `limit × child fields`. Sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot (~6500). |
+| `TDE_GRAPHQL_INTROSPECTION_DISABLED` | `false` | When `true`, `__schema` / `__type` are rejected. |
+
+Exceeding depth or complexity returns a GraphQL error (`GraphqlDepthLimitError` / `GraphqlComplexityLimitError` in the TypeScript SDK). Limits are read at request time — no recompile required.
+
 ## Mutations
 
 GraphQL is **query-only**. Process operations and user task interactions are available exclusively via the [REST API](rest-reference.md). There are no GraphQL mutations.

@@ -1353,4 +1353,16 @@ Related: StartEventManager tests that assert `Scheduler.armed_count()` must arm 
 
 ---
 
+## P93: GraphQL complexity is `limit × child fields`, not "how big the PI is"
+
+**Mistake:** Setting `TDE_GRAPHQL_MAX_COMPLEXITY` to 1000 (or treating 1000 as plenty for "one process instance") and assuming the Studio debugger can open any PI. Symptom: `Field dataObjectValues is too complex: complexity is 6500 and maximum is 1000` on **every** debugger open, including PIs with zero Data Objects.
+
+**Why it happens:** AshGraphql's `query_complexity/3` multiplies `limit` by the sum of every selected child field, including pagination metadata (`count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, `limit`). The debugger loads current Data Object values with `queryDataObjectValues({ pagination: { mode: 'offset', limit: 500 } })` and six result fields — `500 × 13 = 6500`. Complexity analysis is static; it never looks at row count.
+
+The router's `Application.compile_env(:api_web, :graphql_max_complexity)` is **not** the live cap. `EvilEngineWeb.Graphql.PipelineModifier` overwrites `max_complexity` from `Application.get_env/3` on every request so `TDE_GRAPHQL_MAX_COMPLEXITY` actually works (same pattern as `TDE_GRAPHQL_MAX_DEPTH`).
+
+**Correct approach:** Default is **10000**, sized for that snapshot with headroom. `EvilEngineWeb.Graphql.ComplexityLimitTest` and `graphql_security_phases_test.exs` pin the debugger-shaped query. Do not lower the default below the snapshot score. Do not "fix" the debugger by dropping `limit` without paginating — a silent 50-row cap hides Data Objects. Nested `processInstance { dataObjectValues { ... } }` (no `limit`) uses `child_complexity + 1` and is a different, cheaper query.
+
+---
+
 

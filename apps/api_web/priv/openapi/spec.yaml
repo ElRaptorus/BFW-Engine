@@ -4,7 +4,7 @@ x-graphql-limits:
   description: >
     GraphQL operational configuration (environment variables):
     - TDE_GRAPHQL_MAX_DEPTH (default 16) — max query field nesting depth
-    - TDE_GRAPHQL_MAX_COMPLEXITY (default 1000) — max query complexity score
+    - TDE_GRAPHQL_MAX_COMPLEXITY (default 10000) — max query complexity score (sized for Studio debugger dataObjectValues limit 500)
     - TDE_GRAPHQL_INTROSPECTION_DISABLED (default false) — blocks __schema/__type queries when true
 
 x-security-headers:

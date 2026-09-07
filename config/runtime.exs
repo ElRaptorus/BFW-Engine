@@ -201,7 +201,8 @@ config :api_web,
 
 # --- GraphQL safety limits (S-4) -----------------------------------------
 # TDE_GRAPHQL_MAX_DEPTH        — max field nesting depth (default 16, sized for Process Model recursion)
-# TDE_GRAPHQL_MAX_COMPLEXITY   — max query complexity score (default 1000)
+# TDE_GRAPHQL_MAX_COMPLEXITY   — max query complexity score (default 10000, sized for
+#                                Studio debugger `dataObjectValues(limit: 500)` → score 6500)
 # TDE_GRAPHQL_INTROSPECTION_DISABLED — "true" to block __schema / __type
 graphql_max_depth = Env.get_int("TDE_GRAPHQL_MAX_DEPTH", 16)
 
@@ -209,7 +210,7 @@ if graphql_max_depth < 1 do
   raise "TDE_GRAPHQL_MAX_DEPTH must be a positive integer (got #{inspect(graphql_max_depth)})"
 end
 
-graphql_max_complexity = Env.get_int("TDE_GRAPHQL_MAX_COMPLEXITY", 1000)
+graphql_max_complexity = Env.get_int("TDE_GRAPHQL_MAX_COMPLEXITY", 10_000)
 
 if graphql_max_complexity < 1 do
   raise "TDE_GRAPHQL_MAX_COMPLEXITY must be a positive integer (got #{inspect(graphql_max_complexity)})"

@@ -18,8 +18,9 @@ defmodule EvilEngineWeb.Graphql.Schema do
     `SubProcessNode.flowNodes` — see WP-7 / `common-pitfalls.md` §P64).
   - Introspection blocking via `EvilEngineWeb.Graphql.Phases.BlockIntrospection`
     (env: `TDE_GRAPHQL_INTROSPECTION_DISABLED`, default false).
-  - Complexity limiting is configured on the `Absinthe.Plug` forward in the
-    router (env: `TDE_GRAPHQL_MAX_COMPLEXITY`, default 1000).
+  - Complexity limiting is applied at request time by `PipelineModifier`
+    (env: `TDE_GRAPHQL_MAX_COMPLEXITY`, default 10000, sized for the Studio
+    debugger `dataObjectValues(limit: 500)` snapshot).
 
   Dataloader is registered as `:model_cache` (see `context/1`), batching
   `EvilEngine.BPMN.ModelCache.fetch/1` per distinct `process_version_id`.

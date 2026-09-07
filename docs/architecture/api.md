@@ -220,6 +220,8 @@ Filter grammar is AshGraphql's built-in (type-safe, composable expressions inclu
 
 All response field names use **camelCase** (Absinthe `LanguageConventions` adapter default). Query field names accept both camelCase and snake_case.
 
+**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `TDE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md) and [common-pitfalls.md](./common-pitfalls.md) §P93.
+
 ##### 10.2.1.1 `ProcessInstance.finalTokens` calculation
 
 `ProcessInstance` exposes a derived `finalTokens: [Json!]` field instead of the eliminated `final_token` column. The calc, implemented as an Ash `calculation` with a direct SQL projection for list queries:
