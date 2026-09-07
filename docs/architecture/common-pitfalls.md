@@ -1347,7 +1347,7 @@ Link Catch events and None (untyped) Intermediate Catch events complete synchron
 
 **Why it happens:** The PI GenServer has already inserted both successor FNIs as `:active` before either handler Task reports. Sequential message processing does **not** mean both handlers have parked. `handle_enter` persist is concurrent with the winner's `{:ok}`.
 
-**Correct approach:** Interrupt `:waiting` siblings immediately. Stamp `:active` siblings with `type_properties.ebg_pending_cancel` and leave the Task running. Continuation-async handlers (`dispatch_handler_result/3`) wait for `{:async_gate, :continue | :cancel}` after sending `{:async}` so a pending loser never calls `FniLifecycle.finish`. When the loser later reports `{:async}` / `{:wait}` / `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Do not complete `PT0S` timer catches synchronously from `handle_enter` — that lets both branches finish before the PI can pick a winner. Do not "fix" C150 by publishing the message or stretching the wait timeout.
+**Correct approach:** Interrupt `:waiting` siblings immediately. Stamp `:active` siblings with `type_properties.ebg_pending_cancel` and leave the Task running. Continuation-async handlers (`dispatch_handler_result/3`) wait for `{:async_gate, :continue | :cancel}` after sending `{:async}` so a pending loser never calls `FniLifecycle.finish`. When the loser later reports `{:async}` / `{:wait}` / `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Do **not** dispatch the winning catch's successors until those pending-cancel siblings are interrupted (`State.event_based_gateway_deferred_dispatch`). An Error End Event or fatal ScriptTask on the winning path otherwise cascades the still-`:active` loser to `:error`/`:fatal` (empty `aborted_or_interrupted` in EventBasedGatewayTest). Do not complete `PT0S` timer catches synchronously from `handle_enter` — that lets both branches finish before the PI can pick a winner. Do not "fix" C150 by publishing the message or stretching the wait timeout.
 
 Related: StartEventManager tests that assert `Scheduler.armed_count()` must arm timers in the **wall-clock future**. A `reference_time` of `~U[2026-06-01 ...]` is in the past; the 50ms test tick catch-up-fires finite cycles (`R3/PT1H`) until remaining is 0 and `armed_count` is 0.
 
@@ -1362,6 +1362,36 @@ Related: StartEventManager tests that assert `Scheduler.armed_count()` must arm 
 The router's `Application.compile_env(:api_web, :graphql_max_complexity)` is **not** the live cap. `EvilEngineWeb.Graphql.PipelineModifier` overwrites `max_complexity` from `Application.get_env/3` on every request so `TDE_GRAPHQL_MAX_COMPLEXITY` actually works (same pattern as `TDE_GRAPHQL_MAX_DEPTH`).
 
 **Correct approach:** Default is **10000**, sized for that snapshot with headroom. `EvilEngineWeb.Graphql.ComplexityLimitTest` and `graphql_security_phases_test.exs` pin the debugger-shaped query. Do not lower the default below the snapshot score. Do not "fix" the debugger by dropping `limit` without paginating — a silent 50-row cap hides Data Objects. Nested `processInstance { dataObjectValues { ... } }` (no `limit`) uses `child_complexity + 1` and is a different, cheaper query.
+
+---
+
+## P94: Crash-analog PI kill must use `:kill`, not `terminate_child`
+
+**Mistake:** Calling `DynamicSupervisor.terminate_child/2` (or any graceful `:shutdown`) to simulate an engine crash, then asserting `process_instances.state` is still `running`.
+
+**Why it happens:** `ProcessInstance.terminate/3` stops the per-PI Task.Supervisor. Call Activity (and SubProcess) handler tasks run `handle_aborted/1` on shutdown and persist child PIs as `aborted`. The parent row stays `running`. Resume-crash counts then drop (e.g. 750 → 539) even though the BEAM never crashed.
+
+**Correct approach:** `LoadHelpers.terminate_all_process_instances/0` burst-sends `Process.exit(pid, :kill)` to every PI, then waits for `:DOWN`. That skips `terminate/3`, leaves Postgres rows `running`/`waiting`, and matches `ResumeRunner.resume_all/0` (roots only, P11). Do not wait for `:DOWN` between exits — a child that observes parent `:DOWN` will persist itself `aborted` before it is killed. Keep `ExecutionCase`'s private drain helper on `terminate_child` — integration tests that want orderly teardown are not a crash analog.
+
+---
+
+## P95: Do not emit empty GraphQL inline fragments
+
+**Mistake:** Serializing `FLOW_NODE_TYPE_FIELDS` entries with empty extra-field lists as `... on TaskNode { }` (same for `ParallelGatewayNode` and `EventBasedGatewayNode`). Opening any process instance in the Studio debugger then fails with `GraphQL error: syntax error before: '}'`.
+
+**Why it happens:** GraphQL requires every selection set to contain at least one field. Those three `*Node` types are valid Absinthe objects — they implement `:flow_node` and expose only `common_flow_node_fields/0`. The SDK listed them in `on` with `[]` so the selection tree named every concrete type. The client query builder always wrapped `on` entries as inline fragments, including empty ones. Absinthe fails at parse, before schema validation, so this looks like an endpoint bug.
+
+**Correct approach:** Omit empty `on` entries in `buildFlowNodeSelection`. Skip empty fragments in `query-builder.ts` `renderSelectionField` (defense in depth for custom selections). Common interface fields already cover those types. Do **not** inject `__typename` into the empty fragment to make it parse — the client's `camelizeKeys` rewrites `__typename` to `_Typename` (Studio P-Studio-11). `EvilEngineWeb.Graphql.EmptySelectionSetTest` pins the Absinthe parse error; client/SDK unit tests pin the rendered debugger query.
+
+---
+
+## P96: Vitest 5 removed `describe.sequential` — use `{ concurrent: false }`
+
+**Mistake:** Writing `describe.sequential('User Task Lifecycle', () => { … })` (or `test.sequential`, or `{ sequential: true }`) in `packages/js/client` integration tests after the Vitest 5 catalog bump. The suite fails at load with a missing-export / invalid-option error.
+
+**Why it happens:** Vitest 5 deleted the deprecated sequential API. The replacement is the inverse of concurrency, not a shuffle flag. Studio shuffles files and tests; the Engine JS packages do **not** — `client/vitest.config.ts` only sets `fileParallelism: false`. Sequential was about not running `it()`s in parallel while they share a live engine, not about randomizing order.
+
+**Correct approach:** `describe('User Task Lifecycle', { concurrent: false }, () => { … })`. Do not enable `sequence.shuffle` on the SDK or client to "match Studio". Do not use `{ shuffle: false }` as a substitute for `{ concurrent: false }` — they control different axes.
 
 ---
 

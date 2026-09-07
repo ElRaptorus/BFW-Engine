@@ -185,7 +185,19 @@ REST/CLI `purge` is deferred / not v1 (`purge_audit_data` unused). Ad-hoc PI-tre
 |---------|---------|
 | `TDE_JSONB_COMPRESSION` | `lz4` |
 
-Applies to new migrations only. Existing data retains its compression until rewritten.
+Applies to new migrations only. Existing data retains its compression until rewritten (`ALTER … SET COMPRESSION` plus `UPDATE col = col`).
+
+### LZ4 vs PGLZ measurements
+
+From `mix test.load.hardening` on 2026-09-07 (report `test/load/reports/20260907T115201Z.json`, stdout `[BENCH] jsonb_gate …`). SQL p50/p95 are `query_time_ms` **integer milliseconds** (0 vs 1 is clock resolution). GraphQL is HTTP wall-clock in milliseconds (30 samples after Absinthe warmup). `pg_column_size` sum was identical (`lz4=7335936` / `pglz=7335936`). The 10 % gate did **not** flunk; the default stays `lz4`. The suite does not flip `TDE_JSONB_COMPRESSION`.
+
+| Measurement | LZ4 p50 | LZ4 p95 | PGLZ p50 | PGLZ p95 | Source report |
+|-------------|---------|---------|----------|----------|---------------|
+| write_result (`flow_node_instances`) | 0.0 | 1.0 | 0.0 | 1.0 | `20260907T115201Z` stdout |
+| DOA (`data_object_writes` / `data_objects`) | 0.0 | 0.0 | 0.0 | 0.0 | `20260907T115201Z` stdout |
+| publish_message (`messages`) | 0.0 | 0.0 | 0.0 | 0.0 | `20260907T115201Z` stdout |
+| resume `input_token` reads | 0.0 | 1.0 | 0.0 | 0.0 | `20260907T115201Z` stdout |
+| GraphQL `inputToken` / `outputToken` | 13.381 | 17.263 | 12.765 | 17.313 | `20260907T115201Z` stdout + `jsonb_*_graphql_tokens` |
 
 ## Dev Reset
 

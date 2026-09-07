@@ -120,7 +120,7 @@ Backed by the `telemetry` event sink ([§3.3.3](./event-system.md)), which incre
 | `evil_engine.db.pool.checked_out` | last_value | repo | `[:evil_engine, :db, :pool]` (poller, 10s) |
 | `evil_engine.db.pool.idle` | last_value | repo | `[:evil_engine, :db, :pool]` (poller, 10s) |
 
-**DB pool pressure detection:** `DbQueryHandler` attaches to each Repo's Ecto `:query` telemetry event and re-emits standardized `[:evil_engine, :db, :query]` events with millisecond-precision `queue_time_ms`. When checkout wait exceeds `TDE_DB_QUEUE_TIME_WARNING_MS` (default 500ms), a warning is logged. The `repo` tag distinguishes the write pool (`:write`) from the read pool (`:read`) in dual-pool configurations.
+**DB pool pressure detection:** `DbQueryHandler` attaches to each Repo's Ecto `:query` telemetry event and re-emits standardized `[:evil_engine, :db, :query]` events with millisecond-precision `queue_time_ms`. When checkout wait exceeds `TDE_DB_QUEUE_TIME_WARNING_MS` (default 500ms), a warning is logged. The `repo` tag distinguishes the write pool (`:write`) from the read pool (`:read`) in dual-pool configurations. The `source` tag is the Ecto schema source when present; for raw `Ecto.Adapters.SQL.query` (Data Object snapshot/audit INSERTs, and any other adapter SQL) it is parsed from the SQL table name so those writes are not lumped into `unknown`.
 
 **`GET /health`** returns 204 No Content — a lightweight liveness probe for Kubernetes / Docker. No body.
 

@@ -76,8 +76,11 @@ mix test.load
 # Don't try this at home (or with GH Actions).
 mix test.load.durability
 
-# Default suite + durability in one process, one JSON
+# Default suite + durability + hardening in one process, one JSON
 mix test.load.all
+
+# Hardening only (LZ4 vs PGLZ, payload-cap chaos, resume-crash)
+mix test.load.hardening
 ```
 
 These tests use a real connection pool (not the unit-test sandbox). They write a JSON file under `test/load/reports/` (gitignored).

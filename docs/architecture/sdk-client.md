@@ -23,6 +23,8 @@ The pnpm workspace root is `packages/js/`. Example packages under `examples/clie
 
 TypeScript stays on **6.0.x**. `typescript@7` is on npm `latest`, but `typescript-eslint@8.69.0` peers `typescript: >=4.8.4 <6.1.0`. Do not bump until typescript-eslint widens that range.
 
+The catalog pins **Vitest 5** (`^5.0.0`). Requires Node.js `>=22.12.0` (packages declare `>=24.20.0`) and Vite `>=6.4.0` as a transitive peer. Vitest 5 removed `describe.sequential` / `test.sequential`; client integration suites that must not run concurrently use `describe('…', { concurrent: false }, …)`. Unlike the Studio, SDK/client configs do **not** enable `sequence.shuffle` — tests keep declaration order. `client/vitest.config.ts` keeps `fileParallelism: false`. Artifact output lives under `.vitest/` (gitignored).
+
 `pnpm-lock.yaml` `catalogs.default` must resolve a version that satisfies each catalog specifier. `pnpm ci` (frozen lockfile) fails with `ERR_PNPM_OUTDATED_LOCKFILE` when they disagree. After a catalog bump, run `pnpm update -r <package>` so every importer and the catalog snapshot move together.
 
 TypeScript 6 does not auto-include `@types/*`. Packages that `tsc` Node builtins (`node:fs`, `import.meta.dirname`) set `"types": ["node"]` in their own `tsconfig.json`. That must not go on `packages/js/tsconfig.base.json` — the published SDK/client must not pick up Node globals.
@@ -37,7 +39,7 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 | `dmn/` | `parseDmn()` -- XML parser producing a typed `DmnDefinitions` from DMN 1.5 CL3 models. CL1: decision tables, literal expressions, BKMs, DRG elements, ItemDefinitions, Imports. CL3 (Phase 6): all 10 boxed expression types (`DmnBoxedContext`, `DmnBoxedInvocation`, `DmnBoxedList`, `DmnRelation`, `DmnBoxedConditional`, `DmnBoxedFilter`, `DmnBoxedFor`, `DmnBoxedEvery`, `DmnBoxedSome`, `DmnFunctionDefinition`), `DmnDecisionService`, DMNDI (`DmnDI`, `DmnDiagram`, `DmnShape`, `DmnEdge`). `DmnDecision` uses a unified `expression: DmnExpressionBody` field (structural parity with the Elixir parser). DMNDI is parsed exclusively in the SDK (not engine-side) — the engine preserves raw XML for retrieval and the Studio renders DRD diagrams using the SDK parser. |
 | `errors/` | 39 error subclasses extending `DaemonEngineError`. Each carries `statusCode`, `errorCode`, `message`, `rawBody`. Includes 9 DMN-specific errors (8 from Phase 4, plus `DecisionServiceNotFoundError` from Phase 6). |
 | `events/` | `EngineEventEnvelope<T>` and 17 discriminated-union event interfaces for WebSocket delivery (includes `DecisionDefinitionDeployed/Undeployed`) |
-| `graphql/` | Field, filter, include, sort, and pagination types for the typed GraphQL query builder. Covers BPMN and DMN resources. Filter types include `ilike` for substring matching on string fields. `ProcessVersionField`/`ProcessVersionFilter` and `DecisionVersionField`/`DecisionVersionFilter` support version-specific queries. `ProcessModelInclude`/`DecisionDefinitionInclude` enable nested `versions` relationship loading with field selection, filtering, and sorting. |
+| `graphql/` | Field, filter, include, sort, and pagination types for the typed GraphQL query builder. Covers BPMN and DMN resources. Filter types include `ilike` for substring matching on string fields. `ProcessVersionField`/`ProcessVersionFilter` and `DecisionVersionField`/`DecisionVersionFilter` support version-specific queries. `ProcessModelInclude`/`DecisionDefinitionInclude` enable nested `versions` relationship loading with field selection, filtering, and sorting. `SelectionField` / `buildFlowNodeSelection` / `buildProcessModelSelection` describe the polymorphic Model graph; empty `on` fragments are omitted so Absinthe does not reject `... on TaskNode { }`. |
 | `plugin/` | Behaviour interfaces for plugin development (service task handlers, event sinks, auth providers, etc.) |
 | `types/` | Resource types: `ProcessModel`, `ProcessVersion`, `ProcessInstance`, `FlowNodeInstance`, `DataObjectValue`, `DecisionDefinition`, `DecisionVersion`, `EvaluationResult`, `EvaluationTrace`, `DecisionTrace`, `BkmTrace`, `ImportTrace`, `CoercionTrace`, `StartResult`, `DeployResponse`, `DmnDeployResponse`, `StatsResponse`, enums (`DmnHitPolicy`). `ProcessModel` and `DecisionDefinition` include optional `versions?: ProcessVersion[]` / `versions?: DecisionVersion[]` for relationship includes. |
 
@@ -49,7 +51,7 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 | `errors/` | `mapResponseError()` -- maps engine JSON responses to SDK error subclasses (domain code first, then HTTP status fallback) |
 | `identity/` | `JwtFactory` type and `resolveToken()` -- resolves static or async token factories |
 | `rest/` | Sub-clients: `ProcessClient`, `ProcessInstanceClient`, `UserTaskClient`, `EngineClient`, `EventClient`, `DecisionClient` (includes `evaluateService()` for Decision Service endpoints), `AdHocSubprocessClient` (ad-hoc activity control) |
-| `graphql/` | `GraphqlClient` -- typed query builder methods for all resources (`queryProcessModels`, `queryProcessVersions`, `queryProcessInstances`, `queryFlowNodeInstances`, `queryDecisionDefinitions`, `queryDecisionVersions`); `QueryBuilder` -- generates GraphQL strings from typed options with offset pagination fields (`limit`, `offset`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`), `ilike` filter support, and nested include arguments |
+| `graphql/` | `GraphqlClient` -- typed query builder methods for all resources (`queryProcessModels`, `queryProcessVersions`, `queryProcessInstances`, `queryFlowNodeInstances`, `queryDecisionDefinitions`, `queryDecisionVersions`) plus Model-graph helpers (`getProcessInstanceWithModel`, `getProcessVersionWithModel`, `getFlowNodeInstanceWithModel`); `QueryBuilder` -- generates GraphQL strings from typed options with offset pagination fields (`limit`, `offset`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`), `ilike` filter support, nested include arguments, and inline fragments. Empty `on` fragments are omitted (`... on TaskNode { }` is invalid GraphQL). |
 | `ws/` | `NotificationClient` -- Phoenix Channel WebSocket client for real-time events |
 
 ## Main Client Class
@@ -105,6 +107,8 @@ All list queries use **offset pagination** (`limit`/`offset` arguments). The eng
 
 All GraphQL response keys from the engine use **camelCase** (Absinthe `LanguageConventions` adapter). The `GraphqlClient` maps `count` → `OffsetPageInfo.totalCount` and passes all other offset page metadata fields through directly.
 
+Inline fragments with an empty selection set are invalid GraphQL. `buildFlowNodeSelection` omits `TaskNode` / `ParallelGatewayNode` / `EventBasedGatewayNode` from `on` (those types have no extra fields), and `query-builder.ts` skips any remaining empty `... on Type { }` fragment. See common-pitfalls.md §P95.
+
 The `FacadeGraphql` interface in the SDK mirrors all `GraphqlClient` methods for plugin developers: `queryProcessModels`, `queryProcessVersions`, `queryProcessInstances`, `queryFlowNodeInstances`, `queryDecisionDefinitions`, `queryDecisionVersions`.
 
 ## Authentication
@@ -120,6 +124,7 @@ Integration tests live in `client/test/integration/` and require a live engine (
 - **Race-condition-safe user task sync**: `waitForUserTask()` subscribes to the PI's WebSocket channel and waits for the `UserTaskCreated` event, which is only emitted after the FNI is persisted in `waiting` state.
 - **BPMN fixtures**: 9 fixtures in `client/test/integration/fixtures/` cover passthrough, user tasks, service tasks, lanes, contracts, call activities, and data objects.
 - **DMN integration tests**: `decision-lifecycle.test.ts` covers deploy, catalog CRUD, enable/disable, delete, undeploy, auth rejection, parse errors, and version conflicts. `decision-evaluation.test.ts` covers ad-hoc evaluation, unmatched details, error paths, and Decision Service evaluation via `evaluateService()`. Both require a running engine.
+- **Ordered suites**: Lifecycle and claim/security files that share engine state across `it()`s opt out of concurrency with `{ concurrent: false }` (Vitest 5 replacement for `describe.sequential`). Do not add `sequence.shuffle` to those configs.
 
 ## DMN evaluation trace types (Phase 7)
 

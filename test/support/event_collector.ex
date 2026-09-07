@@ -46,6 +46,18 @@ defmodule EvilEngine.Test.EventCollector do
     do_await_events(collector_pid, count, deadline)
   end
 
+  @doc """
+  Drop stored events and ignore further ones.
+
+  Load/chaos tests that sample `:erlang.memory()` must call this so the
+  collector does not retain every engine event (and its 64 KiB payloads).
+  """
+  def silence(collector_pid) when is_pid(collector_pid) do
+    GenServer.call(collector_pid, :silence)
+  end
+
+  def silence(_collector_pid), do: :ok
+
   defp do_await_events(collector_pid, count, deadline) do
     events = get_events(collector_pid)
 
@@ -66,17 +78,25 @@ defmodule EvilEngine.Test.EventCollector do
 
   @impl true
   def init(_test_pid) do
-    {:ok, %{events: []}}
+    {:ok, %{events: [], silent?: false}}
   end
 
   @impl true
+  def handle_cast({:event, _event}, %{silent?: true} = state) do
+    {:noreply, state}
+  end
+
   def handle_cast({:event, event}, state) do
-    {:noreply, %{state | events: state.events ++ [event]}}
+    {:noreply, %{state | events: [event | state.events]}}
   end
 
   @impl true
   def handle_call(:get_events, _from, state) do
-    {:reply, state.events, state}
+    {:reply, Enum.reverse(state.events), state}
+  end
+
+  def handle_call(:silence, _from, state) do
+    {:reply, :ok, %{state | events: [], silent?: true}}
   end
 end
 

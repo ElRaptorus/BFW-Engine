@@ -402,7 +402,7 @@ Service Task end-to-end.
 
 All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Default load-test pool is 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
 
-Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability (one JSON report). Both aliases set `TDE_LOAD_DURABILITY` (`1` vs `all`). Do not add durability to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
+Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability and hardening (one JSON report). Both aliases set `TDE_LOAD_DURABILITY` (`1` vs `all`); `mix test.load.all` also sets `TDE_LOAD_HARDENING=all`. Do not add durability or hardening to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
 
 #### Execution load tests (`execution_load_test.exs`)
 
@@ -438,7 +438,7 @@ E8 uses `CompletionCounter.start(roots_only: true)` so Call Activity child PIs d
 
 #### Durability execution (`execution_durability_load_test.exs`)
 
-Opt-in volume runs. Same HTTP lifecycle as E7/E8/E10–E12. `mix test.load` excludes `@tag :durability`. `mix test.load.durability` runs only this file. `mix test.load.all` runs the default suite and then these tests in the same ExUnit process (one JSON).
+Opt-in volume runs. Same HTTP lifecycle as E7/E8/E10–E12. `mix test.load` excludes `@tag :durability`. `mix test.load.durability` runs only this file. `mix test.load.all` runs the default suite plus durability and hardening in the same ExUnit process (one JSON).
 
 | Test name | Workload id | Count | Fixture |
 |-----------|-------------|------:|---------|
@@ -449,6 +449,20 @@ Opt-in volume runs. Same HTTP lifecycle as E7/E8/E10–E12. `mix test.load` excl
 | D: … mixed PIs | `exec_<n>_mixed_standard` | same | E8 round-robin; `roots_only: true` |
 
 Ceilings are first-run wall-clock caps (20k: 20 min, 50k: 45 min, 100k: 90 min; ExUnit timeout is higher). Queue P99 must stay under 1,000 ms. There is no 30,000 step.
+
+#### Hardening load tests (`mix test.load.hardening`)
+
+Opt-in Layer B suite. Tagged `@tag :hardening` (also `@moduletag :load`). **Excluded** from `mix test.load`, `mix test.full`, `mix quality`, and `.github/workflows/load-bench.yml`. Run with `mix test.load.hardening` (`TDE_LOAD_HARDENING=1`). `mix test.load.all` includes these tests with the default suite and durability (`TDE_LOAD_HARDENING=all` plus `TDE_LOAD_DURABILITY=all`). Setting `TDE_LOAD_HARDENING=all` alone adds hardening to the default load suite without durability.
+
+The Mix alias sets `TDE_LOAD_TEST_POOL=1` before Mix loads `config/test.exs` (P89), same as the other load aliases.
+
+| File | Workload id(s) | What it exercises |
+|------|----------------|-------------------|
+| `jsonb_compression_load_test.exs` | `jsonb_lz4_*`, `jsonb_pglz_*` | Same VM: E8-shaped mix + ~60 KiB linear payloads + CapDoa/CapSend + up to 100 five-deep Call Activity trees; then `ALTER … SET COMPRESSION pglz` + rewrite; then the same mix. **Gate:** any named p50/p95 on LZ4 that is >10 % slower than PGLZ `flunk`s, except integer-ms SQL noise (`p95 < 2`) and GraphQL wall-clock deltas under 5 ms (Absinthe jitter). Do not auto-flip `TDE_JSONB_COMPRESSION`. Count = `TDE_LOAD_COMPRESSION_COUNT` (default `10000`). |
+| `payload_cap_chaos_load_test.exs` | `payload_cap_chaos_5pct` | ~50 ops/s mix of start / message trigger / user-task finish; every 20th call is 65537 bytes (HTTP 413, no row). Duration = `TDE_LOAD_CHAOS_SECONDS` (default `600`). After a 15 s warmup, last RSS sample must be ≤ first sample + 32 MiB. Each sample scrapes Prometheus distributions (`:ets.take` on `:prometheus_metrics_dist`) and silences the test EventCollector (`capture_log: false`). |
+| `resume_crash_load_test.exs` | `resume_crash_user_task_200`, `resume_crash_parallel_join_50`, `resume_crash_ca_depth5_100` | Crash-kill PI supervisors (`LoadHelpers.terminate_all_process_instances/0` uses `:kill`, P94), `ResumeRunner.resume_all/0` (roots only, P11). Assert `input_token` round-trip, `gateway_pending_arrivals` unchanged (2 rows per three-branch PI), `to_regclass('public.active_tokens')` is null. |
+
+Smoke while iterating: `TDE_LOAD_COMPRESSION_COUNT=1000 TDE_LOAD_CHAOS_SECONDS=30 mix test.load.hardening`.
 
 #### Hot-path triage
 
@@ -476,7 +490,7 @@ Runtime snapshot fields (`beamProcessCount`, `memoryBytes`, `garbageCollection`)
 
 Optional baseline compare: set `TDE_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
 
-Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load`, `mix test.load.durability`, `mix test.load.all`, or the dispatch workflow below.
+Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load`, `mix test.load.durability`, `mix test.load.hardening`, `mix test.load.all`, or the dispatch workflow below.
 
 #### Test helpers
 
@@ -485,6 +499,10 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 | `LoadHelpers.seed_process_instances/3` | Bulk-seed PIs via direct Ash writes |
 | `LoadHelpers.measure/3` | Wall-clock timing with `[BENCH]` log output; records into `BenchmarkReporter` when `:id` is set |
 | `LoadHelpers.start_queue_time_collector/0` | Attach telemetry handler to collect DB queue_time samples |
+| `LoadHelpers.start_source_query_collector/0` | Attach telemetry handler collecting `query_time_ms` keyed by `metadata.source` (table name; raw SQL tables are derived by `DbQueryHandler`) |
+| `LoadHelpers.source_latencies_ms/2` | p50/p95/count for one table from that collector |
+| `LoadHelpers.set_jsonb_compression!/1` | Layer B only: `ALTER … SET COMPRESSION` + `UPDATE col = col` rewrite (`lz4` or `pglz`) |
+| `LoadHelpers.jsonb_payload_bytes/0` | Sum of `pg_column_size` across JSONB payload columns |
 | `LoadHelpers.queue_time_p99/1` | Compute P99 from collected samples |
 | `LoadHelpers.queue_time_max/1` | Compute max from collected samples |
 | `LoadHelpers.start_connection_error_collector/0` | Track `DBConnection.ConnectionError` events via telemetry |

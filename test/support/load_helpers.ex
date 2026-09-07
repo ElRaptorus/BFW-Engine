@@ -122,13 +122,38 @@ defmodule EvilEngine.Test.LoadHelpers do
     {elapsed_ms, result}
   end
 
-  @doc "Terminate all running PI processes from the DynamicSupervisor."
+  @doc """
+  Crash-kill every PI under `Execution.Supervisor`.
+
+  Uses `Process.exit(pid, :kill)` rather than
+  `DynamicSupervisor.terminate_child/2`. Graceful `:shutdown` runs
+  `ProcessInstance.terminate/3`, which stops the FNI Task.Supervisor and
+  lets Call Activity `handle_aborted/1` persist child PIs as `aborted`
+  (P94). A crash analog must leave Postgres rows `running`.
+  """
   @spec terminate_all_process_instances() :: :ok
   def terminate_all_process_instances do
     children = DynamicSupervisor.which_children(EvilEngine.Execution.Supervisor)
 
-    Enum.each(children, fn {_, pid, _, _} ->
-      DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+    pids =
+      Enum.flat_map(children, fn
+        {_, pid, _, _} when is_pid(pid) -> [pid]
+        _other -> []
+      end)
+
+    # Burst-kill so a child PI cannot persist :aborted on parent :DOWN before
+    # it is itself killed (P94). Waiting between exits opens that window.
+    monitor_references = Enum.map(pids, &Process.monitor/1)
+    Enum.each(pids, &Process.exit(&1, :kill))
+
+    Enum.each(Enum.zip(pids, monitor_references), fn {pid, monitor_reference} ->
+      receive do
+        {:DOWN, ^monitor_reference, :process, ^pid, _reason} -> :ok
+      after
+        2_000 -> :ok
+      end
+
+      Process.demonitor(monitor_reference, [:flush])
     end)
   rescue
     _ -> :ok
@@ -244,6 +269,115 @@ defmodule EvilEngine.Test.LoadHelpers do
     :telemetry.detach(handler_id)
     :ok
   end
+
+  @jsonb_compression_columns [
+    {"process_instances", "started_with_context"},
+    {"flow_node_instances", "input_token"},
+    {"flow_node_instances", "output_token"},
+    {"flow_node_instances", "type_properties"},
+    {"gateway_pending_arrivals", "arrived_payload"},
+    {"data_objects", "value"},
+    {"process_instance_events", "payload"},
+    {"data_object_writes", "value"},
+    {"messages", "payload"},
+    {"pending_messages", "payload"}
+  ]
+
+  @doc """
+  Collect `query_time_ms` from `[:evil_engine, :db, :query]` keyed by
+  `metadata.source` (table name). Detaches on `on_exit` (P88).
+  """
+  @spec start_source_query_collector() :: map()
+  def start_source_query_collector do
+    table = :ets.new(:source_query_latencies, [:public, :duplicate_bag])
+    handler_id = "source-query-collector-#{System.unique_integer([:positive])}"
+
+    :telemetry.attach(
+      handler_id,
+      [:evil_engine, :db, :query],
+      fn _event, measurements, metadata, config ->
+        source = metadata[:source]
+        query_time_ms = measurements[:query_time_ms]
+
+        if is_binary(source) and is_number(query_time_ms) do
+          try do
+            :ets.insert(config.table, {source, query_time_ms})
+          rescue
+            ArgumentError -> :ok
+          end
+        end
+      end,
+      %{table: table}
+    )
+
+    ExUnit.Callbacks.on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    %{table: table, handler_id: handler_id}
+  end
+
+  @doc "Percentiles of collected `query_time_ms` for one `metadata.source` table."
+  @spec source_latencies_ms(map(), String.t()) :: %{p50: float(), p95: float(), count: non_neg_integer()}
+  def source_latencies_ms(%{table: table}, source_table) when is_binary(source_table) do
+    samples =
+      table
+      |> :ets.lookup(source_table)
+      |> Enum.map(fn {_source, query_time_ms} -> query_time_ms end)
+
+    %{
+      p50: percentile(samples, 0.50),
+      p95: percentile(samples, 0.95),
+      count: length(samples)
+    }
+  end
+
+  @doc "Detach the source-query collector and drop its ETS table."
+  @spec stop_source_query_collector(map()) :: :ok
+  def stop_source_query_collector(%{table: table, handler_id: handler_id}) do
+    :telemetry.detach(handler_id)
+
+    case :ets.info(table) do
+      :undefined -> :ok
+      _info -> :ets.delete(table)
+    end
+
+    :ok
+  end
+
+  @doc """
+  `ALTER … SET COMPRESSION` plus `UPDATE col = col` rewrite for every JSONB
+  column in `CreateInitialSchema`. Layer B only — do not call from `mix quality`.
+  """
+  @spec set_jsonb_compression!(String.t()) :: :ok
+  def set_jsonb_compression!(algorithm) when algorithm in ["lz4", "pglz"] do
+    Enum.each(@jsonb_compression_columns, fn {table_name, column_name} ->
+      EvilEngine.Persistence.Repo.query!(
+        "ALTER TABLE #{table_name} ALTER COLUMN #{column_name} SET COMPRESSION #{algorithm}"
+      )
+
+      EvilEngine.Persistence.Repo.query!(
+        "UPDATE #{table_name} SET #{column_name} = #{column_name}"
+      )
+    end)
+
+    :ok
+  end
+
+  @doc "Sum of `pg_column_size` across JSONB payload columns (storage KPI)."
+  @spec jsonb_payload_bytes() :: non_neg_integer()
+  def jsonb_payload_bytes do
+    Enum.reduce(@jsonb_compression_columns, 0, fn {table_name, column_name}, accumulator ->
+      %{rows: [[size]]} =
+        EvilEngine.Persistence.Repo.query!(
+          "SELECT COALESCE(SUM(pg_column_size(#{column_name})), 0) FROM #{table_name}"
+        )
+
+      accumulator + size
+    end)
+  end
+
+  @doc "JSONB columns that receive SET COMPRESSION (same list as the initial migration)."
+  @spec jsonb_compression_columns() :: [{String.t(), String.t()}]
+  def jsonb_compression_columns, do: @jsonb_compression_columns
 
   @doc """
   Stop the queue time collector and clean up.

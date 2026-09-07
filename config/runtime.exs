@@ -161,8 +161,10 @@ config :api_web,
   expose_openapi_spec: Env.get_bool("TDE_EXPOSE_OPENAPI_SPEC", false)
 
 # --- Payload cap ----------------------------------
+# Unset → 65536. Explicit values below 1024 refuse to boot (no silent clamp).
 config :core_execution,
-  token_max_bytes: max(Env.get_int("TDE_TOKEN_MAX_BYTES", 65_536), 1024),
+  token_max_bytes:
+    EvilEngine.Execution.PayloadCap.parse_token_max_bytes(Env.get("TDE_TOKEN_MAX_BYTES")),
   persistence_retry_max_attempts: Env.get_int("TDE_PERSISTENCE_RETRY_MAX_ATTEMPTS", 5),
   persistence_retry_initial_backoff_ms:
     Env.get_int("TDE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS", 100)

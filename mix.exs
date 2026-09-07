@@ -194,6 +194,7 @@ defmodule EvilEngine.Umbrella.MixProject do
         "test.full": :test,
         "test.load": :test,
         "test.load.durability": :test,
+        "test.load.hardening": :test,
         "test.load.all": :test,
         quality: :test
       ]
@@ -228,6 +229,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       # Sets TDE_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
       "test.load": &run_load_tests/1,
       "test.load.durability": &run_load_durability_tests/1,
+      "test.load.hardening": &run_load_hardening_tests/1,
       "test.load.all": &run_load_all_tests/1,
       "test.conformance": ["run test/conformance_runner.exs"],
       # Integration + conformance under one :cover session; exports
@@ -280,8 +282,15 @@ defmodule EvilEngine.Umbrella.MixProject do
     run_load_suite(args, %{"TDE_LOAD_DURABILITY" => "1"})
   end
 
+  defp run_load_hardening_tests(args) do
+    run_load_suite(args, %{"TDE_LOAD_HARDENING" => "1"})
+  end
+
   defp run_load_all_tests(args) do
-    run_load_suite(args, %{"TDE_LOAD_DURABILITY" => "all"})
+    run_load_suite(args, %{
+      "TDE_LOAD_DURABILITY" => "all",
+      "TDE_LOAD_HARDENING" => "all"
+    })
   end
 
   defp run_load_suite(args, extra_environment) do

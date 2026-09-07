@@ -172,7 +172,7 @@ Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activ
 
 ##### 10.1.1 Payload size limits
 
-Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `TDE_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
+Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `TDE_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `PUT /user-tasks/{fniId}/finish` checks the `result` field (`PayloadCapPlug` with `field: "result"`, then `EvilEngine.Api.finish_user_task/4`); HTTP 413 leaves the FNI `waiting`. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
 
 On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structured body:
 
@@ -446,6 +446,8 @@ query OpenDebugger($piId: ID!) {
 Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subscriptions.
 
 **TypeScript client support (WP-6).** `packages/js/client/src/graphql/query-builder.ts` accepts a `SelectionField[]` — a recursive union type (`packages/js/sdk/src/graphql/model-fields.ts`) that can express nested selections and inline fragments (`{ name: 'flowNode', on: { UserTaskNode: [...], ServiceTaskNode: [...] } }`), not just flat `string[]`. The SDK ships `buildFlowNodeSelection(depth)` and `buildProcessModelSelection(depth)` helpers that pre-build the canonical debugger-shaped selection (default recursion depth 4 for nested `SubProcessNode.flowNodes`), consumed via `GraphqlClient.getProcessVersionWithModel()`, `GraphqlClient.getFlowNodeInstanceWithModel()`, and `GraphqlClient.getProcessInstanceWithModel()`.
+
+`TaskNode`, `ParallelGatewayNode`, and `EventBasedGatewayNode` have no extra fields beyond the `FlowNode` interface. `buildFlowNodeSelection` omits those types from `on`, and the query builder skips any remaining empty `... on Type { }` fragment. Empty selection sets are invalid GraphQL; Absinthe reports `syntax error before: '}'`. See [common-pitfalls.md](./common-pitfalls.md) §P95.
 
 #### 10.2.3 Retention + manual purge (**deferred / not v1**)
 

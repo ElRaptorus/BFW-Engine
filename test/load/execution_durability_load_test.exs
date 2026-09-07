@@ -5,7 +5,7 @@ defmodule EvilEngine.Load.ExecutionDurabilityLoadTest do
 
   Excluded from `mix test.load` and the GitHub load-bench job. Run with
   `mix test.load.durability` (this file only) or `mix test.load.all`
-  (default suite + this file, one JSON). Not a 5×-baseline gate — first
+  (default suite + durability + hardening, one JSON). Not a 5×-baseline gate — first
   measured ceilings are generous wall-clock caps so a laptop can finish;
   GitHub `ubuntu-latest` is the wrong box for this file.
   """

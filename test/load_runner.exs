@@ -9,6 +9,7 @@
 # Usage:
 #   mix test.load
 #   mix test.load.durability
+#   mix test.load.hardening
 #   mix test.load.all
 #
 # The alias sets TDE_LOAD_TEST_POOL=1 (real DBConnection.ConnectionPool).
@@ -18,9 +19,17 @@
 # Durability tests (20k / 50k / 100k HTTP execution) are tagged
 # `:durability` and excluded by default.
 #   mix test.load.durability  → TDE_LOAD_DURABILITY=1  (that file only)
-#   mix test.load.all         → TDE_LOAD_DURABILITY=all (default suite + durability)
+#   mix test.load.all         → TDE_LOAD_DURABILITY=all + TDE_LOAD_HARDENING=all
+#                               (default suite + durability + hardening)
 # One JSON report either way. Not for GitHub ubuntu-latest — a 100k mixed
 # run is ~1 hour on that runner.
+#
+# Hardening tests (LZ4 vs PGLZ, payload-cap chaos, resume-crash) are tagged
+# `:hardening` and excluded from mix test.load (and GitHub load-bench).
+#   mix test.load.hardening   → TDE_LOAD_HARDENING=1  (hardening files only)
+#   mix test.load.all         → includes hardening with durability
+#   TDE_LOAD_HARDENING=all    → default suite + hardening (still excludes durability
+#                               unless TDE_LOAD_DURABILITY=all)
 #
 # Optional subset (same argv pattern as test/integration_runner.exs):
 #   TDE_LOAD_TEST_POOL=1 MIX_ENV=test mix run test/load_runner.exs -- load/benchmark_reporter_test.exs
@@ -47,30 +56,65 @@ durability_mode = System.get_env("TDE_LOAD_DURABILITY")
 durability_only? = durability_mode in ["1", "true"]
 include_durability? = durability_only? or durability_mode == "all"
 
+hardening_mode = System.get_env("TDE_LOAD_HARDENING")
+hardening_only? = hardening_mode in ["1", "true"]
+include_hardening? = hardening_only? or hardening_mode == "all"
+
 exunit_opts =
   cond do
+    hardening_only? ->
+      IO.puts("[load] Hardening suite only (LZ4 vs PGLZ, payload-cap chaos, resume-crash).")
+      [autorun: false, trace: true, timeout: 300_000, include: [:hardening], exclude: [:test]]
+
     durability_only? ->
       IO.puts("[load] Durability suite only (20k / 50k / 100k per shape). This can take hours.")
       [autorun: false, trace: true, timeout: 300_000, include: [:durability], exclude: [:test]]
 
-    include_durability? ->
-      IO.puts(
-        "[load] Default suite + durability (20k / 50k / 100k per shape). This can take hours."
-      )
-
-      [autorun: false, trace: true, timeout: 300_000]
-
     true ->
-      [autorun: false, trace: true, timeout: 300_000, exclude: [:durability]]
+      excludes =
+        Enum.reject([:durability, :hardening], fn tag ->
+          (tag == :durability and include_durability?) or
+            (tag == :hardening and include_hardening?)
+        end)
+
+      cond do
+        include_durability? and include_hardening? ->
+          IO.puts("[load] Default suite + durability + hardening. This can take hours.")
+
+        include_durability? ->
+          IO.puts(
+            "[load] Default suite + durability (20k / 50k / 100k per shape). This can take hours."
+          )
+
+        include_hardening? ->
+          IO.puts("[load] Default suite + hardening (LZ4 vs PGLZ, chaos, resume-crash).")
+
+        true ->
+          :ok
+      end
+
+      [autorun: false, trace: true, timeout: 300_000, exclude: excludes]
   end
 
 ExUnit.start(exunit_opts)
 
 relative_test_trees =
   case System.argv() |> Enum.reject(&(&1 == "--")) do
-    [] when durability_only? -> ["load/execution_durability_load_test.exs"]
-    [] -> ["load"]
-    relative_paths -> relative_paths
+    [] when durability_only? ->
+      ["load/execution_durability_load_test.exs"]
+
+    [] when hardening_only? ->
+      [
+        "load/jsonb_compression_load_test.exs",
+        "load/payload_cap_chaos_load_test.exs",
+        "load/resume_crash_load_test.exs"
+      ]
+
+    [] ->
+      ["load"]
+
+    relative_paths ->
+      relative_paths
   end
 
 test_files =
