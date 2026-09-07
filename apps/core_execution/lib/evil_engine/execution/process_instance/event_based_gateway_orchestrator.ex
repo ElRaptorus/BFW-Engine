@@ -7,6 +7,11 @@ defmodule EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   only stamped with `:ebg_pending_cancel`. Killing those Tasks would race the
   enter-path persist and can stall the process instance. The PI finalizes the
   stamp once the loser reports `{:async}` / `{:wait}` / `{:ok}`.
+
+  While any sibling is still `:active` with that stamp, the winning catch's
+  outgoing successors are not dispatched. Otherwise an Error End Event or a
+  fatal successor can cascade the loser to `:error`/`:fatal` before it becomes
+  `:interrupted`.
   """
 
   alias EvilEngine.Execution.FniLifecycle
@@ -47,6 +52,55 @@ defmodule EvilEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   end
 
   def pending_cancel?(_entry), do: false
+
+  @doc """
+  True when at least one Event-Based Gateway sibling is still `:active` with
+  an `ebg_pending_cancel` stamp (enter-path not yet reported).
+  """
+  @spec has_active_pending_cancel_siblings?(struct()) :: boolean()
+  def has_active_pending_cancel_siblings?(data) do
+    Enum.any?(data.flow_node_instance_states, fn {_flow_node_instance_id, entry} ->
+      entry.state == :active and pending_cancel?(entry)
+    end)
+  end
+
+  @doc """
+  Hold the winning catch's successor dispatch until pending-cancel siblings
+  have been interrupted.
+  """
+  @spec defer_successor_dispatch(struct(), String.t(), term(), [String.t()]) :: struct()
+  def defer_successor_dispatch(
+        data,
+        winning_flow_node_instance_id,
+        output_payload,
+        next_flow_node_ids
+      ) do
+    Map.put(data, :event_based_gateway_deferred_dispatch, %{
+      winning_flow_node_instance_id: winning_flow_node_instance_id,
+      output_payload: output_payload,
+      next_flow_node_ids: next_flow_node_ids
+    })
+  end
+
+  @doc """
+  Return the deferred successor dispatch when no pending-cancel siblings remain
+  `:active`. Leaves the struct unchanged when the winner must still wait.
+  """
+  @spec take_ready_deferred_dispatch(struct()) :: {struct(), map() | nil}
+  def take_ready_deferred_dispatch(data) do
+    deferred = Map.get(data, :event_based_gateway_deferred_dispatch)
+
+    cond do
+      deferred == nil ->
+        {data, nil}
+
+      has_active_pending_cancel_siblings?(data) ->
+        {data, nil}
+
+      true ->
+        {Map.put(data, :event_based_gateway_deferred_dispatch, nil), deferred}
+    end
+  end
 
   @doc """
   Interrupt a sibling that finished entering after the gateway already had a

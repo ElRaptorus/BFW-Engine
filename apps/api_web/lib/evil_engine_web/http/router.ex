@@ -20,6 +20,7 @@ defmodule EvilEngineWeb.Http.Router do
     plug EvilEngine.Auth.Plug
     plug EvilEngineWeb.Http.Plugs.AshActorPlug
     plug EvilEngineWeb.Http.Plugs.PayloadCapPlug, field: "payload"
+    plug EvilEngineWeb.Http.Plugs.PayloadCapPlug, field: "result"
     plug EvilEngineWeb.Http.Plugs.RateLimitPlug
     plug EvilEngineWeb.Http.Plugs.DeprecationPlug
   end

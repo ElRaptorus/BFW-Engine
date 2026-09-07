@@ -15,6 +15,7 @@ defmodule EvilEngine.Execution.PayloadCap do
   """
 
   @min_cap_bytes 1024
+  @default_cap_bytes 65_536
 
   @doc """
   Checks whether `payload` fits within `TDE_TOKEN_MAX_BYTES`.
@@ -69,9 +70,35 @@ defmodule EvilEngine.Execution.PayloadCap do
       if is_integer(explicit) do
         explicit
       else
-        Application.get_env(:core_execution, :token_max_bytes, 65_536)
+        Application.get_env(:core_execution, :token_max_bytes, @default_cap_bytes)
       end
 
     max(cap, @min_cap_bytes)
+  end
+
+  @doc """
+  Parse `TDE_TOKEN_MAX_BYTES` at boot.
+
+  Unset or blank → `#{@default_cap_bytes}`. An explicit integer below
+  `#{@min_cap_bytes}` raises (does **not** clamp). The error message
+  includes `minimum_required: #{@min_cap_bytes}`.
+  """
+  @spec parse_token_max_bytes(String.t() | integer() | nil, pos_integer()) :: pos_integer()
+  def parse_token_max_bytes(raw, default \\ @default_cap_bytes)
+
+  def parse_token_max_bytes(nil, default), do: default
+  def parse_token_max_bytes("", default), do: default
+
+  def parse_token_max_bytes(raw, default) when is_binary(raw) do
+    parse_token_max_bytes(String.to_integer(String.trim(raw)), default)
+  end
+
+  def parse_token_max_bytes(value, _default)
+      when is_integer(value) and value < @min_cap_bytes do
+    raise "TDE_TOKEN_MAX_BYTES must be >= #{@min_cap_bytes} (minimum_required: #{@min_cap_bytes}), got #{value}"
+  end
+
+  def parse_token_max_bytes(value, _default) when is_integer(value) and value >= @min_cap_bytes do
+    value
   end
 end

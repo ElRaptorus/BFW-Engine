@@ -1,7 +1,10 @@
+Code.require_file(Path.expand("../../../../../test/support/payload_cap_fixtures.ex", __DIR__))
+
 defmodule EvilEngine.Execution.PayloadCapTest do
   use ExUnit.Case, async: true
 
   alias EvilEngine.Execution.PayloadCap
+  alias EvilEngine.Test.PayloadCapFixtures
 
   @small_limit 2048
 
@@ -104,6 +107,47 @@ defmodule EvilEngine.Execution.PayloadCapTest do
 
       assert {:error, :payload_too_large, %{limit: ^configured}} =
                PayloadCap.check(payload_over)
+    end
+  end
+
+  describe "PayloadCapFixtures.mint_payload/1" do
+    test "encoded size is exactly the requested target" do
+      for target <- [1024, 65_536, 65_537] do
+        payload = PayloadCapFixtures.mint_payload(target)
+        assert PayloadCapFixtures.json_byte_size(payload) == target
+      end
+    end
+
+    test "oversize_payload is one byte over the default cap" do
+      assert PayloadCapFixtures.json_byte_size(PayloadCapFixtures.oversize_payload()) == 65_537
+    end
+
+    test "exactly_at_limit_payload matches the default cap" do
+      assert PayloadCapFixtures.json_byte_size(PayloadCapFixtures.exactly_at_limit_payload()) ==
+               65_536
+    end
+  end
+
+  describe "parse_token_max_bytes/1" do
+    test "nil and blank use the default 65536" do
+      assert PayloadCap.parse_token_max_bytes(nil) == 65_536
+      assert PayloadCap.parse_token_max_bytes("") == 65_536
+    end
+
+    test "explicit value below 1024 raises with minimum_required in the message" do
+      error = assert_raise RuntimeError, fn -> PayloadCap.parse_token_max_bytes("512") end
+      assert error.message =~ "minimum_required: 1024"
+      assert error.message =~ "512"
+    end
+
+    test "explicit integer below 1024 raises" do
+      error = assert_raise RuntimeError, fn -> PayloadCap.parse_token_max_bytes(512) end
+      assert error.message =~ "minimum_required: 1024"
+    end
+
+    test "valid explicit value is returned unchanged" do
+      assert PayloadCap.parse_token_max_bytes("2048") == 2048
+      assert PayloadCap.parse_token_max_bytes(2048) == 2048
     end
   end
 end

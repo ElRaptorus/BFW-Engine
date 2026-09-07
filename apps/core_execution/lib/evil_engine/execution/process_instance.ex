@@ -1758,7 +1758,10 @@ defmodule EvilEngine.Execution.ProcessInstance do
       entry ->
         if EventBasedGatewayOrchestrator.pending_cancel?(entry) do
           send_async_gate(entry.pid, :cancel)
-          EventBasedGatewayOrchestrator.interrupt_pending_loser(data, flow_node_instance_id)
+
+          data
+          |> EventBasedGatewayOrchestrator.interrupt_pending_loser(flow_node_instance_id)
+          |> flush_event_based_gateway_deferred_dispatch()
         else
           do_handle_fni_async(data, flow_node_instance_id, entry, extra_type_properties)
         end
@@ -1946,7 +1949,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
             )
 
           EventBasedGatewayOrchestrator.pending_cancel?(entry) ->
-            EventBasedGatewayOrchestrator.interrupt_pending_loser(data, flow_node_instance_id)
+            data
+            |> EventBasedGatewayOrchestrator.interrupt_pending_loser(flow_node_instance_id)
+            |> flush_event_based_gateway_deferred_dispatch()
 
           true ->
             do_handle_fni_ok(data, flow_node_instance_id, result)
@@ -2035,21 +2040,6 @@ defmodule EvilEngine.Execution.ProcessInstance do
         flow_node_instance_id
       )
 
-    new_token = %Token{
-      id: generate_id(),
-      process_instance_id: data.process_instance_id,
-      payload: output_payload,
-      originating_flow_node_instance_id: flow_node_instance_id,
-      created_at: DateTime.utc_now()
-    }
-
-    node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
-
-    targets =
-      result.next_flow_node_ids
-      |> Enum.map(&Map.get(node_index, &1))
-      |> Enum.reject(&is_nil/1)
-
     data =
       put_in(data.flow_node_instance_states[flow_node_instance_id], %{
         entry
@@ -2067,8 +2057,69 @@ defmodule EvilEngine.Execution.ProcessInstance do
         data
       end
 
-    Enum.reduce(targets, data, fn target_node, acc ->
-      dispatch_flow_node_instance(acc, target_node, new_token, [flow_node_instance_id])
+    if EventBasedGatewayOrchestrator.has_active_pending_cancel_siblings?(data) do
+      EventBasedGatewayOrchestrator.defer_successor_dispatch(
+        data,
+        flow_node_instance_id,
+        output_payload,
+        result.next_flow_node_ids
+      )
+    else
+      dispatch_successor_targets(
+        data,
+        flow_node_instance_id,
+        output_payload,
+        result.next_flow_node_ids
+      )
+    end
+  end
+
+  defp flush_event_based_gateway_deferred_dispatch(data) do
+    {data, deferred} = EventBasedGatewayOrchestrator.take_ready_deferred_dispatch(data)
+
+    case deferred do
+      nil ->
+        data
+
+      %{
+        winning_flow_node_instance_id: winning_flow_node_instance_id,
+        output_payload: output_payload,
+        next_flow_node_ids: next_flow_node_ids
+      } ->
+        dispatch_successor_targets(
+          data,
+          winning_flow_node_instance_id,
+          output_payload,
+          next_flow_node_ids
+        )
+    end
+  end
+
+  defp dispatch_successor_targets(
+         data,
+         originating_flow_node_instance_id,
+         output_payload,
+         next_flow_node_ids
+       ) do
+    new_token = %Token{
+      id: generate_id(),
+      process_instance_id: data.process_instance_id,
+      payload: output_payload,
+      originating_flow_node_instance_id: originating_flow_node_instance_id,
+      created_at: DateTime.utc_now()
+    }
+
+    node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
+
+    targets =
+      next_flow_node_ids
+      |> Enum.map(&Map.get(node_index, &1))
+      |> Enum.reject(&is_nil/1)
+
+    Enum.reduce(targets, data, fn target_node, accumulator ->
+      dispatch_flow_node_instance(accumulator, target_node, new_token, [
+        originating_flow_node_instance_id
+      ])
     end)
   end
 
@@ -2082,7 +2133,9 @@ defmodule EvilEngine.Execution.ProcessInstance do
 
       entry ->
         if EventBasedGatewayOrchestrator.pending_cancel?(entry) do
-          EventBasedGatewayOrchestrator.interrupt_pending_loser(data, flow_node_instance_id)
+          data
+          |> EventBasedGatewayOrchestrator.interrupt_pending_loser(flow_node_instance_id)
+          |> flush_event_based_gateway_deferred_dispatch()
         else
           park_waiting_fni(data, flow_node_instance_id, entry, result)
         end
@@ -2127,16 +2180,29 @@ defmodule EvilEngine.Execution.ProcessInstance do
       nil ->
         {:keep_state, data}
 
-      _entry ->
-        case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
-          {:caught, data, action} ->
-            data = execute_esp_action(data, action)
-            maybe_finish_or_continue(data)
+      entry ->
+        if EventBasedGatewayOrchestrator.pending_cancel?(entry) do
+          data =
+            data
+            |> EventBasedGatewayOrchestrator.interrupt_pending_loser(flow_node_instance_id)
+            |> flush_event_based_gateway_deferred_dispatch()
 
-          :not_caught ->
-            data = handle_fni_fatal(data, flow_node_instance_id, reason)
-            transition_to_fatal(data, reason)
+          maybe_finish_or_continue(data)
+        else
+          resolve_or_fatal_flow_node_error(data, flow_node_instance_id, reason)
         end
+    end
+  end
+
+  defp resolve_or_fatal_flow_node_error(data, flow_node_instance_id, reason) do
+    case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
+      {:caught, data, action} ->
+        data = execute_esp_action(data, action)
+        maybe_finish_or_continue(data)
+
+      :not_caught ->
+        data = handle_fni_fatal(data, flow_node_instance_id, reason)
+        transition_to_fatal(data, reason)
     end
   end
 

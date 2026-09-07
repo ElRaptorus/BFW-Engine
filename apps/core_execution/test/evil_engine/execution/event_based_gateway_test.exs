@@ -595,6 +595,38 @@ defmodule EvilEngine.Execution.EventBasedGatewayTest do
       assert updated.flow_node_instance_states["fni-msg"].state == :interrupted
       refute Process.alive?(dummy)
     end
+
+    test "take_ready_deferred_dispatch waits while a sibling is still :active" do
+      dummy = spawn(fn -> receive do: (:stop -> :ok) end)
+      data = ebg_orchestrator_fixture(dummy, :active)
+
+      stamped =
+        EventBasedGatewayOrchestrator.cancel_sibling_catch_flow_node_instances(data, "fni-timer")
+
+      deferred =
+        EventBasedGatewayOrchestrator.defer_successor_dispatch(
+          stamped,
+          "fni-timer",
+          %{"order" => 1},
+          ["ErrorEnd_1"]
+        )
+
+      assert EventBasedGatewayOrchestrator.has_active_pending_cancel_siblings?(deferred)
+
+      {still_waiting, nil_dispatch} =
+        EventBasedGatewayOrchestrator.take_ready_deferred_dispatch(deferred)
+
+      assert nil_dispatch == nil
+      assert still_waiting.event_based_gateway_deferred_dispatch != nil
+
+      interrupted =
+        EventBasedGatewayOrchestrator.interrupt_pending_loser(still_waiting, "fni-msg")
+
+      {flushed, ready} = EventBasedGatewayOrchestrator.take_ready_deferred_dispatch(interrupted)
+      assert ready.winning_flow_node_instance_id == "fni-timer"
+      assert ready.next_flow_node_ids == ["ErrorEnd_1"]
+      assert flushed.event_based_gateway_deferred_dispatch == nil
+    end
   end
 
   defp ebg_orchestrator_fixture(sibling_pid, sibling_state) do

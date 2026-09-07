@@ -30,6 +30,7 @@ defmodule EvilEngine.Api do
   alias EvilEngine.Events.SignalSubscriptions
   alias EvilEngine.Execution
   alias EvilEngine.Execution.CalledElementResolver
+  alias EvilEngine.Execution.PayloadCap
   alias EvilEngine.Execution.Persistence
   alias EvilEngine.Execution.PersistenceRetry
   alias EvilEngine.Persistence.Repo
@@ -1043,7 +1044,8 @@ defmodule EvilEngine.Api do
   @spec finish_user_task(String.t(), term(), struct(), keyword()) ::
           :ok | {:error, term()} | {:error, :payload_too_large, map()} | forbidden_error()
   def finish_user_task(flow_node_instance_id, result, identity, opts \\ []) do
-    with {:ok, flow_node_instance} <- get_flow_node_instance(flow_node_instance_id),
+    with :ok <- PayloadCap.check(result, field: :result),
+         {:ok, flow_node_instance} <- get_flow_node_instance(flow_node_instance_id),
          :ok <- validate_user_task_type(flow_node_instance),
          :ok <- validate_fni_waiting(flow_node_instance),
          :ok <- Validation.check_lane_access(flow_node_instance, identity, opts) do

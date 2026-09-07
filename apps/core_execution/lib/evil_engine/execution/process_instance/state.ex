@@ -104,7 +104,8 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
           adhoc_natural_drain_enabled: boolean(),
           task_supervisor: pid() | nil,
           bpmn_error_info: map() | nil,
-          escalation_info: escalation_info() | nil
+          escalation_info: escalation_info() | nil,
+          event_based_gateway_deferred_dispatch: map() | nil
         }
 
   @enforce_keys [:process_instance_id, :process_version_id]
@@ -143,6 +144,7 @@ defmodule EvilEngine.Execution.ProcessInstance.State do
     adhoc_natural_drain_enabled: false,
     task_supervisor: nil,
     bpmn_error_info: nil,
-    escalation_info: nil
+    escalation_info: nil,
+    event_based_gateway_deferred_dispatch: nil
   ]
 end

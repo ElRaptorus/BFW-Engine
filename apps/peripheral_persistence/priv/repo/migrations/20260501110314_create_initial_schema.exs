@@ -33,6 +33,9 @@ defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
     {"pending_messages", "payload"}
   ]
 
+  @doc "JSONB columns that receive SET COMPRESSION at migrate time."
+  def lz4_jsonb_columns, do: @lz4_columns ++ @lz4_columns_partitioned
+
   def up do
     # ---------------------------------------------------------------
     # 1. Ash/Postgres extension functions

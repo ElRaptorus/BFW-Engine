@@ -104,7 +104,7 @@ When something needs to _act_ on data — execute a flow node, evaluate a FEEL
 expression, persist a state change — that responsibility belongs to a
 dedicated module with a clear API, not to the data itself.
 
-## No Assumptions, No Rstrictions
+## No Assumptions, No Restrictions
 
 By design, the Engine and its Flow Node Handlers don't care _how_ you feed them the data they need.
 They only care about that data being complete and correct.
@@ -117,7 +117,7 @@ By that principle, the Engine gives you everything you need, to control and inte
 But _if_ and _how_ you implement any of it, will be entirely up to you.
 
 - Service Tasks give you a Data Contract, but remain ignorant on how that data is delivered.
-- User Tasks give you a Data Contract and a rough Form Input Definition, nut remain ignorant as to how you provide the User Input.
+- User Tasks give you a Data Contract and a rough Form Input Definition, but remain ignorant as to how you provide the User Input.
 - The Event Sink provides you with all the data you need to create an Audit trail, but if and how you do that, is entirely up to you
 
 ## Plugins Over Features
