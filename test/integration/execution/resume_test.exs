@@ -12,13 +12,19 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
 
   # -------------------------------------------------------------------
   # I1: Resume user task
+  # RESUME-GATEWAY-PENDING (item 7(b) at integration scale) is covered by
+  # `test/integration/execution/parallel_gateway_test.exs` describe "11a".
   # -------------------------------------------------------------------
 
   describe "I1: resume user task" do
     test "resumed PI with waiting user task can be finished", %{collector: _collector} do
-      process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple", %{"payload" => %{"key" => "value"}})
+      process_instance_id =
+        http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple", %{
+          "payload" => %{"key" => "value"}
+        })
 
       ut_fni = poll_fni_state(process_instance_id, "user_task", "waiting")
+      input_token_before = ut_fni.input_token
 
       terminate_process_instance(process_instance_id)
       await_process_exit(process_instance_id)
@@ -29,6 +35,16 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
 
       {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
       assert Process.alive?(process_instance_pid)
+
+      reloaded_fni =
+        Ash.get!(
+          EvilEngine.Persistence.Resources.FlowNodeInstance,
+          ut_fni.id,
+          domain: EvilEngine.Persistence.Api,
+          authorize?: false
+        )
+
+      assert reloaded_fni.input_token == input_token_before
 
       {204, _} = http_finish_user_task(ut_fni.id, %{"approved" => true})
 
@@ -42,10 +58,13 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
   # -------------------------------------------------------------------
 
   describe "I2: resume async service task" do
-    test "resumed PI with async service task can be completed via plugin", %{collector: _collector} do
+    test "resumed PI with async service task can be completed via plugin", %{
+      collector: _collector
+    } do
       register_test_plugin()
 
-      process_instance_id = http_deploy_and_start("service_task_async_park.bpmn", "ServiceTaskAsyncPark")
+      process_instance_id =
+        http_deploy_and_start("service_task_async_park.bpmn", "ServiceTaskAsyncPark")
 
       st_fni = poll_fni_state(process_instance_id, "service_task", "waiting")
 
@@ -56,9 +75,14 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
       {:ok, _} = ResumeRunner.resume_all()
 
       {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
-      assert [{^process_instance_pid, :async}] = Registry.lookup(EvilEngine.Execution.Registry, {:fni, st_fni.id})
 
-      assert :ok = ProcessInstance.finish_async_service_task(process_instance_pid, st_fni.id, %{"result" => "done"})
+      assert [{^process_instance_pid, :async}] =
+               Registry.lookup(EvilEngine.Execution.Registry, {:fni, st_fni.id})
+
+      assert :ok =
+               ProcessInstance.finish_async_service_task(process_instance_pid, st_fni.id, %{
+                 "result" => "done"
+               })
 
       wait_for_process_instance(process_instance_id)
       assert_pi_state!(process_instance_id, "finished")
@@ -94,9 +118,13 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
   # -------------------------------------------------------------------
 
   describe "I4: resume preserves payload" do
-    test "started_with_context and input_token are preserved after resume", %{collector: _collector} do
+    test "started_with_context and input_token are preserved after resume", %{
+      collector: _collector
+    } do
       payload = %{"key" => "value", "nested" => %{"a" => 1}}
-      process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple", %{"payload" => payload})
+
+      process_instance_id =
+        http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple", %{"payload" => payload})
 
       ut_fni = poll_fni_state(process_instance_id, "user_task", "waiting")
 
@@ -125,7 +153,8 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
     test "DB shows finished state after resume and completion", %{collector: _collector} do
       register_test_plugin()
 
-      process_instance_id = http_deploy_and_start("service_task_async_park.bpmn", "ServiceTaskAsyncPark")
+      process_instance_id =
+        http_deploy_and_start("service_task_async_park.bpmn", "ServiceTaskAsyncPark")
 
       st_fni = poll_fni_state(process_instance_id, "service_task", "waiting")
 
@@ -136,7 +165,11 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
       {:ok, _} = ResumeRunner.resume_all()
 
       {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
-      assert :ok = ProcessInstance.finish_async_service_task(process_instance_pid, st_fni.id, %{"done" => true})
+
+      assert :ok =
+               ProcessInstance.finish_async_service_task(process_instance_pid, st_fni.id, %{
+                 "done" => true
+               })
 
       wait_for_process_instance(process_instance_id)
 
@@ -151,9 +184,11 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
 
   describe "I6: resume skips finished PIs" do
     test "only running PIs are resumed", %{collector: _collector} do
-      _finished_process_instance_id = http_deploy_and_start("linear_start_end.bpmn", "LinearStartEnd")
+      _finished_process_instance_id =
+        http_deploy_and_start("linear_start_end.bpmn", "LinearStartEnd")
 
-      waiting_process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
+      waiting_process_instance_id =
+        http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
 
       ut_fni = poll_fni_state(waiting_process_instance_id, "user_task", "waiting")
       assert ut_fni.state == "waiting"
@@ -339,7 +374,12 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
   end
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, EvilEngine.Plugins.RegistryDispatch)
+    Application.put_env(
+      :core_execution,
+      :service_task_dispatch,
+      EvilEngine.Plugins.RegistryDispatch
+    )
+
     facade = Loader.facade_for_plugin("evil:test_resume")
     ExamplePlugin.on_load(facade)
   end

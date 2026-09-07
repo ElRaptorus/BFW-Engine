@@ -396,4 +396,59 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
       )
     end
   end
+
+  describe "five-level Call Activity chain" do
+    test "root finishes after the leaf user task is completed" do
+      {201, _} = http_deploy("call_activity_depth_5_leaf.bpmn")
+      {201, _} = http_deploy("call_activity_depth_5_l4.bpmn")
+      {201, _} = http_deploy("call_activity_depth_5_l3.bpmn")
+      {201, _} = http_deploy("call_activity_depth_5_l2.bpmn")
+      {201, _} = http_deploy("call_activity_depth_5_l1.bpmn")
+
+      {201, body} = http_start("CallActivityDepth5")
+      root_process_instance_id = body["processInstanceId"]
+
+      leaf_user_task = await_tree_waiting_user_task(root_process_instance_id)
+      {204, _} = http_finish_user_task(leaf_user_task.id, %{"approved" => true})
+
+      wait_for_process_instance(root_process_instance_id, 20_000)
+      assert_pi_state!(root_process_instance_id, "finished")
+    end
+  end
+
+  defp await_tree_waiting_user_task(root_process_instance_id, timeout \\ 15_000) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_await_tree_waiting_user_task(root_process_instance_id, deadline)
+  end
+
+  defp do_await_tree_waiting_user_task(root_process_instance_id, deadline) do
+    case find_waiting_user_task_in_tree(root_process_instance_id) do
+      nil ->
+        if System.monotonic_time(:millisecond) >= deadline do
+          raise "no waiting user task in Call Activity tree #{root_process_instance_id}"
+        end
+
+        Process.sleep(50)
+        do_await_tree_waiting_user_task(root_process_instance_id, deadline)
+
+      flow_node_instance ->
+        flow_node_instance
+    end
+  end
+
+  defp find_waiting_user_task_in_tree(process_instance_id) do
+    match =
+      fetch_flow_node_instances(process_instance_id)
+      |> Enum.find(fn flow_node_instance ->
+        flow_node_instance.flow_node_type == "user_task" and
+          flow_node_instance.state == "waiting"
+      end)
+
+    if match do
+      match
+    else
+      list_child_process_instance_ids(process_instance_id)
+      |> Enum.find_value(&find_waiting_user_task_in_tree/1)
+    end
+  end
 end

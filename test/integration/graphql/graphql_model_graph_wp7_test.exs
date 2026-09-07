@@ -337,6 +337,10 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
   # `packages/js/sdk/src/graphql/model-fields.ts`, at one representative
   # recursion level (SubProcessNode.flowNodes nested 4 deep), to pin the
   # depth limit against the shape the TS client actually sends.
+  #
+  # Do not add empty inline fragments (`... on TaskNode { }`). GraphQL
+  # forbids empty selection sets; Absinthe reports `syntax error before: '}'`.
+  # Types with no extra fields are covered by the FlowNode interface fields.
   defp canonical_process_model_query do
     """
     query($id: ID!) {
