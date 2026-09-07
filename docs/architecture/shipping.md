@@ -11,6 +11,19 @@ The production image is `docker/Dockerfile`.
 - Healthcheck: `curl -f http://localhost:4000/health` expects **HTTP 204**, empty body.
 - Size target: ≤ 120 MB compressed.
 
+## GitHub Container Registry
+
+`.github/workflows/docker-publish.yml` builds `docker/Dockerfile` and pushes a **private** image to GHCR.
+
+| Item | Value |
+|------|--------|
+| Image | `ghcr.io/<github-username>/daemon_engine` (Docker/OCI form of `@elraptorus/daemon_engine`; GHCR has no npm `@scope/` prefix) |
+| Tag | `mix.exs` `@version` on `workflow_dispatch`; GitHub Release tag (leading `v` stripped) on `release` |
+| Visibility | Private (GHCR default on first publish; the workflow fails if the package is public) |
+| Auth | `GITHUB_TOKEN` with `packages: write`. Consumers pull with a classic PAT that has `read:packages` |
+
+Engine CI (`.github/workflows/ci.yml`) still only smoke-builds `engine:ci` and does not push.
+
 ## docker-compose (local dev)
 
 Two services:

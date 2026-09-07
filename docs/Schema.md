@@ -310,5 +310,4 @@ There is no `pending_escalations` table. Operator housekeeping:
 | Environment variables | [configuration.md](./architecture/configuration.md) |
 | Architecture overview (DDD + runtime) | [`Architecture.md`](./Architecture.md) |
 | Decision log | [`decisions.md`](./decisions.md) |
-| Archival v1 plan / roll-out checklist | [`ImplementationPlan.md`](./ImplementationPlan.md), [`ImplementationPhases.md`](./ImplementationPhases.md) |
 | Glossary of terms | [`Glossary.md`](./Glossary.md) |

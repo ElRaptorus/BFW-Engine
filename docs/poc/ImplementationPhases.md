@@ -7,17 +7,6 @@
 >
 > Historical companion to `[ImplementationPlan.md](./ImplementationPlan.md)`.
 
->
-> Every section header in the plan referenced below (`§N`, `§N.M`, etc.) and
-> every refers to `ImplementationPlan.md`. Time estimates
-> are team-effort-relative (assume 1 engineer full-time); adjust for team
-> size.
->
-> **Authorization (2026-08):** Lane JWT values are `"read"` (observe) or
-> `"write"` (observe+act). Boolean `true` is garbage (fail closed).
-> `observe_all: true` is unbounded read/observe and never a write bypass.
-> See [authorization.md](./architecture/authorization.md).
-
 ---
 
 ## Phase 0

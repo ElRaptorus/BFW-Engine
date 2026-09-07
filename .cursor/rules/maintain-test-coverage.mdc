@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Maintain Test Coverage
 
-Coverage is enforced at **two levels** (see `docs/ImplementationPhases.md` § Test Coverage Milestones):
+Coverage is enforced at **two levels** (see `docs/poc/ImplementationPhases.md` § Test Coverage Milestones):
 
 1. **Per-app thresholds** — Mix `test_coverage.threshold` in each app's `mix.exs`. Apps with functional code have non-zero thresholds; skeleton/struct-only apps use 0.
 2. **Global aggregate** — ExCoveralls `minimum_coverage` in `coveralls.json` (enforced on the umbrella-wide aggregate).

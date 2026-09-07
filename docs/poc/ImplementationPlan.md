@@ -11,14 +11,6 @@ status: ARCHIVAL
 > here. Current reference: [`architecture/index.md`](architecture/index.md).
 > Current decision log: [`decisions.md`](decisions.md). Current usage:
 > [`guides/getting-started/overview.md`](guides/getting-started/overview.md).
->
-> Working title: *"The Anvil of Khorne"*.
-> Historical note: this document was the concrete, phase-by-phase plan
-> derived from the project's original product concept.
-
->
-> §16 only contains remaining open technical questions (to be answered during
-> the relevant phase), risk register, and explicit v1 non-goals.
 
 ### Companion documents
 

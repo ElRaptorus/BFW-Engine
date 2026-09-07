@@ -37,7 +37,7 @@ When documenting a subsystem that does not fit any existing file, create a new f
 - **`common-pitfalls.md`** — Recurring constraints someone could hit **again**. Gate: “Would a competent person hit this without this note?” If no, it does not belong here. Format: title = the constraint; Mistake / Why / Correct approach (3–8 lines); optional short snippet. No dates, no “Fixed (…)”, no named failing tests as headlines, no CI logs, no investigation novels. Test-harness and CI facts go in `docs/architecture/testing.md`.
 - **`docs/decisions.md`** (top-level, not in `architecture/`) — Significant A-vs-B choices that still explain the architecture. Format: Context / Options / Decision / short Rationale / `See architecture/….md`. Bugfixes, session diaries, upgrade play-by-plays, and Cursor-rule meta do not belong here. Superseded items are one-line stubs.
 
-`docs/ImplementationPlan.md` and `docs/ImplementationPhases.md` are **archival**. Do not append to them. Do not treat them as the decision log or the phase tracker.
+`docs/poc/ImplementationPlan.md` and `docs/poc/ImplementationPhases.md` are **archival**. Do not append to them. Do not treat them as the decision log or the phase tracker.
 
 ## What NOT to do
 

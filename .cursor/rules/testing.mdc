@@ -123,6 +123,6 @@ Every PR must pass (in order):
 1. `mix format --check-formatted`
 2. `mix credo --strict`
 3. `mix dialyzer`
-4. Coverage via the same merge as `mix quality` (`mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`) — per-app thresholds in each app's `mix.exs` + global aggregate in `coveralls.json` (see `ImplementationPhases.md` § Test Coverage Milestones). Do **not** gate on `mix coveralls.html --umbrella` without `--import-cover`.
+4. Coverage via the same merge as `mix quality` (`mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`) — per-app thresholds in each app's `mix.exs` + global aggregate in `coveralls.json` (see `docs/poc/ImplementationPhases.md` § Test Coverage Milestones). Do **not** gate on `mix coveralls.html --umbrella` without `--import-cover`.
 5. `mix sobelow`
 6. `mix deps.audit`

@@ -18,7 +18,7 @@ x-security-headers:
 
 info:
   title: Daemon Engine API
-  version: "0.0.1"
+  version: "0.1.0"
   description: |
     ThomasTheDaemonEngine — a BPMN 2.0 Workflow Engine.
 
@@ -108,7 +108,7 @@ paths:
                     example: Daemon Engine (local dev)
                   version:
                     type: string
-                    example: "0.0.1"
+                    example: "0.1.0"
                   startedAt:
                     type: string
                     format: date-time

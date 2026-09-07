@@ -38,8 +38,7 @@ up to date when a code change touches its scope.
 | [`Glossary.md`](../Glossary.md) | Terms used in this project |
 | [`Schema.md`](../Schema.md) | Database ER diagram + per-table narrative |
 | [`decisions.md`](../decisions.md) | Significant A-vs-B choices that still explain the architecture |
-| [`ImplementationPlan.md`](../ImplementationPlan.md) | **Archival** original v1 plan — do not append |
-| [`ImplementationPhases.md`](../ImplementationPhases.md) | **Archival** original roll-out checklist — do not append |
+| [`post-v1-ideas.md`](../post-v1-ideas.md) | Actionable work deferred past v1 (clustering first) |
 
 ## User Handbook
 

@@ -48,7 +48,7 @@ After the quality gate passes, verify coverage in the output:
 - [ ] `docs/architecture/common-pitfalls.md` updated **only** if a competent person could hit the constraint again (not CI/test incident reports)
 - [ ] `docs/decisions.md` updated **only** if a significant A-vs-B choice was made
 - [ ] No architecture doc describes code that no longer exists
-- [ ] Do **not** append `docs/ImplementationPlan.md` or `docs/ImplementationPhases.md` (archival)
+- [ ] Do **not** append `docs/poc/ImplementationPlan.md` or `docs/poc/ImplementationPhases.md` (archival)
 - [ ] `AGENTS.md` updated **only** if `evil:*` elements, supported BPMN types, validator rules, FEEL bindings, or umbrella apps changed
 - [ ] `apps/api_web/priv/openapi/spec.yaml` matches the actual REST API surface: every route in the router has a corresponding path entry, and no stale operations reference removed endpoints. Compare `spec.yaml` paths against the routes in `apps/api_web/lib/evil_engine_web/http/router.ex`
 

@@ -27,6 +27,20 @@ The `docker/Dockerfile` produces a `debian:12-slim` image. For local development
 docker compose up --build
 ```
 
+Published private images live on GitHub Container Registry as
+`ghcr.io/<github-username>/daemon_engine:<version>` (currently `0.1.0`).
+`.github/workflows/docker-publish.yml` builds and pushes on a published
+GitHub Release or on manual `workflow_dispatch`. First publish is private;
+do not switch the package to public (that change cannot be undone).
+
+```bash
+echo "$CR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+docker pull ghcr.io/elraptorus/daemon_engine:0.1.0
+```
+
+The PAT must be a **classic** token with `read:packages`. Fine-grained PATs
+are not accepted by GitHub Packages for `docker login`.
+
 - Engine (HTTP, GraphQL, WebSocket): `http://localhost:4000`
 - PostgreSQL: `localhost:5432`
 

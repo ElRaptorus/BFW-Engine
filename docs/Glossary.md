@@ -146,6 +146,7 @@ The DMN API naming parallels the BPMN terms above (BPMN equivalent in parenthese
 | Everyday usage | [`guides/getting-started/overview.md`](./guides/getting-started/overview.md) |
 | Architectural overview | [`Architecture.md`](./Architecture.md) |
 | Decision log | [`decisions.md`](./decisions.md) |
+| Post-v1 ideas | [`post-v1-ideas.md`](./post-v1-ideas.md) |
 | **Detailed architecture docs (one topic per file)** | **[`architecture/index.md`](./architecture/index.md)** |
 | Authorization model & claim dictionary | [`architecture/authorization.md`](./architecture/authorization.md) |
 | Plugin system & SDKs | [`architecture/plugins.md`](./architecture/plugins.md) |
@@ -160,4 +161,3 @@ The DMN API naming parallels the BPMN terms above (BPMN equivalent in parenthese
 | Testing strategy | [`architecture/testing.md`](./architecture/testing.md) |
 | Security | [`architecture/security.md`](./architecture/security.md) |
 | Database ER diagram + per-table narrative | [`Schema.md`](./Schema.md) |
-| Archival v1 plan / roll-out checklist | [`ImplementationPlan.md`](./ImplementationPlan.md), [`ImplementationPhases.md`](./ImplementationPhases.md) |

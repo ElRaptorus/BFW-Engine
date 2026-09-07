@@ -41,4 +41,4 @@ When working on a specific subsystem, consult the relevant docs as needed — do
 - `docs/Glossary.md` — Every term used in this project
 - `docs/Schema.md` — Database ER diagram
 
-`docs/ImplementationPlan.md` and `docs/ImplementationPhases.md` are archival. Do not treat them as the decision log or the phase tracker.
+`docs/poc/ImplementationPlan.md` and `docs/poc/ImplementationPhases.md` are archival. Do not treat them as the decision log or the phase tracker.

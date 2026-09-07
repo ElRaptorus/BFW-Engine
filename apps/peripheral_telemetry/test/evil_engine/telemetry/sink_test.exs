@@ -32,7 +32,7 @@ defmodule EvilEngine.Telemetry.SinkTest do
       event = %Event.EngineStarted{
         engine_id: "test",
         engine_name: "test",
-        version: "0.0.1",
+        version: "0.1.0",
         started_at: DateTime.utc_now()
       }
 

@@ -1042,8 +1042,6 @@ The runtime calls persistence through `EvilEngine.Execution.Persistence.adapter(
 | `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `TDE_RESUME_BATCH_SIZE` (default `1000`). |
 | `list_flow_node_instances/1` | Read FNIs needed for resume of a PI: all `:active`/`:waiting` FNIs (re-dispatched / re-attached) plus `:finished` End-Event FNIs (for final-token aggregation across restarts). Other terminal FNIs are skipped — the live PI never reads their history. The finished-End-Event clause is forward-compat with non-interrupting fan-out features (Phase 2 items 13-14, Phase 3+ gateways, Phase 4 compensation); it loads zero extra rows under the current feature set because no PI can produce multiple finished End-Event FNIs in a single execution today. |
 
-The cross-restart multi-End integration test for the End-Event clause is **deferred** until non-interrupting Boundary Events arrive in Phase 2 items 13-14 — the scenario is not buildable in the current BPMN feature set. See the `PF-2 follow-up integration test` sub-bullet appended to those items in `docs/ImplementationPhases.md`.
-
 A `NoOp` adapter ships with `core_execution` for unit tests. In production, `persistence_adapter: EvilEngine.Persistence.ExecutionAdapter` is set in `config/config.exs`.
 
 ### Persistence Resilience

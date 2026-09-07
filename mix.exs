@@ -17,7 +17,7 @@ defmodule EvilEngine.Umbrella.MixProject do
 
   use Mix.Project
 
-  @version "0.0.1"
+  @version "0.1.0"
 
   def project do
     [
@@ -112,16 +112,13 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/cheatsheets/api-endpoints.cheatmd",
           "docs/guides/cheatsheets/plugin-behaviours.cheatmd",
 
-          # Archive
-          "docs/ImplementationPlan.md",
-          "docs/ImplementationPhases.md",
-
           # Reference
           "docs/Architecture.md",
           "docs/Schema.md",
           "docs/Glossary.md",
           "docs/Philosophy.md",
           "docs/decisions.md",
+          "docs/post-v1-ideas.md",
 
           # Architecture (detailed)
           "docs/architecture/index.md",
@@ -151,8 +148,8 @@ defmodule EvilEngine.Umbrella.MixProject do
           "Plugin Development": ~r{docs/guides/plugins/},
           "Operations Guide": ~r{docs/guides/operations/},
           Cheatsheets: ~r{docs/guides/cheatsheets/},
-          Archive: ~r{docs/Implementation},
-          Reference: ~r{docs/(Architecture|Schema|Glossary|Philosophy|decisions)\.md},
+          Reference:
+            ~r{docs/(Architecture|Schema|Glossary|Philosophy|decisions|post-v1-ideas)\.md},
           "Architecture (Detailed)": ~r{docs/architecture/}
         ],
         groups_for_modules: [

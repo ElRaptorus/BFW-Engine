@@ -34,7 +34,7 @@ Engine identity and feature flags. No authentication required.
 {
   "engineId": "evil-engine-local",
   "engineName": "Daemon Engine (local)",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "startedAt": "2026-05-03T15:00:00Z"
 }
 ```

@@ -11,7 +11,7 @@ curl -i http://localhost:4000/health
 
 # Engine identity (camelCase)
 curl http://localhost:4000/info
-# {"engineId":"...","engineName":"...","version":"0.0.1","startedAt":"..."}
+# {"engineId":"...","engineName":"...","version":"0.1.0","startedAt":"..."}
 ```
 
 `GET /health` is a liveness probe only. Load (`normal` / `elevated` / `critical`) lives on **`GET /stats`** as `engine.load`. See [Back-Pressure](../operations/backpressure.md).
