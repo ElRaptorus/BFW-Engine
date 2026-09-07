@@ -9,12 +9,14 @@ The folder `docs/architecture/` is the living, detailed architecture reference f
 
 ## When to update
 
-Update the appropriate file in `docs/architecture/` whenever:
+Update the **one** architecture file that owns the change. Do not also paste the same paragraph into `AGENTS.md`, `common-pitfalls.md`, and a decision entry.
+
+Update `docs/architecture/` whenever:
 
 - You modify code that changes the architecture (new types, renamed modules, changed event wiring, new endpoints, new tables, moved responsibilities)
 - You gain significant new understanding of an engine subsystem through research — even if you did not edit any code
-- You discover that existing documentation is incorrect or incomplete
-- Update `AGENTS.md` whenever you add, rename, or remove: `evil:*` extension elements, supported BPMN element types, validator rules, FEEL context bindings, or umbrella apps
+- You discover that existing documentation is incorrect, incomplete, duplicated, or one-off history
+- Update `AGENTS.md` **only** when you add, rename, or remove: `evil:*` extension elements, supported BPMN element types, validator rules, FEEL context bindings, or umbrella apps. Do not reprint architecture tables there.
 - Update `docs/architecture/api.md` when API endpoints are added, removed, or their request/response contracts change
 
 For a lookup table mapping "what changed" to "which file to update", see the `architecture-docs` skill.
@@ -23,6 +25,7 @@ For a lookup table mapping "what changed" to "which file to update", see the `ar
 
 - Concrete, technical content: table schemas, behaviour signatures, endpoint tables, event flow descriptions, configuration options
 - Keep it factual and reference-oriented — this is not a tutorial, it is a technical reference for agents
+- Overview: 3–4 sentences. Point to other files; do not copy their tables
 - The document is written in English. Maintain that language.
 
 ## Adding new topics
@@ -31,11 +34,16 @@ When documenting a subsystem that does not fit any existing file, create a new f
 
 ## Special-purpose files
 
-- **`common-pitfalls.md`** — Recurring mistakes, gotchas, and non-obvious constraints. When you encounter a bug caused by a subtle architectural constraint, or when you discover a pattern that is easy to get wrong, add an entry here. Each entry should describe the mistake, explain why it happens, and show the correct approach.
-- **`docs/ImplementationPlan.md` §0** (Decisions table) — When a significant design decision is made (e.g., choosing one approach over another, adding a new Decision ID `D{n}`), add it to the decisions table in §0 of the ImplementationPlan.
+- **`common-pitfalls.md`** — Recurring constraints someone could hit **again**. Gate: “Would a competent person hit this without this note?” If no, it does not belong here. Format: title = the constraint; Mistake / Why / Correct approach (3–8 lines); optional short snippet. No dates, no “Fixed (…)”, no named failing tests as headlines, no CI logs, no investigation novels. Test-harness and CI facts go in `docs/architecture/testing.md`.
+- **`docs/decisions.md`** (top-level, not in `architecture/`) — Significant A-vs-B choices that still explain the architecture. Format: Context / Options / Decision / short Rationale / `See architecture/….md`. Bugfixes, session diaries, upgrade play-by-plays, and Cursor-rule meta do not belong here. Superseded items are one-line stubs.
+
+`docs/ImplementationPlan.md` and `docs/ImplementationPhases.md` are **archival**. Do not append to them. Do not treat them as the decision log or the phase tracker.
 
 ## What NOT to do
 
-- Do not rewrite existing sections unless they are wrong
-- Do not remove content — only add, correct, or restructure
-- Do not duplicate information already in `docs/Architecture.md` (high-level diagram); `docs/architecture/` covers implementation detail
+- Do not delete still-accurate facts
+- Do rewrite, merge, or drop content that is wrong, duplicated across files, or one-off history (incident reports, “what we tried”, Phase banners, dead roadmap links)
+- Do not append a session strip to the bottom of a file
+- Do not paste test postmortems into `common-pitfalls.md`
+- Do not duplicate information already in `docs/Architecture.md` or the user handbook (those cover overview and usage; `docs/architecture/` covers implementation detail)
+- Do not require `AGENTS.md` + architecture + pitfalls + decisions for the same change. Pick the single file that owns it.

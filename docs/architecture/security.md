@@ -1,18 +1,8 @@
----
-title: "Daemon Engine — Security"
-parent_document: "../ImplementationPlan.md"
----
-
-<!--
-  Consolidated from ImplementationPlan.md §13 (Security) and security-adjacent
-  non-goals from §16.4. For the full authorization model, see authorization.md.
--->
-
-## Overview
+# Security
 
 This document catalogues every security control in the engine, the threat model
-that motivated each one, and the explicit gaps that v1 knowingly accepts. It
-serves as a quick-reference during audits and as a checklist when adding new API
+that motivated each one, and the explicit gaps the engine knowingly accepts. It
+is a quick-reference during audits and a checklist when adding new API
 surfaces or plugin capabilities.
 
 For the full authorization model (claim dictionary, per-endpoint rules, PI/FNI
@@ -30,9 +20,9 @@ trust boundary is drawn at the HTTP edge:
 |------|-------------|---------|
 | **Inside the trust boundary** | Fully trusted | Engine process, in-BEAM plugins, database |
 | **On the trust boundary** | Authenticated + authorized | REST/GraphQL/WS callers with valid JWT |
-| **Outside the trust boundary** | Untrusted | Network clients without JWT. A future gRPC sidecar host (PLUG-D1, deferred) would also sit here as OS child processes |
+| **Outside the trust boundary** | Untrusted | Network clients without JWT |
 
-v1 plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation. The sidecar design in [plugins.md](plugins.md) §9.2.3 (separate OS processes, gRPC, `TDE_PLUGINS_SIDECAR_DIR`) is deferred post-v1.
+Plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation. `TDE_PLUGINS_SIDECAR_*` env vars do nothing.
 
 ---
 
@@ -154,8 +144,8 @@ concern.
 ## Input Validation
 
 - **JSON Schema 2020-12** on every inbound payload: triggers, task completions, data contracts. Strict mode is always on. Library: `ex_json_schema`.
-- **Payload cap**: `TDE_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [configuration.md](configuration.md) for the env var reference.
-- **BPMN linter gate**: deploy-time validation of `<evil:linterRulesetScore>` entries against configured thresholds. See [configuration.md](configuration.md) §14.5.
+- **Payload cap**: `TDE_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [database.md](../guides/operations/database.md).
+- **BPMN linter gate**: deploy-time validation of `<evil:linterRulesetScore>` entries against configured thresholds. See [configuration.md](configuration.md).
 
 ---
 
@@ -177,18 +167,20 @@ partition DDL exists.
 
 ## Plugin Trust Model
 
-| Plugin tier | Process isolation | Identity | Trust rationale |
-|-------------|------------------|----------|-----------------|
-| **In-BEAM** (OTP app) | None — same BEAM VM | `plugin:<name>` (privileged, bypasses claim checks) | Operator compiled it into the release; same trust as engine code |
-| **Sidecar** (gRPC) | Full OS-process isolation (design only) | `plugin:<name>` (privileged, via gRPC bridge) | **Not in v1 (PLUG-D1).** Spec: operator would place it in `TDE_PLUGINS_SIDECAR_DIR`; binary would run as a child process |
+| Plugin | Process isolation | Identity | Trust rationale |
+|--------|------------------|----------|-----------------|
+| In-BEAM OTP app | None — same BEAM VM | `plugin:<name>` (privileged, bypasses claim checks) | Operator compiled it into the release; same trust as engine code |
 
-Both tiers:
-- Run with a privileged identity that bypasses all engine claim checks ([authorization.md](authorization.md) §7).
+In-BEAM plugins:
+
+- Run with a privileged identity that bypasses all engine claim checks ([authorization.md](authorization.md)).
 - Are audited — every `EvilEngine.Api.*` call records the plugin identity in the audit trail.
-- Can be include-listed / exclude-listed via `TDE_PLUGINS_INCLUDE` / `TDE_PLUGINS_EXCLUDE` ([plugins.md](plugins.md) §9.2).
-- Are quarantined on repeated failure ([plugins.md](plugins.md) §9.3).
+- Can be include-listed / exclude-listed via `TDE_PLUGINS_INCLUDE` / `TDE_PLUGINS_EXCLUDE` ([plugins.md](plugins.md)).
+- Are quarantined on `on_load` / `on_ready` failure ([plugins.md](plugins.md)).
 
-Per-plugin authorization scoping (per-plugin claim sets, per-action allow/deny) is a v2 concern.
+Per-plugin authorization scoping (per-plugin claim sets, per-action allow/deny) is not shipped.
+
+There is no sidecar / gRPC plugin host. `TDE_PLUGINS_SIDECAR_*` env vars do nothing.
 
 ---
 

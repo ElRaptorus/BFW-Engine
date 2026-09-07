@@ -1,21 +1,18 @@
----
-title: "Daemon Engine — Configuration"
-parent_document: "../ImplementationPlan.md"
----
+# Configuration
 
-<!--
-  Split from packaging.md (ImplementationPlan.md §14).
-  For Docker, docker-compose, and deployment options, see shipping.md.
--->
+Environment variables, linter-score deploy gate, and database housekeeping.
+Docker and release layout: [shipping.md](./shipping.md). Operator recipes:
+[database.md](../guides/operations/database.md) and
+[deployment.md](../guides/operations/deployment.md).
 
-### 14.3 Configuration sources (priority order)
+## Configuration sources (priority order)
 
 1. Env vars (`TDE_*` — ThomasDaemonEngine; the former `EVIL_` prefix is not read)
 2. `config.exs` compiled-in defaults
 3. `runtime.exs` reading env
 4. `/etc/evil-engine/engine.toml` override (optional, mounted into container)
 
-#### 14.3.1 Application keys (besides `TDE_*` env vars)
+### Application keys (besides `TDE_*` env vars)
 
 | App / key path | Purpose |
 |---|---|
@@ -23,7 +20,7 @@ parent_document: "../ImplementationPlan.md"
 | `config :core_execution, :persistence_adapter` | Module implementing `EvilEngine.Execution.Persistence` behaviour. Default **`EvilEngine.Persistence.ExecutionAdapter`** (production). Set to `EvilEngine.Execution.Persistence.NoOp` in test environments. Used by `ResumeRunner` at boot and by runtime PI/FNI persistence. |
 | `config :core_bpmn, :model_cache_loader` | MFA tuple `{Module, :function}` called by `ModelCache.fetch/1` on a cache miss. The function receives a `process_version_id` (string) and must return `{:ok, bpmn_xml}` or `{:error, :not_found}`. Configured as `{EvilEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}` in `config.exs` to auto-heal the cache from the `process_versions` DB table. |
 | `config :core_bpmn, :seeding_persist_fn` | Optional **callable** (function capture or `&Mod.fun/4`-style) invoked as `persist_fn.(process, bpmn_xml, version_id)` after parse/validate/(optional) linter gate — must return `{:ok, _}` or `{:error, reason}`. Wired at boot by `peripheral_persistence` (or tests) to write `processes` / `process_versions` rows. When `nil`, seeding only populates `ModelCache` (no catalog writes). |
-| `config :core_bpmn, :linter_gate` | Keyword list: `:rules` (JSON string from `TDE_LINTER_GATE`), `:skip_seeding` (boolean from `TDE_LINTER_GATE_SKIP_SEEDING`). See §14.5. |
+| `config :core_bpmn, :linter_gate` | Keyword list: `:rules` (JSON string from `TDE_LINTER_GATE`), `:skip_seeding` (boolean from `TDE_LINTER_GATE_SKIP_SEEDING`). See [Linter-score deploy gate](#linter-score-deploy-gate). |
 | `config :peripheral_plugins, :inbeam_apps` | OTP app atoms to load as in-BEAM plugins (from `TDE_PLUGINS_INBEAM`). |
 | `config :peripheral_plugins, :include_plugins` | Include-only list of plugin names (from `TDE_PLUGINS_INCLUDE`); when non-empty, only listed names load. |
 | `config :peripheral_plugins, :exclude_plugins` | Exclude list of plugin names (from `TDE_PLUGINS_EXCLUDE`); **exclude wins** over include on the same name. |
@@ -50,8 +47,8 @@ Notable env vars:
 | `TDE_DB_SSL` | Enable SSL for the Postgres connection | `false` |
 | `TDE_DEVTOOLS_ENABLED` | Toggle Swagger UI (`/`), GraphQL Playground (`/admin/graphiql`), and OpenAPI spec (`/api/openapi`). Disabled in production to prevent schema reconnaissance | `true` (dev/test), `false` (prod) |
 | `TDE_EXPOSE_OPENAPI_SPEC` | Allow `GET /api/openapi` even when devtools are off. Supports production CI pipelines that need the spec for client generation | `false` |
-| `TDE_GRAPHQL_MAX_DEPTH` | Max GraphQL field nesting. Sized for `SubProcessNode.flowNodes` recursion (SDK default depth 4). See [common-pitfalls.md](./common-pitfalls.md) §P64 | `16` |
-| `TDE_GRAPHQL_MAX_COMPLEXITY` | Max GraphQL query complexity. AshGraphql scores paginated lists as `limit × selected child fields` (including page metadata). Sized for the Studio debugger snapshot (`dataObjectValues` with `limit: 500`, score 6500). See [common-pitfalls.md](./common-pitfalls.md) §P93 | `10000` |
+| `TDE_GRAPHQL_MAX_DEPTH` | Max GraphQL field nesting. Sized for `SubProcessNode.flowNodes` recursion (SDK default depth 4). See [common-pitfalls.md](./common-pitfalls.md) (GraphQL) | `16` |
+| `TDE_GRAPHQL_MAX_COMPLEXITY` | Max GraphQL query complexity. AshGraphql scores paginated lists as `limit × selected child fields` (including page metadata). Sized for the Studio debugger snapshot (`dataObjectValues` with `limit: 500`, score 6500). See [common-pitfalls.md](./common-pitfalls.md) (GraphQL) | `10000` |
 | `TDE_GRAPHQL_INTROSPECTION_DISABLED` | When `true`, reject `__schema` / `__type` root fields | `false` |
 | `TDE_HTTP_PORT` | HTTP, GraphQL, and WebSocket listen port | `4000` |
 | `TDE_WS_CHECK_ORIGIN` | WebSocket `check_origin` setting. `false` disables the Origin header check (safe when using JWT auth). `true` restricts to the endpoint's own origin. A comma-separated list of URLs (e.g. `http://localhost:5173,https://studio.example.com`) allows specific origins. Defaults to `false` because the engine uses bearer-token auth, not cookie-based sessions, so the Origin header carries no security value | `false` |
@@ -66,11 +63,11 @@ Notable env vars:
 | `TDE_JWT_AUDIENCE` | Expected `aud` claim in JWT tokens. If unset, audience is not validated | *(unset)* |
 | `TDE_JWT_ISSUER` | Expected `iss` claim in JWT tokens. If unset, issuer is not validated | *(unset)* |
 | `TDE_TIMER_TICK_MS` | Scheduler precision; `1000` in prod | `1000` |
-| `TDE_LINTER_GATE` | Compact JSON array of linter-gate rules (see §14.5). Unset = gate disabled | *(unset)* |
+| `TDE_LINTER_GATE` | Compact JSON array of linter-gate rules (see [Linter-score deploy gate](#linter-score-deploy-gate)). Unset = gate disabled | *(unset)* |
 | `TDE_LINTER_GATE_SKIP_SEEDING` | `true` turns the gate off for Seeding-Directory auto-deploys while leaving it on for `POST /processes` | `false` |
 | `TDE_MESSAGE_PENDING_TTL` | How long a published message with zero matching subscriptions and zero matching Message Start Events is held in `pending_messages` before being dropped ([routing.md](./routing.md) §3.5.4). Accepts ISO 8601 duration (e.g. `PT60S`, `PT5M`). Set to `PT0S` to disable pending-message hold (unmatched publishes are recorded to `messages` with `correlations=[]` and immediately expired) | `PT60S` |
 | `TDE_SIGNAL_PENDING_TTL` | How long a published signal with zero matching Signal Catch / Signal Boundary subscriptions and zero matching Signal Start Events is held in `pending_signals` before being dropped ([routing.md](./routing.md) §3.5.6). Accepts ISO 8601 duration. Set to `PT0S` to disable pending-signal hold (zero-match publishes are recorded to `signals` with `correlations=[]` and immediately expired, matching pre-pending-signal-hold behavior). Default matches `TDE_MESSAGE_PENDING_TTL` intentionally — a unified "resume-race window" is easier for operators to reason about than per-event-type knobs | `PT60S` |
-| ~~`TDE_ESCALATION_PENDING_TTL`~~ | **Removed.** Escalation D1 dropped the pending-escalation cache; there is no `pending_escalations` table and no late-catch hold | — |
+| ~~`TDE_ESCALATION_PENDING_TTL`~~ | **Removed.** There is no pending-escalation cache and no `pending_escalations` table | — |
 | `TDE_LOG_MIN_SEVERITY` | Global severity floor for the `console` event sink ([event-system.md](./event-system.md) §3.3.3, [observability.md](./observability.md) §11.2). Values: `error` / `warn` / `info` / `debug` / `verbose`. Events below this level are dropped by the console sink only; other sinks filter independently | `info` |
 | `TDE_EVENT_SINK_CONSOLE` | Toggle for the `console` sink. Values: `on` / `off` | `on` |
 | `TDE_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink that backs `/stats`. Disabling this makes `/stats` counters permanently zero | `on` |
@@ -86,22 +83,22 @@ Notable env vars:
 | `TDE_RETENTION_ESCALATED_DAYS` | Same, for state `escalated` | *(unset)* |
 | `TDE_RETENTION_COMPENSATED_DAYS` | Same, for state `compensated` | *(unset)* |
 | `TDE_RETENTION_CANCELLED_DAYS` | Same, for state `cancelled`. REST `DELETE /process-instances/{id}` still omits `cancelled`; only the Mix purge uses this knob | *(unset)* |
-| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | **Unused by the engine.** Operator convention for the Pass B SQL recipe cutoff ([database.md](../guides/operations/database.md)). Unset = operators should not DELETE engine-audit rows | *(unset)* |
+| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | **Unused by the engine.** Operator convention for the message/signal SQL cutoff ([database.md](../guides/operations/database.md)). Unset = do not DELETE those rows | *(unset)* |
 | `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then eligible for operator SQL via the `TDE_RETENTION_ENGINE_AUDIT_DAYS` cutoff convention. When `false`, the engine physically deletes the row on deliver/expire/cancel, so the table only ever holds live `pending` rows. Destroy still requires `state == 'pending'` | `true` |
 | `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals` | `true` |
-| ~~`TDE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`~~ | **Removed / not applicable.** Escalation D1 dropped the pending-escalation cache; there is no `pending_escalations` table | — |
+| ~~`TDE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`~~ | **Removed / not applicable.** There is no `pending_escalations` table | — |
 | `TDE_PARTITION_AHEAD_MONTHS` | Number of future monthly partitions the `mix evil.partitions.ensure` boot hook creates ahead of time for the tables in `EvilEngine.Persistence.Partitions`: `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`. There is no `pending_escalations` table. There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and unpartitioned. At least 1 is enforced regardless of configured value | `3` |
-| `TDE_TOKEN_MAX_BYTES` | **Hard payload cap** applied to the canonicalized JSON byte size of every user-supplied payload across: FNI output tokens via `write_result/2`, Data Object values at DOA-commit time (DOA-only: check runs when the engine materializes each `dataOutputAssociation` post-`onFinished`), published messages/signals/escalations via the PI facade + API trigger surfaces, PI `started_with_context` at start, User Task completion results, async Service Task completion/fail payloads via `engine_facade.finish_async_service_task/2` and `fail_async_service_task/3` (../ImplementationPlan.md §3.6 / [plugins.md](./plugins.md) §9.2.5) — **no dedicated public REST path** for async plugin callbacks; cap is enforced on the facade and REST. Overflow → structured `{:error, :payload_too_large, size, limit}` from the facade; causing FNI transitions to `fatal`; HTTP endpoints return HTTP 413 before any engine-side work runs. Values below `1024` (1 KiB) **refuse boot** with `minimum_required: 1024` in the error (`EvilEngine.Execution.PayloadCap.parse_token_max_bytes/1` from `runtime.exs`); they are not silently clamped. No max — operators running legitimately large-payload workloads can raise this arbitrarily. Configurable for the **entire engine**; no per-process/per-endpoint override in v1 | `65536` (64 KiB) |
+| `TDE_TOKEN_MAX_BYTES` | **Hard payload cap** applied to the canonicalized JSON byte size of every user-supplied payload across: FNI output tokens via `write_result/2`, Data Object values at DOA-commit time (DOA-only: check runs when the engine materializes each `dataOutputAssociation` post-`onFinished`), published messages/signals/escalations via the PI facade + API trigger surfaces, PI `started_with_context` at start, User Task completion results, async Service Task completion/fail payloads via `engine_facade.finish_async_service_task/2` and `fail_async_service_task/3` ([plugins.md](./plugins.md); operator guide: [database.md](../guides/operations/database.md)) — **no dedicated public REST path** for async plugin callbacks; cap is enforced on the facade and REST. Overflow → structured `{:error, :payload_too_large, size, limit}` from the facade; causing FNI transitions to `fatal`; HTTP endpoints return HTTP 413 before any engine-side work runs. Values below `1024` (1 KiB) **refuse boot** with `minimum_required: 1024` in the error (`EvilEngine.Execution.PayloadCap.parse_token_max_bytes/1` from `runtime.exs`); they are not silently clamped. No max — operators running legitimately large-payload workloads can raise this arbitrarily. Configurable for the **entire engine**; no per-process/per-endpoint override in v1 | `65536` (64 KiB) |
 | `TDE_MAX_CONCURRENT_PIS` | **PI admission control (Layer 1)** — soft cap on **new** PI starts via the public API. Enforced as a pre-check inside `Execution.start_process_instance/1` (not on the `DynamicSupervisor`, which runs with `max_children: :infinity`). When the active PI count is at or above the cap, the function returns `{:error, :engine_at_capacity, %{active, limit}}` and `POST /processes/{model_id}/start` responds **503** with `Retry-After: 5`. **Does not apply during resume at boot** — `ResumeRunner` brings every `:running` PI back online regardless of the cap, so the cap may be briefly exceeded after a restart. The cap then resumes governing new starts until active count drops back below the limit. See [`execution.md`](execution.md) §Resume on Startup. Literal `infinity` (default) disables the cap. | `infinity` |
 | `TDE_RESUME_BATCH_SIZE` | **Resume pagination (PF-1)** — batch size for paginated resume of `:running` PIs at boot. `ResumeRunner` pages through the DB one batch at a time, loading at most this many root PI rows (plus their resume-relevant FNIs) before processing them and moving to the next batch. Higher = faster resume on small datasets; lower = bounded peak memory at boot. Must be a positive integer; refusing values ≤ 0 at startup | `1000` |
 | `TDE_PI_START_RATE_LIMIT` | **Start rate limiting (Layer 2)** — maximum number of `POST /processes/{model_id}/start` calls allowed per `TDE_PI_START_RATE_WINDOW_MS` sliding window, **globally** (not per caller). Enforced in `EvilEngineWeb.Http.Plugs.RateLimitPlug` via an ETS token bucket. `0` (default) disables the plug entirely | `0` |
 | `TDE_PI_START_RATE_WINDOW_MS` | Window length in milliseconds for `TDE_PI_START_RATE_LIMIT`. Used only when the limit is > 0 | `1000` |
-| `TDE_JSONB_COMPRESSION` | JSONB column compression algorithm for all heavy-payload columns listed in [data-model.md](./data-model.md) §4.2 / §4.3. `lz4` requires Postgres ≥ 14. Setting this changes only the `default_toast_compression` used by new migrations — existing column data retains whatever compression was applied at write time until rewritten. Intended as the Phase-5 safety hatch if LZ4 measures >10% slower than PGLZ on a representative workload | `lz4` |
-| `TDE_PLUGINS_INBEAM` | **[plugins.md](./plugins.md) §9.2.2**: Comma- or whitespace-separated list of OTP-app names to load as in-BEAM plugins. Order is significant — `on_load` is invoked in list order, sequentially. Apps named here must be present in the release; missing apps are quarantined per [plugins.md](./plugins.md) §9.3. Unset = no in-BEAM plugins | *(unset)* |
-| `TDE_PLUGINS_SIDECAR_DIR` | **[plugins.md](./plugins.md) §9.2.3**: Reserved. Filesystem path that *would* be scanned for sidecar plugin subdirectories with `plugin.toml` manifests. **Unused in v1** (PLUG-D1) — no `SidecarLoader` exists. Parsed in `runtime.exs` as a no-op. Empty string would disable sidecar loading if the host were implemented | `~/.evil/engine/plugins` |
-| `TDE_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md) §9.2 + §9.3**: Comma-separated **include** list of plugin names (OTP-app name string for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied. Sidecar names are reserved for a possible post-v1 host | *(unset)* |
-| `TDE_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md) §9.2 + §9.3**: Comma-separated **exclude** list. Always evaluated against in-BEAM candidates. **Exclude wins** on conflict with `TDE_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
-| `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` | **[plugins.md](./plugins.md) §9.2.3**: Reserved. Consecutive failed sidecar process restarts before quarantine. **Unused in v1** (PLUG-D1) | `5` |
+| `TDE_JSONB_COMPRESSION` | JSONB column compression for heavy-payload columns listed in [data-model.md](./data-model.md). `lz4` requires Postgres ≥ 14. Setting this changes only new writes — existing column data retains whatever compression was applied at write time until rewritten. Operator measurements: [database.md](../guides/operations/database.md). Leave `lz4` unless a representative workload is >10% slower than PGLZ | `lz4` |
+| `TDE_PLUGINS_INBEAM` | **[plugins.md](./plugins.md)**: Comma- or whitespace-separated list of OTP-app names to load as in-BEAM plugins. Order is significant — `on_load` is invoked in list order, sequentially. Apps named here must be present in the release; missing apps are quarantined. Unset = no in-BEAM plugins | *(unset)* |
+| `TDE_PLUGINS_SIDECAR_DIR` | Reserved no-op. No sidecar loader. | `~/.evil/engine/plugins` |
+| `TDE_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **include** list of plugin names (OTP-app name for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied | *(unset)* |
+| `TDE_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **exclude** list. **Exclude wins** on conflict with `TDE_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
+| `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` | Reserved no-op. No sidecar loader. | `5` |
 
 No `TDE_OTEL_*` variables exist in v1. **`TDE_METRICS_ENABLED`** toggles the
 public Prometheus scrape endpoint and in-process reporter startup (`config :peripheral_telemetry, :metrics_enabled`, default `true`).
@@ -216,14 +213,14 @@ TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
 
 # --- Plugins ------------------------------------------------------------------
 # TDE_PLUGINS_INBEAM=
-# Sidecar vars are reserved no-ops in v1 (PLUG-D1); parsed, unused.
+# TDE_PLUGINS_SIDECAR_* are reserved no-ops; parsed, unused.
 TDE_PLUGINS_SIDECAR_DIR=~/.evil/engine/plugins
 # TDE_PLUGINS_INCLUDE=
 # TDE_PLUGINS_EXCLUDE=
 TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT=5
 ```
 
-### 14.4 Minting dev tokens
+## Minting dev tokens
 
 The `docker-compose.yml` ships with `TDE_JWT_HS256_SECRET` set to a known dev
 secret and `TDE_AUTH_DISABLED` **unset** (auth is enforced). Authenticated routes
@@ -263,7 +260,7 @@ TDE_JWT_HS256_SECRET=my-secret TDE_TOKEN_EXP_SECONDS=3600 ./scripts/mint-token.s
 Both tools default to the same secret as `docker-compose.yml`, so tokens work
 against the local engine out of the box.
 
-### 14.5 Linter-score deploy gate
+## Linter-score deploy gate
 
 An external component (the Studio's `bpmn-linter` extension) attaches one or
 more `<evil:LinterRulesetScore>` entries to the BPMN XML at the **definitions
@@ -271,7 +268,7 @@ level**, under `<bpmn:definitions>/<bpmn:extensionElements>/<evil:Properties>`,
 each summarizing the result of one linter ruleset evaluation. The element name
 is capitalised (`evil:LinterRulesetScore`, upper-L) and every field is a string
 attribute (numeric values are bare, no `%`). This is the authoritative shape
-written by the Studio's `UpdateEvilLinterRulesetScoreHandler` (ESP-D17); the
+written by the Studio's `UpdateEvilLinterRulesetScoreHandler`; the
 engine parser matches it exactly:
 
 ```xml
@@ -299,7 +296,7 @@ deploy time, compares them against the configured gate thresholds. Scores are
 scoped to the **definitions** (carried on `%Definitions{linter_scores: [...]}`),
 not to individual processes.
 
-#### 14.5.1 Configuration
+### Gate configuration
 
 The gate is configured once at engine boot via the compact JSON env var
 `TDE_LINTER_GATE`. If the var is unset, the gate is disabled and no linter
@@ -357,13 +354,12 @@ When multiple entries are present, **all** must pass — there is no priority or
 short-circuit logic.
 
 **Rules are global** — they apply to every `POST /processes` (and, by default, every
-Seeding-Directory file) regardless of `processModelId`. There are no per-model_id overrides
-in v1 (../ImplementationPlan.md §16.4).
+Seeding-Directory file) regardless of `processModelId`. There are no per-model_id overrides.
 
 **Rulesets present in the BPMN but not named in the config are ignored** — they do
 not influence the deploy decision and are neither logged nor persisted.
 
-#### 14.5.2 Seeding-Directory behavior
+### Seeding-Directory behavior
 
 By default the gate applies to Seeding-Directory auto-deploys as well. Behavior on
 failure:
@@ -377,7 +373,7 @@ The gate can be disabled for Seeding-Directory only by setting
 `TDE_LINTER_GATE_SKIP_SEEDING=true`. In that case the gate still applies to
 `POST /processes`.
 
-#### 14.5.3 Runtime behavior
+### Runtime behavior
 
 - Gate evaluation is **deploy-time only** — both on `POST /processes` and on
   Seeding-Directory loads.
@@ -416,7 +412,7 @@ The gate can be disabled for Seeding-Directory only by setting
   HTTP, `error` for Seeding-Directory skips) including the rejected filename
   (seeding) or the deployer identity (API) plus the full failures array.
 
-#### 14.5.4 Storage
+### Storage
 
 Linter scores are **not** stored separately on the `process_versions` row. They
 live inside `bpmn_xml` and can be re-parsed on demand if a caller wants to report
@@ -427,7 +423,7 @@ If reporting on linter scores becomes a first-class query need later, it can be
 backed by a view / generated column over `bpmn_xml` without any schema migration
 to existing rows.
 
-#### 14.5.5 Non-goals for v1 (see ../ImplementationPlan.md §16.4)
+### Not in v1
 
 - Per-`process_model_id` gate overrides
 - Runtime API for changing gate thresholds (boot-only in v1)
@@ -435,20 +431,20 @@ to existing rows.
 - `computedAtIso` staleness checks (max-age rejection)
 - Persisting linter scores on the `process_versions` row
 
-### 14.6 Database housekeeping & retention
+## Database housekeeping & retention
 
-High-volume operators running tens of thousands of PIs per day need an explicit retention story; low-volume operators need the engine to never delete anything they did not opt into. **Pass A** (PI-rooted trees) is an opt-in Mix task. **Pass B** (engine-wide audit tables with no PI affinity) is operator SQL. There is no `RetentionRunner` GenServer (RET-D1). A fresh installation never deletes anything until the operator sets at least one `TDE_RETENTION_*_DAYS` env var and schedules the Mix task, or runs the SQL recipe.
+High-volume operators running tens of thousands of PIs per day need an explicit retention story; low-volume operators need the engine to never delete anything they did not opt into. Process-instance trees are an opt-in Mix task (`mix evil.retention.purge`). Message and signal audit rows are operator SQL. A fresh installation never deletes anything until the operator sets at least one `TDE_RETENTION_*_DAYS` env var and schedules the Mix task, or runs the SQL recipe. Operator guide: [database.md](../guides/operations/database.md).
 
-#### 14.6.1 Configurable partitioning
+### Configurable partitioning
 
-Audit tables that grow in append-only fashion ship as `PARTITION BY RANGE` on their monotonically-growing timestamp column from v1 onwards ([data-model.md](./data-model.md) §4.3).
+Audit tables that grow in append-only fashion ship as `PARTITION BY RANGE` on their monotonically-growing timestamp column ([data-model.md](./data-model.md)).
 
-**Phase 1 ships:**
+**Partitioned tables:**
 
-| Table | Partition column | Phase | Populates when |
-|---|---|---|---|
-| `process_instance_events` | `occurred_at` | 1 | Retained empty — built-in database sink removed |
-| `data_object_writes` | `created_at` | 1 | Always |
+| Table | Partition column | Populates when |
+|---|---|---|
+| `process_instance_events` | `occurred_at` | Retained empty — built-in database sink removed |
+| `data_object_writes` | `created_at` | Always |
 
 **Shipped (partitioned on `published_at`):** `messages`, `pending_messages`, `signals`, `pending_signals`. There are no `escalations` or `compensations` tables.
 
@@ -473,9 +469,9 @@ The partition management logic lives in `EvilEngine.Persistence.Partitions` with
 
 Boot-time `ensure_partitions` is **not** a `pg_partman` replacement. It only pre-creates upcoming partitions; it never `DETACH`/`DROP`s old ones. Operators with long-uptime nodes (or who need to drop aged partitions) should run `pg_partman` (or equivalent) alongside cron. See [database.md](../guides/operations/database.md).
 
-`timer_start_schedules` is **operational and unpartitioned**. Cycle Timer Start rows are deleted on undeploy / `StartEventManager.unregister_timer_starts/1` (and by FK CASCADE from `process_versions`). Pass B SQL must not DELETE them. PI-scoped catch/boundary timers stay in FNI `type_properties` and Scheduler ETS. There is no `engine_timers` table.
+`timer_start_schedules` is **operational and unpartitioned**. Cycle Timer Start rows are deleted on undeploy / `StartEventManager.unregister_timer_starts/1` (and by FK CASCADE from `process_versions`). Operator SQL must not DELETE them. PI-scoped catch/boundary timers stay in FNI `type_properties` and Scheduler ETS. There is no `engine_timers` table.
 
-#### 14.6.2 Pass A — Mix-scheduled PI tree purge
+#### Mix-scheduled PI tree purge
 
 `mix evil.retention.purge` (and `EvilEngine.Persistence.Release.purge_retention/0` for release eval) hard-deletes aged terminal **root** process-instance trees. Schedule it with cron or systemd. The engine does not wake a GenServer.
 
@@ -493,31 +489,31 @@ There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 
 **KEEP_AFTER_TRANSITION.** When `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` (or the signals twin), `mark_pending_delivered`, expire, and cancel **destroy** the pending row instead of updating state. Destroy still requires `state == 'pending'` so a lost claim cannot wipe another waiter. Default `true` keeps terminal-state rows as delivery-attempt audit until operator SQL ages them out.
 
-#### 14.6.3 Pass B — operator SQL (not in-engine)
+#### Operator SQL (message / signal audit)
 
 `TDE_RETENTION_ENGINE_AUDIT_DAYS` is an unused operator convention for the SQL recipe in [database.md](../guides/operations/database.md). The engine never sweeps `messages` / `signals` / terminal `pending_*` rows. REST/CLI `purge` and `purge_audit_data` enforcement are deferred / not v1.
 
-#### 14.6.4 Interaction matrix with other features
+### Interaction with other features
 
 | Feature | Interaction |
 |---|---|
-| **DB event sink removed** | `process_instance_events` is no longer populated — the built-in database sink was removed. Pass A still deletes leftover rows for a purged PI. Pass B is operator SQL and is unaffected by event sinks. |
-| **Studio engine-debugger views** | The **BPMN-flow view** reads always-on kernel tables. Pass A trims reach for aged terminal PIs. Pass B SQL (when operators run it) caps how far back the message/signal delivery panels reach. |
-| **Resume** | Irrelevant — Pass A only touches terminal trees. A `running` PI is never selected. A `pending` pending-message or pending-signal is always preserved regardless of age. |
+| **DB event sink removed** | `process_instance_events` is no longer populated — the built-in database sink was removed. Mix `evil.retention.purge` still deletes leftover rows for a purged PI. Operator SQL for message/signal tables is independent of event sinks. |
+| **Studio engine-debugger views** | The **BPMN-flow view** reads always-on kernel tables. Mix purge trims reach for aged terminal PIs. Operator SQL (when run) caps how far back the message/signal delivery panels reach. |
+| **Resume** | Mix purge only touches terminal trees. A `running` PI is never selected. A pending message or pending signal is always preserved regardless of age. |
 | **`data_object_writes` always-on** | Purged together with the parent PI tree. A Data Object write audit can live no longer than the PI whose writes it records. |
 | **External sinks** | Retention does not affect data already shipped to external sinks. There are no purge bus events; operators who need a trail log Mix/cron output or wrap the SQL recipe. |
-| **Monthly partitions** | Row `DELETE`s from Pass A land in the right partition automatically. Dropping old partitions is an operator `pg_partman` (or equivalent) job — boot-time `ensure_partitions` does not drop. `timer_start_schedules` is unpartitioned and not Pass B. |
+| **Range partitions** | Row `DELETE`s from Mix purge land in the right partition automatically. Dropping old partitions is an operator `pg_partman` (or equivalent) job — boot-time `ensure_partitions` does not drop. `timer_start_schedules` is unpartitioned; do not DELETE it with audit SQL. |
 | **`TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false`** | `pending_messages` is zero-retention for terminal-state rows — rows are destroyed on deliver/expire/cancel. Operator SQL over terminal pending rows then finds nothing under normal operation. |
 | **`TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false`** | Identical semantics for `pending_signals`. Independent per-table. |
-| **`TDE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`** | **Not applicable.** Escalation D1 dropped the pending-escalation cache. |
-| **Cross-PI broadcasts & unmatched publishes** | A `messages` row that fanned out to 5 PIs still occupies one row. Pass A does not delete it. Pass B SQL deletes by `published_at` alone. |
-| **REST `DELETE /process-instances/{id}`** | Remains **soft-delete of one PI + its FNIs**. It does not walk children, does not hard-delete DOs/gateway rows, and still omits `cancelled`. Pass A is the hard-delete path. |
+| **Pending escalations** | **Not applicable.** There is no pending-escalation cache. |
+| **Cross-PI broadcasts & unmatched publishes** | A `messages` row that fanned out to 5 PIs still occupies one row. Mix purge does not delete it. Operator SQL deletes by `published_at` alone. |
+| **REST `DELETE /process-instances/{id}`** | Remains **soft-delete of one PI + its FNIs**. It does not walk children, does not hard-delete DOs/gateway rows, and still omits `cancelled`. Mix `evil.retention.purge` is the hard-delete path. |
 
-#### 14.6.5 Non-goals for v1 (see ../ImplementationPlan.md §16.4)
+### Not shipped
 
-- `RetentionRunner` OTP child, REST/CLI `purge`, per-PI bus events, in-engine Pass B.
+- A `RetentionRunner` GenServer, REST/CLI `purge`, and per-PI bus events for purge.
 - Automatic archival to external storage (S3, GCS, cold-storage Postgres).
-- Per-PI retention overrides (e.g. "keep this one PI forever") — retention is global by terminal state.
-- Per-table engine-audit knobs inside the engine: one operator convention (`TDE_RETENTION_ENGINE_AUDIT_DAYS`) plus SQL. Operators who need "keep messages for 1y, signals for 30d" vary the SQL cutoffs.
+- Per-PI retention overrides (e.g. "keep this one PI forever") — Mix purge is global by terminal state.
+- Engine-owned sweep of `messages` / `signals` / terminal `pending_*` — operators run the SQL recipe (or `pg_partman`) themselves. `TDE_RETENTION_ENGINE_AUDIT_DAYS` is a cutoff convention only.
 - Cascading engine-audit rows with PI purge: a `messages` row is not deleted when any of its recipient PIs is purged.
-- Event-level retention (keep PI rows but drop old events): in v1 a PI's leftover `process_instance_events` live as long as the PI row does.
+- Event-level retention (keep PI rows but drop old events): leftover `process_instance_events` live as long as the PI row does.

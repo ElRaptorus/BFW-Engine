@@ -38,6 +38,9 @@ TDE_AUTH_DISABLED=false
 
 ## Payload and Compression
 
+Hard payload cap and JSONB toast algorithm. Operator guide:
+[Database administration](../operations/database.md).
+
 ```bash
 TDE_TOKEN_MAX_BYTES=65536
 TDE_JSONB_COMPRESSION=lz4
@@ -93,12 +96,13 @@ TDE_RETENTION_ESCALATED_DAYS=
 TDE_RETENTION_COMPENSATED_DAYS=
 TDE_RETENTION_CANCELLED_DAYS=
 TDE_RETENTION_ENGINE_AUDIT_DAYS=
+TDE_PARTITION_INTERVAL=quarterly
 TDE_PARTITION_AHEAD_MONTHS=3
 TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
 TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
 ```
 
-`mix evil.retention.purge` hard-deletes aged terminal PI trees. `TDE_RETENTION_RUN_INTERVAL` is ignored (cron owns the interval). `TDE_RETENTION_ENGINE_AUDIT_DAYS` is an unused convention for the SQL recipe in [database.md](../operations/database.md). There is no `TDE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`.
+`mix evil.retention.purge` hard-deletes aged terminal PI trees. `TDE_RETENTION_RUN_INTERVAL` is ignored (cron owns the interval). `TDE_RETENTION_ENGINE_AUDIT_DAYS` is not read by the engine; use it as the cutoff for the SQL recipe in [database.md](../operations/database.md).
 
 ## Prometheus Metrics
 
@@ -117,10 +121,10 @@ TDE_PI_START_RATE_WINDOW_MS=1000
 
 ## Plugins
 
+In-BEAM OTP apps only. `TDE_PLUGINS_SIDECAR_*` are reserved no-ops.
+
 ```bash
 TDE_PLUGINS_INBEAM=
-TDE_PLUGINS_SIDECAR_DIR=~/.evil/engine/plugins
 TDE_PLUGINS_INCLUDE=
 TDE_PLUGINS_EXCLUDE=
-TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT=5
 ```

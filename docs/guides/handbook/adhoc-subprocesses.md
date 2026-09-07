@@ -51,7 +51,7 @@ overall execution order.
 ## §2 Execution Modes
 
 The `implementation` attribute on `<bpmn:adHocSubProcess>` selects between two
-fundamentally different execution models (AH-D3).
+fundamentally different execution models.
 
 ### §2.1 Engine-managed mode (no `implementation` attribute)
 
@@ -62,7 +62,7 @@ optional controls:
   ad-hoc scope starts, that must return a list of flow node IDs. Those
   activities are activated immediately.
 - **No `evil:activeElements`** — every inner activity that has **no incoming
-  sequence flow** (the "enabled set", AH-D8) auto-activates immediately.
+  sequence flow** (the "enabled set") auto-activates immediately.
   Activities that *do* have an incoming sequence flow become enabled only
   after their predecessor finishes (§5).
 
@@ -109,7 +109,7 @@ human-in-the-loop workflows.
 > The ad-hoc sub-process contains tools: `LookupOrder`, `CheckInventory`,
 > `CreateTicket`, `SendEmail`, `EscalateToHuman`. The AI plugin inspects the
 > inquiry, picks tools based on reasoning, may call `LookupOrder` multiple
-> times with different parameters (AH-D16 — the same activity can be
+> times with different parameters (the same activity can be
 > activated more than once; each call creates a new FNI), and calls `complete`
 > once the inquiry is resolved. See the fully worked example plugin in
 > `examples/plugins/adhoc/ai_toolbox/`.
@@ -125,8 +125,8 @@ human-in-the-loop workflows.
 
 ## §3 Ordering: Parallel vs. Sequential
 
-The `ordering` attribute (`Parallel` or `Sequential`, default `Parallel`,
-AH-D5) controls how many inner activities may be active at once.
+The `ordering` attribute (`Parallel` or `Sequential`, default `Parallel`)
+controls how many inner activities may be active at once.
 
 ### §3.1 Parallel ordering (default)
 
@@ -142,7 +142,7 @@ only narrows the *initial* set, it does not impose an order among them.
 
 At most one inner activity is active at a time.
 
-- **Engine-managed + Sequential requires `evil:activeElements`** (AH-D18). The
+- **Engine-managed + Sequential requires `evil:activeElements`**. The
   *order of the list* returned by the FEEL expression is used only to pick the
   **first** matching ID. Sequential engine-managed mode activates that one
   activity at start; remaining list IDs are logged and ignored. After it
@@ -182,7 +182,7 @@ selected still vary run-to-run.
 
 ### §4.1 Completion condition (FEEL expression)
 
-`<bpmn:completionCondition>` is the standard BPMN child element (AH-D4 — not
+`<bpmn:completionCondition>` is the standard BPMN child element (not
 an `evil:*` extension), a FEEL expression re-evaluated after every inner
 activity completes. It receives three dedicated bindings, present **only**
 during this evaluation — the standard `token` / `this` / `context` bindings
@@ -201,7 +201,7 @@ When the expression evaluates to `true`, the ad-hoc sub-process completes.
 
 ### §4.2 `cancelRemainingInstances`
 
-Boolean, default `true` (AH-D6):
+Boolean, default `true`:
 
 - **`true`** — the moment the completion condition fires, every remaining
   active/waiting inner FNI is interrupted immediately.
@@ -216,7 +216,7 @@ Boolean, default `true` (AH-D6):
 
 ### §4.3 Auto-complete (no completion condition, engine-managed)
 
-When neither `completionCondition` nor `implementation` is set (AH-D9), the
+When neither `completionCondition` nor `implementation` is set, the
 sub-process auto-completes once **every** inner activity has been performed
 at least once. This is the BPMN spec's default completion behavior.
 
@@ -234,14 +234,14 @@ fully in charge and must call `facade.adhoc_subprocesses.complete.(child_process
 ## §5 Inner Activities and Sequence Flows
 
 Sequence flows *inside* an ad-hoc sub-process are optional and express
-partial dependencies, not a full execution order (AH-D8):
+partial dependencies, not a full execution order:
 
 - Activities with **no incoming sequence flow** form the "enabled set" —
   available for activation from the start.
 - Activities with an incoming sequence flow become enabled only after their
   predecessor completes.
 - You can freely mix free-standing activities and short dependency chains.
-- The same activity can be activated more than once (AH-D16) — each
+- The same activity can be activated more than once — each
   activation creates a brand-new flow node instance; there is no "already ran"
   restriction at the engine level.
 
@@ -257,7 +257,7 @@ partial dependencies, not a full execution order (AH-D8):
 ## §6 Boundary Events
 
 Every boundary event type supported on an Embedded Subprocess is also
-supported on the ad-hoc sub-process shell (AH-D13): Error, Timer, Message,
+supported on the ad-hoc sub-process shell: Error, Timer, Message,
 Signal, Escalation, Conditional, and Compensation.
 
 - **Timer boundary (non-interrupting)** — a reminder pattern: "notify someone
@@ -276,7 +276,7 @@ Signal, Escalation, Conditional, and Compensation.
 ## §7 Data Pipeline
 
 The ad-hoc sub-process shell supports the same data pipeline extensions as
-every other subprocess variant (AH-D14):
+every other subprocess variant:
 
 - **`evil:inputMapping`** — shapes the child PI's initial token from the
   parent's token.
@@ -293,7 +293,7 @@ every other subprocess variant (AH-D14):
 | Scenario | Ordering | Mode | `evil:activeElements` | Completion | Example |
 |----------|----------|------|-------------------------|------------|---------|
 | Independent checklist tasks | Parallel | Engine | Optional | All performed | Onboarding |
-| Deterministic multi-step pipeline | Sequential | Engine | Required (AH-D18) | Condition or all performed | Data migration |
+| Deterministic multi-step pipeline | Sequential | Engine | Required | Condition or all performed | Data migration |
 | AI agent with dynamic tool selection | Parallel or Sequential | Plugin | N/A | Plugin calls `complete` | AI Toolbox |
 | Human-driven task selection | Parallel | Plugin (or REST) | N/A | Condition or plugin `complete` | Repair Workshop |
 | Rule-driven subset activation | Parallel | Engine | FEEL filter | Condition | Document processing |
@@ -303,26 +303,26 @@ every other subprocess variant (AH-D14):
 
 ## §9 Limitations and Gotchas
 
-- **No Start Events or End Events inside the ad-hoc sub-process** (AH-D7) — a
+- **No Start Events or End Events inside the ad-hoc sub-process** — a
   BPMN 2.0 spec constraint, enforced at deploy time
   (`adhoc_subprocess_has_start_event` / `adhoc_subprocess_has_end_event`).
 - **No ad-hoc inside ad-hoc** — nesting restriction, same rationale as nested
   transactions (`nested_adhoc_subprocess`).
-- **No ad-hoc inside an Event Subprocess** — a platform decision (AH-D15), not
-  a spec violation: an unstructured toolbox as an event handler has no clear
-  use case and is disallowed (`adhoc_inside_event_subprocess`). Ad-hoc inside
-  a *plain* embedded subprocess, and embedded subprocess/call activity inside
-  an ad-hoc ("complex tools"), are both fine.
+- **No ad-hoc inside an Event Subprocess** — disallowed
+  (`adhoc_inside_event_subprocess`). An unstructured toolbox is not a
+  useful event handler. Ad-hoc inside a *plain* embedded subprocess, and
+  embedded subprocess/call activity inside an ad-hoc ("complex tools"),
+  are both fine.
 - **The ad-hoc sub-process must contain at least one activity** — an empty
   toolbox is rejected at deploy time (`adhoc_subprocess_empty`).
 - **Retry granularity: the entire ad-hoc scope is retried as a unit.** A
   `resetToFlowNodeInstanceId` checkpoint pointing inside an ad-hoc sub-process
-  scope is rejected (AH-D17, same rationale as Transaction's TX-D8) — the
+  scope is rejected — the
   inner scope's non-deterministic execution order makes a mid-scope checkpoint
   meaningless. Retry from the shell FNI (or further upstream) instead. See
   [Retry](retry.md).
 - **Sequential engine-managed without `evil:activeElements` is rejected at
-  deploy time** (AH-D18) and flagged by the Studio linter's
+  deploy time** and flagged by the Studio linter's
   `adhoc-subprocess-config` rule even before deployment.
 - **`completionCondition`'s FEEL bindings are not the standard ones.** Only
   `performedActivities`, `activeCount`, and `totalActivities` are available —

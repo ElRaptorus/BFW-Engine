@@ -1,22 +1,12 @@
----
-title: "Daemon Engine — Testing Strategy"
-parent_document: "../ImplementationPlan.md"
----
+# Testing
 
-<!--
-  Extracted from ImplementationPlan.md §12 (Testing strategy).
-  For numbering and plan-wide context, see the parent document.
--->
-
-## 12. Testing strategy
-
-### 12.1 Unit tests
+## Unit tests
 
 - Per BPMN element handler: state transitions, valid/invalid payloads, contract violations, error codes.
 - Per FEEL expression pattern: precompile + bind + evaluate.
 - Per Ash action: permitted/denied identity scenarios.
 
-### 12.2 Property-based tests
+## Property-based tests
 
 **Specified, not implemented in the quality gate.** `mix.exs` does not depend on PropCheck or Concuerror. `stream_data` appears only as a transitive Ash/crux optional. There are no `property` / `ExUnitProperties` tests in the tree.
 
@@ -25,12 +15,12 @@ When they land:
 - `stream_data` / `PropCheck`: generate random valid BPMN subsets; assert round-trip parse, validate, execute semantics.
 - `Concuerror`: prove race-freedom for PI ↔ FNI message passing, timer scheduler, event bus fan-out.
 
-### 12.3 Conformance tests
+## Conformance tests
 
-- Import the **DMN FEEL TCK** for expression coverage (Phase 2+).
+- Import the **DMN FEEL TCK** for expression coverage (not yet in the quality gate).
 - Build our own **Evil BPMN conformance corpus**: `.bpmn` fixtures + YAML test spec describing start inputs, expected event ordering, expected final state/token. Cases derived from the BPMN 2.0 spec's normative examples.
 
-#### 12.3.1 YAML-driven conformance framework (Phase 1)
+### YAML-driven conformance framework
 
 The Phase 1 conformance corpus lives in `test/conformance/` and is executed via
 `mix test.conformance` (or as part of `mix test.full` / `mix quality`). YAML specs
@@ -44,7 +34,7 @@ every environment.
 | Module | File | Purpose |
 |--------|------|---------|
 | `EvilEngine.Test.ConformanceRunner` | `test/support/conformance_runner.ex` | Loads YAML specs, deploys BPMNs, starts PIs, waits for completion, asserts expectations |
-| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish). `find_waiting_fni/2` skips MI/loop shells (`type_properties.mi_shell`). `finish_waiting_user_task_by_node_id/3` is required when more than one user task may be waiting (cancel-arm gate plus nested wait). `finish_transaction_cancel_gate_after_nested_idle/2` finishes `Tx_CancelGate` only after nested work is idle-waiting (C236–C238 / TX-7–TX-9). Interrupting-boundary proximity fixtures (ESC-1, ESC-3) use Escalation End after the arm user task so the child PI does not dispatch a None End writer that the boundary would kill mid-persist (P45). |
+| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish). `find_waiting_fni/2` skips MI/loop shells (`type_properties.mi_shell`). `finish_waiting_user_task_by_node_id/3` is required when more than one user task may be waiting (cancel-arm gate plus nested wait). `finish_transaction_cancel_gate_after_nested_idle/2` finishes `Tx_CancelGate` only after nested work is idle-waiting (C236–C238 / TX-7–TX-9). Interrupting-boundary proximity fixtures (ESC-1, ESC-3) use Escalation End after the arm user task so the child PI does not dispatch a None End writer that the boundary would kill mid-persist. See [ExUnit and CI constraints](#exunit-and-ci-constraints). |
 
 **Test tiers:**
 
@@ -54,7 +44,7 @@ every environment.
 | Interactive | Requires mid-execution steps (user task finish, async completion, engine restart). | `interactive` | Hand-written `test` blocks using `ProcessInteractions` |
 | Error | Tests start-time rejections (ambiguous start event, oversize payload). | `error` | Hand-written `test` blocks asserting HTTP error status codes |
 
-Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See `common-pitfalls.md` P81. Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing. When an EBG catch sibling **wins** (C8), wait until every sibling is `:waiting` before completing the work that satisfies the winner — cancelling a sibling mid-persist tears the shared sandbox connection (P45/P82). C8 uses `conditional_catch_ebg_conditional_wins.bpmn` (a parallel user task writes the Data Object after both catches are parked); C9 keeps `conditional_catch_ebg.bpmn` with a timer-first start context.
+Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See [ExUnit and CI constraints](#exunit-and-ci-constraints). Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing. When an EBG catch sibling **wins** (C8), wait until every sibling is `:waiting` before completing the work that satisfies the winner — cancelling a sibling mid-persist tears the shared sandbox connection. C8 uses `conditional_catch_ebg_conditional_wins.bpmn` (a parallel user task writes the Data Object after both catches are parked); C9 keeps `conditional_catch_ebg.bpmn` with a timer-first start context.
 
 **YAML spec format:**
 
@@ -84,24 +74,24 @@ and resume-after-restart.
 (basic lifecycle, error boundary catch, no-boundary fatal, result mapping via
 out_mappings), and combined XOR-to-Call-Activity flows.
 
-### 12.4 Integration tests
+## Integration tests
 
-Integration tests are distinct from the conformance corpus (§12.3) — they exercise
+Integration tests are distinct from the [conformance corpus](#conformance-tests) — they exercise
 real BPMNs end-to-end across every layer (HTTP → engine → persistence → GraphQL
 subscriptions) and verify state at the database level, not just observable behavior
 at the edge.
 
-#### 12.4.1 Infrastructure
+### Infrastructure
 
 - Ecto sandbox against real Postgres (docker-compose service). No mocks below the
   Ash action layer; every test commits/rolls back against the real schema.
 - Full HTTP + GraphQL + WebSocket smoke suite running the full Phoenix endpoint.
-- Fixtures reuse the `.bpmn` + YAML test-spec format from §12.3, extended with a
+- Fixtures reuse the `.bpmn` + YAML test-spec format from [Conformance tests](#conformance-tests), extended with a
   `processChain` section that declares the expected fan-out of child PIs and
-  nested scopes (see §12.4.3).
+  nested scopes (see [Assertion framework](#assertion-framework)).
 - Every test runs under its own PI nonce so suites can run in parallel.
 
-#### 12.4.1a Execution Integration Tests (Level 1 — Phase 1)
+### Execution integration tests
 
 The first tier of execution integration tests verifies the core PI/FNI runtime
 against real `.bpmn` fixture files, a live PostgreSQL database (Ecto Sandbox),
@@ -115,10 +105,10 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
 | Module | Purpose |
 |---|---|
-| `ExecutionCase` | Case template: persist adapter + event collector; sandbox checkout (or pool truncate) **before** `Scheduler.reset_state` (P90); PI cleanup |
+| `ExecutionCase` | Case template: persist adapter + event collector; sandbox checkout (or pool truncate) **before** `Scheduler.reset_state`; PI cleanup |
 | `EventCollector` + `EventCollector.Sink` | EventSink-based event accumulator for ordered sequence assertions |
 | `BpmnLoader` | Parse `.bpmn` fixture → `ModelCache.put_new/2` in one call |
-| `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `await_child_process_instance_ids/2`, `fetch_flow_node_instances/1`, `assert_pi_state!/2` (always runs `assert_execution_chain!/2` unless `verify_execution_chain: false`: non-boundary `input_token` map before input mapping, finished non-boundary `output_token` map after output mapping, timestamps, all FNIs terminal on a terminal PI, Started → optional `active→waiting` StateChanged → Finished with matching `terminal_state`; parked types plus MI/loop shells with iterations must have StateChanged — P87), `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes (P45/P82). `fetch_process_instance/1` returns `nil` only for a genuine not-found. |
+| `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `await_child_process_instance_ids/2`, `fetch_flow_node_instances/1`, `assert_pi_state!/2` (always runs `assert_execution_chain!/2` unless `verify_execution_chain: false`: non-boundary `input_token` map before input mapping, finished non-boundary `output_token` map after output mapping, timestamps, all FNIs terminal on a terminal PI, Started → optional `active→waiting` StateChanged → Finished with matching `terminal_state`; parked types plus MI/loop shells with iterations must have StateChanged), `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes. `fetch_process_instance/1` returns `nil` only for a genuine not-found. |
 | `ProcessInteractions` | `find_waiting_fni/2` / `await_waiting_flow_node_instance/3` skip MI/loop **shell** FNIs (`type_properties.mi_shell`). Finish-user-task / finish-async helpers must target iteration FNIs, not the shell. |
 
 **BPMN fixtures** (`test/fixtures/bpmns/`):
@@ -160,7 +150,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
 Cookbook boot tests live under `test/integration/plugins/` because they need Registry, Loader, EngineEventBus, and Bandit.
 
-#### 12.4.2 BPMN execution scenario matrix
+### BPMN execution scenario matrix
 
 Every integration scenario runs a **real BPMN** end-to-end through the engine.
 The suite must cover the Cartesian product of the following axes; combinations
@@ -217,7 +207,7 @@ and skipped with a recorded reason:
   - Exactly one `[:evil_engine, :escalation, :uncaught]` telemetry event + one `warn` log, with the full ancestor-PI chain and throw-site FNI id.
   - No PI transitions to `fatal` or `escalated` — an uncaught Intermediate Throw is a pure no-op for terminal state.
 
-#### 12.4.3 Assertion framework
+### Assertion framework
 
 Every scenario runs the following assertion bundle against the committed database
 state **after** the root PI reaches a terminal state (polled via the GraphQL
@@ -274,15 +264,15 @@ state **after** the root PI reaches a terminal state (polled via the GraphQL
 - `:telemetry` counter `engine.pi.spawned` increment equals the total PI count declared by the fixture (root + children).
 - `:telemetry` counter `engine.fni.executed` increment equals the total FNI count declared by the fixture.
 
-#### 12.4.4 Resume & crash-recovery variants
+### Resume and crash-recovery variants
 
-Every scenario in §12.4.2 is run at least once in **crash-resume mode**:
+Every scenario in the [BPMN execution scenario matrix](#bpmn-execution-scenario-matrix) is run at least once in **crash-resume mode**:
 
 1. Start the root PI, wait for the fixture-declared "midpoint marker" FNI to reach `active`.
 2. Kill the engine OS process uncleanly (SIGKILL from the test harness).
 3. Restart the engine via the same release binary used in production.
 4. Assert resume is automatic, every still-`running` PI rehydrates against its original `process_version_id` (soft-deleted versions remain resolvable for resume), and no PI is left in `running` state forever.
-5. Let the PI finish; run the full §12.4.3 assertion bundle.
+5. Let the PI finish; run the full [assertion framework](#assertion-framework) bundle.
 6. ~~Additionally assert that `process_instance_events` contains both the pre-crash and post-crash segments in the correct temporal order, with **no gaps** and **no duplicate events** straddling the crash boundary.~~ **Superseded** — `process_instance_events` is no longer populated; crash-resume correctness is asserted via kernel tables and FNI state only.
 
 **Data Object crash-resume variants**
@@ -293,20 +283,20 @@ touches Data Objects is also run twice with injected crash points around writes:
 - **DO-SIGKILL-mid-transaction**: the test harness arms a fault injector that aborts the engine process **while** a specific Data Object write transaction is in flight (SIGKILL on the BEAM between the DOA-driven write-transaction entry and COMMIT). After restart, assert that Postgres rolled the transaction back atomically: either **both** kernel-state rows (`data_objects` upsert + `data_object_writes` insert) are present, or **neither** is. The resumed PI's in-memory cache matches `data_objects` exactly, so the DOA replays on resume and completes normally (per the FNI idempotency rules — the FNI re-runs its `onFinished` commit, the DOA re-fires, and the write-transaction succeeds on the second attempt). The final `data_object_writes` sequence has **no partial/phantom** rows.
 - **DO-SIGKILL-post-commit-pre-event**: crash after the write transaction has committed but **before** the PI has published the `%Event.DataObjectWritten{}` onto `EngineEventBus` (i.e. before any of the `console`/`websocket` sinks saw it). Assert that after resume, downstream flow proceeds as if the write had happened (it did — it's in the DB), no duplicate `data_object_writes` row is produced by retry. The test asserts the kernel-state rows are correct.
 
-#### 12.4.5 Deploy-rejection scenarios
+### Deploy-rejection scenarios
 
 Negative-path integration tests for the deploy surface:
 
 - BPMN missing or blank `<evil:version>` → `422`, matches deploy-time validation.
-- BPMN failing the configured linter gate ([configuration.md](configuration.md) §14.5) → `422` with structured `failures` body. Every `reason` code is exercised at least once across the fixture set: `ruleset_missing`, `score_below_minimum`, `errors_exceed_maximum`, `warnings_exceed_maximum`, `compliance_status_mismatch`, `schema_version_mismatch`.
+- BPMN failing the configured linter gate ([configuration.md](configuration.md) — Linter-score deploy gate) → `422` with structured `failures` body. Every `reason` code is exercised at least once across the fixture set: `ruleset_missing`, `score_below_minimum`, `errors_exceed_maximum`, `warnings_exceed_maximum`, `compliance_status_mismatch`, `schema_version_mismatch`.
 - Seeding-Directory variant of the above: the same bad BPMN placed in `TDE_SEEDING_DIRECTORY` → file is skipped, an `error` JSON log is emitted carrying the filename and failures, engine startup continues, no `process_version` row is created.
 - Deleted version: `POST /processes/{model_id}/start` against a deleted version is rejected with the documented error code; existing running PIs on that version continue to run and resume cleanly across a restart.
 
-#### 12.4.6 Payload-cap rejection scenarios
+### Payload-cap rejection scenarios
 
-Negative-path integration tests exercising `TDE_TOKEN_MAX_BYTES` enforcement at every boundary identified in §5.5 and §10.1.1. All tests run with the default cap of `65536` bytes unless stated. The helpers `mint_payload(n_bytes)` and `oversize_payload()` = `mint_payload(65537)` are shared across fixtures.
+Negative-path integration tests exercising `TDE_TOKEN_MAX_BYTES` enforcement at every boundary listed in [configuration.md](configuration.md). All tests run with the default cap of `65536` bytes unless stated. The helpers `mint_payload(n_bytes)` and `oversize_payload()` = `mint_payload(65537)` are shared across fixtures.
 
-- **CAP-WRITE-RESULT**: a Script Task handler calls `write_result/2` with `oversize_payload()`. **Assert:** facade returns `{:error, :payload_too_large, %{size: 65537, limit: 65536}}`; FNI row ends with `state='fatal'` and `reason = %{kind: :payload_too_large, field: :fni_output, size: 65537, limit: 65536}`; no downstream FNI is ever created; PI row transitions to `state='fatal'`. No `:payload_too_large`-specific event type is emitted (per §16.4).
+- **CAP-WRITE-RESULT**: a Script Task handler calls `write_result/2` with `oversize_payload()`. **Assert:** facade returns `{:error, :payload_too_large, %{size: 65537, limit: 65536}}`; FNI row ends with `state='fatal'` and `reason = %{kind: :payload_too_large, field: :fni_output, size: 65537, limit: 65536}`; no downstream FNI is ever created; PI row transitions to `state='fatal'`. No `:payload_too_large`-specific event type is emitted.
 - **CAP-WRITE-DO**: a Service Task is modeled with a `dataOutputAssociation` targeting `order_payload`, and its handler returns a FlowNodeResult whose `outputs.order_payload` is `oversize_payload()`. **Assert:** the DOA-driven write pipeline evaluates contract validation **before** the payload cap check (code order: resolve target → evaluate value → validate contract → check cap); with a valid contract the cap check rejects with `{:error, :payload_too_large, ...}`; no `data_objects` row inserted or updated; no `data_object_writes` row created; no `Event.DataObjectWritten` reaches `EngineEventBus` (all three built-in sinks report zero deliveries for that event); the owning Service Task FNI transitions to `fatal` with `field: :data_object, data_object_id: "order_payload"` in the structured reason (the DOA cap-check is attributed to the FNI whose completion triggered the DOA).
 - **CAP-PUBLISH-MSG**: a Send Task handler calls `publish_message("OrderShipped", oversize_payload())`. **Assert:** facade returns `{:error, :payload_too_large, ...}`; **no** `messages` row is inserted; **no** subscription anywhere in the engine fires; FNI transitions to `fatal`. Repeat for `publish_signal/2` (signals carry no payload on the REST trigger; oversize applies only if a throw-side mapping produces an oversize token before publish). The REST escalation trigger (`POST /escalations/{escalation_code}/trigger`) carries no payload and does not call PayloadCap.
 - **CAP-PI-START-CONTEXT**: `POST /processes/{model_id}/start` with a `payload` (PI-start context) of 65537 bytes. **Assert:** HTTP response is `413` with body `{"error": "payload_too_large", "field": "payload", "size": 65537, "limit": 65536}`; no `process_instances` row is inserted; no PI `:gen_statem` is spawned; no `Event.PiStarted` reaches any sink.
@@ -316,7 +306,7 @@ Negative-path integration tests exercising `TDE_TOKEN_MAX_BYTES` enforcement at 
 - **CAP-CONFIGURABLE**: the full matrix is rerun with `TDE_TOKEN_MAX_BYTES=131072`. **Assert:** all `CAP-*` tests that previously failed at 65537 now succeed; fresh failures appear at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `TDE_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
 - **CAP-MEMORY-BEHAVIOR**: a micro-load variant (50 req/s for 30 s, alternating at-cap and cap+1-byte payloads across every boundary). **Assert:** engine RSS stays flat ±5 MB; GenServer mailbox depths stay bounded; no partial work leaks into `flow_node_instances` or `messages` tables. Validates the "enforcement precedes allocation that scales with payload size" invariant.
 
-#### 12.4.7 Token-storage shape assertions
+### Token-storage shape assertions
 
 Positive-path integration tests verifying the payload-cap eliminations are actually applied and the schema matches [data-model.md](data-model.md) §4.2:
 
@@ -331,82 +321,22 @@ Positive-path integration tests verifying the payload-cap eliminations are actua
 - **RESUME-ACTIVE-FROM-FNI**: run a process up to a User Task (FNI in state `active` with an `input_token`), SIGKILL the engine, restart. **Assert:** on restart, the rehydrated PI's in-memory token at that FNI matches exactly the pre-crash `input_token`; no `active_tokens`-style reconciliation is performed; `gateway_pending_arrivals` is empty (no gateway is involved); PI continues cleanly on User Task completion.
 - **RESUME-GATEWAY-PENDING** *(covered by `Resumption.rebuild_join_arrivals/2` + `parallel_gateway_lifecycle_test.exs`)*: run a parallel gateway with 2 of 3 branches arrived, SIGKILL the engine mid-wait, restart. **Assert:** `gateway_pending_arrivals` has exactly 2 rows with the correct `source_branch_sequence_flow_id` values and the correct `arrived_payload`; the third branch's subsequent arrival correctly fires the join; the gateway FNI's `output_token` is the merged result of all 3 branches per the join semantics.
 
-#### 12.4.8 Sidecar plugin integration tests
+#### Sidecar plugin integration tests
 
-> **Not a v1 CI obligation (PLUG-D1).** The sidecar host is deferred. The
-> matrix below is retained as the design for a possible post-v1 revisit.
-> v1 does not require `test/fixtures/plugins/`, `SidecarLoader`, or
-> five-language proof in CI.
+Not shipped. There is no sidecar host, no `SidecarLoader`, and no
+`test/fixtures/plugins/` multi-language gRPC matrix. Non-Elixir Service
+Task work is covered by the in-BEAM `python_script` / `node_script`
+cookbook examples and `mix test.cookbook`.
 
-Sidecar plugin tests would exercise the full discovery → manifest parse → Port spawn →
-gRPC handshake → register → execute → teardown lifecycle against real multi-language
-fixture plugins.
+## Load tests
 
-**Fixture layout** — `test/fixtures/plugins/` (project root):
-
-```
-test/fixtures/plugins/
-├── elixir-echo/
-│   ├── plugin.toml
-│   └── echo_service_task        # Elixir escript
-├── python-echo/
-│   ├── plugin.toml
-│   └── echo_service_task.py
-├── ruby-echo/
-│   ├── plugin.toml
-│   └── echo_service_task.rb
-├── csharp-echo/
-│   ├── plugin.toml
-│   └── bin/EchoServiceTask      # dotnet publish output
-├── nodejs-echo/
-│   ├── plugin.toml
-│   └── echo_service_task.js
-├── malformed-manifest/
-│   └── plugin.toml              # deliberately broken TOML
-└── missing-binary/
-    └── plugin.toml              # exec points to non-existent file
-```
-
-Each fixture plugin is a minimal sidecar implementing the gRPC plugin protocol
-(`evil.engine.plugin.v1`). Every happy-path fixture registers one custom
-ServiceTaskHandler that echoes its input as its output — enough to prove the
-full round-trip without complex logic.
-
-**Multi-language requirement** — five languages must be covered to validate the
-language-agnostic claim: Elixir (escript), Python, Ruby, C# (dotnet), and
-Node.js. Each must successfully discover, handshake, register, and execute a
-Service Task end-to-end.
-
-**Test isolation** — the integration test setup:
-
-1. Overrides `Application.get_env(:peripheral_plugins, :sidecar_dir)` to point
-   at `test/fixtures/plugins/`.
-2. Triggers the `SidecarLoader` scan.
-3. After the test run (in an ExUnit `on_exit` callback): resets `sidecar_dir` to
-   the original value, disconnects all sidecar Port processes, and calls
-   `Registry.reset_state()` so no plugin registrations leak into subsequent tests.
-
-**Scenarios** (referenced as (i)–(vii) in `ImplementationPhases.md` Phase 4 step 3):
-
-| ID | Scenario | Asserts |
-|----|----------|---------|
-| (i) | Happy-path sidecar Service Task | Plugin discovered, handshake succeeds, handler registered, Service Task executes, result returned through registry |
-| (ii) | Sidecar crash mid-execution → reconnect | Binary killed mid-handle → Port restarts → in-flight FNI fails gracefully |
-| (iii) | Repeated crash → quarantine | Crash count exceeds `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` → `Event.PluginQuarantined` emitted, no further reconnects |
-| (iv) | Malformed `plugin.toml` | Plugin quarantined, engine boots, other plugins unaffected |
-| (v) | Deny-listed manifest | Plugin not spawned, structured log emitted |
-| (vi) | Multi-language proof | One fixture per language passes full discover → handshake → register → execute cycle |
-| (vii) | `sidecar_dir` isolation | Config restored after test, no plugin registrations leak |
-
-### 12.5 Load tests
-
-All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox (P89). Default load-test pool is 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
+All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox. Default load-test pool is 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
 
 Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability and hardening (one JSON report). Both aliases set `TDE_LOAD_DURABILITY` (`1` vs `all`); `mix test.load.all` also sets `TDE_LOAD_HARDENING=all`. Do not add durability or hardening to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
 
 #### Execution load tests (`execution_load_test.exs`)
 
-Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks via EventSink, assert all PIs reach terminal state within time ceilings. Tests E1–E5 cover single fixture types (100–1,000 PIs). E6 mixes all 5 fixture types (5,000 PIs). E7 is a stress test with 10,000 linear PIs. E6 and E7 additionally capture `queue_time` telemetry and assert P99 checkout wait < 1,000ms. AutoFinisher and the echo service-task handlers retry `:fni_not_waiting` / `:process_instance_not_found` (P88) so a single early finish does not leave one PI waiting forever. E6's elapsed ceiling is 180 s on GitHub `ubuntu-latest` (2 vCPU), not 5× the Mac baseline.
+Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks via EventSink, assert all PIs reach terminal state within time ceilings. Tests E1–E5 cover single fixture types (100–1,000 PIs). E6 mixes all 5 fixture types (5,000 PIs). E7 is a stress test with 10,000 linear PIs. E6 and E7 additionally capture `queue_time` telemetry and assert P99 checkout wait < 1,000ms. AutoFinisher and the echo service-task handlers retry `:fni_not_waiting` / `:process_instance_not_found` so a single early finish does not leave one PI waiting forever. E6's elapsed ceiling is 180 s on GitHub `ubuntu-latest` (2 vCPU), not 5× the Mac baseline.
 
 #### Resume load tests (`resume_load_test.exs`)
 
@@ -414,11 +344,11 @@ Seed PIs directly via Ash writes (bypassing HTTP), then measure `ResumeRunner.re
 
 #### Pool pressure tests (`pool_pressure_test.exs`)
 
-Concurrent mixed-workload tests that exercise execution writes and GraphQL reads simultaneously. PI starts use `Task.async_stream` with configurable `max_concurrency` (default 20). PP1: 500 concurrent PIs + 50 GraphQL readers. PP2: 1,000 mixed PIs + 100 GraphQL readers (GraphQL tasks are **unlinked** so a reader crash must not EXIT the test process). PP3: burst-start 200 PIs while polling GraphQL continuously. Assertions: **zero `DBConnection.ConnectionError` telemetry**, all PIs reach terminal state, P99 `queue_time_ms` < 1,000ms. PP1/PP3 also require GraphQL HTTP 200. Under the sandbox these tests were not a production-pool signal (P82/P89); `mix test.load` uses a real pool.
+Concurrent mixed-workload tests that exercise execution writes and GraphQL reads simultaneously. PI starts use `Task.async_stream` with configurable `max_concurrency` (default 20). PP1: 500 concurrent PIs + 50 GraphQL readers. PP2: 1,000 mixed PIs + 100 GraphQL readers (GraphQL tasks are **unlinked** so a reader crash must not EXIT the test process). PP3: burst-start 200 PIs while polling GraphQL continuously. Assertions: **zero `DBConnection.ConnectionError` telemetry**, all PIs reach terminal state, P99 `queue_time_ms` < 1,000ms. PP1/PP3 also require GraphQL HTTP 200. Under the sandbox these tests were not a production-pool signal; `mix test.load` uses a real pool.
 
 #### Resume pressure tests (`resume_pressure_test.exs`)
 
-RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Concurrent Absinthe/Ash GraphQL during resume used to abort the Ecto sandbox owner (P82). Load tests now use a real connection pool (P89); GraphQL-under-resume is still omitted from RP1/RP2 so the recorded KPI stays resume throughput only.
+RP1/RP2 seed 1,000–5,000 waiting user-task PIs and measure `ResumeRunner.resume_all/0`. Concurrent Absinthe/Ash GraphQL during resume used to abort the Ecto sandbox owner. Load tests now use a real connection pool; GraphQL-under-resume is still omitted from RP1/RP2 so the recorded KPI stays resume throughput only.
 
 #### DMN load tests (`dmn_load_test.exs`)
 
@@ -454,13 +384,13 @@ Ceilings are first-run wall-clock caps (20k: 20 min, 50k: 45 min, 100k: 90 min; 
 
 Opt-in Layer B suite. Tagged `@tag :hardening` (also `@moduletag :load`). **Excluded** from `mix test.load`, `mix test.full`, `mix quality`, and `.github/workflows/load-bench.yml`. Run with `mix test.load.hardening` (`TDE_LOAD_HARDENING=1`). `mix test.load.all` includes these tests with the default suite and durability (`TDE_LOAD_HARDENING=all` plus `TDE_LOAD_DURABILITY=all`). Setting `TDE_LOAD_HARDENING=all` alone adds hardening to the default load suite without durability.
 
-The Mix alias sets `TDE_LOAD_TEST_POOL=1` before Mix loads `config/test.exs` (P89), same as the other load aliases.
+The Mix alias sets `TDE_LOAD_TEST_POOL=1` before Mix loads `config/test.exs`, same as the other load aliases.
 
 | File | Workload id(s) | What it exercises |
 |------|----------------|-------------------|
 | `jsonb_compression_load_test.exs` | `jsonb_lz4_*`, `jsonb_pglz_*` | Same VM: E8-shaped mix + ~60 KiB linear payloads + CapDoa/CapSend + up to 100 five-deep Call Activity trees; then `ALTER … SET COMPRESSION pglz` + rewrite; then the same mix. **Gate:** any named p50/p95 on LZ4 that is >10 % slower than PGLZ `flunk`s, except integer-ms SQL noise (`p95 < 2`) and GraphQL wall-clock deltas under 5 ms (Absinthe jitter). Do not auto-flip `TDE_JSONB_COMPRESSION`. Count = `TDE_LOAD_COMPRESSION_COUNT` (default `10000`). |
 | `payload_cap_chaos_load_test.exs` | `payload_cap_chaos_5pct` | ~50 ops/s mix of start / message trigger / user-task finish; every 20th call is 65537 bytes (HTTP 413, no row). Duration = `TDE_LOAD_CHAOS_SECONDS` (default `600`). After a 15 s warmup, last RSS sample must be ≤ first sample + 32 MiB. Each sample scrapes Prometheus distributions (`:ets.take` on `:prometheus_metrics_dist`) and silences the test EventCollector (`capture_log: false`). |
-| `resume_crash_load_test.exs` | `resume_crash_user_task_200`, `resume_crash_parallel_join_50`, `resume_crash_ca_depth5_100` | Crash-kill PI supervisors (`LoadHelpers.terminate_all_process_instances/0` uses `:kill`, P94), `ResumeRunner.resume_all/0` (roots only, P11). Assert `input_token` round-trip, `gateway_pending_arrivals` unchanged (2 rows per three-branch PI), `to_regclass('public.active_tokens')` is null. |
+| `resume_crash_load_test.exs` | `resume_crash_user_task_200`, `resume_crash_parallel_join_50`, `resume_crash_ca_depth5_100` | Crash-kill PI supervisors (`LoadHelpers.terminate_all_process_instances/0` uses `:kill`), `ResumeRunner.resume_all/0` (roots only). Assert `input_token` round-trip, `gateway_pending_arrivals` unchanged (2 rows per three-branch PI), `to_regclass('public.active_tokens')` is null. |
 
 Smoke while iterating: `TDE_LOAD_COMPRESSION_COUNT=1000 TDE_LOAD_CHAOS_SECONDS=30 mix test.load.hardening`.
 
@@ -512,7 +442,28 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 | `BenchmarkReporter` | In-memory workload accumulator; `write!/1` emits schemaVersion 1 JSON |
 | `LoadRunnerReport` | Post-run hook: writes report path, applies exit codes 1 (test failure) / 2 (baseline regression) |
 
-### 12.6 CI enforcement
+## ExUnit and CI constraints
+
+These are harness rules, not product pitfalls. Helpers in `test/support/` already encode most of them.
+
+- Test Postgres is host port **5543** (`config/test.exs`). Do not map CI to 5432 only.
+- Production-sized pools need Postgres `max_connections` ≥ 200. Docker smoke asserts `GET /health` **HTTP 204**.
+- `priv/read_repo/migrations` must exist (may be empty). `mix ecto.migrate` looks there for ReadRepo.
+- Coverage: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Never `mix coveralls.github` / `.post`. Do not `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam`.
+- One GitHub Actions cache for `deps` + `_build`; save **after compile and before coverage**. PLTs are a separate `priv/plts` cache. Packages CI must install Rust (FEEL NIF) before `mix release`.
+- There is no `Ash.set_actor` helper — use `Ash.PlugHelpers.set_actor/2`. Ash 3.33+ needs `default_string_length_count` on string attributes or the resource fails to compile.
+- `ExecutionCase`: checkout the sandbox (or truncate the pool) **before** `Scheduler.reset_state/0`.
+- Crash analog for resume tests: `Process.exit(pid, :kill)`, not `DynamicSupervisor.terminate_child/2`. Resume roots only.
+- Do not `Agent.stop` a `start_link` process from ExUnit `on_exit`. Do not `Code.require_file` cookbook sources one path at a time.
+- `poll_pi_state` must restore the shared sandbox on retry — `unavailable` is a swallowed DB error, not a PI state.
+- Non-interrupting timer tests: wait until the timeout path has persisted **before** finishing the host activity.
+- `ProcessInstance.update_notify_pid/2` is a `:gen_statem.call` — the PI must still be running (park on a user task).
+- Dump UUIDs to 16-byte binaries before `Ecto.Adapters.SQL.query`. Ash `:update_finished` takes `output_token`, not `output_payload`.
+- `assert_pi_state!` verifies the persisted execution chain unless `verify_execution_chain: false`.
+- Load tests: set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Finishers retry `:fni_not_waiting`. Do not run `test/load` under the Ecto sandbox.
+- Packages JS: Vitest 5 uses `{ concurrent: false }`, not `describe.sequential`.
+
+## CI enforcement
 
 `.github/workflows/ci.yml` (push / pull_request to `main` and `develop`, plus `workflow_dispatch`):
 
@@ -520,7 +471,7 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 - `mix format --check-formatted`
 - `mix credo --strict`
 - One Mix cache of `deps` + `_build`, keyed on OS + `mix-precover` + `MIX_ENV` + OTP + Elixir + `mix.lock` (no app source hashes). Restore at job start; save after `mix compile --warnings-as-errors` and **before** coverage so ExCoveralls-instrumented BEAMs are not reused on the next run. Dialyzer PLTs stay a separate `priv/plts` cache (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Packages CI uses the same unified Mix cache with a `-prod-` key prefix. `igniter` is `runtime: false` (not started). It is **not** `only: :dev`: Spark Mix tasks reference `Igniter` at compile time, so Elixir 1.20 type-checking fails if Igniter is absent from the test or prod load path. Ash policy SAT (via `crux`) uses Hex `simple_sat` — a pure Elixir solver. Do not drop it without a replacement (`picosat_elixir` or `simple_sat`); with neither, GraphQL/Ash authorization returns empty results. Mix may compile `crux` before optional SAT backends; CI and `mix setup` run `mix deps.compile.sat` (`simple_sat` then `crux --force`) before the rest of `deps.compile`. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
-- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam` (P79). Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 24.20 (`actions/setup-node` `node-version: "24.20"`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
+- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam`. Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 24.20 (`actions/setup-node` `node-version: "24.20"`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
 - `mix sobelow` for security
 - `mix deps.audit`
 - Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)
@@ -531,6 +482,6 @@ Load tests are **not** part of `mix quality` or `mix test.full` — they remain 
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
 | Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
-| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `TDE_LOAD_TEST_POOL: "1"` (P89), and `TDE_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `TDE_LOAD_TEST_POOL: "1"`, and `TDE_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
 | Baseline | Does **not** set `TDE_LOAD_BASELINE_PATH` — download the artifact and compare locally |

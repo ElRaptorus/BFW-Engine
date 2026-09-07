@@ -3,7 +3,7 @@ defmodule EvilEngine.Umbrella.MixProject do
   Umbrella root for the Daemon Engine — a BPMN 2.0 workflow engine.
 
   Each subsystem lives under `apps/` as its own OTP application, per the
-  Domain-Driven layout described in `docs/ImplementationPlan.md` §2.
+  Domain-Driven layout described in `docs/Architecture.md`.
 
   This root project only carries:
     * cross-app tooling (credo, dialyxir, ex_doc, sobelow, mix_audit,
@@ -112,7 +112,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/guides/cheatsheets/api-endpoints.cheatmd",
           "docs/guides/cheatsheets/plugin-behaviours.cheatmd",
 
-          # Specification
+          # Archive
           "docs/ImplementationPlan.md",
           "docs/ImplementationPhases.md",
 
@@ -121,6 +121,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/Schema.md",
           "docs/Glossary.md",
           "docs/Philosophy.md",
+          "docs/decisions.md",
 
           # Architecture (detailed)
           "docs/architecture/index.md",
@@ -150,8 +151,8 @@ defmodule EvilEngine.Umbrella.MixProject do
           "Plugin Development": ~r{docs/guides/plugins/},
           "Operations Guide": ~r{docs/guides/operations/},
           Cheatsheets: ~r{docs/guides/cheatsheets/},
-          Specification: ~r{docs/Implementation},
-          Reference: ~r{docs/(Architecture|Schema|Glossary|Philosophy)\.md},
+          Archive: ~r{docs/Implementation},
+          Reference: ~r{docs/(Architecture|Schema|Glossary|Philosophy|decisions)\.md},
           "Architecture (Detailed)": ~r{docs/architecture/}
         ],
         groups_for_modules: [

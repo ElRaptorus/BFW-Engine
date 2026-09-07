@@ -2,7 +2,7 @@ defmodule CoreExpressions.MixProject do
   @moduledoc """
   FEEL evaluator and Identity-claim resolver.
 
-  Per ImplementationPlan.md §8: the engine uses a Friendly Enough
+  Per `docs/architecture/expressions.md`: the engine uses a Friendly Enough
   Expression Language (FEEL) for
 
     * `<bpmn:conditionExpression>` on sequence flows,

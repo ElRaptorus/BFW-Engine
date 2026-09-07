@@ -24,7 +24,7 @@ Used to run awesome stuff created with the [Forge World Studio](https://github.c
 
 - Blood
 - Skulls
-- Elixir 1.20.5 / OTP 29
+- Elixir 1.20.3 / OTP 29 (see `.tool-versions`)
 - Erlang 29
 - Blood
 - Rust 1.98+ (Required for FEEL evaluator)

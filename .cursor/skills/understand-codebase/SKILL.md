@@ -43,9 +43,8 @@ Based on your task, read the specific architecture doc:
 | Test infrastructure, scenario matrix, CI pipeline | `docs/architecture/testing.md` |
 | JWT auth, transport, plugin trust, threat model | `docs/architecture/security.md` |
 | Known gotchas | `docs/architecture/common-pitfalls.md` |
-| BPMN element coverage (which elements are implemented) | `docs/ImplementationPlan.md` section 7 |
-| Design decisions and rationale | `docs/ImplementationPlan.md` section 0 |
-| Implementation phases and task lists | `docs/ImplementationPhases.md` |
+| BPMN element coverage | `AGENTS.md` and `docs/architecture/execution.md` |
+| Design decisions and rationale | `docs/decisions.md` |
 | Terminology | `docs/Glossary.md` |
 | Database ER diagram | `docs/Schema.md` |
 
@@ -72,7 +71,7 @@ Infrastructure adapters. May import Core, never imported by Core.
 |-----|---------|
 | `peripheral_persistence` | Ash + AshPostgres resources. Mix `evil.retention.purge` hard-deletes aged terminal PI trees |
 | `peripheral_telemetry` | `:telemetry` counters, /stats data |
-| `peripheral_plugins` | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
+| `peripheral_plugins` | Plugin registry, in-BEAM loader |
 
 ### API (`apps/api_*`)
 
@@ -102,4 +101,4 @@ All engine state changes emit events through the EngineEventBus. Consumers (WebS
 
 ### 4. Hybrid Plugin Model
 
-v1 loads **in-BEAM OTP-app plugins only** (PLUG-D1). A gRPC sidecar host is deferred. Downstream consumers (Service Task dispatch, EngineEventBus fan-out) query the registry by capability. Non-Elixir work in v1 uses the HTTP Service Task, the public API, or an in-BEAM plugin that execs a local interpreter.
+v1 loads **in-BEAM OTP-app plugins only**. There is no gRPC sidecar host. Downstream consumers (Service Task dispatch, EngineEventBus fan-out) query the registry by capability. Non-Elixir work uses the HTTP Service Task, the public API, or an in-BEAM plugin that execs a local interpreter.

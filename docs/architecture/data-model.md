@@ -1,13 +1,4 @@
----
-title: Daemon Engine — Data Model
-parent_document: ../ImplementationPlan.md
----
-
-<!--
-  Extracted from ImplementationPlan.md §4 ("Data model (Postgres)").
--->
-
-# Daemon Engine — Data Model
+# Data model
 
 See [`Schema.md`](../Schema.md) for the visual ER diagram.
 
@@ -252,7 +243,7 @@ process_instance_events
   --
   -- data_object.written rows were previously mirrored here by the DB sink; the underlying
   -- data_object_writes row (below) is always written regardless — see the note in
-  -- [`../ImplementationPlan.md`](../ImplementationPlan.md) §3.6 on the "kernel state"
+  -- [event-system.md](./event-system.md) on the "kernel state"
   -- vs "observability sink" split.
   id                      uuid NOT NULL (UUIDv7 — natural time sort)
   process_instance_id     uuid FK
@@ -283,13 +274,13 @@ process_instance_events
 
 -- NOTE: `messages`, `pending_messages`, `signals`, and `pending_signals` are
 -- ENGINE-LEVEL AUDIT tables — they have no PI FK (the relation to PIs is via `messages.correlations[]`
--- / broadcast semantics), so they are NOT cleaned up by Pass A (`mix evil.retention.purge`).
--- Pass B is operator SQL ([`database.md`](../guides/operations/database.md)) using
--- `TDE_RETENTION_ENGINE_AUDIT_DAYS` as a cutoff convention ([`configuration.md`](./configuration.md) §14.3, §14.6).
+-- / broadcast semantics), so they are NOT cleaned up by Mix `evil.retention.purge`.
+-- Operators DELETE aged rows with SQL ([`database.md`](../guides/operations/database.md)) using
+-- `TDE_RETENTION_ENGINE_AUDIT_DAYS` as a cutoff convention ([`configuration.md`](./configuration.md)).
 -- Operational-state rows (pending_messages
 -- state='pending', pending_signals state='pending') are NEVER retention-eligible.
 -- There are no `escalations`, `compensations`, or `engine_timers` tables.
--- `timer_start_schedules` is operational and is not swept by Pass B.
+-- `timer_start_schedules` is operational and must not be deleted by that SQL.
 
 messages
   -- PARTITIONED: PARTITION BY RANGE (published_at), one partition per calendar month.
@@ -316,7 +307,7 @@ pending_messages    -- [`routing.md`](./routing.md) §3.5.4 — unmatched publis
   -- Note: the FK into `messages` is enforced at the logical level via (message_id, published_at)
   -- pair (both tables share the same partition key), so cross-partition FKs behave correctly.
   --
-  -- RETENTION: operator SQL (Pass B) may DELETE rows WHERE state <> 'pending' AND
+  -- RETENTION: operator SQL may DELETE rows WHERE state <> 'pending' AND
   -- published_at < cutoff. Rows in state='pending' are operational live state and are NEVER
   -- touched — they either transition naturally (TTL sweeper at [`routing.md`](./routing.md) §3.5.4) or survive
   -- until the next engine boot for resume-time re-subscription drain ([`routing.md`](./routing.md) §3.5.5).
@@ -367,7 +358,7 @@ pending_signals    -- [`routing.md`](./routing.md) §3.5.6 — signals published
   -- Logical FK into `signals` via (signal_id, published_at) — both tables share the partition key,
   -- so cross-partition logical FK behavior matches pending_messages / messages.
   --
-  -- RETENTION: operator SQL (Pass B) may DELETE rows WHERE state <> 'pending' AND
+  -- RETENTION: operator SQL may DELETE rows WHERE state <> 'pending' AND
   -- published_at < cutoff. Rows in state='pending' are operational live state and are NEVER
   -- touched — they either transition naturally (TTL sweeper) or survive engine
   -- boot for resume-time re-subscription drain ([`routing.md`](./routing.md) §3.5.6).
@@ -408,7 +399,7 @@ pending_signals    -- [`routing.md`](./routing.md) §3.5.6 — signals published
 -- `compensation_esp_throw_map`) are also purely in-memory.
 
 timer_start_schedules
-  -- OPERATIONAL (not engine-audit). Unpartitioned. Pass B must not DELETE.
+  -- OPERATIONAL (not engine-audit). Unpartitioned. Operator SQL must not DELETE.
   -- Production adapter: EvilEngine.Persistence.TimerStartScheduleAdapter.
   -- Deleted on undeploy / StartEventManager.unregister_timer_starts/1 / process_versions CASCADE.
   -- Check: kind = 'cycle'. Date/duration Timer Starts are PI-scoped and must not be inserted.
@@ -458,8 +449,8 @@ data_object_writes   -- append-only history, one row per Data Object write.
                                                     -- LZ4-compressed; capped at TDE_TOKEN_MAX_BYTES at DOA-commit time.
   created_at               timestamptz NOT NULL
                                                     -- every row is DOA-originated — there is no
-                                                    --   handler-facing write_data_object/2 facade in v1 (see [`../ImplementationPlan.md`](../ImplementationPlan.md) §16.4
-                                                    --   non-goal "Handler-API Data Object writes"), so the prior
+                                                    --   handler-facing write_data_object/2 facade in v1 (see
+                                                    --   [execution.md](./execution.md) Data Objects), so the prior
                                                     --   `source` column (which distinguished DOA vs handler_api) would
                                                     --   be constant and has been removed. The FNI-attribution
                                                     --   invariant ("one write ↔ one owning FNI") is trivially
@@ -486,6 +477,6 @@ computes pending user-task and waiting-FNI counts with live Ash queries against
 | "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log (table exists; built-in DatabaseSink removed so it stays empty unless a plugin sink writes it) + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
 | "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state IN ('active','waiting')` (in-flight token payload lives on `input_token`) + `gateway_pending_arrivals` (for half-completed joins). PI-scoped timers resume from FNI `type_properties` into Scheduler ETS. There is no `engine_timers` table. |
 | "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `TDE_TOKEN_MAX_BYTES` |
-| "Bounded engine-wide audit-table growth" | Operator SQL (Pass B recipe in [database.md](../guides/operations/database.md)) closes the gap PI-tree Mix purge left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned on `published_at` (`EvilEngine.Persistence.Partitions`). Single unused convention `TDE_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded. Optional `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. `timer_start_schedules` is operational — do not DELETE it. Recommend `pg_partman` for `DETACH`/`DROP` of old partitions. |
+| "Bounded engine-wide audit-table growth" | Operator SQL (recipe in [database.md](../guides/operations/database.md)) closes the gap Mix PI-tree purge left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned on `published_at` (`EvilEngine.Persistence.Partitions`). Single unused convention `TDE_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded. Optional `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. `timer_start_schedules` is operational — do not DELETE it. Recommend `pg_partman` for `DETACH`/`DROP` of old partitions. |
 | "No duplicated rows per tick" | Snapshot tables are **updated in place**; events are only inserted on real state transitions or domain events |
 | "Leverage SQL" | All heavy queries are plain SQL. No client-side filtering. GraphQL queries translate 1:1 to Ecto queries via AshPostgres |

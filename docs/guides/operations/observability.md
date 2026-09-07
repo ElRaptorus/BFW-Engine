@@ -56,7 +56,7 @@ OpenTelemetry does **not** ship. There are no `TDE_OTEL_*` variables.
 
 ## Event Sinks
 
-The engine routes typed events through `EngineEventBus` to **three** built-in sinks (console, telemetry, websocket). The built-in database sink was removed. Sinks are attached by `SinkRegistrar` at boot — they are not OTP plugins.
+The engine routes typed events through `EngineEventBus` to **three** built-in sinks (console, telemetry, websocket). The engine does not persist those events to Postgres. Sinks are attached by `SinkRegistrar` at boot — they are not OTP plugins.
 
 ### Console Sink
 

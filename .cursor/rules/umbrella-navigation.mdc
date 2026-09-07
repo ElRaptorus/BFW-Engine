@@ -17,9 +17,9 @@ This project is an Elixir umbrella with all domain apps under `apps/`. The depen
 | `core_timers` | Core | `apps/core_timers/` | ISO 8601 scheduler |
 | `core_expressions` | Core | `apps/core_expressions/` | FEEL evaluator |
 | `core_bpmn` | Core | `apps/core_bpmn/` | XML parser, ModelCache, linter gate |
-| `peripheral_persistence` | Peripheral | `apps/peripheral_persistence/` | Ash + AshPostgres, RetentionRunner |
+| `peripheral_persistence` | Peripheral | `apps/peripheral_persistence/` | Ash + AshPostgres, Mix `evil.retention.purge` |
 | `peripheral_telemetry` | Peripheral | `apps/peripheral_telemetry/` | :telemetry counters, /stats |
-| `peripheral_plugins` | Peripheral | `apps/peripheral_plugins/` | Plugin registry, gRPC bridge |
+| `peripheral_plugins` | Peripheral | `apps/peripheral_plugins/` | Plugin registry, in-BEAM loader |
 | `api_auth` | API | `apps/api_auth/` | JWT validation |
 | `api_facade` | API | `apps/api_facade/` | `EvilEngine.Api` service-layer facade |
 | `api_web` | API | `apps/api_web/` | REST + GraphQL + WebSocket + Admin |

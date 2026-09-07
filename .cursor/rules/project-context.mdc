@@ -11,7 +11,7 @@ ThomasTheDaemonEngine (or simply "the Engine") is a fully qualified BPMN 2.0 Wor
 
 - **`EvilEngine.Api`** (Ash Code Interface) is the single shared service layer — every wire adapter and every plugin converges here.
 - **Core domains** (`core_types`, `core_execution`, `core_events`, `core_timers`, `core_expressions`, `core_bpmn`) never import from API or Peripheral domains.
-- **Plugins** (in-BEAM only in v1; gRPC sidecar deferred, PLUG-D1) call `EvilEngine.Api.*` directly — no HTTP round-trip.
+- **Plugins** are in-BEAM OTP apps. They call `EvilEngine.Api.*` directly — no HTTP round-trip. There is no gRPC sidecar host.
 - **EngineEventBus** is the only channel through which observability, audit logging, and external integrations see engine events.
 
 ## Umbrella App Layout
@@ -24,9 +24,9 @@ ThomasTheDaemonEngine (or simply "the Engine") is a fully qualified BPMN 2.0 Wor
 | `core_timers` | Core | ISO 8601 scheduler |
 | `core_expressions` | Core | FEEL evaluator |
 | `core_bpmn` | Core | XML parser, ModelCache, linter gate |
-| `peripheral_persistence` | Peripheral | Ash + AshPostgres, RetentionRunner |
+| `peripheral_persistence` | Peripheral | Ash + AshPostgres, Mix `evil.retention.purge` |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, /stats |
-| `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader (gRPC sidecar deferred, PLUG-D1) |
+| `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader |
 | `api_auth` | API | JWT validation |
 | `api_facade` | API | `EvilEngine.Api` service-layer facade |
 | `api_web` | API | REST + GraphQL + WebSocket + Admin |
@@ -35,9 +35,10 @@ ThomasTheDaemonEngine (or simply "the Engine") is a fully qualified BPMN 2.0 Wor
 
 When working on a specific subsystem, consult the relevant docs as needed — do not read all of them before every change:
 
-- `docs/architecture/index.md` — Detailed architecture topics (authorization, plugins, data model, event system, API, routing, expressions, observability, packaging, common pitfalls)
-- `docs/Architecture.md` — High-level Mermaid diagram + layer-by-layer reading guide
-- `docs/ImplementationPlan.md` — Decision log (§0), runtime specs, testing strategy
-- `docs/ImplementationPhases.md` — Per-phase task lists and exit criteria
+- `docs/architecture/index.md` — Detailed architecture topics
+- `docs/Architecture.md` — High-level overview + layer-by-layer reading guide
+- `docs/decisions.md` — Significant A-vs-B choices that still explain the architecture
 - `docs/Glossary.md` — Every term used in this project
 - `docs/Schema.md` — Database ER diagram
+
+`docs/ImplementationPlan.md` and `docs/ImplementationPhases.md` are archival. Do not treat them as the decision log or the phase tracker.

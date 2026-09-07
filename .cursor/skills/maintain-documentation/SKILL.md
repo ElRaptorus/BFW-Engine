@@ -30,9 +30,9 @@ After updating, check that:
 
 - `docs/architecture/index.md` lists all topic files (no missing entries)
 - Links between architecture docs are not broken
-- `docs/ImplementationPhases.md` references point to correct architecture doc paths
 - `docs/Glossary.md` "See also" table entries point to correct paths
 - `docs/Architecture.md` mapping table references correct architecture docs
+- Do not require updates to archival `ImplementationPlan.md` / `ImplementationPhases.md`
 
 ## Step 4: Confirm Completeness
 

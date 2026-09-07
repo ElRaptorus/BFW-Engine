@@ -1,16 +1,21 @@
 ---
 title: Daemon Engine — Implementation Plan
 date: 2026-04-24
-status: APPROVED
+status: ARCHIVAL
 ---
 
 # Daemon Engine — Implementation Plan
 
+> **Archival.** This file is the original v1 implementation plan. It is not
+> living documentation. Do not append decisions, phases, or architecture
+> here. Current reference: [`architecture/index.md`](architecture/index.md).
+> Current decision log: [`decisions.md`](decisions.md). Current usage:
+> [`guides/getting-started/overview.md`](guides/getting-started/overview.md).
+>
 > Working title: *"The Anvil of Khorne"*.
-> This document is the concrete, phase-by-phase implementation plan derived from
-> the project's original product concept. It resolves every `AGENT:` / `TODO:`
-> marker in that concept and locks in the architectural decisions made during
-> planning.
+> Historical note: this document was the concrete, phase-by-phase plan
+> derived from the project's original product concept.
+
 >
 > §16 only contains remaining open technical questions (to be answered during
 > the relevant phase), risk register, and explicit v1 non-goals.

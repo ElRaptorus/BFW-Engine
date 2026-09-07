@@ -1,32 +1,17 @@
----
-title: Daemon Engine — Authorization Model
-date: 2026-04-27
-status: PENDING APPROVAL
-parent_document: ../ImplementationPlan.md (§13)
----
-
-# Daemon Engine — Authorization Model
-
-> This document is the authoritative reference for every authorization rule
-> enforced by the engine in v1. `ImplementationPlan.md` §13 links here;
-> `ImplementationPhases.md` references specific sections for phased delivery.
-
----
-
-## 1. Posture
+# Authorization
 
 **Default-deny.** Every API endpoint, GraphQL query, and
 WebSocket channel requires the caller to present a valid JWT bearer token
-**unless** the endpoint is listed in the explicit exception list (§2).
+**unless** the endpoint is listed in the explicit exception list below.
 
 Auth is **pluggable** via `@behaviour EvilEngine.Plugin.AuthProvider`.
 The built-in JWT verifier (`JwtAuthProvider`) accepts HS256 (shared secret)
 and RS256 / ES256 (asymmetric, via JWKS) and is the default. Plugins can
 register a replacement provider during `on_load/1` via
 `facade.register_auth_provider.(module)`. Only one provider may be active at
-a time (first-writer wins). See `ImplementationPlan.md` for details.
+a time (first-writer wins).
 
-### 1.1 Dev / test override
+## Dev / test override
 
 Setting `TDE_AUTH_DISABLED=true` turns off JWT verification entirely. All
 incoming requests are assigned a synthetic Identity with `id: "anonymous"`,
@@ -124,7 +109,7 @@ use.
 |---|---|---|---|
 | `deploy_bpmn` | boolean | Allows: `POST /processes` (BPMN upload), `PUT /processes/{model_id}/enable`, `PUT /processes/{model_id}/disable` — all catalog-mutation operations | `false` |
 | `delete_bpmn` | boolean | Allows: `DELETE /processes/{model_id}/versions/{version}`, `DELETE /processes/{model_id}` (version/process deletion ) | `false` |
-| `purge_audit_data` | boolean | Unused in v1 (RET-D1). REST/CLI purge is deferred. Mix `evil.retention.purge` is not JWT-gated | `false` |
+| `purge_audit_data` | boolean | Unused. REST/CLI purge is not shipped. Mix `evil.retention.purge` is not JWT-gated | `false` |
 | `lane:<name>` | `"read"` \| `"write"` | `"write"`: act on flow nodes on that lane. `"read"`: observe only. Boolean `true` is rejected. | none |
 | `observe_all` | boolean | Unbounded read/observe of PIs, FNIs, data objects, and WS events. **Never** grants write. | `false` |
 | `zeeky_boogie_doog` | boolean | Admin override: full read **and** write bypass. Distinct from `observe_all`. | `false` |
@@ -299,7 +284,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 | Action | Rule | Notes |
 |---|---|---|
-| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<evil:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` per §7 User Task in `ImplementationPlan.md` — both checks must pass | Lane check + assignee check are AND-combined |
+| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<evil:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` — both checks must pass | Lane check + assignee check are AND-combined |
 | **Cancel User Task** (`PUT /user-tasks/{fniId}/cancel`) | Same as Finish | |
 | **Complete async Service Task** (`engine_facade.finish_async_service_task` / `EvilEngine.Api.finish_async_service_task/2`) | Plugins complete via the facade with the privileged plugin identity (§7), bypassing lane checks. There is **no** `PUT /async-flow-nodes/{fniId}/complete` REST route | REST was never shipped for this callback |
 | **Fail async Service Task** (`engine_facade.fail_async_service_task` / `EvilEngine.Api.fail_async_service_task/3`) | Same as Complete. There is **no** `PUT /async-flow-nodes/{fniId}/fail` REST route | |
@@ -327,7 +312,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 ### 7.1 Plugin → engine calls (engine_facade)
 
-Plugins (in-BEAM in v1; sidecar deferred, PLUG-D1) run with a **privileged plugin identity**
+Plugins run with a **privileged plugin identity**
 auto-injected by the `engine_facade`:
 
 ```elixir

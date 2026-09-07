@@ -1,10 +1,12 @@
 # Daemon Engine — Implementation Phases
 
-> **Companion document to `[ImplementationPlan.md](./ImplementationPlan.md)`.**
-> This file is the working roll-out plan for coding agents and contributors.
-> The authoritative specification of **what** to build lives in
-> `ImplementationPlan.md`; this document says **in what order** to build it
-> and **what each phase delivers**.
+> **Archival.** This file is the original v1 roll-out checklist. It is not
+> living documentation. Do not tick new items here. Current architecture:
+> [`architecture/index.md`](architecture/index.md). Current decision log:
+> [`decisions.md`](decisions.md).
+>
+> Historical companion to `[ImplementationPlan.md](./ImplementationPlan.md)`.
+
 >
 > Every section header in the plan referenced below (`§N`, `§N.M`, etc.) and
 > every refers to `ImplementationPlan.md`. Time estimates
@@ -163,7 +165,7 @@ Finishes Alpha Phase, Starts the Beta Phase.
 5. ~~**Payload-cap load & chaos**~~ — **DONE.** Layer A: `test/integration/execution/payload_cap_boundaries_test.exs`. Layer B: `test/load/payload_cap_chaos_load_test.exs` (`payload_cap_chaos_5pct`, default 600 s / `TDE_LOAD_CHAOS_SECONDS`). 5 % oversize mix of start / message trigger / user-task finish; HTTP 413 and no extra `messages` / PI row. Memory samples drain Prometheus distribution ETS (production `/metrics` scrape) and require last RSS ≤ first + 32 MiB after a 15 s warmup.
 6. Long-haul soak test: 72-hour run, zero-restart, flat memory graph.
 7. ~~**Resume-after-crash chaos test**~~ — **DONE.** Layer A: `test/integration/execution/resume_test.exs` I1 `input_token` equality. Layer B: `test/load/resume_crash_load_test.exs` (200 waiting user tasks, 50 three-branch mid-join, 100 five-deep Call Activity trees). In-process crash analog is `LoadHelpers.terminate_all_process_instances/0` (`:kill`, P94) then `ResumeRunner.resume_all/0` (roots only, P11). Asserts `input_token` round-trip, `gateway_pending_arrivals` (2 rows per three-branch PI), and `to_regclass('public.active_tokens')` is null.
-8. Documentation pass (README, architecture overview, **plugin authoring guide** covering the in-BEAM tier only (§9.2.2) — OTP-app plugins bundled in the release with `on_load`/`on_ready` callbacks — plus the shared §9.2.5 `engine_facade` capability table and the §9.3 quarantine semantics. Sidecar (§9.2.3) is **not in v1** (PLUG-D1); the guide notes that non-Elixir work uses HTTP, the public API, or an in-BEAM plugin that execs a local interpreter. Also: deploy guide, **operator retention** in [database.md](guides/operations/database.md) covering Mix purge, KEEP_AFTER_TRANSITION, operator SQL for engine-audit tables, and pg_partman, **operator payload-cap & compression tuning guide** covering `TDE_TOKEN_MAX_BYTES` / `TDE_JSONB_COMPRESSION` with the Phase 6 measurement table). Ensure all documentation (user guidebook, architecture and other) read like they were made from one cut, not glued together by input from multiple iterations. All documentation must be accessible to users new to the Engine and equally useful as an everyday manual. Ensure all documentation reads a statement of fact, no obscure references to any "decisions" in a "decision" log, using numbers and paragraphs incomprehensible to new users. All documentation must be semantically and technically correct, complete; and properly reflecting all design aspects of the Engine.
+8. ~~**Documentation pass**~~ — **DONE.** User handbook, plugin authoring, operations, README, and architecture overview rewritten as statements of fact. Plugin guides cover in-BEAM OTP apps (`on_load` / `on_ready`), the engine_facade capability table, and quarantine. Sidecar host is documented as not shipped; non-Elixir work uses HTTP, the public API, or an in-BEAM plugin that execs a local interpreter. Operator retention, payload cap (`TDE_TOKEN_MAX_BYTES`), and JSONB compression (`TDE_JSONB_COMPRESSION`) live in [database.md](guides/operations/database.md). Deploy guide: [deployment.md](guides/operations/deployment.md). Contributor specs (`ImplementationPlan.md`, `ImplementationPhases.md`) remain the roll-out record; they are not required reading for operators.
 9. ~~**Example plugin cookbook (`examples/` in the engine repo)**~~: ✅ **DONE** Examples covering all live plugin capabilities (service task handlers including python/node, event sinks including SSE, named scripts, lifecycle/API including quarantine_demo, combined patterns, business-rules observers, REST echo, ai_toolbox) plus TypeScript SDK and Client examples. See `examples/README.md` for the full catalogue. Original minimum cookbook contents (mapped onto `examples/plugins/`):
   - `**examples/inbeam/hello-service-task`** → `examples/plugins/service_task_handlers/echo/`
     - `**examples/inbeam/lifecycle-aware`** → `examples/plugins/lifecycle_and_api/lifecycle_aware/` (`on_ready` lists `facade.processes.list.()`)
@@ -276,8 +278,8 @@ From Phase 4 onward, the global aggregate must stay at or above **80 %**. Per-ap
 
 | Topic                                           | Document                                           |
 | ----------------------------------------------- | -------------------------------------------------- |
-| Full specification (what to build)              | `[ImplementationPlan.md](./ImplementationPlan.md)` |
-| Detailed architecture docs (one topic per file) | `[architecture/index.md](./architecture/index.md)` |
+| Current architecture (living)                   | `[architecture/index.md](./architecture/index.md)` |
+| Decision log                                    | `[decisions.md](./decisions.md)`                    |
 | Architectural overview & diagram                | `[Architecture.md](./Architecture.md)`             |
 | Database schema diagram                         | `[Schema.md](./Schema.md)`                         |
 | Glossary of terms                               | `[Glossary.md](./Glossary.md)`                     |

@@ -1,40 +1,36 @@
----
-title: "Daemon Engine — Shipping & Deployment"
-parent_document: "../ImplementationPlan.md"
----
+# Shipping
 
-<!--
-  Split from packaging.md (ImplementationPlan.md §14).
-  For configuration (env vars, linter gate, retention), see configuration.md.
--->
+Docker image layout and local compose. Operator how-to: [deployment.md](../guides/operations/deployment.md). Env vars, linter gate, and retention: [configuration.md](configuration.md).
 
-## 14.1 Docker
+## Docker
 
-- **Base**: `debian:12-slim`.
-- **Build stage**: `hexpm/elixir:1.17.x-erlang-27.x-debian-bookworm-slim` → `mix release`.
-- **Run stage**: debian-slim + release artifact + runtime deps (openssl, ncurses).
-- Healthcheck: `curl -f http://localhost:4000/health || exit 1` (expects **HTTP 204**, empty body).
+The production image is `docker/Dockerfile`.
+
+- **Base / run stage**: `debian:bookworm-slim` plus the OTP release, openssl, ncurses.
+- **Build stage**: `hexpm/elixir` (currently Elixir 1.19.5 / OTP 28.5 on bookworm) → `mix release`. Local development uses `.tool-versions` (Elixir 1.20.3 / OTP 29.0.5).
+- Healthcheck: `curl -f http://localhost:4000/health` expects **HTTP 204**, empty body.
 - Size target: ≤ 120 MB compressed.
 
-## 14.2 docker-compose (local dev)
+## docker-compose (local dev)
 
-Two services only:
+Two services:
 
-- `engine` service (image built from repo)
-- `postgres:16` with volume, started as `postgres -c max_connections=200`
+- `engine` (image built from the repo)
+- `postgres:16` with a volume, started as `postgres -c max_connections=200`
 
 Production pool defaults (`TDE_DB_POOL_SIZE` 100 + `TDE_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:16-alpine`.
 
-No tracing / metrics sidecars in v1.
+There is no tracing sidecar and no metrics sidecar. Prometheus scrape is the engine's own `GET /metrics`.
 
-## 14.4 Zero-downtime deploy options
+## Zero-downtime deploy
 
-- **Blue/green** (recommended): run two engines on different ports, swap reverse-proxy. Old engine drains PIs via `Abort(drain: true)` is not used — instead old engine stops accepting new PIs, finishes live ones, then exits.
-- **Hot-code-upgrade**: OTP release upgrades via `:appup`/`:relup`. Documented but treated as advanced (requires discipline per migration).
+- **Blue/green** (recommended): run two engines on different ports, swap the reverse-proxy. Stop the old engine from accepting new process instances, let live ones finish, then exit.
+- **Hot-code-upgrade**: OTP release upgrades via `:appup`/`:relup`. Advanced; requires discipline per migration.
 
 ---
 
 ## See also
 
-- [configuration.md](configuration.md) — env vars table, linter-score deploy gate, database housekeeping and retention
-- [security.md](security.md) — transport security (TLS termination at reverse-proxy level)
+- [configuration.md](configuration.md) — env vars, linter-score deploy gate, database housekeeping
+- [security.md](security.md) — transport security (TLS termination at the reverse proxy)
+- [deployment.md](../guides/operations/deployment.md) — release build, plugin bundling, cron

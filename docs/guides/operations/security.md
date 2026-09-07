@@ -22,7 +22,7 @@ JWKS keys are refreshed automatically. For HS256, rotate by updating `TDE_JWT_HS
 
 ## Payload Cap
 
-`TDE_TOKEN_MAX_BYTES` (default 64 KiB) limits the size of every user-supplied payload. This protects against memory exhaustion from oversized request bodies. See [Error Handling](../handbook/error-handling.md) for the rejection behavior.
+`TDE_TOKEN_MAX_BYTES` (default 64 KiB) limits the size of every user-supplied payload. This protects against memory exhaustion from oversized request bodies. See [Database administration](database.md) for tuning and [Error Handling](../handbook/error-handling.md) for the rejection behavior.
 
 ## Plugin Trust Boundary
 
@@ -36,11 +36,9 @@ The engine provides guardrails:
 - `on_load` failures quarantine the plugin without crashing the engine
 - CI lints prevent plugins from importing Core modules directly
 
-### Sidecar Plugins — deferred (PLUG-D1)
+### Plugin isolation
 
-v1 does **not** host sidecar plugins. Crash isolation is OTP-process isolation for in-BEAM plugins, which sit inside the trust boundary.
-
-The post-v1 design (separate OS processes, gRPC over Unix-domain sockets, reconnect limit `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT`) is documented in [plugins.md](../../architecture/plugins.md) §9.2.3. Those env vars are reserved no-ops today.
+In-BEAM plugins sit inside the engine's trust boundary. Crash isolation is OTP-process isolation. `TDE_PLUGINS_SIDECAR_*` env vars do nothing.
 
 ## Authorization
 

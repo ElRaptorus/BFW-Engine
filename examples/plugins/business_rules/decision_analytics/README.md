@@ -2,7 +2,7 @@
 
 Observes DMN Business Rule Task completions and maintains live evaluation throughput, latency histograms (average, p95, p99, min, max), per-decision rule-hit distribution, and rolling-window latency spike detection.
 
-This is the in-BEAM successor of the former `examples/sidecar-js/decision-analytics` sketch (removed with the gRPC sidecar host, PLUG-D1). Operators and DMN observers run it inside the engine process: same analytics, no sidecar.
+This plugin runs in-BEAM. Operators and DMN observers load it into the engine process.
 
 ## What this demonstrates
 

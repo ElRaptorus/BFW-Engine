@@ -52,7 +52,7 @@ Every `####` heading should start with a **Path:** line when documenting a speci
 
 GenServer holding the canonical plugin map. Key responsibilities:
 
-- **Registration**: accepts plugin metadata from both in-BEAM and gRPC loaders
+- **Registration**: accepts plugin metadata from the in-BEAM loader
 - **Lookup**: capability-based queries used by Service Task dispatch and event fan-out
 - **Quarantine**: marks plugins as unhealthy after repeated failures
 ```
@@ -137,6 +137,8 @@ Every document ends with a table mapping modules to their file paths:
 - System-level overview diagrams (that's `docs/Architecture.md`)
 - Every internal helper function — only document what is architecturally significant
 - Redundant explanations of the same concept in multiple sections
+- Test postmortems, CI cache keys, named failing tests (those go in `testing.md` if they are harness rules)
+- Reprinting an architecture table in `AGENTS.md` (AGENTS.md is the extension / validator / FEEL / umbrella catalog only)
 
 ### Depth calibration
 
@@ -164,8 +166,8 @@ Use this table to determine **which file to update** based on what you changed o
 | Env vars, config priority, linter gate, retention (`ProcessInstancePurge`, Mix purge) | `configuration.md` |
 | Test infrastructure, scenario matrix, CI pipeline, Mix aliases (`test.examples` / `test.cookbook`) | `testing.md` |
 | JWT auth, transport, plugin trust, input validation, threat model | `security.md` |
-| Recurring mistake or non-obvious constraint | `common-pitfalls.md` |
-| Significant design decision | `ImplementationPlan.md` section 0 |
+| Recurring constraint a competent person could hit again (not a one-off bugfix or CI incident) | `common-pitfalls.md` |
+| Significant A-vs-B design choice | [`docs/decisions.md`](../decisions.md) |
 
 If the change does not fit any existing file, create a new one (see below).
 
@@ -179,10 +181,10 @@ If the change does not fit any existing file, create a new one (see below).
 
 Study these as style references before writing:
 
-- `docs/architecture/plugins.md` — Good example of behaviour tables, lifecycle phases, ASCII flow diagram, and gRPC protocol details
-- `docs/architecture/authorization.md` — Good example of claim dictionary tables, decision rationale, and cross-references to ImplementationPlan.md decisions
-- `docs/architecture/data-model.md` — Good example of schema tables, partitioning rationale, and cross-reference to Schema.md
-- `docs/architecture/event-system.md` — Good example of concise document with layered architecture and sink behaviour definition
-- `docs/architecture/testing.md` — Good example of scenario matrix, assertion framework, and exhaustive integration test specification
-- `docs/architecture/plugins.md` §9.6 — Example catalogue must stay in sync with `examples/README.md` (add/remove cookbook trees in both places; document `mix test.examples` vs `mix test.cookbook`)
-- `docs/architecture/security.md` — Good example of threat model table, per-surface security controls, and explicit non-goals with workarounds
+- `docs/architecture/plugins.md` — Good example of behaviour tables, lifecycle phases, and the in-BEAM loading model
+- `docs/architecture/authorization.md` — Good example of claim dictionary tables
+- `docs/architecture/data-model.md` — Good example of schema tables, partitioning, and cross-reference to Schema.md
+- `docs/architecture/event-system.md` — Good example of layered bus + sink behaviour
+- `docs/architecture/testing.md` — Scenario matrix, assertion helpers, CI, ExUnit constraints
+- `docs/architecture/plugins.md` — Example catalogue must stay in sync with `examples/README.md`
+- `docs/architecture/security.md` — Threat model table, per-surface controls, explicit non-goals

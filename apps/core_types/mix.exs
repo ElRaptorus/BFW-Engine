@@ -2,7 +2,7 @@ defmodule CoreTypes.MixProject do
   @moduledoc """
   Shared, behaviour-free structs used across every other app.
 
-  Per `ImplementationPlan.md` §2 / * No logic, no side effects.
+  * No logic, no side effects.
     * Every other app may depend on it.
     * This app itself depends on nothing beyond the Elixir stdlib — not
       even `ash`, `ecto`, or `phoenix`. Keeps it usable from plugins,

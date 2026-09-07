@@ -1,23 +1,16 @@
----
-title: Daemon Engine — Observability
-parent_document: ../ImplementationPlan.md
----
+# Observability
 
-<!-- Extracted from ImplementationPlan.md §11 (Observability). -->
+Core observability is structured JSON logs, a JWT-gated `/stats` snapshot,
+and a public Prometheus scrape at `GET /metrics` (`TDE_METRICS_ENABLED`,
+default on). OpenTelemetry and distributed tracing do not ship.
 
-## 11. Observability
+Every typed engine event fans out through `EngineEventBus` to pluggable
+sinks ([event-system.md](./event-system.md)). Mix retention purge does
+**not** emit bus events.
 
-Core observability stays intentionally small: structured JSON logs + a
-`/stats` JSON snapshot. **Phase 2** adds an optional public **`GET /metrics`**
-Prometheus exposition endpoint (`telemetry_metrics_prometheus_core` from Hex `~> 1.1`, not GitHub `main`), gated by
-`TDE_METRICS_ENABLED` (see [configuration.md](./configuration.md)). No OpenTelemetry and no distributed tracing in v1.
-Every typed engine event is fanned out through `EngineEventBus` to a set of
-pluggable sinks ([§3.3](./event-system.md)); this section describes what each sink surfaces and how operators
-turn on the ones they want.
+## Event sinks — how observability output is produced
 
-### 11.1 Event sinks — how observability output is produced
-
-Everything observable the engine produces at runtime (PI/FNI transitions, messages, signals, timers, Data Object writes, escalation traces, deploy events, sink failures) flows through `EngineEventBus` to the set of active sinks. Mix retention purge does **not** emit bus events. Each sink's output shape is described in [§3.3.3](./event-system.md). **Operator-facing defaults:**
+Everything observable the engine produces at runtime (PI/FNI transitions, messages, signals, timers, Data Object writes, escalation traces, deploy events, sink failures) flows through `EngineEventBus` to the set of active sinks. Mix retention purge does **not** emit bus events. Each sink's output shape is described in [event-system.md](./event-system.md). **Operator-facing defaults:**
 
 | Sink | Default | What the operator sees | When to enable/disable |
 |---|---|---|---|
@@ -40,7 +33,7 @@ Together these reconstruct the full sender↔receiver pattern for every BPMN-ele
 
 **Studio integration caveat:** a Studio "Engine Event Log" panel (flat chronological list, optionally filtered by severity/type) would require a plugin event sink that writes to a custom DB table — the built-in database sink was removed. The Studio debugger's **BPMN-flow view** (PI progress, FNI-detail panels, sender↔receiver navigation, DO history, message/signal/escalation delivery traces) works with any sink configuration.
 
-### 11.2 Logs
+### Logs
 
 - The `console` sink emits events as **structured JSON** (`logger_json` formatter) — this is the primary log surface in v1.
 - Severity levels: `error | warn | info | debug | verbose` (maps to concept's "Verbose"). Configured globally via `TDE_LOG_MIN_SEVERITY` (default `info`).
@@ -48,7 +41,7 @@ Together these reconstruct the full sender↔receiver pattern for every BPMN-ele
 - Engine-internal logs outside the event bus (startup banners, sink-failure warnings) use the same JSON formatter and share the same severity level. Mix retention purge logs counts to stdout; there is no RetentionRunner heartbeat.
 - **API error audit trail:** Every REST error response is logged by `ErrorResponse` (`:error` for 5xx, `:warning` for 4xx). Auth failures, payload-cap violations, rate-limit rejections, and rescued exceptions in message/signal controllers are logged separately with additional context. GraphQL errors are logged by the `ErrorLogger` Absinthe phase. See [api.md §Audit-trail logging](api.md#audit-trail-logging).
 
-### 11.2 `/stats` endpoint (JSON snapshot)
+### `/stats` endpoint (JSON snapshot)
 
 Primary JSON runtime snapshot (authenticated). Returns the current in-memory snapshot:
 
@@ -86,9 +79,9 @@ Primary JSON runtime snapshot (authenticated). Returns the current in-memory sna
 }
 ```
 
-Backed by the `telemetry` event sink ([§3.3.3](./event-system.md)), which increments in-process `:telemetry` counters on every event. The snapshot is assembled lazily on request; there is no in-memory ring buffer and no time-series retention inside the engine.
+Backed by the `telemetry` event sink ([event-system.md](./event-system.md)), which increments in-process `:telemetry` counters on every event. The snapshot is assembled lazily on request; there is no in-memory ring buffer and no time-series retention inside the engine.
 
-**`GET /metrics` (Phase 2, public):** When `TDE_METRICS_ENABLED` is `true` (default), `EvilEngine.Telemetry.Metrics` registers a Prometheus reporter (`TelemetryMetricsPrometheus.Core`) plus a poller (`EvilEngine.Telemetry.Measurements`) that samples active PI count, PI capacity ratio, BEAM VM memory/run-queue/process-count gauges, and evaluates overload threshold transitions (event bus publishes `Event.EngineOverloaded` on upward crossings and `Event.EngineRecovered` on recovery to normal, only on level changes, not every tick). Scrape output is plain text; when metrics are disabled the HTTP handler returns `404` with `{"error":"metrics_disabled"}`.
+**`GET /metrics` (public):** When `TDE_METRICS_ENABLED` is `true` (default), `EvilEngine.Telemetry.Metrics` registers a Prometheus reporter (`TelemetryMetricsPrometheus.Core`) plus a poller (`EvilEngine.Telemetry.Measurements`) that samples active PI count, PI capacity ratio, BEAM VM memory/run-queue/process-count gauges, and evaluates overload threshold transitions (event bus publishes `Event.EngineOverloaded` on upward crossings and `Event.EngineRecovered` on recovery to normal, only on level changes, not every tick). Scrape output is plain text; when metrics are disabled the HTTP handler returns `404` with `{"error":"metrics_disabled"}`.
 
 #### Prometheus metric catalog
 
@@ -132,7 +125,7 @@ Backed by the `telemetry` event sink ([§3.3.3](./event-system.md)), which incre
 
 `listeners.eventSinksByName` lets operators verify at a glance which sinks are actually active on the running engine.
 
-### 11.3 Historical / time-series analysis
+### Historical / time-series analysis
 
 Out of scope for `/stats`. Any time-range query ("how many PIs failed last hour?", "FNI type distribution over the past week?") has two possible answers depending on the operator's sink configuration:
 
@@ -141,7 +134,7 @@ Out of scope for `/stats`. Any time-range query ("how many PIs failed last hour?
 
 Either way the runtime hot path stays free of metrics-aggregation overhead.
 
-### 11.4 Minimal admin HTML
+### Minimal admin HTML
 
 - `/admin/` — single server-rendered page that fetches `/stats`, `/info`, `/health` on load.
 - Shows: engine id/uptime, running / waiting / finished / failed counts, per-process
@@ -150,7 +143,7 @@ Either way the runtime hot path stays free of metrics-aggregation overhead.
 - No JS build pipeline; just `Phoenix.HTML` with a tiny CSS file. htmx may be used
   for periodic refresh if polling is desired.
 
-### 11.5 Not in v1 (see ../ImplementationPlan.md §16.4)
+### Not shipped
 
 - OpenTelemetry logs / metrics / traces export (OTLP)
 - Distributed tracing (trace id / span id instrumentation)

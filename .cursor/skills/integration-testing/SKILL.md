@@ -176,13 +176,11 @@ Register sinks with the event bus using the 3-arity API:
 
 ---
 
-## Sidecar Plugin Testing — **deferred, not a v1 CI obligation (PLUG-D1)**
+## Sidecar Plugin Testing — **not shipped**
 
-The gRPC sidecar host is out of v1. Do **not** add `test/fixtures/plugins/`,
-`SidecarLoader`, or a five-language fixture matrix to CI. The rest of this
-section is retained as the post-v1 design from
-[`docs/architecture/testing.md`](../../../docs/architecture/testing.md) §12.4.8
-and [`docs/architecture/plugins.md`](../../../docs/architecture/plugins.md) §9.2.3.
+The gRPC sidecar host is not in v1. Do **not** add `test/fixtures/plugins/`,
+`SidecarLoader`, or a five-language fixture matrix to CI. A deferred sidecar
+design lives in [`docs/architecture/plugins.md`](../../../docs/architecture/plugins.md).
 
 ### Fixture location
 

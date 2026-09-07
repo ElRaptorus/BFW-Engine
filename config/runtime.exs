@@ -1,5 +1,5 @@
 # Runtime configuration read from the `TDE_*` environment variables
-# documented in `docs/ImplementationPlan.md` §14.3.
+# documented in `docs/architecture/configuration.md`.
 #
 # This file runs at *release boot* (not compile time). Only directives
 # here can shape the running system from the environment.

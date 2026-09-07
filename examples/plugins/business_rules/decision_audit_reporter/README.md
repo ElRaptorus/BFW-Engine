@@ -2,7 +2,7 @@
 
 Builds a post-execution DMN compliance audit: runtime coverage from live Business Rule Task completions, persisted FNI inspection, boundary-case evaluations, latency SLA flags, and a JSON report for operators and DMN observers.
 
-This is the in-BEAM successor of the former `examples/sidecar-js/decision-audit-reporter` sketch (removed with the gRPC sidecar host, PLUG-D1). The observation goals are unchanged; the plugin now uses `register_event_sink` plus `EngineFacade` instead of a mocked gRPC sidecar.
+This plugin runs in-BEAM. It uses `register_event_sink` plus `EngineFacade`.
 
 ## What this demonstrates
 

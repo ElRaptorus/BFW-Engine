@@ -1,1398 +1,330 @@
 # Common Pitfalls
 
-Recurring mistakes, gotchas, and non-obvious constraints discovered during
-engine development. Each entry describes the mistake, explains why it
-happens, and shows the correct approach.
+Recurring constraints someone could hit **again**. Add an entry only if a
+competent person could hit this without this note. One-off bugfixes, CI
+incident reports, and named failing tests do not belong here.
 
----
-
-## P1: Core must not import Peripheral — use a Persistence behaviour
-
-**Mistake:** Calling `Ash.create/3` or `Ash.get/3` directly from `core_execution` to persist PI/FNI state. This compiles but violates the Core → Peripheral dependency direction.
-
-**Why it happens:** The PI runtime needs to write to the database, and Ash is the persistence framework. The natural impulse is to call Ash directly.
-
-**Correct approach:** Define a `@behaviour` in Core (`EvilEngine.Execution.Persistence`) with callbacks like `create_process_instance/1`. Provide a `NoOp` adapter for tests. The real Ash implementation (`EvilEngine.Persistence.ExecutionAdapter`) lives in `peripheral_persistence` and is wired via `Application.get_env(:core_execution, :persistence_adapter)`.
-
-```elixir
-# In core_execution — behaviour definition
-defmodule EvilEngine.Execution.Persistence do
-  @callback create_process_instance(map()) :: {:ok, map()} | {:error, term()}
-  def adapter, do: Application.get_env(:core_execution, :persistence_adapter, __MODULE__.NoOp)
-end
-
-# In peripheral_persistence — Ash-backed implementation
-defmodule EvilEngine.Persistence.ExecutionAdapter do
-  @behaviour EvilEngine.Execution.Persistence
-  @impl true
-  def create_process_instance(attrs), do: ...
-end
-```
-
----
-
-## P2: gen_statem — do validation in init/1, not in deferred internal events
-
-**Mistake:** Using `{:ok, :preparing, data, [{:next_event, :internal, {:prepare, opts}}]}` from `init/1` to defer model fetch and Start Event resolution to a state callback. This causes `start_link` to return `{:ok, pid}` before validation runs, so startup errors never propagate to the caller.
-
-**Why it happens:** It feels clean to separate "initialization" from "preparation" into different state callbacks. But `:gen_statem` sends `proc_lib:init_ack` (the `{:ok, pid}` reply) immediately after `init/1` returns, before processing queued internal events.
-
-**Correct approach:** Do all validation (model fetch, Start Event resolution, Task.Supervisor start) synchronously inside `init/1`. Return `{:stop, {reason, data}}` on failure (propagates as `{:error, {reason, data}}` to caller) or `{:ok, :running, data}` on success.
-
-```elixir
-def init(opts) do
-  with {:ok, model} <- fetch_process_model(opts.process_version_id),
-       {:ok, start} <- resolve_start_event(model, opts[:start_event_id]),
-       {:ok, sup}   <- Task.Supervisor.start_link(strategy: :one_for_one) do
-    data = %State{...}
-    {:ok, :running, data}
-  else
-    {:error, reason} -> {:stop, {reason, %State{...}}}
-  end
-end
-```
-
----
-
-## P3: SequenceFlowResolver — don't rely on FlowNode.outgoing
-
-**Mistake:** Using `flow_node.outgoing` (the list of outgoing sequence flow IDs embedded in the FlowNode struct) to find successor flows. This field is only populated if the BPMN XML includes `<bpmn:outgoing>` child elements on each flow node, which many BPMN editors omit.
-
-**Why it happens:** The BPMN spec defines `<bpmn:outgoing>` as an optional convenience element on flow nodes. The parser reads it when present, but many real-world BPMN files only define `sourceRef`/`targetRef` on the `<bpmn:sequenceFlow>` elements themselves.
-
-**Correct approach:** Fall back to scanning `process.sequence_flows` by `source_ref` when `outgoing` is empty:
-
-```elixir
-defp fetch_outgoing_flows(%FlowNode{} = node, %BpmnProcess{} = process) do
-  case node.outgoing do
-    ids when is_list(ids) and ids != [] ->
-      # Use the pre-indexed outgoing list
-      flow_index = Map.new(process.sequence_flows, &{&1.id, &1})
-      Enum.filter(ids, &Map.has_key?(flow_index, &1)) |> Enum.map(&flow_index[&1])
-
-    _ ->
-      # Scan by source_ref
-      Enum.filter(process.sequence_flows, &(&1.source_ref == node.id))
-  end
-end
-```
-
----
-
-## P4: Ash resources need `primary? true` on named create actions
-
-**Mistake:** Defining a named `create :create do ... end` action without `primary? true`. When `Ash.create/3` is called without specifying an action, Ash looks for the primary create action. Without `primary? true`, a named action is not auto-promoted, and Ash raises `"Required primary create action for ..."`.
-
-**Why it happens:** In Ash 3.x, `defaults [:create]` would auto-create a primary create action, but a manually defined `create :create do ... end` block does not inherit the `primary?` flag. The `defaults [:read]` line in the same block adds to the confusion.
-
-**Correct approach:** Always add `primary? true` to named create actions that should serve as the default:
-
-```elixir
-create :create do
-  primary? true
-  accept [:id, :state, ...]
-end
-```
-
----
-
-## P5: FNI IDs must be valid UUIDv7 when the Ash resource declares `:uuid_v7`
-
-**Mistake:** Using a custom `generate_id()` that produces UUIDv4-format strings while the Ash resource attribute is declared as `:uuid_v7`. The create action silently fails because Ash cannot load the value as `UUIDv7`.
-
-**Why it happens:** `core_execution` cannot depend on `ash`, so it cannot call `Ash.UUIDv7.generate/0` directly. A hand-rolled UUID generator is needed, but it must produce the correct version-7 format.
-
-**Correct approach:** Generate proper UUIDv7 using timestamp + random bits:
-
-```elixir
-defp generate_id do
-  timestamp_ms = System.system_time(:millisecond)
-  <<rand_a::12, rand_b::62, _::6>> = :crypto.strong_rand_bytes(10)
-  <<timestamp_ms::48, 7::4, rand_a::12, 2::2, rand_b::62>>
-  |> Base.encode16(case: :lower)
-  |> then(fn <<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>> ->
-    "#{a}-#{b}-#{c}-#{d}-#{e}"
-  end)
-end
-```
-
----
-
-## P6 (removed)
-
-Entry removed — no longer applicable. Handlers now receive the FNI ID via `HandlerContext.flow_node_instance_id` and explicitly use it in async return tuples. The original concern about handlers not knowing the FNI ID was superseded by the `HandlerContext` struct.
-
----
-
-## P7: `ModelCache.put_new` inside a DB transaction
-
-**Mistake:** Calling <code>EvilEngine.BPMN.ModelCache.put_new/2</code> **inside** the same database transaction that inserts `process_versions`. If the transaction **rolls back**, the ETS cache entry can still exist — deploy failures or aborted batches leave a **stale AST** keyed by a `process_version_id` that was never committed (or points at rolled-back data).
-
-**Why it happens:** ETS is not transactional with Postgres. The cache is a per-node side store; only SQL commit/rollback affects durable rows.
-
-**Correct approach:** Call **`ModelCache.put_new` only after the transaction commits successfully** (e.g. move cache warming to the success path after `Repo.transaction` returns `{:ok, _}`). Batch deploy paths should insert all version rows first, commit, then populate the cache for the committed ids.
-
-## P8: Atom-keyed maps passed to the FEEL evaluator
-
-**Mistake:** Passing a raw Elixir map with atom keys (e.g., `%{token: payload, this: payload}`) to `Expressions.eval/2` instead of building a proper `%Expressions.Context{}` struct. The Rust NIF expects string-keyed maps; atom keys cause expressions like `token.input` to silently evaluate to `null` instead of returning an error, making FEEL mapping failures invisible.
-
-**Why it happens:** Elixir idiomatically uses atom keys (`%{foo: "bar"}`). The `Expressions.eval/2` API has a clause accepting raw maps alongside `%Context{}` structs, so compilation succeeds. But the NIF only matches string keys (`"token"`, `"this"`), so atom-keyed entries become invisible at evaluation time.
-
-**Correct approach:** Always build and pass a `%Expressions.Context{}` struct. Its `to_feel_scope/1` function produces the string-keyed map the NIF requires. Never pass ad-hoc maps to `Expressions.eval/2` for handler-level FEEL evaluation. Use `Context.flow_node_this/1` to populate the `this` binding with flow node metadata — **never** set `this` to the token payload (see P16).
-
-```elixir
-feel_ctx = %Expressions.Context{
-  token: payload || %{},
-  this: Expressions.Context.flow_node_this(flow_node),
-  context: %{},
-  data_objects: context.data_objects,
-  process: context.process,
-  process_instance: context.process_instance,
-  identity: context.identity
-}
-Expressions.eval(expression, feel_ctx)
-```
-
----
-
-## P9: Soft-deletable resources MUST have `base_filter` on `:read`
-
-**Mistake:** Adding a `deleted` boolean column to an Ash resource but leaving the default `:read` action unfiltered. Deleted records become visible through GraphQL queries, REST endpoints, WebSocket channel joins, and Ash calculations.
-
-**Why it happens:** `defaults [:read]` generates a `:read` action with no filter. Nothing prevents queries from returning `deleted = true` rows unless the resource explicitly excludes them.
-
-**Correct approach:** Replace `defaults [:read]` with an explicit `:read` action that filters out deleted records. Suppress the Ash primary-read warning since the filter is intentional:
-
-```elixir
-use Ash.Resource,
-  ...,
-  primary_read_warning?: false
-
-actions do
-  defaults []
-
-  read :read do
-    primary? true
-    filter expr(deleted == false)
-  end
-
-  # ... other actions ...
-end
-```
-
-Error messages must never reveal that a record is soft-deleted. From the consumer's perspective, a deleted resource simply does not exist — all errors should say "not found", never "soft-deleted".
-
----
-
-## P10: Never expose soft-delete terminology in public APIs, SDK types, or documentation
-
-**Mistake:** Using the term "soft-delete" in TSDoc comments, SDK type names, API error messages, or user-facing documentation. For example: `/** Soft-delete a terminal process instance. */` or returning an error like `"The process version was soft-deleted"`.
-
-**Why it happens:** Soft-delete is an internal implementation detail — the database retains the row with a `deleted` flag. Developers working on the codebase know this and naturally use the term in descriptions. But from the consumer's perspective, a deleted resource is gone. Revealing that it still exists internally is both confusing and a potential security concern (it tells an attacker the data is recoverable).
-
-**Correct approach:**
-
-- **Public API errors:** Always say "not found". Never mention "soft-deleted", "marked as deleted", or "flagged for deletion".
-- **SDK types:** Do not include `deleted`, `deletedAt`, or `deletedBy` fields on any public type. These fields exist in the database schema but must never be exposed through REST, GraphQL, WebSocket, or plugin APIs.
-- **TSDoc / documentation:** Describe the operation as "delete", not "soft-delete". The consumer does not need to know (or care) whether the engine uses hard or soft deletion internally.
-- **Internal code comments:** Using "soft-delete" in internal Elixir code comments or architecture docs is fine — the distinction matters for developers working on the engine. The rule applies only to consumer-facing surfaces.
-
----
-
-## P11: ResumeRunner must only resume root-level PIs
-
-**Mistake:** Querying all PIs with `state == "running"` for resume, without filtering out child PIs (those with a non-nil `parent_process_instance_id`). This causes child PIs spawned by Call Activities to be resumed independently by `ResumeRunner` **and** by their parent's Call Activity handler — leading to duplicate execution, race conditions, and unpredictable state.
-
-**Why it happens:** The `list_running_process_instances` query was initially written before Call Activity support existed. When Call Activities were added, the resume query was not updated to exclude child PIs.
-
-**Correct approach:** Filter to root-level PIs only. Child PIs are managed exclusively by their parent handler (Call Activity or SubProcess) during resume — it either re-monitors a still-running child or spawns a new one.
-
-```elixir
-def list_running_process_instances do
-  ProcessInstance
-  |> Ash.Query.filter(state == "running" and is_nil(parent_process_instance_id))
-  |> Ash.read(domain: @domain, authorize?: false)
-  |> ...
-end
-```
-
----
-
-## P12: <code>Ash.set_actor/1</code> does not exist in Ash 3.x — use `Ash.PlugHelpers.set_actor/2`
-
-**Mistake:** Calling <code>Ash.set_actor(actor)</code> inside a Plug to set the actor for downstream Ash calls.
-
-**Why it happens:** Ash 2.x had a process-dictionary-based <code>Ash.set_actor/1</code> that stored the actor globally for the current process. In Ash 3.x this function was removed. Code or documentation written against Ash 2.x (or generated from stale examples) will reference it.
-
-**Correct approach:** In a Plug context, store the actor on the `Plug.Conn` struct using `Ash.PlugHelpers.set_actor/2`. Downstream code retrieves it with `Ash.PlugHelpers.get_actor/1`.
-
-```elixir
-# Wrong — Ash.set_actor/1 is undefined in Ash 3.x
-def call(conn, _opts) do
-  Ash.set_actor(prepare_actor(conn.assigns[:identity]))
-  conn
-end
-
-# Correct — actor stored on the conn, not in the process dictionary
-def call(conn, _opts) do
-  case conn.assigns[:identity] do
-    nil      -> conn
-    identity -> Ash.PlugHelpers.set_actor(conn, prepare_actor(identity))
-  end
-end
-```
-
-Note: plain `Ash.read/create/update/destroy` calls inside Phoenix controllers do **not** automatically inherit the actor from `conn.private[:ash][:actor]`. They require an explicit `actor:` keyword argument or `authorize?: false`. The actor on the conn is consumed by AshPhoenix-aware controller helpers, and will be used automatically after the `EvilEngine.Api` facade migration.
-
----
-
-## P13: Ash read policies return `{:ok, []}` on failure, not `{:error, %Ash.Error.Forbidden{}}`
-
-**Mistake:** Writing tests or production code that expects `{:error, %Ash.Error.Forbidden{}}` when an Ash read policy is not satisfied (e.g. no actor present and `authorize_if actor_present()` fails).
-
-**Why it happens:** Write policies (create, update, destroy) do return hard `Forbidden` errors when not satisfied. Read policies behave differently by design.
-
-**Correct approach:** For read actions, Ash uses row-level filtering rather than hard errors. When a policy condition fails, Ash adds a `false` filter to the query, so the result is `{:ok, []}` (empty list) rather than a Forbidden error. This is intentional — it prevents information leakage about whether records exist at all.
-
-```elixir
-# Wrong — read policies return {:ok, []} not {:error, Forbidden}
-assert {:error, %Ash.Error.Forbidden{}} = Resource |> Ash.read(domain: Domain)
-
-# Correct
-assert {:ok, []} = Resource |> Ash.read(domain: Domain)
-
-# To actually trigger a hard Forbidden on a read, pass authorize?: true
-# and ensure the resource is configured to always enforce authorization.
-# Without an actor and without authorize?: true, Ash may skip policy evaluation.
-assert {:error, %Ash.Error.Forbidden{}} =
-  Resource |> Ash.read(domain: Domain, authorize?: true, actor: nil)
-```
-
----
-
-## P14: User-payload subtrees must not be camelCased
-
-**Mistake:** Adding a user-payload field (like `payload`, `inputToken`, `typeProperties`) to the Wire module's recursive conversion, or forgetting to add a new opaque field to the `@opaque_atom_fields` set.
-
-**Why it happens:** The camelCase encoder recurses into nested maps by default. Fields carrying user-defined data structures (process tokens, form data, JWT claims) must be excluded from conversion because downstream consumers depend on the exact key names the process author chose.
-
-**Correct approach:** When adding a new field that carries user or plugin data, add its atom name to `@opaque_atom_fields` in `EvilEngine.Types.Wire`. The canonical list includes: `payload`, `result`, `input_token`, `output_token`, `started_with_context`, `started_by`, `deployer`, `claims`, `form_fields`, `type_properties`, `error_info`, `payload_contract`, `result_contract`, `data_contracts`, `bpmn_xml`, `violations`, `metadata`, `deleted_by`, `data_object_cache`.
-
-**Do NOT mark engine-structural error fields as opaque.** Fields like `failures`, `conflicts`, `details`, and `reason` in error responses contain engine-built maps with structural keys (e.g. `processModelId`, `rulesetFailures`) that must be camelCased. Only truly user-authored data belongs in the opaque set.
-
----
-
-## P15: Partitioned tables require child partitions before INSERT
-
-**Mistake:** Running `mix ecto.reset` (or `mix ecto.migrate`) and then immediately executing integration tests that write to `data_object_writes` or `process_instance_events`. The INSERTs fail with `ERROR: no partition of relation "data_object_writes" found for row` and PIs go `fatal`.
-
-**Why it happens:** The migration creates the parent partitioned tables (`PARTITION BY RANGE (created_at)` / `(occurred_at)`) but does not create child partitions. PostgreSQL requires at least one child partition whose range covers the row's timestamp value before any INSERT can succeed. Without it, the DB has nowhere to route the row.
-
-**Correct approach:** Always call `EvilEngine.Persistence.Partitions.ensure_partitions()` after migrations and before any test or runtime code that writes to partitioned tables.
-
----
-
-## P16: `this` binding must be flow node metadata — never the token payload
-
-**Mistake:** Setting `this` to the token payload (or output payload) when assembling a FEEL `%Context{}`. This causes `this.id`, `this.name`, and `this.type` to resolve to token fields instead of the executing flow node's BPMN metadata, silently corrupting any expression that relies on the documented binding semantics.
-
-**Why it happens:** Early handler implementations copied `this: payload` from a pattern where `this` was intended as a "current scope" alias for `token`. Since most FEEL expressions only reference `token.*`, the mismatch went undetected by tests. FEEL's null propagation made things worse — `this.name` returned `null` instead of an error, so broken expressions silently produced incorrect results instead of failing.
-
-**Correct approach:** Use `Context.from_handler_context/2` (see P17) which builds `this` correctly.
-
----
-
-## P17: Never build `%Context{}` manually — use `from_handler_context/2`
-
-**Mistake:** Constructing `%EvilEngine.Expressions.Context{}` structs inline in handlers, passing atom-keyed maps for `process`, `process_instance`, or `identity`.
-
-**Why it happens:** The Rust FEEL NIF decodes nested maps via `HashMap<String, Term>`. Elixir atom keys cannot be decoded as Rust `String` values, so atom-keyed maps silently become `Value::Null` in FEEL. The error is invisible because FEEL uses null propagation — `process.id` returns `null` instead of raising an error, so expressions silently produce wrong results.
-
-**Correct approach:** Always call `Context.from_handler_context(handler_context, token_payload)` to build FEEL contexts. This function:
-
-1. Converts `process` (atom-keyed `%{id: ..., name: ..., version: ...}`) to `%{"id" => ..., "name" => ..., "version" => ...}`
-2. Converts `process_instance` to camelCase string keys (`startedAt`, `startedBy`)
-3. Converts `identity` to string keys
-4. Converts `DateTime` values to ISO 8601 strings
-5. Populates `context` from `HandlerContext.context` (the immutable start payload)
-6. Stringifies any atom keys in `data_objects`
-
-```elixir
-# Wrong — atom keys become null in FEEL
-feel_context = %Context{
-  token: payload,
-  process: context.process,        # atom keys!
-  identity: context.identity,      # atom keys!
-  context: %{},                    # always empty!
-  ...
-}
-
-# Correct — canonical assembly with proper key conversion
-feel_context = Context.from_handler_context(handler_context, payload)
-```
-
----
-
-## P18: The `context` FEEL binding must be populated from `started_with_context`
-
-**Mistake:** Hardcoding `context: %{}` in FEEL context assembly. This makes the `context.*` binding always empty, preventing FEEL expressions from accessing process-level variables.
-
-**Why it happens:** `HandlerContext` originally did not have a `context` field, and `started_with_context` on `ProcessInstance.State` was only used for persistence, not for FEEL evaluation.
-
-**Correct approach:** `HandlerContext` now carries a `context` field populated from `state.started_with_context || %{}` in `build_handler_context/3`. The `Context.from_handler_context/2` function reads this field. Never hardcode `context: %{}` — always read from the handler context.
-
----
-
-## P19: FEEL `Expressions.compile/2` requires a context shape with variable names
-
-**Mistake:** Calling `Expressions.compile(expression)` (or `compile(expression, %{})`) for expressions that reference variables like `x + y`. The compiled reference succeeds but evaluates to `nil` at runtime because the FEEL parser didn't know `x` and `y` were variable references.
-
-**Why it happens:** The Rust NIF FEEL parser is scope-aware — it needs to know which names are variables at parse time to distinguish them from function names or reserved words. Without a context shape declaring the variable names, the parser treats unknown names as null references.
-
-**Correct approach:** Always pass a context shape map with at least the variable names as keys:
-
-```elixir
-# Wrong — compiles but evaluates to nil for variable references
-{:ok, ref} = Expressions.compile("x + y", %{})
-
-# Correct — FEEL parser knows x and y are variables
-{:ok, ref} = Expressions.compile("x + y", %{"x" => nil, "y" => nil})
-```
-
-The DMN `Precompiler` builds this context shape from `definitions.input_data` names and BKM `formal_parameters`. The BPMN runtime uses `Context.to_feel_scope/1` which already provides full variable names.
-
----
-
-## P20: Fatal PI transition must persist ALL non-terminal FNI states — not just kill pids
-
-**Mistake:** Implementing `terminate_active_fnis` to only call `Process.exit(pid, :kill)` on active FNIs without persisting their state change to the database. This leaves `active` and `waiting` FNI rows in the DB after the PI is `fatal`, creating an inconsistency between PI state and FNI states.
-
-**Why it happens:** The abort path (`abort_all_fnis`) was implemented correctly — it kills pids AND persists FNI state to `aborted`. The fatal path was implemented as a simpler "kill-only" function, presumably because the gen_statem is stopping anyway. But the DB survives the process: when the PI is queried later (for debugging, retry, or audit), stale `active`/`waiting` FNI rows cause confusion and incorrect retry logic.
-
-**Correct approach:** `fatal_all_fnis` (renamed from `terminate_active_fnis`) must mirror `abort_all_fnis`: filter all `active`/`waiting` FNIs, kill their pids, persist each to `fatal`, emit `FlowNodeInstanceFinished` events, and invoke `handle_fatal/1` on the handler if implemented. Since the handler-owned lifecycle refactoring, both `fatal_all_fnis` and `abort_all_fnis` delegate individual FNI transitions to `FniLifecycle.transition_to_fatal/4` and `FniLifecycle.transition_to_aborted/4` respectively:
-
-```elixir
-defp fatal_all_fnis(data) do
-  data.flow_node_instance_states
-  |> Enum.filter(fn {_id, entry} -> entry.state in [:active, :waiting] end)
-  |> Enum.each(fn {flow_node_instance_id, entry} ->
-    if entry.pid != nil, do: Process.exit(entry.pid, :kill)
-
-    flow_node = find_flow_node(data, entry.flow_node_id)
-
-    FniLifecycle.transition_to_fatal(
-      flow_node_instance_id,
-      data.process_instance_id,
-      %{reason: "process_fatal"},
-      flow_node
-    )
-
-    invoke_optional_callback(flow_node, :handle_fatal, [entry])
-  end)
-end
-```
-
----
-
-## P21: Child PIs spawned by Call Activities must not survive parent termination
-
-**Mistake:** A Call Activity starts a child PI under `EvilEngine.Execution.Supervisor` (DynamicSupervisor), not under the parent PI's Task.Supervisor. When the parent PI terminates (fatal or aborted), its Task.Supervisor is stopped — killing the handler Task — but the child PI keeps running independently. The child's `notify_pid` points to the (now dead) handler Task; any `send(notify_pid, ...)` calls are silently dropped. Result: orphan child PIs remain alive and in the database as "running" after the parent has terminated.
-
-**Why it happens:** Child PIs are OTP processes supervised by the shared DynamicSupervisor, not linked to the parent PI's process tree. There is no `:DOWN` monitor between the parent PI and the child PI (only between the handler Task and the child). When the parent goes terminal, the handler Task is killed, severing the only link to the child.
-
-**Correct approach:** Use handler-driven cascade via the optional `handle_fatal/1` and `handle_aborted/1` callbacks on `FlowNodeHandler`. The `CallActivity` handler implements both callbacks to cascade the matching terminal state to the child PI:
-
-- `handle_fatal/1` → calls `ProcessInstance.force_fatal(child_pid, %{reason: "parent_fatal"})`
-- `handle_aborted/1` → calls `ProcessInstance.abort(child_pid, "parent_aborted", nil)`
-
-ProcessInstance's `fatal_all_fnis` and `abort_all_fnis` invoke these callbacks after persisting each FNI's terminal state. The cascade is recursive: if the child PI has its own Call Activities, `fatal_all_fnis`/`abort_all_fnis` on the child will cascade further to grandchildren.
-
-Key invariants:
-- Already-finished child PIs are never retroactively changed (the child is looked up in the Registry; if not found, the callback returns `:ok`)
-- The `catch :exit` guard in `cascade_to_child/2` handles the race condition where the child dies between Registry lookup and the call
-- `interrupted` FNIs (boundary events) trigger `handle_aborted/1` because `interrupted` is an FNI-only state — the child PI should be `aborted`, not `interrupted`
-
----
-
-## P22: Crash between PI termination and cascade completion can leave orphans
-
-**Mistake:** If the engine crashes (SIGKILL, OOM, hardware fault) between persisting a PI's terminal state and completing `fatal_all_fnis`/`abort_all_fnis`, stale DB rows survive: FNIs stuck in `active`/`waiting` on a terminal PI, or child PIs still `running` while their parent is already terminal. These orphans would be invisible to the resume logic (which only loads root-level running PIs) and would never be cleaned up.
-
-**Why it happens:** `persist_pi_fatal` / `persist_pi_aborted` runs first (persists the PI's terminal state), then `fatal_all_fnis` / `abort_all_fnis` iterates through each FNI to persist its terminal state and invoke handler callbacks. If the gen_statem dies between these two steps, the PI is terminal in DB but some FNIs and child PIs are still non-terminal.
-
-**Correct approach:** `ResumeRunner.resume_all/0` runs a startup orphan cleanup sweep **before** the paginated resume loop. Two persistence adapter callbacks handle the cleanup:
-
-1. `cleanup_orphaned_flow_node_instances/0` — bulk-aborts all FNIs in non-terminal state on terminal PIs
-2. `cleanup_orphaned_process_instances/0` — iteratively aborts child PIs whose parent is terminal, including their FNIs, until no more orphans exist (handles nested orphans)
-
-Both sweeps write an `error_info` JSONB map on affected rows for audit trail purposes. Cleanup errors are logged but do not prevent resume from proceeding.
-
-This eliminates the "crash edge case" burden from retry logic — retry can assume all orphans were cleaned up at engine startup.
-
----
-
-## P23: Signals are not messages
-
-**Mistake:** Applying message correlation, catch-wins-over-start gating, or pending-message fan-out semantics to signals.
-
-**Why it happens:** Signal and message infrastructure share a similar architectural shape (publisher → subscriptions → pending → start handler). Developers may assume both subsystems follow the same delivery rules.
-
-**Correct approach:**
-
-- Signals match on `signal_name` only — no correlation keys, no correlation values
-- REST/facade signal trigger silently ignores any `payload` in the request body
-- `SignalPublisher` always runs catch/boundary delivery **and** Signal Start Event firing in parallel (true broadcast); messages gate start events behind zero-delivery
-- `pending_signals` uses **FIFO single-claim** drain (first subscriber to register claims the pending row; subsequent subscribers receive only live broadcasts). Messages use the same FIFO drain for pending rows
-- Signal handlers use `evil:inputMapping`/`evil:outputMapping` for token transformation. Signals carry no inbound payload, so catch-side output mapping transforms the **existing** token.
-
-See [`routing.md`](./routing.md) §3.5.6.
-
----
-
-## P24: XOR join does not absorb duplicate merge tokens
-
-**Current state:** The exclusive gateway join simply passes through every arriving token. If a parallel-like token fan-out reaches an XOR join, duplicate tokens are forwarded downstream.
-
-**Why it exists:** XOR splits always produce exactly one outgoing token (condition evaluation), so a correctly modeled diagram never sends duplicate tokens into an XOR join. The issue only manifests when parallel/inclusive splits (Phase 4) feed into an XOR join — an invalid modelling pattern that is the modeling Users responsibility to fix.
-
----
-
-## P25: Link throw searches entire process scope
-
-**Current state:** When a Link Throw Event fires, the engine searches for a matching Link Catch Event across the entire process scope — all flow nodes in the same `<bpmn:process>`.
-
-**Why it exists:** Without embedded sub-processes (Phase 4 item 1), the entire process is a single flat scope. The search is correct for flat processes.
-
-**Phase 4 fix:** Phase 4 item 1 (embedded sub-processes) will introduce scope-aware link resolution. Link Throw will first search within the innermost sub-process scope, then walk up to parent scopes if no match is found.
-
----
-
-## P26: `engine:events` join stays open; visibility is enforced at dispatch
-
-**Mistake:** Treating an open `engine:events` join as "this subscriber may see every PI and FNI event", or adding a join-time claim gate such as `monitor` / `engine:events`.
-
-**Why it happens:** The topic is joinable with any valid JWT (same as `/stats`). Early drafts of Phase 4/6 speculated about a join gate. P26 originally recorded that gap as unfixed.
-
-**Current approach:** Join stays open. `EventDelivery.should_deliver?/2` filters each envelope after PubSub:
-
-- Engine-level events (`Engine*`, definition lifecycle, `MessagePublished`, `SignalPublished`) are always delivered.
-- PI-level events (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) are delivered on `engine:events` only when §5.1 holds from emit-time stamps (`startedById`, `hasLanelessFlowNode`, `laneNames`).
-- FNI-originating events (explicit allow-list) are delivered when `laneName` is `nil` or the subscriber holds `lane:<name>` as `"read"` or `"write"`.
-- Unknown envelope types are dropped. Do not treat a missing `laneName` on an unclassified type as "always deliver".
-- `zeeky_boogie_doog` bypasses the filter (write-capable admin). `observe_all` is a **separate** unbounded-read assign — it delivers every envelope but never implies write.
-
-`process:<model_id>` is still deferred. There is no `PiFinished` event.
-
----
-
-## P67: WebSocket FNI dispatch is lane-gated; GraphQL FNI reads are not
-
-**Mistake:** Assuming that hiding an FNI from a WebSocket subscriber also hides it from GraphQL (`flowNodeInstances` on a visible PI), or tightening GraphQL FNI reads to match the WS lane gate.
-
-**Why it happens:** Both surfaces talk about lanes and §5.1 PI visibility. It is easy to treat them as one authorization model.
-
-**Correct approach:** Keep the split:
-
-| Surface | PI visibility | FNI visibility |
-|---|---|---|
-| GraphQL reads | §5.1 (starter, laneless FNI, any matching `"read"`/`"write"` lane, zeeky, `observe_all`) | If you see the PI, you see **all** of its FNIs (§5.2) |
-| WebSocket FNI dispatch | Join of `process_instance:*` uses §5.1 (`read`/`write`/`observe_all`/zeeky); `engine:events` uses the same stamps at dispatch | Each FNI-originating event is delivered when `laneName` is `nil`, in `accessible_lanes` (`read` or `write`), or the subscriber has `observe_all` / zeeky |
-
-A starter without `lane:Management` can query the Management User Task via GraphQL and still receive PI-level WS events, but will not receive live `FlowNodeInstanceStarted` / `UserTaskCreated` for that task unless they hold `"read"` or `"write"` on Management (or `observe_all` / zeeky). GraphQL FNI reads stay §5.2 (all FNIs on a visible PI). `"read"` **does** deliver Management FNI events on WebSocket.
-
----
-
-## P27: Persistence adapter calls must use `PersistenceRetry.with_retry/3` — never call the adapter directly
-
-**Mistake:** Calling `adapter.create_process_instance(attrs)` or any other adapter callback directly from PI or FniLifecycle code, bypassing the retry wrapper.
-
-**Why it happens:** The adapter call is a simple function invocation. Without an established pattern, new code naturally calls the adapter directly — especially when copy-pasting from older code written before persistence resilience was standardized.
-
-**Correct approach:** Always wrap adapter calls with `PersistenceRetry.with_retry/3`:
-
-```elixir
-# Wrong — no retry, single failure = permanent data loss
-adapter.create_process_instance(attrs)
-
-# Correct — bounded retry with exponential backoff
-PersistenceRetry.with_retry(
-  fn -> adapter.create_process_instance(attrs) end,
-  "create_pi[#{attrs.id}]"
-)
-```
-
-The `label` argument is a human-readable string used in log messages. Include enough context to identify the operation (PI ID, FNI ID, etc.).
-
-After retry exhaustion, the caller decides the policy: fail-fast (critical creation and mid-flight writes) or log-and-continue (PI terminal transitions). See the ImplementationPlan and the Persistence Resilience section in `execution.md` for the full classification.
-
-`PersistenceRetry` must **not** retry Ash contract violations (`class: :invalid`, e.g. `NoSuchInput`). Those are bugs in the persist map, not transient DB errors; retrying them burns ~3.1s on the PI gen_statem per call and floods logs. The wrapper matches `%{class: :invalid}` without importing Ash.
-
-**Coverage:** As of the DB pool hardening work, `PersistenceRetry` wraps:
-
-- **PI/FNI lifecycle** — all `create_*`, `update_*` adapter calls in `FniLifecycle` and `ProcessInstance`
-- **Boundary orchestration** — `update_flow_node_instance` in `BoundaryOrchestrator`
-- **Resume** — `list_running_process_instances`, `list_flow_node_instances`, `cleanup_orphaned_*` in `ResumeRunner`
-- **Retry orchestration** — `get_process_instance_for_retry`, `list_all_flow_node_instances`, `execute_retry_reset`, `revert_retry` in `Execution`
-- **Message persistence** — all functions in `MessagePersistenceAdapter` (insert, find, mark, expire, update, append)
-- **Signal persistence** — all functions in `SignalPersistenceAdapter` (insert, find, mark, expire, update, append)
-
-## P28: Use offset pagination (`limit`/`offset`) — keyset pagination lacks `hasNextPage`
-
-**Mistake:** Using keyset (cursor) pagination for table-based UIs that need page jumping, page size changes, or First/Last navigation.
-
-**Why it happens:** Keyset pagination is efficient for infinite-scroll scenarios but AshGraphql's keyset page types only expose `results`, `count`, `startKeyset`, and `endKeyset` — no `hasNextPage`, `hasPreviousPage`, `pageNumber`, or `lastPage` fields. This forces client-side computation and prevents direct page jumps.
-
-**Correct approach:** All Ash resources use `paginate_with: :offset` in their `graphql` list queries. Offset pagination exposes the full `PageOf*` type with server-provided metadata:
-
-- `count` — total matching rows
-- `hasNextPage` / `hasPreviousPage` — boolean flags
-- `pageNumber` — 1-based current page
-- `lastPage` — total number of pages
-- `limit` — page size applied
-
-Query with `limit` and `offset` arguments:
-
-```graphql
-query {
-  processInstances(limit: 25, offset: 50) {
-    results { id }
-    count
-    hasNextPage
-    hasPreviousPage
-    pageNumber
-    lastPage
-  }
-}
-```
-
-**Critical:** When using offset pagination, do NOT also enable `keyset? true` in the action's pagination config. Having both enabled causes Ash's internal page-type routing to become ambiguous — the `more?` field on `Ash.Page.Offset` may be `nil` instead of a boolean, which triggers `Cannot return null for non-nullable field` errors on `hasNextPage` in GraphQL.
-
-**Keyset fallback:** If keyset pagination is ever needed (e.g., for streaming cursors), compute `hasNextPage` client-side as `results.length < count`. The keyset page type does not provide boolean navigation flags.
-
-**Naming:** The Absinthe `LanguageConventions` adapter (default) returns all field names in camelCase.
-
----
-
-## P29: Error messages must be diagnostic
-
-**Mistake:** Putting raw Elixir internals into user-facing `message` fields — `inspect(reason)`, `Exception.message/1`, bare atom names like `"in_mapping_failed"`, or generic fallbacks like `"An unexpected error occurred"` without naming the element or construct that failed.
-
-**Why it happens:** Handlers return `{:error, atom}` or `{:error, atom, detail}` tuples for convenience. Outer layers sometimes stringify those values directly instead of routing through the humanization layer. Developers debugging locally use `inspect/1` and copy the pattern into production paths. Atom-to-words fallbacks in `humanize_error/1` produce title-cased atom names (`"In mapping failed"`) that look like sentences but carry no diagnostic context.
-
-**Correct approach:** Use a three-layer pattern — rich inner errors, canonical humanization, last-mile sanitization:
-
-1. **Inner layers** (BPMN parser, flow-node handlers, FEEL evaluator) must return error tuples that carry element context: flow node ID and name, element type, expression text, implementation name, contract violation paths, and so on. Never pass `inspect/1` output or `Exception.message/1` up the stack as the user-facing message.
-
-2. **Canonical mapping** — `EvilEngine.Execution.ProcessInstance.Helpers.build_error_info/1` in `apps/core_execution/lib/evil_engine/execution/process_instance/helpers.ex` normalizes every error shape into `%{"error_code" => ..., "message" => ..., "detail" => ...}`. Message construction always delegates to the private `humanize_error/1` function in the same module. Every new error shape introduced by a handler **must** get an explicit `humanize_error/1` clause that produces a complete English sentence naming the specific element and explaining why it failed.
-
-3. **Event emission** — `EvilEngine.Execution.FniLifecycle` in `apps/core_execution/lib/evil_engine/execution/fni_lifecycle.ex` calls `normalize_error_info/1` (which delegates to `build_error_info/1`) before persisting, then passes the result through `sanitize_error_info/1` immediately before publishing `FlowNodeInstanceFinished`. The sanitizer is a **last-mile safety net** only: if it fires (it detects Elixir-internal patterns like `%{`, `#PID<`, `FunctionClauseError`), it logs a warning and replaces the message with a generic placeholder. When the sanitizer fires, fix the missing `humanize_error/1` clause at the source — do not rely on the sanitizer as the primary humanization path.
-
-4. **REST controllers** — API layers such as `EvilEngineWeb.Http.ProcessController` in `apps/api_web/lib/evil_engine_web/http/controllers/process_controller.ex` format errors into complete sentences at the controller boundary (e.g. `default_start_error_message/1`, `payload_too_large_message/1`). Controllers must never expose `inspect/1` output or raw atom names in the `message` field of REST error responses.
-
-```elixir
-# Wrong — atom name or inspect output reaches the client
-%{"error_code" => "in_mapping_failed", "message" => "in_mapping_failed"}
-%{"error_code" => "error", "message" => "%{reason: :feel_eval_failed, ...}"}
-
-# Correct — explicit humanize_error/1 clause produces a diagnostic sentence
-%{
-  "error_code" => "in_mapping_failed",
-  "message" =>
-    "Input mapping failed: FEEL expression 'token.x' could not be evaluated — unknown variable 'x'",
-  "detail" => %{"expression" => "token.x", "reason" => "unknown variable 'x'"}
-}
-```
-
-When adding a new handler error path, add the `humanize_error/1` clause first, then add a test that asserts the `message` contains the element ID or expression text — not just that `error_code` is set.
-
----
-
-## P30: `root_process_instance_id` — root PIs use self, children inherit
-
-**Mistake:** Treating `root_process_instance_id` as `nil` for root-level PIs, omitting it when spawning child PIs in new handlers, or assuming `parent_process_instance_id` alone identifies the top-level PI for WebSocket subscriptions.
-
-**Why it happens:** The field is typed `String.t() | nil` on event structs and PI state, which suggests optionality. Child-spawn events (`CallActivityChildStarted`, `SubProcessChildStarted`) carry `parent_process_instance_id` but not `root_process_instance_id`, which can confuse consumers about which channel to join.
-
-**Correct approach:** At PI creation, always set `root_process_instance_id` to `opts[:root_process_instance_id] || opts.process_instance_id`. For root PIs, root equals self — never leave it unset expecting `nil` to mean "this is the root". Call Activity and SubProcess handlers pass `context.root_process_instance_id` in child `start_opts` so the chain propagates at any nesting depth.
-
-WebSocket clients that need a unified debugger view should subscribe to `process_instance:<rootProcessInstanceId>`. The WebSocket sink fans out events where `root_process_instance_id != process_instance_id` to both channels; when root equals self, only one targeted broadcast occurs.
-
-```elixir
-# Root PI init — root equals self
-root_process_instance_id: opts[:root_process_instance_id] || opts.process_instance_id
-
-# Child PI spawn — inherit from handler context
-start_opts = [
-  root_process_instance_id: context.root_process_instance_id,
-  parent_process_instance_id: context.process_instance_id,
-  ...
-]
-```
-
----
-
-## P31: SubProcess vs Event SubProcess confusion
-
-**Mistake:** Expecting embedded-subprocess semantics (token arrives via an incoming sequence flow) from an Event SubProcess container, or attaching a sequence flow to the ESP shell.
-
-**Why it happens:** BPMN 2.0 defines two subprocess flavours with the same XML element name. The parser stores the distinction on `FlowNodeData.SubProcess.triggered_by_event`. Both are executed, but through entirely different entry paths.
-
-**Correct approach:**
-
-| Variant | XML | Engine behaviour |
-|---------|-----|------------------|
-| Embedded SubProcess | `<bpmn:subProcess>` (default) | Executes when a token arrives on an incoming sequence flow; spawns a child PI via `FlowNodes.SubProcess` |
-| Event SubProcess | `<bpmn:subProcess triggeredByEvent="true">` | **Never token-entered** — has no sequence flows. The scope PI's trigger machinery creates the shell FNI and dispatches it through `FlowNodes.EventSubprocess` when the ESP's typed start event fires (see [execution.md](execution.md) §Event Subprocess Handler and [routing.md](routing.md) §3.5.8) |
-
-`FlowNodes.SubProcess.guard_event_subprocess/1` still returns `{:error, :event_subprocess_not_supported}` — but only as a **defensive** guard on the token-entry path, which an ESP can never legitimately reach. It does **not** mean ESPs are unsupported. Event Subprocesses undergo recursive deploy-time inner validation (like embedded subprocesses) plus ESP-specific start-event rules (`validate_event_subprocess_structure`).
-
----
-
-## P32: SubProcess synthetic model is not a separate deployment
-
-**Mistake:** Assuming the subprocess inner scope is deployed or cached as its own process definition, or that `ModelCache` holds a persistent entry keyed by `{process_version_id, subprocess_node_id}` separate from the parent.
-
-**Why it happens:** Child PIs reuse the parent's `process_version_id` and resolve their `%Process{}` through `ModelCache.fetch_subprocess_model/2`, which returns a synthetic process with ID `"#{parent_process_id}__subprocess__#{subprocess_node_id}"`. This looks like a standalone model but is materialized on demand.
-
-**Correct approach:** `fetch_subprocess_model/2` loads the parent's cached `%Definitions{}` (ETS key = `process_version_id`), locates the subprocess node by ID, and builds the synthetic `%Process{}` in memory. On resume, `SubProcess.handle_resume/4` triggers the same resolution path — nothing is written to a separate ModelCache slot. Duplicate subprocess IDs within the same process are prevented by BPMN ID uniqueness enforced at parse/validate time; a duplicate ID would make subprocess lookup ambiguous.
-
-```elixir
-# Child PI start opts — same version as parent, subprocess_node_id selects inner scope
-start_opts = %{
-  process_version_id: context.process_version_id,
-  subprocess_node_id: flow_node.id,
-  parent_process_instance_id: context.process_instance_id,
-  ...
-}
-```
-
----
-
-## P33: Claim and lane checks belong in `EvilEngine.Api`, not controllers
-
-**Mistake:** Enforcing JWT claims (`deploy_bpmn`, `abort_process_instance`, `trigger_message`, etc.) or lane access in REST controllers via `Identity.claims` lookups, then calling Core or publishers directly.
-
-**Why it happens:** Controllers are the first code path hit on an HTTP request, so it feels natural to gate there. Plugin facade closures and future wire adapters would then duplicate or diverge from REST enforcement.
-
-**Correct approach:** REST controllers parse HTTP, call `EvilEngine.Api.*`, and map error tuples to status codes only. All claim checks go through `EvilEngine.Api.Validation` inside the facade. Plugins pass `skip_claims: true` on facade calls; REST never does. See [api.md](./api.md) §10.8 and [authorization.md](./authorization.md) §13.
-
-```elixir
-# BAD — claim check in controller
-def deploy(conn, params) do
-  unless Map.get(identity.claims, "deploy_bpmn"), do: ...
-  Ash.create(...)
-end
-
-# GOOD — thin controller
-def deploy(conn, params) do
-  case Api.persist_deploy_batch(sources, identity) do
-    {:error, :forbidden, details} -> render_error(conn, 403, ...)
-    ...
-  end
-end
-```
-
----
-
-## P34: `validate_timer_event_type` requires position AND `event_type`
-
-**Mistake:** Validating manual timer trigger eligibility by checking `flow_node_type` alone (e.g. any `intermediate_catch_event`) without also requiring `event_type == "timer"`.
-
-**Why it happens:** Timer FNIs share the same `flow_node_type` strings as message or signal catch events on Intermediate Catch and Boundary positions. A message catch FNI has `flow_node_type: "intermediate_catch_event"` but `event_type: "message"`.
-
-**Correct approach:** The private `validate_timer_event_type/1` in `apps/api_facade/lib/evil_engine/api.ex` matches **both** fields:
-
-```elixir
-defp validate_timer_event_type(%{flow_node_type: type, event_type: "timer"})
-     when type in ["intermediate_catch_event", "boundary_event"],
-     do: :ok
-
-defp validate_timer_event_type(_), do: {:error, :not_a_timer_event}
-```
-
-Timer Start Events are not manually triggerable through this path — they are managed by `StartEventManager`, not PI-scoped handler Tasks.
-
----
-
-### P17 — Dual-repo Sandbox isolation
-
-**Symptom:** Tests using `Ecto.Adapters.SQL.Sandbox` see empty reads after writes when dual-repo routing (via `RepoRouter`) is active. Data written through `Repo` is invisible to `ReadRepo` within the same test.
-
-**Root cause:** `SQL.Sandbox` wraps each repo in a separate database transaction. With `{:shared, self()}` mode, all processes share one transaction per repo. But `Repo` and `ReadRepo` are separate repos with separate transactions, so writes in `Repo`'s transaction are not visible to `ReadRepo`'s transaction (PostgreSQL MVCC).
-
-**Correct approach:** `RepoRouter` uses a compile-time module attribute (`@read_repo`) that resolves to `Repo` in `MIX_ENV=test`, bypassing `ReadRepo` entirely. All test operations go through the single `Repo` pool, preserving Sandbox isolation. In `:dev` and `:prod`, the router correctly splits reads to `ReadRepo`.
-
----
-
-### P18 — error_info schema consistency
-
-**Symptom:** Client-side error display shows empty or incomplete error information (e.g., an empty `additionalInformation` object) because the expected fields don't exist on the persisted `error_info` map.
-
-**Root cause:** Different code paths (FNI fatal, PI fatal, orphan cleanup, boundary errors) each constructed `error_info` with different key names and structures. Some used `reason` (atom or list), others used nested maps, and others used `error_code` + `error_message`. Clients had to guess which keys existed.
-
-**Correct approach:** All `error_info` maps follow a single schema: `%{"error_code" => string, "message" => string, "detail" => term | nil}`. The `Helpers.build_error_info/1` function in `core_execution` normalizes any error reason into this shape. Raw SQL (e.g., orphan cleanup) must also use `error_code`/`message` keys, not `reason`. Tests should assert on `error_info["error_code"]`, never `error_info["reason"]`.
-
-### P19 — FniLifecycle event emission must be gated on persistence success
-
-**Symptom:** A WebSocket consumer (e.g., the Studio debugger) sees a `FlowNodeInstanceFinished` event claiming an FNI transitioned to `fatal`, but a subsequent GraphQL query shows the FNI still in its previous state.
-
-**Root cause:** `FniLifecycle.transition_to_fatal/5` (and `_aborted`, `_interrupted`) used to call `emit_fni_finished` unconditionally — between the persistence attempt and the result check. If persistence failed, the event was already emitted, representing a state transition that never happened in the database.
-
-**Correct approach:** Always emit `FlowNodeInstanceFinished` inside the `:ok` branch of the persistence result match. The happy-path `persist_and_emit_finish/6` already did this correctly; the exceptional paths were aligned to match. This ensures every engine event truthfully reflects persisted state.
-
-### P20 — BPMN error vs handler error: different return tags, different states
-
-**Symptom:** Confusing an Error End Event's `{:bpmn_error, error_info, result}` with a handler's `{:error, reason}` leads to wrong PI/FNI terminal states.
-
-**Root cause:** The engine has two fundamentally different error semantics: `{:bpmn_error, ...}` is a *modeled* BPMN outcome (the diagram author intentionally placed an Error End Event), while `{:error, ...}` is an *engine failure* (handler crash, persistence failure, unsupported element). The two share the word "error" but have entirely different state machines.
-
-**Correct approach:** `{:bpmn_error, error_info, result}` → FNI state `:error`, PI state `:error`, parent receives `{:child_pi_bpmn_error, ...}` for boundary matching. `{:error, reason}` → FNI state `:fatal`, PI state `:fatal`. Never use `{:bpmn_error, ...}` for engine failures, and never use `{:error, ...}` for intentional BPMN error propagation.
-
-### P21 — FNI `:error` state is exclusively for Error End Events
-
-**Symptom:** Using `:error` as a terminal state for handler failures (instead of `:fatal`) breaks the debugger's visual contract: the debugger expects `:error` to mean "this element threw a modeled BPMN error", not "this element crashed".
-
-**Root cause:** The FNI `:error` state was introduced specifically for Error End Events (EE-6). It provides the debugger with a visual distinction between three roles in an error scenario: `:error` = "threw the error", `:interrupted` = "collateral", `:finished` = "completed before the error".
-
-**Correct approach:** Only `FniLifecycle.finish_as_error/4` (called exclusively by the `ErrorEndEvent` handler) should produce FNIs in `:error` state. All handler failures go through `transition_to_fatal/5` → `:fatal`. If a new handler needs to signal a modeled error, it should return `{:bpmn_error, ...}` and let the PI/FniLifecycle handle the state transition.
-
-## P35: Retry at interrupted Event-Based Gateway sibling
-
-**Mistake:** Allowing `retry_process_instance` with a checkpoint targeting an FNI that was cancelled by the Event-Based Gateway's first-wins logic.
-
-**Why it happens:** After an EBG race, the losing catch FNIs are persisted as `:interrupted` (not `:aborted` — the `:aborted` state is reserved exclusively for user/API-initiated abort) with `type_properties.reason == "event_based_gateway_sibling_cancelled"`. They look like regular interrupted FNIs from the persistence layer's perspective, so without a guard, the retry mechanism might accept them as valid checkpoints and create a split execution. Additionally, `non_retryable_fni?/1` excludes these FNIs from being reset during a no-checkpoint retry.
-
-**Correct approach:** `Execution.retry_process_instance/1` checks `ebg_loser_fni?/1` before accepting any checkpoint FNI. If the checkpoint targets an interrupted EBG sibling, the retry is rejected with `{:error, :retry_checkpoint_is_ebg_loser}` (HTTP 422, error code `retry_checkpoint_is_ebg_loser`). The guard accepts both `:aborted` and `:interrupted` states for backward compatibility with pre-existing DB rows. The user must retry at the gateway itself or at a node upstream of it. The Studio Debugger should filter these FNIs from the retry target picker.
-
-## P36: Retry at parallel join gateway
-
-**Mistake:** Attempting to set a retry checkpoint at a parallel or inclusive join gateway FNI.
-
-**Why it happens:** Join gateway FNIs park with partial branch-arrival state (`join_arrivals` in memory plus `gateway_pending_arrivals` rows in the database). Resetting the join FNI as a checkpoint would leave ambiguous semantics — should all branches re-run, or only the missing ones? Without an explicit guard, the retry mechanism would accept the join FNI as a valid checkpoint and corrupt the arrival counter.
-
-**Why it fails:** `Execution.apply_checkpoint/2` checks `join_gateway_fni?/2` before accepting any checkpoint FNI. Parallel and inclusive gateway FNIs match `flow_node_type in ["parallel_gateway", "inclusive_gateway"]` and are rejected with `{:error, :retry_checkpoint_is_join_gateway}` (HTTP 422, error code `retry_checkpoint_is_join_gateway`, message: `"Cannot retry at a parallel join gateway. Retry at the fork gateway or at a node upstream of it."`).
-
-**Correct approach:** Retry at the fork gateway or at an upstream branch task instead. Retry at an upstream branch task is safe — preserved `gateway_pending_arrivals` rows let the join re-park with already-completed branches on resume. The Studio Debugger should filter join gateway FNIs from the retry target picker.
-
-## P37: Orphan pending signals/messages delivered to unrelated process instances
-
-**Mistake:** Assuming that if a signal publish delivered live to a waiting subscriber, no stale pending row can reach the *next* subscriber.
-
-**Why it happens:** Before this fix, the publish pipeline only decided whether to create a *new* pending row based on the current publish's delivery count. It never cancelled *existing* pending rows from *previous* publishes. So if a REST trigger fired with no subscriber (creating pending row P1), a subsequent BPMN throw delivered to a waiting catch (correctly, `pending: false` for that publish), but P1 remained `state='pending'`. The next PI that registered a catch for the same signal/message drained P1 — receiving a stale signal/message from an earlier, already-completed publish.
-
-**Correct approach:** Two mechanisms now prevent stale pending delivery:
-1. **Orphan pending cancellation:** When a publish successfully delivers to live subscribers or triggers start events (`has_recipients == true`), the publisher calls `cancel_pending_for_signal_name/1` (or `cancel_pending_for_message/2`) to expire all existing `state='pending'` rows for that signal/message name. This ensures that a successful live delivery invalidates any leftover pending rows from earlier zero-match publishes.
-2. **`skip_pending` for REST/API triggers:** REST controllers pass `skip_pending: true` to the publisher, so zero-match REST triggers never create pending rows in the first place. This is appropriate because REST triggers are a debugging tool — they should produce an immediate effect (or no effect), not cache a signal/message for future process instances.
-
-## P38: Inclusive Join re-evaluation must run after every FNI state change
-
-**Mistake:** Assuming the inclusive join will fire only when a token directly arrives at the join via an incoming sequence flow.
-
-**Why it happens:** In an inclusive gateway with dead-path elimination, a branch may reach an End Event or transition to a terminal state (fatal, aborted, interrupted) without ever sending a token to the join. In this case, the join's upstream path becomes "dead" — no active or waiting FNI can deliver a token through that path. If the join only checks on token arrival, it will park forever, waiting for a token that will never come.
-
-**Correct approach:** `evaluate_parked_inclusive_joins/1` is called in `maybe_finish_or_continue/1` after **every** FNI state change (not just on token arrival). This hook iterates all parked inclusive join entries in `join_arrivals` and re-runs `InclusiveJoinEvaluator.should_fire?/4` against the current `flow_node_instance_states`. When a branch ends at an End Event (removing its FNI from the active set), the re-evaluation detects that the join's upstream path is now dead and fires the join with the tokens that have already arrived. The same hook fires during resumption via `evaluate_parked_inclusive_joins_on_resume/1`.
-
-## P39: Conditional waiter registration must include immediate evaluation
-
-**Mistake:** Registering a conditional waiter in the PI's `conditional_waiters` map without immediately evaluating the condition, relying on the next `evaluate_conditional_waiters` call to trigger it.
-
-**Why it happens:** A race condition exists between the handler returning `{:wait, ...}` and the waiter registration. The handler's `{:wait, %FlowNodeResult{metadata: %{awaiting_condition: true}}}` is delivered to the PI via `{:fni_result, ...}`. The PI processes it in `handle_fni_wait/3`, persists the FNI as `:waiting`, and registers the waiter. However, between the handler's initial evaluation (inside the Task) and the PI's waiter registration, another FNI may have completed and mutated the PI state (e.g., a parallel branch wrote a Data Object). The standard `evaluate_conditional_waiters` call in `maybe_finish_or_continue` runs only on *subsequent* FNI state changes, so it would not see the new waiter until the next mutation — which may not happen for a long time (or ever), leaving the conditional event stuck despite its condition being true.
-
-**Correct approach:** `maybe_register_conditional_waiter_from_wait/3` calls `evaluate_single_conditional_waiter/3` immediately after inserting the waiter into the map. This ensures that even if the condition-triggering state change occurred during the `{:wait, ...}` round-trip, the waiter fires promptly.
-
-## P40: Parallel gateway join deadlocks with interrupting conditional boundary events
-
-**Mistake:** Placing an interrupting conditional boundary event on an activity inside a parallel branch that converges at a join gateway.
-
-**Why it happens:** When the interrupting boundary fires, it cancels the host activity and routes execution along the boundary path. The parallel join gateway waits for tokens from all incoming branches. The interrupted branch never delivers its token to the join, causing the join to park indefinitely (parallel joins do not have dead-path elimination — that is inclusive gateway territory).
-
-**Correct approach:** When using interrupting boundary events (conditional, timer, message, signal) on activities in parallel branches, either (a) use an inclusive gateway join instead of a parallel gateway join (which has dead-path elimination), or (b) route each parallel branch to its own End Event (no join), or (c) ensure the boundary event's outgoing path also reaches the join gateway.
-
-## P41: Conditional event conditions do not cross PI scope boundaries
-
-**Mistake:** Expecting a conditional event in a parent process to fire when a state change occurs inside an Embedded Subprocess or Call Activity child, or vice versa.
-
-**Why it happens:** Each PI (parent, child subprocess, Call Activity child) is a separate GenServer with its own `conditional_waiters` map and `data_object_cache`. The PI's `evaluate_conditional_waiters/1` only evaluates waiters registered in that PI against that PI's state. A Data Object write inside an Embedded Subprocess triggers re-evaluation of conditional waiters inside the subprocess's child PI only — the parent PI never sees the write. Similarly, a state change in the parent does not propagate to child PIs.
-
-**Correct approach:** Design conditional event conditions to reference data visible within the conditional event's own process scope. If cross-scope signaling is needed, use Message Events (publish from child, catch in parent) or Signal Events (broadcast) instead of conditional events. See `docs/guides/handbook/conditional-events.md` §Scope Rules.
-
-## P42: `:aborted` state reserved exclusively for user/API-initiated abort
-
-**Mistake:** Using `FniLifecycle.transition_to_aborted` for flow-driven cancellation (boundary events cancelled by host completion, EBG losers, terminate/error end event collateral).
-
-**Why it happens:** Before this fix, `BoundaryOrchestrator` and `EventBasedGatewayOrchestrator` used `transition_to_aborted` for all cancellation paths, conflating user-initiated abort with BPMN flow mechanics. This caused the retry mechanism to treat flow-interrupted FNIs as retryable (same state as user-aborted FNIs), creating invalid execution paths after retry.
-
-**Correct approach:** Only two call sites may use `transition_to_aborted`: `handle_fni_aborted/3` (user cancel via API) and `abort_all_fnis/1` (PI abort cascade). All other cancellation — host completion, sibling boundary interruption, EBG loser cancellation, Terminate End Event collateral, Error End Event collateral — must use `transition_to_interrupted`. The `handle_aborted/1` callback name is a resource-cleanup hook (not a state declaration) and remains correct to call from interrupted paths.
-
-## P43: Join gateway duplicate FNI after retry
-
-**Mistake:** Deleting join gateway FNIs during retry. This loses the audit trail (previous FNI IDs) and breaks Inclusive Join Gateway dead-path auto-completion, causing deadlocks.
+Each entry: **Mistake** / **Why** / **Correct approach**. A few lines.
+Point at architecture docs instead of copying their tables.
 
-**Why it happens (historical):** An earlier fix deleted join gateway FNIs during retry to prevent duplicate FNI creation. The deletion was an over-correction: the real root cause was that `join_routing` was empty on resume because the old FNI (in terminal state) had no GPAs, so `dispatch_join_first_token` created a new FNI.
+Test-harness and CI rules live in [`testing.md`](testing.md).
 
-**Correct approach:** Join gateway FNIs are **reset to `active`** (never deleted). For full retry, their GPAs are cleared via `clear_gpa_fni_ids` in the reset spec. `Resumption.ensure_active_join_gateways_routed/2` detects active join FNIs with no GPAs and creates routing entries, so subsequent token arrivals route to the existing handler. For checkpoint retry, GPAs are preserved to maintain partial-join state from already-completed branches.
-
-## P44: Complex Gateway `activationCondition` is required for JOINs only — never for splits
-
-**Mistake:** Requiring `<bpmn:activationCondition>` on **every** Complex Gateway in the generic per-node validator (`validate_type_data/6`). This wrongly rejects valid Complex **Splits**, which have no activation condition — they route on outgoing `conditionExpression`s instead.
-
-**Why it happens:** `validate_type_data/6` only sees a single `%FlowNode{}` in isolation. It cannot tell whether a Complex Gateway is a split or a join, because that distinction depends on the **incoming / outgoing sequence-flow counts**, which live on the process, not the node. An unconditional "always require activationCondition" rule there fails the split fixtures at deploy time with `"ComplexGateway '...' is missing required properties: activationCondition"`.
-
-**Correct approach:** Enforce the activation-condition requirement in `check_complex_gateways/1` (called from `validate_process/2`), which has the process's `sequence_flows` and can classify each Complex Gateway by flow counts:
-
-- `> 1` incoming **and** `> 1` outgoing → `complex_gateway_mixed`.
-- `> 1` outgoing (split) → **no** activationCondition check. Unconditional non-default outgoing flows are a **runtime** fatal `:complex_gateway_unconditional_flow` (not a deploy violation); Studio lints them.
-- `> 1` incoming (join) → non-blank `<bpmn:activationCondition>` required (`complex_gateway_join_missing_activation_condition`).
-
-The generic `validate_type_data/6` clause for `%FlowNodeData.ComplexGateway{}` must therefore return `[]` and delegate entirely to the flow-count-aware check.
-
-## P45: Complex Join scoped cancellation needs a well-formed SESE region — and the region excludes the split and join
-
-**Mistake:** Assuming a Complex Join can cancel "the other branches" without a strictly-bounded region, or that the region includes the paired split/join nodes. Both lead to wrong cancellation scope.
-
-**Why it happens:** Twist 2 cancellation (`interrupt_region_fnis/3`) interrupts every `:active`/`:waiting` FNI whose `flow_node_id` is in the join's `region_node_ids`. If the region is not single-entry/single-exit, "the branches between split and join" is ambiguous — a flow leaking out of the region would either be missed (leaving orphans) or, worse, cancellation would need to chase tokens outside the intended block. And if the region set mistakenly included the split `S` or the join `J` themselves, the firing join could try to interrupt itself or re-open the entry.
-
-**Correct approach:**
-
-- Pair each join to `S = idom_complex(J)` (nearest dominating Complex Split) and compute `region_node_ids = forward_reachable(S) ∩ backward_reachable(J) \ {S, J}` in `ComplexRegionAnalysis`. The region **excludes** both boundary nodes.
-- Enforce well-formedness **at deploy** (`region_violations/1`): reject unpaired joins (`complex_join_no_paired_split`), cross-boundary edges (`complex_region_cross_boundary`), and partially overlapping regions (`complex_region_overlap`). Valid regions therefore form a **laminar family** — any two are disjoint or strictly nested, so a partial overlap can only arise together with a cross-boundary or pairing violation and is caught first.
-- `interrupt_region_fnis/3` must explicitly skip the join FNI (`id != join_fni_id`) and must be **scoped** — it runs each interrupted FNI's `handle_aborted/1` for local cleanup but does **not** purge the whole PI's message/signal subscriptions (contrast `interrupt_remaining_fnis/2`, used by Terminate/Error End Events).
-- When testing cancellation in the shared-connection Ecto sandbox, drive the join (or Cancel End, interrupting boundary, Error End) with branches that are **idle-waiting** (e.g. user tasks completed explicitly) before the fire. Killing an FNI that is mid-DB-write on the single shared test connection can tear the connection down and surface as a spurious `DBConnection.OwnershipError`, `DBConnection.ConnectionError`, or `poll_pi_state` `unavailable` — a test artifact, not an engine bug (in production each process has its own pooled connection). Transaction cancel tests that spawn nested Call Activity / SubProcess children must park **both** the nested work and the cancel branch (a `Tx_CancelGate` user task) before finishing the gate. Conformance specs that share those gated fixtures (C236–C238) must be `tier: interactive` and call `finish_transaction_cancel_gate_after_nested_idle/2` — leaving them `auto` hangs in `wait_for_completion` because the gate is never finished. Boundary-vs-ESP tests that throw immediately inside a freshly spawned subprocess must park at a user task first. **Interrupting-boundary proximity tests must not follow that arm user task with Intermediate Throw → None End:** `handle_fni_escalation_throw` dispatches the End FNI and then notifies the parent, so the interrupting boundary kills the End writer mid-persist. Use Escalation End after the arm task (ESC-1, ESC-3, E1, ERR-1) so the child PI terminates with no follow-on writer. Tests that must keep Intermediate Throw (E4) should route the throw to a parking user task, not a None End. Event-Based Gateway tests where a catch sibling wins must wait until **every** sibling is `:waiting` before completing the work that makes the winner fire — cancelling a sibling mid-persist is the same sandbox tear. Tests that interrupt in-flight work should `poll_pi_state/3` after `wait_for_process_instance/2` rather than a single `assert_pi_state!/2`. `poll_pi_state/3` restores the shared sandbox only after a **raised** DB error, not when the row is merely absent (a fresh checkout would hide in-flight writes — P82). `wait_for_process_instance/2` must raise if the PI row never appears after the process stops — do not treat a missing row as success. Do **not** restore the sandbox on an empty child-PI list or on `Ash` not-found: that checkout starts a **new empty** transaction and the original PI insert disappears (`stopped but was never visible in persistence`). Do **not** check out the sandbox with `sandbox: false` to paper over this — concurrent handler Tasks then share one auto-commit connection and FNIs go `fatal`.
-
----
-
-## P46: Inner subprocess Start Events are never externally startable — `subprocess_node_id` requires a parent
-
-**Mistake:** Assuming a REST/plugin caller (or a `calledElement` / `evil:startEventId` on a Call Activity) could target a Start Event nested inside an embedded / event / (future) transactional subprocess by passing its ID, its synthetic model ID (`parentId__subprocess__nodeId`), or a `subprocess_node_id` option — or relying only on data-scoping to keep inner starts invisible.
-
-**Why it happens:** Inner start events live under `type_data.flow_nodes`, so they are *incidentally* invisible to top-level start-event resolution, Message/Signal Start indexing, and the `calledElement` catalog. That protection is real but implicit — a future model/index refactor that recursed into nested scopes, or a caller that forged `subprocess_node_id`, could silently break isolation. `subprocess_node_id` selects the synthetic inner-scope model, and it must only ever be set by the owning subprocess element's internal child spawn (which always carries a `parent_process_instance_id`).
-
-**Correct approach:**
-
-- **Core chokepoint is authoritative.** `Execution.start_process_instance/1` rejects any call where `subprocess_node_id` is present but `parent_process_instance_id` is nil with `{:error, :orphan_subprocess_start}`. Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through this single guard.
-- **Public surface omits internal keys structurally.** The `ProcessController` private `do_start` helper builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`. Do **not** re-introduce `subprocess_node_id` (or `parent_process_instance_id: nil`) into the public start contract; extraneous body params are ignored, not accepted.
-- **Keep resolution scoped.** `ProcessInstance.resolve_start_event/2` resolves strictly against `process_model.flow_nodes`. Never broaden this to recurse into `type_data.flow_nodes`.
-- **Enforce global ID uniqueness at deploy.** `BPMN.Validator` reports `duplicate_flow_node_id` when a flow-node ID collides across the process and any nested subprocess scope, keeping start-event resolution and subprocess scoping unambiguous.
-
-See [security.md](security.md) §Subprocess Start-Event Isolation.
-
 ---
 
-## P47: An interrupting Event Subprocess must NOT kill the scope PI — it reaches `:finished`
+## Core must not import Peripheral — use a Persistence behaviour
 
-**Mistake:** Assuming that an interrupting Event Subprocess (ESP) firing terminates its enclosing scope Process Instance the way a Terminate/Error End Event ends a process, i.e. expecting the scope PI to end in `:aborted` or `:fatal` once the ESP interrupts the main flow.
+**Mistake:** Calling `Ash.create/3` from `core_execution` to persist PI/FNI state.
 
-**Why it happens:** "Interrupting" reads like "kill the scope." But an interrupting ESP only cancels the scope's *other* work; the scope itself continues so it can run the ESP body and complete normally.
+**Why:** Core must not depend on Peripheral. Ash lives in `peripheral_persistence`.
 
-**Correct approach:** The interrupting fire calls `interrupt_remaining_fnis` (reason `:interrupted_by_event_subprocess`), which iterates only FNIs **other than** the ESP shell FNI — it structurally cannot target the scope PI and does not stop it (the same primitive Terminate End Events use). When the ESP child completes, `maybe_finish/1` sees `active_count == 0` and the scope PI reaches `:finished`. Tests must assert the scope reaches `finished`, never `aborted`/`fatal`, merely because the ESP fired. Two interrupting triggers enqueued together are idempotent — the first dequeued wins, the second is a no-op (its siblings are already `:interrupted`).
+**Correct approach:** `@behaviour EvilEngine.Execution.Persistence` in Core. Wire `EvilEngine.Persistence.ExecutionAdapter` via `:core_execution, :persistence_adapter`. Tests use `NoOp`. See [execution.md](execution.md).
 
 ---
 
-## P48: Escalation/error proximity beats propagation, and a specific code beats catch-all — but only within one scope
+## Do validation in `gen_statem` `init/1`
 
-**Mistake:** Ranking an ESP escalation/error start against a boundary event by specificity (assuming a specific-code catcher always wins), or forgetting that a scope-level ESP catches an escalation raised in that scope **before** it propagates to the parent.
+**Mistake:** Deferring model fetch / start-event resolution to an internal event after `init/1`.
 
-**Why it happens:** The escalation/error catcher set spans two different structural levels — boundary events attach to an *activity*, ESP starts attach to a *scope*. Mixing them into one specificity contest gives wrong winners.
+**Why:** `start_link` returns `{:ok, pid}` as soon as `init/1` returns. Failures in queued events never reach the caller.
 
-**Correct approach:** The law is **proximity first, specificity second** (ESP-D6). Proximity is enforced by the call sites in `ProcessInstance` (`handle_fni_bpmn_error/*`, `handle_fni_escalation_throw`): a boundary on the throwing activity is tested first, then the scope ESP start (`EventSubprocessResolver.find_matching_error_start/2` / `find_matching_escalation_start/2`), then outward propagation to the parent. Specificity (specific code beats catch-all `nil` code) is only a tiebreak **among peers in the same scope** — two ESP starts in one scope, resolved by `rank_by_specificity/3`. A boundary-vs-ESP contest is therefore never decided by specificity. A scope-level escalation ESP start always catches a matching escalation raised in that scope before the parent sees it.
+**Correct approach:** Validate synchronously in `init/1`. Return `{:stop, {reason, data}}` on failure.
 
 ---
 
-## P49: Conditional Event Subprocess starts are edge-triggered (false→true), not level-triggered
+## Resolve outgoing flows from `source_ref`, not `FlowNode.outgoing`
 
-**Mistake:** Expecting a conditional ESP start whose FEEL condition is already `true` (or stays `true`) to keep firing on every scope state change, or expecting it to fire immediately at scope activation when the condition is already satisfied.
+**Mistake:** Using `flow_node.outgoing` as the only successor list.
 
-**Why it happens:** A conditional trigger looks like a predicate that should hold continuously. But continuous firing would spawn an unbounded stream of ESP child PIs while the condition remains true.
+**Why:** `<bpmn:outgoing>` is optional. Many editors only set `sourceRef` / `targetRef` on sequence flows.
 
-**Correct approach:** Conditional ESP starts are **edge-triggered** — they fire on a `false → true` transition of the FEEL condition, re-evaluated on every scope FNI state change (the same conditional-waiter mechanism as Conditional Boundary/Catch events). A non-interrupting conditional ESP re-arms after each fire and will not fire again until the condition returns to `false` and then back to `true`. This prevents busy re-firing while the condition stays true. (Related: P39 — conditional waiter registration includes an immediate evaluation.)
+**Correct approach:** Scan `process.sequence_flows` by `source_ref` when `outgoing` is empty.
 
 ---
 
-## P50: An ESP Message Start is a gated Start Event — a Catch/Boundary always beats it (no fan-out delivery)
+## Ash named create actions need `primary? true`
 
-**Mistake:** Assuming an ESP Message Start receives the message as one of the broadcast-within-key deliveries alongside an inline Message Catch/Boundary, so both fire for the same `(name, correlation)`.
+**Mistake:** A named `create :create_from_engine` without `primary?: true`, then `Ash.create(Resource, attrs)`.
 
-**Why it happens:** All three register in the same `MessageSubscriptions` registry, so it looks like they all participate in the delivery fan-out.
+**Why:** Ash 3.x `Ash.create/2` uses the primary create. A non-primary named action is invisible to that call.
 
-**Correct approach (ESP-D13 / ESP-D13b):** The ESP Message Start registers with the informational `:event_subprocess_start` kind but is **excluded from the delivery set**, and fires via `resolve_start_events` **only when `deliveries == []`** (the same gate as standalone starts, ordered *before* them). Precedence ladder: **inline Catch/Boundary → ESP Message Start → standalone Message Start**. A Catch/Boundary in the same PI always beats the ESP Message Start; an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). Signals are different — an ESP Signal Start is broadcast-all with no catch-wins-over-Start gate (ESP-D13c). See [routing.md](routing.md) §3.5.8.
+**Correct approach:** Mark the engine create `primary?: true`, or call the named action explicitly.
 
 ---
 
-## P51: An Event Subprocess shell must have NO incoming/outgoing sequence flows
+## FNI IDs must match the resource's UUID type
 
-**Mistake:** Drawing a sequence flow into or out of a `<bpmn:subProcess triggeredByEvent="true">` shell (out of habit from embedded subprocesses), or expecting the ESP to be reachable by a token.
+**Mistake:** Inserting a random UUID v4 into a resource whose primary key is `:uuid_v7`.
 
-**Why it happens:** In a modeler an ESP looks like any other subprocess box, and embedded subprocesses *are* wired into the flow.
+**Why:** Ash rejects the dump. Pre-generated handler IDs must be the same type the resource declares.
 
-**Correct approach:** An ESP is **triggered**, never token-entered — it has no incoming and no outgoing sequence flows. The deploy-time validator rejects a shell that carries either with `:event_subprocess_has_sequence_flow` (`validate_event_subprocess_structure`). The ESP body runs as a child PI spawned by the scope PI's trigger machinery; its inner End Events terminate the child, they do not route a token back into the parent.
+**Correct approach:** Generate UUIDv7 (or whatever the resource declares) before `Ash.create`.
 
 ---
 
-## P52: Flow-node IDs must be globally unique across the whole process tree — nested ESP scopes cannot reuse `Start_1`
+## Warm `ModelCache` only after the deploy transaction commits
 
-**Mistake:** Reusing convenient IDs like `Start_1` / `End_1` inside an Event Subprocess (or a nested ESP-in-ESP) that already exist in the top-level process or another scope.
+**Mistake:** `ModelCache.put_new/2` inside the same `Repo.transaction` that inserts `process_versions`.
 
-**Why it happens:** BPMN modelers often scope IDs mentally per subprocess, and an ESP inner scope *feels* like a separate namespace.
+**Why:** ETS is not transactional. A rollback leaves a stale AST keyed by an uncommitted id.
 
-**Correct approach:** `BPMN.Validator.check_unique_flow_node_ids/1` recurses into **every** `SubProcess` scope — including `triggered_by_event: true` — via `collect_all_flow_node_ids/1`, and rejects any collision across the process and all nested subprocess scopes with `:duplicate_flow_node_id`. Suffix IDs per scope (e.g. `ESP_Msg_Start`, `Inner_ESP_Start`) so nested-ESP and ESP-in-ESP diagrams deploy. This uniqueness is what keeps start-event resolution and subprocess scoping unambiguous (see P46).
+**Correct approach:** Commit first, then warm the cache. Flush Ash notifications after commit (`Ash.Notifier.notify/1` with `return_notifications?: true` on creates). Same pattern for DMN deploy.
 
 ---
 
-## P53: Compensation Boundary Events are not subscription boundaries
+## FEEL context is `%Context{}` with string keys
 
-**Mistake:** Treating Compensation Boundary Events like timer/message/signal boundaries and expecting them to be pre-spawned alongside the host activity.
+**Mistake:** Passing `%{token: payload, this: payload}` (atom keys) to `Expressions.eval/2`, or setting `this` to the token.
 
-**Why it happens:** Compensation boundaries look structurally similar to other boundary events, but they have fundamentally different semantics. They are passive registration carriers — their sole purpose is to link a host activity to a compensation handler via a `<bpmn:association>`.
+**Why:** The NIF matches string keys. Atom keys evaluate to `null` with no error. `this` is flow-node metadata (`id`, `name`, `type`). `context` is `started_with_context`, not the token.
 
-**Correct approach:** `BoundaryOrchestrator.resolve_subscription_boundaries/3` filters out `:compensation` event definitions. The compensation handler is dispatched only when a Compensate Throw/End Event fires and the PI's compensation registry contains an entry for the host activity. The `CompensationBoundaryEvent` handler module exists only as a safety guard — it returns `{:error, :compensation_boundary_not_dispatched}` if accidentally invoked.
+**Correct approach:** `Expressions.Context.from_handler_context/2`. Never build `%Context{}` by hand in a handler. Compile with a context shape that names the variables (`Expressions.compile/2`). See [expressions.md](expressions.md).
 
 ---
-
-## P54: FlowNodeResult metadata lifecycle may be nil
 
-**Mistake:** Using `get_in(result.metadata, [:lifecycle, Access.key(:data_object_cache_updates, %{})])` when `result.metadata[:lifecycle]` might be `nil`.
+## Soft-deleted rows are invisible; public APIs never say "soft-delete"
 
-**Why it happens:** Not all handlers populate `metadata.lifecycle`. Compensation handlers and other lightweight handlers return `metadata: %{}`. `Access.key/2` calls `Map.get/3` on the lifecycle value, which crashes with `BadMapError` when it's `nil`.
+**Mistake:** A `deleted` attribute without `filter expr(deleted == false)` on the primary `:read`, or returning `"soft-deleted"` to clients.
 
-**Correct approach:** Use a safe extraction helper that checks for `nil` first:
+**Why:** `authorize?: false` does not bypass `base_filter`. Missing-vs-deleted must be indistinguishable (404 / "not found").
 
-```elixir
-defp extract_cache_updates(metadata) do
-  case metadata[:lifecycle] do
-    nil -> %{}
-    lifecycle -> Map.get(lifecycle, :data_object_cache_updates, %{})
-  end
-end
-```
+**Correct approach:** Primary `:read` filters `deleted == false`; `primary_read_warning?: false`. Do not add a read-including-deleted action. See [authorization.md](authorization.md) and the `soft-delete-isolation` rule.
 
 ---
 
-## P55: Compensation is NOT auto-triggered by fatal, error, escalation, or abort
+## ResumeRunner resumes root PIs only
 
-**Mistake:** Expecting the engine to automatically run compensation handlers when a PI encounters a fatal error, an Error End Event fires, an escalation goes uncaught, or the PI is aborted via API.
+**Mistake:** Calling resume on a child PI (Call Activity / SubProcess / ESP / ad-hoc child).
 
-**Why it happens:** In transactional systems (and in BPMN 2.0 Transaction SubProcesses with `<cancelEventDefinition>`), compensation is automatically triggered on transaction rollback. This creates the expectation that any failure path should automatically undo previous work. But the engine's compensation support is based on explicit throw/end events, not implicit transaction semantics.
+**Why:** Child resume without the parent shell corrupts the tree. The parent owns the child lifecycle.
 
-**Correct approach:** Compensation requires explicit modeling by the diagram author. To compensate after an error, the typical BPMN pattern is:
+**Correct approach:** `ResumeRunner.resume_all/0` selects roots (`parent_process_instance_id` nil). Public retry targets a PI then resets the tree from the root. See [execution.md](execution.md) and the [retry handbook](../guides/handbook/retry.md).
 
-1. Attach an Error Boundary Event to the failing activity (or scope)
-2. Route the boundary's outgoing flow to a Compensate Intermediate Throw Event
-3. The throw event dispatches compensation handlers in LIFO order
-4. After handlers complete, the flow continues (or ends via a Compensate End Event)
-
-Fatal PIs, aborted PIs, escalated PIs, and error PIs do **not** trigger compensation. The PI reaches its terminal state directly. Retry is the recovery mechanism for fatal/aborted/error PIs, not compensation.
-
 ---
 
-## P56: `isForCompensation` tasks have no sequence flows — they are linked via association
+## Ash read policies return `{:ok, []}`, not Forbidden
 
-**Mistake:** Expecting a compensation handler activity (`isForCompensation="true"`) to have incoming or outgoing sequence flows, or flagging it as an orphan node during validation.
+**Mistake:** Asserting `{:error, %Ash.Error.Forbidden{}}` on a policy-denied GraphQL/Ash read.
 
-**Why it happens:** Every other activity in BPMN must be connected to at least one sequence flow to be reachable. Compensation handlers look like normal tasks in the modeler and in the XML, so the validator's orphan-node check would reject them without a special exemption.
+**Why:** Ash 3.x filters unauthorized rows out of reads. The caller sees empty, not an error.
 
-**Correct approach:** Activities with `isForCompensation="true"` are linked to their host activity via a `<bpmn:association>` that connects a Compensation Boundary Event (on the host) to the handler. The parser resolves the association at model-build time and stores `compensation_handler_id` on the boundary event's type data. The validator explicitly exempts `isForCompensation` activities from orphan-node checks (no sequence flows required) and from dead-end checks.
+**Correct approach:** Treat empty the same as not-found for reads. Writes still error.
 
 ---
-
-## P57: Subprocess handler `resolve_outgoing` is eager — always add a normal outgoing flow
 
-**Mistake:** Modeling an embedded subprocess with only a boundary event (e.g. a timer or error boundary) and no outgoing sequence flow, expecting the boundary to be the only exit path.
+## Do not camelCase opaque user-payload subtrees
 
-**Why it happens:** The embedded subprocess handler calls `resolve_outgoing` during `handle_enter`, **before** starting the child PI. If the subprocess shell has no outgoing sequence flows and no default flow, `resolve_outgoing` returns `{:error, :dead_end}`, which fatals the subprocess FNI before the child PI ever starts — and before any boundary event has a chance to fire.
+**Mistake:** Recursively camelCasing `payload`, `inputToken`, `outputToken`, `claims`, `typeProperties`, `errorInfo`, and similar.
 
-**Correct approach:** Always add a normal outgoing sequence flow from the subprocess shell, even if you expect the boundary to always fire. The outgoing flow serves as the "happy path" exit. The boundary event fires independently and interrupts the subprocess if needed. Without the outgoing flow, the subprocess never starts.
+**Why:** User keys are part of the process contract. Structural keys are camelCase; opaque subtrees pass through.
 
-## P58: Do not duplicate child-PI lifecycle code — use `ChildLifecycle`
+**Correct approach:** `EvilEngine.Types.Wire` — convert struct fields only. See [api.md](api.md).
 
-**Mistake:** Copying child-PI lifecycle logic (await, result processing, error/escalation handling, resume, cascade) from `SubProcess` or `CallActivity` into a new handler.
-
-**Why it happens:** The child-PI lifecycle involves ~600 lines of interconnected logic (receive loop, token aggregation, output mappings, boundary resolution, escalation propagation, resume from persistence, fatal/abort cascade). It is tempting to copy from an existing handler when building a new subprocess-like handler (e.g. Transaction SubProcess).
-
-**Correct approach:** Use `EvilEngine.Execution.FlowNodes.ChildLifecycle`. This module contains all shared child-PI lifecycle functions and is parameterized via options (`child_label`, `extra_terminal_states`, `extra_message_handler`, `fresh_lifecycle_fn`) to accommodate handler-specific differences. Both `SubProcess` and `CallActivity` already delegate to it. New handlers should do the same and add handler-specific concerns through the parameterization points.
-
 ---
 
-## P59: Ad-hoc inner activities have no Start/End Events
+## Create partitions before INSERT
 
-**Mistake:** Modeling Start Events or End Events inside an `<bpmn:adHocSubProcess>`, or expecting the engine to resolve a start event for the ad-hoc child PI.
+**Mistake:** Inserting into a `PARTITION BY RANGE` parent when the target period's child table does not exist.
 
-**Why it happens:** Ad-hoc subprocesses look like embedded subprocesses in the modeler, and embedded subprocesses require exactly one None Start Event. But ad-hoc subprocesses have fundamentally different semantics — their inner activities are not connected by sequence flows and are activated on demand.
+**Why:** Postgres rejects the INSERT. Boot `mix evil.partitions.ensure` only creates the current window plus `TDE_PARTITION_AHEAD_MONTHS`.
 
-**Correct approach:** The deploy-time validator rejects ad-hoc subprocesses that contain Start Events (`:adhoc_subprocess_has_start_event`) or End Events (`:adhoc_subprocess_has_end_event`). At runtime, `AdHocMode.resolve_initial_state/3` returns `{:ok, nil}` (no start event resolution), and `initial_dispatch/4` is a no-op — the handler manages activation directly. The child PI completes via completion signal or natural drain, not via End Event token consumption.
+**Correct approach:** Run `ensure_partitions` at boot / release pre-start. Long-uptime nodes need `pg_partman` (or equivalent) for drop. See [data-model.md](data-model.md) and [database.md](../guides/operations/database.md).
 
 ---
-
-## P60: `cancelRemainingInstances=false` requires `Map.get`, not `||`
 
-**Mistake:** Using `opts[:adhoc_cancel_remaining_instances] || true` when propagating `cancelRemainingInstances` from `start_opts` to PI state.
+## Terminal PI transitions must persist every non-terminal FNI and cascade children
 
-**Why it happens:** The `||` operator in Elixir treats `false` as falsy. When the BPMN model sets `cancelRemainingInstances="false"`, the option value is `false`, and `false || true` evaluates to `true` — silently overriding the intended behavior and always cancelling remaining instances.
+**Mistake:** Killing FNI pids on fatal/abort/error without persisting those rows, or leaving Call Activity / SubProcess children running.
 
-**Correct approach:** Use `Map.get(opts, :adhoc_cancel_remaining_instances, true)`, which correctly distinguishes `false` (explicitly set) from absent (use default `true`):
+**Why:** Resume rehydrates from the DB. Live children after parent death are orphans. Crash between persist and cascade can leave the same hole — cleanup must be idempotent.
 
-```elixir
-# Wrong — false || true == true, overriding the BPMN attribute
-cancel_remaining = opts[:adhoc_cancel_remaining_instances] || true
+**Correct approach:** Persist collateral FNIs (`:fatal` / `:aborted` / `:error` / `:interrupted` as appropriate), run `handle_aborted/1` for cleanup, abort child PIs. `:aborted` is **only** for user/API abort — Terminate End uses `:interrupted`. See [execution.md](execution.md).
 
-# Correct — Map.get preserves explicit false
-cancel_remaining = Map.get(opts, :adhoc_cancel_remaining_instances, true)
-```
-
 ---
-
-## P61: Ad-hoc completion condition vs natural drain
-
-**Mistake:** Conflating `adhoc_completion_signaled` with `adhoc_natural_drain_enabled`, or expecting the ad-hoc child PI to complete without either flag being set.
-
-**Why it happens:** Two distinct completion mechanisms exist for ad-hoc subprocesses, and they are easy to confuse because both cause the PI to finish when no active/waiting FNIs remain.
-
-**Correct approach:** Both flags are checked in `AdHocMode.should_complete?/1`:
-
-- `adhoc_completion_signaled` — set by an explicit REST/plugin call (`POST /adhoc-subprocesses/:id/complete`). User-triggered. Checked first.
-- `adhoc_natural_drain_enabled` — set by engine-managed mode after dispatching all inner activities. Engine-triggered. The PI completes when all dispatched activities finish without manual intervention.
-
-If neither flag is set, the PI never completes — it waits indefinitely for an activation or completion signal. This is the correct behavior for plugin-managed mode where the plugin decides when to activate activities and when to signal completion. Do not set `adhoc_natural_drain_enabled` in plugin-managed mode.
-
-## P62: Nested subprocess start must flush the enclosing shell back onto `subprocess_stack`
-
-**Mistake:** Mutating the enclosing subprocess shell through `state.current_node` in `SaxHandler` and assuming the mutation survives a nested subprocess.
-
-**Why it happens:** `do_handle_start_subprocess/4` overwrites `state.current_node` with the newly opened shell. The enclosing shell's accumulated state lives only in `current_node` at that moment — `subprocess_stack` still holds the snapshot taken when that shell was *pushed*. `maybe_flush_subprocess_shell/1` is the only function that syncs `current_node` back onto the stack head, and it was originally called only from `do_handle_end_subprocess/1`. Any mutation applied between the enclosing shell's start tag and the nested shell's start tag was therefore silently discarded when the nested scope popped and restored the stale snapshot.
-
-Concretely this dropped `<bpmn:incoming>` / `<bpmn:outgoing>` refs from any embedded subprocess, transaction, or ad-hoc subprocess whose flow refs are declared *before* a nested subprocess — a valid and common serialization order. At runtime the outer shell then had no outgoing flow and its token dead-ended.
-
-**Correct approach:** `do_handle_start_subprocess/4` calls `maybe_flush_subprocess_shell/1` on entry, before building the nested node:
-
-```elixir
-defp do_handle_start_subprocess(element_name, type_data, attributes, state) do
-  state = maybe_flush_subprocess_shell(state)
-  node = %FlowNode{...}
-```
-
-Any new state that is accumulated on the shell node (not on the inner scope's `current_process`) is subject to the same hazard. Route such mutations through `current_node` and rely on the flush, or write directly to the `subprocess_stack` head as the `handle_end("incoming", %{current_node: nil, ...})` clause does.
-
-## P63: A `ModelCache` cold-miss inside a GraphQL resolver triggers a full DB read + re-parse, not a cache lookup
-
-**Mistake:** Assuming `ProcessVersion.processModel` / `FlowNodeInstance.flowNode` resolvers are always O(1) ETS reads because "GraphQL Model graph resolvers read `ModelCache`".
-
-**Why it happens:** `ModelCache.fetch/1` only returns instantly on a **warm** entry (`:ets.lookup/2` hit). On a miss — most commonly after `ModelCache.delete/1` (explicit eviction, used by tests and possibly by future retention tooling) or a cold engine restart before the version is re-primed — `fetch/1` falls through to `GenServer.call(__MODULE__, {:load_and_cache, process_version_id})`, which invokes the configured `:model_cache_loader` (`{EvilEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}` in production). That is a DB read of `bpmn_xml` followed by a full `EvilEngine.BPMN.Parser.parse/1` — the same cost as a fresh deploy, executed synchronously inside the GraphQL request.
-
-**Correct approach:** The Model graph resolvers still return the correct result on a cold miss (`graphql_model_graph_wp7_test.exs` "cold-cache behaviour" pins this), so correctness is not at risk — but latency is. Do not assume a `processModel` query is always cheap; if profiling shows repeated cold misses on hot process versions, address it by warming the cache at deploy time (already the case — `persist_deploy_batch/3` primes `ModelCache` on a successful commit) or by monitoring `[:evil_engine, :model_cache, :fetch]` telemetry (`metadata.cache_hit`) rather than by changing resolver code. The resolver contract is "correct on both warm and cold paths"; performance tuning belongs in cache-warming policy, not in the GraphQL layer.
-
-## P64: The GraphQL depth limit was sized for the flat persistence graph — recursive `SubProcessNode.flowNodes` needs headroom
-
-**Mistake:** Treating `TDE_GRAPHQL_MAX_DEPTH` (default 16) as generous for the Process Model graph because it was generous for `processInstance { flowNodeInstances { ... } }`.
-
-**Why it happens:** `SubProcessNode.flowNodes` is genuinely recursive (`SubProcessNode implements FlowNode`, and `flowNodes: [FlowNode!]!` can itself contain `SubProcessNode`s). A debugger-shaped query selecting `flowNode { ... on SubProcessNode { flowNodes { ... on SubProcessNode { flowNodes { ... } } } } }` for a diagram with embedded subprocesses nested a few levels deep can hit a persistence-graph-sized limit well before it hits any genuinely excessive query.
-
-**Correct approach:** The default is **16**, sized for `getProcessInstance → processVersion → processModel → flowNodes` plus the SDK helper's default recursion depth of 4. `graphql_model_graph_wp7_test.exs` pins a regression test asserting the canonical `buildProcessModelSelection(4)`-shaped query returns data with no errors, and that the configured limit stays at least 16. If `TDE_GRAPHQL_MAX_DEPTH` is ever lowered, or a client raises its recursion depth past what the SDK helper defaults to, re-run that test before assuming the change is safe.
-
-## P65: `FieldTable.verify!/0` does not prove a GraphQL field exists
-
-**Mistake:** Treating a FieldTable row marked `exposed` as proof that clients can query that field.
-
-**Why it happens:** `FieldTable.verify!/0` compares Elixir struct keys against the `exposed`/`excluded` lists. It never looks at Absinthe type definitions. `SendTask.out_mappings` was a concrete case: the table (and the struct, and the TS `FLOW_NODE_TYPE_FIELDS` after the fact) said the field was exposed, while `:send_task_node` omitted it and the GraphQL query simply could not select it.
-
-**Correct approach:** After adding or renaming a Model-graph field, update **both** the FieldTable row and the `field :...` declaration in `model_types.ex` (plus the TS `FLOW_NODE_TYPE_FIELDS` / `buildProcessModelSelection` helpers). `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest` asserts every `exposed` atom exists on the Absinthe type `FieldTable.graphql_identifier/1` names, and that every `EvilEngine.BPMN.Model.*` struct module is registered. Do not rely on `verify!/0` alone.
-
-## P66: Packages CI must install Rust before `mix release`
-
-**Mistake:** Compiling a `MIX_ENV=prod` OTP release in `.github/workflows/packages-ci.yml` with only `erlef/setup-beam`, then expecting `mix compile` / `mix release` to succeed.
 
-**Why it happens:** `core_expressions` builds a Rustler NIF (dsntk FEEL). The Dockerfile already installs rustup; the Packages workflow did not. Cargo cache keys in the same job are not a substitute for `rustc`. Without a toolchain the integration job fails and the SDK/client publish job never runs.
+## Signals are not messages
 
-**Correct approach:** Install native build deps (`build-essential`, `pkg-config`, `libssl-dev`) and pin Rust to the version in `.tool-versions` (`dtolnay/rust-toolchain` with `1.97.0`) before `mix deps.get --only prod`. Keep lint/build/unit and publish `pnpm` invocations filtered to `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` — `pnpm -r` also walks example packages that have no `lint` / `test:unit` scripts. Query GitHub Packages explicitly (`pnpm view … --registry https://npm.pkg.github.com`) when auto-incrementing the publish version; the public npm registry does not host `@elraptorus/*`.
+**Mistake:** Putting correlation keys or payloads on signals, or expecting catch-wins-over-start.
 
-## P68: Do not put `max_children` on the DynamicSupervisor / do not queue leftover PIs for later resume
+**Why:** Signals are broadcast-all by `signal_name`. No payload, no correlation. Catch and Signal Start can fire together.
 
-**Mistake:** Setting `max_children` on `EvilEngine.Execution.Supervisor` from `TDE_MAX_CONCURRENT_PIS`, or queueing PIs that exceed the cap for a later resume pass.
+**Correct approach:** Use messages for correlated payloads. See [routing.md](routing.md).
 
-**Why it happens:** The env var looks like a supervisor limit. Queueing leftovers seems like a way to honor the cap at boot.
-
-**Correct approach:** `max_children` is hardcoded `:infinity`. The cap is a **soft pre-check** on `Execution.start_process_instance/1` for **new public starts** only. **Resume bypasses the cap by design** so a PI tree comes back as a whole (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children). Applying the cap mid-resume, or resuming a parent while deferring its children, leaves a corrupted tree — worse than temporary oversubscription. After boot, new starts hit the cap again; the oversubscribed set drains by natural completion. See [execution.md](./execution.md) §DynamicSupervisor + Registry and §Resume on Startup.
-
-## P69: Do not point production Timer Start persistence at NoOp
-
-**Mistake:** Leaving production `:core_timers, :persistence_module` on `EvilEngine.Timers.Persistence.NoOp`, so cycle Timer Start schedules vanish on engine restart even though `StartEventManager.reload_start_schedules/0` runs at boot.
-
-**Why it happens:** NoOp is the test-env default (`config/test.exs`). Copying that assignment into production `config/config.exs` (or forgetting to set the Ash adapter) makes boot reload a no-op: there is nothing in Postgres to reload.
-
-**Correct approach:** Production `config/config.exs` must set `:core_timers, :persistence_module` to `EvilEngine.Persistence.TimerStartScheduleAdapter` (Ash + the operational `timer_start_schedules` table). Test env keeps NoOp; `ExecutionCase` switches integration tests to the adapter. PI-scoped catch/boundary timers stay in FNI `type_properties` plus Scheduler ETS — there is no `engine_timers` table.
-
-**Related test isolation:** Cycle Timer Start registrations stay in Scheduler ETS until `unregister_timer_starts/1`. Integration and conformance share one BEAM in `coverage_runner.exs`, so a leftover `R/PT1S` schedule can delay or starve a later `PT0S` boundary (C83/C91: expected two final tokens, got one). `ExecutionCase` setup terminates leftover PIs, checks out the sandbox (or truncates the pool), then calls `Scheduler.reset_state/0` (P90).
-
-## P70: Error Boundary catch codes resolve `errorRef`; catch-all ranks after specific; `fail_async` is the production Service Task failure path
-
-**Mistake:** Treating Error Boundary matching as document-order first-match on raw XML `errorCode`/`errorMessage` attributes, or assuming a Service Task plugin failure must return `{:error, _}` from `handle_enter/3` to be catchable.
-
-**Why it happens:** Throw-side Error End Events document inline `evil:errorCode` overriding a global `<bpmn:error>`. Catch-side boundaries typically carry `errorRef` with no inline code. A 3-arity `find_matching_error_boundary/3` that never receives `Definitions` cannot resolve `errorRef`, so a correctly modelled specific boundary looks like a catch-all (or matches nothing). Separately, Service Tasks are async-only: production failures after `{:async, ref}` go through `fail_async_service_task`, not a second `handle_enter`.
-
-**Correct approach:**
-
-- Resolve the boundary's catch code the same way as throw-side: inline `evil:errorCode` if present, else global `errorCode` via `errorRef`, else `nil` (catch-all). Pass `Definitions` into `BoundaryResolver.find_matching_error_boundary/4`.
-- Rank matches: first boundary whose **resolved** code equals the raised `error_code` (message AND-filter still applies), then first catch-all. Document order is not a specificity tiebreak.
-- Plugin Service Task failures use `facade.service_tasks.fail_async.(flow_node_instance_id, error_code, error_message)`. The PI routes that through the same Error Boundary resolver as enter-time errors. `finish_async` output-pipeline failures use the same complete-path wrap.
-
-## P71: Engine CI test Postgres must listen on host port 5543
-
-**Mistake:** Mapping the GitHub Actions Postgres service as `5432:5432`, waiting on `localhost:5432`, then running `mix test` / `mix coveralls`.
-
-**Why it happens:** `config/test.exs` hard-codes `port: 5543` to match the local `evil-engine-postgres-test` container (`scripts/create-test-db.sh`). A CI service on 5432 looks healthy while Postgrex logs `tcp connect (localhost:5543): connection refused`.
-
-**Correct approach:** Publish `5543:5432`, wait with `pg_isready -h localhost -p 5543`, then `mix do --app peripheral_persistence ecto.create` and `mix do --app peripheral_persistence ecto.migrate` before the suite. Mix 1.20 rejects `mix cmd --app` (use `mix do --app`). Do not add a CI-only port override in `test.exs`.
-
-## P72: Coverage stays on disk — never POST to coveralls.io
-
-**Mistake:** Running `mix coveralls.github` (or `mix coveralls.post`) in CI or locally.
-
-**Why it happens:** Those ExCoveralls tasks POST the report to `https://coveralls.io`. Without a Coveralls repo/token the job dies with `ExCoveralls.ReportUploadError` / HTTP 422 (`Couldn't find a repository matching this job`) even when tests passed.
-
-**Correct approach:** Local HTML via `mix coveralls.html --umbrella --import-cover cover` (quality alias, after `mix test.coverdata`). CI uses `mix coveralls --umbrella --import-cover cover` for the terminal report and `minimum_coverage` gate (also after `mix test.coverdata`). Both use ExCoveralls type `"local"` and never POST. `mix coveralls.github` and `mix coveralls.post` are the upload tasks — do not invoke them (they are omitted from `preferred_envs` in the root `mix.exs`). Do not pass `GITHUB_TOKEN` to a coverage step.
-
-## P73: Production DB pools need Postgres `max_connections` ≥ 200
-
-**Mistake:** Starting the production Docker image (or a `MIX_ENV=prod` release) against stock `postgres:16-alpine` (`max_connections=100`).
-
-**Why it happens:** `config/runtime.exs` defaults `TDE_DB_POOL_SIZE` to 100 and `TDE_DB_READ_POOL_SIZE` to 50. Ecto checks those connections out at boot. Postgres rejects the overflow with `FATAL 53300 (too_many_connections)`, the engine never listens, and `GET /health` never returns 204.
-
-**Correct approach:** Start Postgres as `postgres -c max_connections=200` (`docker-compose.yml`, `docker-compose.dev.yml`, CI Docker smoke). GitHub Actions **service** containers cannot override the Postgres command — size pools down there (`TDE_DB_POOL_SIZE` / `TDE_DB_READ_POOL_SIZE`) instead. See [persistence.md](./persistence.md) and [configuration.md](./configuration.md).
-
-## P74: Docker smoke must assert `GET /health` HTTP 204 — not JSON `"status":"ok"`
-
-**Mistake:** `curl …/health | grep '"status":"ok"'` (or any body grep) in CI.
-
-**Why it happens:** `GET /health` is a liveness probe that returns **204 No Content** with an empty body (`HealthController`, `docs/architecture/api.md` §10.1.0.1). The engine can be fully up — Bandit listening, migrations applied, `GET /health` logged as `Sent 204` — and grep still fails. `GET /` is **404** in the production image (no Swagger UI).
-
-**Correct approach:** Assert the status code: `curl -sS -o /dev/null -w "%{http_code}" http://localhost:4000/health` equals `204`. `curl -f` is enough for a probe (`Dockerfile` `HEALTHCHECK`); do not parse a body.
-
-## P75: `mix ecto.migrate` needs `priv/read_repo/migrations` even though ReadRepo never owns DDL
-
-**Mistake:** Running `mix ecto.migrate` (or `mix do --app peripheral_persistence ecto.migrate`) against a tree that has `ecto_repos: [Repo, ReadRepo]` but only `priv/repo/migrations`.
-
-**Why it happens:** Mix's `ecto.migrate` task requires a migrations directory for **every** configured repo. `ReadRepo` is a second pool on the same database; it has no schema of its own. The Mix task errors with `Could not find migrations directory "priv/read_repo/migrations"`. `EvilEngine.Persistence.Release.migrate/0` does not raise — a missing directory is treated as zero pending migrations (`Migrations already up`).
-
-**Correct approach:** Keep an empty `apps/peripheral_persistence/priv/read_repo/migrations/` (`.gitkeep` only). Do not put migration files there. Write-schema DDL stays in `priv/repo/migrations`.
-
-## P76: Cache Dialyzer PLTs from `priv/plts` — `_build` does not contain them
-
-**Mistake:** Caching only `deps` and `_build` in CI, then expecting `mix dialyzer` to skip PLT construction.
-
-**Why it happens:** `mix.exs` sets `plt_core_path` and `plt_local_path` to `priv/plts` (the Dialyxir CI convention). Those files are gitignored (`/priv/plts/*.plt`). The `_build` cache therefore never restores the Erlang/Elixir/deps lookup tables, so every CI run rebuilds them from scratch (several minutes).
-
-**Correct approach:** Restore `priv/plts` before Dialyzer and save it after, with a key of `runner.os` + resolved OTP + resolved Elixir (`erlef/setup-beam` outputs) + `hashFiles('**/mix.lock')`. Use `restore-keys` without the lockfile hash so a lockfile bump can incrementally update an older PLT. Do not commit `.plt` files. GitHub cache keys are immutable — skip save on an exact `cache-hit`. A unified Mix cache of `deps` + `_build` still does not contain `priv/plts`.
-
-## P77: Coverage gate must import integration + conformance coverdata
-
-**Mistake:** Running `mix coveralls --umbrella` as the CI coverage gate, then (optionally) `mix run test/integration_runner.exs` afterwards, and never running conformance.
-
-**Why it happens:** `mix coveralls --umbrella` only executes each app's `mix test` (unit/domain). Root suites live under `test/integration/` and `test/conformance/` and are started by Mix `run` scripts, not by `mix test`. The 80% `minimum_coverage` in `coveralls.json` was calibrated against `mix quality`, which runs `test/coverage_runner.exs` first (both root suites under one `:cover` session, export `cover/umbrella.coverdata` into each `apps/*/cover/`) and then `coveralls.html --umbrella --import-cover cover`. Unit-only coverage lands around 65% — large modules such as `EvilEngine.Api` are exercised almost entirely by full-stack tests.
-
-**Correct approach:** CI uses the same merge path as quality: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Do not gate coverage on unit tests alone. Do not run `integration_runner.exs` as a separate post-coverage step — that double-runs integration and still omits conformance from the report. Standalone `mix test.integration` / `mix test.conformance` remain for runs without coverage overhead.
-
-## P78: Do not split Mix `deps` and `_build` caches, and do not hash app sources into the Mix cache key
-
-**Mistake:** Two `actions/cache` steps (`deps` vs `_build`) and/or a `_build` key that includes `hashFiles('apps/**/lib/**/*.ex', ...)`.
-
-**Why it happens:** Exact `_build` key misses every commit. `mix deps.get` against a `_build` restored via `restore-keys` from a different cache entry marks Hex packages outdated. `mix deps.compile` then rebuilds Ash/Phoenix/Absinthe (minutes). Unique per-commit keys also evict Dialyzer PLT caches.
-
-**Correct approach:** One cache, `path: deps` and `_build`, key `runner.os` + `mix-precover` + `MIX_ENV` + setup-beam OTP + Elixir + `mix.lock`. Restore at job start; **save after `mix compile` and before coverage**. Incremental app compile is Mix’s job after restore. PLTs stay a separate `priv/plts` cache (P76).
-
-**Do not save `_build` at job end.** `mix coveralls` rewrites project BEAMs in `_build` with coverage instrumentation. `actions/cache@v5` (combined restore+save) persists those BEAMs. The next run restores them, Mix skips a clean recompile, `code:load_file` hits `:not_purged` on live GenServers (`EngineEventBus`, `SinkWorker`), and `reset_state` times out. Use `actions/cache/restore` + `actions/cache/save` with a `precover` key prefix so poisoned entries from the old key are not reused.
-
 ---
 
-## P79: Do not `:cover.compile` the FEEL NIF module
+## XOR join does not absorb duplicate merge tokens
 
-**Mistake:** `test/coverage_runner.exs` calling `:cover.compile_beam_directory/1` on every project ebin, including `Elixir.EvilEngine.Expressions.Nif.beam`. CI then fails hundreds of integration tests with `UndefinedFunctionError: function EvilEngine.Expressions.Nif.compile/2 is undefined (module EvilEngine.Expressions.Nif is not available)`. FNIs that need FEEL (user tasks, script tasks, gateway conditions, DMN) go `fatal`; polls time out.
+**Mistake:** Assuming an exclusive join swallows extra tokens the way a parallel join waits.
 
-**Why it happens:** `:cover.compile_beam` loads an instrumented copy of the module and drops Rustler's `@on_load` that binds the `feel_nif` shared library. Stub clauses that call `:erlang.nif_error(:nif_not_loaded)` are gone too — the module is simply not available. This is independent of Ecto sandbox isolation. Switching `ExecutionCase` to `sandbox: false` plus `TRUNCATE` does **not** fix it and breaks concurrent persists on the shared connection.
+**Why:** Exclusive merge is pass-through. A second token on the same join is another execution.
 
-**Correct approach:** Skip `Elixir.EvilEngine.Expressions.Nif.beam` when instrumenting. Leave the Mix-compiled NIF module loaded. Coverage for `core_expressions` still includes the Elixir wrapper (`EvilEngine.Expressions`) and callers; the NIF stubs themselves are not a useful coverage target.
+**Correct approach:** Model the join correctly, or use parallel/inclusive/complex joins when you need merge semantics.
 
-Do **not** disable the wrapping sandbox transaction (`sandbox: true`) to chase `Ash.Error.Query.NotFound` after interrupting FNIs. That is a test-side race: `poll_pi_state/3` after `wait_for_process_instance/2`, same as the ad-hoc `cancelRemainingInstances` tests.
-
 ---
 
-## P80: `update_notify_pid` is a `:gen_statem.call` — the PI must still be running
+## Link throw searches the whole process scope
 
-**Mistake:** Calling `ProcessInstance.update_notify_pid/2` on a Start → End (or other instantly-finishing) PI. The test then fails with `** (EXIT) normal` from `:gen_statem.call`.
+**Mistake:** Expecting link catch to be local to a subprocess.
 
-**Why it happens:** A linear Start → End PI reaches `:finished` and stops with `:normal` in milliseconds. `update_notify_pid/2` is a blocking call into the `:running` state. If the PI has already stopped, the call exits rather than returning `{:error, :process_finished}`.
+**Why:** Link pairs match by `link_name` across the process. Duplicate catches fatal `:ambiguous_link_catch`; none fatal `:no_matching_link_catch`. Checked at runtime, not deploy.
 
-**Correct approach:** Tests that exercise `update_notify_pid/2` must park the PI on a waiting activity (user task) before the call, then complete that activity and assert `{:child_pi_finished, ...}`. Production wrappers (`ChildLifecycle.set_child_notify_pid/2`) already `catch :exit` and return `:ok` — the child may finish between spawn and the handler re-pointing `notify_pid`. Do not call the raw API without that catch unless the PI is known to be running.
+**Correct approach:** Unique link names per process. See the [link-events handbook](../guides/handbook/link-events.md).
 
 ---
-
-## P81: Do not finish a host activity until the non-interrupting timer path has persisted
 
-**Mistake:** Interactive timer tests wait only for the host user task to reach `:waiting`, then immediately `finish_user_task`. Under load the `PT0S` / `R3/PT0S` boundary has not yet produced `End_Timeout`. Finishing the host cancels the boundary (`cancel_boundary_fnis_for_host`). Result: one final token (`End_Normal`) instead of two, or HTTP 404 on finish because a concurrent cycle persist briefly hides the FNI.
+## WebSocket FNI dispatch is lane-gated; GraphQL FNI reads are not
 
-**Why it happens:** User-task parking and timer-boundary arming are concurrent. `await_waiting_flow_node_instance(..., "user_task")` returns as soon as the host is waiting — it does **not** mean the Scheduler has fired or that the timeout End Event FNI exists. Completing the host is equivalent to C89 (host completes first, boundary cancelled), which is the opposite of C83/C84/C91.
+**Mistake:** Assuming `engine:events` join rejects unauthorized callers, or that GraphQL FNI lists apply the same lane filter as live WS.
 
-**Correct approach:** After the host is waiting, poll until the timeout End Event FNI(s) are `finished` (`await_finished_fni_by_node_id` / `await_finished_fni_count_by_node_id` in `test/support/process_interactions.ex`), then finish the still-waiting user task (`finish_waiting_user_task/2`, which retries HTTP 404). For a non-interrupting timer Event Subprocess (C175), wait for the ESP child PI to finish before completing the main user task. Do not use `Process.sleep` as a substitute for those conditions.
+**Why:** Join stays open; `should_deliver?/2` drops events at dispatch. GraphQL reads use PI visibility, not per-FNI lane gating on the list.
 
-The same class of race applies whenever a test publishes a competing event (message/signal) or inspects Scheduler state before the timer path is armed: wait for `MessageSubscriptions.has_subscriptions_for_message?/1`, `SignalSubscriptions.lookup/1`, or `Scheduler.armed_count/0` (`EvilEngine.Execution.TestSupport.SchedulerWait`). Direct `send/2` to a timer GenServer must be followed by `:sys.get_state/1` so `handle_info` has run before assertions.
+**Correct approach:** Enforce lanes at WS dispatch. Do not treat GraphQL FNI fields as a live lane firewall. See [authorization.md](authorization.md).
 
 ---
 
-## P82: `poll_pi_state` must restore the shared sandbox on retry — `unavailable` is a swallowed DB error
+## Persistence adapter calls go through `PersistenceRetry`
 
-**Mistake:** Treating `PI … never reached finished within timeout (current state: unavailable)` as an engine hang. `unavailable` means `fetch_process_instance/1` returned `nil` or raised for the whole poll window — not that the PI stayed in some other persisted state.
+**Mistake:** Calling the persistence adapter directly from a handler/PI.
 
-**Why it happens:** Ad-hoc `cancelRemainingInstances` (and Complex Join Twist 2) kill an FNI that may be mid-write on the shared sandbox connection (P45). That surfaces as `DBConnection.OwnershipError` or `DBConnection.ConnectionError`. `fetch_process_instance/1` mapped non-ownership Ash errors to `nil`, and `do_poll_pi_state/3` rescued remaining raises as `:db_error` without calling `restore_sandbox_shared_mode/0`. The poll then retried against a `:manual` / closed connection for the full timeout. A follow-on `Ash.read!` that rescued to `[]` could also hide the child PI.
+**Why:** Transient Postgres / pool errors must retry with the same policy everywhere.
 
-**Correct approach:** `fetch_process_instance/1` may return `nil` only for a genuine not-found. Every other Ash error (including ownership and closed-connection) must raise so `with_sandbox_retry/1` can restore `{:shared, test_pid}`. `poll_pi_state/3` restores on a raised DB error, not when the row is merely absent (a fresh checkout would hide in-flight writes). `with_sandbox_retry/1` must **not** restore on `Ash` not-found, and `await_child_process_instance_ids/2` must **not** restore on an empty list — both would `checkout` a new empty transaction and drop the parent PI row (`stopped but was never visible in persistence`). `wait_for_process_instance/2` restores only from `await_persisted_process_instance/2` after a raised DB error, not unconditionally after the PI process exits. `wait_for_process_instance/2` must raise if the PI row never appears after the process stops — a silent `:ok` on timeout delayed the failure into a later `unavailable` poll. Tests that need a child PI after `wait_for_process_instance/2` must use `list_child_process_instance_ids/1` or `await_child_process_instance_ids/2` — never a raw `Ash.read!` that maps errors to `[]`. Completion-condition tests that also set `cancelRemainingInstances="true"` must not activate parallel in-flight writers (script tasks): use sequential ad-hoc so the condition can fire before the next activity starts, or idle-waiting user tasks (P45). Do not switch `ExecutionCase` to `sandbox: false` (P79).
+**Correct approach:** `PersistenceRetry.with_retry/3`. See [persistence.md](persistence.md).
 
 ---
 
-## P83: Do not `Agent.stop` a `start_link` process from ExUnit `on_exit`
+## Error messages must be diagnostic sentences
 
-**Mistake:** `Agent.start_link(..., name: SomeModule)` in a test, then `on_exit` calling `Agent.stop(SomeModule)` (even behind `if Process.whereis(SomeModule)`). CI fails with `GenServer.stop/3` → `no process` after the test already passed.
+**Mistake:** Atom-to-words (`"In mapping failed"`) or `inspect/1` in `errorInfo.message` / HTTP bodies.
 
-**Why it happens:** ExUnit's test process sends `:test_finished` and then `exit(:shutdown)`. Linked children die with that shutdown. `on_exit` runs in a **separate** process after that exit. `Process.whereis/1` can still return a pid while the Agent is dying; `GenServer.stop/3` then looks the name up again and raises. The `whereis` guard is a TOCTOU, not a fix.
+**Why:** The debugger and API consumers need the element, the expression, and why it failed.
 
-**Correct approach:** Do not stop a process that is already linked to the test process. Prefer no extra GenServer (raise or `send` to `self()` if the handler must not run). If a named process is required, `start_supervised!({Agent, fun})` with a child spec that sets `name:` — ExUnit's test supervisor owns shutdown. Do not combine `start_link` with `on_exit` + `Agent.stop`.
+**Correct approach:** `Helpers.build_error_info/1` + an explicit `humanize_error/1` clause per new error shape. See [api.md](api.md).
 
 ---
 
-## P84: Do not `Code.require_file` cookbook sources one path at a time
+## `root_process_instance_id` is self for roots, inherited for children
 
-**Mistake:** Cookbook boot tests and `mix test.examples` wrappers compiling each `examples/plugins/**/lib/*.ex` with `Code.require_file/1`, often with `*_plugin.ex` first. CI logs fill with `Module.fun/arity is undefined (module … is not available or is yet to be defined)` for `FacadeStore`, workers, `ConnectionHub`, and similar siblings. The tests still pass because the missing module is compiled a moment later.
+**Mistake:** Leaving `root_process_instance_id` nil on a child, or setting it to the immediate parent.
 
-**Why it happens:** `Code.require_file/1` compiles a single file in isolation. Elixir emits the warning at compile time of the caller; Mix's `Kernel.ParallelCompiler` does not, because it compiles the whole batch and resolves cross-file references. Sorting `*_plugin.ex` first makes the warning systematic: plugin `on_load/1` almost always calls a sibling defined in another file.
+**Why:** Studio debugger subscribes to the root channel. Fan-out uses this field.
 
-**Correct approach:** Compile the example's `lib/**/*.ex` with `Examples.Shared.ExampleCompiler.compile_files/1` (`examples/plugins/shared/example_compiler.ex`). That helper uses `Kernel.ParallelCompiler.compile/2` under a lock and skips paths already compiled in the VM. Shared single-file extras (`script_sandbox.ex`) stay on `Code.require_file/1`. Keep `Code.require_file/1` for the wrapper's `test/*.exs` files. Integration tests that load the same example sources (for example `example_auth_providers_test.exs`) must also go through `ExampleCompiler` — mixing `Code.require_file/1` with a later batch compile redefines the modules (`redefining module MyCompany.LdapAuthProvider`).
+**Correct approach:** Root: equal to `process_instance_id`. Child: copy from the parent handler context. See [event-system.md](event-system.md).
 
 ---
 
-## P85: Dump UUIDs to 16-byte binaries before `Ecto.Adapters.SQL.query`
+## Event Subprocess shell is not a token-entered subprocess
 
-**Mistake:** Passing a UUID **string** (`"01a062d5-…"`) as a `$1::uuid` parameter to `Ecto.Adapters.SQL.query` / `query!`. Postgrex raises `DBConnection.EncodeError` (`expected a binary of 16 bytes`).
+**Mistake:** Incoming/outgoing sequence flows on the ESP shell; treating it as a separate deployment; killing the scope PI when an interrupting ESP fires; delivering a message to an ESP start when a Catch/Boundary exists.
 
-**Why it happens:** Ash and Ecto schemas accept string UUIDs and dump them in the type layer. Raw SQL binds parameters with Postgrex's `:uuid` encoder, which wants the 16-byte binary. UUIDv7 primary keys look like ordinary strings in Elixir maps, so the mismatch is easy to miss until the first raw `DELETE` / `SELECT`.
+**Why:** An ESP is dormant until its typed start fires. It runs as a **child PI** of the scope (synthetic model, same version). Interrupting cancels sibling FNIs; the scope still reaches `:finished`. Message precedence: Catch/Boundary → ESP start → standalone Message Start.
 
-**Correct approach:** `{:ok, binary} = Ecto.UUID.dump(uuid_string)` (or a shared `dump_uuid!/1` helper) before every UUID argument to `EctoSQL.query`. `ProcessInstancePurge` and its tests do this for eligibility, descendant walks, and cascade deletes. Do not pass `Ash.UUIDv7` strings straight into `ANY($1::uuid[])`.
+**Correct approach:** No sequence flows on the shell. One typed start. See [execution.md](execution.md) and the [event-subprocesses handbook](../guides/handbook/event-subprocesses.md). Inner Start Events are never externally startable — `subprocess_node_id` without a parent is `:orphan_subprocess_start`.
 
 ---
 
-## P86: Ash `:update_finished` accepts `output_token`, not `output_payload`
+## Claim and lane checks belong in `EvilEngine.Api`
 
-**Mistake:** Passing `output_payload:` in the persist map to `adapter.update_flow_node_instance(id, :update_finished, changes)`. Ash rejects it with `NoSuchInput`. The MI iteration finish path (`persist_mi_iteration_finished/4`) did this; `PersistenceRetry` then retried the same invalid map five times per iteration.
+**Mistake:** Re-implementing JWT claim or lane checks in a Phoenix controller.
 
-**Why it happens:** `%FlowNodeResult{}` names the in-memory field `output_payload`. The Ash resource `FlowNodeInstance` and the DB column are `output_token`. `FniLifecycle.persist_and_emit_finish/7` already maps `output_token: output_payload`. A parallel persist helper that copies the struct field name 1:1 bypasses that mapping. Because `handle_mi_iteration_ok/4` ignores `_persist_result` and still emits events, integration tests that only assert PI finished / events pass while the iteration FNI row never gets an output token.
+**Why:** Plugins call the same facade with `skip_claims: true`. A controller-only check is a bypass.
 
-**Correct approach:** Always use the Ash accept list (`:output_token`, not `:output_payload`) when calling `:update_finished`. Assert iteration FNI `output_token` in persistence after an MI run — event presence is not enough. `PersistenceRetry` must not retry `class: :invalid` (see P27).
+**Correct approach:** `EvilEngine.Api.Validation`. Controllers map HTTP and call the facade. See [authorization.md](authorization.md).
 
 ---
-
-## P87: `assert_pi_state!` must verify the persisted execution chain — events are not persistence
-
-**Mistake:** Asserting PI `finished` plus `FlowNodeInstanceFinished` / `MultiInstanceCompleted` events, and treating that as proof that FNI rows have `input_token` / `output_token` and the correct terminal state.
 
-**Why it happens:** Several persist helpers (`persist_mi_iteration_finished`, compensation throw finish) ignore `_persist_result` and still emit events and update in-memory PI state. The live run looks correct; Ash never wrote `output_token`. Resume, retry, GraphQL, and the Studio debugger then see empty or stale FNI rows.
+## Complex Gateway joins need `activationCondition` and a SESE region
 
-**Correct approach:** `assert_pi_state!/2` always runs `assert_execution_chain!/2`: every non-boundary FNI has a map `input_token` (incoming payload **before** input mapping); every FNI has `started_at`; terminal FNIs have `finished_at`; finished non-boundary FNIs have a map `output_token` (**after** output mapping); event lifecycle is Started → optional `active→waiting` StateChanged → Finished with `terminal_state` matching the DB row. Types that always park (`user_task`, `receive_task`, `service_task`, `call_activity`, `sub_process`), message/signal/timer/conditional intermediate catches, and MI/loop shells with at least one iteration must have StateChanged. None/Link intermediate catches complete synchronously and do not park. Mapper tests additionally assert the mapped shapes. Pass `verify_execution_chain: false` only when the PI row exists before any FNI.
+**Mistake:** A mixed split+join Complex Gateway; a join without `<bpmn:activationCondition>`; cancelling FNIs that sit on the split or join nodes themselves.
 
-Parallel persist helpers that skip `FniLifecycle.finish/4` must still write `output_token` **and** emit `FlowNodeInstanceFinished`. Compensation throw with zero targets (`persist_compensation_throw_no_targets/2`) is one such path.
+**Why:** Mixed gateways are rejected at deploy. Split completeness is runtime. The region between the paired split and join is exclusive of those two nodes.
 
-Retry reuses FNI IDs, so `EventCollector` may still hold `FlowNodeInstanceFinished` from the aborted incarnation while the DB row is `waiting` again. The chain helper therefore does not treat historical Finished events as a contradiction of a current `active`/`waiting` row; for a terminal row it asserts the **last** Finished `terminal_state` matches the DB.
+**Correct approach:** Split or join, never both. Join condition uses `activatedCount` / `incomingCount`. See [execution.md](execution.md) and the [complex-gateways handbook](../guides/handbook/complex-gateways.md).
 
-Link Catch events and None (untyped) Intermediate Catch events complete synchronously when the token arrives — they must not be required to emit `active → waiting`. Message, signal, timer, and conditional catches must.
-
 ---
 
-## P88: Load-test finishers must retry `:fni_not_waiting` — `UserTaskCreated` races the PI wait transition
+## Compensation is registration, not a subscription — and not automatic on failure
 
-**Mistake:** Treating GitHub load-bench failures (`assert average < ceiling`, or `{:timeout, 4999}` of 5,000) as timing-ceiling misses only, and leaving AutoFinisher / echo handlers as a single fire-and-forget finish.
+**Mistake:** Treating a Compensation Boundary as a timer/message boundary, or expecting fatal/error/abort/escalation to run compensation handlers.
 
-**Why it happens:** `UserTask.handle_enter` publishes `UserTaskCreated` *before* returning `{:wait}` to the PI. AutoFinisher's `Task` can `finish_user_task` while the FNI is still `:active` → `{:error, :fni_not_waiting}`. Plugin `finish_async` can run before `do_handle_fni_async` `Registry.register`s the FNI → `{:error, :process_instance_not_found}`. Neither path retries, so that PI stays `waiting` forever. Queue-time telemetry handlers left attached after a failed test then `:ets.insert` a dead table (`:badarg`, handler detached). Deploy `Ash.create` inside `Repo.transaction` without `return_notifications?: true` logs missed-notification warnings on every fixture deploy — noise, not the hang.
+**Why:** Compensation boundaries are passive (`cancelActivity="false"`). Handlers link via `<bpmn:association>`. Only Compensate Throw/End (and transaction cancel) dispatch them. Hazard (uncaught error) does **not** compensate.
 
-**Correct approach:** Retry `:fni_not_waiting` / `:fni_not_found` / `:not_found` / `:process_instance_not_found` until the FNI is waiting (`EvilEngine.Test.AsyncCompletionRetry`). Detach queue-time telemetry in `on_exit` and rescue `ArgumentError` on ETS insert. Collect Ash notifications during deploy transactions and `Ash.Notifier.notify/1` after commit.
+**Correct approach:** Model an explicit compensate throw if you want compensation on error. `isForCompensation` activities have no sequence flows. See the [compensation handbook](../guides/handbook/compensation.md).
 
 ---
 
-## P89: Load tests must not use the Ecto sandbox — ownership_timeout is not a scale signal
+## Ad-hoc inner activities have no Start or End events
 
-**Mistake:** Reading thousands of `DBConnection.OwnershipError` / HTTP 500 `Process start failed` lines from GitHub load-bench (E8, then PP2) as evidence that Ash/Postgres cannot run 10,000 process instances, or that the runner is merely "overloaded."
+**Mistake:** Putting a Start/End inside `<bpmn:adHocSubProcess>`, or treating `cancelRemainingInstances="false"` as missing (`|| true`).
 
-**Why it happens:** `config/test.exs` defaults to `pool: Ecto.Adapters.SQL.Sandbox` with `pool_size: System.schedulers_online() * 2` (**4** on GitHub `ubuntu-latest` 2 vCPU). `ExecutionCase` checks out that pool in `{:shared, self()}` with `ownership_timeout: 300_000`. E8's ExUnit timeout is **600_000**. After five minutes the test process still owns the connection; the sandbox kills the owner; every in-flight PI/FNI persist then fails with `cannot find ownership process` / `mode reverts to :manual`. `PersistenceRetry` retries those fatals, so one owner death becomes thousands of log lines. Production uses `DBConnection.ConnectionPool` (write 100 / read 50), not Ownership.
+**Why:** Ad-hoc activities are activated on demand. `false` is a real value — `||` turns it into `true`.
 
-**Correct approach:** Run load tests on a real pool. `mix test.load` and `.github/workflows/load-bench.yml` set `TDE_LOAD_TEST_POOL=1` so `config/test.exs` uses `DBConnection.ConnectionPool` (`TDE_LOAD_TEST_POOL_SIZE`, default 50 write / 25 read). GitHub Actions Postgres **service** containers cannot raise `max_connections` above the image default of 100, so the load-test pools stay at 75 total — not production 100+50. `ExecutionCase` skips sandbox checkout in that mode and `TRUNCATE … CASCADE`s runtime tables between tests. Do not raise production pool sizes to paper over sandbox ownership. Do not bump `ownership_timeout` to `:infinity` and keep a single shared connection for 10k PIs.
+**Correct approach:** `Map.get(attrs, :cancel_remaining_instances, true)`. See the [adhoc handbook](../guides/handbook/adhoc-subprocesses.md).
 
 ---
 
-## P90: Checkout the sandbox before `Scheduler.reset_state` — a leftover PI can kill the next test's setup
+## Retry checkpoints cannot sit on joins, MI iterations, or inside ad-hoc/transaction scopes
 
-**Mistake:** Calling `EvilEngine.Timers.Scheduler.reset_state/0` in `ExecutionCase` setup *before* this test process owns the Ecto sandbox, then treating a C174 (or any later) failure in `__ex_unit_setup__` as a broken interrupting timer Event Subprocess.
+**Mistake:** `resetToFlowNodeInstanceId` pointing at a parallel join, an MI iteration FNI, or a node inside a transaction / ad-hoc child.
 
-**Why it happens:** Each ExUnit test is a new process. The previous test is the sandbox owner; when it exits, any still-running PI (non-interrupting ESP child mid-`create_flow_node_instance`, Timer Start spawn, drain timeout) keeps using that connection. `Scheduler.reset_state/0` is ETS-only, but `GenServer.call` waits behind a `:tick` that may persist `timer_start_schedules`. That checkout sees `owner exited` / `client is still using a connection` and crashes the Scheduler. The next test's setup is blamed (C174) even though its body never ran. Shared mode after a later checkout lets a leftover PI grab the *new* connection and deadlock the same way.
+**Why:** Those states are not a safe resume cursor. HTTP 422 with a specific error code.
 
-**Correct approach:** Terminate leftover PIs, checkout `{shared, self()}` (or truncate on the load-test pool), terminate again, then `reset_state` with retry + `restore_sandbox_shared_mode/0` if the call exits. Drain once more after reset so a tick between drain and reset cannot leave a fresh PI. Do not "fix" C174's timer duration to hide a setup ownership tear.
+**Correct approach:** Retry at the fork, the MI shell, or upstream. See the [retry handbook](../guides/handbook/retry.md).
 
 ---
 
-## P91: Ash 3.33+ requires `default_string_length_count` or resource compile fails
+## Inclusive joins and conditional waiters re-evaluate on state change
 
-**Mistake:** After `mix deps.get` pulls Ash 3.33+, treating `mix deps.compile` / `mix compile` failure in `peripheral_persistence` resources as a broken resource DSL.
+**Mistake:** Evaluating an inclusive join or a conditional event only at first arrival, or skipping the immediate check when a waiter registers.
 
-**Why it happens:** Ash 3.33 added `Ash.Resource.Transformers.RequireStringLengthCountConfig`. Every resource with `:string` / `:ci_string` length constraints (or `string_length` validations) refuses to compile until `config :ash, default_string_length_count` is set. The error names the first resource (`EvilEngine.Persistence.Resources.Process`), not the missing config file.
+**Why:** A late-arriving token or a condition that is already true at subscribe time never fires.
 
-**Correct approach:** Set `config :ash, default_string_length_count: :codepoints` in `config/config.exs`. That counts Unicode codepoints, which matches PostgreSQL `LENGTH` / `char_length`. Do not use `:mixed` unless you intentionally want Elixir grapheme counts that can disagree with SQL (a single grapheme can contain unbounded combining characters, so `max_length` would not bound stored size). Individual attributes can still override with the `length_count` constraint.
+**Correct approach:** Re-evaluate inclusive joins after every FNI state change. Conditional subscribe includes an immediate evaluation (edge-triggered false→true afterwards). Conditions do not cross PI scope.
 
 ---
 
-## P92: Do not kill Event-Based Gateway siblings that are still `:active`
+## Error Boundary codes resolve `errorRef`; `fail_async` is the Service Task failure path
 
-**Mistake:** When one EBG catch wins, `Process.exit` every other sibling FNI that is `:active` or `:waiting`. A `PT0S` timer catch completes while the message (or signal) sibling is still in `handle_enter/3` — typically inside `park_async` / subscription persist. Killing that Task tears the shared Ecto sandbox connection (or leaves a mid-flight persist). The PI never reaches `:finished` (C150 flake: wait_for_completion 20s timeout).
+**Mistake:** Matching boundaries on raw XML order, or expecting `{:error, _}` from Service Task `handle_enter/3`.
 
-**Why it happens:** The PI GenServer has already inserted both successor FNIs as `:active` before either handler Task reports. Sequential message processing does **not** mean both handlers have parked. `handle_enter` persist is concurrent with the winner's `{:ok}`.
+**Why:** Catch-side codes come from inline `evil:errorCode` else global `errorRef`. Service Tasks are async-only; production failure is `fail_async`.
 
-**Correct approach:** Interrupt `:waiting` siblings immediately. Stamp `:active` siblings with `type_properties.ebg_pending_cancel` and leave the Task running. Continuation-async handlers (`dispatch_handler_result/3`) wait for `{:async_gate, :continue | :cancel}` after sending `{:async}` so a pending loser never calls `FniLifecycle.finish`. When the loser later reports `{:async}` / `{:wait}` / `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Do **not** dispatch the winning catch's successors until those pending-cancel siblings are interrupted (`State.event_based_gateway_deferred_dispatch`). An Error End Event or fatal ScriptTask on the winning path otherwise cascades the still-`:active` loser to `:error`/`:fatal` (empty `aborted_or_interrupted` in EventBasedGatewayTest). Do not complete `PT0S` timer catches synchronously from `handle_enter` — that lets both branches finish before the PI can pick a winner. Do not "fix" C150 by publishing the message or stretching the wait timeout.
+**Correct approach:** Specific resolved code first, then catch-all. `facade.service_tasks.fail_async.(id, code, message)`. See [execution.md](execution.md).
 
-Related: StartEventManager tests that assert `Scheduler.armed_count()` must arm timers in the **wall-clock future**. A `reference_time` of `~U[2026-06-01 ...]` is in the past; the 50ms test tick catch-up-fires finite cycles (`R3/PT1H`) until remaining is 0 and `armed_count` is 0.
-
 ---
-
-## P93: GraphQL complexity is `limit × child fields`, not "how big the PI is"
 
-**Mistake:** Setting `TDE_GRAPHQL_MAX_COMPLEXITY` to 1000 (or treating 1000 as plenty for "one process instance") and assuming the Studio debugger can open any PI. Symptom: `Field dataObjectValues is too complex: complexity is 6500 and maximum is 1000` on **every** debugger open, including PIs with zero Data Objects.
+## Event-Based Gateway: do not kill siblings that are still `:active`
 
-**Why it happens:** AshGraphql's `query_complexity/3` multiplies `limit` by the sum of every selected child field, including pagination metadata (`count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, `limit`). The debugger loads current Data Object values with `queryDataObjectValues({ pagination: { mode: 'offset', limit: 500 } })` and six result fields — `500 × 13 = 6500`. Complexity analysis is static; it never looks at row count.
+**Mistake:** Interrupting EBG losers as soon as the winner reports, while sibling handler Tasks are still entering.
 
-The router's `Application.compile_env(:api_web, :graphql_max_complexity)` is **not** the live cap. `EvilEngineWeb.Graphql.PipelineModifier` overwrites `max_complexity` from `Application.get_env/3` on every request so `TDE_GRAPHQL_MAX_COMPLEXITY` actually works (same pattern as `TDE_GRAPHQL_MAX_DEPTH`).
+**Why:** The PI inserted both successors as `:active` before either parked. Killing mid-persist races the sandbox and can leave a loser finishing.
 
-**Correct approach:** Default is **10000**, sized for that snapshot with headroom. `EvilEngineWeb.Graphql.ComplexityLimitTest` and `graphql_security_phases_test.exs` pin the debugger-shaped query. Do not lower the default below the snapshot score. Do not "fix" the debugger by dropping `limit` without paginating — a silent 50-row cap hides Data Objects. Nested `processInstance { dataObjectValues { ... } }` (no `limit`) uses `child_complexity + 1` and is a different, cheaper query.
+**Correct approach:** Interrupt `:waiting` immediately. Stamp `:active` losers `ebg_pending_cancel` and wait for `{:async}` / `{:wait}` before persist-interrupt. Do not complete `PT0S` timer catches synchronously from `handle_enter`.
 
 ---
 
-## P94: Crash-analog PI kill must use `:kill`, not `terminate_child`
+## GraphQL: offset pagination, complexity is `limit × fields`, no empty fragments
 
-**Mistake:** Calling `DynamicSupervisor.terminate_child/2` (or any graceful `:shutdown`) to simulate an engine crash, then asserting `process_instances.state` is still `running`.
+**Mistake:** Keyset pagination (`hasNextPage` missing); setting `TDE_GRAPHQL_MAX_COMPLEXITY` as if it were "how big the PI is"; emitting `... on TaskNode { }`.
 
-**Why it happens:** `ProcessInstance.terminate/3` stops the per-PI Task.Supervisor. Call Activity (and SubProcess) handler tasks run `handle_aborted/1` on shutdown and persist child PIs as `aborted`. The parent row stays `running`. Resume-crash counts then drop (e.g. 750 → 539) even though the BEAM never crashed.
+**Why:** Lists use offset pagination. AshGraphql scores `limit × selected child fields` (debugger `dataObjectValues(limit: 500)` is 6500; default cap 10000). Empty inline fragments are invalid GraphQL. Depth is sized for recursive `SubProcessNode.flowNodes`.
 
-**Correct approach:** `LoadHelpers.terminate_all_process_instances/0` burst-sends `Process.exit(pid, :kill)` to every PI, then waits for `:DOWN`. That skips `terminate/3`, leaves Postgres rows `running`/`waiting`, and matches `ResumeRunner.resume_all/0` (roots only, P11). Do not wait for `:DOWN` between exits — a child that observes parent `:DOWN` will persist itself `aborted` before it is killed. Keep `ExecutionCase`'s private drain helper on `terminate_child` — integration tests that want orderly teardown are not a crash analog.
+**Correct approach:** Offset pagination. Do not lower the complexity default below the debugger snapshot. Omit empty `on` types in `buildFlowNodeSelection`. See [api.md](api.md) and [configuration.md](configuration.md).
 
 ---
 
-## P95: Do not emit empty GraphQL inline fragments
+## Do not put `max_children` on the PI DynamicSupervisor
 
-**Mistake:** Serializing `FLOW_NODE_TYPE_FIELDS` entries with empty extra-field lists as `... on TaskNode { }` (same for `ParallelGatewayNode` and `EventBasedGatewayNode`). Opening any process instance in the Studio debugger then fails with `GraphQL error: syntax error before: '}'`.
+**Mistake:** Setting `max_children` from `TDE_MAX_CONCURRENT_PIS`, or queueing leftover PIs during resume.
 
-**Why it happens:** GraphQL requires every selection set to contain at least one field. Those three `*Node` types are valid Absinthe objects — they implement `:flow_node` and expose only `common_flow_node_fields/0`. The SDK listed them in `on` with `[]` so the selection tree named every concrete type. The client query builder always wrapped `on` entries as inline fragments, including empty ones. Absinthe fails at parse, before schema validation, so this looks like an endpoint bug.
+**Why:** Resume must bring the whole tree back. A cap mid-resume orphans children.
 
-**Correct approach:** Omit empty `on` entries in `buildFlowNodeSelection`. Skip empty fragments in `query-builder.ts` `renderSelectionField` (defense in depth for custom selections). Common interface fields already cover those types. Do **not** inject `__typename` into the empty fragment to make it parse — the client's `camelizeKeys` rewrites `__typename` to `_Typename` (Studio P-Studio-11). `EvilEngineWeb.Graphql.EmptySelectionSetTest` pins the Absinthe parse error; client/SDK unit tests pin the rendered debugger query.
+**Correct approach:** Supervisor `max_children` is `:infinity`. The env var is a soft pre-check on **new public starts** only. Resume bypasses it. See [execution.md](execution.md).
 
 ---
 
-## P96: Vitest 5 removed `describe.sequential` — use `{ concurrent: false }`
+## Production Timer Start persistence is not NoOp
 
-**Mistake:** Writing `describe.sequential('User Task Lifecycle', () => { … })` (or `test.sequential`, or `{ sequential: true }`) in `packages/js/client` integration tests after the Vitest 5 catalog bump. The suite fails at load with a missing-export / invalid-option error.
-
-**Why it happens:** Vitest 5 deleted the deprecated sequential API. The replacement is the inverse of concurrency, not a shuffle flag. Studio shuffles files and tests; the Engine JS packages do **not** — `client/vitest.config.ts` only sets `fileParallelism: false`. Sequential was about not running `it()`s in parallel while they share a live engine, not about randomizing order.
-
-**Correct approach:** `describe('User Task Lifecycle', { concurrent: false }, () => { … })`. Do not enable `sequence.shuffle` on the SDK or client to "match Studio". Do not use `{ shuffle: false }` as a substitute for `{ concurrent: false }` — they control different axes.
-
----
+**Mistake:** Leaving `:core_timers, :persistence_module` on `NoOp` in production.
 
+**Why:** NoOp is the test default. Cycle Timer Starts then vanish across restart.
 
+**Correct approach:** Production uses `EvilEngine.Persistence.TimerStartScheduleAdapter`. Tests keep NoOp except `ExecutionCase`. See [timers.md](timers.md).

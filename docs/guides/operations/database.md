@@ -69,7 +69,7 @@ Live tables include:
 | `flow_node_instances` | FNI state, tokens, type properties |
 | `data_objects` | Current Data Object snapshots |
 | `data_object_writes` | Append-only DO write audit (partitioned) |
-| `process_instance_events` | Typed event audit log (partitioned, legacy — built-in DB sink removed) |
+| `process_instance_events` | Partitioned table retained for schema compatibility; the engine does not write typed events here |
 | `gateway_pending_arrivals` | Pending gateway join tokens |
 | `timer_start_schedules` | Cycle Timer Start Event schedules |
 | `messages` / `pending_messages` | Published messages and pending-message hold |
@@ -80,7 +80,10 @@ There are **no** `escalations`, `compensations`, `engine_timers`, or `pending_es
 
 ## Partitioning
 
-`process_instance_events` and `data_object_writes` are partitioned by timestamp. At boot, the engine creates partitions for the current and upcoming periods:
+Six tables are range-partitioned by timestamp: `process_instance_events`,
+`data_object_writes`, `messages`, `pending_messages`, `signals`, and
+`pending_signals`. At boot the engine creates partitions for the current
+period and upcoming periods:
 
 ```bash
 mix evil.partitions.ensure    # dev
@@ -89,11 +92,22 @@ bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"  # pro
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_PARTITION_AHEAD_MONTHS` | `3` | Future partition lead time |
+| `TDE_PARTITION_INTERVAL` | `quarterly` | `monthly`, `quarterly`, `half_yearly`, `yearly`, or `off` |
+| `TDE_PARTITION_AHEAD_MONTHS` | `3` | Future partition lead time (at least 1) |
 
-## Retention Policies
+`mix evil.partitions.ensure` only **creates** upcoming partitions. It does
+not drop old ones. For long-uptime nodes, run `pg_partman` (or equivalent)
+`DETACH` / `DROP` on those six tables. See [Partition drop](#partition-drop-pg_partman) below.
 
-Pass A is `mix evil.retention.purge` (cron/systemd) or `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`. Unset `TDE_RETENTION_*_DAYS` → the task is a no-op. There is no RetentionRunner GenServer.
+## Retention
+
+Two independent jobs:
+
+1. **Process-instance trees** — Mix task, opt-in per terminal state.
+2. **Message / signal audit rows** — operator SQL. The engine does not
+   delete those tables on a schedule.
+
+Unset `TDE_RETENTION_*_DAYS` → the Mix task is a no-op.
 
 ```bash
 mix evil.retention.purge
@@ -119,21 +133,34 @@ Example cron (daily 03:00 UTC):
 | `TDE_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
 | `TDE_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
 | `TDE_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
-| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | Unused engine convention for the Pass B SQL cutoff below |
-| `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | `false` = destroy pending message rows on deliver/expire/cancel |
+| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | Not read by the engine. Use it as the cutoff (in days) for the SQL below |
+| `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | Default `true`: keep pending-message rows after deliver/expire/cancel (audit). `false`: destroy the row on transition, so the table only holds live `pending` rows |
 | `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same for pending signals |
 
-### Safety Invariants
+### What the Mix task deletes
 
-- Only **root** PIs are selection keys. Skip the root if any descendant is `running` or `suspended`.
+- Selection key is a **root** process instance whose `finished_at` is older
+  than the knob for its terminal state.
+- Skip that root if any descendant is `running` or `suspended`.
+- One transaction per tree: `process_instance_events` →
+  `gateway_pending_arrivals` → `data_object_writes` → `data_objects` →
+  `flow_node_instances` → `process_instances`.
 - Catalog rows (`processes`, `process_versions`) are never touched.
-- Do not touch `messages` / `signals` / `pending_*` / `timer_start_schedules` from Pass A.
-- Operational rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) are never Pass B eligible.
-- REST `DELETE /process-instances/{id}` remains soft-delete of one PI + FNIs.
+- `messages`, `signals`, `pending_*`, and `timer_start_schedules` are
+  never touched by this task.
+- REST `DELETE /process-instances/{id}` remains a **soft-delete** of one
+  PI and its FNIs. There is no REST purge endpoint.
 
-### Pass B — operator SQL (engine-audit tables)
+Ad-hoc cleanup of a specific aged cohort: lower the matching
+`TDE_RETENTION_*_DAYS` temporarily and run the Mix task (or `--dry-run`
+first).
 
-Do **not** DELETE `timer_start_schedules`. Substitute `:cutoff` with `now() - make_interval(days => <TDE_RETENTION_ENGINE_AUDIT_DAYS>)` (or a literal timestamptz). Never delete `state = 'pending'`.
+### Message and signal audit cleanup (operator SQL)
+
+Do **not** DELETE `timer_start_schedules`. Never delete rows with
+`state = 'pending'`. Substitute `:cutoff` with
+`now() - make_interval(days => <TDE_RETENTION_ENGINE_AUDIT_DAYS>)` or a
+literal timestamptz.
 
 ```sql
 -- Preview
@@ -173,31 +200,82 @@ DELETE FROM signals
 
 ### Partition drop (`pg_partman`)
 
-Boot-time `mix evil.partitions.ensure` only **creates** upcoming partitions. It is not a `pg_partman` replacement. For long-uptime nodes and for `DETACH`/`DROP` of old partitions, run `pg_partman` (or equivalent) on `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, and `pending_signals`.
+For `DETACH` / `DROP` of old partitions, run `pg_partman` (or equivalent)
+on `process_instance_events`, `data_object_writes`, `messages`,
+`pending_messages`, `signals`, and `pending_signals`.
 
-### Manual Purge REST
+## Payload cap (`TDE_TOKEN_MAX_BYTES`)
 
-REST/CLI `purge` is deferred / not v1 (`purge_audit_data` unused). Ad-hoc PI-tree cleanup uses the Mix task with a temporarily low days knob, or SQL under the admin DB role.
+Every user-supplied payload is checked against a single engine-wide byte
+cap. The check uses the canonicalized JSON size.
 
-## JSONB Compression
+| Env Var | Default | Floor |
+|---------|---------|-------|
+| `TDE_TOKEN_MAX_BYTES` | `65536` (64 KiB) | `1024` — values below this refuse boot |
+
+There is no per-process or per-endpoint override. There is no maximum;
+raise it if the workload legitimately needs larger tokens.
+
+**Applies to:** process start payload and `started_with_context`, User
+Task completion results, async Service Task `finish_async` /
+`fail_async` payloads, published messages, Data Object values at
+write time, and flow-node output tokens. Signals carry no payload.
+
+**Rejection:**
+
+| Surface | Behaviour |
+|---------|-----------|
+| HTTP (start, message trigger, user-task finish, …) | **413** before any engine state changes |
+| GraphQL | `extensions.code = "PAYLOAD_TOO_LARGE"` |
+| Handler / FEEL / DOA output produced inside the engine | causing FNI → `fatal` |
+
+Tuning: keep the default unless you have measured a real need. Raising
+the cap increases memory per in-flight token and JSONB toast size.
+Lowering it below 64 KiB is safe as long as it stays ≥ 1024. Pair with
+JSONB compression below; the cap is a size gate, not a compressor.
+
+See [Error Handling](../handbook/error-handling.md) for the HTTP body
+shape and [Troubleshooting](troubleshooting.md) for 413.
+
+## JSONB compression (`TDE_JSONB_COMPRESSION`)
 
 | Env Var | Default |
 |---------|---------|
 | `TDE_JSONB_COMPRESSION` | `lz4` |
 
-Applies to new migrations only. Existing data retains its compression until rewritten (`ALTER … SET COMPRESSION` plus `UPDATE col = col`).
+Requires PostgreSQL 14+ (the engine requires 16+). The setting applies to
+**new** column data created by migrations. Existing rows keep whatever
+compression they were written with until rewritten:
+
+```sql
+ALTER TABLE flow_node_instances ALTER COLUMN input_token SET COMPRESSION pglz;
+UPDATE flow_node_instances SET input_token = input_token;
+-- repeat for every heavy JSONB column you intend to convert
+```
+
+Leave `lz4` unless you have measured a real regression on your hardware.
+The engine does **not** flip this variable from tests.
 
 ### LZ4 vs PGLZ measurements
 
-From `mix test.load.hardening` on 2026-09-07 (report `test/load/reports/20260907T115201Z.json`, stdout `[BENCH] jsonb_gate …`). SQL p50/p95 are `query_time_ms` **integer milliseconds** (0 vs 1 is clock resolution). GraphQL is HTTP wall-clock in milliseconds (30 samples after Absinthe warmup). `pg_column_size` sum was identical (`lz4=7335936` / `pglz=7335936`). The 10 % gate did **not** flunk; the default stays `lz4`. The suite does not flip `TDE_JSONB_COMPRESSION`.
+Same VM, two waves (`mix test.load.hardening`, 2026-09-07, report
+`test/load/reports/20260907T115201Z.json`). SQL p50/p95 are integer
+`query_time_ms` (0 vs 1 is clock resolution). GraphQL is HTTP wall-clock
+in milliseconds. `pg_column_size` sum was identical on both waves
+(`7335936`). LZ4 was not >10 % slower than PGLZ; **the default stays
+`lz4`**.
 
-| Measurement | LZ4 p50 | LZ4 p95 | PGLZ p50 | PGLZ p95 | Source report |
-|-------------|---------|---------|----------|----------|---------------|
-| write_result (`flow_node_instances`) | 0.0 | 1.0 | 0.0 | 1.0 | `20260907T115201Z` stdout |
-| DOA (`data_object_writes` / `data_objects`) | 0.0 | 0.0 | 0.0 | 0.0 | `20260907T115201Z` stdout |
-| publish_message (`messages`) | 0.0 | 0.0 | 0.0 | 0.0 | `20260907T115201Z` stdout |
-| resume `input_token` reads | 0.0 | 1.0 | 0.0 | 0.0 | `20260907T115201Z` stdout |
-| GraphQL `inputToken` / `outputToken` | 13.381 | 17.263 | 12.765 | 17.313 | `20260907T115201Z` stdout + `jsonb_*_graphql_tokens` |
+| Measurement | LZ4 p50 | LZ4 p95 | PGLZ p50 | PGLZ p95 |
+|-------------|---------|---------|----------|----------|
+| write_result (`flow_node_instances`) | 0.0 | 1.0 | 0.0 | 1.0 |
+| DOA (`data_object_writes` / `data_objects`) | 0.0 | 0.0 | 0.0 | 0.0 |
+| publish_message (`messages`) | 0.0 | 0.0 | 0.0 | 0.0 |
+| resume `input_token` reads | 0.0 | 1.0 | 0.0 | 0.0 |
+| GraphQL `inputToken` / `outputToken` | 13.381 | 17.263 | 12.765 | 17.313 |
+
+On this host the SQL numbers are at clock resolution. Re-run
+`mix test.load.hardening` on the target hardware before changing the
+default.
 
 ## Dev Reset
 
@@ -207,5 +285,6 @@ mix ecto.reset    # drops, creates, migrates, seeds
 
 ## Related
 
-- [Data Objects](../handbook/data-objects.md) -- data object semantics
+- [Error Handling](../handbook/error-handling.md) -- payload-cap HTTP body
 - [Deployment](deployment.md) -- production boot commands
+- [Environment variables](../cheatsheets/env-vars.cheatmd) -- copy-paste block

@@ -39,18 +39,17 @@ After the quality gate passes, verify coverage in the output:
 - [ ] No per-app threshold failures
 - [ ] Global aggregate meets the `minimum_coverage` in `coveralls.json`
 - [ ] No newly added module shows 0 % coverage
-- [ ] If a phase just completed, verify per-app thresholds were ratcheted up per the milestones in `ImplementationPhases.md`
 - [ ] If coverage is below threshold, identify uncovered modules and recommend tests
 
 ## 2. Architecture Documentation
 
-- [ ] All new or modified subsystems are reflected in the appropriate file under `docs/architecture/`
+- [ ] All new or modified subsystems are reflected in the **one** appropriate file under `docs/architecture/`
 - [ ] `docs/architecture/index.md` lists all topic files (no missing entries)
-- [ ] `docs/architecture/common-pitfalls.md` updated if new gotchas were encountered
-- [ ] `docs/ImplementationPlan.md` section 0 (decisions table) updated if significant design choices were made
+- [ ] `docs/architecture/common-pitfalls.md` updated **only** if a competent person could hit the constraint again (not CI/test incident reports)
+- [ ] `docs/decisions.md` updated **only** if a significant A-vs-B choice was made
 - [ ] No architecture doc describes code that no longer exists
-- [ ] Summary stubs in `docs/ImplementationPlan.md` still accurately describe the extracted content
-- [ ] `AGENTS.md` reflects the current BPMN parser, validator, and extension vocabulary (no stale or missing entries)
+- [ ] Do **not** append `docs/ImplementationPlan.md` or `docs/ImplementationPhases.md` (archival)
+- [ ] `AGENTS.md` updated **only** if `evil:*` elements, supported BPMN types, validator rules, FEEL bindings, or umbrella apps changed
 - [ ] `apps/api_web/priv/openapi/spec.yaml` matches the actual REST API surface: every route in the router has a corresponding path entry, and no stale operations reference removed endpoints. Compare `spec.yaml` paths against the routes in `apps/api_web/lib/evil_engine_web/http/router.ex`
 
 ## 3. Code Quality Spot Check
@@ -91,7 +90,7 @@ Reference rule: `.cursor/rules/elixir-conventions.mdc` — read it before starti
 
 - [ ] `docs/architecture/index.md` topic list matches the actual files in the folder
 - [ ] Links between architecture docs are not broken (grep for `](` patterns pointing to nonexistent files)
-- [ ] `docs/ImplementationPhases.md` references point to correct architecture doc paths
+- [ ] `docs/decisions.md` links to the owning architecture file
 - [ ] `docs/Glossary.md` "See also" table entries point to correct paths
 - [ ] `docs/Architecture.md` mapping table references correct architecture docs
 

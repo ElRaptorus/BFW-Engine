@@ -1,13 +1,14 @@
----
-title: "Daemon Engine — Event System"
-parent_document: "../ImplementationPlan.md"
----
+# Event system
 
-> This document consolidates material from [`ImplementationPlan.md`](../ImplementationPlan.md) §3.3 (Event Bus), §3.6 (Lifecycle → Persistence → API fan-out), and the `EventSink` behaviour definition from §9.1.
-
-## Overview
-
-The Daemon Engine routes runtime notifications through two complementary mechanisms: in-process `Phoenix.PubSub` for coordination between process instances and internal subsystems, and `EngineEventBus` as the single typed fan-out surface for every `EvilEngine.Types.Event.*` payload. Telemetry in `core_execution` mirrors that public contract: each `:telemetry.execute/3` pairs with one `EngineEventBus.publish/1`. Observability, audit, live clients, and plugin integrations consume events only via registered `@behaviour EvilEngine.Plugin.EventSink` implementations — parallel, crash-isolated, and intentionally at-most-once per sink. The sections below preserve the architecture detail from the implementation plan without truncation.
+The engine routes runtime notifications through two complementary
+mechanisms: in-process `Phoenix.PubSub` for coordination between process
+instances and internal subsystems, and `EngineEventBus` as the single typed
+fan-out surface for every `EvilEngine.Types.Event.*` payload. Telemetry in
+`core_execution` mirrors that public contract: each `:telemetry.execute/3`
+pairs with one `EngineEventBus.publish/1`. Observability, audit, live
+clients, and plugin integrations consume events only via registered
+`@behaviour EvilEngine.Plugin.EventSink` implementations — parallel,
+crash-isolated, and at-most-once per sink.
 
 ## Event Bus Layers
 
@@ -35,7 +36,7 @@ Future clustering: swap PubSub adapter to `Phoenix.PubSub.PG2` (multi-node) or `
 EvilEngine.Events.EngineEventBus.publish(event :: EvilEngine.Types.Event.t()) :: :ok
 ```
 
-Every `:telemetry.execute/3` call inside core_execution is paired with exactly one `EngineEventBus.publish/1` carrying a typed `EvilEngine.Types.Event.*` struct ([`ImplementationPlan.md`](../ImplementationPlan.md) §2.1.1). The bus then dispatches the event to **every registered sink that declares interest** (`EventSink.accepts?/1` — see [plugins.md](./plugins.md)). Dispatch is:
+Every `:telemetry.execute/3` call inside core_execution is paired with exactly one `EngineEventBus.publish/1` carrying a typed `EvilEngine.Types.Event.*` struct. The bus then dispatches the event to **every registered sink that declares interest** (`EventSink.accepts?/1` — see [plugins.md](./plugins.md)). Dispatch is:
 
 - **Parallel per sink** — each registered sink runs in its own `EvilEngine.Events.SinkWorker` GenServer (supervised by `EvilEngine.Events.SinkSupervisor`, one_for_one). The bus's `handle_cast({:publish, event}, state)` simply casts the event to each worker's pid; the workers then process events independently. A slow sink fills only its own mailbox and never blocks another sink, the bus, or core_execution.
 - **In-order per sink** — each worker is a GenServer, so events arriving via cast are processed serially in arrival order. The documented `handle_event(event, state) → {:ok, new_state}` in-order state-mutation contract is preserved exactly: a sink author writing a stateful sink (counter, batcher, etc.) can rely on events not racing each other for that sink.
@@ -92,7 +93,7 @@ PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin ca
 ```elixir
 defmodule EvilEngine.Plugin.EventSink do
   @moduledoc """
-  Receives every `EvilEngine.Types.Event.*` the engine emits ([`ImplementationPlan.md`](../ImplementationPlan.md) §2.1.1, [EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37)).
+  Receives every `EvilEngine.Types.Event.*` the engine emits ([EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37)).
   Runs in its own supervised Task; crashes are isolated by EngineEventBus.
   Sinks MUST NOT call back into core_execution or block the hot path.
   """
@@ -116,7 +117,7 @@ defmodule EvilEngine.Plugin.EventSink do
 end
 ```
 
-The three built-in sinks (`console`, `telemetry`, `websocket` — see [Built-in Sinks](#built-in-sinks)) all implement this behaviour; they are not special-cased by `EngineEventBus`. Plugin sinks register from inside their `on_load/1` callback ([plugins.md](./plugins.md) §9.2.1) using the injected `engine_facade`:
+The three built-in sinks (`console`, `telemetry`, `websocket` — see [Built-in Sinks](#built-in-sinks)) all implement this behaviour; they are not special-cased by `EngineEventBus`. Plugin sinks register from inside their `on_load/1` callback ([plugins.md](./plugins.md) — Loading model) using the injected `engine_facade`:
 
 ```elixir
 def on_load(facade) do
@@ -132,7 +133,7 @@ end
 ### 3.6 Lifecycle → Persistence → API fan-out
 
 Every state transition inside core_execution calls `:telemetry.execute/3` with the
-relevant event name and a typed `EvilEngine.Types.Event.*` payload ([`ImplementationPlan.md`](../ImplementationPlan.md) §2.1.1).
+relevant event name and a typed `EvilEngine.Types.Event.*` payload.
 Event names include at least:
 
 - `[:evil_engine, :process_instance, :state_change]` — PI transitions (`running → finished`, etc.). Metadata includes `parent_process_instance_id` when the PI is a child of a Call Activity.
@@ -140,7 +141,7 @@ Event names include at least:
 - `[:evil_engine, :call_activity, :child_started]` — Call Activity spawned a child PI. Metadata: `call_activity_flow_node_instance_id`, `parent_process_instance_id`, `child_process_instance_id`, `child_process_version_id`.
 - `[:evil_engine, :subprocess, :child_started]` — Embedded SubProcess spawned a child PI. Metadata: `subprocess_flow_node_instance_id`, `parent_process_instance_id`, `child_process_instance_id`, `subprocess_node_id`, `child_process_model_id`, `child_version`.
 - `[:evil_engine, :data_object, :written]` — Data Object write. Emitted **after** the write transaction commits so subscribers never observe uncommitted values.
-- `[:evil_engine, :message, :published]`, `[:evil_engine, :message, :arrived]` — Message lifecycle ([`ImplementationPlan.md`](../ImplementationPlan.md) §3.5)
+- `[:evil_engine, :message, :published]`, `[:evil_engine, :message, :arrived]` — Message lifecycle (see [routing.md](./routing.md))
 - `[:evil_engine, :signal, :published]`, `[:evil_engine, :escalation, :raised]`, `[:evil_engine, :timer, :fired]` — other event lifecycles
 Engine lifecycle events (`Event.EngineStarted`, `Event.EngineShutdown`) are published via `EngineEventBus.publish/1` only (no `:telemetry.execute/3` pairing). `EngineStarted` is emitted by `ResumeRunner` after all running PIs have been resumed at boot; `EngineShutdown` is emitted by <code>EvilEngine.Execution.Application.prep_stop/1</code> during graceful shutdown.
 
@@ -163,9 +164,13 @@ Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1
 
 All sinks run **concurrently** under supervised `Task`s started from `EngineEventBus`. A crash in one sink never affects another sink, never affects kernel-state persistence, and never affects core_execution (see [EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37) for the `Event.SinkFailed` isolation model). `core_execution.publish/1` is always non-blocking — the hot path does not wait for sinks.
 
-**Integration-test implication:** tests that assert audit-log rows (the `process_instance_events` assertions in [`ImplementationPlan.md`](../ImplementationPlan.md) §12.4.3 and the cross-PI escalation chain assertions in S15*, the DO crash-resume variants in [`ImplementationPlan.md`](../ImplementationPlan.md) §12.4.4, etc.) always enable the DB sink in their test config. The default-OFF posture is a production-default choice; test fixtures do not inherit it.
+**Integration tests** assert kernel tables (`flow_node_instances`,
+`data_object_writes`, `gateway_pending_arrivals`, and so on). The engine
+does not persist typed events to `process_instance_events`; that table
+exists for schema compatibility and stays empty unless a plugin sink
+writes it.
 
-## Root Process Instance ID and WebSocket Fan-out (SP-13)
+## Root Process Instance ID and WebSocket Fan-out
 
 Every Process Instance carries `root_process_instance_id` in its runtime state (`EvilEngine.Execution.ProcessInstance.State`). For root-level PIs (started via REST/API with no parent), this equals `process_instance_id`. For child PIs spawned by Call Activity or Embedded SubProcess handlers, it is inherited from the parent handler's `HandlerContext` via `start_opts`, propagating to any nesting depth.
 

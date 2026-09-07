@@ -103,11 +103,11 @@ The GraphQL client has an additional path: HTTP 200 responses with `errors[]` in
 
 ## GraphQL Pagination and Response Conventions
 
-All list queries use **offset pagination** (`limit`/`offset` arguments). The engine responds with a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`. The `GraphqlClient` maps these server-provided fields directly to `OffsetPageInfo` in the SDK. See common-pitfalls.md §P28 for the rationale.
+All list queries use **offset pagination** (`limit`/`offset` arguments). The engine responds with a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`. The `GraphqlClient` maps these server-provided fields directly to `OffsetPageInfo` in the SDK. See [common-pitfalls.md](common-pitfalls.md) (GraphQL).
 
 All GraphQL response keys from the engine use **camelCase** (Absinthe `LanguageConventions` adapter). The `GraphqlClient` maps `count` → `OffsetPageInfo.totalCount` and passes all other offset page metadata fields through directly.
 
-Inline fragments with an empty selection set are invalid GraphQL. `buildFlowNodeSelection` omits `TaskNode` / `ParallelGatewayNode` / `EventBasedGatewayNode` from `on` (those types have no extra fields), and `query-builder.ts` skips any remaining empty `... on Type { }` fragment. See common-pitfalls.md §P95.
+Inline fragments with an empty selection set are invalid GraphQL. `buildFlowNodeSelection` omits `TaskNode` / `ParallelGatewayNode` / `EventBasedGatewayNode` from `on` (those types have no extra fields), and `query-builder.ts` skips any remaining empty `... on Type { }` fragment. See [common-pitfalls.md](common-pitfalls.md) (GraphQL).
 
 The `FacadeGraphql` interface in the SDK mirrors all `GraphqlClient` methods for plugin developers: `queryProcessModels`, `queryProcessVersions`, `queryProcessInstances`, `queryFlowNodeInstances`, `queryDecisionDefinitions`, `queryDecisionVersions`.
 

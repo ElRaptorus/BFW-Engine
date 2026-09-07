@@ -1232,7 +1232,7 @@ subprocess element is executed by its parent process instance.
 See [`docs/architecture/security.md`](docs/architecture/security.md)
 §Subprocess Start-Event Isolation and
 [`docs/architecture/common-pitfalls.md`](docs/architecture/common-pitfalls.md)
-§P46.
+(inner Start Events are never externally startable).
 
 ### Link event pair validation (runtime-only)
 
@@ -1413,7 +1413,7 @@ Example (WebSocket `FlowNodeInstanceFinished.errorInfo`):
 - New error shapes returned by handlers **must** add an explicit `humanize_error/1` clause — never rely on the catch-all fallback or on `sanitize_error_info/1` in `fni_lifecycle.ex` as the primary humanization path.
 - REST controllers (e.g. `ProcessController`) format errors at the API boundary with the same diagnostic standard; never expose `inspect/1` output, `Exception.message/1`, or bare atom names in the `message` field.
 
-See also `docs/architecture/common-pitfalls.md` §P29.
+See also `docs/architecture/common-pitfalls.md` (error messages must be diagnostic sentences).
 
 ### Planned Events (Phase 2)
 
@@ -1994,7 +1994,7 @@ API. Violations of this rule break the architecture.
 | `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
 | `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `evil.retention.purge` for opt-in PI-tree hard-delete (RET-D1) |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
-| `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader (gRPC sidecar host deferred, PLUG-D1) |
+| `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |
 | `api_facade` | API | `EvilEngine.Api` service-layer facade (no Phoenix dep) |
 | `api_web` | API | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |

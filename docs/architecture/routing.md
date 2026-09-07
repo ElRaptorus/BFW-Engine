@@ -1,11 +1,4 @@
----
-title: "Daemon Engine — Message/Signal/Escalation Routing"
-parent_document: "../ImplementationPlan.md"
----
-
-<!-- Extracted from ImplementationPlan.md §3.5 (Message/Signal/Escalation routing). -->
-
-### 3.5 Message/Signal/Escalation routing
+# Message, signal, and escalation routing
 
 Messages are routed by `(message_name, correlation_value)`; Signals are
 pure broadcast; Escalations bubble along a **scope chain** that walks upward
@@ -39,7 +32,7 @@ A published message `(name, payload, correlation_value)` flows through
 
 1. Write a row to `messages` (audit — always, whether or not it correlates).
 2. Look up the subscription registry with `(name, correlation_value)`. Collect **every** matching subscription (broadcast-within-key — serial-letter semantics).
-3. For each matching subscription, send a typed `%Event.MessageArrived{}` to the owning PI's `:gen_statem` via its registered pid; the PI dispatches to the target FNI through its internal catch registry ([../ImplementationPlan.md](../ImplementationPlan.md) §5.4).
+3. For each matching subscription, send a typed `%Event.MessageArrived{}` to the owning PI's `:gen_statem` via its registered pid; the PI dispatches to the target FNI through its internal catch registry (see [execution.md](./execution.md)).
 4. Record the delivery on `messages.correlations` as `[{process_instance_id, flow_node_instance_id}]` — one entry per delivery.
 5. **Catch-wins-over-Start rule**: if step 2 yielded **zero** matching subscriptions **and** any deployed non-deleted process version (i.e. `process_versions.deleted=false`) has a Message Start Event with matching `name`, start one new PI per such process (each seeding its own correlation value via §3.5.2). If step 2 yielded at least one match, Message Start Events are **not** triggered for this publish — the message is considered consumed by the subscription(s).
 6. If step 2 yielded zero matching subscriptions **and** no deployed process has a Message Start Event with matching `name`, move to §3.5.4.

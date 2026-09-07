@@ -1,6 +1,6 @@
 # Umbrella-wide compile-time defaults. Per-env overrides live in
 # `dev.exs` / `test.exs` / `prod.exs`. Runtime-only, environment-driven
-# settings (the `TDE_*` vars documented in ImplementationPlan.md §14.3)
+# settings (the `TDE_*` vars documented in `docs/architecture/configuration.md`)
 # live in `runtime.exs`.
 import Config
 

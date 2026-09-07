@@ -18,15 +18,14 @@
 | Env vars, config priority, linter gate, retention | `docs/architecture/configuration.md` |
 | Test infrastructure, scenario matrix, CI pipeline | `docs/architecture/testing.md` |
 | JWT auth, transport, plugin trust, threat model | `docs/architecture/security.md` |
-| Recurring mistake or non-obvious constraint | `docs/architecture/common-pitfalls.md` |
+| Recurring constraint a competent person could hit again | `docs/architecture/common-pitfalls.md` (gate: not CI/test novels) |
 
 ### Project-level docs (`docs/`)
 
 | What Changed | Update |
 |-------------|--------|
-| Significant design decision (approach chosen, pattern adopted) | `docs/ImplementationPlan.md` section 0 (decisions table) |
-| New BPMN element handler implemented | `docs/ImplementationPlan.md` section 7 (element coverage table) |
-| Phase task completed or exit criteria met | `docs/ImplementationPhases.md` |
+| Significant A-vs-B design choice | `docs/decisions.md` |
+| New BPMN element handler implemented | `docs/architecture/execution.md` (and `AGENTS.md` supported-types list only) |
 | New term introduced or existing term redefined | `docs/Glossary.md` |
 | Database table added, column changed, index added | `docs/Schema.md` (ER diagram) |
 | New architecture topic created | `docs/architecture/index.md` |
@@ -42,7 +41,7 @@
 
 ### Adding a new BPMN element handler
 
-1. Update the element coverage table in `docs/ImplementationPlan.md` section 7
+1. Update the element coverage in `AGENTS.md` and the handler section in `docs/architecture/execution.md`
 2. If the handler involves a new routing pattern, update `docs/architecture/routing.md`
 3. If the handler uses timer scheduling, update `docs/architecture/event-system.md`
 
@@ -88,7 +87,7 @@ After updating, check that:
 - `docs/architecture/index.md` still accurately lists all topic files
 - Links between docs are not broken (especially `../` relative paths from `docs/architecture/` to `docs/`)
 - `docs/Architecture.md` mapping table covers the changed area
-- Summary stubs in `docs/ImplementationPlan.md` still accurately describe the content now in architecture docs
+- Archival ImplementationPlan / ImplementationPhases were **not** appended
 
 ## Completeness Check
 

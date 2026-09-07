@@ -39,9 +39,9 @@ A soft-deletable resource that other active resources depend on must not be dele
 
 ## Public-Facing Terminology
 
-Never use the term "soft-delete" in SDK types, TSDoc comments, API documentation, or error messages. From the consumer's perspective, delete is delete. See `docs/architecture/common-pitfalls.md` §P10 for details.
+Never use the term "soft-delete" in SDK types, TSDoc comments, API documentation, or error messages. From the consumer's perspective, delete is delete. See `docs/architecture/common-pitfalls.md` (soft-deleted rows are invisible).
 
 ## Reference
 
-- `docs/architecture/common-pitfalls.md` §P9 (base_filter requirement) and §P10 (terminology)
-- `docs/architecture/api.md` §10.7 (soft-delete filtering)
+- `docs/architecture/common-pitfalls.md` — soft-delete filter and public terminology
+- `docs/architecture/api.md` — delete filtering on the wire

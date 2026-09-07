@@ -3,7 +3,7 @@ ExUnit.start()
 # Partitioned tables (messages, pending_messages, signals, pending_signals,
 # data_object_writes, process_instance_events) require child partitions
 # before any INSERT. Create them once before the test suite starts.
-# See docs/architecture/common-pitfalls.md §P15.
+# See docs/architecture/common-pitfalls.md (Create partitions before INSERT).
 {:ok, _} = EvilEngine.Persistence.Partitions.ensure_partitions()
 
 # Truncate partitioned tables to remove stale data from previous crashed runs.

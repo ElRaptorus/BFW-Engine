@@ -1,20 +1,10 @@
----
-title: "Daemon Engine — Expression Engine (FEEL)"
-parent_document: "../ImplementationPlan.md"
----
+# Expression engine (FEEL)
 
-<!-- Extracted from ImplementationPlan.md §8 ("Expression engine (FEEL)"). -->
+## Context shape
 
-## 8. Expression engine (FEEL)
-
-Resolves concept §Expressions + `AGENT: …schema/data contract…` side-effect.
-
-### 8.1 Context shape (final)
-
-Expressions see a deliberately lean root record. v1 ships exactly seven
-top-level bindings; we extend the surface only when concrete user feedback
-demands it. This is a **breaking-change-free direction**: adding bindings
-later is forward-compatible, removing them is not.
+Expressions see a deliberately lean root record. The engine ships exactly seven
+top-level bindings; the surface is extended only when concrete user feedback
+demands it. Adding bindings later is forward-compatible; removing them is not.
 
 ```
 {
@@ -72,7 +62,7 @@ Typical use: `activatedCount >= 2` (a 2-of-N quorum) or
 `activatedCount = incomingCount` (wait for every branch). `token` during this
 evaluation is the merge of all branch payloads accumulated so far.
 
-### 8.2 Library selection — decision: Rust NIF (dsntk + Rustler)
+### Library selection (dsntk + Rustler)
 
 **Status: DECIDED (Phase 0, Item 13).**
 
@@ -96,7 +86,7 @@ Evaluated candidates:
 
 **Toolchain requirement**: Rust 1.94+ (pinned in `.tool-versions`).
 
-### 8.3 FEEL Built-in Function Support Audit (2026-05-21)
+### FEEL built-in function support
 
 Systematic audit of DMN-mandated FEEL built-in functions against the dsntk
 NIF. Test file: `apps/core_dmn/test/evil_engine/dmn/feel_builtin_functions_test.exs`.
@@ -122,7 +112,7 @@ NIF. Test file: `apps/core_dmn/test/evil_engine/dmn/feel_builtin_functions_test.
 The previous note that "dsntk covers all built-in functions" is updated to
 reflect the `number()` gap identified in this audit.
 
-### 8.3.1 NIF Scheduler Configuration and Concurrency
+### NIF scheduler and concurrency
 
 The Rust NIF exposes four functions, each with deliberate scheduler placement:
 
@@ -163,7 +153,7 @@ Example `vm.args` for a 16-core production host:
 +SDio 10:10    # dirty IO schedulers (not used by FEEL NIFs)
 ```
 
-### 8.3.2 NIF Batch Evaluation Feasibility (P9.4 Investigation)
+### NIF batch evaluation
 
 **Status: Not recommended at this time.**
 
@@ -193,7 +183,7 @@ The `dsntk-feel-evaluator` crate exposes a single `evaluate(scope, ast) -> Value
 
 **Revisit conditions:** If P9.5 benchmarks show that FEEL NIF evaluation is the dominant cost component (>60% of per-BRT wall time), batch evaluation becomes worthwhile. The recommended approach would be `Vec<(ResourceArc, Term)>` with per-AST `try_lock` and fallback to individual evaluation on contention.
 
-### 8.4 Engine-added bindings
+### Engine-added bindings
 
 Beyond plain FEEL, the engine pre-populates the seven root bindings of §8.1
 — `token`, `this`, `context`, `dataObjects`, `process`, `processInstance`,
@@ -206,8 +196,8 @@ All FEEL context assembly **must** go through
 `EvilEngine.Expressions.Context.from_handler_context/2`. This function is the
 canonical entry point that converts the atom-keyed runtime maps from
 `HandlerContext` into properly string-keyed, camelCase maps that the Rust NIF
-can decode. Direct construction of `%Context{}` is prohibited (see
-common-pitfalls P17).
+can decode. Direct construction of `%Context{}` is prohibited. See
+[common-pitfalls.md](common-pitfalls.md) (FEEL context is `%Context{}`).
 
 Key conversions performed:
 
@@ -224,7 +214,7 @@ The `context` field on `HandlerContext` is populated from
 `State.started_with_context` (the initial start payload) and is immutable for
 the lifetime of the process instance.
 
-### 8.5 Expression evaluation call sites
+### Expression evaluation call sites
 
 | Site | Example |
 |---|---|
@@ -236,7 +226,7 @@ the lifetime of the process instance.
 | Data Object association source | inline FEEL in data association |
 | Call Activity input mapping (**active**) | `<evil:inputMapping source="..." target="..."/>` — FEEL expression evaluated against caller's token |
 | Call Activity output mapping (**active**) | `<evil:outputMapping source="..." target="..."/>` — FEEL expression evaluated against child's aggregated result tokens |
-| Loop break / collection / completion | see ../ImplementationPlan.md §7 Medium |
+| Loop break / collection / completion | Multi-Instance / Standard Loop FEEL on the loop characteristics |
 
 Every expression is **precompiled** at deploy time and the compiled form is cached keyed by `(process_version_id, flow_node_id, expression_slot)`. Runtime hot path: variable binding + evaluation only — no parsing on the hot path.
 

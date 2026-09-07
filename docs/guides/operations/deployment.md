@@ -14,6 +14,11 @@ The release is output to `_build/prod/rel/evil_engine/`. Start it with:
 _build/prod/rel/evil_engine/bin/evil_engine start
 ```
 
+To ship **in-BEAM plugins**, add the plugin OTP apps as release
+dependencies, set `config :my_plugin, :plugin_module, MyPlugin`, and list
+the app names in `TDE_PLUGINS_INBEAM`. See
+[Plugin Development](../plugins/getting-started.md).
+
 ## Docker
 
 The `docker/Dockerfile` produces a `debian:12-slim` image. For local development:
@@ -33,7 +38,9 @@ docker compose up --build
 | `TDE_HTTP_SECRET_KEY_BASE` | Phoenix secret (min 64 chars, generate with `mix phx.gen.secret`) |
 | JWT key | At least one of `TDE_JWT_HS256_SECRET` or `TDE_JWT_JWKS_URL` (unless `TDE_AUTH_DISABLED=true`) |
 
-For the complete environment variable reference, see the copy-paste block in the architecture configuration documentation.
+Copy-paste block for every variable: [Environment variables](../cheatsheets/env-vars.cheatmd).
+Payload cap, JSONB compression, and retention:
+[Database administration](database.md).
 
 ## Boot Sequence
 
@@ -58,9 +65,13 @@ bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"
 bin/evil_engine start
 ```
 
+Schedule `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`
+from cron if you set any `TDE_RETENTION_*_DAYS` knobs. See
+[Database administration](database.md).
+
 ## Health Probes
 
-`GET /health` requires no authentication and returns **204 No Content**. It is suitable for Kubernetes liveness/readiness probes (status code only). For load and pool stats, use authenticated `GET /stats`.
+`GET /health` requires no authentication and returns **204 No Content**. It is suitable for Kubernetes liveness/readiness probes (status code only). For load and pool stats, use authenticated `GET /stats`. Prometheus scrape is public `GET /metrics` (`TDE_METRICS_ENABLED`, default on).
 
 ```yaml
 livenessProbe:
@@ -98,12 +109,12 @@ in `rel/vm.args.eex`:
 ```
 
 Monitor dirty scheduler utilization with `:recon.scheduler_usage/1` in a
-remote console. See `docs/architecture/expressions.md` §8.3.1 for the
-full NIF scheduling analysis including mutex contention behavior.
+remote console. See [expressions.md](../../architecture/expressions.md)
+for NIF scheduling behaviour.
 
 ## Related
 
-- [Database Administration](database.md) -- PostgreSQL setup and migrations
+- [Database Administration](database.md) -- PostgreSQL, retention, payload cap, compression
 - [Security](security.md) -- JWT and authentication configuration
 - [Observability](observability.md) -- monitoring and event sinks
 - [Authentication](../api/authentication.md) -- JWT setup details

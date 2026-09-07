@@ -15,7 +15,8 @@ defmodule EvilEngineWeb.Graphql.Schema do
   Safety limits (S-4):
   - Depth limiting via `EvilEngineWeb.Graphql.Phases.DepthLimit` (env:
     `TDE_GRAPHQL_MAX_DEPTH`, default 16, sized for recursive
-    `SubProcessNode.flowNodes` — see WP-7 / `common-pitfalls.md` §P64).
+    `SubProcessNode.flowNodes` — see `docs/architecture/common-pitfalls.md`
+    (GraphQL)).
   - Introspection blocking via `EvilEngineWeb.Graphql.Phases.BlockIntrospection`
     (env: `TDE_GRAPHQL_INTROSPECTION_DISABLED`, default false).
   - Complexity limiting is applied at request time by `PipelineModifier`

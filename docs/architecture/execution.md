@@ -36,7 +36,7 @@ The execution runtime converts a parsed BPMN model into a running process instan
 
 ### DynamicSupervisor + Registry
 
-The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `TDE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass (see [common-pitfalls.md](./common-pitfalls.md) §P68).
+The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `TDE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass (see [common-pitfalls.md](./common-pitfalls.md) — Do not put `max_children` on the PI DynamicSupervisor).
 
 ### Process Instance (`:gen_statem`)
 
@@ -176,7 +176,7 @@ assembly, and child PI creation (Call Activity).
 `HandlerContext` for backward compatibility with Call Activity (which passes
 `context.identity` to child PI creation). The conversion to string-keyed,
 camelCase maps required by the FEEL NIF happens in
-`Context.from_handler_context/2`. See common-pitfalls P17.
+`Context.from_handler_context/2`. See [common-pitfalls.md](./common-pitfalls.md) (FEEL context is `%Context{}`).
 
 ### Handler Dispatch
 
@@ -676,7 +676,7 @@ When any successor FNI completes (returns `{:ok, ...}` to the PI), the PI's `han
 
 1. Identifies sibling catch FNIs by matching `previous_flow_node_instance_ids` — all FNIs that share the same EBG FNI ID as their predecessor.
 2. **Waiting siblings** are interrupted immediately: handler Task is shut down, `handle_aborted/1` runs (timer cancel / subscription deregister), the FNI is persisted as `:interrupted` with `type_properties.reason == "event_based_gateway_sibling_cancelled"`, and `FlowNodeInstanceFinished` is emitted with `terminal_state: :interrupted`.
-3. **Active siblings** (handler still in `handle_enter/3`, often mid-persist) are **not** killed. They are stamped with `type_properties.ebg_pending_cancel: true` and left `:active`. Continuation-async handlers wait for an `{:async_gate, :continue | :cancel}` from the PI after parking; a pending loser gets `:cancel` and never runs `FniLifecycle.finish`. When that FNI later reports `{:async}`, `{:wait}`, or `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Killing an `:active` Task races the enter-path persist and can stall the PI (see common-pitfalls P92).
+3. **Active siblings** (handler still in `handle_enter/3`, often mid-persist) are **not** killed. They are stamped with `type_properties.ebg_pending_cancel: true` and left `:active`. Continuation-async handlers wait for an `{:async_gate, :continue | :cancel}` from the PI after parking; a pending loser gets `:cancel` and never runs `FniLifecycle.finish`. When that FNI later reports `{:async}`, `{:wait}`, or `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Killing an `:active` Task races the enter-path persist and can stall the PI (see [common-pitfalls.md](./common-pitfalls.md) — Event-Based Gateway: do not kill siblings that are still `:active`).
 4. **Deferred successor dispatch:** while any sibling is still `:active` with `ebg_pending_cancel`, `dispatch_successors/5` does **not** spawn the winning catch's outgoing targets. The continuation is stored on `State.event_based_gateway_deferred_dispatch` and flushed from `interrupt_pending_loser/2`. Otherwise a `PT0S` timer winner can dispatch an Error End Event or a fatal ScriptTask while the loser is still entering; `error_all_remaining_fnis` / `fatal_all_fnis` then re-terminates that sibling as `:error`/`:fatal` instead of `:interrupted` (EventBasedGatewayTest flake).
 5. After an async/wait park (including a pending-loser interrupt and deferred-dispatch flush), the PI runs `maybe_finish_or_continue/1` so a tree whose only remaining live FNI was that loser can reach `:finished`.
 
@@ -720,7 +720,7 @@ The PI maintains a `conditional_waiters` map in its `State` struct:
   }}
 ```
 
-**Registration:** When a conditional handler returns `{:wait, %FlowNodeResult{metadata: %{awaiting_condition: true}}}`, the PI's `handle_fni_wait/3` persists the FNI as `:waiting` via `FniLifecycle.transition_to_waiting_by_id/2`, then calls `maybe_register_conditional_waiter_from_wait/3`. This function registers the waiter in the map and **immediately** performs a single evaluation via `evaluate_single_conditional_waiter/3`. The immediate evaluation prevents a race condition where a state change between handler return and waiter registration would be missed (see common-pitfalls §P39).
+**Registration:** When a conditional handler returns `{:wait, %FlowNodeResult{metadata: %{awaiting_condition: true}}}`, the PI's `handle_fni_wait/3` persists the FNI as `:waiting` via `FniLifecycle.transition_to_waiting_by_id/2`, then calls `maybe_register_conditional_waiter_from_wait/3`. This function registers the waiter in the map and **immediately** performs a single evaluation via `evaluate_single_conditional_waiter/3`. The immediate evaluation prevents a race condition where a state change between handler return and waiter registration would be missed (see [common-pitfalls.md](./common-pitfalls.md) — Inclusive joins and conditional waiters re-evaluate on state change).
 
 **Evaluation trigger:** `evaluate_conditional_waiters/1` is called in `maybe_finish_or_continue/1` after every FNI state change — the same hook point used by `evaluate_parked_inclusive_joins/1`, immediately after it. For each registered waiter, the PI calls the handler's `evaluate_condition/3` (a pure function that builds a FEEL context from the flow node, token snapshot, and current PI state). On `{:fire, true}`, the PI removes the waiter and calls `fire_conditional_waiter/3`, which completes the FNI directly from the PI GenServer context (no message-passing to handler Tasks).
 
@@ -778,7 +778,7 @@ Conditional events inside an embedded subprocess evaluate against the **child PI
 | `resume_existing_child/5` | State-based resume dispatch after engine restart (parameterized via `extra_terminal_states` for future Transaction support) |
 | `monitor_and_wait/8`, `start_child_from_persistence/7` | Re-monitor running children or restart from DB |
 | `cascade_to_child/2` | Fatal/abort cascade to child PI |
-| `set_child_notify_pid/2` | Re-points the child's `notify_pid` to the current handler Task. Wraps `ProcessInstance.update_notify_pid/2` and `catch`es `:exit` if the child already stopped (P80) |
+| `set_child_notify_pid/2` | Re-points the child's `notify_pid` to the current handler Task. Wraps `ProcessInstance.update_notify_pid/2` and `catch`es `:exit` if the child already stopped |
 | `dispatch_enter_result/7`, `dispatch_await_result/7` | Route child completion outcomes to the appropriate PI response tuple |
 
 #### Parameterization points
@@ -2088,7 +2088,7 @@ When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopChar
 3. All iteration FNIs are dispatched concurrently via `dispatch_mi_iteration_fni`
 4. Each iteration FNI runs the underlying activity handler with a `loop.*` overlay in the FEEL context
 5. As results arrive via `{:fni_result, iteration_fni_id, result}`:
-   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload` — P86), check `completionCondition` / `evil:loopBreakCondition`
+   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload`), check `completionCondition` / `evil:loopBreakCondition`
    - On failure: persist iteration FNI as `:fatal`; remaining iterations continue (unless break condition)
 6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI. `evil:outputCollection` is a **variable name** (handbook), not a FEEL expression that replaces the whole payload. The shell `output_token` is always a map: the incoming token plus `outputCollection → [iteration output payloads]`. An empty collection uses the same helper (zero-length list under that name). If the text happens to evaluate as FEEL to a map, that map is used as the full payload.
 

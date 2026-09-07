@@ -1,11 +1,4 @@
----
-title: Daemon Engine — API Design
-parent_document: ../ImplementationPlan.md
----
-
-<!-- Extracted from ImplementationPlan.md §10 (API design). -->
-
-## 10. API design
+# API design
 
 ### Snake/camelCase Contract
 
@@ -50,7 +43,7 @@ Additional logging beyond `ErrorResponse`:
 
 ### 10.1 REST surface (lightweight, trigger-style)
 
-JWT bearer is required by default for authenticated routes (`../ImplementationPlan.md §13`). **Public** routes (`GET /health`, `GET /info`, `GET /metrics`) bypass auth.
+JWT bearer is required by default for authenticated routes ([authorization.md](./authorization.md)). **Public** routes (`GET /health`, `GET /info`, `GET /metrics`) bypass auth.
 
 The umbrella currently mounts **process-catalog** REST handlers at the **root** path (e.g. `POST /processes`), not under `/api/v1`. **GraphQL** is at `POST /api/v1/graphql`. OpenAPI JSON is at `GET /api/openapi`.
 
@@ -61,7 +54,7 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 | `GET` | `/processes` | List all deployed processes (latest active version per process, no XML). Fully undeployed processes are excluded. Any authenticated user |
 | `GET` | `/processes/{model_id}` | Process metadata (optional `?includeXml=true` for latest version's BPMN XML) |
 | `GET` | `/processes/{model_id}/versions` | Version history (optional `?includeXml=true` per version) |
-| `POST` | `/processes` | Deploy one or more BPMN definitions in a single **atomic batch**. Body: `{ "sources": ["<xml>", ...] }` (JSON array of BPMN XML strings). Each source must carry `<evil:version>`. On deploy, `Process.enabled` is synced to the BPMN `isExecutable` flag. When the linter-score gate is enabled ([configuration.md](./configuration.md) §14.5), each source is checked; on failure, returns `422` with `error: "linter_gate_failed"` and `failures`. On success, returns `201` with `deployed: [...]` |
+| `POST` | `/processes` | Deploy one or more BPMN definitions in a single **atomic batch**. Body: `{ "sources": ["<xml>", ...] }` (JSON array of BPMN XML strings). Each source must carry `<evil:version>`. On deploy, `Process.enabled` is synced to the BPMN `isExecutable` flag. When the linter-score gate is enabled ([configuration.md](./configuration.md) — Linter-score deploy gate), each source is checked; on failure, returns `422` with `error: "linter_gate_failed"` and `failures`. On success, returns `201` with `deployed: [...]` |
 | `POST` | `/processes/{model_id}/start` | Start a new PI from the latest non-deleted version of an enabled process. Body: `{startEventId?, payload?, context?, businessKey?}`. `context` is an optional opaque JSON object stored as `started_with_context` on the PI, accessible as `context.*` in FEEL expressions. When omitted, context is empty. Returns `201` with `{process_instance_id, process_model_id, version, state}`. Errors: `404` (not found / no active version), `403` (disabled), `422` (ambiguous start event / not found), `413` (payload too large), `429` with `Retry-After` when the global start rate limit is exceeded (`TDE_PI_START_RATE_LIMIT` > 0; Layer 2), `503` with `Retry-After` when `TDE_MAX_CONCURRENT_PIS` is exceeded (Layer 1), `401` (unauthenticated / expired JWT) |
 | `PUT` | `/processes/{model_id}/enable` | Enable the process (204 No Content) |
 | `PUT` | `/processes/{model_id}/disable` | Disable the process (204 No Content) |
@@ -78,7 +71,7 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 
 **Deprecation headers (RFC 8594)** — Routes mark themselves by setting `conn.private[:deprecated]` to `%{successor: path, sunset: optional_datetime}` (via `plug :put_private` or scope options). `DeprecationPlug` injects `Deprecation`, `Link` (`rel="successor-version"`), and optional `Sunset` on responses. Full rules: [§10.5](#105-deprecation-headers-rfc-8594).
 
-Additional trigger-style paths in the table below remain **specified** for v1 parity with `ImplementationPlan.md` §10; wire them through REST controllers (and the plugin facade) when not yet present on `EvilEngineWeb.Http.Router`. GraphQL is query-only — it is never a command surface.
+Additional trigger-style paths in the table below remain specified for v1 parity; wire them through REST controllers (and the plugin facade) when not yet present on `EvilEngineWeb.Http.Router`. GraphQL is query-only — it is never a command surface.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -87,7 +80,7 @@ Additional trigger-style paths in the table below remain **specified** for v1 pa
 | `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`TDE_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
 | `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md) §11.2) |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
-| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `TDE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md) §14.3). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
+| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `TDE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md)). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
 | `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
 | `PUT` | `/user-tasks/{fniId}/finish` | Complete with result |
 | `PUT` | `/user-tasks/{fniId}/cancel` | |
@@ -199,7 +192,7 @@ All commands (start, finish, abort, retry, deploy, purge, trigger) are REST and/
 
 #### 10.2.1 Persistence-backed resources
 
-AshGraphql auto-emits queries for each Ash resource with filter/sort/page/sparse-fields. Every list query uses **offset pagination** (`paginate_with: :offset`) and returns a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`. See common-pitfalls.md §P28.
+AshGraphql auto-emits queries for each Ash resource with filter/sort/page/sparse-fields. Every list query uses **offset pagination** (`paginate_with: :offset`) and returns a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`. See [common-pitfalls.md](common-pitfalls.md) (GraphQL).
 
 ```graphql
 type Query {
@@ -220,7 +213,7 @@ Filter grammar is AshGraphql's built-in (type-safe, composable expressions inclu
 
 All response field names use **camelCase** (Absinthe `LanguageConventions` adapter default). Query field names accept both camelCase and snake_case.
 
-**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `TDE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md) and [common-pitfalls.md](./common-pitfalls.md) §P93.
+**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `TDE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md) and [common-pitfalls.md](./common-pitfalls.md) (GraphQL).
 
 ##### 10.2.1.1 `ProcessInstance.finalTokens` calculation
 
@@ -447,13 +440,13 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 **TypeScript client support (WP-6).** `packages/js/client/src/graphql/query-builder.ts` accepts a `SelectionField[]` — a recursive union type (`packages/js/sdk/src/graphql/model-fields.ts`) that can express nested selections and inline fragments (`{ name: 'flowNode', on: { UserTaskNode: [...], ServiceTaskNode: [...] } }`), not just flat `string[]`. The SDK ships `buildFlowNodeSelection(depth)` and `buildProcessModelSelection(depth)` helpers that pre-build the canonical debugger-shaped selection (default recursion depth 4 for nested `SubProcessNode.flowNodes`), consumed via `GraphqlClient.getProcessVersionWithModel()`, `GraphqlClient.getFlowNodeInstanceWithModel()`, and `GraphqlClient.getProcessInstanceWithModel()`.
 
-`TaskNode`, `ParallelGatewayNode`, and `EventBasedGatewayNode` have no extra fields beyond the `FlowNode` interface. `buildFlowNodeSelection` omits those types from `on`, and the query builder skips any remaining empty `... on Type { }` fragment. Empty selection sets are invalid GraphQL; Absinthe reports `syntax error before: '}'`. See [common-pitfalls.md](./common-pitfalls.md) §P95.
+`TaskNode`, `ParallelGatewayNode`, and `EventBasedGatewayNode` have no extra fields beyond the `FlowNode` interface. `buildFlowNodeSelection` omits those types from `on`, and the query builder skips any remaining empty `... on Type { }` fragment. Empty selection sets are invalid GraphQL; Absinthe reports `syntax error before: '}'`. See [common-pitfalls.md](./common-pitfalls.md) (GraphQL).
 
-#### 10.2.3 Retention + manual purge (**deferred / not v1**)
+#### Retention (no REST purge)
 
-Manual purge is **not** a live REST or GraphQL field. Pass A is `mix evil.retention.purge` (RET-D1). REST/CLI `purge` and `purge_audit_data` enforcement are non-goals for v1. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. GraphQL is query-only.
+Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix evil.retention.purge`. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. GraphQL is query-only.
 
-See [configuration.md](./configuration.md) §14.6 and [database.md](../guides/operations/database.md).
+See [configuration.md](./configuration.md) and [database.md](../guides/operations/database.md).
 
 ### 10.3 WebSocket (Phoenix Channels)
 
@@ -466,7 +459,7 @@ See [configuration.md](./configuration.md) §14.6 and [database.md](../guides/op
 
 - OpenAPI 3.x served at `GET /api/openapi`; Swagger UI at `GET /` (path to the spec configured in the plug). All three devtools routes are gated by `TDE_DEVTOOLS_ENABLED` (defaults to `false` in prod). The OpenAPI spec can be individually re-enabled via `TDE_EXPOSE_OPENAPI_SPEC=true`.
 - GraphQL Playground at `/admin/graphiql` (devtools-only, pre-loaded with example query tabs). SDL export endpoint is not currently implemented.
-- Client generation is CI-driven ([plugins.md](./plugins.md) §9.5).
+- Client generation is CI-driven ([plugins.md](./plugins.md) — SDK packages).
 
 ### 10.5 Deprecation headers (RFC 8594)
 
@@ -495,7 +488,7 @@ If `conn.private[:deprecated]` is present, the plug injects the three headers (t
 
 ### 10.6 API-vs-Core boundary rule
 
-Every Ash action (mutation) maps to exactly one Core access point (`../ImplementationPlan.md §5.4`). API layers never mutate persistence directly — they go through Core, which emits telemetry → peripheral_persistence updates the DB.
+Every Ash action (mutation) maps to exactly one Core access point. API layers never mutate persistence directly — they go through Core, which emits telemetry → peripheral_persistence updates the DB.
 
 ### 10.7 Soft-delete filtering
 
@@ -652,7 +645,7 @@ These `EvilEngine.Api` functions centralize claim checks previously scattered ac
 | `finish_user_task/4` | `(fni_id, result, Identity.t(), keyword())` | Lane access | User/manual task type, waiting state |
 | `cancel_user_task/4` | `(fni_id, reason, Identity.t(), keyword())` | Lane access | User/manual task type, waiting state |
 
-`persist_deploy_batch/3` remains available for plugins that supply pre-parsed data. Creates inside the transaction use `return_notifications?: true`; `Ash.Notifier.notify/1` runs after commit so Ash does not warn about missed notifications (P88).
+`persist_deploy_batch/3` remains available for plugins that supply pre-parsed data. Creates inside the transaction use `return_notifications?: true`; `Ash.Notifier.notify/1` runs after commit so Ash does not warn about missed notifications.
 
 `trigger_timer_event/3` validation pipeline: `get_flow_node_instance/1` → `validate_timer_event_type/1` (position + `event_type: "timer"`) → `validate_fni_active_or_waiting/1` → `Validation.check_lane_access/3` → `Execution.trigger_timer_event/2`.
 
@@ -690,7 +683,7 @@ The `EvilEngine.Api` module exposes DMN operations via the same facade convergen
 | `undeploy_decision/3` | `(model_id, Identity.t(), keyword())` | Full orchestration: lookup + claim check + soft-delete all versions. Claim: `delete_dmn`. |
 | `find_latest_decision_versions_by_definition_ids/1` | `([binary()]) :: %{binary() => struct()}` | Bulk-fetch latest version per definition. |
 
-`deploy_dmn_batch/3` mirrors the BPMN `persist_deploy_batch/3` pattern: it runs inside a `Repo.transaction`, rolls back on duplicate version conflicts, primes the `DMN.ModelCache` after a successful commit, and flushes Ash notifications after commit (P88).
+`deploy_dmn_batch/3` mirrors the BPMN `persist_deploy_batch/3` pattern: it runs inside a `Repo.transaction`, rolls back on duplicate version conflicts, primes the `DMN.ModelCache` after a successful commit, and flushes Ash notifications after commit.
 
 `evaluate_decision/3` accepts options:
 - `:decision_model_id` — target a specific decision within a multi-decision DMN model
@@ -700,7 +693,7 @@ The `EvilEngine.Api` module exposes DMN operations via the same facade convergen
 
 ### Conditional Flows Only on Split Gateways
 
-`<bpmn:conditionExpression>` is honored only on sequence flows whose source is a Split Gateway (Exclusive Gateway in v1; Inclusive Gateway in Phase 4). Conditions on outgoing flows of any other element type are silently ignored at runtime. This affects BPMN parser behavior and the TypeScript SDK's BPMN model documentation. See `docs/ImplementationPlan.md`.
+`<bpmn:conditionExpression>` is honored only on sequence flows whose source is a Split Gateway (Exclusive Gateway in v1; Inclusive Gateway in Phase 4). Conditions on outgoing flows of any other element type are silently ignored at runtime. This affects BPMN parser behavior and the TypeScript SDK's BPMN model documentation. See [expressions.md](expressions.md).
 
 ### `EvilEngine.Api` Convergence Layer
 

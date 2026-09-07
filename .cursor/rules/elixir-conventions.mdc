@@ -273,7 +273,7 @@ defp unique_key_for(:timer_source, %{timer_type: key}), do: key
   `actions`, `policies`, `calculations`
 - Code Interface functions are the single service layer — never bypass them
   from API or plugin code
-- Ash actions map 1:1 to Core access points (§5.4 in ImplementationPlan.md)
+- Ash actions map 1:1 to Core access points (`EvilEngine.Api` → Core)
 
 ## Credo Compliance
 

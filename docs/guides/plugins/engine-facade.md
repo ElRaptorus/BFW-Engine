@@ -184,7 +184,7 @@ When a capability is registered with an atom handler module (in-BEAM plugins), t
 
 If validation fails, the registration function returns `{:error, :invalid_handler, message}` or `{:error, :module_not_loaded, message}`, a `PluginQuarantined` event is emitted, and the capability is **not** registered. The Loader also logs a warning for visibility.
 
-String handler references (reserved for a future sidecar host) skip this module-behaviour check. **v1 loads in-BEAM plugins only** (PLUG-D1); there is no gRPC call-time verification.
+String handler references are not used. The engine loads in-BEAM plugins only.
 
 ## Usage Examples
 
@@ -242,7 +242,7 @@ facade.service_tasks.fail_async.("fni-uuid-123", "TIMEOUT", "Service did not res
 - **Do not** call `EvilEngine.Plugins.Registry` directly — it is private to `peripheral_plugins`
 - **Do not** reach into `core_execution`, `core_events`, or `peripheral_persistence` modules for command operations
 - Use the facade namespace closures for all runtime operations
-- In-BEAM plugins technically *can* reach internal modules; the contract forbids it and CI lints against it. A gRPC boundary for sidecar plugins is deferred (PLUG-D1) and is **not** a v1 isolation guarantee.
+- In-BEAM plugins technically *can* reach internal modules; the contract forbids it and CI lints against it. That is a contract, not an isolation boundary.
 
 ## Plugin Identity
 

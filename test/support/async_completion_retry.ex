@@ -5,7 +5,8 @@ defmodule EvilEngine.Test.AsyncCompletionRetry do
   `UserTaskCreated` is published from `handle_enter` before the PI applies
   `{:wait}`. Plugin `finish_async` can run before `Registry.register` in
   `do_handle_fni_async`. A single fire-and-forget attempt then leaves the
-  FNI waiting forever (E6: `{:timeout, 4999}`). See common-pitfalls P88.
+  FNI waiting forever (E6: `{:timeout, 4999}`). See
+  `docs/architecture/testing.md` (ExUnit and CI constraints).
   """
 
   @retryable_reasons [

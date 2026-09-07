@@ -2,9 +2,9 @@ defmodule EvilEngine.Expressions.Context do
   @moduledoc """
   Runtime context for FEEL expression evaluation.
 
-  Encapsulates the seven root bindings defined in ImplementationPlan.md
-  §8.1 plus the optional `loop` overlay for Multi-Instance / standard-loop
-  iterations.
+  Encapsulates the seven root bindings defined in
+  `docs/architecture/expressions.md` plus the optional `loop` overlay for
+  Multi-Instance / standard-loop iterations.
 
   ## String-key requirement
 

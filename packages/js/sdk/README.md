@@ -171,9 +171,7 @@ Full error class list:
 
 ## Plugin types
 
-`EngineFacade` mirrors the in-BEAM Elixir facade passed to plugin `on_load` / `on_ready`. Sidecar host (gRPC) is deferred.
-
-`EngineFacade` mirrors the in-BEAM Elixir facade passed to plugin `on_load` / `on_ready`. Sidecar host (gRPC) is deferred (PLUG-D1). PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities do not exist — do not register them.
+`EngineFacade` mirrors the in-BEAM Elixir facade passed to plugin `on_load` / `on_ready`. There is no sidecar / gRPC plugin host. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities do not exist — do not register them.
 
 ## WebSocket Event Types
 
