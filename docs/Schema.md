@@ -309,5 +309,4 @@ There is no `pending_escalations` table. Operator housekeeping:
 | Retention, payload cap, compression | [database.md](./guides/operations/database.md) |
 | Environment variables | [configuration.md](./architecture/configuration.md) |
 | Architecture overview (DDD + runtime) | [`Architecture.md`](./Architecture.md) |
-| Decision log | [`decisions.md`](./decisions.md) |
 | Glossary of terms | [`Glossary.md`](./Glossary.md) |

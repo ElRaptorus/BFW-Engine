@@ -191,7 +191,6 @@ metrics wire format.
 | Security | [`architecture/security.md`](./architecture/security.md) |
 | JWT auth + authorization | [`architecture/authorization.md`](./architecture/authorization.md) |
 | Architecture detail index | [`architecture/index.md`](./architecture/index.md) |
-| Decision log | [`decisions.md`](./decisions.md) |
 | Post-v1 ideas | [`post-v1-ideas.md`](./post-v1-ideas.md) |
 | Glossary | [`Glossary.md`](./Glossary.md) |
 | Database schema diagram | [`Schema.md`](./Schema.md) |

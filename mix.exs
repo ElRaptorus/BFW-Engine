@@ -114,10 +114,10 @@ defmodule EvilEngine.Umbrella.MixProject do
 
           # Reference
           "docs/Architecture.md",
+          "docs/SupportedElements.md",
           "docs/Schema.md",
           "docs/Glossary.md",
           "docs/Philosophy.md",
-          "docs/decisions.md",
           "docs/post-v1-ideas.md",
 
           # Architecture (detailed)
@@ -135,11 +135,11 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/architecture/observability.md",
           "docs/architecture/security.md",
           "docs/architecture/testing.md",
-          "docs/architecture/common-pitfalls.md",
           "docs/architecture/dmn.md",
           "docs/architecture/sdk-client.md",
           "docs/architecture/timers.md",
-          "docs/architecture/persistence.md"
+          "docs/architecture/persistence.md",
+          "docs/architecture/common-pitfalls.md"
         ],
         groups_for_extras: [
           "Getting Started": ~r{docs/guides/getting-started/},

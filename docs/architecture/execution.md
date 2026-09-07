@@ -36,7 +36,7 @@ The execution runtime converts a parsed BPMN model into a running process instan
 
 ### DynamicSupervisor + Registry
 
-The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `TDE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass (see [common-pitfalls.md](./common-pitfalls.md) — Do not put `max_children` on the PI DynamicSupervisor).
+The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `TDE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass — Do not put `max_children` on the PI DynamicSupervisor).
 
 ### Process Instance (`:gen_statem`)
 
@@ -175,8 +175,7 @@ assembly, and child PI creation (Call Activity).
 **Important:** `identity`, `process`, and `process_instance` use atom keys on
 `HandlerContext` for backward compatibility with Call Activity (which passes
 `context.identity` to child PI creation). The conversion to string-keyed,
-camelCase maps required by the FEEL NIF happens in
-`Context.from_handler_context/2`. See [common-pitfalls.md](./common-pitfalls.md) (FEEL context is `%Context{}`).
+camelCase maps required by the FEEL NIF happens in `Context.from_handler_context/2`.
 
 ### Handler Dispatch
 
@@ -676,7 +675,7 @@ When any successor FNI completes (returns `{:ok, ...}` to the PI), the PI's `han
 
 1. Identifies sibling catch FNIs by matching `previous_flow_node_instance_ids` — all FNIs that share the same EBG FNI ID as their predecessor.
 2. **Waiting siblings** are interrupted immediately: handler Task is shut down, `handle_aborted/1` runs (timer cancel / subscription deregister), the FNI is persisted as `:interrupted` with `type_properties.reason == "event_based_gateway_sibling_cancelled"`, and `FlowNodeInstanceFinished` is emitted with `terminal_state: :interrupted`.
-3. **Active siblings** (handler still in `handle_enter/3`, often mid-persist) are **not** killed. They are stamped with `type_properties.ebg_pending_cancel: true` and left `:active`. Continuation-async handlers wait for an `{:async_gate, :continue | :cancel}` from the PI after parking; a pending loser gets `:cancel` and never runs `FniLifecycle.finish`. When that FNI later reports `{:async}`, `{:wait}`, or `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Killing an `:active` Task races the enter-path persist and can stall the PI (see [common-pitfalls.md](./common-pitfalls.md) — Event-Based Gateway: do not kill siblings that are still `:active`).
+3. **Active siblings** (handler still in `handle_enter/3`, often mid-persist) are **not** killed. They are stamped with `type_properties.ebg_pending_cancel: true` and left `:active`. Continuation-async handlers wait for an `{:async_gate, :continue | :cancel}` from the PI after parking; a pending loser gets `:cancel` and never runs `FniLifecycle.finish`. When that FNI later reports `{:async}`, `{:wait}`, or `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Killing an `:active` Task races the enter-path persist and can stall the PI — Event-Based Gateway: do not kill siblings that are still `:active`).
 4. **Deferred successor dispatch:** while any sibling is still `:active` with `ebg_pending_cancel`, `dispatch_successors/5` does **not** spawn the winning catch's outgoing targets. The continuation is stored on `State.event_based_gateway_deferred_dispatch` and flushed from `interrupt_pending_loser/2`. Otherwise a `PT0S` timer winner can dispatch an Error End Event or a fatal ScriptTask while the loser is still entering; `error_all_remaining_fnis` / `fatal_all_fnis` then re-terminates that sibling as `:error`/`:fatal` instead of `:interrupted` (EventBasedGatewayTest flake).
 5. After an async/wait park (including a pending-loser interrupt and deferred-dispatch flush), the PI runs `maybe_finish_or_continue/1` so a tree whose only remaining live FNI was that loser can reach `:finished`.
 
@@ -720,7 +719,7 @@ The PI maintains a `conditional_waiters` map in its `State` struct:
   }}
 ```
 
-**Registration:** When a conditional handler returns `{:wait, %FlowNodeResult{metadata: %{awaiting_condition: true}}}`, the PI's `handle_fni_wait/3` persists the FNI as `:waiting` via `FniLifecycle.transition_to_waiting_by_id/2`, then calls `maybe_register_conditional_waiter_from_wait/3`. This function registers the waiter in the map and **immediately** performs a single evaluation via `evaluate_single_conditional_waiter/3`. The immediate evaluation prevents a race condition where a state change between handler return and waiter registration would be missed (see [common-pitfalls.md](./common-pitfalls.md) — Inclusive joins and conditional waiters re-evaluate on state change).
+**Registration:** When a conditional handler returns `{:wait, %FlowNodeResult{metadata: %{awaiting_condition: true}}}`, the PI's `handle_fni_wait/3` persists the FNI as `:waiting` via `FniLifecycle.transition_to_waiting_by_id/2`, then calls `maybe_register_conditional_waiter_from_wait/3`. This function registers the waiter in the map and **immediately** performs a single evaluation via `evaluate_single_conditional_waiter/3`. The immediate evaluation prevents a race condition where a state change between handler return and waiter registration would be missed — Inclusive joins and conditional waiters re-evaluate on state change).
 
 **Evaluation trigger:** `evaluate_conditional_waiters/1` is called in `maybe_finish_or_continue/1` after every FNI state change — the same hook point used by `evaluate_parked_inclusive_joins/1`, immediately after it. For each registered waiter, the PI calls the handler's `evaluate_condition/3` (a pure function that builds a FEEL context from the flow node, token snapshot, and current PI state). On `{:fire, true}`, the PI removes the waiter and calls `fire_conditional_waiter/3`, which completes the FNI directly from the PI GenServer context (no message-passing to handler Tasks).
 

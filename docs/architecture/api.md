@@ -192,7 +192,7 @@ All commands (start, finish, abort, retry, deploy, purge, trigger) are REST and/
 
 #### 10.2.1 Persistence-backed resources
 
-AshGraphql auto-emits queries for each Ash resource with filter/sort/page/sparse-fields. Every list query uses **offset pagination** (`paginate_with: :offset`) and returns a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`. See [common-pitfalls.md](common-pitfalls.md) (GraphQL).
+AshGraphql auto-emits queries for each Ash resource with filter/sort/page/sparse-fields. Every list query uses **offset pagination** (`paginate_with: :offset`) and returns a `PageOf<Resource>` type containing `results`, `count`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`, and `limit`.
 
 ```graphql
 type Query {
@@ -213,7 +213,7 @@ Filter grammar is AshGraphql's built-in (type-safe, composable expressions inclu
 
 All response field names use **camelCase** (Absinthe `LanguageConventions` adapter default). Query field names accept both camelCase and snake_case.
 
-**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `TDE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md) and [common-pitfalls.md](./common-pitfalls.md) (GraphQL).
+**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `TDE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md).
 
 ##### 10.2.1.1 `ProcessInstance.finalTokens` calculation
 
@@ -440,7 +440,7 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 **TypeScript client support (WP-6).** `packages/js/client/src/graphql/query-builder.ts` accepts a `SelectionField[]` — a recursive union type (`packages/js/sdk/src/graphql/model-fields.ts`) that can express nested selections and inline fragments (`{ name: 'flowNode', on: { UserTaskNode: [...], ServiceTaskNode: [...] } }`), not just flat `string[]`. The SDK ships `buildFlowNodeSelection(depth)` and `buildProcessModelSelection(depth)` helpers that pre-build the canonical debugger-shaped selection (default recursion depth 4 for nested `SubProcessNode.flowNodes`), consumed via `GraphqlClient.getProcessVersionWithModel()`, `GraphqlClient.getFlowNodeInstanceWithModel()`, and `GraphqlClient.getProcessInstanceWithModel()`.
 
-`TaskNode`, `ParallelGatewayNode`, and `EventBasedGatewayNode` have no extra fields beyond the `FlowNode` interface. `buildFlowNodeSelection` omits those types from `on`, and the query builder skips any remaining empty `... on Type { }` fragment. Empty selection sets are invalid GraphQL; Absinthe reports `syntax error before: '}'`. See [common-pitfalls.md](./common-pitfalls.md) (GraphQL).
+`TaskNode`, `ParallelGatewayNode`, and `EventBasedGatewayNode` have no extra fields beyond the `FlowNode` interface. `buildFlowNodeSelection` omits those types from `on`, and the query builder skips any remaining empty `... on Type { }` fragment. Empty selection sets are invalid GraphQL; Absinthe reports `syntax error before: '}'`.
 
 #### Retention (no REST purge)
 

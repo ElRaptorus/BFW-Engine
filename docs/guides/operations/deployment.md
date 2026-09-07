@@ -29,9 +29,9 @@ docker compose up --build
 
 Published private images live on GitHub Container Registry as
 `ghcr.io/<github-username>/daemon_engine:<version>` (currently `0.1.0`).
-`.github/workflows/docker-publish.yml` builds and pushes on a published
-GitHub Release or on manual `workflow_dispatch`. First publish is private;
-do not switch the package to public (that change cannot be undone).
+The `docker-publish` job in `.github/workflows/ci.yml` pushes the
+smoke-tested image after both CI jobs succeed on `main`. First publish is
+private; do not switch the package to public (that change cannot be undone).
 
 ```bash
 echo "$CR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin

@@ -27,7 +27,7 @@ up to date when a code change touches its scope.
 - **[sdk-client.md](sdk-client.md)** — TypeScript SDK and client packages: structure, dependency direction, error mapping, authentication, integration tests
 - **[timers.md](timers.md)** — `core_timers`: Scheduler, ISO 8601 parser, StartEventManager, persistence, configuration, telemetry
 - **[persistence.md](persistence.md)** — Dual connection pool (read/write), repo routing, CoDel queue tuning, PersistenceRetry, pool telemetry
-- **[common-pitfalls.md](common-pitfalls.md)** — Recurring constraints a competent person could hit again (not CI/test novels)
+- **[common-pitfalls.md](common-pitfalls.md)** — Recurring constraints a person could hit again (not CI/test novels)
 
 ## Companion documents
 
@@ -37,7 +37,6 @@ up to date when a code change touches its scope.
 | [`guides/getting-started/overview.md`](../guides/getting-started/overview.md) | User-facing entry point |
 | [`Glossary.md`](../Glossary.md) | Terms used in this project |
 | [`Schema.md`](../Schema.md) | Database ER diagram + per-table narrative |
-| [`decisions.md`](../decisions.md) | Significant A-vs-B choices that still explain the architecture |
 | [`post-v1-ideas.md`](../post-v1-ideas.md) | Actionable work deferred past v1 (clustering first) |
 
 ## User Handbook

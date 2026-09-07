@@ -196,8 +196,7 @@ All FEEL context assembly **must** go through
 `EvilEngine.Expressions.Context.from_handler_context/2`. This function is the
 canonical entry point that converts the atom-keyed runtime maps from
 `HandlerContext` into properly string-keyed, camelCase maps that the Rust NIF
-can decode. Direct construction of `%Context{}` is prohibited. See
-[common-pitfalls.md](common-pitfalls.md) (FEEL context is `%Context{}`).
+can decode. Direct construction of `%Context{}` is prohibited.
 
 Key conversions performed:
 

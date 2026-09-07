@@ -2,14 +2,19 @@ name: Engine CI
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+    inputs:
+      publish:
+        description: 'Publish Docker image?'
+        type: boolean
+        default: false
+  # push:
+  #   branches:
+  #     - main
+  #     - develop
+  # pull_request:
+  #   branches:
+  #     - main
+  #     - develop
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -124,12 +129,36 @@ jobs:
   docker:
     name: Docker Build & Smoke Test
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v7
 
+      - name: Resolve image version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^[[:space:]]*@version "\([^"]*\)".*/\1/p' mix.exs | head -n 1)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not read @version from mix.exs"
+            exit 1
+          fi
+          echo "Using mix.exs @version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Build Docker image
-        run: docker build -f docker/Dockerfile -t engine:ci .
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          docker build -f docker/Dockerfile \
+            --label org.opencontainers.image.title=daemon_engine \
+            --label org.opencontainers.image.description="ThomasTheDaemonEngine BPMN 2.0 workflow engine" \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            -t engine:ci \
+            .
 
       - name: Start Postgres
         run: |
@@ -197,8 +226,104 @@ jobs:
           docker logs engine
           exit 1
 
+      - name: Stash smoke-tested image
+        if: github.ref == 'refs/heads/main'
+        run: docker save engine:ci | gzip > /tmp/engine-ci.tar.gz
+
+      - name: Upload image artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-ci-image
+          path: /tmp/engine-ci.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
       - name: Tear down
         if: always()
         run: |
           docker rm -f engine postgres 2>/dev/null || true
           docker network rm ci-net 2>/dev/null || true
+
+  docker-publish:
+    name: Publish Docker image
+    needs: [build_and_test, docker]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    # if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: daemon_engine
+
+    steps:
+      - name: Download smoke-tested image
+        uses: actions/download-artifact@v4
+        with:
+          name: engine-ci-image
+          path: /tmp
+
+      - name: Load image
+        run: gzip -dc /tmp/engine-ci.tar.gz | docker load
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push
+        id: push
+        env:
+          VERSION: ${{ needs.docker.outputs.version }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          IMAGE="${REGISTRY}/${OWNER,,}/${IMAGE_NAME}:${VERSION}"
+          docker tag engine:ci "$IMAGE"
+          docker push "$IMAGE"
+          DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE")"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Confirm package is private
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_NAME: ${{ env.IMAGE_NAME }}
+          PACKAGE_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          # First GHCR publish is private by default. Fail the job if this
+          # package was later flipped to public (that change is irreversible).
+          # Use /users/{owner}/… — GITHUB_TOKEN is not a user PAT, so /user/… 401s.
+          VISIBILITY=""
+          for i in $(seq 1 8); do
+            if VISIBILITY="$(gh api "users/${PACKAGE_OWNER}/packages/container/${PACKAGE_NAME}" --jq .visibility 2>/dev/null)"; then
+              break
+            fi
+            echo "Package not visible yet (attempt $i/8); waiting..."
+            sleep 5
+          done
+          echo "GHCR package visibility: ${VISIBILITY:-unknown}"
+          if [ "$VISIBILITY" != "private" ]; then
+            echo "::error::Expected private GHCR package, got '${VISIBILITY:-unknown}'"
+            exit 1
+          fi
+
+      - name: Summary
+        env:
+          IMAGE: ${{ steps.push.outputs.image }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          echo "### Published Docker image" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image | \`$IMAGE\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Visibility | private |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Digest | \`$DIGEST\` |" >> "$GITHUB_STEP_SUMMARY"

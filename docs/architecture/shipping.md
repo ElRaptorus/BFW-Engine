@@ -13,16 +13,17 @@ The production image is `docker/Dockerfile`.
 
 ## GitHub Container Registry
 
-`.github/workflows/docker-publish.yml` builds `docker/Dockerfile` and pushes a **private** image to GHCR.
+The `docker-publish` job in `.github/workflows/ci.yml` pushes a **private** image to GHCR. It does not rebuild: it loads the `engine:ci` image that the Docker smoke job already built and health-checked, then retags and pushes it.
 
 | Item | Value |
 |------|--------|
 | Image | `ghcr.io/<github-username>/daemon_engine` (Docker/OCI form of `@elraptorus/daemon_engine`; GHCR has no npm `@scope/` prefix) |
-| Tag | `mix.exs` `@version` on `workflow_dispatch`; GitHub Release tag (leading `v` stripped) on `release` |
-| Visibility | Private (GHCR default on first publish; the workflow fails if the package is public) |
+| Tag | `mix.exs` `@version` |
+| When | After **both** `build_and_test` and `docker` succeed, and only when `github.ref` is `refs/heads/main` |
+| Visibility | Private (GHCR default on first publish; the job fails if the package is public) |
 | Auth | `GITHUB_TOKEN` with `packages: write`. Consumers pull with a classic PAT that has `read:packages` |
 
-Engine CI (`.github/workflows/ci.yml`) still only smoke-builds `engine:ci` and does not push.
+On `main`, the smoke job stashes `engine:ci` as a gzipped `docker save` artifact (`engine-ci-image`, 1-day retention). Other refs skip the stash and the publish job.
 
 ## docker-compose (local dev)
 

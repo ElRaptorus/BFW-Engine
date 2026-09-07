@@ -475,16 +475,8 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `mix sobelow` for security
 - `mix deps.audit`
 - Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)
-
-`.github/workflows/docker-publish.yml` (GitHub Release `published`, or **manual** `workflow_dispatch`; **not** on pull requests):
-
-| Step | Detail |
-|------|--------|
-| Image | `ghcr.io/<github-username>/daemon_engine:<version>` — private GHCR package. Name is the Docker form of `@elraptorus/daemon_engine`. |
-| Version | `workflow_dispatch`: `mix.exs` `@version`. Release: tag name with a leading `v` stripped. |
-| Build | `docker/Dockerfile` via `docker/build-push-action`, GHA layer cache, `provenance`/`sbom` off |
-| Gate | After push, `gh api users/<owner>/packages/container/daemon_engine` must report `visibility=private` |
-| Not this workflow | Engine CI Docker smoke still builds `engine:ci` locally and does not push |
+- On `refs/heads/main` only, after smoke: `docker save engine:ci` uploaded as artifact `engine-ci-image`
+- `docker-publish` job (`needs: [build_and_test, docker]`, `if: github.ref == 'refs/heads/main'`): load that artifact, retag as `ghcr.io/<github-username>/daemon_engine:<mix.exs @version>`, push, then `gh api users/<owner>/packages/container/daemon_engine` must report `visibility=private`. Does not rebuild. Skipped on other branches and on pull requests (`refs/pull/…/merge`)
 
 `.github/workflows/load-bench.yml` (**manual only** — `workflow_dispatch`; **not** required on pull requests):
 

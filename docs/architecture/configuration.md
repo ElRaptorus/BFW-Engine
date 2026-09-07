@@ -47,8 +47,8 @@ Notable env vars:
 | `TDE_DB_SSL` | Enable SSL for the Postgres connection | `false` |
 | `TDE_DEVTOOLS_ENABLED` | Toggle Swagger UI (`/`), GraphQL Playground (`/admin/graphiql`), and OpenAPI spec (`/api/openapi`). Disabled in production to prevent schema reconnaissance | `true` (dev/test), `false` (prod) |
 | `TDE_EXPOSE_OPENAPI_SPEC` | Allow `GET /api/openapi` even when devtools are off. Supports production CI pipelines that need the spec for client generation | `false` |
-| `TDE_GRAPHQL_MAX_DEPTH` | Max GraphQL field nesting. Sized for `SubProcessNode.flowNodes` recursion (SDK default depth 4). See [common-pitfalls.md](./common-pitfalls.md) (GraphQL) | `16` |
-| `TDE_GRAPHQL_MAX_COMPLEXITY` | Max GraphQL query complexity. AshGraphql scores paginated lists as `limit × selected child fields` (including page metadata). Sized for the Studio debugger snapshot (`dataObjectValues` with `limit: 500`, score 6500). See [common-pitfalls.md](./common-pitfalls.md) (GraphQL) | `10000` |
+| `TDE_GRAPHQL_MAX_DEPTH` | Max GraphQL field nesting. Sized for `SubProcessNode.flowNodes` recursion (SDK default depth 4). | `16` |
+| `TDE_GRAPHQL_MAX_COMPLEXITY` | Max GraphQL query complexity. AshGraphql scores paginated lists as `limit × selected child fields` (including page metadata). Sized for the Studio debugger snapshot (`dataObjectValues` with `limit: 500`, score 6500). | `10000` |
 | `TDE_GRAPHQL_INTROSPECTION_DISABLED` | When `true`, reject `__schema` / `__type` root fields | `false` |
 | `TDE_HTTP_PORT` | HTTP, GraphQL, and WebSocket listen port | `4000` |
 | `TDE_WS_CHECK_ORIGIN` | WebSocket `check_origin` setting. `false` disables the Origin header check (safe when using JWT auth). `true` restricts to the endpoint's own origin. A comma-separated list of URLs (e.g. `http://localhost:5173,https://studio.example.com`) allows specific origins. Defaults to `false` because the engine uses bearer-token auth, not cookie-based sessions, so the Origin header carries no security value | `false` |
