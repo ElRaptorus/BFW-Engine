@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Child Start",
-          "outgoing": [
-            "CFlow_1"
-          ],
+          "outgoing": ["CFlow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,15 +40,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CFatalTask_1",
-          "incoming": [
-            "CFlow_1"
-          ],
+          "incoming": ["CFlow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fatal Task",
-          "outgoing": [
-            "CFlow_2"
-          ],
+          "outgoing": ["CFlow_2"],
           "standardLoop": null,
           "type": "service_task",
           "typeData": {
@@ -73,9 +67,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CEnd_1",
-          "incoming": [
-            "CFlow_2"
-          ],
+          "incoming": ["CFlow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Child End",
@@ -96,11 +88,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "CStart_1",
-            "CFatalTask_1",
-            "CEnd_1"
-          ],
+          "flowNodeRefs": ["CStart_1", "CFatalTask_1", "CEnd_1"],
           "id": "Lane_c1",
           "name": "default"
         }

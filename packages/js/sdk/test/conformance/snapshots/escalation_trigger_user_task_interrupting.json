@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,23 +40,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Escalation"
-          ],
+          "boundaryEventRefs": ["BE_Escalation"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Review",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -84,9 +76,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalate",
-          "outgoing": [
-            "Flow_Caught"
-          ],
+          "outgoing": ["Flow_Caught"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -108,9 +98,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal",
@@ -130,9 +118,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Caught",
-          "incoming": [
-            "Flow_Caught"
-          ],
+          "incoming": ["Flow_Caught"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Caught",
@@ -153,13 +139,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "UserTask_1",
-            "BE_Escalation",
-            "End_Normal",
-            "End_Caught"
-          ],
+          "flowNodeRefs": ["Start_1", "UserTask_1", "BE_Escalation", "End_Normal", "End_Caught"],
           "id": "Lane_default",
           "name": "default"
         }

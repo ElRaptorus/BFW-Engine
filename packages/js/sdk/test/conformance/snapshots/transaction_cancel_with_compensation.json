@@ -37,9 +37,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -49,23 +47,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "Boundary_Cancel"
-          ],
+          "boundaryEventRefs": ["Boundary_Cancel"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Tx_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "My Transaction",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -89,9 +81,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "TX Start",
-                "outgoing": [
-                  "TxFlow_1"
-                ],
+                "outgoing": ["TxFlow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -101,23 +91,17 @@
                 }
               },
               {
-                "boundaryEventRefs": [
-                  "Tx_CompBoundaryA"
-                ],
+                "boundaryEventRefs": ["Tx_CompBoundaryA"],
                 "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_TaskA",
-                "incoming": [
-                  "TxFlow_1"
-                ],
+                "incoming": ["TxFlow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Task A",
-                "outgoing": [
-                  "TxFlow_2"
-                ],
+                "outgoing": ["TxFlow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -165,23 +149,17 @@
                 "typeData": {}
               },
               {
-                "boundaryEventRefs": [
-                  "Tx_CompBoundaryB"
-                ],
+                "boundaryEventRefs": ["Tx_CompBoundaryB"],
                 "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_TaskB",
-                "incoming": [
-                  "TxFlow_2"
-                ],
+                "incoming": ["TxFlow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Task B",
-                "outgoing": [
-                  "TxFlow_3"
-                ],
+                "outgoing": ["TxFlow_3"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -235,9 +213,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_CancelEnd",
-                "incoming": [
-                  "TxFlow_3"
-                ],
+                "incoming": ["TxFlow_3"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Cancel",
@@ -299,9 +275,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_Cancel"
-          ],
+          "outgoing": ["Flow_Cancel"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -320,9 +294,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Cancelled",
-          "incoming": [
-            "Flow_Cancel"
-          ],
+          "incoming": ["Flow_Cancel"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Order Cancelled",
@@ -342,9 +314,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End Normal",
@@ -365,13 +335,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Tx_1",
-            "Boundary_Cancel",
-            "End_Cancelled",
-            "End_Normal"
-          ],
+          "flowNodeRefs": ["Start_1", "Tx_1", "Boundary_Cancel", "End_Cancelled", "End_Normal"],
           "id": "Lane_default",
           "name": "default"
         },

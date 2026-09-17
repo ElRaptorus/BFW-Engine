@@ -46,7 +46,12 @@ import type { ProcessModel } from '../types/process-model.js';
 import type { ProcessVersion } from '../types/process-version.js';
 import type { StartResult } from '../types/start.js';
 import type { TimerSchedule } from '../types/timer-schedule.js';
-import type { MessageTriggerResult, SignalTriggerResult, TimerTriggerResult, EscalationTriggerResult } from '../types/trigger.js';
+import type {
+  EscalationTriggerResult,
+  MessageTriggerResult,
+  SignalTriggerResult,
+  TimerTriggerResult,
+} from '../types/trigger.js';
 import type { AuthProviderHandler } from './auth-provider.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
 import type { NamedScriptHandler } from './named-script-handler.js';

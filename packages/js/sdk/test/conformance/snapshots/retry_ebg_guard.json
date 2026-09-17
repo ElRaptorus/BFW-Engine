@@ -29,9 +29,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -47,16 +45,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EBG_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "EBG",
-          "outgoing": [
-            "Flow_ToMessage",
-            "Flow_ToTimer"
-          ],
+          "outgoing": ["Flow_ToMessage", "Flow_ToTimer"],
           "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
@@ -68,15 +61,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Catch_Timer",
-          "incoming": [
-            "Flow_ToTimer"
-          ],
+          "incoming": ["Flow_ToTimer"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timer Wins",
-          "outgoing": [
-            "Flow_ToDeadEnd"
-          ],
+          "outgoing": ["Flow_ToDeadEnd"],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -96,15 +85,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Catch_Message",
-          "incoming": [
-            "Flow_ToMessage"
-          ],
+          "incoming": ["Flow_ToMessage"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Message Catch",
-          "outgoing": [
-            "Flow_ToMsgEnd"
-          ],
+          "outgoing": ["Flow_ToMsgEnd"],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -123,9 +108,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_DeadEnd",
-          "incoming": [
-            "Flow_ToDeadEnd"
-          ],
+          "incoming": ["Flow_ToDeadEnd"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Dead End",
@@ -141,9 +124,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_Unreachable"
-          ],
+          "incoming": ["Flow_Unreachable"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -163,9 +144,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_MsgPath",
-          "incoming": [
-            "Flow_ToMsgEnd"
-          ],
+          "incoming": ["Flow_ToMsgEnd"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Message Path End",
@@ -186,15 +165,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "EBG_1",
-            "Catch_Timer",
-            "Catch_Message",
-            "Task_DeadEnd",
-            "End_1",
-            "End_MsgPath"
-          ],
+          "flowNodeRefs": ["Start_1", "EBG_1", "Catch_Timer", "Catch_Message", "Task_DeadEnd", "End_1", "End_MsgPath"],
           "id": "Lane_default",
           "name": "default"
         }

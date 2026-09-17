@@ -33,9 +33,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -51,16 +49,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EBG_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Event",
-          "outgoing": [
-            "Flow_RecvB",
-            "Flow_RecvA"
-          ],
+          "outgoing": ["Flow_RecvB", "Flow_RecvA"],
           "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
@@ -72,15 +65,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ReceiveTask_A",
-          "incoming": [
-            "Flow_RecvA"
-          ],
+          "incoming": ["Flow_RecvA"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Receive A",
-          "outgoing": [
-            "Flow_RecvA_End"
-          ],
+          "outgoing": ["Flow_RecvA_End"],
           "standardLoop": null,
           "type": "receive_task",
           "typeData": {
@@ -97,15 +86,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ReceiveTask_B",
-          "incoming": [
-            "Flow_RecvB"
-          ],
+          "incoming": ["Flow_RecvB"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Receive B",
-          "outgoing": [
-            "Flow_RecvB_End"
-          ],
+          "outgoing": ["Flow_RecvB_End"],
           "standardLoop": null,
           "type": "receive_task",
           "typeData": {
@@ -122,10 +107,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_RecvB_End",
-            "Flow_RecvA_End"
-          ],
+          "incoming": ["Flow_RecvB_End", "Flow_RecvA_End"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -146,13 +128,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "EBG_1",
-            "ReceiveTask_A",
-            "ReceiveTask_B",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "EBG_1", "ReceiveTask_A", "ReceiveTask_B", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

@@ -183,16 +183,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Fork_1",
-            "Catch_1",
-            "Catch_2",
-            "Catch_3",
-            "End_1",
-            "End_2",
-            "End_3"
-          ],
+          "flowNodeRefs": ["Start_1", "Fork_1", "Catch_1", "Catch_2", "Catch_3", "End_1", "End_2", "End_3"],
           "id": "Lane_default",
           "name": "default"
         }

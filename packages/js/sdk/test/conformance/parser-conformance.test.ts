@@ -16,7 +16,7 @@
  * `snapshot/fixture coverage` block below fails if the two sets ever diverge,
  * so a snapshot cannot exist without being compared.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -231,4 +231,3 @@ describe('parser conformance', () => {
     expect(sortKeys(normalizeForConformance(result))).toEqual(sortKeys(normalizeForConformance(expected, true)));
   });
 });
-

@@ -1228,6 +1228,7 @@ function parseMultiInstance(node: OrderedNode): MultiInstance {
     loopBreakCondition: childText(extKids, 'loopBreakCondition') || null,
     loopInterval: childText(extKids, 'loopInterval') || null,
     maxIterations: maxIterationsText !== '' ? parseIntValue(maxIterationsText) : null,
+    loopCardinality: childText(kids, 'loopCardinality') || null,
   };
 }
 

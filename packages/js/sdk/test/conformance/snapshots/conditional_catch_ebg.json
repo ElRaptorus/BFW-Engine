@@ -38,9 +38,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -56,16 +54,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EBG_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Event",
-          "outgoing": [
-            "Flow_Timer",
-            "Flow_Conditional"
-          ],
+          "outgoing": ["Flow_Timer", "Flow_Conditional"],
           "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
@@ -77,15 +70,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ConditionalCatch_DataReady",
-          "incoming": [
-            "Flow_Conditional"
-          ],
+          "incoming": ["Flow_Conditional"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Data Ready",
-          "outgoing": [
-            "Flow_Conditional_End"
-          ],
+          "outgoing": ["Flow_Conditional_End"],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -103,15 +92,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "TimerCatch_Timeout",
-          "incoming": [
-            "Flow_Timer"
-          ],
+          "incoming": ["Flow_Timer"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout",
-          "outgoing": [
-            "Flow_Timer_End"
-          ],
+          "outgoing": ["Flow_Timer_End"],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -131,10 +116,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_Timer_End",
-            "Flow_Conditional_End"
-          ],
+          "incoming": ["Flow_Timer_End", "Flow_Conditional_End"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -155,13 +137,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "EBG_1",
-            "ConditionalCatch_DataReady",
-            "TimerCatch_Timeout",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "EBG_1", "ConditionalCatch_DataReady", "TimerCatch_Timeout", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

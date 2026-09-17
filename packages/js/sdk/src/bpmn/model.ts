@@ -181,10 +181,9 @@ export interface LinterRulesetScore {
 }
 
 /**
- * `<bpmn:loopCardinality>` is intentionally absent. The engine parses the
- * element and discards it: iteration count comes exclusively from the input
- * collection, capped by `evil:maxIterations`. Exposing it here would advertise
- * a feature the engine refuses and the Studio linter rejects (EXR-010).
+ * `<bpmn:loopCardinality>` is parsed (as `loopCardinality`) and rejected at
+ * deploy time (`:loop_cardinality_not_supported`). Iteration count comes
+ * exclusively from the input collection, capped by `evil:maxIterations`.
  */
 export interface MultiInstance {
   isSequential: boolean;
@@ -196,6 +195,7 @@ export interface MultiInstance {
   loopBreakCondition: string | null;
   loopInterval: string | null;
   maxIterations: number | null;
+  loopCardinality: string | null;
 }
 
 export interface StandardLoop {

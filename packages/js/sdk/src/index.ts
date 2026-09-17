@@ -268,7 +268,12 @@ export {
 
 // --- Extension vocabulary manifest (generated, WP-5) ---
 export { extensionManifest } from './generated/extension-manifest.js';
-export type { ExtensionManifest, ExtensionManifestEntry, ExtensionValueKind, ExtensionCarrier } from './generated/extension-manifest.js';
+export type {
+  ExtensionManifest,
+  ExtensionManifestEntry,
+  ExtensionValueKind,
+  ExtensionCarrier,
+} from './generated/extension-manifest.js';
 
 // --- BPMN parser (runtime value) ---
 export { parseBpmn } from './bpmn/index.js';

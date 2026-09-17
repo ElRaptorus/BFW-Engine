@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -36,17 +34,13 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BoundaryEvent_1"
-          ],
+          "boundaryEventRefs": ["BoundaryEvent_1"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": {
             "collectionExpression": "token.items",
@@ -58,15 +52,14 @@
             "elementVariable": "item",
             "isSequential": false,
             "loopBreakCondition": null,
+            "loopCardinality": null,
             "loopInterval": null,
             "maxIterations": null,
             "outputCollection": "reviewResults",
             "outputElementVariable": null
           },
           "name": "Review Items",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -92,9 +85,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout",
-          "outgoing": [
-            "Flow_Timeout"
-          ],
+          "outgoing": ["Flow_Timeout"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -117,9 +108,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Completed",
@@ -139,9 +128,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Timeout",
-          "incoming": [
-            "Flow_Timeout"
-          ],
+          "incoming": ["Flow_Timeout"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timed Out",
@@ -162,13 +149,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Task_1",
-            "BoundaryEvent_1",
-            "End_1",
-            "End_Timeout"
-          ],
+          "flowNodeRefs": ["Start_1", "Task_1", "BoundaryEvent_1", "End_1", "End_Timeout"],
           "id": "Lane_default",
           "name": "default"
         }

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish Docker image?'
+        description: "Publish Docker image?"
         type: boolean
         default: false
   # push:
@@ -49,7 +49,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           check-latest: true
 
       - name: Install Erlang / Elixir

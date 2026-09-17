@@ -56,13 +56,17 @@ describe('type-safe payloads', () => {
   });
 
   it('exposes the expected ProcessInstanceState members', () => {
-    const members = new Set(Object.values(ProcessInstanceState));
-    expect(members.has(ProcessInstanceState.Running)).toBe(true);
-    expect(members.has(ProcessInstanceState.Finished)).toBe(true);
-    expect(members.has(ProcessInstanceState.Fatal)).toBe(true);
-    expect(members.has(ProcessInstanceState.Aborted)).toBe(true);
-    expect(members.has(ProcessInstanceState.Compensated)).toBe(true);
-    expect(members.has(ProcessInstanceState.Escalated)).toBe(true);
-    expect(members.has(ProcessInstanceState.Errored)).toBe(true);
+    expect(new Set(Object.values(ProcessInstanceState))).toEqual(
+      new Set([
+        ProcessInstanceState.Running,
+        ProcessInstanceState.Finished,
+        ProcessInstanceState.Fatal,
+        ProcessInstanceState.Aborted,
+        ProcessInstanceState.Compensated,
+        ProcessInstanceState.Escalated,
+        ProcessInstanceState.Error,
+        ProcessInstanceState.Cancelled,
+      ]),
+    );
   });
 });

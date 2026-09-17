@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,9 +40,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "SubProcess_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": {
             "collectionExpression": "token.items",
@@ -56,15 +52,14 @@
             "elementVariable": "item",
             "isSequential": true,
             "loopBreakCondition": null,
+            "loopCardinality": null,
             "loopInterval": null,
             "maxIterations": null,
             "outputCollection": "subResults",
             "outputElementVariable": null
           },
           "name": "Sequential SubProcess",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -88,9 +83,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "Sub_Flow_1"
-                ],
+                "outgoing": ["Sub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -106,15 +99,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_Task_1",
-                "incoming": [
-                  "Sub_Flow_1"
-                ],
+                "incoming": ["Sub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Process",
-                "outgoing": [
-                  "Sub_Flow_2"
-                ],
+                "outgoing": ["Sub_Flow_2"],
                 "standardLoop": null,
                 "type": "script_task",
                 "typeData": {
@@ -134,9 +123,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End_1",
-                "incoming": [
-                  "Sub_Flow_2"
-                ],
+                "incoming": ["Sub_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
@@ -186,9 +173,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -209,11 +194,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "SubProcess_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

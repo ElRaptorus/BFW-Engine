@@ -9,8 +9,8 @@ import type {
   BoundaryEventTypeData,
   BusinessRuleTaskTypeData,
   CallActivityTypeData,
-  ComplexGatewayTypeData,
   CompensationEventDefinition,
+  ComplexGatewayTypeData,
   EndEventTypeData,
   ErrorEventDefinition,
   EscalationEventDefinition,
@@ -1093,6 +1093,7 @@ describe('parseBpmn', () => {
       expect(mi.loopBreakCondition).toBe('errorCount > 3');
       expect(mi.loopInterval).toBe('PT1S');
       expect(mi.maxIterations).toBe(100);
+      expect(mi.loopCardinality).toBe('5');
     });
   });
 
@@ -1214,12 +1215,10 @@ describe('parseBpmn', () => {
 
       expect((boundary.typeData as BoundaryEventTypeData).compensationHandlerId).toBe('Task_Undo');
       expect(handler.isForCompensation).toBe(true);
-      expect(process.flowNodes.find((node) => node.id === 'Task_Book')!.isForCompensation).toBe(
-        false,
-      );
+      expect(process.flowNodes.find((node) => node.id === 'Task_Book')!.isForCompensation).toBe(false);
     });
 
-    it('does not expose loopCardinality, which the engine discards (D-12)', () => {
+    it('stores loopCardinality text so deploy can reject it, matching the Elixir parser', () => {
       const xml = processWrap(
         'P',
         `
@@ -1233,7 +1232,23 @@ describe('parseBpmn', () => {
 
       const multiInstance = parseBpmn(xml).processes[0]!.flowNodes[0]!.multiInstance!;
       expect(multiInstance.isSequential).toBe(true);
-      expect(multiInstance).not.toHaveProperty('cardinalityExpression');
+      expect(multiInstance.loopCardinality).toBe('5');
+    });
+
+    it('treats blank loopCardinality as null', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:task id="T1">
+          <bpmn:multiInstanceLoopCharacteristics>
+            <bpmn:loopCardinality>   </bpmn:loopCardinality>
+          </bpmn:multiInstanceLoopCharacteristics>
+        </bpmn:task>
+      `,
+      );
+
+      const multiInstance = parseBpmn(xml).processes[0]!.flowNodes[0]!.multiInstance!;
+      expect(multiInstance.loopCardinality).toBeNull();
     });
 
     it('parses the complex gateway activation condition', () => {
@@ -1246,8 +1261,7 @@ describe('parseBpmn', () => {
       `,
       );
 
-      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!
-        .typeData as ComplexGatewayTypeData;
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!.typeData as ComplexGatewayTypeData;
       expect(typeData.activationCondition).toBe('activatedCount >= 2');
     });
 
@@ -1269,8 +1283,7 @@ describe('parseBpmn', () => {
       `,
       );
 
-      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!
-        .typeData as BusinessRuleTaskTypeData;
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!.typeData as BusinessRuleTaskTypeData;
       expect(typeData.implementation).toBe('dmn');
       expect(typeData.decisionRef).toBe('discount-rules');
       expect(typeData.decisionElementId).toBe('Decision_Risk');
@@ -1291,8 +1304,7 @@ describe('parseBpmn', () => {
       `,
       );
 
-      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!
-        .typeData as BusinessRuleTaskTypeData;
+      const typeData = parseBpmn(xml).processes[0]!.flowNodes[0]!.typeData as BusinessRuleTaskTypeData;
       expect(typeData.implementation).toBe('feel');
       expect(typeData.script).toBe('{ discount: 0.1 }');
       expect(typeData.decisionRef).toBeNull();
@@ -1317,8 +1329,7 @@ describe('parseBpmn', () => {
 
       const nodes = parseBpmn(xml).processes[0]!.flowNodes;
       const send = nodes.find((node) => node.id === 'Send_1')!.typeData as SendTaskTypeData;
-      const receive = nodes.find((node) => node.id === 'Receive_1')!
-        .typeData as ReceiveTaskTypeData;
+      const receive = nodes.find((node) => node.id === 'Receive_1')!.typeData as ReceiveTaskTypeData;
 
       expect(send.inMappings).toEqual([{ source: 'token.id', target: 'id' }]);
       expect(receive.outMappings).toEqual([{ source: 'event.ack', target: 'ack' }]);

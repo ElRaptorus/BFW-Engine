@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type {
   CallActivityChildStarted,
   EngineEvent,
@@ -77,12 +78,7 @@ describe('engine event wire shapes', () => {
       occurredAt: '2026-08-25T10:00:00Z',
     };
 
-    const events: EngineEvent[] = [
-      messageArrived,
-      signalArrived,
-      callActivityChildStarted,
-      subProcessChildStarted,
-    ];
+    const events: EngineEvent[] = [messageArrived, signalArrived, callActivityChildStarted, subProcessChildStarted];
 
     for (const event of events) {
       expect('rootProcessInstanceId' in event).toBe(true);

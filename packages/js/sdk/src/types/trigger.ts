@@ -36,8 +36,4 @@ export interface EscalationTriggerResult {
 }
 
 /** Union of all trigger result types. */
-export type TriggerResult =
-  | MessageTriggerResult
-  | SignalTriggerResult
-  | TimerTriggerResult
-  | EscalationTriggerResult;
+export type TriggerResult = MessageTriggerResult | SignalTriggerResult | TimerTriggerResult | EscalationTriggerResult;

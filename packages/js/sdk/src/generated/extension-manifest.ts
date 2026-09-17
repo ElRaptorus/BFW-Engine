@@ -9,7 +9,6 @@
 //
 // `mix evil.gen.extension_manifest --check` is the CI diff-guard: it fails
 // if this JSON drifts from `EvilEngine.BPMN.ExtensionManifest`.
-
 import extensionManifestJson from './extension-manifest.json' with { type: 'json' };
 
 /** How the extension element's text/attribute value should be interpreted. */

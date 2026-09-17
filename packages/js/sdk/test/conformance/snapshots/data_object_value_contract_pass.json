@@ -31,10 +31,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "name",
-              "email"
-            ],
+            "required": ["name", "email"],
             "type": "object"
           }
         }
@@ -120,11 +117,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "ScriptTask_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "ScriptTask_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

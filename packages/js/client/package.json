@@ -20,7 +20,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "^11.12.0",
+      "version": "^12.4.2",
       "onFail": "download"
     }
   },
@@ -44,12 +44,12 @@
   },
   "dependencies": {
     "@elraptorus/daemonengine_sdk": "workspace:*",
-    "phoenix": "^1.8.13"
+    "phoenix": "^1.8.14"
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
     "eslint": "catalog:",
-    "jose": "^6.2.10",
+    "jose": "^6.2.12",
     "prettier": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",

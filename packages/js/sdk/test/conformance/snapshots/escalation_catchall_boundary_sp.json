@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -36,9 +34,7 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Catchall"
-          ],
+          "boundaryEventRefs": ["BE_Catchall"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -72,9 +68,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "Sub_Flow_1"
-                ],
+                "outgoing": ["Sub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -90,9 +84,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End_Escalation",
-                "incoming": [
-                  "Sub_Flow_1"
-                ],
+                "incoming": ["Sub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Unnamed Escalation End",
@@ -141,9 +133,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_Caught"
-          ],
+          "outgoing": ["Flow_Caught"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -165,9 +155,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_Normal"
-          ],
+          "incoming": ["Flow_Normal"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -187,9 +175,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Caught",
-          "incoming": [
-            "Flow_Caught"
-          ],
+          "incoming": ["Flow_Caught"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation Caught",
@@ -210,13 +196,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "SubProcess_1",
-            "BE_Catchall",
-            "End_Normal",
-            "End_Caught"
-          ],
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Catchall", "End_Normal", "End_Caught"],
           "id": "Lane_default",
           "name": "default"
         }

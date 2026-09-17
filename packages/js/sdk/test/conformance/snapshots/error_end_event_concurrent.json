@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -36,23 +34,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "TimerBE_1"
-          ],
+          "boundaryEventRefs": ["TimerBE_1"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Manual Step",
-          "outgoing": [
-            "Flow_Normal"
-          ],
+          "outgoing": ["Flow_Normal"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -78,9 +70,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_Error"
-          ],
+          "outgoing": ["Flow_Error"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -103,9 +93,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_Normal"
-          ],
+          "incoming": ["Flow_Normal"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -125,9 +113,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Error",
-          "incoming": [
-            "Flow_Error"
-          ],
+          "incoming": ["Flow_Error"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timer Error",
@@ -152,13 +138,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "UserTask_1",
-            "TimerBE_1",
-            "End_Normal",
-            "End_Error"
-          ],
+          "flowNodeRefs": ["Start_1", "UserTask_1", "TimerBE_1", "End_Normal", "End_Error"],
           "id": "Lane_default",
           "name": "default"
         }

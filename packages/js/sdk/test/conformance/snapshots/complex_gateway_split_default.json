@@ -24,9 +24,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,16 +40,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ComplexSplit",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Split",
-          "outgoing": [
-            "Flow_Default",
-            "Flow_A"
-          ],
+          "outgoing": ["Flow_Default", "Flow_A"],
           "standardLoop": null,
           "type": "complex_gateway",
           "typeData": {
@@ -65,15 +58,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": [
-            "Flow_A"
-          ],
+          "incoming": ["Flow_A"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": [
-            "Flow_A2"
-          ],
+          "outgoing": ["Flow_A2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -85,15 +74,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_Default",
-          "incoming": [
-            "Flow_Default"
-          ],
+          "incoming": ["Flow_Default"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task Default",
-          "outgoing": [
-            "Flow_Default2"
-          ],
+          "outgoing": ["Flow_Default2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -105,9 +90,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_A",
-          "incoming": [
-            "Flow_A2"
-          ],
+          "incoming": ["Flow_A2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End A",
@@ -127,9 +110,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Default",
-          "incoming": [
-            "Flow_Default2"
-          ],
+          "incoming": ["Flow_Default2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End Default",
@@ -150,14 +131,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "ComplexSplit",
-            "Task_A",
-            "Task_Default",
-            "End_A",
-            "End_Default"
-          ],
+          "flowNodeRefs": ["Start_1", "ComplexSplit", "Task_A", "Task_Default", "End_A", "End_Default"],
           "id": "Lane_default",
           "name": "default"
         }

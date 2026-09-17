@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -42,9 +40,7 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Escalation"
-          ],
+          "boundaryEventRefs": ["BE_Escalation"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -78,9 +74,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "Sub_Flow_1"
-                ],
+                "outgoing": ["Sub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -96,15 +90,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_UserTask",
-                "incoming": [
-                  "Sub_Flow_1"
-                ],
+                "incoming": ["Sub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Arm throw",
-                "outgoing": [
-                  "Sub_Flow_Arm"
-                ],
+                "outgoing": ["Sub_Flow_Arm"],
                 "standardLoop": null,
                 "type": "user_task",
                 "typeData": {
@@ -125,45 +115,19 @@
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
-                "id": "Sub_Throw",
-                "incoming": [
-                  "Sub_Flow_Arm"
-                ],
+                "id": "Sub_End",
+                "incoming": ["Sub_Flow_Arm"],
                 "isForCompensation": false,
                 "multiInstance": null,
-                "name": "Throw Escalation",
-                "outgoing": [
-                  "Sub_Flow_2"
-                ],
+                "name": "Sub Escalation End",
+                "outgoing": [],
                 "standardLoop": null,
-                "type": "intermediate_throw_event",
+                "type": "end_event",
                 "typeData": {
                   "eventDefinition": {
                     "escalationCode": null,
                     "escalationRef": "Esc_1"
                   },
-                  "inMappings": [],
-                  "payloadContract": null
-                }
-              },
-              {
-                "boundaryEventRefs": [],
-                "dataContracts": [],
-                "dataInputAssociations": [],
-                "dataOutputAssociations": [],
-                "documentation": null,
-                "id": "Sub_End",
-                "incoming": [
-                  "Sub_Flow_2"
-                ],
-                "isForCompensation": false,
-                "multiInstance": null,
-                "name": "Sub End",
-                "outgoing": [],
-                "standardLoop": null,
-                "type": "end_event",
-                "typeData": {
-                  "eventDefinition": {},
                   "inMappings": [],
                   "payloadContract": null
                 }
@@ -191,14 +155,6 @@
                 "isDefault": false,
                 "name": null,
                 "sourceRef": "Sub_UserTask",
-                "targetRef": "Sub_Throw"
-              },
-              {
-                "conditionExpression": null,
-                "id": "Sub_Flow_2",
-                "isDefault": false,
-                "name": null,
-                "sourceRef": "Sub_Throw",
                 "targetRef": "Sub_End"
               }
             ],
@@ -217,9 +173,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_BE"
-          ],
+          "outgoing": ["Flow_BE"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -241,9 +195,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -263,9 +215,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_BoundaryCaught",
-          "incoming": [
-            "Flow_BE"
-          ],
+          "incoming": ["Flow_BE"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Boundary Caught",
@@ -313,9 +263,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Escalation Start",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -334,9 +282,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP End",
@@ -379,13 +325,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "SubProcess_A",
-            "BE_Escalation",
-            "End_Normal",
-            "End_BoundaryCaught"
-          ],
+          "flowNodeRefs": ["Start_1", "SubProcess_A", "BE_Escalation", "End_Normal", "End_BoundaryCaught"],
           "id": "Lane_default",
           "name": "default"
         }
