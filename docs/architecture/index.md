@@ -17,7 +17,7 @@ up to date when a code change touches its scope.
 - **[api.md](api.md)** — REST (commands), GraphQL (query-only: persistence-backed + Process Model graph), WebSocket, OpenAPI/SDL, API-vs-Core boundary
 - **[routing.md](routing.md)** — Message correlation, signal broadcast, escalation scope-chain propagation, pending events with TTL, resume behavior
 - **[expressions.md](expressions.md)** — FEEL expression engine: context shape, library selection, subset spec, engine-added bindings, evaluation call sites
-- **[observability.md](observability.md)** — Event sinks as observability output, structured JSON logs, `/stats`, `/metrics`, `/health`
+- **[observability.md](observability.md)** — Event sinks, structured logs, `/stats`, `/metrics`, `/health`, `/info`
 - **[shipping.md](shipping.md)** — Docker, docker-compose, zero-downtime deploy options
 - **[configuration.md](configuration.md)** — Configuration sources, env vars, linter-score deploy gate, database housekeeping and retention
 - **[testing.md](testing.md)** — Test infrastructure, BPMN execution scenario matrix, assertion framework, conformance corpus, crash-resume variants, CI

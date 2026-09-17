@@ -76,9 +76,9 @@ Additional trigger-style paths in the table below remain specified for v1 parity
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness/readiness; **no auth**; **204 No Content**. Load is `engine.load` on `GET /stats` |
-| `GET` | `/info` | Engine id/name/version/uptime/feature flags; **no auth** |
+| `GET` | `/info` | Engine id/name/version/`startedAt`; **no auth** |
 | `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`TDE_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
-| `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md) §11.2) |
+| `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md)) |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
 | `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `TDE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md)). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
 | `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
@@ -556,9 +556,9 @@ Retries a terminal (fatal, aborted, or error) process instance. The Api facade (
 - `"latest"` → `resolve_latest_version_for_process_id/1` via the PI's process UUID
 - Specific version string → `resolve_specific_version/2` via the PI's process model ID
 
-## Roadmap Endpoints (Phase 2)
+## Message, signal, and timer-schedule REST
 
-The following endpoints are planned for Phase 2 and documented in the OpenAPI spec with `x-engine-status: planned`. The TypeScript client (`@elraptorus/daemonengine_client`) provides typed methods for these now; integration tests are pending until the engine routes are wired.
+These routes are implemented on `EvilEngineWeb.Http.Router`, documented in OpenAPI, and covered by integration tests. The TypeScript client methods match these paths. There is no `x-engine-status: planned` marker in the spec.
 
 ### `POST /messages/{message_name}/trigger` — **implemented**
 

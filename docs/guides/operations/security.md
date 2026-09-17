@@ -50,7 +50,7 @@ Plugins bypass claim checks (they are within the operator's trust boundary) but 
 
 `GET /metrics` is public Prometheus text, default **on** (`TDE_METRICS_ENABLED=true`). The scrape is **unauthenticated**. Restrict it at the network edge (firewall, ingress, or bind the engine to a private network). Set `TDE_METRICS_ENABLED=false` to disable the endpoint (404).
 
-OpenTelemetry does **not** ship. There are no `TDE_OTEL_*` variables. `/stats` remains JWT-gated.
+`/stats` remains JWT-gated.
 
 ## Related
 

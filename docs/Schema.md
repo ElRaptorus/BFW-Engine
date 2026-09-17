@@ -246,8 +246,8 @@ erDiagram
 | `process_instances` | `gateway_pending_arrivals` | 1:N, real FK | Pending parallel/inclusive join arrivals (replaces `active_tokens`). |
 | `flow_node_instances` | `flow_node_instances` | self, nullable array | Previous FNI ids (`uuid[]`) to support joins — an FNI can have multiple predecessors at a parallel/inclusive join. |
 | `data_objects` | `data_object_writes` | 1:N, real FK | Append-only write history per DO per PI. |
-| `process_instances` | `process_instance_events` | 1:N, real FK | Event timeline — only populated when `database` EventSink is on. |
-| `flow_node_instances` | `process_instance_events` | 1:N, real FK nullable | Events may be PI-scoped with no FNI (e.g. `pi.resumed`). |
+| `process_instances` | `process_instance_events` | 1:N, real FK | Table retained empty — built-in database EventSink removed. |
+| `flow_node_instances` | `process_instance_events` | 1:N, real FK nullable | Schema leftover; table not populated. |
 | `messages` | `pending_messages` | 1:N, **logical** FK | `(message_id, published_at)` pair. Native FK isn't declared because Postgres would require the two partitioned tables to share a native partition-aware reference (doable but schema-churn-heavy for a marginal safety gain). The engine enforces it in application code at publish + drain time. |
 | `signals` | `pending_signals` | 1:N, **logical** FK | Same pattern as messages ↔ pending_messages. |
 
@@ -275,7 +275,7 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 
 ### 4.3 Audit / communication
 
-- **`process_instance_events`** — **partitioned monthly** by `occurred_at`. Populated only when `database` EventSink is on (default-OFF); otherwise empty and events flow only through live sinks (console/websocket/plugin). **Not required** for debugger BPMN-flow reconstruction — that uses the always-on kernel tables (see). Enable to obtain a flat, SQL-queryable engine event log (compliance audit, severity sweeps, plugin-emitted out-of-flow events).
+- **`process_instance_events`** — **partitioned monthly** by `occurred_at`. The built-in database EventSink is gone; this table stays empty on a stock engine. Mix retention still deletes leftover rows with the PI tree. **Not required** for debugger BPMN-flow reconstruction (kernel tables). A plugin sink can write a custom log if a flat SQL event store is needed.
 - **`messages`** — **partitioned monthly** by `published_at`. One row per published message (via API trigger or Message Throw event). `correlations` JSONB array records who received it (broadcast-within-key ).
 - **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `TDE_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible.
 - **`signals`** — **partitioned monthly** by `published_at`. Broadcast-to-all semantics (no correlation dimension). `correlations` JSONB array records every delivered subscription.

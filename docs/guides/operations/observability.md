@@ -52,8 +52,6 @@ Load level lives on **`GET /stats`** (`engine.load`: `normal` / `elevated` / `cr
 
 The scrape endpoint is **unauthenticated**. Restrict it at the network edge if the engine is reachable from untrusted networks.
 
-OpenTelemetry does **not** ship. There are no `TDE_OTEL_*` variables.
-
 ## Event Sinks
 
 The engine routes typed events through `EngineEventBus` to **three** built-in sinks (console, telemetry, websocket). The engine does not persist those events to Postgres. Sinks are attached by `SinkRegistrar` at boot — they are not OTP plugins.
@@ -71,7 +69,7 @@ The engine routes typed events through `EngineEventBus` to **three** built-in si
 |---------|---------|
 | `TDE_EVENT_SINK_TELEMETRY` | `on` |
 
-Disabling this makes `/stats` counters permanently zero.
+Disabling this stops the Prometheus `evil_engine.event_bus.events.total` series from incrementing. It does **not** zero `/stats` — that snapshot is live Ash/ETS queries.
 
 ### WebSocket Sink
 
@@ -79,7 +77,7 @@ Disabling this makes `/stats` counters permanently zero.
 |---------|---------|
 | `TDE_EVENT_SINK_WEBSOCKET` | `on` |
 
-There is no `TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded. Console severity is `TDE_LOG_MIN_SEVERITY` only.
+There is no `TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`. The WebSocket sink rejects only `SinkFailed`; it does not filter by log severity. Console severity is `TDE_LOG_MIN_SEVERITY` only.
 
 ## Logging
 

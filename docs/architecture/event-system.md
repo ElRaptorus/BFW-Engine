@@ -41,10 +41,10 @@ Every `:telemetry.execute/3` call inside core_execution is paired with exactly o
 - **Parallel per sink** — each registered sink runs in its own `EvilEngine.Events.SinkWorker` GenServer (supervised by `EvilEngine.Events.SinkSupervisor`, one_for_one). The bus's `handle_cast({:publish, event}, state)` simply casts the event to each worker's pid; the workers then process events independently. A slow sink fills only its own mailbox and never blocks another sink, the bus, or core_execution.
 - **In-order per sink** — each worker is a GenServer, so events arriving via cast are processed serially in arrival order. The documented `handle_event(event, state) → {:ok, new_state}` in-order state-mutation contract is preserved exactly: a sink author writing a stateful sink (counter, batcher, etc.) can rely on events not racing each other for that sink.
 - **Crash-isolated by supervision** — if a sink's `handle_event/2` raises, the worker catches the exception via `try/rescue`, emits an `Event.SinkFailed{sink_name, event_kind, reason, occurred_at}` back onto the bus (so other sinks can observe sink health), and continues running. If the worker process itself dies for any other reason, `SinkSupervisor` restarts it (one_for_one); the bus is unaffected.
-- **At-most-once per sink** — no retries. Sinks that need delivery guarantees (e.g. a Kafka sink) implement their own buffering/retry inside `handle_event/2`. The engine makes no promises about delivery durability *outside* the DB sink; that is the sink author's problem, deliberately.
+- **At-most-once per sink** — no retries. Sinks that need delivery guarantees (e.g. a Kafka sink) implement their own buffering/retry inside `handle_event/2`. The engine makes no promises about delivery durability outside a sink's own store; that is the sink author's problem, deliberately.
 - **Back-pressure-free on the hot path** — `publish/1` is always a non-blocking cast into a BEAM mailbox; core_execution never waits for sinks to finish. Pathologically slow sinks build up their own worker mailbox without touching the bus.
 
-**Four built-in sinks ship inside the engine release** ([Built-in Sinks](#built-in-sinks)). Additional sinks are registered by plugins from inside their engine-driven `on_load/1` callback via `facade.register_event_sink.("name", MyModule, opts)` (see [plugins.md](./plugins.md)).
+**Three built-in sinks ship inside the engine release** ([Built-in Sinks](#built-in-sinks)). Additional sinks are registered by plugins from inside their engine-driven `on_load/1` callback via `facade.register_event_sink.("name", MyModule, opts)` (see [plugins.md](./plugins.md)).
 
 ## Sink Auto-Registration (SinkRegistrar)
 
@@ -67,8 +67,8 @@ Config keys:
 | Sink | Module | Default | Filtering | Purpose |
 |---|---|---|---|---|
 | `console` | `EvilEngine.Events.Sinks.Console` | **ON** | global `TDE_LOG_MIN_SEVERITY` (default `info`; values `error`/`warn`/`info`/`debug`/`verbose`) | Structured JSON via `logger_json` to stdout; consumed by whatever log aggregator the operator runs (Loki, Cloudwatch, `kubectl logs`, Docker logging drivers) |
-| `telemetry` | `EvilEngine.Telemetry.Sink` (in `peripheral_telemetry`) | **ON** | none (always accepts, increments are O(1)) | Increments in-process `:telemetry` counters that back `/stats` ([observability.md](./observability.md)) |
-| `websocket` | `EvilEngineWeb.Ws.Sinks.WebSocket` (in `api_web`) | **ON** | severity threshold (`info`+ by default; `debug`/`verbose` disabled to avoid flooding connected Studio clients) | Live Phoenix Channels push to subscribed clients, e.g. Studio debugger |
+| `telemetry` | `EvilEngine.Telemetry.Sink` (in `peripheral_telemetry`) | **ON** | none (always accepts, increments are O(1)) | Increments `[:evil_engine, :event_bus]` for Prometheus `evil_engine.event_bus.events.total`. Does **not** feed `/stats` ([observability.md](./observability.md)) |
+| `websocket` | `EvilEngineWeb.Ws.Sinks.WebSocket` (in `api_web`) | **ON** | rejects only `SinkFailed` | Live Phoenix Channels push to subscribed clients, e.g. Studio debugger |
 
 **Database sink removed.** The built-in `database` sink (`EvilEngine.Events.Sinks.Database`) was removed to eliminate a high-frequency write path that competed with execution writes for the shared connection pool. The three remaining built-in sinks (console, telemetry, websocket) are DB-free. Users who need DB-backed event storage can build a plugin sink with its own connection management.
 
@@ -158,8 +158,8 @@ Each `:telemetry.execute/3` is paired with exactly one `EngineEventBus.publish/1
 **B. Event-bus sinks** (routed through `EngineEventBus`, [EngineEventBus + EventSinks](#engineeventbus--eventsinks) — each sink toggled independently):
 
 - **`console` sink** (default ON) — structured JSON to stdout via `logger_json`, filtered by `TDE_LOG_MIN_SEVERITY`.
-- **`telemetry` sink** (default ON, owned by `peripheral_telemetry`) — increments in-process `:telemetry` counters backing `/stats` ([observability.md](./observability.md)). Includes per-process-model write-count counters for Data Objects.
-- **`websocket` sink** (default ON, owned by `api_web`) — broadcasts the typed event on the WebSocket channel for subscribed clients. Data Object writes push `%Event.DataObjectWritten{}` so live debuggers/UIs can render the new value without re-querying. `debug`/`verbose` severities excluded by default to avoid flooding long-lived Studio connections.
+- **`telemetry` sink** (default ON, owned by `peripheral_telemetry`) — increments `[:evil_engine, :event_bus]` (Prometheus event-bus counter). Does **not** assemble `/stats` ([observability.md](./observability.md)).
+- **`websocket` sink** (default ON, owned by `api_web`) — broadcasts the typed event on the WebSocket channel for subscribed clients. Data Object writes push `%Event.DataObjectWritten{}` so live debuggers/UIs can render the new value without re-querying. `SinkFailed` is not accepted.
 - **plugin sinks** — any number of `@behaviour EvilEngine.Plugin.EventSink` implementations registered on boot ([plugins.md](./plugins.md)). Example plugin targets: Datadog, Prometheus push-gateway, Kafka topic, custom S3 JSONL archive, a replica Postgres with different retention policy. Users who need DB-backed event storage implement this as a plugin sink with its own connection pool.
 
 All sinks run **concurrently** under supervised `Task`s started from `EngineEventBus`. A crash in one sink never affects another sink, never affects kernel-state persistence, and never affects core_execution (see [EngineEventBus + EventSinks](#engineeventbus--eventsinks-d37) for the `Event.SinkFailed` isolation model). `core_execution.publish/1` is always non-blocking — the hot path does not wait for sinks.

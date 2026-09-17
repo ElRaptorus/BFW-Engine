@@ -1,6 +1,3 @@
-# Local-dev compose stack per `docs/ImplementationPlan.md` §14.2:
-# "Two services only: engine + postgres:16. No tracing / metrics sidecars
-# in v1 (D24)."
 services:
   postgres:
     image: postgres:16-alpine
@@ -29,7 +26,6 @@ services:
       dockerfile: docker/Dockerfile
     container_name: evil-engine
     environment:
-      # §14.3 env contract.
       TDE_DATABASE_HOST: postgres
       TDE_DATABASE_PORT: 5432
       TDE_DATABASE_NAME: evil_engine_dev
@@ -39,16 +35,15 @@ services:
       TDE_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
       TDE_ENGINE_ID: "evil-engine-local"
       TDE_ENGINE_NAME: "Daemon Engine (production)"
-      # Payload cap + compression defaults (D39).
+      # Payload cap + compression defaults.
       TDE_TOKEN_MAX_BYTES: "65536"
       TDE_JSONB_COMPRESSION: "lz4"
       # Auth — HS256 dev secret. Mint tokens with: mix evil.mint_token
       TDE_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-      # Event sinks (D37). DB sink stays off by default.
       TDE_EVENT_SINK_CONSOLE: "on"
       TDE_EVENT_SINK_TELEMETRY: "on"
       TDE_EVENT_SINK_WEBSOCKET: "on"
-      # Optional seeding directory (D19). Mount a host folder to use it.
+      # Optional seeding directory. Mount a host folder to use it.
       # TDE_SEEDING_DIRECTORY: "/app/seeding"
     ports:
       - "4000:4000"

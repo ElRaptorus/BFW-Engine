@@ -4,7 +4,7 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
 
   Replaces the default blank `Absinthe.Plug.GraphiQL` page with a
   custom HTML page that loads GraphQL Playground from CDN and configures
-  it with named tabs covering the main query surface.
+  it with named tabs covering the query surface including the BPMN process-model graph.
   """
 
   use Phoenix.Controller, formats: [:html]
@@ -65,6 +65,26 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
           },
           %{
             endpoint: @graphql_endpoint,
+            name: "Get Process Version",
+            query: """
+            query GetProcessVersion($id: ID!) {
+              getProcessVersion(id: $id) {
+                id
+                version
+                processId
+                deployedAt
+                processModel {
+                  id
+                  name
+                  correlationKey
+                }
+              }
+            }
+            """,
+            variables: ~s({"id": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
             name: "List Process Instances",
             query: """
             {
@@ -95,6 +115,49 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
                 finishedAt
                 startedBy
                 finalTokens
+              }
+            }
+            """,
+            variables: ~s({"id": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "Process Model Graph",
+            query: """
+            query DebuggerView($id: ID!) {
+              getProcessInstance(id: $id) {
+                id
+                state
+                processVersion {
+                  id
+                  bpmnXml
+                  processModel {
+                    id
+                    name
+                    correlationKey
+                  }
+                }
+                flowNodeInstances {
+                  id
+                  state
+                  flowNode {
+                    id
+                    name
+                    type
+                    ... on UserTaskNode {
+                      formSchema
+                      resultContract
+                    }
+                    ... on ServiceTaskNode {
+                      implementation
+                      httpUrl
+                      httpMethod
+                    }
+                    ... on CallActivityNode {
+                      calledElement
+                    }
+                  }
+                }
               }
             }
             """,
@@ -156,6 +219,21 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
           },
           %{
             endpoint: @graphql_endpoint,
+            name: "Get Data Object Value",
+            query: """
+            query GetDataObjectValue($id: ID!) {
+              getDataObjectValue(id: $id) {
+                id
+                dataObjectId
+                processInstanceId
+                value
+              }
+            }
+            """,
+            variables: ~s({"id": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
             name: "List Data Object History",
             query: """
             query ListDataObjectHistory($processInstanceId: ID!) {
@@ -187,6 +265,52 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
               }
             }
             """
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "Get Decision Definition",
+            query: """
+            query GetDecisionDefinition($id: ID!) {
+              getDecisionDefinition(id: $id) {
+                id
+                decisionDefinitionId
+                name
+                enabled
+              }
+            }
+            """,
+            variables: ~s({"id": "replace-with-uuid"})
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "List Decision Versions",
+            query: """
+            {
+              decisionVersions {
+                results {
+                  id
+                  version
+                  decisionDefinitionId
+                  deployedAt
+                }
+              }
+            }
+            """
+          },
+          %{
+            endpoint: @graphql_endpoint,
+            name: "Get Decision Version",
+            query: """
+            query GetDecisionVersion($id: ID!) {
+              getDecisionVersion(id: $id) {
+                id
+                version
+                decisionDefinitionId
+                deployedAt
+              }
+            }
+            """,
+            variables: ~s({"id": "replace-with-uuid"})
           },
           %{
             endpoint: @graphql_endpoint,

@@ -178,7 +178,7 @@ query FilteredInstances($offset: Int) {
       id
       state
       startedAt
-      processId
+      processVersionId
       businessKey
       finalTokens
     }

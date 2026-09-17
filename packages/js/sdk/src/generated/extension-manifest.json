@@ -1,12 +1,17 @@
 {
-  "extensible": ["Properties", "Property"],
+  "extensible": [
+    "Properties",
+    "Property"
+  ],
   "elements": [
     {
       "element": "version",
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["Process"],
+      "applicable_to": [
+        "Process"
+      ],
       "model_field": "Process.version"
     },
     {
@@ -14,7 +19,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["Process"],
+      "applicable_to": [
+        "Process"
+      ],
       "model_field": "Process.correlation_key"
     },
     {
@@ -32,7 +39,9 @@
         "rawErrorFindings",
         "rawWarningFindings"
       ],
-      "applicable_to": ["Definitions"],
+      "applicable_to": [
+        "Definitions"
+      ],
       "model_field": "Definitions.linter_scores"
     },
     {
@@ -73,7 +82,10 @@
       "element": "inputMapping",
       "value_kind": "mapping",
       "carrier": "attributes",
-      "attributes": ["source", "target"],
+      "attributes": [
+        "source",
+        "target"
+      ],
       "applicable_to": [
         "ServiceTask",
         "ScriptTask",
@@ -91,7 +103,10 @@
       "element": "outputMapping",
       "value_kind": "mapping",
       "carrier": "attributes",
-      "attributes": ["source", "target"],
+      "attributes": [
+        "source",
+        "target"
+      ],
       "applicable_to": [
         "ServiceTask",
         "ScriptTask",
@@ -110,7 +125,9 @@
       "value_kind": "json_schema",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["FlowNode (any type)"],
+      "applicable_to": [
+        "FlowNode (any type)"
+      ],
       "model_field": "FlowNode.data_contracts"
     },
     {
@@ -118,7 +135,9 @@
       "value_kind": "json_schema",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["DataObject"],
+      "applicable_to": [
+        "DataObject"
+      ],
       "model_field": "DataObject.value_contract"
     },
     {
@@ -126,7 +145,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ServiceTask"],
+      "applicable_to": [
+        "ServiceTask"
+      ],
       "model_field": "FlowNodeData.ServiceTask.http_url"
     },
     {
@@ -134,7 +155,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ServiceTask"],
+      "applicable_to": [
+        "ServiceTask"
+      ],
       "model_field": "FlowNodeData.ServiceTask.http_method"
     },
     {
@@ -142,7 +165,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ServiceTask"],
+      "applicable_to": [
+        "ServiceTask"
+      ],
       "model_field": "FlowNodeData.ServiceTask.http_body"
     },
     {
@@ -150,7 +175,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ServiceTask"],
+      "applicable_to": [
+        "ServiceTask"
+      ],
       "model_field": "FlowNodeData.ServiceTask.http_auth_header"
     },
     {
@@ -158,7 +185,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ServiceTask"],
+      "applicable_to": [
+        "ServiceTask"
+      ],
       "model_field": "FlowNodeData.ServiceTask.http_response_headers"
     },
     {
@@ -166,7 +195,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ScriptTask"],
+      "applicable_to": [
+        "ScriptTask"
+      ],
       "model_field": "FlowNodeData.ScriptTask.script_ref"
     },
     {
@@ -174,7 +205,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["BusinessRuleTask"],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
       "model_field": "FlowNodeData.BusinessRuleTask.decision_ref"
     },
     {
@@ -182,7 +215,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["BusinessRuleTask"],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
       "model_field": "FlowNodeData.BusinessRuleTask.decision_element_id"
     },
     {
@@ -190,7 +225,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["BusinessRuleTask"],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
       "model_field": "FlowNodeData.BusinessRuleTask.result_variable"
     },
     {
@@ -198,7 +235,9 @@
       "value_kind": "boolean",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["BusinessRuleTask"],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
       "model_field": "FlowNodeData.BusinessRuleTask.trace_unmatched_rules"
     },
     {
@@ -206,7 +245,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["BusinessRuleTask"],
+      "applicable_to": [
+        "BusinessRuleTask"
+      ],
       "model_field": "FlowNodeData.BusinessRuleTask.rule_ref"
     },
     {
@@ -214,7 +255,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["UserTask"],
+      "applicable_to": [
+        "UserTask"
+      ],
       "model_field": "FlowNodeData.UserTask.assignees_expression"
     },
     {
@@ -222,7 +265,9 @@
       "value_kind": "json_schema",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["UserTask"],
+      "applicable_to": [
+        "UserTask"
+      ],
       "model_field": "FlowNodeData.UserTask.form_schema"
     },
     {
@@ -230,7 +275,9 @@
       "value_kind": "json_schema",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["UserTask"],
+      "applicable_to": [
+        "UserTask"
+      ],
       "model_field": "FlowNodeData.UserTask.form_actions"
     },
     {
@@ -238,7 +285,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["UserTask"],
+      "applicable_to": [
+        "UserTask"
+      ],
       "model_field": "FlowNodeData.UserTask.due_date"
     },
     {
@@ -246,7 +295,9 @@
       "value_kind": "integer",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["UserTask"],
+      "applicable_to": [
+        "UserTask"
+      ],
       "model_field": "FlowNodeData.UserTask.priority"
     },
     {
@@ -254,7 +305,9 @@
       "value_kind": "boolean",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["ManualTask"],
+      "applicable_to": [
+        "ManualTask"
+      ],
       "model_field": "FlowNodeData.ManualTask.require_confirmation"
     },
     {
@@ -262,7 +315,11 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["IntermediateThrowEvent", "EndEvent", "SendTask"],
+      "applicable_to": [
+        "IntermediateThrowEvent",
+        "EndEvent",
+        "SendTask"
+      ],
       "model_field": "EventDefinition.Message.correlation_retrieval_expression"
     },
     {
@@ -270,7 +327,10 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["EndEvent", "BoundaryEvent"],
+      "applicable_to": [
+        "EndEvent",
+        "BoundaryEvent"
+      ],
       "model_field": "EventDefinition.Error.error_code"
     },
     {
@@ -278,7 +338,10 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["EndEvent", "BoundaryEvent"],
+      "applicable_to": [
+        "EndEvent",
+        "BoundaryEvent"
+      ],
       "model_field": "EventDefinition.Error.error_message"
     },
     {
@@ -286,7 +349,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["CallActivity"],
+      "applicable_to": [
+        "CallActivity"
+      ],
       "model_field": "FlowNodeData.CallActivity.start_event_id"
     },
     {
@@ -294,7 +359,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["SubProcess (adHocSubProcess)"],
+      "applicable_to": [
+        "SubProcess (adHocSubProcess)"
+      ],
       "model_field": "FlowNodeData.SubProcess.active_elements_expression"
     },
     {
@@ -302,7 +369,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.collection_expression"
     },
     {
@@ -310,7 +379,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.output_collection"
     },
     {
@@ -318,7 +389,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.element_variable"
     },
     {
@@ -326,7 +399,9 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.output_element_variable"
     },
     {
@@ -334,7 +409,9 @@
       "value_kind": "feel",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.loop_break_condition"
     },
     {
@@ -342,7 +419,10 @@
       "value_kind": "static_string",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics", "StandardLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics",
+        "StandardLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.loop_interval / StandardLoop.loop_interval"
     },
     {
@@ -350,7 +430,9 @@
       "value_kind": "integer",
       "carrier": "body",
       "attributes": [],
-      "applicable_to": ["MultiInstanceLoopCharacteristics"],
+      "applicable_to": [
+        "MultiInstanceLoopCharacteristics"
+      ],
       "model_field": "MultiInstance.max_iterations"
     }
   ]

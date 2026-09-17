@@ -115,10 +115,10 @@ Three concerns, all decoupled from Core:
    `mix evil.partitions.ensure`, and `mix evil.retention.purge` for
    opt-in hard-delete of aged terminal process-instance trees. Receives
    writes from `core_execution` via Ash actions.
-2. **`peripheral_telemetry`** — in-process `:telemetry` counters that
-   back `GET /stats`, plus the built-in Prometheus scrape at
-   `GET /metrics` (`TDE_METRICS_ENABLED`, default on). OpenTelemetry
-   does not ship.
+2. **`peripheral_telemetry`** — Prometheus scrape at `GET /metrics`
+   (`TDE_METRICS_ENABLED`, default on), the telemetry EventSink (event-bus
+   counters), and `StatsCollector` for JWT `GET /stats` (live Ash/ETS
+   snapshot, not those counters).
 3. **`peripheral_plugins`** — plugin registry, in-BEAM loader, quarantine.
    Plugins register under a supervised task tree so a crashing plugin
    cannot take down the engine. Plugin EventSinks attach here on the way
@@ -133,7 +133,7 @@ sinks:
 | Sink | Default | Purpose |
 |------|---------|---------|
 | `console` | **ON** | `logger_json` → stdout |
-| `telemetry` | **ON** | Increments `/stats` counters |
+| `telemetry` | **ON** | Increments Prometheus `evil_engine.event_bus.events.total` |
 | `websocket` | **ON** | Phoenix.Channels push to connected clients |
 
 The engine does not persist typed events to Postgres. The
@@ -164,7 +164,7 @@ metrics wire format.
   `POST /processes`, including the linter-score gate.
 - **Observability**: structured logs, JWT-gated `GET /stats`, public
   `GET /metrics` (Prometheus text). Further destinations are plugin
-  EventSinks. OpenTelemetry does not ship.
+  EventSinks.
 
 ## 4. Mapping to documentation
 

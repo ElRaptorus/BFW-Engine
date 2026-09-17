@@ -415,7 +415,6 @@ the recommended workaround.
 |-----|-----------|------------|
 | ~~Pluggable authentication~~ | **Implemented** via `@behaviour EvilEngine.Plugin.AuthProvider`. Pluggable claim resolution deferred to v2 | Register a custom provider via `facade.register_auth_provider.(module)` |
 | **Plugin-tier authorization** (per-plugin claim sets, per-action allow/deny) | Plugins are inside the trust boundary by design | Operator controls which plugins are loaded via allow/deny lists |
-| **OpenTelemetry export** (OTLP logs, metrics, traces) | Minimal observability stack in v1 | Plugin `EventSink` for Datadog/Loki/Kafka; `/stats` JSON for counters; optional `GET /metrics` when `TDE_METRICS_ENABLED=true` |
 | **Push-gateway / remote-write for Prometheus** | Engine exposes pull-only `/metrics` | Run Prometheus scrape against the engine or federate via your own agent |
 | **Per-plugin capability scoping** | Deferred to v2 alongside tenant-isolation model | Trust plugins implicitly; use allow/deny lists to limit which plugins load |
 | **Cross-cluster message routing** | Single-node deployment expected in v1 | Messages reach only same-node subscriptions |

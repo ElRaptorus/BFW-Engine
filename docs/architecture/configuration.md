@@ -68,11 +68,11 @@ Notable env vars:
 | `TDE_MESSAGE_PENDING_TTL` | How long a published message with zero matching subscriptions and zero matching Message Start Events is held in `pending_messages` before being dropped ([routing.md](./routing.md) §3.5.4). Accepts ISO 8601 duration (e.g. `PT60S`, `PT5M`). Set to `PT0S` to disable pending-message hold (unmatched publishes are recorded to `messages` with `correlations=[]` and immediately expired) | `PT60S` |
 | `TDE_SIGNAL_PENDING_TTL` | How long a published signal with zero matching Signal Catch / Signal Boundary subscriptions and zero matching Signal Start Events is held in `pending_signals` before being dropped ([routing.md](./routing.md) §3.5.6). Accepts ISO 8601 duration. Set to `PT0S` to disable pending-signal hold (zero-match publishes are recorded to `signals` with `correlations=[]` and immediately expired, matching pre-pending-signal-hold behavior). Default matches `TDE_MESSAGE_PENDING_TTL` intentionally — a unified "resume-race window" is easier for operators to reason about than per-event-type knobs | `PT60S` |
 | ~~`TDE_ESCALATION_PENDING_TTL`~~ | **Removed.** There is no pending-escalation cache and no `pending_escalations` table | — |
-| `TDE_LOG_MIN_SEVERITY` | Global severity floor for the `console` event sink ([event-system.md](./event-system.md) §3.3.3, [observability.md](./observability.md) §11.2). Values: `error` / `warn` / `info` / `debug` / `verbose`. Events below this level are dropped by the console sink only; other sinks filter independently | `info` |
+| `TDE_LOG_MIN_SEVERITY` | Global severity floor for the `console` event sink ([event-system.md](./event-system.md), [observability.md](./observability.md)). Values: `error` / `warn` / `info` / `debug` / `verbose`. Events below this level are dropped by the console sink only | `info` |
 | `TDE_EVENT_SINK_CONSOLE` | Toggle for the `console` sink. Values: `on` / `off` | `on` |
-| `TDE_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink that backs `/stats`. Disabling this makes `/stats` counters permanently zero | `on` |
+| `TDE_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink (Prometheus `evil_engine.event_bus.events.total`). Does **not** feed `/stats` | `on` |
 | `TDE_EVENT_SINK_WEBSOCKET` | Toggle for the `websocket` sink that pushes events to connected Phoenix Channels clients | `on` |
-| ~~`TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `TDE_LOG_MIN_SEVERITY` only. The WebSocket sink drops `debug`/`verbose` by default. | — |
+| ~~`TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `TDE_LOG_MIN_SEVERITY` only. The WebSocket sink rejects only `SinkFailed`. | — |
 | ~~`TDE_EVENT_SINK_DATABASE`~~ | **Removed.** The built-in database sink has been removed. Use a plugin sink for DB-backed event persistence. | — |
 | `TDE_RETENTION_RUN_INTERVAL` | **Ignored.** Cron/systemd owns the Mix-task interval. The key remains in `runtime.exs` unused | `PT1H` |
 | `TDE_RETENTION_BATCH_SIZE` | Max number of **root trees** purged per `mix evil.retention.purge` invocation | `500` |
@@ -100,8 +100,9 @@ Notable env vars:
 | `TDE_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **exclude** list. **Exclude wins** on conflict with `TDE_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
 | `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` | Reserved no-op. No sidecar loader. | `5` |
 
-No `TDE_OTEL_*` variables exist in v1. **`TDE_METRICS_ENABLED`** toggles the
-public Prometheus scrape endpoint and in-process reporter startup (`config :peripheral_telemetry, :metrics_enabled`, default `true`).
+**`TDE_METRICS_ENABLED`** toggles the public Prometheus scrape endpoint and
+in-process reporter startup (`config :peripheral_telemetry, :metrics_enabled`,
+default `true`).
 
 #### Copy-paste reference: complete configuration with defaults
 

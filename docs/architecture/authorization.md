@@ -202,8 +202,11 @@ all its Data Objects.
 
 ### 5.4 Event visibility (process_instance_events)
 
-Same: inherits from PI visibility. The DB event-sink rows for a PI are visible
-if the PI itself is visible.
+The built-in database EventSink was removed. `process_instance_events` is
+retained empty for schema compatibility; there is no GraphQL `list`/`get` on
+it. Typed engine events are not a persistence-visibility concern. Kernel
+tables (PI, FNI, Data Objects, messages/signals) remain the queryable
+history, with PI visibility as in §5.1.
 
 ### 5.5 Implementation notes
 

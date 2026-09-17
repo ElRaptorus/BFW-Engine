@@ -101,8 +101,7 @@ config :core_timers,
   persistence_module: EvilEngine.Persistence.TimerStartScheduleAdapter
 
 # --- Telemetry -----------------------------------------------------------
-# --- Telemetry -----------------------------------------------------------
-# The in-process `:telemetry` counter set (§11) — no OTel/Prometheus in v1.
+# In-process `:telemetry` plus optional Prometheus scrape (`TDE_METRICS_ENABLED`).
 config :peripheral_telemetry,
   enabled: true,
   db_queue_time_warning_ms: 500

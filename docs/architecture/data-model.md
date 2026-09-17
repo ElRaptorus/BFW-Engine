@@ -239,7 +239,7 @@ process_instance_events
   -- BPMN-flow view does NOT require this table (it reconstructs from the always-on
   -- kernel tables: flow_node_instances with triggerer_flow_node_instance_id,
   -- process_instances, data_object_writes, messages/signals with
-  -- correlations[] — see [`observability.md`](./observability.md) §11.1).
+  -- correlations[] — see [`observability.md`](./observability.md)).
   --
   -- data_object.written rows were previously mirrored here by the DB sink; the underlying
   -- data_object_writes row (below) is always written regardless — see the note in

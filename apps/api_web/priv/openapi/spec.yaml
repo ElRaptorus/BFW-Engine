@@ -29,7 +29,8 @@ info:
     **GraphQL** is served separately at `POST /api/v1/graphql` (requires JWT).
     An interactive [GraphQL Playground](/admin/graphiql) is available for
     browsing the schema and running queries. It comes pre-loaded with
-    example query tabs covering processes, instances, and flow nodes.
+    example query tabs covering catalog resources, instances, data objects,
+    decisions, and the BPMN process-model graph.
 
     **Note:** This spec, Swagger UI, and GraphQL Playground are disabled in
     production by default (`TDE_DEVTOOLS_ENABLED`). The spec endpoint can
@@ -604,7 +605,7 @@ paths:
       summary: Retry a terminal process instance
       operationId: retryProcessInstance
       description: >-
-        Retries a terminal (fatal or aborted) process instance. Optionally
+        Retries a terminal (`fatal`, `aborted`, or `error`) process instance. Optionally
         migrates to a different version and/or resets to a checkpoint FNI.
         Requires the `retry_process_instance` claim (`"own"` or `"all"`).
       tags:
@@ -1499,8 +1500,10 @@ paths:
                     type: string
                     nullable: true
                   deliveries:
-                    type: integer
-                    description: Number of catch-side subscriptions that received the message
+                    type: array
+                    description: Catch-side subscriptions that received the message
+                    items:
+                      $ref: "#/components/schemas/TriggerDelivery"
                   startedProcessInstanceIds:
                     type: array
                     items:
@@ -1514,7 +1517,9 @@ paths:
                 messageId: 550e8400-e29b-41d4-a716-446655440000
                 messageName: payment-received
                 correlationValue: ORD-42
-                deliveries: 1
+                deliveries:
+                  - processInstanceId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    flowNodeInstanceId: 0db0b43c-1e4e-4c5a-9f2a-8a0e2c1b3d4e
                 startedProcessInstanceIds: []
                 pending: false
         "401":
@@ -1593,17 +1598,7 @@ paths:
                   deliveries:
                     type: array
                     items:
-                      type: object
-                      required:
-                        - processInstanceId
-                        - flowNodeInstanceId
-                      properties:
-                        processInstanceId:
-                          type: string
-                          format: uuid
-                        flowNodeInstanceId:
-                          type: string
-                          format: uuid
+                      $ref: "#/components/schemas/TriggerDelivery"
                   startedProcessInstanceIds:
                     type: array
                     items:
@@ -1682,17 +1677,7 @@ paths:
                   deliveries:
                     type: array
                     items:
-                      type: object
-                      required:
-                        - processInstanceId
-                        - flowNodeInstanceId
-                      properties:
-                        processInstanceId:
-                          type: string
-                          format: uuid
-                        flowNodeInstanceId:
-                          type: string
-                          format: uuid
+                      $ref: "#/components/schemas/TriggerDelivery"
                   pending:
                     type: boolean
                     enum: [false]
@@ -1739,8 +1724,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/AdhocActivityList"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1780,8 +1764,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/AdhocActivateResult"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1822,11 +1805,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [completed]
-                properties:
-                  completed:
-                    type: boolean
+                $ref: "#/components/schemas/AdhocCompleteResult"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1867,8 +1846,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: "#/components/schemas/AdhocStatus"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2477,6 +2455,10 @@ components:
         id:
           type: string
           description: BPMN process ID (the `<process id="...">` attribute).
+        versionId:
+          type: string
+          format: uuid
+          description: Database UUID of the latest active process version.
         definitionsId:
           type: string
           nullable: true
@@ -2504,6 +2486,10 @@ components:
         id:
           type: string
           description: BPMN process ID (the `<process id="...">` attribute).
+        versionId:
+          type: string
+          format: uuid
+          description: Database UUID of the latest active process version.
         definitionsId:
           type: string
           nullable: true
@@ -2606,6 +2592,8 @@ components:
               type: integer
             aborted:
               type: integer
+            error:
+              type: integer
         flowNodeInstances:
           type: object
           properties:
@@ -2620,6 +2608,8 @@ components:
             aborted:
               type: integer
             interrupted:
+              type: integer
+            error:
               type: integer
             byType:
               type: object
@@ -2666,6 +2656,91 @@ components:
                 enum: ["on", "off"]
             monitoringPanelsCount:
               type: integer
+        dbPools:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              poolSize:
+                type: integer
+          description: >-
+            Connection pool size per repo (`write`, and `read` when the read
+            pool is running).
+
+    TriggerDelivery:
+      type: object
+      description: One catch-side recipient of a published message, signal, or escalation.
+      required: [processInstanceId, flowNodeInstanceId]
+      properties:
+        processInstanceId:
+          type: string
+          format: uuid
+        flowNodeInstanceId:
+          type: string
+          format: uuid
+
+    AdhocActivity:
+      type: object
+      required: [id, type, enabled, performedCount, activeCount]
+      properties:
+        id:
+          type: string
+          description: Inner activity flow-node ID
+        name:
+          type: string
+          nullable: true
+        type:
+          type: string
+        enabled:
+          type: boolean
+        performedCount:
+          type: integer
+        activeCount:
+          type: integer
+
+    AdhocActivityList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdhocActivity"
+
+    AdhocActivateResult:
+      type: object
+      required: [flowNodeInstanceId]
+      properties:
+        flowNodeInstanceId:
+          type: string
+          format: uuid
+
+    AdhocCompleteResult:
+      type: object
+      required: [completed]
+      properties:
+        completed:
+          type: boolean
+          enum: [true]
+
+    AdhocStatus:
+      type: object
+      required: [activeCount, performedActivities, enabledActivities, completionSignaled]
+      properties:
+        activeCount:
+          type: integer
+        performedActivities:
+          type: array
+          items:
+            type: string
+          description: Inner activity IDs that have completed at least once
+        enabledActivities:
+          type: array
+          items:
+            type: string
+          description: Inner activity IDs currently eligible for activation
+        completionSignaled:
+          type: boolean
 
     # -----------------------------------------------------------------------
     # Timer Schedule Schemas

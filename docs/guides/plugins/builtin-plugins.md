@@ -58,17 +58,15 @@ Logs engine events at configurable severity.
 
 ### Telemetry Sink
 
-Feeds the `/stats` endpoint counters.
+Increments Prometheus `evil_engine.event_bus.events.total`. Does **not** feed `/stats`.
 
 | Env Var | Default |
 |---------|---------|
 | `TDE_EVENT_SINK_TELEMETRY` | `on` |
 
-Disabling this makes all `/stats` counters permanently zero.
-
 ### WebSocket Sink
 
-Pushes events to connected Phoenix Channels clients. There is no separate WebSocket min-severity env var; use `TDE_LOG_MIN_SEVERITY` for console logging. The WebSocket sink drops `debug`/`verbose` events by default so Studio clients are not flooded.
+Pushes events to connected Phoenix Channels clients. There is no separate WebSocket min-severity env var; use `TDE_LOG_MIN_SEVERITY` for console logging. The WebSocket sink rejects only `SinkFailed`.
 
 | Env Var | Default |
 |---------|---------|

@@ -24,19 +24,23 @@ curl http://localhost:4000/info
 curl http://localhost:4000/metrics
 ```
 
-`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`TDE_METRICS_ENABLED=true`). Set to `false` to disable. OpenTelemetry does **not** ship.
+`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`TDE_METRICS_ENABLED=true`). Set to `false` to disable.
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `evil_engine_http_requests_total` | Counter | HTTP request count by method, path, and status |
-| `evil_engine_http_request_duration_milliseconds` | Histogram | HTTP request latency |
-| `evil_engine_pi_state_changes_total` | Counter | PI state transitions by target state |
-| `evil_engine_fni_started_total` | Counter | FNI creations |
-| `evil_engine_fni_state_changes_total` | Counter | FNI state transitions by target state |
+| `evil_engine_http_request_total` | Counter | HTTP request count by method, route, and status |
+| `evil_engine_http_request_duration_ms` | Histogram | HTTP request latency |
+| `evil_engine_process_instance_state_change_total` | Counter | PI state transitions by old/new state |
+| `evil_engine_flow_node_instance_started_total` | Counter | FNI creations |
+| `evil_engine_flow_node_instance_state_change_total` | Counter | FNI state transitions by type and terminal state |
 | `evil_engine_event_bus_events_total` | Counter | Events dispatched through the EngineEventBus, by type |
-| `evil_engine_active_process_instances` | Gauge | Currently in-memory PIs (polled every 10s) |
-| `evil_engine_pi_capacity_ratio` | Gauge | Ratio of active PIs to configured cap (0.0–1.0) |
+| `evil_engine_process_instance_active_count` | Gauge | Currently in-memory PIs (polled every 10s) |
+| `evil_engine_process_instance_capacity_ratio` | Gauge | Ratio of active PIs to configured cap (0.0–1.0) |
+| `evil_engine_escalation_raised_total` | Counter | Escalations raised, by throw type |
+| `evil_engine_dmn_evaluations_total` | Counter | DMN evaluations |
 | BEAM VM gauges | Gauge | Memory usage, run queue lengths, process count |
+
+Full catalog (including DB pool and DMN cache series): [observability.md](../../architecture/observability.md).
 
 For Alertmanager rules and production setup, see [Observability](../operations/observability.md) and [Back-Pressure](../operations/backpressure.md).
 
@@ -121,10 +125,10 @@ The engine routes all internal events through the `EngineEventBus` to three buil
 | Sink | Env Var | Default | Purpose |
 |------|---------|---------|---------|
 | Console | `TDE_EVENT_SINK_CONSOLE` | `on` | Logs events at configurable severity |
-| Telemetry | `TDE_EVENT_SINK_TELEMETRY` | `on` | Feeds `/stats` counters |
+| Telemetry | `TDE_EVENT_SINK_TELEMETRY` | `on` | Increments Prometheus `evil_engine_event_bus_events_total` |
 | WebSocket | `TDE_EVENT_SINK_WEBSOCKET` | `on` | Pushes to Phoenix Channels |
 
-Console severity is `TDE_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var.
+Console severity is `TDE_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var. Disabling the telemetry sink does **not** zero `GET /stats` — that endpoint queries Ash/ETS live.
 
 Custom sinks can be built as plugins — see [Implementing Event Sinks](../plugins/event-sink.md).
 
