@@ -137,6 +137,7 @@
                       "type": "call_activity",
                       "typeData": {
                         "calledElement": "tx_retry_deep_grandchild",
+                        "calledProcessVersion": null,
                         "inMappings": [],
                         "outMappings": [],
                         "startEventId": null

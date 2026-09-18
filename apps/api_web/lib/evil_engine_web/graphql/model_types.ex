@@ -432,6 +432,7 @@ defmodule EvilEngineWeb.Graphql.ModelTypes do
     mapping_fields()
     field(:called_element, :string)
     field(:start_event_id, :string)
+    field(:called_process_version, :string)
   end
 
   object :sub_process_node do

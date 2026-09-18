@@ -142,6 +142,133 @@ defmodule EvilEngine.Execution.CallActivityIntegrationTest do
     end
   end
 
+  describe "Call Activity — calledProcessVersion pin" do
+    @pinned_child_version "child-version-pinned-001"
+
+    test "pin resolves specific version instead of latest", %{ref: ref} do
+      setup_child_process()
+      ModelCache.put_new(@pinned_child_version, BpmnFactory.linear_start_end("child-process"))
+
+      CalledElementResolver.NoOp.set_specific_version(
+        "child-process",
+        "1.2.0",
+        @pinned_child_version
+      )
+
+      parent_definitions = BpmnFactory.call_activity_process(called_process_version: "1.2.0")
+      ModelCache.put_new(@parent_version, parent_definitions)
+
+      parent_process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@parent_version,
+                 process_instance_id: parent_process_instance_id
+               )
+
+      assert_receive(
+        {:ca_child_started, ^ref,
+         %{
+           parent_process_instance_id: ^parent_process_instance_id,
+           child_version: "1.2.0"
+         }},
+        2_000
+      )
+
+      assert_receive {:pi_state, ^ref,
+                      %{process_instance_id: ^parent_process_instance_id, new_state: :finished}},
+                     2_000
+
+      await_process_death(process_instance_pid)
+    end
+
+    test "unpinned still resolves latest", %{ref: ref} do
+      setup_child_process()
+
+      CalledElementResolver.NoOp.set_specific_version(
+        "child-process",
+        "1.2.0",
+        @pinned_child_version
+      )
+
+      parent_definitions = BpmnFactory.call_activity_process()
+      ModelCache.put_new(@parent_version, parent_definitions)
+
+      parent_process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@parent_version,
+                 process_instance_id: parent_process_instance_id
+               )
+
+      assert_receive(
+        {:ca_child_started, ^ref,
+         %{
+           parent_process_instance_id: ^parent_process_instance_id,
+           child_version: "1.0.0"
+         }},
+        2_000
+      )
+
+      assert_receive {:pi_state, ^ref,
+                      %{process_instance_id: ^parent_process_instance_id, new_state: :finished}},
+                     2_000
+
+      await_process_death(process_instance_pid)
+    end
+
+    test "unknown pin fatals the Call Activity", %{ref: ref} do
+      setup_child_process()
+
+      CalledElementResolver.NoOp.set_specific_version(
+        "child-process",
+        "9.9.9",
+        {:error, :version_not_found}
+      )
+
+      parent_definitions = BpmnFactory.call_activity_process(called_process_version: "9.9.9")
+      ModelCache.put_new(@parent_version, parent_definitions)
+
+      parent_process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@parent_version,
+                 process_instance_id: parent_process_instance_id
+               )
+
+      assert_receive {:pi_state, ^ref,
+                      %{process_instance_id: ^parent_process_instance_id, new_state: :fatal}},
+                     2_000
+
+      await_process_death(process_instance_pid)
+    end
+
+    test "disabled catalog process with pin fatals version_disabled", %{ref: ref} do
+      setup_child_process()
+
+      CalledElementResolver.NoOp.set_specific_version(
+        "child-process",
+        "1.0.0",
+        {:error, :version_disabled}
+      )
+
+      parent_definitions = BpmnFactory.call_activity_process(called_process_version: "1.0.0")
+      ModelCache.put_new(@parent_version, parent_definitions)
+
+      parent_process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@parent_version,
+                 process_instance_id: parent_process_instance_id
+               )
+
+      assert_receive {:pi_state, ^ref,
+                      %{process_instance_id: ^parent_process_instance_id, new_state: :fatal}},
+                     2_000
+
+      await_process_death(process_instance_pid)
+    end
+  end
+
   # -------------------------------------------------------------------
   # Call Activity — child fatals, no boundary, parent fatals
   # -------------------------------------------------------------------

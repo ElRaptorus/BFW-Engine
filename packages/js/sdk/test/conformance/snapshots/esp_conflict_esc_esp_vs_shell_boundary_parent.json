@@ -49,6 +49,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "EspConflictEscEspVsShellChild",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null

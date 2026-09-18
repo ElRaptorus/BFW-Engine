@@ -108,6 +108,14 @@ describe('buildFlowNodeSelection', () => {
     expect(fieldNames(sendTaskFields)).toContain('outMappings');
   });
 
+  it('includes calledProcessVersion on CallActivityNode', () => {
+    const selection = buildFlowNodeSelection();
+    const callActivityFields = selection.on?.['CallActivityNode'] ?? [];
+    expect(fieldNames(callActivityFields)).toContain('calledElement');
+    expect(fieldNames(callActivityFields)).toContain('startEventId');
+    expect(fieldNames(callActivityFields)).toContain('calledProcessVersion');
+  });
+
   it('includes eventDefinition inline fragments on every event-position node type', () => {
     const selection = buildFlowNodeSelection();
     for (const eventNodeType of [

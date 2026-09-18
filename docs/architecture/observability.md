@@ -285,7 +285,7 @@ index: [api.md](./api.md).
 | `EvilEngine.Telemetry.Metrics` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/metrics.ex` |
 | `EvilEngine.Telemetry.Measurements` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/measurements.ex` |
 | `EvilEngine.Telemetry.DbQueryHandler` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/db_query_handler.ex` |
-| `EvilEngine.Telemetry.Application` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/application.ex` |
+| Telemetry OTP application | `apps/peripheral_telemetry/lib/evil_engine/telemetry/application.ex` |
 | `EvilEngineWeb.Ws.Sinks.WebSocket` | `apps/api_web/lib/evil_engine_web/ws/sinks/websocket.ex` |
 | `EvilEngineWeb.Http.StatsController` | `apps/api_web/lib/evil_engine_web/http/controllers/stats_controller.ex` |
 | `EvilEngineWeb.Http.MetricsController` | `apps/api_web/lib/evil_engine_web/http/controllers/metrics_controller.ex` |

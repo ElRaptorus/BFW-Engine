@@ -49,6 +49,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "ChildProcess",
+            "calledProcessVersion": null,
             "inMappings": [
               {
                 "source": "for x in [1] return if x then",

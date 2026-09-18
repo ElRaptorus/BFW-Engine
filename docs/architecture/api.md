@@ -313,6 +313,7 @@ type ServiceTaskNode implements FlowNode {
 type CallActivityNode implements FlowNode {
   calledElement: String
   startEventId: String
+  calledProcessVersion: String
   inMappings: [Mapping!]!
   outMappings: [Mapping!]!
 }
@@ -427,7 +428,7 @@ query OpenDebugger($piId: ID!) {
         name
         ... on UserTaskNode      { formSchema resultContract }
         ... on ServiceTaskNode   { implementation httpUrl httpMethod }
-        ... on CallActivityNode  { calledElement inMappings { source target } outMappings { source target } }
+        ... on CallActivityNode  { calledElement startEventId calledProcessVersion inMappings { source target } outMappings { source target } }
         ... on SendTaskNode      { messageRef inMappings { source target } outMappings { source target } }
       }
     }

@@ -939,8 +939,44 @@ describe('parseBpmn', () => {
       const result = parseBpmn(xml);
       const typeData = result.processes[0]!.flowNodes[0]!.typeData as CallActivityTypeData;
       expect(typeData.calledElement).toBe('ChildProcess');
+      expect(typeData.startEventId).toBeNull();
+      expect(typeData.calledProcessVersion).toBeNull();
       expect(typeData.inMappings).toEqual([{ source: 'token.orderId', target: 'orderId' }]);
       expect(typeData.outMappings).toEqual([{ source: 'result.trackingNumber', target: 'trackingNumber' }]);
+    });
+
+    it('parses evil:calledProcessVersion', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:callActivity id="CA1" calledElement="ChildProcess">
+          <bpmn:extensionElements>
+            <evil:calledProcessVersion>1.2.0</evil:calledProcessVersion>
+          </bpmn:extensionElements>
+        </bpmn:callActivity>
+      `,
+      );
+
+      const result = parseBpmn(xml);
+      const typeData = result.processes[0]!.flowNodes[0]!.typeData as CallActivityTypeData;
+      expect(typeData.calledProcessVersion).toBe('1.2.0');
+    });
+
+    it('trims whitespace-only calledProcessVersion to null', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:callActivity id="CA1" calledElement="ChildProcess">
+          <bpmn:extensionElements>
+            <evil:calledProcessVersion>   </evil:calledProcessVersion>
+          </bpmn:extensionElements>
+        </bpmn:callActivity>
+      `,
+      );
+
+      const result = parseBpmn(xml);
+      const typeData = result.processes[0]!.flowNodes[0]!.typeData as CallActivityTypeData;
+      expect(typeData.calledProcessVersion).toBeNull();
     });
   });
 

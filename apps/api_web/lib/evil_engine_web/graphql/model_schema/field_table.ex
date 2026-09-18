@@ -145,7 +145,14 @@ defmodule EvilEngineWeb.Graphql.ModelSchema.FieldTable do
     {Model.FlowNodeData.ReceiveTask,
      exposed: [:message_ref, :result_contract, :in_mappings, :out_mappings], excluded: []},
     {Model.FlowNodeData.CallActivity,
-     exposed: [:called_element, :start_event_id, :in_mappings, :out_mappings], excluded: []},
+     exposed: [
+       :called_element,
+       :start_event_id,
+       :called_process_version,
+       :in_mappings,
+       :out_mappings
+     ],
+     excluded: []},
     {Model.FlowNodeData.SubProcess,
      exposed: [
        :triggered_by_event,

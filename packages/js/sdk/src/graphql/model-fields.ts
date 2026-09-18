@@ -178,6 +178,7 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
     ...mappingFieldsAsNested('outMappings'),
     'calledElement',
     'startEventId',
+    'calledProcessVersion',
   ],
   SubProcessNode: [
     ...mappingFieldsAsNested('inMappings'),

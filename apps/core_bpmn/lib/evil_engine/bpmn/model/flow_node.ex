@@ -290,6 +290,11 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.CallActivity do
   `start_event_id` (from `<evil:startEventId>`) selects which Start Event
   the child process should begin at. Required when the child has multiple
   untyped Start Events; optional otherwise.
+
+  `called_process_version` (from `<evil:calledProcessVersion>`) pins the
+  child to a specific `evil:version` string. `nil` or blank means the
+  engine resolves the latest enabled, non-deleted version at enter time.
+  The word `latest` is a literal version name, not a keyword.
   """
 
   alias EvilEngine.BPMN.Model.Mapping
@@ -297,11 +302,18 @@ defmodule EvilEngine.BPMN.Model.FlowNodeData.CallActivity do
   @type t :: %__MODULE__{
           called_element: String.t() | nil,
           start_event_id: String.t() | nil,
+          called_process_version: String.t() | nil,
           in_mappings: [Mapping.t()],
           out_mappings: [Mapping.t()]
         }
 
-  defstruct [:called_element, :start_event_id, in_mappings: [], out_mappings: []]
+  defstruct [
+    :called_element,
+    :start_event_id,
+    :called_process_version,
+    in_mappings: [],
+    out_mappings: []
+  ]
 end
 
 defmodule EvilEngine.BPMN.Model.FlowNodeData.SubProcess do

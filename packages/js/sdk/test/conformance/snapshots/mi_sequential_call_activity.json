@@ -64,6 +64,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "mi_sequential_ca_child",
+            "calledProcessVersion": null,
             "inMappings": [
               {
                 "source": "token.item",

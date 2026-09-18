@@ -49,6 +49,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "TerminateChildProcess",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null

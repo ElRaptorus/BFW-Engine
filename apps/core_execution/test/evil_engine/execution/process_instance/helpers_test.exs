@@ -165,6 +165,23 @@ defmodule EvilEngine.Execution.ProcessInstance.HelpersTest do
       assert result["message"] =~ "Call Activity"
     end
 
+    test "called_process_version_not_found names process id and version" do
+      result =
+        Helpers.build_error_info(
+          {:called_process_version_not_found, "order-fulfillment", "1.2.0"}
+        )
+
+      assert result["message"] =~ "order-fulfillment"
+      assert result["message"] =~ "1.2.0"
+      assert result["message"] =~ "latest"
+    end
+
+    test "version_disabled names catalog disable" do
+      result = Helpers.build_error_info(:version_disabled)
+      assert result["message"] =~ "disabled"
+      assert result["message"] =~ "Call Activity"
+    end
+
     test "unknown_brt_implementation" do
       result = Helpers.build_error_info({:unknown_brt_implementation, "custom"})
       assert result["message"] =~ "custom"
@@ -579,6 +596,8 @@ defmodule EvilEngine.Execution.ProcessInstance.HelpersTest do
       {{:user_task_input_contract_violation, [%{message: "invalid type"}]}, "invalid type"},
       {{:contract_violation, [%{message: "schema mismatch"}]}, "schema mismatch"},
       {{:called_element_resolution_failed, "child-not-found"}, "child-not-found"},
+      {{:called_process_version_not_found, "order-fulfillment", "1.2.0"}, "order-fulfillment"},
+      {:version_disabled, "disabled"},
       {{:in_mapping_failed, "mapping detail"}, "mapping detail"},
       {{:out_mapping_failed, "output detail"}, "output detail"},
       {{:ambiguous_start_event, %{}}, "startEventId"},

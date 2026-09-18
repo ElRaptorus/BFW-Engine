@@ -646,6 +646,10 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: [:evil_start_event_id | state.stack]}}
   end
 
+  defp handle_start("calledProcessVersion", _attributes, state) do
+    {:ok, %{state | text_buffer: "", stack: [:evil_called_process_version | state.stack]}}
+  end
+
   defp handle_start("decisionRef", _attributes, state) do
     {:ok, %{state | text_buffer: "", stack: [:evil_decision_ref | state.stack]}}
   end
@@ -1579,6 +1583,21 @@ defmodule EvilEngine.BPMN.Parser.SaxHandler do
       case state.current_node_data do
         %FlowNodeData.CallActivity{} = d when text != "" ->
           %FlowNodeData.CallActivity{d | start_event_id: text}
+
+        other ->
+          other
+      end
+
+    {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
+  end
+
+  defp handle_end("calledProcessVersion", %{stack: [:evil_called_process_version | rest]} = state) do
+    text = String.trim(state.text_buffer)
+
+    data =
+      case state.current_node_data do
+        %FlowNodeData.CallActivity{} = call_activity when text != "" ->
+          %FlowNodeData.CallActivity{call_activity | called_process_version: text}
 
         other ->
           other

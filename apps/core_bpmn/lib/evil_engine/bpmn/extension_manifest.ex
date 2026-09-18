@@ -382,6 +382,14 @@ defmodule EvilEngine.BPMN.ExtensionManifest do
       applicable_to: ["CallActivity"],
       model_field: "FlowNodeData.CallActivity.start_event_id"
     },
+    %{
+      element: "calledProcessVersion",
+      value_kind: :static_string,
+      carrier: :body,
+      attributes: [],
+      applicable_to: ["CallActivity"],
+      model_field: "FlowNodeData.CallActivity.called_process_version"
+    },
 
     # -------------------------------------------------------------------
     # Ad-hoc SubProcess

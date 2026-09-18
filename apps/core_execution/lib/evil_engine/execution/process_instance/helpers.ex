@@ -332,6 +332,14 @@ defmodule EvilEngine.Execution.ProcessInstance.Helpers do
     "Could not resolve the called process for this Call Activity: #{format_detail(detail)}"
   end
 
+  defp humanize_error({:called_process_version_not_found, process_model_id, version_string}) do
+    "Could not resolve called process '#{process_model_id}' at version '#{version_string}'. The pin must match an existing <evil:version> string of that process; typing 'latest' looks up a version actually named latest."
+  end
+
+  defp humanize_error(:version_disabled) do
+    "The called process is disabled in the engine catalog, so this Call Activity cannot start it."
+  end
+
   defp humanize_error({:no_matching_condition, %{message: message}}) when is_binary(message) do
     message
   end

@@ -1,9 +1,3 @@
-/**
- * BPMN XML parser producing the same typed model as the engine's
- * `EvilEngine.BPMN.Parser.SaxHandler`. Uses `fast-xml-parser` with
- * `preserveOrder: true` to maintain document order, then walks the
- * ordered tree to build model objects.
- */
 import { XMLParser } from 'fast-xml-parser';
 
 import { FlowNodeType } from '../types/enums.js';
@@ -36,10 +30,6 @@ import type {
   StandardLoop,
 } from './model.js';
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
  * Parse BPMN 2.0 XML into a fully typed model matching the engine's
  * internal parser output. Synchronous, pure, throws on malformed XML.
@@ -63,15 +53,6 @@ export function parseBpmn(xml: string): BpmnDefinitions {
 
   return parseDefinitions(definitionsNode, xml);
 }
-
-// ---------------------------------------------------------------------------
-// Ordered-mode types
-//
-// With preserveOrder: true, fast-xml-parser emits arrays of objects.
-// Each object has a single tag-name key whose value is its children
-// (also an ordered array), plus an optional `:@` key for attributes.
-// Text nodes appear as { "#text": "..." }.
-// ---------------------------------------------------------------------------
 
 type OrderedNode = Record<string, unknown>;
 
@@ -202,10 +183,6 @@ function emptyDefinitions(rawXml: string): BpmnDefinitions {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Element-to-type maps (mirrors @flow_node_elements in SaxHandler)
-// ---------------------------------------------------------------------------
-
 const FLOW_NODE_ELEMENTS: ReadonlySet<string> = new Set([
   'startEvent',
   'endEvent',
@@ -283,10 +260,6 @@ const EVENT_DEF_ELEMENTS: Record<string, EventDefKind> = {
 
 const NONE_EVENT_DEFINITION: EventDefinition = Object.freeze({ type: 'none' } as EventDefinition);
 
-// ---------------------------------------------------------------------------
-// Definitions
-// ---------------------------------------------------------------------------
-
 function parseDefinitions(node: OrderedNode, rawXml: string): BpmnDefinitions {
   const kids = children(node);
   const result = emptyDefinitions(rawXml);
@@ -333,10 +306,6 @@ function parseDefinitions(node: OrderedNode, rawXml: string): BpmnDefinitions {
 
   return result;
 }
-
-// ---------------------------------------------------------------------------
-// Process
-// ---------------------------------------------------------------------------
 
 function parseProcess(node: OrderedNode): BpmnProcess {
   const kids = children(node);
@@ -482,10 +451,6 @@ function parseProcessExtensions(
   }
 }
 
-// ---------------------------------------------------------------------------
-// FlowNode
-// ---------------------------------------------------------------------------
-
 function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
   const kids = children(node);
   const incoming: string[] = [];
@@ -562,10 +527,6 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
     documentation,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Type data builders
-// ---------------------------------------------------------------------------
 
 function getExtensionChildren(kids: OrderedNode[]): OrderedNode[] {
   const extensionNode = findElement(kids, 'extensionElements');
@@ -917,14 +878,11 @@ function buildCallActivityTypeData(node: OrderedNode, extKids: OrderedNode[]): F
     type: 'call_activity',
     calledElement: attr(node, 'calledElement'),
     startEventId: childText(extKids, 'startEventId') || null,
+    calledProcessVersion: childText(extKids, 'calledProcessVersion') || null,
     inMappings,
     outMappings,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Event definitions
-// ---------------------------------------------------------------------------
 
 function parseEventDefinition(kids: OrderedNode[]): EventDefinition {
   for (const child of kids) {
@@ -1002,10 +960,6 @@ function buildEventDefinition(kind: EventDefKind, node: OrderedNode): EventDefin
   }
 }
 
-// ---------------------------------------------------------------------------
-// Sequence flow
-// ---------------------------------------------------------------------------
-
 function parseSequenceFlow(node: OrderedNode): SequenceFlow {
   const condText = childText(children(node), 'conditionExpression');
   return {
@@ -1017,10 +971,6 @@ function parseSequenceFlow(node: OrderedNode): SequenceFlow {
     isDefault: false,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Lane
-// ---------------------------------------------------------------------------
 
 function parseLane(node: OrderedNode): Lane {
   const flowNodeRefs: string[] = [];
@@ -1122,10 +1072,6 @@ function collectLanesDeep(node: OrderedNode, lanes: Lane[]): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Data objects
-// ---------------------------------------------------------------------------
-
 function parseDataObject(node: OrderedNode): DataObject {
   const extKids = getExtensionChildren(children(node));
   let valueContract: Record<string, unknown> | null = null;
@@ -1143,10 +1089,6 @@ function parseDataObject(node: OrderedNode): DataObject {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Data stores
-// ---------------------------------------------------------------------------
-
 function parseDataStore(node: OrderedNode): DataStore {
   const capacityAttr = attr(node, 'capacity');
   const isUnlimited = attr(node, 'isUnlimited') === 'true';
@@ -1159,10 +1101,6 @@ function parseDataStore(node: OrderedNode): DataStore {
     itemSubjectRef: attr(node, 'itemSubjectRef'),
   };
 }
-
-// ---------------------------------------------------------------------------
-// Data associations
-// ---------------------------------------------------------------------------
 
 let autoIdCounter = 0;
 
@@ -1178,10 +1116,6 @@ function parseAssociation(node: OrderedNode, prefix: string): DataAssociation {
     valueExpression: childText(kids, 'transformation') || null,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Data contracts
-// ---------------------------------------------------------------------------
 
 function collectDataContracts(kids: OrderedNode[], contracts: DataContract[]): void {
   const extKids = getExtensionChildren(kids);
@@ -1202,10 +1136,6 @@ function collectDataContracts(kids: OrderedNode[], contracts: DataContract[]): v
     });
   }
 }
-
-// ---------------------------------------------------------------------------
-// Multi-instance
-// ---------------------------------------------------------------------------
 
 function parseMultiInstance(node: OrderedNode): MultiInstance {
   const kids = children(node);
@@ -1245,10 +1175,6 @@ function parseStandardLoop(node: OrderedNode): StandardLoop {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Mappings
-// ---------------------------------------------------------------------------
-
 function parseMappings(extKids: OrderedNode[]): {
   inMappings: Mapping[];
   outMappings: Mapping[];
@@ -1273,10 +1199,6 @@ function parseMappings(extKids: OrderedNode[]): {
 
   return { inMappings, outMappings };
 }
-
-// ---------------------------------------------------------------------------
-// Post-processing (mirrors Elixir finalize logic)
-// ---------------------------------------------------------------------------
 
 function applyDefaultFlows(process: BpmnProcess, defaults: Map<string, string>): void {
   if (defaults.size === 0) {

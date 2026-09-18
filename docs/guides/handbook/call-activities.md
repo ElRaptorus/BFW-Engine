@@ -122,11 +122,21 @@ Call Activities support full resume-on-restart. When the engine restarts and res
 
 ## Version Resolution
 
-The `calledElement` attribute specifies the process key (not a version). The engine resolves to the **latest non-deleted, enabled version** of the referenced process at the time the Call Activity executes. This means:
+The `calledElement` attribute is the process key (not a version). Optional `<evil:calledProcessVersion>` pins the child to that process's `<evil:version>` string.
 
-- Deploying a new version of the child process affects future Call Activity executions
-- Already-running child PIs are not affected by new deployments
-- If the referenced process is disabled or undeployed, the Call Activity fails with a resolution error
+| Pin | What the engine does at enter time |
+|-----|-------------------------------------|
+| Omitted or blank | Latest **enabled**, non-deleted catalog version — newest `deployed_at`, not semver order |
+| Set to a version string | Exact `evil:version` match. Missing / soft-deleted → Call Activity fatals (`called_process_version_not_found`). Catalog process disabled → `version_disabled` (this atom is **not** rewritten to `process_not_found`) |
+| Set to the word `latest` | Looks up a version **actually named** `latest`. That is not a keyword. Retry's JSON `"version": "latest"` *is* a keyword; this field is not. Leave the property empty for dynamic latest. |
+
+Resolution happens when the Call Activity **enters** (or re-enters after the child tree was deleted). The spawned child PI stores `process_version_id` (UUID). Resume reconnects that UUID. Multi-instance iterations each resolve independently: unpinned iterations can straddle a child deploy; a pin keeps every iteration on the same child version. Nested Call Activities resolve independently; a parent pin does not constrain grandchildren.
+
+**Retrying at the Call Activity does not change the child diagram.** Checkpoint **at** the Call Activity (or no checkpoint / checkpoint after it) keeps the **same child process instance** and `process_version_id`. If that child is `fatal` / `aborted` / `error`, retry **resets it in place**. A `finished` child is left as-is. To spawn a **new** child instance (new pin, or unpinned latest after a child deploy), checkpoint an FNI **before** the Call Activity so the Call Activity and child tree are hard-deleted — that **re-runs preceding parent work**. See [retry.md](retry.md) Process Instance Tree, including the known limitation for picking a new child version without duplicating parent work.
+
+- Deploying a new version of the child process affects future **enters** of unpinned Call Activities
+- Already-running (and identity-preserved) child PIs are not affected by new deployments or by a changed pin on a surviving Call Activity
+- If the referenced process is disabled or undeployed, an unpinned Call Activity fails with `process_not_found`; a pinned one fails with `version_disabled` when the catalog row exists but is disabled
 
 ## Related
 

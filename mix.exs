@@ -118,6 +118,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/Schema.md",
           "docs/Glossary.md",
           "docs/Philosophy.md",
+          "docs/decisions.md",
           "docs/post-v1-ideas.md",
 
           # Architecture (detailed)

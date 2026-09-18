@@ -103,6 +103,8 @@ When `resetToFlowNodeInstanceId` is provided, the engine performs a targeted res
 
 Without a checkpoint, all FNIs are deleted and the PI retries from the Start Event.
 
+A checkpoint **on** a Call Activity FNI is not a “run the child again on a new version” control. The Call Activity survives; the child PI identity is preserved (reset in place if retryable-terminal). To hard-delete the child and re-resolve pin or latest, checkpoint an FNI **before** the Call Activity. See Process Instance Tree below.
+
 ## Process Instance Tree
 
 When a PI is part of a Call Activity hierarchy (parent/child relationships), retry operates on the entire tree:
@@ -111,10 +113,22 @@ When a PI is part of a Call Activity hierarchy (parent/child relationships), ret
 |----------|----------|
 | Retry on the root PI | Resets the root and cascades to descendants as needed |
 | Retry on a child PI | Resets the child; the parent's Call Activity FNI re-enters `waiting` |
-| Call Activity FNI survives checkpoint | Child PI is preserved (reset if non-terminal) |
-| Call Activity FNI is deleted by checkpoint | Child PI is hard-deleted along with its entire subtree |
+| Call Activity FNI survives checkpoint (no checkpoint, checkpoint **after** the CA, or checkpoint **at** the CA) | Child PI identity is **preserved** (same PI id and `process_version_id`). Retryable-terminal children (`fatal` / `aborted` / `error`) are **reset in place**. A `finished` child is left as-is. The Call Activity pin is **not** re-read. |
+| Call Activity FNI is deleted by checkpoint (checkpoint **before** the CA) | Child PI is hard-deleted along with its entire subtree. The next enter resolves `<evil:calledProcessVersion>` or latest **now**. Preceding parent work is re-run. |
+
+**Retrying at the Call Activity does not pick a new child diagram.** Same child process instance; reset in place if the child is retryable-terminal; left as-is if finished. Use a checkpoint **before** the Call Activity to hard-delete and re-resolve pin or latest.
 
 The retry endpoint always targets a single PI. Tree reconciliation (resetting ancestors upward and descendants downward) happens automatically.
+
+### Known limitation
+
+Until a follow-up API exists, there is no parent-side control that means “run this Call Activity’s child on a new process version” without duplicating work before the Call Activity.
+
+- Retry **at** the Call Activity keeps the child’s `process_version_id`.
+- Checkpoint **before** the Call Activity re-runs preceding parent work (for example an expensive Service Task).
+- Workaround: retry the **child** process instance and choose Target Version (same / latest / a specific `evil:version`). Phase 1 migrates only that PI. The parent pin / `calledElement` is not consulted.
+
+See [call-activities.md](call-activities.md) Version Resolution.
 
 ## Three-Phase Mechanism
 

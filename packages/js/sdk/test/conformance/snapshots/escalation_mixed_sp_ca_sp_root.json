@@ -99,6 +99,7 @@
                 "type": "call_activity",
                 "typeData": {
                   "calledElement": "EscalationSPCASPMiddle",
+                  "calledProcessVersion": null,
                   "inMappings": [],
                   "outMappings": [],
                   "startEventId": null

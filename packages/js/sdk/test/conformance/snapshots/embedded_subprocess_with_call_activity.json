@@ -93,6 +93,7 @@
                 "type": "call_activity",
                 "typeData": {
                   "calledElement": "SimpleCallableProcess",
+                  "calledProcessVersion": null,
                   "inMappings": [],
                   "outMappings": [],
                   "startEventId": null

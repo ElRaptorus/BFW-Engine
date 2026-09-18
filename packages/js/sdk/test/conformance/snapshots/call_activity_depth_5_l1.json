@@ -49,6 +49,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "CallActivityDepth5L2",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null

@@ -65,6 +65,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "RetryMultiCaSubprocessChild",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null
@@ -86,6 +87,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "RetryMultiCaSimpleChild",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null

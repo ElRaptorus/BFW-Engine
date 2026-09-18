@@ -181,7 +181,7 @@ Jobs, in order:
 | Job | What it does |
 |-----|----------------|
 | **lint-build-unit** | `pnpm install --frozen-lockfile`, then lint / build / `test:unit` for the SDK and client packages only (`--filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client`) |
-| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.5, Elixir 1.20.3-otp-29, Rust 1.98.0 for the FEEL NIF), migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration` |
+| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.5, Elixir 1.20.3-otp-29, Rust 1.98.0 for the FEEL NIF) with `mix compile --force` so the mix.lock-only `_build` cache cannot serve a stale GraphQL schema, migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration` |
 | **publish** (needs integration) | Resolves version from the release tag or by incrementing the GitHub Packages `pnpm view` result, then `pnpm publish` of SDK then client (`workspace:*` is rewritten to the published SDK version) |
 
 The integration job must install a Rust toolchain. `mix compile` of `core_expressions` builds the Rustler NIF; without `rustc` the release (and therefore publish) fails.

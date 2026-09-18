@@ -34,10 +34,8 @@ defmodule EvilEngine.Execution.FlowNodes.CallActivity do
           {:async, String.t(), (-> term()), map()} | {:error, term()}
   @impl true
   def handle_enter(flow_node, token, context) do
-    called_element = flow_node.type_data.called_element
-
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
-         {:ok, resolved} <- resolve_called_version(called_element) do
+         {:ok, resolved} <- resolve_called_version(flow_node) do
       process_instance_pid = context.process_instance_pid
       child_process_instance_id = Helpers.generate_uuid_v7()
 
@@ -216,12 +214,11 @@ defmodule EvilEngine.Execution.FlowNodes.CallActivity do
   # -------------------------------------------------------------------
 
   defp run_fresh_lifecycle(flow_node, entry, context, _process_instance_pid) do
-    called_element = flow_node.type_data.called_element
     process_instance_pid = context.process_instance_pid
     child_process_instance_id = Helpers.generate_uuid_v7()
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
-         {:ok, resolved} <- resolve_called_version(called_element),
+         {:ok, resolved} <- resolve_called_version(flow_node),
          {:ok, input_payload} <-
            ChildLifecycle.resolve_input_payload(flow_node, entry.token, context) do
       result =
@@ -257,9 +254,42 @@ defmodule EvilEngine.Execution.FlowNodes.CallActivity do
   # Private: CA-specific helpers
   # -------------------------------------------------------------------
 
-  defp resolve_called_version(called_element) do
-    CalledElementResolver.adapter().resolve_latest_version(called_element)
+  defp resolve_called_version(flow_node) do
+    called_element = flow_node.type_data.called_element
+
+    case pinned_called_process_version(flow_node.type_data) do
+      nil ->
+        CalledElementResolver.adapter().resolve_latest_version(called_element)
+
+      version_string ->
+        case CalledElementResolver.adapter().resolve_specific_version(
+               called_element,
+               version_string
+             ) do
+          {:ok, resolved} ->
+            {:ok, resolved}
+
+          {:error, :version_not_found} ->
+            {:error, {:called_process_version_not_found, called_element, version_string}}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+    end
   end
+
+  defp pinned_called_process_version(%{called_process_version: called_process_version})
+       when is_binary(called_process_version) do
+    trimmed = String.trim(called_process_version)
+
+    if trimmed == "" do
+      nil
+    else
+      trimmed
+    end
+  end
+
+  defp pinned_called_process_version(_type_data), do: nil
 
   defp maybe_put_start_event_id(opts, nil), do: opts
 

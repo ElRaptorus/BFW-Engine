@@ -164,6 +164,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "child-process",
+            "calledProcessVersion": null,
             "inMappings": [
               {
                 "source": "token.orderId",

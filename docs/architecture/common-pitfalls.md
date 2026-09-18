@@ -328,3 +328,33 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 **Why:** NoOp is the test default. Cycle Timer Starts then vanish across restart.
 
 **Correct approach:** Production uses `EvilEngine.Persistence.TimerStartScheduleAdapter`. Tests keep NoOp except `ExecutionCase`. See [timers.md](timers.md).
+
+---
+
+## Do not type `latest` in `evil:calledProcessVersion` to mean unpinned
+
+**Mistake:** Setting Call Activity pin to `latest`, expecting the same keyword as retry JSON `"version": "latest"`.
+
+**Why:** The pin is an exact `<evil:version>` string. `latest` looks up a version actually named `latest` and fatals if none exists. Empty/omitted means newest `deployed_at` at enter time.
+
+**Correct approach:** Leave the property blank for dynamic latest. See [call-activities.md](../guides/handbook/call-activities.md).
+
+---
+
+## Call Activity pin is the child's `evil:version` string, not a UUID
+
+**Mistake:** Storing a `process_versions.id` UUID in `<evil:calledProcessVersion>`, or treating a changed pin on a surviving Call Activity as live.
+
+**Why:** Studio only knows the modeled version string. The spawned child binds `process_version_id` at enter. Resume and identity-preserving retry (checkpoint at/after the Call Activity) reconnect that UUID; they do not re-read the pin.
+
+**Correct approach:** Pin the child's `<evil:version>`. Empty = latest at enter. Checkpoint **before** the Call Activity to re-resolve. See [execution.md](execution.md) Call Activity reconciliation.
+
+---
+
+## Retry checkpoint at a Call Activity keeps the same child PI
+
+**Mistake:** Treating checkpoint **at** the Call Activity as a freeze that leaves a fatal child untouched, or as a way to spawn a new child version.
+
+**Why:** Scenarios A and B preserve child identity. A retryable-terminal child (`fatal` / `aborted` / `error`) is **reset in place** — progress on retryable FNIs is erased, the instance is not. A `finished` child is left as-is. A new child instance/version needs a checkpoint **before** the Call Activity (hard-delete + re-enter) or a retry of the **child** PI with Target Version.
+
+**Correct approach:** See [retry.md](../guides/handbook/retry.md) Process Instance Tree (known limitation) and [call-activities.md](../guides/handbook/call-activities.md).

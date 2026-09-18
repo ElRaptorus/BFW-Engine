@@ -570,6 +570,34 @@ Start Events and this property is omitted, the engine returns an
 </bpmn:callActivity>
 ```
 
+#### `evil:calledProcessVersion`
+
+Optional static string. Pins the child to that process's `<evil:version>`
+(not a process-version UUID). Evaluated only when the Call Activity
+**enters** (or re-enters after the child PI was deleted). Omit or leave
+blank to resolve the latest enabled, non-deleted version by newest
+`deployed_at` at enter time.
+
+The word `latest` is a **literal version name**, not a keyword. A pin of
+`latest` looks up a version actually named `latest` and fatals if none
+exists. Retry's JSON body `"version": "latest"` *is* a keyword; this
+property is not.
+
+```xml
+<bpmn:callActivity id="Call_fulfill" name="Fulfill Order" calledElement="order-fulfillment">
+  <bpmn:extensionElements>
+    <evil:calledProcessVersion>1.2.0</evil:calledProcessVersion>
+  </bpmn:extensionElements>
+</bpmn:callActivity>
+```
+
+A missing, disabled, or soft-deleted pin fatals the Call Activity FNI
+(`called_process_version_not_found` or `version_disabled`). There is no
+fallback to latest. Catalog `processes.enabled` still blocks pinned
+starts. An already-spawned child PI keeps its `process_version_id` on
+resume and on retry that preserves the child (checkpoint at or after
+the Call Activity).
+
 #### `evil:inputMapping` / `evil:outputMapping`
 
 Maps variables between the calling and called process scopes. `source` is

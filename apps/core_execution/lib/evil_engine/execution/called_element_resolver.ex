@@ -83,13 +83,28 @@ defmodule EvilEngine.Execution.CalledElementResolver.NoOp do
   @doc "Resolves a specific version by model ID and version string (stub)."
   @impl true
   def resolve_specific_version(process_model_id, version) do
-    {:ok,
-     %{
-       process_version_id: @default_version_id,
-       process_model_id: process_model_id,
-       version: version,
-       process_model_hash: @default_model_hash
-     }}
+    case :persistent_term.get({__MODULE__, :specific, process_model_id, version}, :unset) do
+      :unset ->
+        {:ok,
+         %{
+           process_version_id: @default_version_id,
+           process_model_id: process_model_id,
+           version: version,
+           process_model_hash: @default_model_hash
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+
+      version_id ->
+        {:ok,
+         %{
+           process_version_id: version_id,
+           process_model_id: process_model_id,
+           version: version,
+           process_model_hash: @default_model_hash
+         }}
+    end
   end
 
   @doc "Resolves latest version by internal process UUID (stub)."
@@ -110,12 +125,27 @@ defmodule EvilEngine.Execution.CalledElementResolver.NoOp do
     :persistent_term.put({__MODULE__, process_model_id}, version_id)
   end
 
+  @doc """
+  Configure `resolve_specific_version/2` for `{process_model_id, version_string}`.
+
+  `result` is either a process-version id string or `{:error, reason}`.
+  """
+  def set_specific_version(process_model_id, version_string, result) do
+    :persistent_term.put({__MODULE__, :specific, process_model_id, version_string}, result)
+  end
+
   @doc "Clear all configured version mappings."
   def reset do
     :persistent_term.get()
     |> Enum.each(fn
-      {{__MODULE__, _key}, _val} = {key, _} -> :persistent_term.erase(key)
-      _ -> :ok
+      {{__MODULE__, :specific, _process_model_id, _version_string}, _value} = {key, _} ->
+        :persistent_term.erase(key)
+
+      {{__MODULE__, _key}, _value} = {key, _} ->
+        :persistent_term.erase(key)
+
+      _ ->
+        :ok
     end)
   end
 end

@@ -116,7 +116,12 @@ jobs:
           mix deps.get --only prod
           mix deps.compile.sat
           mix deps.compile
-          mix compile
+          # The Mix cache is keyed on mix.lock only (no app source hashes). A
+          # restored `_build` can look fresh to Mix after checkout, so `mix
+          # compile` may skip api_web and ship a stale GraphQL schema into the
+          # release. Client integration then queries fields that exist in this
+          # commit's source but not in the cached BEAMs.
+          mix compile --force
           mix release
         timeout-minutes: 15
 

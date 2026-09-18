@@ -73,7 +73,9 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
 
       parent_ca_fni = find_fni_by_flow_node_id(parent_process_instance_id, "CA_1")
       assert parent_ca_fni.state == "finished"
-      assert parent_ca_fni.type_properties["child_process_instance_id"] == child_process_instance_id
+
+      assert parent_ca_fni.type_properties["child_process_instance_id"] ==
+               child_process_instance_id
     end
   end
 
@@ -147,7 +149,11 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
 
       {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id)
 
-      {:ok, new_child_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id, exclude: [original_child_process_instance_id])
+      {:ok, new_child_user_task_fni} =
+        poll_child_waiting_user_task(parent_process_instance_id,
+          exclude: [original_child_process_instance_id]
+        )
+
       new_child_process_instance_id = new_child_user_task_fni.process_instance_id
 
       assert new_child_process_instance_id != original_child_process_instance_id
@@ -253,6 +259,116 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
     end
   end
 
+  describe "CA resume: pinned parent still reconnects the original child version" do
+    test "pin is not re-read when the child PI still exists after a newer child deploy" do
+      child_xml =
+        File.read!(Path.expand("../../fixtures/bpmns/call_activity_resume_child.bpmn", __DIR__))
+
+      parent_xml =
+        File.read!(
+          Path.expand("../../fixtures/bpmns/call_activity_resume_parent_boundary.bpmn", __DIR__)
+        )
+
+      {201, _} = http_deploy_xml(child_xml)
+      {201, _} = http_deploy_xml(pin_call_activity(parent_xml, "1.0.0"))
+
+      {201, body} = http_start("CallActivityResumeParentBoundary")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, child_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
+      original_child_process_instance_id = child_user_task_fni.process_instance_id
+
+      original_process_version_id =
+        fetch_process_instance!(original_child_process_instance_id).process_version_id
+
+      terminate_process_instance(parent_process_instance_id)
+      await_process_exit(parent_process_instance_id)
+
+      terminate_process_instance(original_child_process_instance_id)
+      await_process_exit(original_child_process_instance_id)
+
+      {201, _} = http_deploy("call_activity_resume_child_fatal.bpmn")
+
+      {:ok, resumed_count} = ResumeRunner.resume_all()
+      assert resumed_count >= 1
+
+      {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id)
+
+      {:ok, resumed_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
+
+      assert resumed_user_task_fni.process_instance_id == original_child_process_instance_id
+
+      assert fetch_process_instance!(original_child_process_instance_id).process_version_id ==
+               original_process_version_id
+
+      {204, _} = http_finish_user_task(resumed_user_task_fni.id, %{"result" => "done"})
+
+      wait_for_process_instance(original_child_process_instance_id, 5_000)
+      wait_for_process_instance(parent_process_instance_id, 5_000)
+
+      assert_pi_state!(parent_process_instance_id, "finished")
+      assert_pi_state!(original_child_process_instance_id, "finished")
+    end
+  end
+
+  describe "CA resume: pinned parent with missing child re-resolves the pin" do
+    test "fresh lifecycle after child gone still uses the pin, not the newest deploy" do
+      child_xml =
+        File.read!(Path.expand("../../fixtures/bpmns/call_activity_resume_child.bpmn", __DIR__))
+
+      parent_xml =
+        File.read!(Path.expand("../../fixtures/bpmns/call_activity_resume_parent.bpmn", __DIR__))
+
+      {201, _} = http_deploy_xml(child_xml)
+      {201, _} = http_deploy_xml(pin_call_activity(parent_xml, "1.0.0"))
+
+      pinned_process_version_id = version_id_for_resume_child("1.0.0")
+
+      {201, body} = http_start("CallActivityResumeParent")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, child_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
+      original_child_process_instance_id = child_user_task_fni.process_instance_id
+
+      terminate_process_instance(parent_process_instance_id)
+      await_process_exit(parent_process_instance_id)
+
+      terminate_process_instance(original_child_process_instance_id)
+      await_process_exit(original_child_process_instance_id)
+
+      {201, _} = http_deploy_xml(bump_evil_version(child_xml, "1.0.0", "2.0.0"))
+
+      clear_child_process_instance_id_from_fni(parent_process_instance_id, "CA_1")
+
+      {:ok, resumed_count} = ResumeRunner.resume_all()
+      assert resumed_count >= 1
+
+      {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id)
+
+      {:ok, new_child_user_task_fni} =
+        poll_child_waiting_user_task(parent_process_instance_id,
+          exclude: [original_child_process_instance_id]
+        )
+
+      new_child_process_instance_id = new_child_user_task_fni.process_instance_id
+      assert new_child_process_instance_id != original_child_process_instance_id
+
+      assert fetch_process_instance!(new_child_process_instance_id).process_version_id ==
+               pinned_process_version_id
+
+      refute fetch_process_instance!(new_child_process_instance_id).process_version_id ==
+               version_id_for_resume_child("2.0.0")
+
+      {204, _} = http_finish_user_task(new_child_user_task_fni.id, %{"result" => "fresh"})
+
+      wait_for_process_instance(new_child_process_instance_id, 5_000)
+      wait_for_process_instance(parent_process_instance_id, 5_000)
+
+      assert_pi_state!(parent_process_instance_id, "finished")
+      assert_pi_state!(new_child_process_instance_id, "finished")
+    end
+  end
+
   # -------------------------------------------------------------------
   # R6: Child fatals after resume re-monitor — parent catches fatal
   # -------------------------------------------------------------------
@@ -344,7 +460,8 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
         flow_node_instances = fetch_flow_node_instances(child_process_instance_id)
 
         Enum.find(flow_node_instances, fn flow_node_instance_candidate ->
-          flow_node_instance_candidate.flow_node_type == "user_task" and flow_node_instance_candidate.state == "waiting"
+          flow_node_instance_candidate.flow_node_type == "user_task" and
+            flow_node_instance_candidate.state == "waiting"
         end)
       end)
 
@@ -450,5 +567,40 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
       list_child_process_instance_ids(process_instance_id)
       |> Enum.find_value(&find_waiting_user_task_in_tree/1)
     end
+  end
+
+  defp pin_call_activity(xml, version_string) do
+    Regex.replace(~r{<bpmn:callActivity id="CA_1"([^>]*)/>}, xml, fn _, attributes ->
+      """
+      <bpmn:callActivity id="CA_1"#{attributes}>
+        <bpmn:extensionElements>
+          <evil:calledProcessVersion>#{version_string}</evil:calledProcessVersion>
+        </bpmn:extensionElements>
+      </bpmn:callActivity>
+      """
+    end)
+  end
+
+  defp bump_evil_version(xml, from_version, to_version) do
+    String.replace(
+      xml,
+      "<evil:version>#{from_version}</evil:version>",
+      "<evil:version>#{to_version}</evil:version>"
+    )
+  end
+
+  defp version_id_for_resume_child(version_string) do
+    {200, version_entries} = http_list_versions("ResumableChild")
+
+    entry =
+      Enum.find(version_entries, fn version_entry ->
+        version_entry["version"] == version_string
+      end)
+
+    unless entry do
+      flunk("version #{version_string} not found for ResumableChild")
+    end
+
+    entry["versionId"]
   end
 end

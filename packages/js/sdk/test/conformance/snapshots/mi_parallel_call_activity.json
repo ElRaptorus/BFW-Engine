@@ -64,6 +64,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "mi_parallel_ca_child",
+            "calledProcessVersion": null,
             "inMappings": [
               {
                 "source": "token.item",

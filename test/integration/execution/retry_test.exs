@@ -55,7 +55,11 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
 
       process_instance_after = assert_pi_state!(process_instance_id, "fatal")
       assert process_instance_after.finished_at != nil
-      assert DateTime.compare(process_instance_after.finished_at, finished_at_before) in [:gt, :eq]
+
+      assert DateTime.compare(process_instance_after.finished_at, finished_at_before) in [
+               :gt,
+               :eq
+             ]
     end
   end
 
@@ -92,7 +96,8 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
 
   describe "I6: retry from checkpoint FNI" do
     test "resets at Task_A, deletes downstream FNIs, and re-fatals at Task_DeadEnd" do
-      process_instance_id = deploy_and_fatal("retry_checkpoint_linear.bpmn", "RetryCheckpointLinear")
+      process_instance_id =
+        deploy_and_fatal("retry_checkpoint_linear.bpmn", "RetryCheckpointLinear")
 
       flow_node_instances_before = fetch_flow_node_instances(process_instance_id)
 
@@ -497,6 +502,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(parent_process_instance_id, "CA_1")
 
       assert call_activity_fni_after_retry != nil
+
       assert call_activity_fni_after_retry.state == "waiting",
              "Call Activity FNI should be waiting while child runs, got: #{call_activity_fni_after_retry.state}"
 
@@ -537,7 +543,9 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
 
       child_after = assert_pi_state!(child_process_instance_id, "finished")
       assert child_after.finished_at == child_finished_at_before
-      assert length(fetch_flow_node_instances(child_process_instance_id)) == child_fni_count_before
+
+      assert length(fetch_flow_node_instances(child_process_instance_id)) ==
+               child_fni_count_before
     end
   end
 
@@ -618,7 +626,8 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
       task_before_flow_node_instance_id = task_before_flow_node_instance.id
       call_activity_flow_node_instance_id_before = call_activity_flow_node_instance_before.id
 
-      child_fni_ids_before = Enum.map(fetch_flow_node_instances(child_process_instance_id), & &1.id)
+      child_fni_ids_before =
+        Enum.map(fetch_flow_node_instances(child_process_instance_id), & &1.id)
 
       {204, nil} =
         http_retry_process_instance(parent_process_instance_id, %{
@@ -653,6 +662,139 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
       assert length(new_child_process_instance_ids) == 1
       refute hd(new_child_process_instance_ids) == child_process_instance_id
       assert_pi_state!(hd(new_child_process_instance_ids), "finished")
+    end
+  end
+
+  describe "I15 pin: identity-preserved retry does not retarget the child version" do
+    test "checkpoint at Call Activity keeps the pinned child process_version_id after a newer child deploy" do
+      failing_child_xml =
+        File.read!(Path.join(@bpmn_fixtures_dir, "call_activity_failing_child.bpmn"))
+
+      parent_xml =
+        File.read!(Path.join(@bpmn_fixtures_dir, "retry_parent_with_failing_child.bpmn"))
+
+      {201, _} = http_deploy_xml(failing_child_xml)
+      {201, _} = http_deploy_xml(pin_call_activity(parent_xml, "1.0.0"))
+
+      {201, body} = http_start("RetryParentWithFailingChild")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, _parent} =
+        await_process_instance_state(parent_process_instance_id, "fatal", timeout: 15_000)
+
+      wait_for_process_instance(parent_process_instance_id, 15_000)
+
+      [child_process_instance_id] =
+        find_child_process_instance_ids(parent_process_instance_id)
+
+      child_before = fetch_process_instance!(child_process_instance_id)
+      original_process_version_id = child_before.process_version_id
+      assert original_process_version_id == version_id_for("FailingChildProcess", "1.0.0")
+
+      {201, _} = http_deploy_xml(bump_evil_version(failing_child_xml, "1.0.0", "2.0.0"))
+
+      call_activity_flow_node_instance =
+        find_fni_by_flow_node_id(parent_process_instance_id, "CA_1")
+
+      {204, nil} =
+        http_retry_process_instance(parent_process_instance_id, %{
+          "resetToFlowNodeInstanceId" => call_activity_flow_node_instance.id
+        })
+
+      assert {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id, 5_000)
+      wait_for_process_instance(parent_process_instance_id, 15_000)
+
+      child_after = fetch_process_instance!(child_process_instance_id)
+      assert child_after.process_version_id == original_process_version_id
+      refute child_after.process_version_id == version_id_for("FailingChildProcess", "2.0.0")
+    end
+  end
+
+  describe "I15d pin: checkpoint before Call Activity re-enters with the current pin" do
+    test "re-enter uses the pinned evil:version even after a newer child deploy" do
+      child_xml = File.read!(Path.join(@bpmn_fixtures_dir, "call_activity_child.bpmn"))
+
+      parent_xml =
+        File.read!(Path.join(@bpmn_fixtures_dir, "retry_parent_task_before_then_fatal.bpmn"))
+
+      {201, _} = http_deploy_xml(child_xml)
+      {201, _} = http_deploy_xml(pin_call_activity(parent_xml, "1.0.0"))
+
+      {201, body} = http_start("RetryParentTaskBeforeThenFatal")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, _parent} =
+        await_process_instance_state(parent_process_instance_id, "fatal", timeout: 15_000)
+
+      wait_for_process_instance(parent_process_instance_id, 15_000)
+
+      [original_child_process_instance_id] =
+        find_child_process_instance_ids(parent_process_instance_id)
+
+      assert fetch_process_instance!(original_child_process_instance_id).process_version_id ==
+               version_id_for("ChildProcess", "1.0.0")
+
+      {201, _} = http_deploy_xml(bump_evil_version(child_xml, "1.0.0", "2.0.0"))
+
+      task_before_flow_node_instance =
+        find_fni_by_flow_node_id(parent_process_instance_id, "Task_Before")
+
+      {204, nil} =
+        http_retry_process_instance(parent_process_instance_id, %{
+          "resetToFlowNodeInstanceId" => task_before_flow_node_instance.id
+        })
+
+      assert {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id, 5_000)
+      wait_for_process_instance(parent_process_instance_id, 15_000)
+
+      assert_no_pi!(original_child_process_instance_id)
+
+      [new_child_process_instance_id] =
+        find_child_process_instance_ids(parent_process_instance_id)
+
+      refute new_child_process_instance_id == original_child_process_instance_id
+
+      assert fetch_process_instance!(new_child_process_instance_id).process_version_id ==
+               version_id_for("ChildProcess", "1.0.0")
+    end
+
+    test "unpinned re-enter picks newest deployed_at after a child deploy" do
+      child_xml = File.read!(Path.join(@bpmn_fixtures_dir, "call_activity_child.bpmn"))
+      {201, _} = http_deploy_xml(child_xml)
+      {201, _} = http_deploy("retry_parent_task_before_then_fatal.bpmn")
+
+      {201, body} = http_start("RetryParentTaskBeforeThenFatal")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, _parent} =
+        await_process_instance_state(parent_process_instance_id, "fatal", timeout: 15_000)
+
+      wait_for_process_instance(parent_process_instance_id, 15_000)
+
+      [original_child_process_instance_id] =
+        find_child_process_instance_ids(parent_process_instance_id)
+
+      assert fetch_process_instance!(original_child_process_instance_id).process_version_id ==
+               version_id_for("ChildProcess", "1.0.0")
+
+      {201, _} = http_deploy_xml(bump_evil_version(child_xml, "1.0.0", "2.0.0"))
+
+      task_before_flow_node_instance =
+        find_fni_by_flow_node_id(parent_process_instance_id, "Task_Before")
+
+      {204, nil} =
+        http_retry_process_instance(parent_process_instance_id, %{
+          "resetToFlowNodeInstanceId" => task_before_flow_node_instance.id
+        })
+
+      assert {:ok, _parent_pid} = poll_pi_alive(parent_process_instance_id, 5_000)
+      wait_for_process_instance(parent_process_instance_id, 15_000)
+
+      [new_child_process_instance_id] =
+        find_child_process_instance_ids(parent_process_instance_id)
+
+      assert fetch_process_instance!(new_child_process_instance_id).process_version_id ==
+               version_id_for("ChildProcess", "2.0.0")
     end
   end
 
@@ -695,7 +837,14 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
   describe "I23: tree retry from child PI with checkpoint" do
     test "child checkpoint deletes downstream FNIs and restarts ancestor tree" do
       {201, _} = http_deploy("retry_checkpoint_linear.bpmn")
-      {201, _} = http_deploy_xml(retry_parent_calling_process_xml("RetryParentWithCheckpointChild", "RetryCheckpointLinear"))
+
+      {201, _} =
+        http_deploy_xml(
+          retry_parent_calling_process_xml(
+            "RetryParentWithCheckpointChild",
+            "RetryCheckpointLinear"
+          )
+        )
 
       {201, body} = http_start("RetryParentWithCheckpointChild")
       parent_process_instance_id = body["processInstanceId"]
@@ -1046,6 +1195,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(parent_process_instance_id, "SubProcess_1")
 
       assert subprocess_fni_during_retry != nil
+
       assert subprocess_fni_during_retry.state == "waiting",
              "SubProcess FNI should be waiting while child runs, got: #{subprocess_fni_during_retry.state}"
 
@@ -1072,6 +1222,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         Enum.find(parent_fnis_after, &(&1.flow_node_id == "BE_Error"))
 
       assert boundary_fni_after != nil
+
       assert boundary_fni_after.state == "interrupted",
              "error boundary should be interrupted after host completed, got: #{boundary_fni_after.state}"
 
@@ -1186,6 +1337,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         Enum.find(fnis_before, &(&1.flow_node_id == "Catch_Message"))
 
       assert message_catch_before != nil
+
       assert message_catch_before.state == "interrupted",
              "EBG loser should be interrupted before retry, got: #{message_catch_before.state}"
 
@@ -1242,6 +1394,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         Enum.find(fnis_before, &(&1.flow_node_id == "BE_Timer"))
 
       assert boundary_before != nil
+
       assert boundary_before.state == "interrupted",
              "boundary should be interrupted before retry, got: #{boundary_before.state}"
 
@@ -1477,15 +1630,24 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
     Path.join(@bpmn_fixtures_dir, "retry_parent_with_failing_child.bpmn")
     |> File.read!()
     |> String.replace("RetryParentWithFailingChild", parent_process_model_id)
-    |> String.replace("Participant_RetryParentWithFailingChild", "Participant_#{parent_process_model_id}")
-    |> String.replace("Retry Parent With Failing Child", "Retry Parent #{parent_process_model_id}")
+    |> String.replace(
+      "Participant_RetryParentWithFailingChild",
+      "Participant_#{parent_process_model_id}"
+    )
+    |> String.replace(
+      "Retry Parent With Failing Child",
+      "Retry Parent #{parent_process_model_id}"
+    )
     |> String.replace("FailingChildProcess", called_element)
   end
 
   defp retry_user_task_version_xml(version_string) do
     @retry_user_task_fixture
     |> File.read!()
-    |> String.replace("<evil:version>1.0.0</evil:version>", "<evil:version>#{version_string}</evil:version>")
+    |> String.replace(
+      "<evil:version>1.0.0</evil:version>",
+      "<evil:version>#{version_string}</evil:version>"
+    )
   end
 
   defp retry_user_task_incompatible_v2_xml do
@@ -1499,13 +1661,39 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
   defp retry_fatal_dead_end_version_xml(version_string) do
     @retry_fatal_dead_end_fixture
     |> File.read!()
-    |> String.replace("<evil:version>1.0.0</evil:version>", "<evil:version>#{version_string}</evil:version>")
+    |> String.replace(
+      "<evil:version>1.0.0</evil:version>",
+      "<evil:version>#{version_string}</evil:version>"
+    )
   end
 
   defp retry_checkpoint_linear_version_xml(version_string) do
     @retry_checkpoint_linear_fixture
     |> File.read!()
-    |> String.replace("<evil:version>1.0.0</evil:version>", "<evil:version>#{version_string}</evil:version>")
+    |> String.replace(
+      "<evil:version>1.0.0</evil:version>",
+      "<evil:version>#{version_string}</evil:version>"
+    )
+  end
+
+  defp pin_call_activity(xml, version_string) do
+    Regex.replace(~r{<bpmn:callActivity id="CA_1"([^>]*)/>}, xml, fn _, attributes ->
+      """
+      <bpmn:callActivity id="CA_1"#{attributes}>
+        <bpmn:extensionElements>
+          <evil:calledProcessVersion>#{version_string}</evil:calledProcessVersion>
+        </bpmn:extensionElements>
+      </bpmn:callActivity>
+      """
+    end)
+  end
+
+  defp bump_evil_version(xml, from_version, to_version) do
+    String.replace(
+      xml,
+      "<evil:version>#{from_version}</evil:version>",
+      "<evil:version>#{to_version}</evil:version>"
+    )
   end
 
   # ---------------------------------------------------------------------------
@@ -1525,7 +1713,9 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
       Process.sleep(2_000)
 
       root_direct_children = find_child_process_instance_ids(root_process_instance_id)
-      assert length(root_direct_children) == 2, "Root should have exactly 2 direct children (two CAs), got #{length(root_direct_children)}"
+
+      assert length(root_direct_children) == 2,
+             "Root should have exactly 2 direct children (two CAs), got #{length(root_direct_children)}"
 
       subprocess_child_process_instance_id =
         Enum.find(root_direct_children, fn child_id ->
@@ -1537,7 +1727,9 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
           child_id != subprocess_child_process_instance_id
         end)
 
-      assert subprocess_child_process_instance_id != nil, "Should find subprocess child PI (has DoAStuff FNI)"
+      assert subprocess_child_process_instance_id != nil,
+             "Should find subprocess child PI (has DoAStuff FNI)"
+
       assert simple_child_process_instance_id != nil, "Should find simple child PI"
 
       {204, nil} =
@@ -1569,6 +1761,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(root_process_instance_id, "CA_SubprocessChild")
 
       assert ca_subprocess_fni != nil
+
       assert ca_subprocess_fni.state == "waiting",
              "CA_SubprocessChild FNI should be waiting while child runs, got: #{ca_subprocess_fni.state}"
 
@@ -1576,21 +1769,25 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(root_process_instance_id, "CA_SimpleChild")
 
       assert ca_simple_fni != nil
+
       assert ca_simple_fni.state == "waiting",
              "CA_SimpleChild FNI should be waiting while child runs, got: #{ca_simple_fni.state}"
 
       root_children_after = find_child_process_instance_ids(root_process_instance_id)
+
       assert length(root_children_after) == 2,
-        "Root should still have exactly 2 direct children after retry, got #{length(root_children_after)}: #{inspect(root_children_after)}"
+             "Root should still have exactly 2 direct children after retry, got #{length(root_children_after)}: #{inspect(root_children_after)}"
 
       assert subprocess_child_process_instance_id in root_children_after,
-        "Original subprocess child PI should be preserved"
+             "Original subprocess child PI should be preserved"
+
       assert simple_child_process_instance_id in root_children_after,
-        "Original simple child PI should be preserved"
+             "Original simple child PI should be preserved"
 
       all_process_instances_after = count_all_process_instances_in_tree(root_process_instance_id)
+
       assert all_process_instances_after <= 4,
-        "Total PI count in tree should be at most 4, got #{all_process_instances_after}"
+             "Total PI count in tree should be at most 4, got #{all_process_instances_after}"
     end
 
     @tag :integration
@@ -1617,11 +1814,16 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
           child_id != subprocess_child_process_instance_id
         end)
 
-      assert subprocess_child_process_instance_id != nil, "Should find subprocess child PI (has DoAStuff FNI)"
+      assert subprocess_child_process_instance_id != nil,
+             "Should find subprocess child PI (has DoAStuff FNI)"
+
       assert simple_child_process_instance_id != nil, "Should find simple child PI"
 
       sp_grandchildren = find_child_process_instance_ids(subprocess_child_process_instance_id)
-      assert length(sp_grandchildren) == 1, "Subprocess child should have 1 grandchild (embedded subprocess), got #{length(sp_grandchildren)}"
+
+      assert length(sp_grandchildren) == 1,
+             "Subprocess child should have 1 grandchild (embedded subprocess), got #{length(sp_grandchildren)}"
+
       embedded_subprocess_child_process_instance_id = hd(sp_grandchildren)
 
       {204, nil} =
@@ -1656,6 +1858,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(root_process_instance_id, "CA_SubprocessChild")
 
       assert ca_subprocess_fni != nil
+
       assert ca_subprocess_fni.state == "waiting",
              "CA_SubprocessChild FNI should be waiting while child runs, got: #{ca_subprocess_fni.state}"
 
@@ -1663,6 +1866,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(root_process_instance_id, "CA_SimpleChild")
 
       assert ca_simple_fni != nil
+
       assert ca_simple_fni.state == "waiting",
              "CA_SimpleChild FNI should be waiting while child runs, got: #{ca_simple_fni.state}"
 
@@ -1670,21 +1874,25 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
         find_fni_by_flow_node_id(subprocess_child_process_instance_id, "SP_Inner")
 
       assert sp_inner_fni != nil
+
       assert sp_inner_fni.state == "waiting",
              "SP_Inner FNI should be waiting while embedded subprocess child runs, got: #{sp_inner_fni.state}"
 
       root_children_after = find_child_process_instance_ids(root_process_instance_id)
+
       assert length(root_children_after) == 2,
-        "Root should still have exactly 2 direct children after retry, got #{length(root_children_after)}: #{inspect(root_children_after)}"
+             "Root should still have exactly 2 direct children after retry, got #{length(root_children_after)}: #{inspect(root_children_after)}"
 
       assert subprocess_child_process_instance_id in root_children_after,
-        "Original subprocess child PI must be preserved"
+             "Original subprocess child PI must be preserved"
+
       assert simple_child_process_instance_id in root_children_after,
-        "Original simple child PI must be preserved"
+             "Original simple child PI must be preserved"
 
       all_process_instances_after = count_all_process_instances_in_tree(root_process_instance_id)
+
       assert all_process_instances_after <= 4,
-        "Total PI count in tree should be at most 4 (root + 2 CA + possibly 1 SP grandchild), got #{all_process_instances_after}"
+             "Total PI count in tree should be at most 4 (root + 2 CA + possibly 1 SP grandchild), got #{all_process_instances_after}"
     end
   end
 

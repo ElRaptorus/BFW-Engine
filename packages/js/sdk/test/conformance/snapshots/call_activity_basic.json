@@ -49,6 +49,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "ChildProcess",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null

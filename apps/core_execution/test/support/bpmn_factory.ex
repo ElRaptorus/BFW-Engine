@@ -792,6 +792,7 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
   def call_activity_process(opts \\ []) do
     called_element = Keyword.get(opts, :called_element, "child-process")
     start_event_id = Keyword.get(opts, :start_event_id)
+    called_process_version = Keyword.get(opts, :called_process_version)
     in_mappings = Keyword.get(opts, :in_mappings, [])
     out_mappings = Keyword.get(opts, :out_mappings, [])
 
@@ -809,6 +810,7 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
       type_data: %FlowNodeData.CallActivity{
         called_element: called_element,
         start_event_id: start_event_id,
+        called_process_version: called_process_version,
         in_mappings: in_mappings,
         out_mappings: out_mappings
       },

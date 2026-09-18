@@ -224,7 +224,7 @@ query DebuggerView($piId: ID!) {
         type
         ... on UserTaskNode    { formSchema resultContract }
         ... on ServiceTaskNode { implementation httpUrl httpMethod }
-        ... on CallActivityNode { calledElement }
+        ... on CallActivityNode { calledElement startEventId calledProcessVersion }
       }
     }
   }

@@ -155,6 +155,8 @@ defmodule EvilEngineWeb.Http.PlaygroundController do
                     }
                     ... on CallActivityNode {
                       calledElement
+                      startEventId
+                      calledProcessVersion
                     }
                   }
                 }

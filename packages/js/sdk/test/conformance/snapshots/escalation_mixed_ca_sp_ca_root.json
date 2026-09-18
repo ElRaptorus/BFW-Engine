@@ -55,6 +55,7 @@
           "type": "call_activity",
           "typeData": {
             "calledElement": "EscalationMixedMiddle",
+            "calledProcessVersion": null,
             "inMappings": [],
             "outMappings": [],
             "startEventId": null

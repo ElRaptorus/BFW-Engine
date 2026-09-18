@@ -1,13 +1,4 @@
-/**
- * BPMN model types mirroring the engine's internal `EvilEngine.BPMN.Model.*`
- * structs. The SDK parser produces these types, and the engine's golden JSON
- * snapshots validate structural parity.
- */
 import type { FlowNodeType } from '../types/enums.js';
-
-// ---------------------------------------------------------------------------
-// Root container
-// ---------------------------------------------------------------------------
 
 /** Root container for a parsed BPMN XML document. */
 export interface BpmnDefinitions {
@@ -20,10 +11,6 @@ export interface BpmnDefinitions {
   /** The original BPMN XML string that was parsed. */
   rawXml: string;
 }
-
-// ---------------------------------------------------------------------------
-// Global definitions (declared at <bpmn:definitions> level)
-// ---------------------------------------------------------------------------
 
 export interface MessageDefinition {
   id: string;
@@ -47,10 +34,6 @@ export interface EscalationDefinition {
   escalationCode: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Process
-// ---------------------------------------------------------------------------
-
 export interface BpmnProcess {
   id: string;
   name: string | null;
@@ -73,10 +56,6 @@ export interface BpmnProcess {
   extensions: Extension[];
   linterScores: LinterRulesetScore[];
 }
-
-// ---------------------------------------------------------------------------
-// FlowNode
-// ---------------------------------------------------------------------------
 
 export interface FlowNode {
   id: string;
@@ -233,9 +212,6 @@ export interface WithContracts {
   resultContract: Record<string, unknown> | null;
 }
 
-// ---------------------------------------------------------------------------
-// FlowNodeTypeData — Events
-// ---------------------------------------------------------------------------
 
 export interface StartEventTypeData {
   type: 'start_event';
@@ -278,10 +254,6 @@ export interface BoundaryEventTypeData {
   outMappings: Mapping[];
   resultContract: Record<string, unknown> | null;
 }
-
-// ---------------------------------------------------------------------------
-// FlowNodeTypeData — Activities
-// ---------------------------------------------------------------------------
 
 export interface TaskTypeData {
   type: 'task';
@@ -360,6 +332,8 @@ export interface CallActivityTypeData extends WithMappings {
   type: 'call_activity';
   calledElement: string | null;
   startEventId: string | null;
+  /** Child `<evil:version>` pin. `null` means latest enabled at enter time. The word `latest` is a literal version name, not a keyword. */
+  calledProcessVersion: string | null;
 }
 
 /**
@@ -396,10 +370,6 @@ export interface SubProcessTypeData extends WithMappings, WithContracts {
   dataObjectReferences: DataObjectReference[];
 }
 
-// ---------------------------------------------------------------------------
-// FlowNodeTypeData — Gateways
-// ---------------------------------------------------------------------------
-
 export interface ExclusiveGatewayTypeData {
   type: 'exclusive_gateway';
   defaultFlowRef: string | null;
@@ -423,10 +393,6 @@ export interface ComplexGatewayTypeData {
   activationCondition: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Discriminated union
-// ---------------------------------------------------------------------------
-
 export type FlowNodeTypeData =
   | StartEventTypeData
   | EndEventTypeData
@@ -448,10 +414,6 @@ export type FlowNodeTypeData =
   | InclusiveGatewayTypeData
   | EventBasedGatewayTypeData
   | ComplexGatewayTypeData;
-
-// ---------------------------------------------------------------------------
-// Event definition types
-// ---------------------------------------------------------------------------
 
 export interface NoneEventDefinition {
   type: 'none';

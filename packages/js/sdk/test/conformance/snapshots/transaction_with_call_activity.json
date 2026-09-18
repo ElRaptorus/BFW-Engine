@@ -109,6 +109,7 @@
                 "type": "call_activity",
                 "typeData": {
                   "calledElement": "tx_ca_child",
+                  "calledProcessVersion": null,
                   "inMappings": [],
                   "outMappings": [],
                   "startEventId": null

@@ -359,6 +359,95 @@ defmodule EvilEngine.BPMN.ParserTest do
     end
   end
 
+  describe "parse/1 — CallActivity evil:calledProcessVersion" do
+    test "parses calledProcessVersion extension element" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" name="Test" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:callActivity id="CA_1" calledElement="child-proc">
+            <bpmn:extensionElements>
+              <evil:calledProcessVersion>1.2.0</evil:calledProcessVersion>
+            </bpmn:extensionElements>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:callActivity>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="CA_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="CA_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      assert {:ok, %Definitions{} = definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+
+      call_activity = Enum.find(process.flow_nodes, &(&1.id == "CA_1"))
+      assert %FlowNodeData.CallActivity{} = call_activity.type_data
+      assert call_activity.type_data.called_element == "child-proc"
+      assert call_activity.type_data.called_process_version == "1.2.0"
+    end
+
+    test "calledProcessVersion defaults to nil when not specified" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" name="Test" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:callActivity id="CA_1" calledElement="child-proc">
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:callActivity>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="CA_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="CA_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      assert {:ok, %Definitions{}} = Parser.parse(xml)
+      [process] = Parser.parse(xml) |> elem(1) |> Map.get(:processes)
+      call_activity = Enum.find(process.flow_nodes, &(&1.id == "CA_1"))
+      assert call_activity.type_data.called_process_version == nil
+    end
+
+    test "ignores empty calledProcessVersion" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" name="Test" isExecutable="true">
+          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:callActivity id="CA_1" calledElement="child-proc">
+            <bpmn:extensionElements>
+              <evil:calledProcessVersion>   </evil:calledProcessVersion>
+            </bpmn:extensionElements>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:callActivity>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="CA_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="CA_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      assert {:ok, %Definitions{}} = Parser.parse(xml)
+      [process] = Parser.parse(xml) |> elem(1) |> Map.get(:processes)
+      call_activity = Enum.find(process.flow_nodes, &(&1.id == "CA_1"))
+      assert call_activity.type_data.called_process_version == nil
+    end
+  end
+
   describe "parse/1 — direction-aware contracts on message events" do
     test "resultContract on intermediate catch event is parsed at flow-node level" do
       xml = """

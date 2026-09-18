@@ -55,19 +55,13 @@ See [plugins.md](architecture/plugins.md).
 
 ---
 
-## 6. Call Activity version pinning
-
-`<evil:calledProcessVersion>` (or equivalent) so a Call Activity spawns a specific child version instead of always “latest enabled.” Parser, validator, `CalledElementResolver`, Studio property.
-
----
-
-## 7. Durable message subscriptions
+## 6. Durable message subscriptions
 
 Persist catch/boundary/ESP-start subscriptions so drain and rematch do not depend solely on in-memory ETS rebuilt at resume. Useful on its own; almost required for clustering.
 
 ---
 
-## 8. Multi-property BPMN 2.0 correlation
+## 7. Multi-property BPMN 2.0 correlation
 
 Parse and execute `bpmn:correlationKey` / `correlationProperty` / retrieval expressions / subscriptions. v1 correlates on exactly one FEEL value (`evil:correlationKey` / `evil:correlationRetrievalExpression`).
 
@@ -75,7 +69,7 @@ See [routing.md](architecture/routing.md).
 
 ---
 
-## 9. Stronger EventSink delivery
+## 8. Stronger EventSink delivery
 
 At-least-once (or explicit ACK/DLQ) in `EngineEventBus`, plus `Event.SinkFailed` auto-retry / auto-disable / health escalation. v1 is at-most-once, crash-isolated, no retry.
 
@@ -83,19 +77,19 @@ See [event-system.md](architecture/event-system.md).
 
 ---
 
-## 10. Per-process / per-endpoint payload-cap overrides
+## 9. Per-process / per-endpoint payload-cap overrides
 
 `<evil:tokenMaxBytes>` or per-route caps. v1 `TDE_TOKEN_MAX_BYTES` is engine-global.
 
 ---
 
-## 11. Full SPA admin UI
+## 10. Full SPA admin UI
 
 v1 `/admin/` is Swagger + an empty HTML shell. A real operations SPA (PI browser, deploy, metrics) is a separate product, not a docs gap.
 
 ---
 
-## 12. DMN FEEL TCK + property-based tests
+## 11. DMN FEEL TCK + property-based tests
 
 Import the DMN FEEL TCK into the quality gate. `stream_data` / PropCheck / Concuerror were specified and never added. Expression coverage and race proofs, not BPMN semantics.
 
