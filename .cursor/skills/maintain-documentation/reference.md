@@ -24,7 +24,7 @@
 
 | What Changed | Update |
 |-------------|--------|
-| Significant A-vs-B design choice | `docs/decisions.md` |
+| Significant A-vs-B design choice | The owning `docs/architecture/` file |
 | New BPMN element handler implemented | `docs/architecture/execution.md` (and `AGENTS.md` supported-types list only) |
 | New term introduced or existing term redefined | `docs/Glossary.md` |
 | Database table added, column changed, index added | `docs/Schema.md` (ER diagram) |

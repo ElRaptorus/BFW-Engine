@@ -46,7 +46,6 @@ After the quality gate passes, verify coverage in the output:
 - [ ] All new or modified subsystems are reflected in the **one** appropriate file under `docs/architecture/`
 - [ ] `docs/architecture/index.md` lists all topic files (no missing entries)
 - [ ] `docs/architecture/common-pitfalls.md` updated **only** if a competent person could hit the constraint again (not CI/test incident reports)
-- [ ] `docs/decisions.md` updated **only** if a significant A-vs-B choice was made
 - [ ] No architecture doc describes code that no longer exists
 - [ ] Do **not** append `docs/poc/ImplementationPlan.md` or `docs/poc/ImplementationPhases.md` (archival)
 - [ ] `AGENTS.md` updated **only** if `evil:*` elements, supported BPMN types, validator rules, FEEL bindings, or umbrella apps changed
@@ -90,7 +89,6 @@ Reference rule: `.cursor/rules/elixir-conventions.mdc` — read it before starti
 
 - [ ] `docs/architecture/index.md` topic list matches the actual files in the folder
 - [ ] Links between architecture docs are not broken (grep for `](` patterns pointing to nonexistent files)
-- [ ] `docs/decisions.md` links to the owning architecture file
 - [ ] `docs/Glossary.md` "See also" table entries point to correct paths
 - [ ] `docs/Architecture.md` mapping table references correct architecture docs
 

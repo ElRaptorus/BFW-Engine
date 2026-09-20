@@ -118,7 +118,6 @@ defmodule EvilEngine.Umbrella.MixProject do
           "docs/Schema.md",
           "docs/Glossary.md",
           "docs/Philosophy.md",
-          "docs/decisions.md",
           "docs/post-v1-ideas.md",
 
           # Architecture (detailed)
@@ -149,8 +148,7 @@ defmodule EvilEngine.Umbrella.MixProject do
           "Plugin Development": ~r{docs/guides/plugins/},
           "Operations Guide": ~r{docs/guides/operations/},
           Cheatsheets: ~r{docs/guides/cheatsheets/},
-          Reference:
-            ~r{docs/(Architecture|Schema|Glossary|Philosophy|decisions|post-v1-ideas)\.md},
+          Reference: ~r{docs/(Architecture|Schema|Glossary|Philosophy|post-v1-ideas)\.md},
           "Architecture (Detailed)": ~r{docs/architecture/}
         ],
         groups_for_modules: [

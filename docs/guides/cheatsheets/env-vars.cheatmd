@@ -121,7 +121,7 @@ TDE_PI_START_RATE_WINDOW_MS=1000
 
 ## Plugins
 
-In-BEAM OTP apps only. `TDE_PLUGINS_SIDECAR_*` are reserved no-ops.
+In-BEAM OTP apps only.
 
 ```bash
 TDE_PLUGINS_INBEAM=

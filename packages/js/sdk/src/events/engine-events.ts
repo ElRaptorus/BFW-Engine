@@ -87,7 +87,7 @@ export interface EngineRecovered {
 export interface PluginQuarantined {
   type: 'PluginQuarantined';
   pluginName: string;
-  tier: 'inbeam' | 'sidecar';
+  tier: 'inbeam';
   reason: string;
   occurredAt: string;
 }

@@ -11,7 +11,7 @@ ThomasTheDaemonEngine (or simply "the Engine") is a fully qualified BPMN 2.0 Wor
 
 - **`EvilEngine.Api`** (Ash Code Interface) is the single shared service layer — every wire adapter and every plugin converges here.
 - **Core domains** (`core_types`, `core_execution`, `core_events`, `core_timers`, `core_expressions`, `core_bpmn`) never import from API or Peripheral domains.
-- **Plugins** are in-BEAM OTP apps. They call `EvilEngine.Api.*` directly — no HTTP round-trip. There is no gRPC sidecar host.
+- **Plugins** are in-BEAM OTP apps. They call `EvilEngine.Api.*` directly — no HTTP round-trip.
 - **EngineEventBus** is the only channel through which observability, audit logging, and external integrations see engine events.
 
 ## Umbrella App Layout
@@ -37,7 +37,6 @@ When working on a specific subsystem, consult the relevant docs as needed — do
 
 - `docs/architecture/index.md` — Detailed architecture topics
 - `docs/Architecture.md` — High-level overview + layer-by-layer reading guide
-- `docs/decisions.md` — Significant A-vs-B choices that still explain the architecture
 - `docs/Glossary.md` — Every term used in this project
 - `docs/Schema.md` — Database ER diagram
 

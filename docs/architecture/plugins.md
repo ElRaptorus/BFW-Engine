@@ -5,11 +5,10 @@ OTP applications bundled into the release. The engine owns lifecycle
 (`on_load` / `on_ready`). Plugins call `EvilEngine.Api` through the
 injected `engine_facade` — no HTTP round-trip.
 
-A sidecar / gRPC plugin host is **not shipped**. Non-Elixir work uses
-the built-in HTTP Service Task, the public REST / GraphQL / WebSocket
-API, or an in-BEAM plugin that execs a local interpreter (see
-`examples/plugins/service_task_handlers/python_script/` and
-`node_script/`).
+Non-Elixir work uses the built-in HTTP Service Task, the public REST /
+GraphQL / WebSocket API, or an in-BEAM plugin that execs a local
+interpreter (see `examples/plugins/service_task_handlers/python_script/`
+and `node_script/`).
 
 Everyday authoring: [Plugin Development — Getting Started](../guides/plugins/getting-started.md)
 and [Engine Facade](../guides/plugins/engine-facade.md).
@@ -127,22 +126,6 @@ compiler skew, and no clean `Application` lifecycle. Non-Elixir work uses
 the built-in HTTP Service Task, the public API, or an in-BEAM plugin that
 execs a local interpreter.
 
-### Sidecar plugins — not shipped
-
-There is no `SidecarLoader`, no plugin gRPC protocol, and no process
-host. `TDE_PLUGINS_SIDECAR_*` env vars are reserved no-ops. Non-Elixir
-code uses the built-in HTTP Service Task, REST / GraphQL / WebSocket, or
-an in-BEAM plugin that execs a local interpreter.
-
-The remainder of this subsection is a retained design sketch, not a
-contract.
-
-Language-agnostic discovery from a filesystem directory was the intended
-shape: `TDE_PLUGINS_SIDECAR_DIR` (default `~/.evil/engine/plugins`), one
-subdirectory per plugin with a `plugin.toml` manifest, `Port` + gRPC over
-a Unix-domain socket, `Hello` as `on_load` and `EngineReady` as
-`on_ready`, reconnect-with-backoff then quarantine. None of that runs.
-
 ### `HandlerContext` (Core → `FlowNodeHandler`)
 
 Service Tasks and other Core `EvilEngine.Execution.FlowNodeHandler` callbacks
@@ -259,7 +242,7 @@ ready-to-copy starting points.
 | Audience | Package | Contents |
 |---|---|---|
 | Elixir plugin authors | `evil_engine_sdk` (Hex, app `apps/engine_sdk`) | All `@behaviour` modules (including `EventSink` — with a `TestSink` Mox fixture), test helpers, and copy-paste reference plugins under `examples/plugins/`. `EvilEngine.SDK.BPMN` re-exports `EvilEngine.BPMN.Model.*`, `ModelCache.{fetch/1, get/1, fetch_subprocess_model/2, find_message_start_events/1, find_signal_start_events/1}`, and `EvilEngine.BPMN.Parser.parse/1`. The SDK also re-exports `EvilEngine.Types.Event.*` + `EngineEventBus.publish/1` (test-only synthetic emission). `mix evil.gen.plugin` is not shipped. |
-| Non-Elixir work | Not a plugin SDK | Use the built-in HTTP Service Task, the public REST / GraphQL / WebSocket API, or an in-BEAM plugin that execs a local interpreter (`python_script` / `node_script` examples). There is no per-language gRPC plugin SDK. |
+| Non-Elixir work | Not a plugin SDK | Use the built-in HTTP Service Task, the public REST / GraphQL / WebSocket API, or an in-BEAM plugin that execs a local interpreter (`python_script` / `node_script` examples). |
 | Engine API consumers (Studio, dashboards, CLIs) | `@elraptorus/daemonengine_sdk` (contract: types, errors, events, BPMN XML parser, extension vocabulary manifest) + `@elraptorus/daemonengine_client` (transport: REST, GraphQL, WebSocket) in `packages/js/` | Typed client for REST triggers + GraphQL queries including the Process Model graph. The SDK ships `extension-manifest.json` (typed export `extensionManifest`) — the vocabulary of every `evil:*` element the parser reads, **not** a `bpmn-moddle` descriptor |
 
 **Studio's engine extensions** depend on `@elraptorus/daemonengine_client` (which depends on `@elraptorus/daemonengine_sdk`). No direct SQL/PubSub/gRPC coupling.

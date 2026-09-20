@@ -176,58 +176,6 @@ Register sinks with the event bus using the 3-arity API:
 
 ---
 
-## Sidecar Plugin Testing — **not shipped**
-
-The gRPC sidecar host is not in v1. Do **not** add `test/fixtures/plugins/`,
-`SidecarLoader`, or a five-language fixture matrix to CI. A deferred sidecar
-design lives in [`docs/architecture/plugins.md`](../../../docs/architecture/plugins.md).
-
-### Fixture location
-
-Multi-language sidecar fixture plugins live at `test/fixtures/plugins/` (project
-root). Each subdirectory is a minimal but realistic sidecar with a `plugin.toml`
-and a runnable binary/script.
-
-### Required languages
-
-To prove the language-agnostic claim, fixture plugins must cover **five
-languages**: Elixir (escript), Python, Ruby, C# (dotnet), and Node.js. Each
-must successfully discover, handshake, register, and execute a Service Task
-end-to-end.
-
-### Test isolation pattern
-
-```elixir
-setup do
-  original_dir = Application.get_env(:peripheral_plugins, :sidecar_dir)
-  fixture_dir = Path.expand("test/fixtures/plugins")
-  Application.put_env(:peripheral_plugins, :sidecar_dir, fixture_dir)
-
-  on_exit(fn ->
-    # Disconnect all sidecar Ports, reset registry, restore config
-    SidecarLoader.unload_all()
-    Registry.reset_state()
-    Application.put_env(:peripheral_plugins, :sidecar_dir, original_dir)
-  end)
-
-  :ok
-end
-```
-
-### Scenarios to implement
-
-| ID | Scenario | What it proves |
-|----|----------|---------------|
-| (i) | Happy-path sidecar Service Task | Full round-trip: discover → handshake → register → execute → result |
-| (ii) | Crash mid-execution → reconnect | Port restart, graceful FNI failure |
-| (iii) | Repeated crash → quarantine | `PluginQuarantined` event emitted, no further reconnects |
-| (iv) | Malformed `plugin.toml` | Engine boots, broken plugin quarantined, others unaffected |
-| (v) | Deny-listed manifest | Plugin never spawned, structured log emitted |
-| (vi) | Multi-language proof | One fixture per language (Elixir, Python, Ruby, C#, Node.js) |
-| (vii) | `sidecar_dir` isolation | Config restored, no registrations leak between tests |
-
----
-
 ## Per-App Unit and Domain Tests
 
 Each umbrella app has its own `test/` directory for domain-specific tests.

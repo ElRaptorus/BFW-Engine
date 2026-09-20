@@ -11,7 +11,7 @@ up to date when a code change touches its scope.
 ## Topics
 
 - **[authorization.md](authorization.md)** — JWT identity mapping, claim dictionary, lane-as-claim, PI/FNI visibility rules, per-action authorization, plugin identity, execution-time detachment, WebSocket lane filtering
-- **[plugins.md](plugins.md)** — Plugin categories, in-BEAM loading model, lifecycle, engine_facade, quarantine, SDK packages. Sidecar host is not shipped.
+- **[plugins.md](plugins.md)** — Plugin categories, in-BEAM loading model, lifecycle, engine_facade, quarantine, SDK packages
 - **[data-model.md](data-model.md)** — Postgres schema: catalog tables, execution-state tables, audit/communication tables, LZ4 compression, partitioning
 - **[event-system.md](event-system.md)** — EngineEventBus, EventSink behaviour, three built-in sinks (console, telemetry, websocket), plugin sinks, in-process PubSub topics, fan-out semantics
 - **[api.md](api.md)** — REST (commands), GraphQL (query-only: persistence-backed + Process Model graph), WebSocket, OpenAPI/SDL, API-vs-Core boundary

@@ -96,7 +96,7 @@ end
 | `deploy_fixture/2` | `fixture_name, identity` | `{:ok, process_version}` | Deploys BPMN via REST, returns version |
 | `mint_payload/1` | `n_bytes :: pos_integer()` | `map()` | Generates a JSON payload of exactly `n_bytes` |
 | `oversize_payload/0` | — | `map()` | `mint_payload(TDE_TOKEN_MAX_BYTES + 1)` |
-| `register_test_plugin/2` | `tier :: :in_beam \| :sidecar, module_or_name` | `:ok` | Registers a plugin for the test session (`:sidecar` unused — no sidecar host) |
+| `register_test_plugin/2` | `module_or_name` | `:ok` | Registers an in-BEAM plugin for the test session |
 | `unregister_test_plugin/1` | `module_or_name` | `:ok` | Removes a test plugin |
 | `test_process_payload/0` | — | `map()` | Standard valid payload for process start |
 | `test_user_task_result/0` | — | `map()` | Standard valid result for User Task completion |
@@ -201,7 +201,6 @@ end
 | `TDE_MESSAGE_PENDING_TTL` | `PT30S` | Pending message TTL tests | S10c, S10d, S10e |
 | `TDE_SIGNAL_PENDING_TTL` | `PT30S` | Pending signal TTL tests | Signal variants |
 | `TDE_JWT_HS256_SECRET` | `test-secret-min-32-bytes-long!!!` | AuthHelper token signing | All authenticated tests |
-| `TDE_PLUGINS_SIDECAR_DIR` | reserved no-op | **Unused.** Sidecar host is not shipped | — |
 | `TDE_PARTITION_AHEAD_MONTHS` | `1` | Partition creation for tests | Partition tests |
 | `TDE_RETENTION_FINISHED_DAYS` | unset | Retention runner tests | Retention scenarios |
 | `TDE_RETENTION_ENGINE_AUDIT_DAYS` | unset | Engine audit retention | Audit retention tests |

@@ -239,12 +239,12 @@ defmodule EvilEngine.Plugins.RegistryTest do
       assert Registry.list_capabilities(:service_task_handler) == []
     end
 
-    test "6d: skips validation when module is a string (sidecar descriptor)" do
+    test "6d: skips validation when module is a string" do
       assert :ok =
                Registry.register_capability(
                  "val-plugin",
                  :service_task_handler,
-                 %{implementation: "sidecar", module: "grpc.service.SomeHandler"}
+                 %{implementation: "string-module", module: "not.an.atom.module"}
                )
 
       assert length(Registry.list_capabilities(:service_task_handler)) == 1

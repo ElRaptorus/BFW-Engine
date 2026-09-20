@@ -73,7 +73,7 @@ defmodule EvilEngine.EngineFacade do
     UserTasks
   }
 
-  @typedoc "Handler module: an atom for in-BEAM plugins, a string for sidecar gRPC references."
+  @typedoc "Handler module atom. Non-atom descriptors skip behaviour validation."
   @type handler_module :: module() | String.t()
 
   @typedoc "Return type shared by all capability registration functions."

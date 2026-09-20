@@ -23,53 +23,21 @@ See [event-system.md](architecture/event-system.md), [routing.md](architecture/r
 
 ---
 
-## 2. `ClaimResolver` (lazy / context-dependent claims)
-
-A behaviour `resolve_claim(identity, claim_key, context)` so claim checks are not limited to a flat `Identity.claims` map filled at JWT time. Needed when evaluation depends on request context, is expensive, or requires per-claim round-trips (LDAP, graph).
-
-Migrate Ash policies, REST claim checks, and channel joins through it.
-
-See [authorization.md](architecture/authorization.md).
-
----
-
-## 3. Plugin-tier authorization
-
-v1 plugins use privileged `plugin:<name>` and skip all claim checks. Add a per-plugin claim set / allow-list for `EvilEngine.Api.*` if multi-tenant operators cannot treat every loaded OTP app as fully trusted.
-
-Pairs with idea 4 (tenancy).
-
----
-
-## 4. Engine-level multi-tenant isolation
+## 2. Engine-level multi-tenant isolation
 
 v1: one engine process = one tenant boundary. Isolation is “run another engine.” In-engine tenancy (catalog, PI, and subscription partitions keyed by tenant) is a product change, not a deploy trick.
 
----
-
-## 5. gRPC sidecar plugin host
-
-Language-agnostic OS-isolated plugin processes: `SidecarLoader`, plugin gRPC protocol, reconnect/quarantine, multi-language fixtures. v1 is in-BEAM OTP apps only. Non-Elixir work today: HTTP Service Task, public API, or an in-BEAM plugin that execs a local interpreter.
-
-See [plugins.md](architecture/plugins.md).
+Not required for clustering (idea 1). A shared-cluster SaaS that also needs in-engine tenancy is a later product decision on top of this idea.
 
 ---
 
-## 6. Durable message subscriptions
+## 3. Durable message subscriptions
 
 Persist catch/boundary/ESP-start subscriptions so drain and rematch do not depend solely on in-memory ETS rebuilt at resume. Useful on its own; almost required for clustering.
 
 ---
 
-## 7. Multi-property BPMN 2.0 correlation
-
-Parse and execute `bpmn:correlationKey` / `correlationProperty` / retrieval expressions / subscriptions. v1 correlates on exactly one FEEL value (`evil:correlationKey` / `evil:correlationRetrievalExpression`).
-
-See [routing.md](architecture/routing.md).
-
----
-
-## 8. Stronger EventSink delivery
+## 4. Stronger EventSink delivery
 
 At-least-once (or explicit ACK/DLQ) in `EngineEventBus`, plus `Event.SinkFailed` auto-retry / auto-disable / health escalation. v1 is at-most-once, crash-isolated, no retry.
 
@@ -77,19 +45,19 @@ See [event-system.md](architecture/event-system.md).
 
 ---
 
-## 9. Per-process / per-endpoint payload-cap overrides
+## 5. Per-process / per-endpoint payload-cap overrides
 
 `<evil:tokenMaxBytes>` or per-route caps. v1 `TDE_TOKEN_MAX_BYTES` is engine-global.
 
 ---
 
-## 10. Full SPA admin UI
+## 6. Full SPA admin UI
 
 v1 `/admin/` is Swagger + an empty HTML shell. A real operations SPA (PI browser, deploy, metrics) is a separate product, not a docs gap.
 
 ---
 
-## 11. DMN FEEL TCK + property-based tests
+## 7. DMN FEEL TCK + property-based tests
 
 Import the DMN FEEL TCK into the quality gate. `stream_data` / PropCheck / Concuerror were specified and never added. Expression coverage and race proofs, not BPMN semantics.
 

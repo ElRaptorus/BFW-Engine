@@ -44,7 +44,6 @@ Based on your task, read the specific architecture doc:
 | JWT auth, transport, plugin trust, threat model | `docs/architecture/security.md` |
 | Known gotchas | `docs/architecture/common-pitfalls.md` |
 | BPMN element coverage | `AGENTS.md` and `docs/architecture/execution.md` |
-| Design decisions and rationale | `docs/decisions.md` |
 | Terminology | `docs/Glossary.md` |
 | Database ER diagram | `docs/Schema.md` |
 
@@ -101,4 +100,4 @@ All engine state changes emit events through the EngineEventBus. Consumers (WebS
 
 ### 4. Hybrid Plugin Model
 
-v1 loads **in-BEAM OTP-app plugins only**. There is no gRPC sidecar host. Downstream consumers (Service Task dispatch, EngineEventBus fan-out) query the registry by capability. Non-Elixir work uses the HTTP Service Task, the public API, or an in-BEAM plugin that execs a local interpreter.
+v1 loads **in-BEAM OTP-app plugins only**. Downstream consumers (Service Task dispatch, EngineEventBus fan-out) query the registry by capability. Non-Elixir work uses the HTTP Service Task, the public API, or an in-BEAM plugin that execs a local interpreter.

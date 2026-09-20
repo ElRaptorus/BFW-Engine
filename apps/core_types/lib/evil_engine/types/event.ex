@@ -143,7 +143,7 @@ defmodule EvilEngine.Types.Event.PluginQuarantined do
 
   @type t :: %__MODULE__{
           plugin_name: String.t(),
-          tier: :inbeam | :sidecar,
+          tier: :inbeam,
           reason: String.t(),
           occurred_at: DateTime.t()
         }

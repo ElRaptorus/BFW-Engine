@@ -177,7 +177,7 @@ defmodule EvilEngine.Types.EventTest do
       event =
         Event.PluginQuarantined.new(%{
           plugin_name: "evil:broken",
-          tier: :sidecar,
+          tier: :inbeam,
           reason: {:error, :timeout},
           occurred_at: now
         })

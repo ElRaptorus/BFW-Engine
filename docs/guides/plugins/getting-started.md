@@ -59,7 +59,7 @@ The plugin's `Application.start/2` should be a no-op stub. Registration happens 
 
 ### Other languages
 
-There is no sidecar / gRPC plugin host. For non-Elixir work, use:
+For non-Elixir work, use:
 
 - the built-in HTTP Service Task,
 - the public REST / GraphQL / WebSocket API, or

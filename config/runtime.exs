@@ -328,18 +328,7 @@ config :peripheral_telemetry,
   db_queue_time_warning_ms: Env.get_int("TDE_DB_QUEUE_TIME_WARNING_MS", 500)
 
 # --- Plugin loading -----------------------------------
-#
-# Default sidecar plugin directory is per-user (~/.evil/engine/plugins).
-# In containers without $HOME, fall back to /etc/evil-engine/plugins.
-default_sidecar_dir =
-  case System.user_home() do
-    nil -> "/etc/evil-engine/plugins"
-    home -> Path.join(home, ".evil/engine/plugins")
-  end
-
 config :peripheral_plugins,
   inbeam_apps: Enum.map(Env.get_list("TDE_PLUGINS_INBEAM"), &String.to_atom/1),
-  sidecar_dir: Env.get("TDE_PLUGINS_SIDECAR_DIR", default_sidecar_dir),
   include_plugins: Env.get_list("TDE_PLUGINS_INCLUDE"),
-  exclude_plugins: Env.get_list("TDE_PLUGINS_EXCLUDE"),
-  sidecar_reconnect_limit: max(Env.get_int("TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT", 5), 0)
+  exclude_plugins: Env.get_list("TDE_PLUGINS_EXCLUDE")

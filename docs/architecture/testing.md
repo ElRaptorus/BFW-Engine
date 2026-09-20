@@ -321,13 +321,6 @@ Positive-path integration tests verifying the payload-cap eliminations are actua
 - **RESUME-ACTIVE-FROM-FNI**: run a process up to a User Task (FNI in state `active` with an `input_token`), SIGKILL the engine, restart. **Assert:** on restart, the rehydrated PI's in-memory token at that FNI matches exactly the pre-crash `input_token`; no `active_tokens`-style reconciliation is performed; `gateway_pending_arrivals` is empty (no gateway is involved); PI continues cleanly on User Task completion.
 - **RESUME-GATEWAY-PENDING** *(covered by `Resumption.rebuild_join_arrivals/2` + `parallel_gateway_lifecycle_test.exs`)*: run a parallel gateway with 2 of 3 branches arrived, SIGKILL the engine mid-wait, restart. **Assert:** `gateway_pending_arrivals` has exactly 2 rows with the correct `source_branch_sequence_flow_id` values and the correct `arrived_payload`; the third branch's subsequent arrival correctly fires the join; the gateway FNI's `output_token` is the merged result of all 3 branches per the join semantics.
 
-#### Sidecar plugin integration tests
-
-Not shipped. There is no sidecar host, no `SidecarLoader`, and no
-`test/fixtures/plugins/` multi-language gRPC matrix. Non-Elixir Service
-Task work is covered by the in-BEAM `python_script` / `node_script`
-cookbook examples and `mix test.cookbook`.
-
 ## Load tests
 
 All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox. Default load-test pool is 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.

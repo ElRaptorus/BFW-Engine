@@ -248,7 +248,7 @@ in-memory event ring buffer.
 | Gap | Notes |
 |-----|--------|
 | Built-in database EventSink | Removed; see Event sinks above |
-| Admin stats HTML | `/admin/` is GraphiQL + empty `EvilEngineWeb.Admin` namespace; Swagger is `GET /` ([post-v1-ideas.md](../post-v1-ideas.md) idea 11) |
+| Admin stats HTML | `/admin/` is GraphiQL + empty `EvilEngineWeb.Admin` namespace; Swagger is `GET /` ([post-v1-ideas.md](../post-v1-ideas.md) idea 7) |
 | `/stats` breakdowns | `byType` / `byAssigneeRole` / `byPlugin` / `monitoringPanelsCount` are stubs |
 
 ---

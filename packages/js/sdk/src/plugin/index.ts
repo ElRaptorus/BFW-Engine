@@ -1,5 +1,4 @@
 export type { Plugin, PluginDescriptor, PluginCapabilitySummary } from './plugin.js';
-export type { SidecarPlugin, SidecarEventFilter } from './sidecar-plugin.js';
 export type { ServiceTaskHandler, ServiceTaskInput, ServiceTaskResult } from './service-task-handler.js';
 export type { NamedScriptHandler, NamedScriptInput, NamedScriptResult } from './named-script-handler.js';
 export type { EventSinkHandler, EventSinkOptions } from './event-sink.js';

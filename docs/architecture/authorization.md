@@ -323,7 +323,7 @@ auto-injected by the `engine_facade`:
   id: "plugin:<name>",
   roles: [:plugin],
   groups: [],
-  claims: %{"plugin" => name, "tier" => "inbeam" | "sidecar"}
+  claims: %{}
 }
 ```
 

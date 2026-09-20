@@ -1,7 +1,7 @@
 defmodule PeripheralPlugins.MixProject do
   @moduledoc """
-  Plugin registry + gRPC sidecar bridge + conflict detector (§9).
-  Plugins always live under this app or as external sidecars — never
+  Plugin registry, in-BEAM loader, and conflict detector.
+  Plugins always live under this app as OTP applications — never
   inside Core.
   """
 
@@ -39,8 +39,6 @@ defmodule PeripheralPlugins.MixProject do
       {:engine_sdk, in_umbrella: true},
       {:api_facade, in_umbrella: true},
       {:req, "~> 0.5"}
-      # gRPC deps (:grpc, :grpcbox, …) land in Phase 2+ with the real
-      # sidecar bridge.
     ]
   end
 

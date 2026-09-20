@@ -95,10 +95,8 @@ Notable env vars:
 | `TDE_PI_START_RATE_WINDOW_MS` | Window length in milliseconds for `TDE_PI_START_RATE_LIMIT`. Used only when the limit is > 0 | `1000` |
 | `TDE_JSONB_COMPRESSION` | JSONB column compression for heavy-payload columns listed in [data-model.md](./data-model.md). `lz4` requires Postgres ≥ 14. Setting this changes only new writes — existing column data retains whatever compression was applied at write time until rewritten. Operator measurements: [database.md](../guides/operations/database.md). Leave `lz4` unless a representative workload is >10% slower than PGLZ | `lz4` |
 | `TDE_PLUGINS_INBEAM` | **[plugins.md](./plugins.md)**: Comma- or whitespace-separated list of OTP-app names to load as in-BEAM plugins. Order is significant — `on_load` is invoked in list order, sequentially. Apps named here must be present in the release; missing apps are quarantined. Unset = no in-BEAM plugins | *(unset)* |
-| `TDE_PLUGINS_SIDECAR_DIR` | Reserved no-op. No sidecar loader. | `~/.evil/engine/plugins` |
 | `TDE_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **include** list of plugin names (OTP-app name for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied | *(unset)* |
 | `TDE_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **exclude** list. **Exclude wins** on conflict with `TDE_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
-| `TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT` | Reserved no-op. No sidecar loader. | `5` |
 
 **`TDE_METRICS_ENABLED`** toggles the public Prometheus scrape endpoint and
 in-process reporter startup (`config :peripheral_telemetry, :metrics_enabled`,
@@ -214,11 +212,8 @@ TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
 
 # --- Plugins ------------------------------------------------------------------
 # TDE_PLUGINS_INBEAM=
-# TDE_PLUGINS_SIDECAR_* are reserved no-ops; parsed, unused.
-TDE_PLUGINS_SIDECAR_DIR=~/.evil/engine/plugins
 # TDE_PLUGINS_INCLUDE=
 # TDE_PLUGINS_EXCLUDE=
-TDE_PLUGINS_SIDECAR_RECONNECT_LIMIT=5
 ```
 
 ## Minting dev tokens

@@ -38,7 +38,7 @@ The engine provides guardrails:
 
 ### Plugin isolation
 
-In-BEAM plugins sit inside the engine's trust boundary. Crash isolation is OTP-process isolation. `TDE_PLUGINS_SIDECAR_*` env vars do nothing.
+In-BEAM plugins sit inside the engine's trust boundary. Crash isolation is OTP-process isolation.
 
 ## Authorization
 

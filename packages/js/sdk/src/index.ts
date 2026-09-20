@@ -182,8 +182,6 @@ export type {
   Plugin,
   PluginDescriptor,
   PluginCapabilitySummary,
-  SidecarPlugin,
-  SidecarEventFilter,
   ServiceTaskHandler,
   ServiceTaskInput,
   ServiceTaskResult,

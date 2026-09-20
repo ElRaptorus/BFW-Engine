@@ -1,7 +1,7 @@
 defmodule ApiFacade.MixProject do
   @moduledoc """
   The `EvilEngine.Api` service layer — a single entry-point module that
-  all wire adapters (REST, GraphQL, WebSocket, gRPC sidecar) and plugins
+  all wire adapters (REST, GraphQL, WebSocket) and plugins
   converge on.
 
   Pure functions, no Phoenix dependency.

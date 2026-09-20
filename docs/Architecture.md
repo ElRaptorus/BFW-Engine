@@ -19,7 +19,7 @@ Arrows show the **permitted** direction of runtime dependencies:
 - **Core never calls API.** Peripheral never blocks Core.
 - **Plugins are in-BEAM OTP applications** loaded into the release. They
   call `EvilEngine.Api` **directly** — no HTTP round-trip, no JSON
-  re-encode. There is no sidecar / gRPC plugin host.
+  re-encode.
 
 ## 2. Overview
 

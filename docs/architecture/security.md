@@ -22,7 +22,7 @@ trust boundary is drawn at the HTTP edge:
 | **On the trust boundary** | Authenticated + authorized | REST/GraphQL/WS callers with valid JWT |
 | **Outside the trust boundary** | Untrusted | Network clients without JWT |
 
-Plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation. `TDE_PLUGINS_SIDECAR_*` env vars do nothing.
+Plugins are **in-BEAM only** and sit inside the trust boundary with a privileged `plugin:<name>` identity. Crash isolation for native code is OTP-process isolation, not OS-process isolation.
 
 ---
 
@@ -178,9 +178,7 @@ In-BEAM plugins:
 - Can be include-listed / exclude-listed via `TDE_PLUGINS_INCLUDE` / `TDE_PLUGINS_EXCLUDE` ([plugins.md](plugins.md)).
 - Are quarantined on `on_load` / `on_ready` failure ([plugins.md](plugins.md)).
 
-Per-plugin authorization scoping (per-plugin claim sets, per-action allow/deny) is not shipped.
-
-There is no sidecar / gRPC plugin host. `TDE_PLUGINS_SIDECAR_*` env vars do nothing.
+Per-plugin claim sets / per-action allow-deny are not an engine feature. Plugins stay privileged; callers that need JWT claim checks use the public REST/GraphQL/WebSocket API.
 
 ---
 
@@ -413,9 +411,8 @@ the recommended workaround.
 
 | Gap | Rationale | Workaround |
 |-----|-----------|------------|
-| ~~Pluggable authentication~~ | **Implemented** via `@behaviour EvilEngine.Plugin.AuthProvider`. Pluggable claim resolution deferred to v2 | Register a custom provider via `facade.register_auth_provider.(module)` |
-| **Plugin-tier authorization** (per-plugin claim sets, per-action allow/deny) | Plugins are inside the trust boundary by design | Operator controls which plugins are loaded via allow/deny lists |
+| ~~Pluggable authentication~~ | **Implemented** via `@behaviour EvilEngine.Plugin.AuthProvider`. Claims are materialized in `Identity.claims` at `verify_and_resolve/1`; there is no lazy per-claim resolver | Register a custom provider via `facade.register_auth_provider.(module)` |
+| **Per-plugin claim sets / per-action allow-deny** | Plugins are inside the trust boundary by design | Include/exclude lists control which plugins load. Callers that need JWT claim checks use the public API |
 | **Push-gateway / remote-write for Prometheus** | Engine exposes pull-only `/metrics` | Run Prometheus scrape against the engine or federate via your own agent |
-| **Per-plugin capability scoping** | Deferred to v2 alongside tenant-isolation model | Trust plugins implicitly; use allow/deny lists to limit which plugins load |
 | **Cross-cluster message routing** | Single-node deployment expected in v1 | Messages reach only same-node subscriptions |
 | **Content-addressed blob store** | Complexity vs. payoff at v1 scale | `TDE_TOKEN_MAX_BYTES` caps individual payloads; LZ4 compression reduces storage |

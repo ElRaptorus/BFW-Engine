@@ -167,7 +167,7 @@ Use this table to determine **which file to update** based on what you changed o
 | Test infrastructure, scenario matrix, CI pipeline, Mix aliases (`test.examples` / `test.cookbook`) | `testing.md` |
 | JWT auth, transport, plugin trust, input validation, threat model | `security.md` |
 | Recurring constraint a competent person could hit again (not a one-off bugfix or CI incident) | `common-pitfalls.md` |
-| Significant A-vs-B design choice | [`docs/decisions.md`](../decisions.md) |
+| Significant A-vs-B design choice | The owning `docs/architecture/` file |
 
 If the change does not fit any existing file, create a new one (see below).
 
