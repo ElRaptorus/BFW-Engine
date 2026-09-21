@@ -1,7 +1,7 @@
-import { UnauthorizedError } from '@elraptorus/daemonengine_sdk';
+import { UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   cleanupInstances,
   createAdminClient,
@@ -13,9 +13,9 @@ import {
   waitForState,
 } from '../support/test-engine.js';
 
-let adminClient: DaemonEngineClient;
-let unauthenticatedClient: DaemonEngineClient;
-let expiredTokenClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let unauthenticatedClient: BfwEngineClient;
+let expiredTokenClient: BfwEngineClient;
 
 let processInstanceId: string;
 let fatalProcessInstanceId: string;

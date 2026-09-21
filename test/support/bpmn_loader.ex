@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.BpmnLoader do
+defmodule BfwEngine.Test.BpmnLoader do
   @moduledoc """
   Loads `.bpmn` fixture files, parses them, and stores the AST
   in the ModelCache for execution integration tests.
@@ -14,8 +14,8 @@ defmodule EvilEngine.Test.BpmnLoader do
   def deploy_fixture(fixture_name, process_version_id) do
     path = Path.join(@fixtures_dir, fixture_name)
     xml = File.read!(path)
-    {:ok, definitions} = EvilEngine.BPMN.parse_and_validate(xml)
-    EvilEngine.BPMN.ModelCache.put_new(process_version_id, definitions)
+    {:ok, definitions} = BfwEngine.BPMN.parse_and_validate(xml)
+    BfwEngine.BPMN.ModelCache.put_new(process_version_id, definitions)
     {:ok, definitions}
   end
 end

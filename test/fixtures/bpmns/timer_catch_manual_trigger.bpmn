@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   id="Definitions_TimerCatchManualTrigger"
-                  targetNamespace="https://evilengine.dev/schema/bpmn">
+                  targetNamespace="https://bifrostforge.world/schema/bpmn">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_TimerCatchManualTrigger" name="Timer Catch Manual Trigger" processRef="TimerCatchManualTrigger" />
     <bpmn:participant id="Participant_TimerBoundaryManualTrigger" name="Timer Boundary Manual Trigger" processRef="TimerBoundaryManualTrigger" />
   </bpmn:collaboration>
   <bpmn:process id="TimerCatchManualTrigger" name="Timer Catch Manual Trigger" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_TimerCatchManualTrigger">
       <bpmn:lane id="Lane_default_catch" name="default">
@@ -39,7 +39,7 @@
   </bpmn:process>
   <bpmn:process id="TimerBoundaryManualTrigger" name="Timer Boundary Manual Trigger" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_TimerBoundaryManualTrigger">
       <bpmn:lane id="Lane_default_boundary" name="default">
@@ -55,8 +55,8 @@
     </bpmn:startEvent>
     <bpmn:userTask id="UserTask_1" name="Do Work">
       <bpmn:extensionElements>
-        <evil:assignees>identity.groups</evil:assignees>
-        <evil:formFields>{"fields":[{"name":"done","type":"boolean"}]}</evil:formFields>
+        <bfw:assignees>identity.groups</bfw:assignees>
+        <bfw:formFields>{"fields":[{"name":"done","type":"boolean"}]}</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_Boundary_1</bpmn:incoming>
       <bpmn:outgoing>Flow_Boundary_2</bpmn:outgoing>

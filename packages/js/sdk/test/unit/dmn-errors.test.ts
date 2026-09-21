@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AmbiguousDecisionError,
   BkmNotFoundError,
-  DaemonEngineError,
+  BfwEngineError,
   DecisionDefinitionDisabledError,
   DecisionDefinitionNotFoundError,
   DecisionServiceNotFoundError,
@@ -18,9 +18,9 @@ import {
 } from '../../src/index.js';
 
 describe('DecisionDefinitionNotFoundError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new DecisionDefinitionNotFoundError('decision missing');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -35,9 +35,9 @@ describe('DecisionDefinitionNotFoundError', () => {
 });
 
 describe('DecisionDefinitionDisabledError', () => {
-  it('is instanceof DaemonEngineError', () => {
+  it('is instanceof BfwEngineError', () => {
     const error = new DecisionDefinitionDisabledError('disabled');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -52,9 +52,9 @@ describe('DecisionDefinitionDisabledError', () => {
 });
 
 describe('DmnEvaluationError', () => {
-  it('is instanceof DaemonEngineError', () => {
+  it('is instanceof BfwEngineError', () => {
     const error = new DmnEvaluationError('evaluation failed', 'risk-model', 'hit policy violation');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -78,9 +78,9 @@ describe('DmnEvaluationError', () => {
 });
 
 describe('DecisionVersionNotFoundError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new DecisionVersionNotFoundError('version missing');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -95,9 +95,9 @@ describe('DecisionVersionNotFoundError', () => {
 });
 
 describe('DmnParseError', () => {
-  it('is instanceof DaemonEngineError', () => {
+  it('is instanceof BfwEngineError', () => {
     const error = new DmnParseError('parse failed', []);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
   });
 
   it('has statusCode 400, dmn_parse_error, and failures array', () => {
@@ -111,9 +111,9 @@ describe('DmnParseError', () => {
 });
 
 describe('DecisionVersionExistsError', () => {
-  it('is instanceof DaemonEngineError', () => {
+  it('is instanceof BfwEngineError', () => {
     const error = new DecisionVersionExistsError('already deployed', []);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
   });
 
   it('has statusCode 409, decision_version_exists, and conflicts array', () => {
@@ -127,9 +127,9 @@ describe('DecisionVersionExistsError', () => {
 });
 
 describe('DmnCycleError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new DmnCycleError('cycle detected', ['Decision_A', 'Decision_B']);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -146,9 +146,9 @@ describe('DmnCycleError', () => {
 });
 
 describe('BkmNotFoundError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new BkmNotFoundError('BKM missing');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -163,9 +163,9 @@ describe('BkmNotFoundError', () => {
 });
 
 describe('DecisionServiceValidationError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new DecisionServiceValidationError('invalid service configuration');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -182,9 +182,9 @@ describe('DecisionServiceValidationError', () => {
 });
 
 describe('DecisionServiceNotFoundError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new DecisionServiceNotFoundError('service missing');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -201,9 +201,9 @@ describe('DecisionServiceNotFoundError', () => {
 });
 
 describe('AmbiguousDecisionError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new AmbiguousDecisionError('multiple decisions');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -220,9 +220,9 @@ describe('AmbiguousDecisionError', () => {
 });
 
 describe('InputValueViolationError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new InputValueViolationError('constraint violated', 'Input_grade');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -246,9 +246,9 @@ describe('InputValueViolationError', () => {
 });
 
 describe('MissingServiceInputError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new MissingServiceInputError('missing inputs', ['Income']);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 

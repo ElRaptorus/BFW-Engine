@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when the requested process does not exist. */
-export class ProcessNotFoundError extends DaemonEngineError {
+export class ProcessNotFoundError extends BfwEngineError {
   constructor(message: string, rawBody?: Record<string, unknown>) {
     super(404, 'process_not_found', message, rawBody);
     this.name = 'ProcessNotFoundError';

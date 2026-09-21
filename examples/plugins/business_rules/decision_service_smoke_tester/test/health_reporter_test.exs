@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionServiceSmokeTester.HealthReporterTest do
   use ExUnit.Case
 
-  alias EvilEngine.DMN.{EvaluationTrace, ServiceEvaluationResult}
+  alias BfwEngine.DMN.{EvaluationTrace, ServiceEvaluationResult}
   alias Examples.BusinessRules.DecisionServiceSmokeTester.HealthReporter
 
   test "build/1 with all healthy results reports zero unhealthy" do

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Plugins.Examples.CombinedPluginsExampleTest do
+defmodule BfwEngine.Plugins.Examples.CombinedPluginsExampleTest do
   @moduledoc false
   use ExUnit.Case, async: false
 

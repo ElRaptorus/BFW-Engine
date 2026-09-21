@@ -1,6 +1,6 @@
-defmodule EvilEngine.Umbrella.MixProject do
+defmodule BfwEngine.Umbrella.MixProject do
   @moduledoc """
-  Umbrella root for the Daemon Engine — a BPMN 2.0 workflow engine.
+  Umbrella root for the Bifrost Forge World Engine — a BPMN 2.0 workflow engine.
 
   Each subsystem lives under `apps/` as its own OTP application, per the
   Domain-Driven layout described in `docs/Architecture.md`.
@@ -23,9 +23,9 @@ defmodule EvilEngine.Umbrella.MixProject do
     [
       apps_path: "apps",
       version: @version,
-      name: "Daemon Engine",
-      source_url: "https://github.com/ElRaptorus/ThomasTheDaemonEngine",
-      homepage_url: "https://github.com/ElRaptorus/ThomasTheDaemonEngine",
+      name: "Bifrost Forge World Engine",
+      source_url: "https://github.com/ElRaptorus/BFW-Engine",
+      homepage_url: "https://github.com/ElRaptorus/BFW-Engine",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -152,21 +152,21 @@ defmodule EvilEngine.Umbrella.MixProject do
           "Architecture (Detailed)": ~r{docs/architecture/}
         ],
         groups_for_modules: [
-          "Core — Types": ~r{EvilEngine\.Types\.},
-          "Core — Execution": ~r{EvilEngine\.Execution\.},
-          "Core — Expressions": ~r{EvilEngine\.Expressions},
-          "Core — BPMN": ~r{EvilEngine\.BPMN\.},
-          "Core — DMN": ~r{EvilEngine\.DMN\.},
-          "Core — Timers": ~r{EvilEngine\.Timers\.},
-          "Core — Events": ~r{EvilEngine\.Events\.},
-          "Peripheral — Persistence": ~r{EvilEngine\.Persistence\.},
-          "Peripheral — Telemetry": ~r{EvilEngine\.Telemetry\.},
-          "Peripheral — Plugins": ~r{EvilEngine\.Plugins\.},
-          "API — HTTP": ~r{EvilEngineWeb\.Http\.},
-          "API — GraphQL": ~r{EvilEngineWeb\.Graphql\.},
-          "API — WebSocket": ~r{EvilEngineWeb\.WebSocket\.},
-          "API — Auth": ~r{EvilEngine\.Auth\.},
-          SDK: ~r{EvilEngine\.(SDK|Plugin\.|EngineFacade)}
+          "Core — Types": ~r{BfwEngine\.Types\.},
+          "Core — Execution": ~r{BfwEngine\.Execution\.},
+          "Core — Expressions": ~r{BfwEngine\.Expressions},
+          "Core — BPMN": ~r{BfwEngine\.BPMN\.},
+          "Core — DMN": ~r{BfwEngine\.DMN\.},
+          "Core — Timers": ~r{BfwEngine\.Timers\.},
+          "Core — Events": ~r{BfwEngine\.Events\.},
+          "Peripheral — Persistence": ~r{BfwEngine\.Persistence\.},
+          "Peripheral — Telemetry": ~r{BfwEngine\.Telemetry\.},
+          "Peripheral — Plugins": ~r{BfwEngine\.Plugins\.},
+          "API — HTTP": ~r{BfwEngineWeb\.Http\.},
+          "API — GraphQL": ~r{BfwEngineWeb\.Graphql\.},
+          "API — WebSocket": ~r{BfwEngineWeb\.WebSocket\.},
+          "API — Auth": ~r{BfwEngine\.Auth\.},
+          SDK: ~r{BfwEngine\.(SDK|Plugin\.|EngineFacade)}
         ]
       ]
     ]
@@ -223,7 +223,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       "test.examples": ["test apps/peripheral_plugins/test/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
-      # Sets TDE_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
+      # Sets BFE_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
       "test.load": &run_load_tests/1,
       "test.load.durability": &run_load_durability_tests/1,
       "test.load.hardening": &run_load_hardening_tests/1,
@@ -248,7 +248,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       # instead of `coveralls.html`.
       quality: [
         "compile --warnings-as-errors",
-        "evil.gen.extension_manifest --check",
+        "bfw.gen.extension_manifest --check",
         "format",
         "credo --strict",
         "dialyzer",
@@ -266,7 +266,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       ],
       lint: ["format", "credo"],
       sobelow: [
-        "sobelow --root apps/api_web --router apps/api_web/lib/evil_engine_web/http/router.ex --skip Config.HTTPS --threshold medium"
+        "sobelow --root apps/api_web --router apps/api_web/lib/bfw_engine_web/http/router.ex --skip Config.HTTPS --threshold medium"
       ]
     ]
   end
@@ -276,17 +276,17 @@ defmodule EvilEngine.Umbrella.MixProject do
   end
 
   defp run_load_durability_tests(args) do
-    run_load_suite(args, %{"TDE_LOAD_DURABILITY" => "1"})
+    run_load_suite(args, %{"BFE_LOAD_DURABILITY" => "1"})
   end
 
   defp run_load_hardening_tests(args) do
-    run_load_suite(args, %{"TDE_LOAD_HARDENING" => "1"})
+    run_load_suite(args, %{"BFE_LOAD_HARDENING" => "1"})
   end
 
   defp run_load_all_tests(args) do
     run_load_suite(args, %{
-      "TDE_LOAD_DURABILITY" => "all",
-      "TDE_LOAD_HARDENING" => "all"
+      "BFE_LOAD_DURABILITY" => "all",
+      "BFE_LOAD_HARDENING" => "all"
     })
   end
 
@@ -301,7 +301,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       System.put_env(key, value)
     end)
 
-    pool_ready? = System.get_env("TDE_LOAD_TEST_POOL") in ["1", "true"]
+    pool_ready? = System.get_env("BFE_LOAD_TEST_POOL") in ["1", "true"]
 
     if pool_ready? do
       Mix.Task.run("run", run_argv)
@@ -310,7 +310,7 @@ defmodule EvilEngine.Umbrella.MixProject do
       # this already-booted VM is too late — re-exec so Repo uses a real pool.
       environment =
         System.get_env()
-        |> Map.put("TDE_LOAD_TEST_POOL", "1")
+        |> Map.put("BFE_LOAD_TEST_POOL", "1")
         |> Map.put("MIX_ENV", "test")
         |> Map.merge(extra_environment)
 
@@ -349,7 +349,7 @@ defmodule EvilEngine.Umbrella.MixProject do
 
   defp releases do
     [
-      evil_engine: [
+      bfw_engine: [
         version: @version,
         applications: [
           # Logging (root dep, must be explicit for umbrella releases)

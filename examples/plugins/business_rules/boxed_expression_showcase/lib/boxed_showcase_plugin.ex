@@ -4,7 +4,7 @@ defmodule Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcasePlugin do
   runs compensation evaluation, and logs a CL3 expression-type report.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.BoxedExpressionShowcase.{BoxedShowcaseWorker, FacadeStore}
 

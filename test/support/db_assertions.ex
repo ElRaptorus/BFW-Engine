@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.DbAssertions do
+defmodule BfwEngine.Test.DbAssertions do
   @moduledoc """
   Helpers for querying and asserting against Ash-persisted
   execution records in integration tests.
@@ -8,10 +8,10 @@ defmodule EvilEngine.Test.DbAssertions do
 
   require Ash.Query
 
-  alias EvilEngine.Persistence.Api, as: Domain
-  alias EvilEngine.Persistence.Resources.FlowNodeInstance
-  alias EvilEngine.Persistence.Resources.ProcessInstance
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Persistence.Api, as: Domain
+  alias BfwEngine.Persistence.Resources.FlowNodeInstance
+  alias BfwEngine.Persistence.Resources.ProcessInstance
+  alias BfwEngine.Types.Event
 
   @sandbox_retry_attempts 6
   @sandbox_retry_delay_ms 25
@@ -125,7 +125,7 @@ defmodule EvilEngine.Test.DbAssertions do
   @doc "True when Repo is the Ecto SQL Sandbox, not `DBConnection.ConnectionPool`."
   @spec sandbox_pool?() :: boolean()
   def sandbox_pool? do
-    Keyword.get(EvilEngine.Persistence.Repo.config(), :pool) == Ecto.Adapters.SQL.Sandbox
+    Keyword.get(BfwEngine.Persistence.Repo.config(), :pool) == Ecto.Adapters.SQL.Sandbox
   end
 
   @doc """
@@ -136,7 +136,7 @@ defmodule EvilEngine.Test.DbAssertions do
   """
   @spec truncate_persistence_tables() :: :ok
   def truncate_persistence_tables do
-    EvilEngine.Persistence.Repo.query!("""
+    BfwEngine.Persistence.Repo.query!("""
     TRUNCATE
       flow_node_instances,
       process_instances,
@@ -169,7 +169,7 @@ defmodule EvilEngine.Test.DbAssertions do
   def restore_sandbox_shared_mode do
     if sandbox_pool?() do
       Enum.each(
-        [EvilEngine.Persistence.Repo, EvilEngine.Persistence.ReadRepo],
+        [BfwEngine.Persistence.Repo, BfwEngine.Persistence.ReadRepo],
         &restore_repo_shared_mode/1
       )
     else
@@ -394,7 +394,7 @@ defmodule EvilEngine.Test.DbAssertions do
   end
 
   defp assert_fni_event_lifecycle!(_process_instance_id, flow_node_instances) do
-    case Process.get(:evil_engine_test_event_collector) do
+    case Process.get(:bfw_engine_test_event_collector) do
       nil ->
         :ok
 

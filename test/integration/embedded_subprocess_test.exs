@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
+defmodule BfwEngine.Integration.EmbeddedSubprocessTest do
   @moduledoc """
   Umbrella-level integration tests for embedded `<bpmn:subProcess>` execution.
 
@@ -6,10 +6,10 @@ defmodule EvilEngine.Integration.EmbeddedSubprocessTest do
   real PostgreSQL persistence, covering happy paths, error boundaries, terminate
   scoping, abort cascade, resume, and data object isolation.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   @default_timeout 15_000
 

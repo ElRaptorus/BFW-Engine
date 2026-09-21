@@ -1,9 +1,9 @@
 defmodule Examples.Plugins.CustomValidators.ValidatorsPlugin do
   @moduledoc """
-  Registers multiple `EvilEngine.Plugin.NamedScript` handlers under one umbrella plugin.
+  Registers multiple `BfwEngine.Plugin.NamedScript` handlers under one umbrella plugin.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.Plugins.CustomValidators.Scripts.{
     CurrencyConverter,

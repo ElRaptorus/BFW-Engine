@@ -4,7 +4,7 @@
   "arrowParens": "always",
   "trailingComma": "all",
   "plugins": ["@trivago/prettier-plugin-sort-imports"],
-  "importOrder": ["^@daemonengine/(.+)", "^[./]"],
+  "importOrder": ["^@bfw-engine/(.+)", "^[./]"],
   "importOrderSeparation": true,
   "importOrderSortSpecifiers": true
 }

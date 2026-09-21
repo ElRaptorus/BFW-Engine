@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.FeelContextBindingsTest do
+defmodule BfwEngine.Integration.Execution.FeelContextBindingsTest do
   @moduledoc """
   Integration tests verifying that all seven FEEL context bindings are
   correctly populated at runtime and survive across flow nodes.
@@ -12,7 +12,7 @@ defmodule EvilEngine.Integration.Execution.FeelContextBindingsTest do
   - `processInstance` — PI metadata (id, startedAt, startedBy)
   - `identity` — JWT-derived caller identity (id, roles, groups)
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   describe "FEEL context bindings — all seven root variables" do
     test "FEEL-I1: script task captures all 7 bindings with correct values" do
@@ -62,7 +62,7 @@ defmodule EvilEngine.Integration.Execution.FeelContextBindingsTest do
              "process.name should be the BPMN process name"
 
       assert output["captured_process_version"] == "1.0.0",
-             "process.version should be the evil:version value"
+             "process.version should be the bfw:version value"
 
       assert output["captured_pi_id"] == process_instance_id,
              "processInstance.id should match the actual PI ID"

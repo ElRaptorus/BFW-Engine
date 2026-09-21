@@ -1,5 +1,7 @@
 # FEEL NIF Spike — Validation Results
 
+> Archival: this spike used the former product name (Daemon Engine / ThomasTheDaemonEngine).
+
 Poc for assessing viability of using dsntk (v0.3.0) + Rustler (v0.37.3) as a FEEL expression parser.
 
 ## Summary

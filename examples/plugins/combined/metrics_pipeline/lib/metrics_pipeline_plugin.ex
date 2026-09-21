@@ -4,7 +4,7 @@ defmodule Examples.Plugins.Combined.MetricsPipeline.MetricsPipelinePlugin do
   share an ETS-backed counter table.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.Plugins.Combined.MetricsPipeline.{
     FacadeStore,

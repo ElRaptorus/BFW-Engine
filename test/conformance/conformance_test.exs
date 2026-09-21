@@ -1,4 +1,4 @@
-defmodule EvilEngine.Conformance.ConformanceTest do
+defmodule BfwEngine.Conformance.ConformanceTest do
   @moduledoc """
   YAML-driven conformance test suite.
 
@@ -8,21 +8,21 @@ defmodule EvilEngine.Conformance.ConformanceTest do
 
   Covers all Phase 2 feature categories for exit criterion compliance.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Api
-  alias EvilEngine.Auth.ProviderRegistry
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.ConformanceRunner, as: Runner
-  alias EvilEngine.Test.ExamplePlugin
+  alias BfwEngine.Api
+  alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.ConformanceRunner, as: Runner
+  alias BfwEngine.Test.ExamplePlugin
 
   @moduletag :conformance
 
   @retry_user_task_fixture Path.expand("../fixtures/bpmns/retry_user_task.bpmn", __DIR__)
 
   defmodule FakeConformanceAuthProvider do
-    @behaviour EvilEngine.Plugin.AuthProvider
-    alias EvilEngine.Types.Identity
+    @behaviour BfwEngine.Plugin.AuthProvider
+    alias BfwEngine.Types.Identity
 
     @impl true
     def verify_and_resolve("valid-conformance-" <> user_id) do
@@ -49,7 +49,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
   end
 
   defp load_example_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, EvilEngine.Plugins.RegistryDispatch)
+    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
     facade = Loader.facade_for_plugin("evil:conformance_plugin")
     ExamplePlugin.on_load(facade)
   end
@@ -269,7 +269,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     {201, _} = http_deploy("retry_user_task.bpmn")
@@ -309,7 +309,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     {201, _} = http_deploy("call_activity_failing_child.bpmn")
@@ -334,7 +334,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     {201, _} = http_deploy("call_activity_failing_child.bpmn")
@@ -362,7 +362,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     {201, _} = http_deploy("call_activity_failing_child.bpmn")
@@ -399,7 +399,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     {201, _} = http_deploy("call_activity_child.bpmn")
@@ -495,14 +495,14 @@ defmodule EvilEngine.Conformance.ConformanceTest do
 
     {:ok, flow_node_instance} = await_waiting_flow_node_instance(process_instance_id, "service_task")
 
-    {:ok, process_instance_pid} = EvilEngine.Execution.lookup_process_instance(process_instance_id)
-    DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, process_instance_pid)
+    {:ok, process_instance_pid} = BfwEngine.Execution.lookup_process_instance(process_instance_id)
+    DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, process_instance_pid)
 
     Process.sleep(100)
 
     load_example_plugin()
 
-    {:ok, _resumed} = EvilEngine.Execution.ResumeRunner.resume_all()
+    {:ok, _resumed} = BfwEngine.Execution.ResumeRunner.resume_all()
 
     Process.sleep(200)
 
@@ -610,11 +610,11 @@ defmodule EvilEngine.Conformance.ConformanceTest do
   # INTERACTIVE TIER — Script Task conformance
   # ===================================================================
 
-  test "C73: Script Task dispatched via evil:scriptRef plugin" do
+  test "C73: Script Task dispatched via bfw:scriptRef plugin" do
     Application.put_env(
       :core_execution,
       :script_dispatch,
-      EvilEngine.Plugins.ScriptRegistryDispatch
+      BfwEngine.Plugins.ScriptRegistryDispatch
     )
 
     spec = Runner.load_spec("C73_script_task_script_ref.yaml")
@@ -869,7 +869,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
   test "C116: Pending signal — cached on zero-match, delivered on first subscriber" do
     spec = Runner.load_spec("C116_signal_pending_delivered.yaml")
 
-    identity = %EvilEngine.Types.Identity{
+    identity = %BfwEngine.Types.Identity{
       id: "test-user",
       roles: ["admin"],
       groups: [],
@@ -1004,7 +1004,7 @@ defmodule EvilEngine.Conformance.ConformanceTest do
       Application.put_env(:core_events, :signal_pending_ttl, "PT60S")
     end)
 
-    identity = %EvilEngine.Types.Identity{
+    identity = %BfwEngine.Types.Identity{
       id: "test-user",
       roles: ["admin"],
       groups: [],
@@ -1155,10 +1155,10 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     require Ash.Query
 
     started_pis =
-      EvilEngine.Persistence.Resources.ProcessInstance
+      BfwEngine.Persistence.Resources.ProcessInstance
       |> Ash.Query.filter(id != ^throw_pi_id)
       |> Ash.Query.sort(started_at: :desc)
-      |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+      |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
 
     assert length(started_pis) >= 1,
            "Expected at least 1 PI to be created via signal start event"
@@ -1306,10 +1306,10 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     require Ash.Query
 
     started_pis =
-      EvilEngine.Persistence.Resources.ProcessInstance
+      BfwEngine.Persistence.Resources.ProcessInstance
       |> Ash.Query.filter(id != ^throw_pi_id)
       |> Ash.Query.sort(started_at: :desc)
-      |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+      |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
 
     assert length(started_pis) >= 1,
            "Expected at least 1 PI to be created via message start event"
@@ -1582,15 +1582,15 @@ defmodule EvilEngine.Conformance.ConformanceTest do
   defp conformance_version_xml(fixture_name, new_version) do
     Path.join(@fixtures_dir, fixture_name)
     |> File.read!()
-    |> String.replace(~r/<evil:version>[^<]+<\/evil:version>/, "<evil:version>#{new_version}</evil:version>")
+    |> String.replace(~r/<bfw:version>[^<]+<\/bfw:version>/, "<bfw:version>#{new_version}</bfw:version>")
   end
 
   defp conformance_find_child_ids(parent_process_instance_id) do
     require Ash.Query
 
-    EvilEngine.Persistence.Resources.ProcessInstance
+    BfwEngine.Persistence.Resources.ProcessInstance
     |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
-    |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+    |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
     |> Enum.map(& &1.id)
   end
 
@@ -1689,10 +1689,10 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     require Ash.Query
 
     process_instances =
-      EvilEngine.Persistence.Resources.ProcessInstance
+      BfwEngine.Persistence.Resources.ProcessInstance
       |> Ash.Query.filter(process_version_id == ^process_version_id)
       |> Ash.Query.limit(1)
-      |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+      |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
 
     cond do
       process_instances != [] ->
@@ -1931,14 +1931,14 @@ defmodule EvilEngine.Conformance.ConformanceTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
   end
 
   defp conformance_incompatible_v2_xml do
     @retry_user_task_fixture
     |> File.read!()
-    |> String.replace("<evil:version>1.0.0</evil:version>", "<evil:version>2.0.0</evil:version>")
+    |> String.replace("<bfw:version>1.0.0</bfw:version>", "<bfw:version>2.0.0</bfw:version>")
     |> String.replace("UserTask_1", "UserTask_2")
     |> String.replace("Shape_UserTask_1", "Shape_UserTask_2")
   end

@@ -6,7 +6,7 @@ defmodule CoreExpressions.MixProject do
   Expression Language (FEEL) for
 
     * `<bpmn:conditionExpression>` on sequence flows,
-    * `<evil:correlationKey>` / `<evil:correlationRetrievalExpression>`
+    * `<bfw:correlationKey>` / `<bfw:correlationRetrievalExpression>`
       on message events,
     * Multi-Instance cardinality / collection / completion expressions,
     * Identity-claim resolution inside User Lanes.

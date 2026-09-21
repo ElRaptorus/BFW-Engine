@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Auth.DmnAuthorizationTest do
+defmodule BfwEngine.Integration.Auth.DmnAuthorizationTest do
   @moduledoc """
   Authorization tests for REST DMN catalog endpoints.
 
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.Auth.DmnAuthorizationTest do
   - `delete_dmn` on DELETE /…/versions/{version} and DELETE /…
   - 401 for unauthenticated requests
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

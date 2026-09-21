@@ -2,11 +2,11 @@ defmodule Examples.BusinessRules.ExplainDecision.ExplainDecisionPlugin do
   @moduledoc """
   Example plugin that registers the `explain_decision` named script handler.
 
-  Script Tasks reference the handler with `<evil:scriptRef>explain_decision</evil:scriptRef>`
+  Script Tasks reference the handler with `<bfw:scriptRef>explain_decision</bfw:scriptRef>`
   after a Business Rule Task has evaluated a DMN decision.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.ExplainDecision.Script
 

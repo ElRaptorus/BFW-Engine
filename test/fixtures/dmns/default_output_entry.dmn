@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="Definitions_default_output"
              name="Default Output Entry Test"
-             namespace="https://evilengine.dev/test/default-output"
+             namespace="https://bifrostforge.world/test/default-output"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">

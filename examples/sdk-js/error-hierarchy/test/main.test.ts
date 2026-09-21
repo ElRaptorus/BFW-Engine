@@ -4,7 +4,7 @@ import {
   ActiveInstancesExistError,
   AmbiguousStartEventError,
   ContractViolationError,
-  DaemonEngineError,
+  BfwEngineError,
   DeployValidationFailedError,
   EngineAtCapacityError,
   FniNotWaitingError,
@@ -31,13 +31,13 @@ import {
   UnauthorizedError,
   ValidationError,
   VersionExistsError,
-} from '@elraptorus/daemonengine_sdk';
-import { FlowNodeInstanceState, ProcessInstanceState } from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
+import { FlowNodeInstanceState, ProcessInstanceState } from '@elraptorus/bfw_engine_sdk';
 
-import { mapDaemonEngineError } from '../src/map-daemon-engine-error.js';
+import { mapBfwEngineError } from '../src/map-bfw-engine-error.js';
 
 describe('error hierarchy', () => {
-  const allErrors: DaemonEngineError[] = [
+  const allErrors: BfwEngineError[] = [
     new PayloadTooLargeError('payload', 10, 5),
     new RateLimitedError(1, 'wait'),
     new EngineAtCapacityError(1, 1, 1, 'full'),
@@ -69,9 +69,9 @@ describe('error hierarchy', () => {
     new GraphqlIntrospectionDisabledError('x'),
   ];
 
-  it('treats every SDK error class as DaemonEngineError', () => {
+  it('treats every SDK error class as BfwEngineError', () => {
     for (const error of allErrors) {
-      expect(error).toBeInstanceOf(DaemonEngineError);
+      expect(error).toBeInstanceOf(BfwEngineError);
       expect(error).toBeInstanceOf(Error);
     }
   });
@@ -101,11 +101,11 @@ describe('error hierarchy', () => {
   it('does not make ProcessNotFoundError a subclass of NotFoundError (narrow with statusCode or separate checks)', () => {
     const processNotFoundError = new ProcessNotFoundError('missing');
     expect(processNotFoundError).not.toBeInstanceOf(NotFoundError);
-    expect(processNotFoundError).toBeInstanceOf(DaemonEngineError);
+    expect(processNotFoundError).toBeInstanceOf(BfwEngineError);
   });
 
-  it('formats throws via mapDaemonEngineError', () => {
-    const text = mapDaemonEngineError(new UnauthorizedError('nope'));
+  it('formats throws via mapBfwEngineError', () => {
+    const text = mapBfwEngineError(new UnauthorizedError('nope'));
     expect(text).toContain('401');
     expect(text).toContain('unauthorized');
   });

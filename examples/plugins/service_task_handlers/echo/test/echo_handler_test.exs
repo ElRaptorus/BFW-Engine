@@ -1,10 +1,10 @@
 defmodule Examples.ServiceTaskHandlers.Echo.EchoHandlerTest do
   use ExUnit.Case
 
-  alias EvilEngine.BPMN.Model.FlowNode
-  alias EvilEngine.BPMN.Model.FlowNodeData.ServiceTask, as: ServiceTaskData
-  alias EvilEngine.Execution.HandlerContext
-  alias EvilEngine.Types.Token
+  alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.Model.FlowNodeData.ServiceTask, as: ServiceTaskData
+  alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Types.Token
 
   alias Examples.ServiceTaskHandlers.Echo.EchoFacadeStore
   alias Examples.ServiceTaskHandlers.Echo.EchoHandler

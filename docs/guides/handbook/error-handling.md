@@ -50,7 +50,7 @@ These two states represent fundamentally different situations:
 
 ## Payload Cap
 
-Every user-supplied payload is checked against `TDE_TOKEN_MAX_BYTES` (default 64 KiB, configurable). This applies to:
+Every user-supplied payload is checked against `BFE_TOKEN_MAX_BYTES` (default 64 KiB, configurable). This applies to:
 
 - PI start payload
 - User Task completion results
@@ -89,7 +89,7 @@ No engine state changes on a payload cap violation — the operation is rejected
 
 ## Result Contract Violations
 
-When a [User Task](user-tasks.md) defines an `evil:resultContract` (JSON Schema), the completion result is validated strictly. A schema mismatch causes the FNI to transition to `fatal`.
+When a [User Task](user-tasks.md) defines an `bfw:resultContract` (JSON Schema), the completion result is validated strictly. A schema mismatch causes the FNI to transition to `fatal`.
 
 ## Handler Errors
 
@@ -120,7 +120,7 @@ See [Error End Events](error-end-events.md) for full details, BPMN examples, and
 
 Error Boundary Events allow a process to catch and handle errors from activity nodes. They catch both engine failures and modeled BPMN errors (from [Error End Events](error-end-events.md)). Instead of the parent PI going `fatal` or `error`, the error is routed to an alternative path.
 
-Catch codes resolve via inline `evil:errorCode` or `errorRef` → global `<bpmn:error errorCode>`. Specific resolved codes rank before catch-all. Service Task `fail_async` uses the same matcher.
+Catch codes resolve via inline `bfw:errorCode` or `errorRef` → global `<bpmn:error errorCode>`. Specific resolved codes rank before catch-all. Service Task `fail_async` uses the same matcher.
 
 See [Error Boundary Events](error-boundary-events.md) for full configuration, matching rules, and examples.
 

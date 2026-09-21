@@ -1,7 +1,7 @@
 defmodule ApiAuth.MixProject do
   @moduledoc """
   Built-in JWT validator — HS256 + RS256/ES256 + JWKS.
-  Pluggable via `@behaviour EvilEngine.Plugin.AuthProvider`.
+  Pluggable via `@behaviour BfwEngine.Plugin.AuthProvider`.
   """
 
   use Mix.Project
@@ -25,7 +25,7 @@ defmodule ApiAuth.MixProject do
   def application do
     [
       extra_applications: [:logger, :public_key],
-      mod: {EvilEngine.Auth.Application, []}
+      mod: {BfwEngine.Auth.Application, []}
     ]
   end
 

@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.Execution.EventOrderingTest do
+defmodule BfwEngine.Integration.Execution.EventOrderingTest do
   @moduledoc "Strict event ordering verification for Start → Task → End."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   describe "event ordering for Start → Task → End" do
     test "events arrive in strict sequence with correct metadata", %{collector: collector} do

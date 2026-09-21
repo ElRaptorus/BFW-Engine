@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.DMN.DmnDeployAndEvaluateTest do
+defmodule BfwEngine.Integration.DMN.DmnDeployAndEvaluateTest do
   @moduledoc """
   Full-stack integration tests for DMN deploy, catalog CRUD, and ad-hoc evaluation.
 
   Exercises the HTTP pipeline end-to-end: `POST /decisions`, catalog routes,
   and `POST /decisions/{model_id}/evaluate` for all hit policies and error paths.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 
@@ -453,15 +453,15 @@ defmodule EvilEngine.Integration.DMN.DmnDeployAndEvaluateTest do
       {201, deploy_body} = http_deploy_dmn("simple_unique.dmn")
       version = hd(deploy_body["deployed"])["version"]
 
-      {:ok, definition} = EvilEngine.Api.get_decision_by_model_id(@definitions_discount)
-      {:ok, decision_version} = EvilEngine.Api.find_decision_version_by_key(definition.id, version)
+      {:ok, definition} = BfwEngine.Api.get_decision_by_model_id(@definitions_discount)
+      {:ok, decision_version} = BfwEngine.Api.find_decision_version_by_key(definition.id, version)
       version_id = decision_version.id
 
-      assert {:ok, _definitions} = EvilEngine.DMN.ModelCache.fetch(version_id)
+      assert {:ok, _definitions} = BfwEngine.DMN.ModelCache.fetch(version_id)
 
       {204, nil} = http_delete_decision_version(@definitions_discount, version)
 
-      refute version_id in EvilEngine.DMN.ModelCache.list_cached_ids()
+      refute version_id in BfwEngine.DMN.ModelCache.list_cached_ids()
     end
   end
 

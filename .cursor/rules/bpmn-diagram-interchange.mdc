@@ -24,8 +24,8 @@ Every `.bpmn` file in this repository **must** include a `<bpmndi:BPMNDiagram>` 
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 ```
 
@@ -100,7 +100,7 @@ Every new BPMN diagram **must** contain at least one pool (`<bpmn:participant>` 
 
 ## Namespace URI
 
-The canonical `evil:` namespace URI is `https://evilengine.dev/schema/bpmn`. Older variants (`http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`) are deprecated and must not be used in new files.
+The canonical `bfw:` namespace URI is `https://bifrostforge.world/schema/bpmn`. Older variants (`http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`) are deprecated and must not be used in new files.
 
 ## Coordinate calculation
 

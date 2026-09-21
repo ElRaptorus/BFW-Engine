@@ -2,7 +2,7 @@
 # Usage: mix run scripts/generate-parser-snapshots.exs
 #
 # Walks BPMN fixture directories, parses each file with
-# EvilEngine.BPMN.Parser.parse/1, and writes camelCase JSON snapshots
+# BfwEngine.BPMN.Parser.parse/1, and writes camelCase JSON snapshots
 # to packages/js/sdk/test/conformance/snapshots/.
 #
 # Snapshots whose fixture no longer exists are deleted, so the output
@@ -75,7 +75,7 @@ defmodule SnapshotGenerator do
     basename = Path.basename(path, ".bpmn")
     xml = File.read!(path)
 
-    case EvilEngine.BPMN.Parser.parse(xml) do
+    case BfwEngine.BPMN.Parser.parse(xml) do
       {:ok, definitions} ->
         json =
           definitions

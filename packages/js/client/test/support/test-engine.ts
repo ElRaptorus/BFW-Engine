@@ -3,16 +3,16 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SignJWT } from 'jose';
-import type { EngineEventEnvelope, UserTaskCreated } from '@elraptorus/daemonengine_sdk';
-import { DaemonEngineError } from '@elraptorus/daemonengine_sdk';
+import type { EngineEventEnvelope, UserTaskCreated } from '@elraptorus/bfw_engine_sdk';
+import { BfwEngineError } from '@elraptorus/bfw_engine_sdk';
 
-import { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import { BfwEngineClient } from '../../src/bfw-engine-client.js';
 
 const THIS_DIR = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = resolve(THIS_DIR, '../integration/fixtures');
 const DMN_FIXTURES_DIR = resolve(FIXTURES_DIR, 'dmn');
 
-const DEFAULT_SECRET = 'BloodForTheBloodGod!_SkullsForTheSkullThrone!';
+const DEFAULT_SECRET = 'AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!';
 
 // ---------------------------------------------------------------------------
 // Environment helpers
@@ -82,15 +82,15 @@ export async function mintExpiredToken(claims?: Record<string, unknown>): Promis
 // Client factories (claim-scoped)
 // ---------------------------------------------------------------------------
 
-function clientFromFactory(tokenFactory: () => Promise<string>): DaemonEngineClient {
-  return new DaemonEngineClient(engineHttpUrl(), tokenFactory, { wsUrl: engineWsUrl() });
+function clientFromFactory(tokenFactory: () => Promise<string>): BfwEngineClient {
+  return new BfwEngineClient(engineHttpUrl(), tokenFactory, { wsUrl: engineWsUrl() });
 }
 
-export async function createAdminClient(): Promise<DaemonEngineClient> {
+export async function createAdminClient(): Promise<BfwEngineClient> {
   return clientFromFactory(() => mintTestToken());
 }
 
-export async function createReadOnlyClient(): Promise<DaemonEngineClient> {
+export async function createReadOnlyClient(): Promise<BfwEngineClient> {
   return clientFromFactory(() =>
     mintTestToken({
       sub: 'readonly-user',
@@ -107,7 +107,7 @@ export async function createReadOnlyClient(): Promise<DaemonEngineClient> {
   );
 }
 
-export async function createDeployerClient(): Promise<DaemonEngineClient> {
+export async function createDeployerClient(): Promise<BfwEngineClient> {
   return clientFromFactory(() =>
     mintTestToken({
       sub: 'deployer-user',
@@ -120,7 +120,7 @@ export async function createDeployerClient(): Promise<DaemonEngineClient> {
   );
 }
 
-export async function createDeleterClient(): Promise<DaemonEngineClient> {
+export async function createDeleterClient(): Promise<BfwEngineClient> {
   return clientFromFactory(() =>
     mintTestToken({
       sub: 'deleter-user',
@@ -133,7 +133,7 @@ export async function createDeleterClient(): Promise<DaemonEngineClient> {
   );
 }
 
-export async function createOwnPiClient(extraClaims?: Record<string, unknown>): Promise<DaemonEngineClient> {
+export async function createOwnPiClient(extraClaims?: Record<string, unknown>): Promise<BfwEngineClient> {
   return clientFromFactory(() =>
     mintTestToken({
       sub: 'own-pi-user',
@@ -147,7 +147,7 @@ export async function createOwnPiClient(extraClaims?: Record<string, unknown>): 
   );
 }
 
-export async function createAllPiClient(): Promise<DaemonEngineClient> {
+export async function createAllPiClient(): Promise<BfwEngineClient> {
   return clientFromFactory(() =>
     mintTestToken({
       sub: 'all-pi-user',
@@ -160,7 +160,7 @@ export async function createAllPiClient(): Promise<DaemonEngineClient> {
   );
 }
 
-export async function createLaneClient(laneNames: string[]): Promise<DaemonEngineClient> {
+export async function createLaneClient(laneNames: string[]): Promise<BfwEngineClient> {
   const laneClaims: Record<string, string> = {};
   for (const lane of laneNames) {
     // Boolean `true` is rejected by the engine; `"write"` is the acting value.
@@ -179,20 +179,20 @@ export async function createLaneClient(laneNames: string[]): Promise<DaemonEngin
   );
 }
 
-export async function createUnauthenticatedClient(): Promise<DaemonEngineClient> {
-  return new DaemonEngineClient(engineHttpUrl(), 'garbage-not-a-jwt', { wsUrl: engineWsUrl() });
+export async function createUnauthenticatedClient(): Promise<BfwEngineClient> {
+  return new BfwEngineClient(engineHttpUrl(), 'garbage-not-a-jwt', { wsUrl: engineWsUrl() });
 }
 
-export async function createExpiredTokenClient(): Promise<DaemonEngineClient> {
+export async function createExpiredTokenClient(): Promise<BfwEngineClient> {
   const token = await mintExpiredToken();
-  return new DaemonEngineClient(engineHttpUrl(), token, { wsUrl: engineWsUrl() });
+  return new BfwEngineClient(engineHttpUrl(), token, { wsUrl: engineWsUrl() });
 }
 
-export async function createClientWithToken(token: string): Promise<DaemonEngineClient> {
-  return new DaemonEngineClient(engineHttpUrl(), token, { wsUrl: engineWsUrl() });
+export async function createClientWithToken(token: string): Promise<BfwEngineClient> {
+  return new BfwEngineClient(engineHttpUrl(), token, { wsUrl: engineWsUrl() });
 }
 
-export async function createAdminBypassOnlyClient(): Promise<DaemonEngineClient> {
+export async function createAdminBypassOnlyClient(): Promise<BfwEngineClient> {
   return clientFromFactory(() =>
     mintTestToken({
       sub: 'admin-bypass-only',
@@ -230,7 +230,7 @@ export function readFixture(fixtureName: string): string {
 }
 
 export async function deployFixture(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   fixtureName: string | string[],
 ): Promise<void> {
   const names = Array.isArray(fixtureName) ? fixtureName : [fixtureName];
@@ -239,7 +239,7 @@ export async function deployFixture(
     try {
       await client.processes.deploy(source);
     } catch (error: unknown) {
-      if (error instanceof DaemonEngineError && error.statusCode === 409) {
+      if (error instanceof BfwEngineError && error.statusCode === 409) {
         continue;
       }
       throw error;
@@ -252,7 +252,7 @@ export async function deployFixture(
 // ---------------------------------------------------------------------------
 
 export async function waitForState(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   processInstanceId: string,
   targetState: string,
   timeoutMs = 15_000,
@@ -271,7 +271,7 @@ export async function waitForState(
 }
 
 export async function waitForUserTask(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   processInstanceId: string,
   timeoutMs = 15_000,
 ): Promise<string> {
@@ -338,7 +338,7 @@ export async function waitForUserTask(
 }
 
 async function pollUntilFniWaiting(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   flowNodeInstanceId: string,
   timeoutMs = 10_000,
 ): Promise<void> {
@@ -357,7 +357,7 @@ async function pollUntilFniWaiting(
   throw new Error(`FNI ${flowNodeInstanceId} did not reach 'waiting' state within ${timeoutMs}ms`);
 }
 
-export async function cleanupInstances(client: DaemonEngineClient): Promise<void> {
+export async function cleanupInstances(client: BfwEngineClient): Promise<void> {
   try {
     const instances = await client.graphql.queryProcessInstances({
       fields: ['id', 'state'],
@@ -397,7 +397,7 @@ export function readDmnFixture(fixtureName: string): string {
 }
 
 export async function deployDmnFixture(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   fixtureName: string | string[],
 ): Promise<void> {
   const names = Array.isArray(fixtureName) ? fixtureName : [fixtureName];
@@ -406,7 +406,7 @@ export async function deployDmnFixture(
     try {
       await client.decisions.deploy(source);
     } catch (error: unknown) {
-      if (error instanceof DaemonEngineError && error.statusCode === 409) {
+      if (error instanceof BfwEngineError && error.statusCode === 409) {
         continue;
       }
       throw error;

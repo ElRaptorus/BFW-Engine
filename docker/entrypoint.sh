@@ -8,13 +8,13 @@
 # deployment pattern.
 set -euo pipefail
 
-RELEASE=/app/bin/evil_engine
+RELEASE=/app/bin/bfw_engine
 
 echo "[entrypoint] Running migrations…"
-"${RELEASE}" eval "EvilEngine.Persistence.Release.migrate()"
+"${RELEASE}" eval "BfwEngine.Persistence.Release.migrate()"
 
 echo "[entrypoint] Pre-creating audit-log partitions…"
-"${RELEASE}" eval "EvilEngine.Persistence.Release.ensure_partitions()"
+"${RELEASE}" eval "BfwEngine.Persistence.Release.ensure_partitions()"
 
 echo "[entrypoint] Starting release…"
 exec "${RELEASE}" "${@:-start}"

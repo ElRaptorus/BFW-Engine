@@ -5,11 +5,11 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogSink do
   Registration: `facade.register_event_sink.("datadog", DatadogSink, api_key: ..., batch_size: ...)`
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @doc "Initializes batching state from registration options, rejecting invalid batch sizes."
   @impl true
@@ -62,7 +62,7 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogSink do
 
   defp metric_entry_for_event(%Event.ProcessInstanceStateChanged{} = event) do
     %{
-      metric: "evil.process_instance.state_changed",
+      metric: "bfw.process_instance.state_changed",
       tags: [
         "process_instance_id:#{event.process_instance_id}",
         "new_state:#{event.new_state}"
@@ -74,7 +74,7 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogSink do
 
   defp metric_entry_for_event(%Event.FlowNodeInstanceStarted{} = event) do
     %{
-      metric: "evil.flow_node.started",
+      metric: "bfw.flow_node.started",
       tags: [
         "process_instance_id:#{event.process_instance_id}",
         "flow_node_id:#{event.flow_node_id}",
@@ -87,7 +87,7 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogSink do
 
   defp metric_entry_for_event(%Event.FlowNodeInstanceFinished{} = event) do
     %{
-      metric: "evil.flow_node.finished",
+      metric: "bfw.flow_node.finished",
       tags: [
         "process_instance_id:#{event.process_instance_id}",
         "flow_node_id:#{event.flow_node_id}",
@@ -100,7 +100,7 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogSink do
 
   defp metric_entry_for_event(%Event.EngineOverloaded{} = event) do
     %{
-      metric: "evil.engine.overload",
+      metric: "bfw.engine.overload",
       tags: [
         "level:#{event.level}",
         "active_process_instances:#{event.active_process_instances}",

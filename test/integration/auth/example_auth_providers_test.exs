@@ -10,14 +10,14 @@ Examples.Shared.ExampleCompiler.compile_files([
   Path.join(examples_root, "companygraph/lib/companygraph_plugin.ex")
 ])
 
-defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
+defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
   @moduledoc """
   Verifies that the example auth provider plugins under
   `examples/plugins/auth_providers/` are compilable, implement
   the `AuthProvider` behaviour correctly, and produce valid
   `%Identity{}` structs.
   """
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
   @compile {:no_warn_undefined,
             [
@@ -27,8 +27,8 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
               MyCompany.CompanyGraphPlugin
             ]}
 
-  alias EvilEngine.Auth.ProviderRegistry
-  alias EvilEngine.Types.Identity
+  alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Types.Identity
 
   setup do
     ProviderRegistry.reset_to_default()
@@ -47,7 +47,7 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
         |> Keyword.get_values(:behaviour)
         |> List.flatten()
 
-      assert EvilEngine.Plugin.AuthProvider in behaviours
+      assert BfwEngine.Plugin.AuthProvider in behaviours
     end
 
     test "verify_and_resolve/1 accepts valid LDAP token" do
@@ -106,18 +106,18 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
         |> Keyword.get_values(:behaviour)
         |> List.flatten()
 
-      assert EvilEngine.Plugin in behaviours
+      assert BfwEngine.Plugin in behaviours
     end
 
     test "on_load registers the LDAP auth provider" do
-      facade = EvilEngine.Plugins.Loader.facade_for_plugin("test-ldap-plugin")
+      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-ldap-plugin")
       assert :ok = MyCompany.LdapPlugin.on_load(facade)
 
       assert ProviderRegistry.active_provider() == MyCompany.LdapAuthProvider
     end
 
     test "on_ready returns :ok" do
-      facade = EvilEngine.Plugins.Loader.facade_for_plugin("test-ldap-plugin")
+      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-ldap-plugin")
       assert :ok = MyCompany.LdapPlugin.on_ready(facade)
     end
   end
@@ -133,7 +133,7 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
         |> Keyword.get_values(:behaviour)
         |> List.flatten()
 
-      assert EvilEngine.Plugin.AuthProvider in behaviours
+      assert BfwEngine.Plugin.AuthProvider in behaviours
     end
 
     test "admin token produces full engine claims" do
@@ -273,18 +273,18 @@ defmodule EvilEngine.Integration.ExampleAuthProvidersTest do
         |> Keyword.get_values(:behaviour)
         |> List.flatten()
 
-      assert EvilEngine.Plugin in behaviours
+      assert BfwEngine.Plugin in behaviours
     end
 
     test "on_load registers the CompanyGraph auth provider" do
-      facade = EvilEngine.Plugins.Loader.facade_for_plugin("test-cg-plugin")
+      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-cg-plugin")
       assert :ok = MyCompany.CompanyGraphPlugin.on_load(facade)
 
       assert ProviderRegistry.active_provider() == MyCompany.CompanyGraphAuthProvider
     end
 
     test "on_ready returns :ok (permission seeding is stubbed)" do
-      facade = EvilEngine.Plugins.Loader.facade_for_plugin("test-cg-plugin")
+      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-cg-plugin")
       assert :ok = MyCompany.CompanyGraphPlugin.on_ready(facade)
     end
 

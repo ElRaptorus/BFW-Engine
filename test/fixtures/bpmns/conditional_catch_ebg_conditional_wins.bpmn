@@ -3,9 +3,9 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_ConditionalCatchEbgWins">
 
   <!--
@@ -21,7 +21,7 @@
 
   <bpmn:process id="ConditionalCatchEbgConditionalWins" name="Conditional Catch EBG Wins" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -53,7 +53,7 @@
 
     <bpmn:userTask id="UserTask_WriteReady" name="Write Ready">
       <bpmn:extensionElements>
-        <evil:formFields>{"fields":[{"name":"status","type":"text"}]}</evil:formFields>
+        <bfw:formFields>{"fields":[{"name":"status","type":"text"}]}</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_User</bpmn:incoming>
       <bpmn:outgoing>Flow_User_Join</bpmn:outgoing>

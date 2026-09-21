@@ -1,8 +1,8 @@
 defmodule Examples.Plugins.Combined.RabbitmqToEngine.RabbitmqOrchestratorTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.EngineFacade
-  alias EvilEngine.Types.Event
+  alias BfwEngine.EngineFacade
+  alias BfwEngine.Types.Event
   alias Examples.Plugins.Combined.RabbitmqToEngine.{
     FacadeStore,
     OrchestratorCustomEvent,

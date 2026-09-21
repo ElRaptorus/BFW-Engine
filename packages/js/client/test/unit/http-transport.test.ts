@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HttpTransport } from '../../src/http/transport.js';
-import { UnauthorizedError, NotFoundError, DaemonEngineError } from '@elraptorus/daemonengine_sdk';
+import { UnauthorizedError, NotFoundError, BfwEngineError } from '@elraptorus/bfw_engine_sdk';
 
 function mockFetch(
   status: number,
@@ -162,7 +162,7 @@ describe('HttpTransport', () => {
       mockFetch(503);
       await expect(
         transport.head('/health', { skipAuth: true, expect: 204 }),
-      ).rejects.toThrow(DaemonEngineError);
+      ).rejects.toThrow(BfwEngineError);
     });
   });
 
@@ -187,7 +187,7 @@ describe('HttpTransport', () => {
   describe('error body parsing fallback', () => {
     it('falls back to unknown error when response body is not JSON', async () => {
       mockFetchJsonError();
-      await expect(transport.get('/processes')).rejects.toThrow(DaemonEngineError);
+      await expect(transport.get('/processes')).rejects.toThrow(BfwEngineError);
     });
   });
 });

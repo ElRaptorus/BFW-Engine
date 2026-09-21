@@ -19,7 +19,7 @@ export interface DecisionDefinition {
   enabled: boolean;
   /** ISO 8601 timestamp when the Ash resource was created. */
   createdAt?: string;
-  /** Deployment version string (`evil:version`). REST-only. */
+  /** Deployment version string (`bfw:version`). REST-only. */
   version?: string;
   /** ISO 8601 timestamp when this version was deployed. REST-only. */
   deployedAt?: string;

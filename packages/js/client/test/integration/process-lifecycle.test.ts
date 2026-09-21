@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -14,10 +14,10 @@ import {
   ParseError,
   ActiveInstancesExistError,
   VersionExistsError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
-let adminClient: DaemonEngineClient;
-let readOnlyClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let readOnlyClient: BfwEngineClient;
 
 const passthroughProcessModelId = 'integration-passthrough';
 const userTaskProcessModelId = 'integration-user-task';

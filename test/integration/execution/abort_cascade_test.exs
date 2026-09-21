@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.AbortCascadeTest do
+defmodule BfwEngine.Integration.Execution.AbortCascadeTest do
   @moduledoc """
   Integration tests for upward abort cascade through the process tree.
 
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.Execution.AbortCascadeTest do
   This is the "kill switch" behaviour: abort on any PI in the tree kills
   the whole tree. Error Boundary Events must NOT catch aborts.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -15,7 +15,7 @@ defmodule EvilEngine.Integration.Execution.AbortCascadeTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->

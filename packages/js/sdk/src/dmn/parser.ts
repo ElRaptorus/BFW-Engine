@@ -1,6 +1,6 @@
 /**
  * DMN XML parser producing the same typed model as the engine's
- * `EvilEngine.DMN.Parser`. Uses `fast-xml-parser` with
+ * `BfwEngine.DMN.Parser`. Uses `fast-xml-parser` with
  * `preserveOrder: true` to maintain document order, then walks the
  * ordered tree to build model objects.
  */

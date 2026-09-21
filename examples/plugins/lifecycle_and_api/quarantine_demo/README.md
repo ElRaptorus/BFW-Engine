@@ -4,7 +4,7 @@ Author-facing demonstration of plugin quarantine ([plugins.md](../../../../docs/
 [getting-started Failure Handling](../../../../docs/guides/plugins/getting-started.md)).
 
 Engine unit tests already cover Loader quarantine (`L-7`/`L-8` in
-`apps/peripheral_plugins/test/evil_engine/plugins/loader_test.exs`). This cookbook
+`apps/peripheral_plugins/test/bfw_engine/plugins/loader_test.exs`). This cookbook
 is what plugin authors copy.
 
 ## What `on_load` failure does
@@ -49,7 +49,7 @@ See `loader_test.exs` `on_ready` cases.
 
 This example is intentionally **not** a successful registration. Point
 `:plugin_module` at `Examples.Plugins.QuarantineDemo.QuarantineDemoPlugin` and add
-the OTP app to `TDE_PLUGINS_INBEAM` only when you want to watch quarantine on a
+the OTP app to `BFE_PLUGINS_INBEAM` only when you want to watch quarantine on a
 scratch engine.
 
 ```elixir

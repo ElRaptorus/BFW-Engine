@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
-import { UnauthorizedError } from '@elraptorus/daemonengine_sdk';
+import { UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
 
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   createAdminClient,
   createExpiredTokenClient,
@@ -14,7 +14,7 @@ beforeAll(async () => {
   await ensureEngineReachable();
 });
 
-let adminClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
 
 beforeAll(async () => {
   adminClient = await createAdminClient();
@@ -47,8 +47,8 @@ describe('Health & Info', () => {
   });
 
   describe('bad paths', () => {
-    let unauthenticatedClient: DaemonEngineClient;
-    let expiredTokenClient: DaemonEngineClient;
+    let unauthenticatedClient: BfwEngineClient;
+    let expiredTokenClient: BfwEngineClient;
 
     beforeAll(async () => {
       unauthenticatedClient = await createUnauthenticatedClient();

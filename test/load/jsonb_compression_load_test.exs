@@ -1,19 +1,19 @@
-defmodule EvilEngine.Load.JsonbCompressionLoadTest do
+defmodule BfwEngine.Load.JsonbCompressionLoadTest do
   @moduledoc """
   Item 4 — LZ4 vs PGLZ latency gate. Opt-in via `mix test.load.hardening`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :load
   @moduletag :hardening
 
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.CompletionCounter
-  alias EvilEngine.Test.DbAssertions
-  alias EvilEngine.Test.ExamplePlugin
-  alias EvilEngine.Test.LoadHelpers
-  alias EvilEngine.Test.PayloadCapFixtures
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.CompletionCounter
+  alias BfwEngine.Test.DbAssertions
+  alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Test.LoadHelpers
+  alias BfwEngine.Test.PayloadCapFixtures
 
   @mi_start_body %{"payload" => %{"items" => [1, 2, 3]}}
   @graphql_tokens_query """
@@ -36,7 +36,7 @@ defmodule EvilEngine.Load.JsonbCompressionLoadTest do
     Application.put_env(
       :core_execution,
       :service_task_dispatch,
-      EvilEngine.Plugins.RegistryDispatch
+      BfwEngine.Plugins.RegistryDispatch
     )
 
     facade = Loader.facade_for_plugin("evil:test_jsonb_compression")
@@ -52,7 +52,7 @@ defmodule EvilEngine.Load.JsonbCompressionLoadTest do
 
   @tag timeout: 3_600_000
   test "LZ4 vs PGLZ p50/p95 gate on write_result, DOA, publish, resume, GraphQL" do
-    count = String.to_integer(System.get_env("TDE_LOAD_COMPRESSION_COUNT") || "10000")
+    count = String.to_integer(System.get_env("BFE_LOAD_COMPRESSION_COUNT") || "10000")
     five_deep_roots = min(100, count)
 
     # Absinthe compiles on first query. Warm once so the lz4 wave is not
@@ -262,7 +262,7 @@ defmodule EvilEngine.Load.JsonbCompressionLoadTest do
 
   defp do_await_waiting_user_tasks(expected, deadline) do
     %{rows: [[count]]} =
-      EvilEngine.Persistence.Repo.query!("""
+      BfwEngine.Persistence.Repo.query!("""
       SELECT count(*) FROM flow_node_instances
        WHERE flow_node_type = 'user_task' AND state = 'waiting'
       """)

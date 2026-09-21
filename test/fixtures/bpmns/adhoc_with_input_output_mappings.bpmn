@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -14,7 +14,7 @@
 
   <bpmn:process id="AdHocWithInputOutputMappings" name="Ad-hoc with Input Output Mappings" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -33,8 +33,8 @@
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
       <bpmn:extensionElements>
-        <evil:inputMapping source="token.orderId" target="orderId" />
-        <evil:outputMapping source="token.result" target="adhocResult" />
+        <bfw:inputMapping source="token.orderId" target="orderId" />
+        <bfw:outputMapping source="token.result" target="adhocResult" />
       </bpmn:extensionElements>
       <bpmn:scriptTask id="ScriptTask_Process" name="Process Order" scriptFormat="feel">
         <bpmn:script>{ result: "processed" }</bpmn:script>

@@ -1,9 +1,9 @@
 defmodule CoreBpmn.MixProject do
   @moduledoc """
   BPMN XML parser + validator + data-contract compiler + in-memory
-  `EvilEngine.BPMN.ModelCache` GenServer.
+  `BfwEngine.BPMN.ModelCache` GenServer.
 
-  Owns the parsed Process Model AST under `EvilEngine.BPMN.Model.*`. Authoritative persistent form is `process_versions.bpmn_xml`
+  Owns the parsed Process Model AST under `BfwEngine.BPMN.Model.*`. Authoritative persistent form is `process_versions.bpmn_xml`
   (§4.1); the AST is only ever in memory.
   """
 
@@ -28,7 +28,7 @@ defmodule CoreBpmn.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {EvilEngine.BPMN.Application, []}
+      mod: {BfwEngine.BPMN.Application, []}
     ]
   end
 

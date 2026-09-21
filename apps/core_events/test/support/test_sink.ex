@@ -1,6 +1,6 @@
-defmodule EvilEngine.Test.TestSink do
+defmodule BfwEngine.Test.TestSink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @impl true
   def init(opts) do

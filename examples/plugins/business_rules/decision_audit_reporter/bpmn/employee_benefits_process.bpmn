@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_employee_benefits">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_employee-benefits-process" name="Employee Benefits Process" processRef="employee-benefits-process" />
@@ -13,7 +13,7 @@
 
   <bpmn:process id="employee-benefits-process" name="Employee Benefits Process" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -29,7 +29,7 @@
 
     <bpmn:businessRuleTask id="BRT_determine_benefits" name="Determine Benefits" implementation="dmn">
       <bpmn:extensionElements>
-        <evil:decisionRef>employee-benefits</evil:decisionRef>
+        <bfw:decisionRef>employee-benefits</bfw:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_to_brt</bpmn:incoming>
       <bpmn:outgoing>Flow_brt_to_end</bpmn:outgoing>

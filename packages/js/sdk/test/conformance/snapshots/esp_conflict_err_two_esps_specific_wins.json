@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -74,7 +76,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Thrower Start",
-                "outgoing": ["Thrower_Flow_1"],
+                "outgoing": [
+                  "Thrower_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -90,7 +94,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Thrower_ErrorEnd",
-                "incoming": ["Thrower_Flow_1"],
+                "incoming": [
+                  "Thrower_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Payment Failed",
@@ -136,7 +142,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -184,7 +192,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Specific Error Start",
-                "outgoing": ["ESP_Specific_Err_Flow_1"],
+                "outgoing": [
+                  "ESP_Specific_Err_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -204,7 +214,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Specific_Err_End",
-                "incoming": ["ESP_Specific_Err_Flow_1"],
+                "incoming": [
+                  "ESP_Specific_Err_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Specific Error End",
@@ -274,7 +286,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "CatchAll Error Start",
-                "outgoing": ["ESP_CatchAll_Err_Flow_1"],
+                "outgoing": [
+                  "ESP_CatchAll_Err_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -294,7 +308,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_CatchAll_Err_End",
-                "incoming": ["ESP_CatchAll_Err_Flow_1"],
+                "incoming": [
+                  "ESP_CatchAll_Err_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "CatchAll Error End",
@@ -337,7 +353,11 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_Thrower", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_Thrower",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

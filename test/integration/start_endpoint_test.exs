@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.StartEndpointTest do
+defmodule BfwEngine.Integration.StartEndpointTest do
   @moduledoc """
   Integration tests for `POST /processes/{model_id}/start`.
 
@@ -7,10 +7,10 @@ defmodule EvilEngine.Integration.StartEndpointTest do
   - Bad paths (B1–B9): catalog errors, start-event errors, payload/auth errors
   - Full-stack E2E: deploy → start → complete → assert DB state
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   # -------------------------------------------------------------------------
   # Happy paths
@@ -180,7 +180,7 @@ defmodule EvilEngine.Integration.StartEndpointTest do
   # Bad paths — payload errors
   # -------------------------------------------------------------------------
 
-  describe "B7: payload exceeds TDE_TOKEN_MAX_BYTES" do
+  describe "B7: payload exceeds BFE_TOKEN_MAX_BYTES" do
     test "returns 413 payload_too_large" do
       {201, _} = http_deploy("linear_start_end.bpmn")
 
@@ -299,11 +299,11 @@ defmodule EvilEngine.Integration.StartEndpointTest do
     @bpmn_template """
     <?xml version="1.0" encoding="UTF-8"?>
     <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                      xmlns:evil="https://evilengine.dev/schema/bpmn"
+                      xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                       id="Definitions_1">
       <bpmn:process id="SyncTest" name="Sync Test" isExecutable="EXEC_FLAG">
         <bpmn:extensionElements>
-          <evil:version>VERSION</evil:version>
+          <bfw:version>VERSION</bfw:version>
         </bpmn:extensionElements>
         <bpmn:startEvent id="Start_1" name="Start"/>
         <bpmn:endEvent id="End_1" name="End"/>

@@ -3,7 +3,7 @@ defmodule Examples.BusinessRules.ExplainDecision.Script do
   Named script that turns a DMN evaluation trace on the token into a human-readable explanation.
   """
 
-  @behaviour EvilEngine.Plugin.NamedScript
+  @behaviour BfwEngine.Plugin.NamedScript
 
   @doc "Builds an explanation string from the trace.decisions list on the script payload."
   @impl true

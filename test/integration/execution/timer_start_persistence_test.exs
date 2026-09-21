@@ -1,14 +1,14 @@
-defmodule EvilEngine.Integration.TimerStartPersistenceTest do
+defmodule BfwEngine.Integration.TimerStartPersistenceTest do
   @moduledoc """
   Full-stack test: cycle Timer Start schedules persist in Postgres and
   re-arm after a simulated Scheduler ETS loss (engine restart).
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.TimerStartScheduleAdapter
-  alias EvilEngine.Timers.Scheduler
-  alias EvilEngine.Timers.StartEventManager
+  alias BfwEngine.Persistence.TimerStartScheduleAdapter
+  alias BfwEngine.Timers.Scheduler
+  alias BfwEngine.Timers.StartEventManager
 
   @cycle_iso "R/PT1S"
 
@@ -80,7 +80,7 @@ defmodule EvilEngine.Integration.TimerStartPersistenceTest do
     require Ash.Query
 
     {:ok, records} =
-      EvilEngine.Persistence.Resources.ProcessInstance
+      BfwEngine.Persistence.Resources.ProcessInstance
       |> Ash.Query.filter(process_version_id == ^process_version_id and deleted == false)
       |> Ash.read(authorize?: false)
 
@@ -91,7 +91,7 @@ defmodule EvilEngine.Integration.TimerStartPersistenceTest do
     require Ash.Query
 
     {:ok, records} =
-      EvilEngine.Persistence.Resources.ProcessInstance
+      BfwEngine.Persistence.Resources.ProcessInstance
       |> Ash.Query.filter(
         process_version_id == ^process_version_id and state == "running" and deleted == false
       )
@@ -123,15 +123,15 @@ defmodule EvilEngine.Integration.TimerStartPersistenceTest do
     """
     <?xml version="1.0" encoding="UTF-8"?>
     <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                      xmlns:evil="https://evilengine.dev/schema/bpmn"
+                      xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                       xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                       xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                       xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                       id="Definitions_#{process_model_id}"
-                      targetNamespace="https://evilengine.dev/schema/bpmn">
+                      targetNamespace="https://bifrostforge.world/schema/bpmn">
       <bpmn:process id="#{process_model_id}" name="Timer Start Persist" isExecutable="true">
         <bpmn:extensionElements>
-          <evil:version>1.0.0</evil:version>
+          <bfw:version>1.0.0</bfw:version>
         </bpmn:extensionElements>
         <bpmn:startEvent id="TimerStart_1" name="Cycle Timer Start">
           <bpmn:outgoing>Flow_1</bpmn:outgoing>

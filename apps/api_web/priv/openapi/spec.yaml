@@ -3,9 +3,9 @@ openapi: "3.0.3"
 x-graphql-limits:
   description: >
     GraphQL operational configuration (environment variables):
-    - TDE_GRAPHQL_MAX_DEPTH (default 16) — max query field nesting depth
-    - TDE_GRAPHQL_MAX_COMPLEXITY (default 10000) — max query complexity score (sized for Studio debugger dataObjectValues limit 500)
-    - TDE_GRAPHQL_INTROSPECTION_DISABLED (default false) — blocks __schema/__type queries when true
+    - BFE_GRAPHQL_MAX_DEPTH (default 16) — max query field nesting depth
+    - BFE_GRAPHQL_MAX_COMPLEXITY (default 10000) — max query complexity score (sized for Studio debugger dataObjectValues limit 500)
+    - BFE_GRAPHQL_INTROSPECTION_DISABLED (default false) — blocks __schema/__type queries when true
 
 x-security-headers:
   description: >
@@ -17,10 +17,10 @@ x-security-headers:
     - strict-transport-security: max-age=31536000; includeSubDomains (HTTPS only)
 
 info:
-  title: Daemon Engine API
+  title: Bifrost Forge World Engine API
   version: "0.1.0"
   description: |
-    ThomasTheDaemonEngine — a BPMN 2.0 Workflow Engine.
+    Bifrost Forge World Engine — a BPMN 2.0 Workflow Engine.
 
     This REST API surface exposes health checks, engine info, telemetry,
     process deployment, instance management, timer schedule management,
@@ -33,10 +33,10 @@ info:
     decisions, and the BPMN process-model graph.
 
     **Note:** This spec, Swagger UI, and GraphQL Playground are disabled in
-    production by default (`TDE_DEVTOOLS_ENABLED`). The spec endpoint can
-    be individually enabled via `TDE_EXPOSE_OPENAPI_SPEC=true`.
+    production by default (`BFE_DEVTOOLS_ENABLED`). The spec endpoint can
+    be individually enabled via `BFE_EXPOSE_OPENAPI_SPEC=true`.
 
-# "servers" is injected at runtime by OpenApiSpecLoader from TDE_HTTP_PORT.
+# "servers" is injected at runtime by OpenApiSpecLoader from BFE_HTTP_PORT.
 
 security:
   - BearerAuth: []
@@ -103,10 +103,10 @@ paths:
                 properties:
                   engineId:
                     type: string
-                    example: evil-engine-01
+                    example: bfw-engine-01
                   engineName:
                     type: string
-                    example: Daemon Engine (local dev)
+                    example: Bifrost Forge World Engine (local dev)
                   version:
                     type: string
                     example: "0.1.0"
@@ -123,7 +123,7 @@ paths:
       security: []
       description: |
         Prometheus exposition format (`text/plain`). Disabled when
-        `TDE_METRICS_ENABLED` resolves to false (returns 404 JSON).
+        `BFE_METRICS_ENABLED` resolves to false (returns 404 JSON).
       responses:
         "200":
           description: Prometheus text exposition
@@ -440,7 +440,7 @@ paths:
                   - $ref: "#/components/schemas/ContractViolationError"
                   - $ref: "#/components/schemas/Error"
         "413":
-          description: Payload exceeds TDE_TOKEN_MAX_BYTES
+          description: Payload exceeds BFE_TOKEN_MAX_BYTES
           content:
             application/json:
               schema:
@@ -448,7 +448,7 @@ paths:
         "429":
           description: >-
             Global start rate limit exceeded (D49 Layer 2 —
-            `TDE_PI_START_RATE_LIMIT`). Clients may retry after `Retry-After`
+            `BFE_PI_START_RATE_LIMIT`). Clients may retry after `Retry-After`
             (`retryAfterSeconds` in the JSON body matches it).
           headers:
             Retry-After:
@@ -462,7 +462,7 @@ paths:
         "503":
           description: >-
             Maximum concurrent process instances reached (D49 Layer 1 —
-            `TDE_MAX_CONCURRENT_PIS`). Clients may retry after `Retry-After`.
+            `BFE_MAX_CONCURRENT_PIS`). Clients may retry after `Retry-After`.
           headers:
             Retry-After:
               schema:
@@ -539,7 +539,7 @@ paths:
           required: true
           schema:
             type: string
-          description: The version string (e.g. `"1.0.0"` — corresponds to `evil:version`).
+          description: The version string (e.g. `"1.0.0"` — corresponds to `bfw:version`).
       responses:
         "204":
           description: Version deleted (no body)
@@ -675,7 +675,7 @@ paths:
                   - $ref: "#/components/schemas/Error"
         "503":
           description: >-
-            Engine at capacity (`TDE_MAX_CONCURRENT_PIS`). Client may retry
+            Engine at capacity (`BFE_MAX_CONCURRENT_PIS`). Client may retry
             after `Retry-After` seconds.
           headers:
             Retry-After:
@@ -824,7 +824,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "413":
-          description: Result payload exceeds TDE_TOKEN_MAX_BYTES
+          description: Result payload exceeds BFE_TOKEN_MAX_BYTES
           content:
             application/json:
               schema:
@@ -1871,7 +1871,7 @@ components:
       bearerFormat: JWT
       description: >-
         HS256/RS256/ES256 JWT. Mint Studio operator tokens with
-        `mix evil.mint_token --full` (includes `lane:default="write"`,
+        `mix bfw.mint_token --full` (includes `lane:default="write"`,
         not `observe_all`). Observer: `--claim observe_all=true`.
         Lane claims are `"read"` | `"write"` — boolean `true` is rejected.
         See `docs/guides/api/authentication.md`.
@@ -2316,7 +2316,7 @@ components:
           description: Observed size in bytes.
         limit:
           type: number
-          description: Configured maximum (for example `TDE_TOKEN_MAX_BYTES`).
+          description: Configured maximum (for example `BFE_TOKEN_MAX_BYTES`).
         details:
           type: object
           description: >-
@@ -2360,7 +2360,7 @@ components:
           type: integer
           nullable: true
           description: >-
-            Configured `TDE_MAX_CONCURRENT_PIS` cap (omitted or null only if
+            Configured `BFE_MAX_CONCURRENT_PIS` cap (omitted or null only if
             misconfigured; normal responses use a finite integer)
         retryAfterSeconds:
           type: integer
@@ -2429,7 +2429,7 @@ components:
           description: BPMN process ID (the `<process id="...">` attribute).
         version:
           type: string
-          description: Deployment version string (`evil:version`).
+          description: Deployment version string (`bfw:version`).
 
     StartResult:
       type: object
@@ -2465,7 +2465,7 @@ components:
           description: BPMN `<definitions id="...">` attribute.
         version:
           type: string
-          description: Deployment version string (`evil:version`).
+          description: Deployment version string (`bfw:version`).
         name:
           type: string
           nullable: true
@@ -2496,7 +2496,7 @@ components:
           description: BPMN `<definitions id="...">` attribute.
         version:
           type: string
-          description: Deployment version string (`evil:version`).
+          description: Deployment version string (`bfw:version`).
         name:
           type: string
           nullable: true
@@ -2537,7 +2537,7 @@ components:
           description: BPMN `<definitions id="...">` attribute.
         version:
           type: string
-          description: Deployment version string (`evil:version`).
+          description: Deployment version string (`bfw:version`).
         name:
           type: string
           nullable: true

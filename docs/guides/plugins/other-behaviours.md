@@ -2,14 +2,14 @@
 
 Beyond Service Task handlers, Event Sinks, and REST API extensions, the engine ships two more live capability types: **NamedScript** and **AuthProvider**.
 
-PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `EvilEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`). BPMN DataStores are a parser no-op.
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`). BPMN DataStores are a parser no-op.
 
 ## NamedScript
 
-Handles `<evil:scriptRef>` execution for a specific script key. Unique by key. The engine dispatches to the registered module when a Script Task has a matching `evil:scriptRef` value. Scripts are always synchronous — no handler parking.
+Handles `<bfw:scriptRef>` execution for a specific script key. Unique by key. The engine dispatches to the registered module when a Script Task has a matching `bfw:scriptRef` value. Scripts are always synchronous — no handler parking.
 
 ```elixir
-@behaviour EvilEngine.Plugin.NamedScript
+@behaviour BfwEngine.Plugin.NamedScript
 
 @callback handle_enter(flow_node :: map(), payload :: map(), context :: map()) ::
             {:ok, map()} | {:error, term()}
@@ -28,10 +28,10 @@ facade.register_named_script.("my_validation", MyPlugin.CustomScript)
 Replaces the built-in JWT verifier. Unique (singleton, first-writer wins). A second plugin that registers another provider receives `{:error, :conflict, incumbent_plugin_name}` and is quarantined. If no plugin registers a provider, the built-in JWT provider in `api_auth` is used.
 
 ```elixir
-@behaviour EvilEngine.Plugin.AuthProvider
+@behaviour BfwEngine.Plugin.AuthProvider
 
 @callback verify_and_resolve(token :: String.t()) ::
-            {:ok, EvilEngine.Types.Identity.t()} | {:error, term()}
+            {:ok, BfwEngine.Types.Identity.t()} | {:error, term()}
 ```
 
 Called on every authenticated HTTP request and WebSocket connection. Must be reasonably fast and must not have side effects.

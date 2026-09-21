@@ -1,4 +1,4 @@
-defmodule EvilEngine.Load.ExecutionLoadTest do
+defmodule BfwEngine.Load.ExecutionLoadTest do
   @moduledoc """
   Execution load tests that exercise the full API-driven lifecycle.
 
@@ -43,15 +43,15 @@ defmodule EvilEngine.Load.ExecutionLoadTest do
   | E9 64 KiB | 30,713 ms | 154 s |
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.AutoFinisher
-  alias EvilEngine.Test.CompletionCounter
-  alias EvilEngine.Test.DbAssertions
-  alias EvilEngine.Test.ExamplePlugin
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.AutoFinisher
+  alias BfwEngine.Test.CompletionCounter
+  alias BfwEngine.Test.DbAssertions
+  alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Test.LoadHelpers
 
   @payload_cap_bytes 65_536
   @mi_start_body %{"payload" => %{"items" => [1, 2, 3]}}

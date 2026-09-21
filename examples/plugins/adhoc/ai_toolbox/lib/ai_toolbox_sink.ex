@@ -7,11 +7,11 @@ defmodule Examples.Plugins.Adhoc.AiToolbox.AiToolboxSink do
   Registration: `facade.register_event_sink.("ai-toolbox", __MODULE__, facade: facade)`
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @tool_priority ["LookupOrder", "CheckInventory", "CreateTicket", "SendEmail", "EscalateToHuman"]
   @max_tools_per_inquiry 3

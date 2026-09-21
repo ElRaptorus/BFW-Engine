@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when the engine rejects new work because it has reached its active PI limit. */
-export class EngineAtCapacityError extends DaemonEngineError {
+export class EngineAtCapacityError extends BfwEngineError {
   constructor(
     /** Number of currently active process instances. */
     public readonly active: number,

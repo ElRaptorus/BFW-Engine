@@ -14,11 +14,11 @@ defmodule IncidentReporter.EventSink do
   `GET /process-instances/{id}` (which includes `error_info`).
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @impl true
   def init(opts) do

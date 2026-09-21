@@ -2,12 +2,19 @@
   "businessKnowledgeModels": [],
   "decisionServices": [
     {
-      "encapsulatedDecisions": ["Decision_risk"],
+      "encapsulatedDecisions": [
+        "Decision_risk"
+      ],
       "id": "DS_eligibility",
-      "inputData": ["InputData_age", "InputData_income"],
+      "inputData": [
+        "InputData_age",
+        "InputData_income"
+      ],
       "inputDecisions": [],
       "name": "Eligibility Service",
-      "outputDecisions": ["Decision_eligibility"]
+      "outputDecisions": [
+        "Decision_eligibility"
+      ]
     }
   ],
   "decisions": [
@@ -76,5 +83,5 @@
   "itemDefinitions": [],
   "knowledgeSources": [],
   "name": "Decision Service Basic",
-  "namespace": "https://evilengine.dev/test/decision-service-basic"
+  "namespace": "https://bifrostforge.world/test/decision-service-basic"
 }

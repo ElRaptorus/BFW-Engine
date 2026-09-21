@@ -34,7 +34,7 @@ defmodule Examples.ServiceTaskHandlers.NodeScript.NodeScriptPlugin do
   `examples/plugins/named_scripts/local_script_runner/`.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Stores the facade for async completion and registers the node_script handler."
   @impl true

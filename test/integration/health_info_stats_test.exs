@@ -1,6 +1,6 @@
-defmodule EvilEngine.Integration.HealthInfoStatsTest do
+defmodule BfwEngine.Integration.HealthInfoStatsTest do
   @moduledoc "Full-stack: public probes and authenticated telemetry."
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
   # --- /health (public, no auth) -----------------------------------------
 

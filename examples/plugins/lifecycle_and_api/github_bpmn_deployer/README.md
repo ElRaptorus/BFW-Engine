@@ -10,7 +10,7 @@ Engine boots
   └─ on_ready: start worker GenServer
        ├─ GitHub Contents API → list .bpmn files
        ├─ Download each file (raw content)
-       ├─ EvilEngine.BPMN.parse_and_validate/1
+       ├─ BfwEngine.BPMN.parse_and_validate/1
        ├─ facade.processes.deploy.(batch)
        └─ Log summary, self-terminate
 ```
@@ -39,7 +39,7 @@ The worker runs exactly once and stops — no polling, no file watchers. Restart
 
 ## Dependencies
 
-The plugin calls `EvilEngine.BPMN.parse_and_validate/1`, so the hosting OTP app must depend on `core_bpmn` in addition to `engine_sdk`. The HTTP client uses Erlang's built-in `:httpc` — no external HTTP library required.
+The plugin calls `BfwEngine.BPMN.parse_and_validate/1`, so the hosting OTP app must depend on `core_bpmn` in addition to `engine_sdk`. The HTTP client uses Erlang's built-in `:httpc` — no external HTTP library required.
 
 ## Integration
 
@@ -63,7 +63,7 @@ end
 ```
 
 3. Set the required environment variables
-4. Add your OTP app name to `TDE_PLUGINS_INBEAM`
+4. Add your OTP app name to `BFE_PLUGINS_INBEAM`
 
 ## Example: repository layout
 

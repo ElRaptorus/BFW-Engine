@@ -22,7 +22,7 @@ When they land:
 
 ### YAML-driven conformance framework
 
-The Phase 1 conformance corpus lives in `test/conformance/` and is executed via
+The conformance corpus lives in `test/conformance/` and is executed via
 `mix test.conformance` (or as part of `mix test.full` / `mix quality`). YAML specs
 are loaded with `YamlElixir` from `api_web`'s `yaml_elixir` dependency (also used
 for OpenAPI at runtime). The umbrella root does not declare `yaml_elixir`: Mix
@@ -33,8 +33,8 @@ every environment.
 
 | Module | File | Purpose |
 |--------|------|---------|
-| `EvilEngine.Test.ConformanceRunner` | `test/support/conformance_runner.ex` | Loads YAML specs, deploys BPMNs, starts PIs, waits for completion, asserts expectations |
-| `EvilEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish). `find_waiting_fni/2` skips MI/loop shells (`type_properties.mi_shell`). `finish_waiting_user_task_by_node_id/3` is required when more than one user task may be waiting (cancel-arm gate plus nested wait). `finish_transaction_cancel_gate_after_nested_idle/2` finishes `Tx_CancelGate` only after nested work is idle-waiting (C236–C238 / TX-7–TX-9). Interrupting-boundary proximity fixtures (ESC-1, ESC-3) use Escalation End after the arm user task so the child PI does not dispatch a None End writer that the boundary would kill mid-persist. See [ExUnit and CI constraints](#exunit-and-ci-constraints). |
+| `BfwEngine.Test.ConformanceRunner` | `test/support/conformance_runner.ex` | Loads YAML specs, deploys BPMNs, starts PIs, waits for completion, asserts expectations |
+| `BfwEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish). `find_waiting_fni/2` skips MI/loop shells (`type_properties.mi_shell`). `finish_waiting_user_task_by_node_id/3` is required when more than one user task may be waiting (cancel-arm gate plus nested wait). `finish_transaction_cancel_gate_after_nested_idle/2` finishes `Tx_CancelGate` only after nested work is idle-waiting (C236–C238 / TX-7–TX-9). Interrupting-boundary proximity fixtures (ESC-1, ESC-3) use Escalation End after the arm user task so the child PI does not dispatch a None End writer that the boundary would kill mid-persist. See [ExUnit and CI constraints](#exunit-and-ci-constraints). |
 
 **Test tiers:**
 
@@ -63,13 +63,13 @@ expected:
   fni_count: 2
 ```
 
-**Phase 1 fixtures (C01–C20 + C04a):** 21 specs covering linear flows, user tasks
+**Linear and task fixtures (C01–C20 + C04a):** 21 specs covering linear flows, user tasks
 (finish/cancel/contract violation), manual tasks (passthrough/confirmation),
 service tasks (sync/async/fail/unknown type), multi-start events, implicit
 split fatal, dead-end fatal, oversize payload rejection, intermediate catch events,
 and resume-after-restart.
 
-**Phase 2 fixtures (C21–C30):** 10 specs covering exclusive gateway routing
+**Gateway and call-activity fixtures (C21–C30):** 10 specs covering exclusive gateway routing
 (condition A/B, default fallback, ambiguous fatal, no-match fatal), call activity
 (basic lifecycle, error boundary catch, no-boundary fatal, result mapping via
 out_mappings), and combined XOR-to-Call-Activity flows.
@@ -95,8 +95,8 @@ at the edge.
 
 The first tier of execution integration tests verifies the core PI/FNI runtime
 against real `.bpmn` fixture files, a live PostgreSQL database (Ecto Sandbox),
-and the EngineEventBus — without HTTP/WS/GraphQL round-trips. These land with
-Phase 1 items 1–6 and complement the unit tests in `core_execution/` which use
+and the EngineEventBus — without HTTP/WS/GraphQL round-trips. They complement
+the unit tests in `core_execution/` which use
 programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
 **Location**: `test/integration/execution/` (umbrella root)
@@ -118,7 +118,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 | `linear_start_end.bpmn` | Start → End |
 | `linear_three_node.bpmn` | Start → Task → End |
 | `user_task_simple.bpmn` | Start → UserTask → End (with assignees + formFields) |
-| `user_task_with_contract.bpmn` | Same with `evil:resultContract` |
+| `user_task_with_contract.bpmn` | Same with `bfw:resultContract` |
 | `manual_task_confirm.bpmn` | Start → ManualTask (requireConfirmation) → End |
 | `multi_start_events.bpmn` | Two untyped Start Events, each leading to a separate End Event |
 | `implicit_split.bpmn` | Task with 2 outgoing flows (implicit split anti-pattern) |
@@ -168,7 +168,7 @@ and skipped with a recorded reason:
 | **Token payload lifecycle** | no payload • contract-validated payload at every hop • payload mutated by each FNI and asserted against the final shape |
 | **Data Objects** | none • scope-local Data Object mutated by multiple FNIs • Data Object passed across Call Activity boundary via input/output mapping |
 
-**Mandatory headline scenarios** (all green before the Phase 4 exit criterion):
+**Mandatory headline scenarios:**
 
 - **S1 — Linear happy path**: Start → UserTask → ServiceTask → End. Baseline.
 - **S2 — Parallel Gateway fan-out + join** *(covered by C160–C164)*: two or more branches, payload-merge semantics verified per token at the joining gateway.
@@ -179,24 +179,24 @@ and skipped with a recorded reason:
 - **S7 — Call Activity, single-level**: child PI spawn, input mapping, child runs to completion, result mapping applied to parent token.
 - **S8 — Call Activity chain, 5–6 levels deep**: root PI spawns child via Call Activity; child spawns grandchild; …; level-6 descendant runs to completion. Every level's PI and FNI must reach the correct terminal state; the entire chain of `parent_process_instance_id` links must resolve.
 - **S9 — Deeply-nested mixed scopes**: root → Embedded Subprocess → Call Activity → Embedded Subprocess → Call Activity → Embedded Subprocess (6 scopes, alternating kinds). Asserts that scope-local data objects and token payloads propagate correctly across every boundary.
-- **S10 — Cross-PI messaging (single-recipient)**: intermediate throw from one PI correlates to an intermediate catch in exactly one sibling PI (both share the same `<evil:correlationKey>` value); asserts `messages.correlations` has length 1, `messages.correlation_value` is non-null, the target FNI advances, and no other PI is touched.
-- **S10a — Broadcast-within-key (serial-letter)**: three sibling PIs all subscribe to the same message name and evaluate their `<evil:correlationKey>` to the same value. A single `POST /messages/{message_name}/trigger` (or intermediate throw) with that correlation delivers to **all three** — assert `messages.correlations` has length 3, each target FNI advances, and `correlations[].flow_node_instance_id` is distinct across the three.
+- **S10 — Cross-PI messaging (single-recipient)**: intermediate throw from one PI correlates to an intermediate catch in exactly one sibling PI (both share the same `<bfw:correlationKey>` value); asserts `messages.correlations` has length 1, `messages.correlation_value` is non-null, the target FNI advances, and no other PI is touched.
+- **S10a — Broadcast-within-key (serial-letter)**: three sibling PIs all subscribe to the same message name and evaluate their `<bfw:correlationKey>` to the same value. A single `POST /messages/{message_name}/trigger` (or intermediate throw) with that correlation delivers to **all three** — assert `messages.correlations` has length 3, each target FNI advances, and `correlations[].flow_node_instance_id` is distinct across the three.
 - **S10b — Catch-wins-over-Start**: a process has a Message Start Event on name `M`. One PI of that process is already running and waiting on an intermediate catch for `M` with correlation value `K`. A `POST /messages/{message_name}/trigger` with `correlation=K` arrives. Assert: **no new PI** is started, the existing PI's catch advances, `messages.correlations` has length 1, `response.startedProcessInstanceIds` is empty. A second publish with `correlation=K'` (no matching subscription) starts exactly one new PI via the Start Event.
-- **S10c — Pending-TTL rematch**: `TDE_MESSAGE_PENDING_TTL=PT30S`. Publish a message with correlation `K` at T0 — no subscription exists, `pending_messages` row written with `state='pending'`. At T+10s, start a PI whose intermediate catch evaluates `<evil:correlationKey>` to `K`. Assert the pending row transitions to `state='delivered'`, the catch advances, and `messages.correlations` is populated with the late subscription.
+- **S10c — Pending-TTL rematch**: `BFE_MESSAGE_PENDING_TTL=PT30S`. Publish a message with correlation `K` at T0 — no subscription exists, `pending_messages` row written with `state='pending'`. At T+10s, start a PI whose intermediate catch evaluates `<bfw:correlationKey>` to `K`. Assert the pending row transitions to `state='delivered'`, the catch advances, and `messages.correlations` is populated with the late subscription.
 - **S10d — Pending-TTL expiry**: same setup as S10c but no matching subscription arrives before T+30s. The sweeper transitions the pending row to `state='expired'`, a `warn` log line is emitted with the `message_id`, and a subsequent subscription with the same key at T+40s does **not** receive the expired message.
-- **S10e — Pending-rematched after restart**: publish at T0; `SIGKILL` the engine at T+5s; restart at T+10s. The surviving `pending_messages` row is still `state='pending'` with `expires_at = T+30s`. A PI deployed post-restart (or resumed from disk) registers a matching subscription at T+15s — assert the row flips to `state='delivered'` and the subscription receives the payload; assert the resumed subscription's `expected_correlation_value` equals the pending row's `correlation_value` (i.e. the post-restart re-evaluation of `<evil:correlationKey>` against restored state produced the same value).
+- **S10e — Pending-rematched after restart**: publish at T0; `SIGKILL` the engine at T+5s; restart at T+10s. The surviving `pending_messages` row is still `state='pending'` with `expires_at = T+30s`. A PI deployed post-restart (or resumed from disk) registers a matching subscription at T+15s — assert the row flips to `state='delivered'` and the subscription receives the payload; assert the resumed subscription's `expected_correlation_value` equals the pending row's `correlation_value` (i.e. the post-restart re-evaluation of `<bfw:correlationKey>` against restored state produced the same value).
 - **S10f — Mixed Intermediate Catch + Boundary on the same key**: a running PI has both an intermediate catch AND a message-boundary attached to a parallel Service Task, both subscribing to the same `(name, correlation_value)`. Assert that a single publish delivers to **both** (broadcast-within-key), the catch advances its flow, and the boundary interrupts the task.
 - **S11 — Error boundary + retry**: Service Task raises an FNI `fatal`; boundary error handler fires; `/process-instances/{id}/retry` re-enters the failed FNI and completes the run. Final state `finished`, not `fatal`.
 - **S12 — Compensation flow**: error in a compensable activity triggers the compensation handler; compensation runs to completion; PI terminal state is `compensated`.
 - **S13 — Timer scheduler under concurrency**: scheduled timer fires exactly once per PI across thousands of concurrent PIs; no double-fire, no drift beyond the §0 tick precision.
 - **S14 — Multi-instance over Call Activity**: a Call Activity configured as parallel multi-instance spawns N child PIs concurrently; parent waits for all to complete and aggregates their results.
-- **S15 — Cross-PI escalation, interrupting boundary**: three-level chain Parent → Call Activity `CA1` → Child → Call Activity `CA2` → Grandchild. The Grandchild throws an `EscalationEnd` with code `ESC_42`. Neither the Grandchild nor the Child has an enclosing catch; the Parent has an **interrupting** Escalation Boundary on `CA1` matching `ESC_42`. Assertions: Parent continues down the boundary path and finishes `finished`; `CA1` FNI ends `interrupted`; Child PI ends `aborted` with `terminated_by = parent_escalation`; `CA2` FNI (in Child) ends `interrupted`; Grandchild PI ends `escalated`; the `[:evil_engine, :escalation, :raised]` telemetry event is emitted exactly **once** with the full ancestor-PI chain `[grandchild_process_instance_id, child_process_instance_id, parent_process_instance_id]`; the matching boundary FNI's `previous_flow_node_instance_ids` chain links back through `CA1` to the Grandchild's throw FNI (spanning two PI boundaries); **no** `[:evil_engine, :escalation, :uncaught]` event is emitted.
-- **S15a — Cross-PI escalation, non-interrupting boundary**: same three-level fixture as S15, but the Parent's boundary on `CA1` is **non-interrupting**. Assertions: Child PI and Grandchild PI keep running to normal completion (`finished`); `CA1` FNI also reaches `finished`; in parallel, the Parent spawns a second token via the non-interrupting boundary path and that token finishes normally; the Parent PI ends `finished`; `[:evil_engine, :escalation, :raised]` is emitted exactly once; the Parent PI has **two** terminal token paths recorded (main `CA1` completion + boundary continuation) and both appear as independent branches in `process_instance_events`.
+- **S15 — Cross-PI escalation, interrupting boundary**: three-level chain Parent → Call Activity `CA1` → Child → Call Activity `CA2` → Grandchild. The Grandchild throws an `EscalationEnd` with code `ESC_42`. Neither the Grandchild nor the Child has an enclosing catch; the Parent has an **interrupting** Escalation Boundary on `CA1` matching `ESC_42`. Assertions: Parent continues down the boundary path and finishes `finished`; `CA1` FNI ends `interrupted`; Child PI ends `aborted` with `terminated_by = parent_escalation`; `CA2` FNI (in Child) ends `interrupted`; Grandchild PI ends `escalated`; the `[:bfw_engine, :escalation, :raised]` telemetry event is emitted exactly **once** with the full ancestor-PI chain `[grandchild_process_instance_id, child_process_instance_id, parent_process_instance_id]`; the matching boundary FNI's `previous_flow_node_instance_ids` chain links back through `CA1` to the Grandchild's throw FNI (spanning two PI boundaries); **no** `[:bfw_engine, :escalation, :uncaught]` event is emitted.
+- **S15a — Cross-PI escalation, non-interrupting boundary**: same three-level fixture as S15, but the Parent's boundary on `CA1` is **non-interrupting**. Assertions: Child PI and Grandchild PI keep running to normal completion (`finished`); `CA1` FNI also reaches `finished`; in parallel, the Parent spawns a second token via the non-interrupting boundary path and that token finishes normally; the Parent PI ends `finished`; `[:bfw_engine, :escalation, :raised]` is emitted exactly once; the Parent PI has **two** terminal token paths recorded (main `CA1` completion + boundary continuation) and both appear as independent branches in `process_instance_events`.
 - **S15b — Uncaught cross-PI escalation via Escalation End**: same fixture as S15 but with the Parent's boundary on `CA1` removed. The walker traverses Grandchild → Child → Parent and finds no catch anywhere. Assertions:
   - Grandchild PI ends `escalated` (its own Escalation End Event terminal semantics stand).
   - Child PI ends `escalated`; `CA2` FNI ends `interrupted`.
   - Parent PI ends `escalated`; `CA1` FNI ends `interrupted`.
-  - Exactly one `[:evil_engine, :escalation, :uncaught]` telemetry event is emitted at the Parent PI boundary, carrying `ancestor_pi_chain = [grandchild_process_instance_id, child_process_instance_id, parent_process_instance_id]`, the escalation code `ESC_42`, and the throw-site FNI id.
+  - Exactly one `[:bfw_engine, :escalation, :uncaught]` telemetry event is emitted at the Parent PI boundary, carrying `ancestor_pi_chain = [grandchild_process_instance_id, child_process_instance_id, parent_process_instance_id]`, the escalation code `ESC_42`, and the throw-site FNI id.
   - Exactly one `warn`-level structured JSON log carries the same fields.
   - **No PI anywhere in the fixture transitions to `fatal`** (uncaught escalations never fault).
 - **S15c — Uncaught cross-PI escalation via Intermediate Throw**: same chain as S15 but the Grandchild uses an **Intermediate** Escalation Throw that continues to a normal End Event; no catches anywhere. Assertions:
@@ -204,7 +204,7 @@ and skipped with a recorded reason:
   - Child PI ends `finished`; `CA2` FNI ends `finished`.
   - Parent PI ends `finished`; `CA1` FNI ends `finished`.
   - No FNI anywhere is `interrupted`.
-  - Exactly one `[:evil_engine, :escalation, :uncaught]` telemetry event + one `warn` log, with the full ancestor-PI chain and throw-site FNI id.
+  - Exactly one `[:bfw_engine, :escalation, :uncaught]` telemetry event + one `warn` log, with the full ancestor-PI chain and throw-site FNI id.
   - No PI transitions to `fatal` or `escalated` — an uncaught Intermediate Throw is a pure no-op for terminal state.
 
 ### Assertion framework
@@ -241,9 +241,9 @@ state **after** the root PI reaches a terminal state (polled via the GraphQL
 - Every row's `flow_node_instance_id` resolves to an existing `flow_node_instances` row, and that FNI's `process_instance_id` equals the write's `process_instance_id` (no cross-PI writes exist). Furthermore (DOA-only invariant): the writing FNI's Flow Node model has at least one `bpmn:dataOutputAssociation` targeting the written Data Object — assertions cross-reference the parsed AST to verify there is no "orphan" write with no DOA predecessor. (This was a soft invariant when the handler-API path existed; with the DOA-only path it becomes hard.)
 - The **last** row's `value` for each `(process_instance_id, data_object_id)` equals `data_objects.value` for that pair.
 - ~~For every `data_object_writes` row there is exactly one `process_instance_events` row with `event_type = 'data_object.written'` whose payload carries the matching `write_id` (1:1 correspondence).~~ **Superseded:** the built-in database sink was removed; `process_instance_events` is no longer populated. Integration tests assert `data_object_writes` rows only.
-- Contract-violation path: when a scenario forces a `<evil:valueContract>` violation, assert that `data_object_writes` has **zero** rows for that attempted write and the FNI transitioned to `fatal`. Independently, assert that no `%Event.DataObjectWritten{}` was emitted on `EngineEventBus` for that attempt — the contract check happens **before** the write transaction, so sinks never see the rejected write.
+- Contract-violation path: when a scenario forces a `<bfw:valueContract>` violation, assert that `data_object_writes` has **zero** rows for that attempted write and the FNI transitioned to `fatal`. Independently, assert that no `%Event.DataObjectWritten{}` was emitted on `EngineEventBus` for that attempt — the contract check happens **before** the write transaction, so sinks never see the rejected write.
 
-**Audit trail (`process_instance_events`) — The built-in database sink that populated this table was removed. The table is retained for migration compatibility but stays empty. The historical assertion bundle below applied when `TDE_EVENT_SINK_DATABASE=on` was set in test config; it is no longer exercised:
+**Audit trail (`process_instance_events`) — The built-in database sink that populated this table was removed. The table is retained for migration compatibility but stays empty. The historical assertion bundle below applied when `BFE_EVENT_SINK_DATABASE=on` was set in test config; it is no longer exercised:
 
 - Every event row the fixture declares is present, matched by `(event_type, flow_node_instance_id, previous_flow_node_instance_id)`.
 - No unexpected event rows exist (set-equality, same as FNI rule).
@@ -287,14 +287,14 @@ touches Data Objects is also run twice with injected crash points around writes:
 
 Negative-path integration tests for the deploy surface:
 
-- BPMN missing or blank `<evil:version>` → `422`, matches deploy-time validation.
+- BPMN missing or blank `<bfw:version>` → `422`, matches deploy-time validation.
 - BPMN failing the configured linter gate ([configuration.md](configuration.md) — Linter-score deploy gate) → `422` with structured `failures` body. Every `reason` code is exercised at least once across the fixture set: `ruleset_missing`, `score_below_minimum`, `errors_exceed_maximum`, `warnings_exceed_maximum`, `compliance_status_mismatch`, `schema_version_mismatch`.
-- Seeding-Directory variant of the above: the same bad BPMN placed in `TDE_SEEDING_DIRECTORY` → file is skipped, an `error` JSON log is emitted carrying the filename and failures, engine startup continues, no `process_version` row is created.
+- Seeding-Directory variant of the above: the same bad BPMN placed in `BFE_SEEDING_DIRECTORY` → file is skipped, an `error` JSON log is emitted carrying the filename and failures, engine startup continues, no `process_version` row is created.
 - Deleted version: `POST /processes/{model_id}/start` against a deleted version is rejected with the documented error code; existing running PIs on that version continue to run and resume cleanly across a restart.
 
 ### Payload-cap rejection scenarios
 
-Negative-path integration tests exercising `TDE_TOKEN_MAX_BYTES` enforcement at every boundary listed in [configuration.md](configuration.md). All tests run with the default cap of `65536` bytes unless stated. The helpers `mint_payload(n_bytes)` and `oversize_payload()` = `mint_payload(65537)` are shared across fixtures.
+Negative-path integration tests exercising `BFE_TOKEN_MAX_BYTES` enforcement at every boundary listed in [configuration.md](configuration.md). All tests run with the default cap of `65536` bytes unless stated. The helpers `mint_payload(n_bytes)` and `oversize_payload()` = `mint_payload(65537)` are shared across fixtures.
 
 - **CAP-WRITE-RESULT**: a Script Task handler calls `write_result/2` with `oversize_payload()`. **Assert:** facade returns `{:error, :payload_too_large, %{size: 65537, limit: 65536}}`; FNI row ends with `state='fatal'` and `reason = %{kind: :payload_too_large, field: :fni_output, size: 65537, limit: 65536}`; no downstream FNI is ever created; PI row transitions to `state='fatal'`. No `:payload_too_large`-specific event type is emitted.
 - **CAP-WRITE-DO**: a Service Task is modeled with a `dataOutputAssociation` targeting `order_payload`, and its handler returns a FlowNodeResult whose `outputs.order_payload` is `oversize_payload()`. **Assert:** the DOA-driven write pipeline evaluates contract validation **before** the payload cap check (code order: resolve target → evaluate value → validate contract → check cap); with a valid contract the cap check rejects with `{:error, :payload_too_large, ...}`; no `data_objects` row inserted or updated; no `data_object_writes` row created; no `Event.DataObjectWritten` reaches `EngineEventBus` (all three built-in sinks report zero deliveries for that event); the owning Service Task FNI transitions to `fatal` with `field: :data_object, data_object_id: "order_payload"` in the structured reason (the DOA cap-check is attributed to the FNI whose completion triggered the DOA).
@@ -303,7 +303,7 @@ Negative-path integration tests exercising `TDE_TOKEN_MAX_BYTES` enforcement at 
 - **CAP-TRIGGER-MSG**: `POST /messages/{message_name}/trigger` with an oversize `payload`. **Assert:** HTTP 413 with structured body; **no** `messages` row, **no** delivery, **no** Message Start Event fires (even if one exists for the supplied name). GraphQL has no command equivalent (query-only).
 - **CAP-TASK-FINISH**: `PUT /user-tasks/{fniId}/finish` with an oversize `result`. **Assert:** HTTP 413; the User Task FNI remains in state `active` (not `fatal` on this path — the cap guards the API layer before the facade is touched, and the user is expected to retry with a smaller payload); the PI continues running; no state mutations are observable.
 - **CAP-EXACTLY-AT-LIMIT**: every boundary above is repeated with `mint_payload(65536)` (exactly at the cap). **Assert:** every call succeeds; no `:payload_too_large` signal anywhere; normal execution proceeds; subsequent calls with `mint_payload(65537)` on the same PI still fail as expected (cap is stateless per-call).
-- **CAP-CONFIGURABLE**: the full matrix is rerun with `TDE_TOKEN_MAX_BYTES=131072`. **Assert:** all `CAP-*` tests that previously failed at 65537 now succeed; fresh failures appear at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `TDE_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
+- **CAP-CONFIGURABLE**: the full matrix is rerun with `BFE_TOKEN_MAX_BYTES=131072`. **Assert:** all `CAP-*` tests that previously failed at 65537 now succeed; fresh failures appear at 131073. The minimum `1024` is exercised via a separate boot-time assertion: `BFE_TOKEN_MAX_BYTES=512` refuses to boot with a structured error referencing `minimum_required: 1024`.
 - **CAP-MEMORY-BEHAVIOR**: a micro-load variant (50 req/s for 30 s, alternating at-cap and cap+1-byte payloads across every boundary). **Assert:** engine RSS stays flat ±5 MB; GenServer mailbox depths stay bounded; no partial work leaks into `flow_node_instances` or `messages` tables. Validates the "enforcement precedes allocation that scales with payload size" invariant.
 
 ### Token-storage shape assertions
@@ -314,7 +314,7 @@ Positive-path integration tests verifying the payload-cap eliminations are actua
 - **SHAPE-NO-ACTIVE-TOKENS-TABLE**: a schema-inspection test fails if `information_schema.tables` reports an `active_tokens` table.
 - **SHAPE-GATEWAY-PENDING-EXISTS**: `gateway_pending_arrivals` exists with the exact columns + unique index documented in [data-model.md](data-model.md) §4.2.
 - **SHAPE-LZ4-APPLIED**: every column called out as `COMPRESSION lz4` in [data-model.md](data-model.md) §4.2 / §4.3 reports `lz4` in `pg_attribute.attcompression` (or the storage is still empty, which is also acceptable for columns that haven't seen a write yet in the test DB).
-- **CALC-FINAL-TOKENS-FINISHED-LINEAR**: run the 3-step linear process from Phase 1's exit criterion, then GraphQL-query `processInstance(id: $id) { finalTokens }`. **Assert:** length-1 list containing exactly the End FNI's `output_token`.
+- **CALC-FINAL-TOKENS-FINISHED-LINEAR**: run a 3-step linear process (Start, task, End), then GraphQL-query `processInstance(id: $id) { finalTokens }`. **Assert:** length-1 list containing exactly the End FNI's `output_token`.
 - **CALC-FINAL-TOKENS-FINISHED-PARALLEL**: run a parallel-split process with two End Events that both fire. **Assert:** `finalTokens` length is 2, ordered by End FNI `finished_at`.
 - **CALC-FINAL-TOKENS-NON-FINISHED**: run one PI each that terminates in each of `fatal`, `aborted`, `error`, `escalated`, `compensated`. **Assert:** `finalTokens` is `null` for every one of them.
 - **CALC-FINAL-TOKENS-BATCHED**: issue `processInstances(first: 1000) { id finalTokens }` against a DB seeded with 1000 finished PIs. **Assert:** total DB query count is 2 (1 for the PI page, 1 for the batched End-Event output_token lookup). Measured via the Ecto log capture harness already in place for other tests.
@@ -323,9 +323,9 @@ Positive-path integration tests verifying the payload-cap eliminations are actua
 
 ## Load tests
 
-All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox. Default load-test pool is 50 write / 25 read (`TDE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
+All load tests live in `test/load/` and are tagged `@tag :load`. Run via `mix test.load` (`cli.preferred_envs` maps that alias to `MIX_ENV=test`). The alias (and GitHub `load-bench.yml`) set `BFE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`, so Repo uses a real `DBConnection.ConnectionPool` rather than the Ecto sandbox. Default load-test pool is 50 write / 25 read (`BFE_LOAD_TEST_POOL_SIZE`). Do not run `mix test test/load/<file>.exs --include load` under the default sandbox — E8's 10-minute timeout exceeds sandbox `ownership_timeout` (5 minutes) and every in-flight PI then logs `OwnershipError`.
 
-Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability and hardening (one JSON report). Both aliases set `TDE_LOAD_DURABILITY` (`1` vs `all`); `mix test.load.all` also sets `TDE_LOAD_HARDENING=all`. Do not add durability or hardening to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
+Durability tests in `execution_durability_load_test.exs` are additionally tagged `@tag :durability`. `mix test.load` and the GitHub job **exclude** them. Run `mix test.load.durability` for that file only, or `mix test.load.all` for the default suite plus durability and hardening (one JSON report). Both aliases set `BFE_LOAD_DURABILITY` (`1` vs `all`); `mix test.load.all` also sets `BFE_LOAD_HARDENING=all`. Do not add durability or hardening to `load-bench.yml` on `ubuntu-latest`: mixed 100,000 is about an hour on 2 vCPUs.
 
 #### Execution load tests (`execution_load_test.exs`)
 
@@ -375,27 +375,27 @@ Ceilings are first-run wall-clock caps (20k: 20 min, 50k: 45 min, 100k: 90 min; 
 
 #### Hardening load tests (`mix test.load.hardening`)
 
-Opt-in Layer B suite. Tagged `@tag :hardening` (also `@moduletag :load`). **Excluded** from `mix test.load`, `mix test.full`, `mix quality`, and `.github/workflows/load-bench.yml`. Run with `mix test.load.hardening` (`TDE_LOAD_HARDENING=1`). `mix test.load.all` includes these tests with the default suite and durability (`TDE_LOAD_HARDENING=all` plus `TDE_LOAD_DURABILITY=all`). Setting `TDE_LOAD_HARDENING=all` alone adds hardening to the default load suite without durability.
+Opt-in Layer B suite. Tagged `@tag :hardening` (also `@moduletag :load`). **Excluded** from `mix test.load`, `mix test.full`, `mix quality`, and `.github/workflows/load-bench.yml`. Run with `mix test.load.hardening` (`BFE_LOAD_HARDENING=1`). `mix test.load.all` includes these tests with the default suite and durability (`BFE_LOAD_HARDENING=all` plus `BFE_LOAD_DURABILITY=all`). Setting `BFE_LOAD_HARDENING=all` alone adds hardening to the default load suite without durability.
 
-The Mix alias sets `TDE_LOAD_TEST_POOL=1` before Mix loads `config/test.exs`, same as the other load aliases.
+The Mix alias sets `BFE_LOAD_TEST_POOL=1` before Mix loads `config/test.exs`, same as the other load aliases.
 
 | File | Workload id(s) | What it exercises |
 |------|----------------|-------------------|
-| `jsonb_compression_load_test.exs` | `jsonb_lz4_*`, `jsonb_pglz_*` | Same VM: E8-shaped mix + ~60 KiB linear payloads + CapDoa/CapSend + up to 100 five-deep Call Activity trees; then `ALTER … SET COMPRESSION pglz` + rewrite; then the same mix. **Gate:** any named p50/p95 on LZ4 that is >10 % slower than PGLZ `flunk`s, except integer-ms SQL noise (`p95 < 2`) and GraphQL wall-clock deltas under 5 ms (Absinthe jitter). Do not auto-flip `TDE_JSONB_COMPRESSION`. Count = `TDE_LOAD_COMPRESSION_COUNT` (default `10000`). |
-| `payload_cap_chaos_load_test.exs` | `payload_cap_chaos_5pct` | ~50 ops/s mix of start / message trigger / user-task finish; every 20th call is 65537 bytes (HTTP 413, no row). Duration = `TDE_LOAD_CHAOS_SECONDS` (default `600`). After a 15 s warmup, last RSS sample must be ≤ first sample + 32 MiB. Each sample scrapes Prometheus distributions (`:ets.take` on `:prometheus_metrics_dist`) and silences the test EventCollector (`capture_log: false`). |
+| `jsonb_compression_load_test.exs` | `jsonb_lz4_*`, `jsonb_pglz_*` | Same VM: E8-shaped mix + ~60 KiB linear payloads + CapDoa/CapSend + up to 100 five-deep Call Activity trees; then `ALTER … SET COMPRESSION pglz` + rewrite; then the same mix. **Gate:** any named p50/p95 on LZ4 that is >10 % slower than PGLZ `flunk`s, except integer-ms SQL noise (`p95 < 2`) and GraphQL wall-clock deltas under 5 ms (Absinthe jitter). Do not auto-flip `BFE_JSONB_COMPRESSION`. Count = `BFE_LOAD_COMPRESSION_COUNT` (default `10000`). |
+| `payload_cap_chaos_load_test.exs` | `payload_cap_chaos_5pct` | ~50 ops/s mix of start / message trigger / user-task finish; every 20th call is 65537 bytes (HTTP 413, no row). Duration = `BFE_LOAD_CHAOS_SECONDS` (default `600`). After a 15 s warmup, last RSS sample must be ≤ first sample + 32 MiB. Each sample scrapes Prometheus distributions (`:ets.take` on `:prometheus_metrics_dist`) and silences the test EventCollector (`capture_log: false`). |
 | `resume_crash_load_test.exs` | `resume_crash_user_task_200`, `resume_crash_parallel_join_50`, `resume_crash_ca_depth5_100` | Crash-kill PI supervisors (`LoadHelpers.terminate_all_process_instances/0` uses `:kill`), `ResumeRunner.resume_all/0` (roots only). Assert `input_token` round-trip, `gateway_pending_arrivals` unchanged (2 rows per three-branch PI), `to_regclass('public.active_tokens')` is null. |
 
-Smoke while iterating: `TDE_LOAD_COMPRESSION_COUNT=1000 TDE_LOAD_CHAOS_SECONDS=30 mix test.load.hardening`.
+Smoke while iterating: `BFE_LOAD_COMPRESSION_COUNT=1000 BFE_LOAD_CHAOS_SECONDS=30 mix test.load.hardening`.
 
 #### Hot-path triage
 
 A recorded KPI is a **hot path** only if E6/E7/E8/E10/E11/E12 P99 `queue_time_ms` is ≥ 1 000, E8 wall time exceeds 5× the first measured baseline (206 507 ms on 2026-09-02; the test assert is capped at 600 s because 5× would exceed the timeout), `:erlang.memory()[:total]` is still climbing after `terminate_all_process_instances`, or resume/seeding throughput falls implausibly below the existing L-test ceilings. End-of-suite `memoryBytes.total` on the JSON report is a snapshot at write time, not a leak detector.
 
-The first Phase 7 standard run (2026-09-03, Linux, Postgres in Docker) found **no hot path**. A later full suite on the same machine recorded E6 57 582 ms with queue P99 17 ms; E7 83 908 ms / 8 ms; E8 198 542 ms / 18 ms (first E8 baseline 206 507 ms). E9 1 KiB / 16 KiB / 64 KiB completed in 7 415 / 10 577 / 16 006 ms. Resume and seeding L-tests stayed inside their existing ceilings. Core was not rewritten.
+The first standard run (2026-09-03, Linux, Postgres in Docker) found **no hot path**. A later full suite on the same machine recorded E6 57 582 ms with queue P99 17 ms; E7 83 908 ms / 8 ms; E8 198 542 ms / 18 ms (first E8 baseline 206 507 ms). E9 1 KiB / 16 KiB / 64 KiB completed in 7 415 / 10 577 / 16 006 ms. Resume and seeding L-tests stayed inside their existing ceilings. Core was not rewritten.
 
 #### Benchmark reporting
 
-`mix test.load` runs `test/load_runner.exs`, which starts `EvilEngine.Test.BenchmarkReporter` before ExUnit and calls `EvilEngine.Test.LoadRunnerReport.finish!/1` after the suite. Instrumented workloads pass `:id` (and optional KPI metadata) to `LoadHelpers.measure/3`, which still prints `[BENCH]` lines to stdout and records a workload map into the reporter.
+`mix test.load` runs `test/load_runner.exs`, which starts `BfwEngine.Test.BenchmarkReporter` before ExUnit and calls `BfwEngine.Test.LoadRunnerReport.finish!/1` after the suite. Instrumented workloads pass `:id` (and optional KPI metadata) to `LoadHelpers.measure/3`, which still prints `[BENCH]` lines to stdout and records a workload map into the reporter.
 
 After every run — including when ExUnit reports failures — the runner writes a pretty JSON file to `test/load/reports/<utc_compact>.json` (gitignored via `.gitignore`). Top-level report fields:
 
@@ -411,7 +411,7 @@ After every run — including when ExUnit reports failures — the runner writes
 
 Runtime snapshot fields (`beamProcessCount`, `memoryBytes`, `garbageCollection`) are **top-level** on the report — they are not duplicated inside each workload object.
 
-Optional baseline compare: set `TDE_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
+Optional baseline compare: set `BFE_LOAD_BASELINE_PATH` to a prior JSON file before `mix test.load`. After tests pass, overlapping workload ids are compared; throughput KPI drops or latency P99 rises of more than 20 % print regressions and the runner exits with status **2**. Missing or unreadable baseline files also exit **2**. When the env var is unset, compare is skipped. The GitHub load-bench workflow does **not** set this variable (runners are too noisy for a hard gate).
 
 Load tests are **not** part of `mix quality` or `mix test.full` — they remain opt-in via `mix test.load`, `mix test.load.durability`, `mix test.load.hardening`, `mix test.load.all`, or the dispatch workflow below.
 
@@ -442,7 +442,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - Test Postgres is host port **5543** (`config/test.exs`). Do not map CI to 5432 only.
 - Production-sized pools need Postgres `max_connections` ≥ 200. Docker smoke asserts `GET /health` **HTTP 204**.
 - `priv/read_repo/migrations` must exist (may be empty). `mix ecto.migrate` looks there for ReadRepo.
-- Coverage: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Never `mix coveralls.github` / `.post`. Do not `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam`.
+- Coverage: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Never `mix coveralls.github` / `.post`. Do not `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`.
 - One GitHub Actions cache for `deps` + `_build`; save **after compile and before coverage**. PLTs are a separate `priv/plts` cache. Packages CI must install Rust (FEEL NIF) before `mix release`.
 - There is no `Ash.set_actor` helper — use `Ash.PlugHelpers.set_actor/2`. Ash 3.33+ needs `default_string_length_count` on string attributes or the resource fails to compile.
 - `ExecutionCase`: checkout the sandbox (or truncate the pool) **before** `Scheduler.reset_state/0`.
@@ -453,7 +453,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `ProcessInstance.update_notify_pid/2` is a `:gen_statem.call` — the PI must still be running (park on a user task).
 - Dump UUIDs to 16-byte binaries before `Ecto.Adapters.SQL.query`. Ash `:update_finished` takes `output_token`, not `output_payload`.
 - `assert_pi_state!` verifies the persisted execution chain unless `verify_execution_chain: false`.
-- Load tests: set `TDE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Finishers retry `:fni_not_waiting`. Do not run `test/load` under the Ecto sandbox.
+- Load tests: set `BFE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Finishers retry `:fni_not_waiting`. Do not run `test/load` under the Ecto sandbox.
 - Packages JS: Vitest 5 uses `{ concurrent: false }`, not `describe.sequential`.
 
 ## CI enforcement
@@ -464,12 +464,12 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `mix format --check-formatted`
 - `mix credo --strict`
 - One Mix cache of `deps` + `_build`, keyed on OS + `mix-precover` + `MIX_ENV` + OTP + Elixir + `mix.lock` (no app source hashes). Restore at job start; save after `mix compile --warnings-as-errors` and **before** coverage so ExCoveralls-instrumented BEAMs are not reused on the next run. Dialyzer PLTs stay a separate `priv/plts` cache (see `mix.exs` `plt_core_path` / `plt_local_path`) keyed on OS + OTP + Elixir + `mix.lock`. `_build` cache does not include PLTs. Packages CI uses the same unified Mix cache with a `-prod-` key prefix, then **`mix compile --force`** before `mix release` — without `--force`, a mix.lock cache hit can keep a stale `api_web` GraphQL schema in the OTP release while the JS client from this commit queries new fields. `igniter` is `runtime: false` (not started). It is **not** `only: :dev`: Spark Mix tasks reference `Igniter` at compile time, so Elixir 1.20 type-checking fails if Igniter is absent from the test or prod load path. Ash policy SAT (via `crux`) uses Hex `simple_sat` — a pure Elixir solver. Do not drop it without a replacement (`picosat_elixir` or `simple_sat`); with neither, GraphQL/Ash authorization returns empty results. Mix may compile `crux` before optional SAT backends; CI and `mix setup` run `mix deps.compile.sat` (`simple_sat` then `crux --force`) before the rest of `deps.compile`. Cold `mix deps.compile` sets `MIX_OS_DEPS_COMPILE_PARTITION_COUNT` to `nproc`
-- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.EvilEngine.Expressions.Nif.beam`. Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 24.20 (`actions/setup-node` `node-version: "24.20"`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
+- `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`. Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 24.20 (`actions/setup-node` `node-version: "24.20"`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
 - `mix sobelow` for security
 - `mix deps.audit`
 - Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)
 - On `refs/heads/main` only, after smoke: `docker save engine:ci` uploaded as artifact `engine-ci-image`
-- `docker-publish` job (`needs: [build_and_test, docker]`, `if: github.ref == 'refs/heads/main'`): load that artifact, retag as `ghcr.io/<github-username>/daemon_engine:<mix.exs @version>`, push, then `gh api users/<owner>/packages/container/daemon_engine` must report `visibility=private`. Does not rebuild. Skipped on other branches and on pull requests (`refs/pull/…/merge`)
+- `docker-publish` job (`needs: [build_and_test, docker]`, `if: github.ref == 'refs/heads/main'`): load that artifact, retag as `ghcr.io/<github-username>/bfw_engine:<mix.exs @version>`, push, then `gh api users/<owner>/packages/container/bfw_engine` must report `visibility=private`. Does not rebuild. Skipped on other branches and on pull requests (`refs/pull/…/merge`)
 
 `.github/workflows/load-bench.yml` (**manual only** — `workflow_dispatch`; **not** required on pull requests):
 
@@ -477,6 +477,6 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
 | Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
-| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `TDE_LOAD_TEST_POOL: "1"`, and `TDE_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
+| Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `BFE_LOAD_TEST_POOL: "1"`, and `BFE_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
-| Baseline | Does **not** set `TDE_LOAD_BASELINE_PATH` — download the artifact and compare locally |
+| Baseline | Does **not** set `BFE_LOAD_BASELINE_PATH` — download the artifact and compare locally |

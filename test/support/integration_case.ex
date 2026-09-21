@@ -1,4 +1,4 @@
-defmodule EvilEngine.IntegrationCase do
+defmodule BfwEngine.IntegrationCase do
   @moduledoc """
   Shared setup for full-stack integration tests.
 
@@ -9,7 +9,7 @@ defmodule EvilEngine.IntegrationCase do
   ## Usage
 
       defmodule MyIntegrationTest do
-        use EvilEngine.IntegrationCase
+        use BfwEngine.IntegrationCase
 
         test "something end to end" do
           conn = conn_with_auth(:get, "/stats", %{"sub" => "op-1"})
@@ -26,25 +26,25 @@ defmodule EvilEngine.IntegrationCase do
     quote do
       import Plug.Test
       import Plug.Conn
-      import EvilEngine.IntegrationCase
+      import BfwEngine.IntegrationCase
     end
   end
 
   setup do
-    EvilEngine.Events.EngineEventBus.reset_state()
-    EvilEngine.Plugins.Registry.reset_state()
-    EvilEngine.Auth.ProviderRegistry.reset_to_default()
-    EvilEngine.BPMN.ModelCache.reset_state()
+    BfwEngine.Events.EngineEventBus.reset_state()
+    BfwEngine.Plugins.Registry.reset_state()
+    BfwEngine.Auth.ProviderRegistry.reset_to_default()
+    BfwEngine.BPMN.ModelCache.reset_state()
     ensure_test_secret()
     terminate_all_process_instances()
     :ok
   end
 
   defp terminate_all_process_instances do
-    children = DynamicSupervisor.which_children(EvilEngine.Execution.Supervisor)
+    children = DynamicSupervisor.which_children(BfwEngine.Execution.Supervisor)
 
     Enum.each(children, fn {_, pid, _, _} ->
-      DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+      DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
     end)
   rescue
     _ -> :ok
@@ -83,7 +83,7 @@ defmodule EvilEngine.IntegrationCase do
 
   @doc "Send a conn through the full HTTP Endpoint (includes Plug.Parsers)."
   def route(conn) do
-    EvilEngineWeb.Http.Endpoint.call(conn, EvilEngineWeb.Http.Endpoint.init([]))
+    BfwEngineWeb.Http.Endpoint.call(conn, BfwEngineWeb.Http.Endpoint.init([]))
   end
 
   @doc "Temporarily override an app config key for the duration of `fun`."

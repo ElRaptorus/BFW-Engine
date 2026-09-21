@@ -8,8 +8,8 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:unit": "pnpm -r run test:unit",
-    "test:integration": "pnpm --filter @elraptorus/daemonengine_client run test:integration",
-    "test:examples": "pnpm --filter '@daemonengine/example-*' run test",
+    "test:integration": "pnpm --filter @elraptorus/bfw_engine_client run test:integration",
+    "test:examples": "pnpm --filter '@bfw-engine/example-*' run test",
     "lint": "pnpm -r run lint",
     "lint:fix": "pnpm -r run lint:fix",
     "format": "pnpm -r run format"

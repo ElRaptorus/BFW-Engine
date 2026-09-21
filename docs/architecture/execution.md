@@ -36,11 +36,11 @@ The execution runtime converts a parsed BPMN model into a running process instan
 
 ### DynamicSupervisor + Registry
 
-The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `TDE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass — Do not put `max_children` on the PI DynamicSupervisor).
+The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `BFE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass — Do not put `max_children` on the PI DynamicSupervisor).
 
 ### Process Instance (`:gen_statem`)
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/process_instance.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/process_instance.ex`
 
 The PI module is decomposed into focused submodules:
 
@@ -57,7 +57,7 @@ The PI module is decomposed into focused submodules:
 
 **Event emission gating:** All `FniLifecycle` paths gate `FlowNodeInstanceFinished` emission on persistence success. The happy path (`persist_and_emit_finish/6`) emits inside the `{:ok, ...}` branch of the atomic transaction result. The exceptional paths (`transition_to_fatal`, `transition_to_aborted`, `transition_to_interrupted`) emit inside the `:ok` branch of the persistence result. On persistence failure, no event is emitted — consumers never see a state transition that was not persisted.
 
-One Erlang process per running PI, registered in `EvilEngine.Execution.Registry` under its `process_instance_id`. State machine states:
+One Erlang process per running PI, registered in `BfwEngine.Execution.Registry` under its `process_instance_id`. State machine states:
 
 | State | Meaning |
 |-------|---------|
@@ -93,13 +93,13 @@ When a boundary event interrupts an FNI (`handle_fni_interrupted/3`), the handle
 
 #### State struct
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/process_instance/state.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/process_instance/state.ex`
 
 Holds the PI's in-memory runtime data: process model, identity, FNI state map (`flow_node_instance_states`), Task.Supervisor pid, and data object cache.
 
 #### Facade
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/process_instance/facade.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/process_instance/facade.ex`
 
 Typed API for FNIs to communicate back to their parent PI. Currently exposes `finish_user_task/4` and `cancel_user_task/4`.
 
@@ -124,7 +124,7 @@ When an FNI is created, the PI extracts the event definition subtype from the BP
 
 ### Flow Node Handler Behaviour
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_node_handler.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_node_handler.ex`
 
 ```elixir
 @callback handle_enter(
@@ -151,7 +151,7 @@ When an FNI is created, the PI extracts the event definition subtype from the BP
 
 ### Handler Context
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/handler_context.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/handler_context.ex`
 
 The third argument to `handle_enter/3` carries runtime metadata for the
 executing FNI. Handlers use it for sequence flow resolution, FEEL context
@@ -179,7 +179,7 @@ camelCase maps required by the FEEL NIF happens in `Context.from_handler_context
 
 ### Handler Dispatch
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/handler_dispatch.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/handler_dispatch.ex`
 
 Two-tier dispatch: `handler_for/1` accepts either a `%FlowNode{}` struct (preferred) or a bare type atom (legacy fallback). For intermediate events and boundary events, a private `resolve_handler/1` function inspects the `event_definition` on the flow node's `type_data` and routes to the type-specific handler. For all other node types, it falls through to the static type-atom map. Returns `{:error, :unsupported_element}` for unknown types (Tier 3 encounter-time validation).
 
@@ -260,7 +260,7 @@ boundaries fire once via `{:boundary, ...}`.
 
 ### Sequence Flow Resolver
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/sequence_flow_resolver.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/sequence_flow_resolver.ex`
 
 Utility called by individual handlers (not the PI) to determine outgoing flow targets. The PI dispatches from handler-provided `next_flow_node_ids` on `FlowNodeResult`. Gateway split handlers (Exclusive, and in later phases Inclusive) implement their own FEEL-based routing and do **not** use this resolver; non-gateway handlers and gateway-join handlers delegate here. Enforces encounter-time validation:
 
@@ -270,7 +270,7 @@ Utility called by individual handlers (not the PI) to determine outgoing flow ta
 
 #### Conditions on non-Gateway-outgoing flows
 
-`<bpmn:conditionExpression>` is **only honored on outgoing sequence flows of Split Gateways** (Exclusive in v1; Inclusive in Phase 4). For every other source element — Activities, Events, Gateway-joins — any `<conditionExpression>` on outgoing flows is **silently ignored**: the flow is treated as if no condition were present and is followed unconditionally. The implicit-split and dead-end detectors above continue to apply uniformly.
+`<bpmn:conditionExpression>` is **only honored on outgoing sequence flows of Split Gateways** (Exclusive and Inclusive). For every other source element — Activities, Events, Gateway-joins — any `<conditionExpression>` on outgoing flows is **silently ignored**: the flow is treated as if no condition were present and is followed unconditionally. The implicit-split and dead-end detectors above continue to apply uniformly.
 
 The Studio prevents this construct at modeling time. The engine tolerates imported or hand-edited BPMN files containing it but does not honor the conditions. An Activity that needs conditional branching must place an Exclusive (or Inclusive) Gateway as its successor and put the conditions on the Gateway's outgoing flows.
 
@@ -337,7 +337,7 @@ When the PI receives `{:boundary, ...}`:
 
 ## Flow Node Handlers
 
-All handlers live under `apps/core_execution/lib/evil_engine/execution/flow_nodes/`.
+All handlers live under `apps/core_execution/lib/bfw_engine/execution/flow_nodes/`.
 
 Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements its own routing for gateways) and returns `next_flow_node_ids` on `FlowNodeResult`. The PI is a pure dispatcher that follows whatever routing the handler decided.
 
@@ -346,23 +346,23 @@ Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements it
 | `StartEvent` | Pass-through — forwards input payload unchanged |
 | `EndEvent` | Pass-through — stores `end_event_id` and `end_event_name` in `type_properties` for `FinalToken` decoration |
 | `TerminateEndEvent` | Returns `{:terminate, FlowNodeResult}`. The PI finishes this FNI normally (same as `{:ok, ...}`), then calls `interrupt_remaining_fnis/2` to interrupt all other active/waiting FNIs with state `:interrupted` and reason `:terminated_by_end_event`. Each interrupted FNI receives `handle_aborted/1` for resource cleanup (timer cancellation, child PI abort). The PI then finishes normally via `maybe_finish_or_continue` — the terminate token is included in `build_final_tokens/1` |
-| `ErrorEndEvent` | Resolves `error_code`/`error_message` from inline `evil:errorCode`/`evil:errorMessage` or global `<bpmn:error>` via `errorRef` (priority: inline > global > nil catch-all). Returns `{:bpmn_error, error_info, %FlowNodeResult{}}`. The PI records the FNI in `:error` state via `FniLifecycle.finish_as_error/4`, transitions all remaining active/waiting sibling FNIs to `:error` via `error_all_remaining_fnis/2` (symmetric with `fatal_all_fnis` for crashes), transitions the PI to `:error` state, and notifies the parent with `{:child_pi_bpmn_error, pid, error_info, final_tokens}` for boundary matching. In standalone processes (no parent), the PI simply finishes in `:error` state |
-| `EscalationEndEvent` | Resolves `escalation_code`/`escalation_name` via `escalationRef` → global `<bpmn:escalation>` (no inline override — unlike Error End Event, Escalation End Event has no inline extension). Returns `{:escalation_end, escalation_info, %FlowNodeResult{}}`. The PI records the FNI in `:finished` state, interrupts all remaining sibling FNIs (`:interrupted`, reason `:escalation_end_event`), transitions to `:escalated` state, and notifies the parent with `{:child_pi_escalation, pid, escalation_info}`. In standalone processes (no parent), the PI finishes in `:escalated` and emits `[:evil_engine, :escalation, :uncaught]` telemetry. **Not retryable.** |
-| `EscalationIntermediateThrowEvent` | Resolves `escalation_code`/`escalation_name` (same as End Event). Returns `{:escalation_throw, escalation_info, %FlowNodeResult{next_flow_node_ids: [outgoing]}}`. The PI finishes the FNI in `:finished` state and dispatches the outgoing token — the PI stays `:running`. Propagates to parent via `{:child_pi_escalation_passthrough, pid, escalation_info}` (if parent exists) or emits `[:evil_engine, :escalation, :uncaught]` (if root-of-root). **The token continues unconditionally past the throw** — the escalation propagation is a side-effect, not a routing decision. |
+| `ErrorEndEvent` | Resolves `error_code`/`error_message` from inline `bfw:errorCode`/`bfw:errorMessage` or global `<bpmn:error>` via `errorRef` (priority: inline > global > nil catch-all). Returns `{:bpmn_error, error_info, %FlowNodeResult{}}`. The PI records the FNI in `:error` state via `FniLifecycle.finish_as_error/4`, transitions all remaining active/waiting sibling FNIs to `:error` via `error_all_remaining_fnis/2` (symmetric with `fatal_all_fnis` for crashes), transitions the PI to `:error` state, and notifies the parent with `{:child_pi_bpmn_error, pid, error_info, final_tokens}` for boundary matching. In standalone processes (no parent), the PI simply finishes in `:error` state |
+| `EscalationEndEvent` | Resolves `escalation_code`/`escalation_name` via `escalationRef` → global `<bpmn:escalation>` (no inline override — unlike Error End Event, Escalation End Event has no inline extension). Returns `{:escalation_end, escalation_info, %FlowNodeResult{}}`. The PI records the FNI in `:finished` state, interrupts all remaining sibling FNIs (`:interrupted`, reason `:escalation_end_event`), transitions to `:escalated` state, and notifies the parent with `{:child_pi_escalation, pid, escalation_info}`. In standalone processes (no parent), the PI finishes in `:escalated` and emits `[:bfw_engine, :escalation, :uncaught]` telemetry. **Not retryable.** |
+| `EscalationIntermediateThrowEvent` | Resolves `escalation_code`/`escalation_name` (same as End Event). Returns `{:escalation_throw, escalation_info, %FlowNodeResult{next_flow_node_ids: [outgoing]}}`. The PI finishes the FNI in `:finished` state and dispatches the outgoing token — the PI stays `:running`. Propagates to parent via `{:child_pi_escalation_passthrough, pid, escalation_info}` (if parent exists) or emits `[:bfw_engine, :escalation, :uncaught]` (if root-of-root). **The token continues unconditionally past the throw** — the escalation propagation is a side-effect, not a routing decision. |
 | `EscalationBoundaryEvent` | Mirrors `ErrorBoundaryEvent`. Pre-spawned by the PI, parks the FNI in `:waiting`. When the parent handler (Call Activity / SubProcess) receives an escalation and `EscalationResolver` finds a matching boundary, the handler sends the `{:fni_result, ..., {:boundary, boundary_id, escalation_info, cancel_activity}}` message to the PI, which routes through `BoundaryOrchestrator.handle_boundary_catch/5`. |
 | `Task` | Pass-through |
 | `ServiceTask` | Full data pipeline: `in_mappings` → `payload_contract` → plugin dispatch via `ServiceTaskDispatch`. Always async: `handle_enter/3` returns `{:async, ref}` only. Output pipeline (`out_mappings` → `result_contract` → `PayloadCap`) runs in `handle_complete/4` when the plugin calls `finish_async_service_task`. Input pipeline and dispatch failures within `handle_enter` are still caught by `BoundaryAwareHandler.wrap_enter/4`. All contract/mapping failures → fatal |
-| `BusinessRuleTask` | Full data pipeline: `in_mappings` → `payload_contract` → mode dispatch → `out_mappings` → `result_contract` → `PayloadCap`. Two modes via `implementation` attribute: `"feel"` (inline FEEL, same as ScriptTask inline mode), `"dmn"` (resolve via `DecisionResolver` → `DMN.ModelCache` → `DMN.Evaluator.evaluate/4`, wrapped in a `Task` with configurable timeout `:dmn_evaluation_timeout_ms`; stores full `EvaluationResult` trace in `type_properties` for auditing/debugger). For multi-decision DMN models, `evil:decisionElementId` specifies which `<decision>` element to evaluate as the DRG root; when omitted the evaluator auto-resolves single-decision models. Plugin delegation was removed — BRTs exclusively evaluate business rules. Always synchronous |
+| `BusinessRuleTask` | Full data pipeline: `in_mappings` → `payload_contract` → mode dispatch → `out_mappings` → `result_contract` → `PayloadCap`. Two modes via `implementation` attribute: `"feel"` (inline FEEL, same as ScriptTask inline mode), `"dmn"` (resolve via `DecisionResolver` → `DMN.ModelCache` → `DMN.Evaluator.evaluate/4`, wrapped in a `Task` with configurable timeout `:dmn_evaluation_timeout_ms`; stores full `EvaluationResult` trace in `type_properties` for auditing/debugger). For multi-decision DMN models, `bfw:decisionElementId` specifies which `<decision>` element to evaluate as the DRG root; when omitted the evaluator auto-resolves single-decision models. Plugin delegation was removed — BRTs exclusively evaluate business rules. Always synchronous |
 | `IntermediateEvent` | Pass-through — handles only untyped (None) intermediate events |
 | `LinkThrowEvent` | Resolves matching Link Catch by `link_name` in the same process, routes token directly (bypasses `SequenceFlowResolver`). Errors on zero matches (`:no_matching_link_catch`) or multiple matches (`:ambiguous_link_catch`) |
 | `LinkCatchEvent` | Pass-through via `SequenceFlowResolver` — landing pad for Link Throw events |
 | `ManualTask` | Returns `{:wait, ...}` when `require_confirmation` is true, otherwise pass-through |
-| `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `{:wait, ...}`. Output pipeline on finish: `out_mappings` → `result_contract` → `PayloadCap`. Input failures → fatal. Output contract violations → retryable (422, stays `:waiting`). Resolves assignees from `evil:assignees` extension |
+| `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `{:wait, ...}`. Output pipeline on finish: `out_mappings` → `result_contract` → `PayloadCap`. Input failures → fatal. Output contract violations → retryable (422, stays `:waiting`). Resolves assignees from `bfw:assignees` extension |
 | `ExclusiveGateway` | Owns routing: evaluates FEEL conditions on outgoing flows, enforces exactly-one-truthy (deliberate divergence from BPMN 2.0 "first truthy wins"). An unmarked non-default outgoing flow on a split (`outgoing > 1`) is a **runtime fatal** `:exclusive_gateway_unconditional_flow` **before** FEEL evaluation. A single unmarked outgoing is pass-through; a single outgoing that carries a condition is still evaluated (false + no default → `:no_matching_condition`). The diagram still deploys; Studio lints warning (`bpmn-development`) / error (`bpmn-production-ready`). Mixed gateways (both split and join) rejected at runtime. Join is pure pass-through |
 | `ParallelGateway` | Fork: resolves all outgoing sequence flows via `SequenceFlowResolver` (conditions ignored). Join: handler-owned async Task with PI routing (see §Parallel Gateway below). Mixed gateways rejected at runtime |
 | `InclusiveGateway` | Fork: evaluates all outgoing conditional FEEL expressions; activates every truthy path plus unconditional non-default flows (OR-split). If zero truthy: default path, or fatal `:no_matching_condition`. Join: handler-owned async Task with PI routing and **structural backward-cone** dead-path elimination (see §Inclusive Gateway below). Resume re-evaluates DPE via `evaluate_parked_inclusive_joins/1`. Mixed gateways rejected at runtime |
-| `ComplexGateway` | Opinionated, deterministic. Split: inclusive-style fork on truthy conditions; an unmarked non-default outgoing flow is a **runtime fatal** `:complex_gateway_unconditional_flow` (WIP diagrams may still deploy; Studio lints warning/error by ruleset). Zero-truthy → default, else fatal `:complex_split_no_matching_condition`. Join: single-fire **threshold** join driven by a FEEL `activationCondition` with `activatedCount`/`incomingCount` bindings; fires once when the condition becomes true. Resume re-evaluates the parked join. Twist 1: all branches arrived-or-dead but condition still false → fatal `:complex_join_condition_unmet`. Twist 2: on fire, every still-active/waiting FNI in the join's paired SESE region is cancelled (`:cancelled_by_complex_join`). Mixed gateways, join missing `activationCondition`, and SESE region violations stay deploy-time (see §Complex Gateway below) |
-| `CallActivity` | Owns full child PI lifecycle: version resolution via `CalledElementResolver` (`resolve_latest_version/1` when unpinned, `resolve_specific_version/2` when `<evil:calledProcessVersion>` is set), child spawn, monitoring, result/error handling, boundary resolution via `BoundaryResolver`. Child `start_opts` inherit `root_process_instance_id` from `HandlerContext` (SP-13). Supports `in_mappings` (child start payload), `out_mappings` (parent result transformation), `evil:startEventId` (selects the target Start Event in the child process — required when the child has multiple untyped Start Events), and optional `evil:calledProcessVersion` (child `evil:version` string pin; omit = latest enabled at enter time; the word `latest` is a literal version name). Returns `{:async, flow_node_instance_id, continuation}` to park the FNI while the handler Task monitors the child. Implements `handle_fatal/1` (cascades `force_fatal` to child PI) and `handle_aborted/1` (cascades `abort` to child PI). The cascade is recursive: if the child has its own Call Activities, they cascade further |
+| `ComplexGateway` | Opinionated, deterministic. Split: inclusive-style fork on truthy conditions; an unmarked non-default outgoing flow is a **runtime fatal** `:complex_gateway_unconditional_flow` (WIP diagrams may still deploy; Studio lints warning/error by ruleset). Zero-truthy → default, else fatal `:complex_split_no_matching_condition`. Join: single-fire **threshold** join driven by a FEEL `activationCondition` with `activatedCount`/`incomingCount` bindings; fires once when the condition becomes true. Resume re-evaluates the parked join. When every branch has arrived or died and the condition is still false, the join fatals `:complex_join_condition_unmet`. On fire, every still-active/waiting FNI in the join's paired SESE region is cancelled (`:cancelled_by_complex_join`). Mixed gateways, join missing `activationCondition`, and SESE region violations stay deploy-time (see §Complex Gateway below) |
+| `CallActivity` | Owns full child PI lifecycle: version resolution via `CalledElementResolver` (`resolve_latest_version/1` when unpinned, `resolve_specific_version/2` when `<bfw:calledProcessVersion>` is set), child spawn, monitoring, result/error handling, boundary resolution via `BoundaryResolver`. Child `start_opts` inherit `root_process_instance_id` from `HandlerContext`. Supports `in_mappings` (child start payload), `out_mappings` (parent result transformation), `bfw:startEventId` (selects the target Start Event in the child process — required when the child has multiple untyped Start Events), and optional `bfw:calledProcessVersion` (child `bfw:version` string pin; omit = latest enabled at enter time; the word `latest` is a literal version name). Returns `{:async, flow_node_instance_id, continuation}` to park the FNI while the handler Task monitors the child. Implements `handle_fatal/1` (cascades `force_fatal` to child PI) and `handle_aborted/1` (cascades `abort` to child PI). The cascade is recursive: if the child has its own Call Activities, they cascade further |
 | `SubProcess` | Embedded subprocess execution following the same async-continuation pattern as Call Activity. Validates subprocess contents at **runtime** (exactly one None Start Event, no typed start events, at least one End Event) — allowing WIP diagrams to be deployed. Builds a synthetic `%Process{}` from `FlowNodeData.SubProcess` via `ModelCache.fetch_subprocess_model/2`, starts a child PI under the same `process_version_id` with `subprocess_node_id` in `start_opts`, monitors completion. **Lane inheritance:** the synthetic process inherits the parent's lane that contains the subprocess shell — all inner FNIs are assigned to that lane. If the parent has no lanes, the synthetic process has none either. Supports `in_mappings`, `out_mappings`, `payload_contract`, `result_contract` (same data pipeline as Call Activity). Error bubbling uses `BoundaryResolver` on the subprocess shell. Emits `SubProcessChildStarted` event. Implements `handle_fatal/1` and `handle_aborted/1` for child PI cascade. Resume via `handle_resume/4` mirrors Call Activity |
 | `TimerCatchEvent` | Handler-centric timer lifecycle: resolves timer spec (FEEL), schedules via `Scheduler`, blocks handler Task on `receive {:timer_fired, ...}`, then completes. Implements `handle_fatal/1`, `handle_aborted/1` (cancel armed timer), and `handle_resume/3` (re-schedule or immediate-fire based on persisted `fire_at`). Rejects `time_cycle` (fatal). Returns `{:async, fni_id, continuation, type_properties}` |
 | `TimerBoundaryEvent` | Subscription-model boundary handler: resolves timer spec, schedules via `Scheduler` (before building `type_properties` so `timer_ref` is persisted), blocks on `receive {:timer_fired, ...}`, then returns `{:boundary, flow_node_id, payload, cancel_activity}`. Supports `time_duration`, `time_date`, and `time_cycle`. Interrupting cycles fire once (first cycle fire, reuses one-shot path). Non-interrupting cycles loop: intermediate fires sent as `{:boundary_cycle_fire, ...}`, final fire as `{:boundary, ...}`. Cycle remaining count and ISO 8601 `cycle_interval` are persisted on enter and after each re-arm (`is_cycle`, `cycle_repetitions`, `cycle_interval`); `handle_resume/3` restores the cycle receive loop (not a one-shot) and delivers an overdue tick immediately. Implements `handle_fatal/1`, `handle_aborted/1` (cancel armed timer). Dispatched by PI alongside host activity via the subscription-model lifecycle |
@@ -384,7 +384,7 @@ Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements it
 
 ### Parallel Gateway
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/parallel_gateway.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/parallel_gateway.ex`
 
 The Parallel Gateway implements BPMN 2.0 AND-split (fork) and AND-join (merge) semantics. Fork routing lives in the handler; join synchronization is owned by the handler as a stateful async Task, with the PI acting as a lightweight router.
 
@@ -436,7 +436,7 @@ Checkpoint retry at a parallel or inclusive gateway FNI is rejected. `Execution.
 
 ### Inclusive Gateway
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/inclusive_gateway.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/inclusive_gateway.ex`
 
 The Inclusive Gateway implements BPMN 2.0 OR-split (fork) and OR-join (merge with dead-path elimination) semantics. This is the key distinction from Parallel Gateways (AND-split/join) and Exclusive Gateways (XOR-split/join). The split handler evaluates all conditions and activates every truthy path; the join fires when all reachable paths have arrived and no further tokens can arrive.
 
@@ -460,13 +460,13 @@ This differs from `ExclusiveGateway` which enforces exactly-one-truthy (multi-tr
 
 Converging inclusive gateways (`incoming_count > 1`, `outgoing_count <= 1`) are handled as stateful async Tasks, following the same pattern as Parallel Gateway but with an additional `{:fire}` message for dead-path elimination:
 
-**Phase 1 — Deploy-time analysis (`InclusiveJoinAnalysis`)**
+**Deploy-time analysis (`InclusiveJoinAnalysis`)**
 
-`EvilEngine.BPMN.InclusiveJoinAnalysis` (in `apps/core_bpmn/`) pre-computes, for each incoming flow of each inclusive join, the set of upstream flow node IDs reachable via backward BFS through the process graph (excluding the join itself). The analysis is stored on `Model.Process.inclusive_join_analyses` and populated by `InclusiveJoinAnalysis.enrich_process/1`, called in `Helpers.fetch_process_model/2` when the model is loaded from `ModelCache`. This means the analysis is computed once per model load (not per PI start or per deploy).
+`BfwEngine.BPMN.InclusiveJoinAnalysis` (in `apps/core_bpmn/`) pre-computes, for each incoming flow of each inclusive join, the set of upstream flow node IDs reachable via backward BFS through the process graph (excluding the join itself). The analysis is stored on `Model.Process.inclusive_join_analyses` and populated by `InclusiveJoinAnalysis.enrich_process/1`, called in `Helpers.fetch_process_model/2` when the model is loaded from `ModelCache`. This means the analysis is computed once per model load (not per PI start or per deploy).
 
-**Phase 2 — Runtime evaluation (`InclusiveJoinEvaluator`)**
+**Runtime evaluation (`InclusiveJoinEvaluator`)**
 
-`EvilEngine.Execution.InclusiveJoinEvaluator.should_fire?/4` determines whether a parked join should fire. For each incoming flow of the join:
+`BfwEngine.Execution.InclusiveJoinEvaluator.should_fire?/4` determines whether a parked join should fire. For each incoming flow of the join:
 
 1. If a token has arrived via this flow → **arrived** (skip).
 2. If any active or waiting FNI has a `flow_node_id` in the upstream reachability set for this flow → **waiting** (return false — more tokens may arrive).
@@ -526,9 +526,9 @@ Same as Parallel Gateway: checkpoint retry at an inclusive gateway FNI is reject
 
 ### Complex Gateway
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/complex_gateway.ex`, `apps/core_execution/lib/evil_engine/execution/complex_join_evaluator.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/complex_gateway.ex`, `apps/core_execution/lib/bfw_engine/execution/complex_join_evaluator.ex`
 
-The Complex Gateway is ThomasTheDaemonEngine's opinionated, deterministic take on the BPMN 2.0 Complex Gateway. Rather than the spec's under-specified "define your own activation semantics" escape hatch, the engine gives it a precise contract: a **conditional inclusive-style split** with no unconditional fall-through, and a **single-fire threshold join** driven by a FEEL `activationCondition`. Phase 5.1 delivers the split, the threshold join, and the dead-path-exhaustion error ("Twist 1"). Phase 5.2 adds SESE-scoped cancellation of losing branches ("Twist 2").
+The Complex Gateway is Bifrost Forge World Engine's opinionated, deterministic take on the BPMN 2.0 Complex Gateway. Rather than the spec's under-specified "define your own activation semantics" escape hatch, the engine gives it a precise contract: a **conditional inclusive-style split** with no unconditional fall-through, and a **single-fire threshold join** driven by a FEEL `activationCondition`. When every incoming branch has arrived or died and the activation condition is still false, the join fatals. When the join fires, losing branches inside the paired single-entry/single-exit region are cancelled.
 
 > **Not standard BPMN.** The Complex Gateway's semantics here are engine-specific. Models that rely on them are not portable to other BPMN engines. See the Inclusive vs Complex comparison below.
 
@@ -557,7 +557,7 @@ The Complex Join is a stateful async Task following the same pattern as the Incl
 1. Evaluate `activationCondition` with the current bindings.
    - **true** → **FIRE** (§Fire behavior below).
    - **false** → step 2.
-2. Compute branch resolution: a branch is *arrived* (its flow id is in `arrived_via_flow_ids`) or *dead* (no live upstream FNI, reusing `InclusiveJoinEvaluator.all_incoming_resolved?/2` reachability). If **all incoming branches are arrived-or-dead** → **ERROR** (Twist 1): fatal `:complex_join_condition_unmet` with a message of the form "all branches have finished but the gateway's activation condition '<expr>' was not met (activatedCount=<n>, incomingCount=<m>)".
+2. Compute branch resolution: a branch is *arrived* (its flow id is in `arrived_via_flow_ids`) or *dead* (no live upstream FNI, reusing `InclusiveJoinEvaluator.all_incoming_resolved?/2` reachability). If **all incoming branches are arrived-or-dead** → **ERROR**: fatal `:complex_join_condition_unmet` with a message of the form "all branches have finished but the gateway's activation condition '<expr>' was not met (activatedCount=<n>, incomingCount=<m>)".
 3. Otherwise → **WAIT** (more tokens may still arrive).
 
 A blank `activationCondition` is rejected at deploy (see validator rule `:complex_gateway_join_missing_activation_condition`); a FEEL evaluation failure at runtime is fatal `:complex_join_condition_failed`.
@@ -567,7 +567,7 @@ A blank `activationCondition` is rejected at deploy (see validator rule `:comple
 - Merge accumulated branch payloads (last-wins per key via `Map.merge/2`, consistent with inclusive/parallel joins).
 - Resolve the single outgoing flow via `SequenceFlowResolver.resolve/2`, finish the join FNI via `FniLifecycle.finish/4`, delete `gateway_pending_arrivals` rows.
 - Mark the `join_routing` entry `fired: true`, then immediately run **scoped cancellation** over the paired SESE region (`interrupt_region_fnis/3`, see §SESE region & scoped cancellation below).
-- **Straggler tokens:** because cancellation interrupts every still-live in-region branch, a token can only reach an already-fired join if the branch completed in the same PI-message batch, just before cancellation ran. Such a straggler is **silently absorbed** (debug-logged, no state change) — the join outcome is already decided. (Phase 5.1 instead fatalled the arriving FNI with `:complex_join_already_fired`; Phase 5.2 replaced that interim behavior.)
+- **Straggler tokens:** because cancellation interrupts every still-live in-region branch, a token can only reach an already-fired join if the branch completed in the same PI-message batch, just before cancellation ran. Such a straggler is **silently absorbed** (debug-logged, no state change) — the join outcome is already decided.
 
 #### PI-level routing
 
@@ -595,11 +595,11 @@ The PI detects complex-join topology in `join_gateway_check/2` (which now includ
 
 A Complex Gateway with **both** `incoming_count > 1` AND `outgoing_count > 1` is a mixed gateway. It is rejected at **deploy** (`:complex_gateway_mixed`) and, defensively, at **runtime** (`:mixed_gateway`). A Complex Gateway must be either a split (one in, many out) or a join (many in, one out).
 
-#### SESE region & scoped cancellation (Twist 2)
+#### SESE region and scoped cancellation
 
-**Path:** `apps/core_bpmn/lib/evil_engine/bpmn/complex_region_analysis.ex` (deploy-time analysis), `interrupt_region_fnis/3` in `process_instance.ex` (runtime cancellation).
+**Path:** `apps/core_bpmn/lib/bfw_engine/bpmn/complex_region_analysis.ex` (deploy-time analysis), `interrupt_region_fnis/3` in `process_instance.ex` (runtime cancellation).
 
-When a Complex Join fires, the winning threshold has been reached but slower sibling branches may still be running. Twist 2 makes the fire a **scoped mini-terminate**: every still-active or waiting Flow Node Instance inside the join's Single-Entry/Single-Exit (SESE) region is cancelled. This bounds the "cancel the losers" behavior to a well-defined block and never leaks outside it.
+When a Complex Join fires, the winning threshold has been reached but slower sibling branches may still be running. The fire is a **scoped mini-terminate**: every still-active or waiting Flow Node Instance inside the join's Single-Entry/Single-Exit (SESE) region is cancelled. This bounds the "cancel the losers" behavior to a well-defined block and never leaks outside it.
 
 **Pairing (`S = idom_complex(J)`, CG-D10).** Each Complex Join `J` pairs to exactly one Complex Split `S` — the **nearest enclosing Complex Split that dominates `J`** (the immediate dominator of `J` restricted to Complex Split nodes). This is computed at deploy time by `ComplexRegionAnalysis`:
 
@@ -644,20 +644,20 @@ Both gateways look similar (conditional multi-path routing) but behave different
 | Split — zero truthy, no default | Fatal `:no_matching_condition` | Fatal `:complex_split_no_matching_condition` |
 | Join — fire trigger | Dead-path elimination: fires when all reachable paths arrived-or-dead **and** ≥1 arrived | FEEL `activationCondition` becomes true (threshold join) |
 | Join — condition inputs | n/a (structural reachability only) | `activatedCount`, `incomingCount` + standard FEEL bindings |
-| Join — all branches resolved, threshold never met | Fires with whatever arrived (or finishes silently if zero arrived) | **Fatal** `:complex_join_condition_unmet` (Twist 1) |
+| Join — all branches resolved, threshold never met | Fires with whatever arrived (or finishes silently if zero arrived) | **Fatal** `:complex_join_condition_unmet` |
 | Join — re-fire | Fires once per activation | Single-fire only; on fire the losing branches are cancelled, so stragglers are absorbed silently |
-| Losing-branch cancellation on fire | None | SESE-scoped cancellation (Twist 2): every `:active`/`:waiting` FNI inside the paired region is interrupted (`:cancelled_by_complex_join`) |
+| Losing-branch cancellation on fire | None | SESE-scoped cancellation: every `:active`/`:waiting` FNI inside the paired region is interrupted (`:cancelled_by_complex_join`) |
 | Split↔Join pairing | No pairing | Strict 1:1: join pairs to `idom_complex(J)`; unpaired / non-SESE / overlapping regions → deploy error |
 | BPMN portability | Standard BPMN 2.0 | Engine-specific semantics |
 
 **When to use which:**
 
 - Use an **Inclusive Gateway** for standard OR-split/OR-join: activate every matching path (plus any always-on unconditional paths), then merge whenever all live paths have arrived. This is portable, spec-compliant, and the right default.
-- Use a **Complex Gateway** when you need a **quorum / threshold** merge ("proceed as soon as 2 of 3 approvals arrive"), want to **forbid accidental unconditional fan-out** at the split, or want the winning path to **cancel the losing branches** within a bounded SESE region (Twist 2). It trades portability for deterministic, opinionated control.
+- Use a **Complex Gateway** when you need a **quorum / threshold** merge ("proceed as soon as 2 of 3 approvals arrive"), want to **forbid accidental unconditional fan-out** at the split, or want the winning path to **cancel the losing branches** within a bounded SESE region. It trades portability for deterministic, opinionated control.
 
 ### Event-Based Gateway
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/event_based_gateway.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/event_based_gateway.ex`
 
 The Event-Based Gateway (EBG) implements BPMN 2.0 "exclusive event-based" semantics: it forks execution along all outgoing sequence flows simultaneously, and the first successor Intermediate Catch Event (or Receive Task) to fire wins — all siblings are cancelled.
 
@@ -669,7 +669,7 @@ The gateway is **diverging-only**: if `incoming_count > 1`, the handler rejects 
 
 #### First-wins cancellation (`EventBasedGatewayOrchestrator`)
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/process_instance/event_based_gateway_orchestrator.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/process_instance/event_based_gateway_orchestrator.ex`
 
 When any successor FNI completes (returns `{:ok, ...}` to the PI), the PI's `handle_fni_ok` callback invokes `EventBasedGatewayOrchestrator.cancel_sibling_catch_flow_node_instances/2`. This module:
 
@@ -697,8 +697,8 @@ Waiting catch FNIs (timer, message, signal, conditional) following an EBG are re
 
 **Paths:**
 
-- `apps/core_execution/lib/evil_engine/execution/flow_nodes/conditional_catch_event.ex`
-- `apps/core_execution/lib/evil_engine/execution/flow_nodes/conditional_boundary_event.ex`
+- `apps/core_execution/lib/bfw_engine/execution/flow_nodes/conditional_catch_event.ex`
+- `apps/core_execution/lib/bfw_engine/execution/flow_nodes/conditional_boundary_event.ex`
 
 Conditional Events evaluate a FEEL expression (`condition_expression` from `EventDefinition.Conditional`) against the current PI state. Unlike timer, message, and signal events that wait for an external trigger, conditional events are re-evaluated by the PI itself whenever the PI's state mutates (FNI completion, Data Object write, token update).
 
@@ -762,7 +762,7 @@ Conditional events inside an embedded subprocess evaluate against the **child PI
 
 ### Child Lifecycle (shared infrastructure)
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/child_lifecycle.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/child_lifecycle.ex`
 
 `ChildLifecycle` is a pure helper module (no behaviour, no state) that contains all shared child-PI lifecycle logic used by both `SubProcess` and `CallActivity` handlers. It was extracted to eliminate ~600 lines of duplicated code and to provide a single extension point for future subprocess-like handlers (e.g. Transaction SubProcess).
 
@@ -796,7 +796,7 @@ Conditional events inside an embedded subprocess evaluate against the **child PI
 
 ### SubProcess Handler
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/sub_process.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/sub_process.ex`
 
 Embedded SubProcesses (`<bpmn:subProcess>` with `triggeredByEvent="false"`) execute as **child Process Instances** — the same async-continuation model as Call Activity. The handler parks the shell FNI as `:waiting`, spawns a child PI for the inner scope, monitors it, and completes the shell when the child finishes. Shared child-PI lifecycle logic (await, result processing, error/escalation handling, resume, cascade) is delegated to [`ChildLifecycle`](#child-lifecycle-shared-infrastructure).
 
@@ -867,7 +867,7 @@ Synthetic model resolution uses the same `fetch_subprocess_model/2` path as init
 
 ### Event Subprocess Handler
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/flow_nodes/event_subprocess.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/event_subprocess.ex`
 
 An **Event Subprocess (ESP)** is a `<bpmn:subProcess>` with `triggeredByEvent="true"` placed inside a process (top-level) or an embedded subprocess. It has **no incoming or outgoing sequence flows** and is therefore never token-entered. It lies **dormant** until its single **typed** start event (Message, Signal, Timer, Error, Escalation, or Conditional — validator-enforced) is triggered by an event occurring within its enclosing **scope**. On trigger the scope PI spawns a **child PI** running the ESP's inner flow — the same child-PI execution model as an embedded subprocess (synthetic model via `ModelCache.fetch_subprocess_model/2`, same `process_version_id`, no separate deployment).
 
@@ -876,9 +876,9 @@ This module has a dual structure:
 - **§A — Handler callbacks** (`handle_enter/3`, `handle_resume/4`, `handle_fatal/1`, `handle_aborted/1`): own the ESP shell FNI lifecycle (child PI spawn, await, cascade).
 - **§B — Scope-level trigger API** (`register_triggers/1`, `teardown_triggers/1`, `resolve_trigger/3`, `resolve_reactive_trigger/3`, `rearm_timer/3`, `resolve_error_catch/3`, `resolve_bpmn_error_catch/2`, `resolve_escalation_catch/2`, `evaluate_conditionals/1`, `passthrough_start_event/2`, `maybe_emit_triggered/4`): all ESP trigger detection, resolution, and lifecycle management. These functions operate on the scope PI's `State` and return `trigger_action()` tuples that the PI executes through thin delegation functions (see [§PI thin delegation](#pi-thin-delegation)).
 
-#### Execution model (ESP-D1, ESP-D12)
+#### Execution model
 
-A running ESP instance is represented in the scope PI as a **shell FNI** (`flow_node_id` = ESP shell node id, `type: :sub_process`) that owns the child PI's `child_process_instance_id` and participates in the scope's `active_count`. `handle_enter/3` resolves the single start event, pre-generates the `child_process_instance_id`, parks the shell FNI as async-waiting via `FniLifecycle.park_async` (persisting `child_process_instance_id` and `is_event_subprocess: true`), and runs `run_child_lifecycle/6` in the continuation. The child is started through `Execution.start_process_instance/1` with `subprocess_node_id`, the mandatory `parent_process_instance_id` (= the scope PI id — the core isolation guard rejects a `subprocess_node_id` spawn without a parent, `:orphan_subprocess_start`), the inherited `root_process_instance_id`, `start_event_id`, and `esp_start_passthrough: true`. The trigger payload passes straight through — **no data mappings** on the ESP shell (ESP-D decision D). On child completion the shell FNI finishes with `next_flow_node_ids: []` (no outgoing flow).
+A running ESP instance is represented in the scope PI as a **shell FNI** (`flow_node_id` = ESP shell node id, `type: :sub_process`) that owns the child PI's `child_process_instance_id` and participates in the scope's `active_count`. `handle_enter/3` resolves the single start event, pre-generates the `child_process_instance_id`, parks the shell FNI as async-waiting via `FniLifecycle.park_async` (persisting `child_process_instance_id` and `is_event_subprocess: true`), and runs `run_child_lifecycle/6` in the continuation. The child is started through `Execution.start_process_instance/1` with `subprocess_node_id`, the mandatory `parent_process_instance_id` (= the scope PI id — the core isolation guard rejects a `subprocess_node_id` spawn without a parent, `:orphan_subprocess_start`), the inherited `root_process_instance_id`, `start_event_id`, and `esp_start_passthrough: true`. The trigger payload passes straight through — **no data mappings** on the ESP shell. On child completion the shell FNI finishes with `next_flow_node_ids: []` (no outgoing flow).
 
 `esp_start_passthrough: true` converts a Timer / Conditional / Escalation ESP start event into an `EventDefinition.None` start for the child's **initial dispatch**, so the child does not re-arm the timer, re-evaluate the condition, or re-throw the escalation that triggered it.
 
@@ -933,28 +933,28 @@ The PI module (`ProcessInstance`) aliases `FlowNodes.EventSubprocess` as `EspSco
 
 This separation keeps the PI free of trigger-detection logic while preserving its authority over FNI dispatch, interruption, and state-machine transitions.
 
-#### Lane-neutrality (ESP-D9)
+#### Lane-neutrality
 
-ESP triggering is **never lane-gated**. The ESP shell FNI's lane is derived from the BPMN model (nil if the shell is not placed inside any lane). Activities *inside* the ESP's inner scope may carry their own lane assignments per ESP-D9, but the trigger itself fires regardless of the caller's lane claims.
+ESP triggering is **never lane-gated**. The ESP shell FNI's lane is derived from the BPMN model (nil if the shell is not placed inside any lane). Activities inside the ESP's inner scope may carry their own lane assignments, and the trigger itself fires regardless of the caller's lane claims.
 
-#### Interrupting vs non-interrupting (ESP-D3, ESP-D4)
+#### Interrupting vs non-interrupting
 
-`isInterrupting` is a standard BPMN attribute on the ESP start event (modeler-controlled only; no `evil:*` override, no property-pane toggle). The `trigger_action()` returned by the §B API encodes this decision: `{:fire_interrupting, ...}` or `{:fire_non_interrupting, ...}`. The PI's `execute_esp_action/2` pattern-matches and applies the correct scope effects — the handler code (`handle_enter/3`) is identical for both variants.
+`isInterrupting` is a standard BPMN attribute on the ESP start event (modeler-controlled only; no `bfw:*` override, no property-pane toggle). The `trigger_action()` returned by the §B API encodes this decision: `{:fire_interrupting, ...}` or `{:fire_non_interrupting, ...}`. The PI's `execute_esp_action/2` pattern-matches and applies the correct scope effects — the handler code (`handle_enter/3`) is identical for both variants.
 
-- **Interrupting** (`{:fire_interrupting, esp_node, payload}`): `execute_esp_action/2` calls `interrupt_remaining_fnis` (terminal state `:interrupted`, reason `:interrupted_by_event_subprocess`), then `EspScope.teardown_triggers/1` to cancel all other dormant ESP triggers and inline catch subscriptions, then `dispatch_esp_shell/3` to create and dispatch the ESP shell FNI. **The interrupting fire does not kill the scope PI itself** — `interrupt_remaining_fnis` iterates only FNIs other than the ESP shell and keeps the PI alive (the same primitive Terminate End Events and Complex-Join Twist 2 use). When the child completes, `maybe_finish/1` sees `active_count == 0` and the scope PI reaches `:finished` — never `:aborted`/`:fatal` merely because the ESP fired. Two interrupting triggers enqueued together are idempotent: the first dequeued wins, the second becomes a no-op (its siblings are already interrupted).
+- **Interrupting** (`{:fire_interrupting, esp_node, payload}`): `execute_esp_action/2` calls `interrupt_remaining_fnis` (terminal state `:interrupted`, reason `:interrupted_by_event_subprocess`), then `EspScope.teardown_triggers/1` to cancel all other dormant ESP triggers and inline catch subscriptions, then `dispatch_esp_shell/3` to create and dispatch the ESP shell FNI. **The interrupting fire does not kill the scope PI itself** — `interrupt_remaining_fnis` iterates only FNIs other than the ESP shell and keeps the PI alive (the same primitive Terminate End Events and Complex Join cancellation use). When the child completes, `maybe_finish/1` sees `active_count == 0` and the scope PI reaches `:finished` — never `:aborted`/`:fatal` merely because the ESP fired. Two interrupting triggers enqueued together are idempotent: the first dequeued wins, the second becomes a no-op (its siblings are already interrupted).
 - **Non-interrupting** (`{:fire_non_interrupting, esp_node, payload}`): `execute_esp_action/2` calls `dispatch_esp_shell/3` directly — creating a *distinct* shell FNI per fire and spawning a parallel ESP child. The trigger re-arms (via `rearm_timer/3` for cyclic timers; message/signal subscriptions persist) so it may fire again → multiple concurrent independent child PIs. The scope's main flow continues. The scope PI finishes only once the main flow **and** every ESP shell FNI (child PI) have completed.
 
 #### Error / escalation reactive hooks
 
-Uncaught **error** and **escalation** triggers are resolved **reactively** at raise time (not pre-registered). The §B API provides three functions that wrap `EvilEngine.Execution.EventSubprocessResolver`:
+Uncaught **error** and **escalation** triggers are resolved **reactively** at raise time (not pre-registered). The §B API provides three functions that wrap `BfwEngine.Execution.EventSubprocessResolver`:
 
 - `resolve_error_catch/3` — handles handler `{:error, reason}` results; extracts error info and delegates to `EventSubprocessResolver.find_matching_error_start/2`. Returns `{:caught, updated_data, trigger_action}` or `:not_caught`.
 - `resolve_bpmn_error_catch/2` — handles BPMN errors from Error End Events; delegates to `EventSubprocessResolver.find_matching_error_start/2`. Returns `{:ok, trigger_action}` or `:none`.
 - `resolve_escalation_catch/2` — handles escalations; delegates to `EventSubprocessResolver.find_matching_escalation_start/2`. Returns `{:ok, trigger_action}` or `:none`.
 
-The underlying resolver ranks ESP error/escalation-start triggers in the scope; a specific `error_code`/`escalation_code` match beats a catch-all (no code). Error ESP starts are always interrupting (ESP-D7). The resolver only ranks candidates that are **peers in one scope**; **proximity** (boundary-on-host tested before the scope ESP, scope ESP before outward propagation) is enforced by the call sites in `ProcessInstance`. When an Error End is raised in the scope, `handle_fni_bpmn_error/*` consults `EspScope.resolve_bpmn_error_catch/2` before transitioning the PI to `:error`; a match fires the ESP (interrupting) via `execute_esp_action/2`. `handle_fni_escalation_throw`/escalation-end paths consult `EspScope.resolve_escalation_catch/2` before notifying the parent — a scope-level escalation ESP start catches an escalation raised in that scope **before** it propagates outward (this closes the escalation-proximity gap).
+The underlying resolver ranks ESP error/escalation-start triggers in the scope; a specific `error_code`/`escalation_code` match beats a catch-all (no code). Error ESP starts are always interrupting. The resolver only ranks candidates that are **peers in one scope**; **proximity** (boundary-on-host tested before the scope ESP, scope ESP before outward propagation) is enforced by the call sites in `ProcessInstance`. When an Error End is raised in the scope, `handle_fni_bpmn_error/*` consults `EspScope.resolve_bpmn_error_catch/2` before transitioning the PI to `:error`; a match fires the ESP (interrupting) via `execute_esp_action/2`. `handle_fni_escalation_throw`/escalation-end paths consult `EspScope.resolve_escalation_catch/2` before notifying the parent — a scope-level escalation ESP start catches an escalation raised in that scope **before** it propagates outward (this closes the escalation-proximity gap).
 
-An uncaught error/escalation raised by the **ESP child itself** is first offered to the ESP shell's own boundary events; if none matches it bubbles to the **scope PI's own parent** (ESP-D11) — the handler cannot re-handle its own escape.
+An uncaught error/escalation raised by the **ESP child itself** is first offered to the ESP shell's own boundary events; if none matches it bubbles to the **scope PI's own parent** — the handler cannot re-handle its own escape.
 
 #### Cyclic timer (scope-owned re-arm)
 
@@ -978,7 +978,7 @@ Already-`interrupted` siblings are not reloaded (existing resume filter). Abort/
 
 #### Events
 
-The ESP child spawn emits `SubProcessChildStarted` with `is_event_subprocess: true` (ESP-D16 — the Studio debugger's primary ESP signal) and, in addition, `EspScope.maybe_emit_triggered/4` emits `EventSubprocessTriggered` (`trigger_kind`, `is_interrupting`) for engine-level observers. See [event-system.md](event-system.md).
+The ESP child spawn emits `SubProcessChildStarted` with `is_event_subprocess: true` (the Studio debugger's primary Event Subprocess signal) and, in addition, `EspScope.maybe_emit_triggered/4` emits `EventSubprocessTriggered` (`trigger_kind`, `is_interrupting`) for engine-level observers. See [event-system.md](event-system.md).
 
 ### Adding Typed Event Handlers
 
@@ -1024,10 +1024,10 @@ Service Tasks and Script Tasks have clearly separated execution models. The BPMN
 
 ## Persistence Adapter
 
-**Path (behaviour):** `apps/core_execution/lib/evil_engine/execution/persistence.ex`
-**Path (Ash adapter):** `apps/peripheral_persistence/lib/evil_engine/persistence/execution_adapter.ex`
+**Path (behaviour):** `apps/core_execution/lib/bfw_engine/execution/persistence.ex`
+**Path (Ash adapter):** `apps/peripheral_persistence/lib/bfw_engine/persistence/execution_adapter.ex`
 
-The runtime calls persistence through `EvilEngine.Execution.Persistence.adapter()`, which reads `Application.get_env(:core_execution, :persistence_adapter)`. This preserves `core_execution` never imports from `peripheral_persistence`.
+The runtime calls persistence through `BfwEngine.Execution.Persistence.adapter()`, which reads `Application.get_env(:core_execution, :persistence_adapter)`. This preserves `core_execution` never imports from `peripheral_persistence`.
 
 | Callback | Purpose |
 |----------|---------|
@@ -1038,10 +1038,10 @@ The runtime calls persistence through `EvilEngine.Execution.Persistence.adapter(
 | `finish_fni_with_data_objects/3` | Atomically transition an FNI to `:finished` and persist all Data Object write intents in a single `Repo.transaction`. Called for every FNI completion (including those with zero DOAs). Returns `{:ok, %{writes: [...]}}`. |
 | `write_data_object/1` | Standalone UPSERT snapshot + INSERT audit for a single Data Object. Retained for future use; not called during FNI completion. |
 | `list_data_objects/1` | List current Data Object snapshots for a PI (used for resume rehydration of `data_object_cache`). |
-| `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `TDE_RESUME_BATCH_SIZE` (default `1000`). |
-| `list_flow_node_instances/1` | Read FNIs needed for resume of a PI: all `:active`/`:waiting` FNIs (re-dispatched / re-attached) plus `:finished` End-Event FNIs (for final-token aggregation across restarts). Other terminal FNIs are skipped — the live PI never reads their history. The finished-End-Event clause is forward-compat with non-interrupting fan-out features (Phase 2 items 13-14, Phase 3+ gateways, Phase 4 compensation); it loads zero extra rows under the current feature set because no PI can produce multiple finished End-Event FNIs in a single execution today. |
+| `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `BFE_RESUME_BATCH_SIZE` (default `1000`). |
+| `list_flow_node_instances/1` | Read FNIs needed for resume of a PI: all `:active`/`:waiting` FNIs (re-dispatched / re-attached) plus `:finished` End-Event FNIs (for final-token aggregation across restarts). Other terminal FNIs are skipped — the live PI never reads their history. The finished-End-Event clause is forward-compat with non-interrupting fan-out features; it loads zero extra rows under the current feature set because no PI can produce multiple finished End-Event FNIs in a single execution today. |
 
-A `NoOp` adapter ships with `core_execution` for unit tests. In production, `persistence_adapter: EvilEngine.Persistence.ExecutionAdapter` is set in `config/config.exs`.
+A `NoOp` adapter ships with `core_execution` for unit tests. In production, `persistence_adapter: BfwEngine.Persistence.ExecutionAdapter` is set in `config/config.exs`.
 
 ### Persistence Resilience
 
@@ -1049,18 +1049,18 @@ Persistence adapter calls across the engine are protected by a two-layer retry s
 
 #### Layer 1: `DBConnection.checkout_retries`
 
-Configured on the Repo pool (`config/runtime.exs`). Default: `3` (env `TDE_DB_CHECKOUT_RETRIES`). Handles the narrow "connection dropped mid-query" case transparently — DBConnection retries with a fresh connection from the pool. No application code involved.
+Configured on the Repo pool (`config/runtime.exs`). Default: `3` (env `BFE_DB_CHECKOUT_RETRIES`). Handles the narrow "connection dropped mid-query" case transparently — DBConnection retries with a fresh connection from the pool. No application code involved.
 
 #### Layer 2: `PersistenceRetry.with_retry/3`
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/persistence_retry.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/persistence_retry.ex`
 
 Wraps each adapter call with bounded exponential backoff:
 
 | Parameter | Default | Env var |
 |-----------|---------|---------|
-| Max attempts | 5 | `TDE_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
-| Initial backoff | 100ms | `TDE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
+| Max attempts | 5 | `BFE_PERSISTENCE_RETRY_MAX_ATTEMPTS` |
+| Initial backoff | 100ms | `BFE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` |
 
 Backoff formula: `initial_ms * 2^(attempt - 1) + random(0..50)`. Total worst-case delay: ~3.1s (100 + 200 + 400 + 800 + 1600ms plus jitter). Retries on **transient** `{:error, _}` only; `:ok` and `{:ok, _}` are never retried. Errors whose reason carries `class: :invalid` (Ash contract violations such as `NoSuchInput`) are **not** retried — they cannot succeed on a second attempt and would stall the PI gen_statem for the full backoff budget. Core matches the map key and must not import Ash. Logs `Logger.warning` on each retry and `Logger.error` on exhaustion or non-retryable rejection.
 
@@ -1100,7 +1100,7 @@ When `init/1` dispatches the first FNI synchronously and `persist_fni_create` fa
 
 ### ModelCache — single-flight semantics (PF-8)
 
-`EvilEngine.BPMN.ModelCache` is an ETS-backed cache keyed by `process_version_id`. Cache hits go directly to ETS (`read_concurrency: true`) without entering the GenServer mailbox. On a miss, `fetch/1` issues a `GenServer.call({:load_and_cache, id})`.
+`BfwEngine.BPMN.ModelCache` is an ETS-backed cache keyed by `process_version_id`. Cache hits go directly to ETS (`read_concurrency: true`) without entering the GenServer mailbox. On a miss, `fetch/1` issues a `GenServer.call({:load_and_cache, id})`.
 
 **Single-flight pattern:** If N callers miss ETS for the same `process_version_id` concurrently (the typical scenario after a node restart), only one backend load is initiated. Each additional caller for that key is registered as a **waiter** in the GenServer state and the GenServer returns `{:noreply, state}` without blocking on the load. The expensive XML parse + FEEL compile runs inside a `Task`. When the `Task` completes, `handle_info({ref, result}, state)` inserts the result into ETS (on success) and calls `GenServer.reply/2` for every registered waiter simultaneously. This keeps the GenServer responsive to requests for other keys while the load is in progress.
 
@@ -1116,7 +1116,7 @@ A `{:DOWN, ref, :process, pid, reason}` handler covers the (highly unusual) case
 
 ### Cache-heal behavior on soft-deleted versions
 
-`EvilEngine.Persistence.ExecutionAdapter` also serves as the `model_cache_loader` for `ModelCache`. When a cache miss occurs, `load_bpmn_xml/1` reads the raw XML from `process_versions` so the cache auto-heals without re-deployment.
+`BfwEngine.Persistence.ExecutionAdapter` also serves as the `model_cache_loader` for `ModelCache`. When a cache miss occurs, `load_bpmn_xml/1` reads the raw XML from `process_versions` so the cache auto-heals without re-deployment.
 
 **`load_bpmn_xml/1` does not see soft-deleted versions — by design.** The function uses `ProcessVersion`'s primary `:read` action, which carries `filter expr(deleted == false)`. Soft-deleted versions are no longer part of the live catalog, and the engine treats running PIs on them as unsupportable. If a node restart evicts the `ModelCache` entry for a soft-deleted version while a PI is still in `:running` state, the cache miss returns `{:error, :not_found}` and the PI's resume fails. This is the contract: the operator's `delete` action takes precedence over the running PI. Retention purge cleans up running PIs before their version's `bpmn_xml` becomes unreachable in well-tuned deployments; in misconfigured setups, the failure surfaces explicitly rather than silently running on stale data.
 
@@ -1124,14 +1124,14 @@ A `{:DOWN, ref, :process, pid, reason}` handler covers the (highly unusual) case
 
 This is a deliberate, documented design choice that **upholds** the dependency rule rather than violating it. The reasoning is the **Ports-and-Adapters** (Hexagonal Architecture) pattern:
 
-- **Port** — the behaviour `EvilEngine.Execution.Persistence` lives in `core_execution`. It names the operations the runtime needs from the outside world.
-- **Adapter** — `EvilEngine.Persistence.ExecutionAdapter` lives in `peripheral_persistence` and implements the behaviour using Ash + Postgres.
+- **Port** — the behaviour `BfwEngine.Execution.Persistence` lives in `core_execution`. It names the operations the runtime needs from the outside world.
+- **Adapter** — `BfwEngine.Persistence.ExecutionAdapter` lives in `peripheral_persistence` and implements the behaviour using Ash + Postgres.
 
 The same pattern applies to:
-- `EvilEngine.Execution.CalledElementResolver` (Core port) and `EvilEngine.Persistence.CalledElementResolverImpl` (Peripheral adapter) — resolves `calledElement` to a process version. Unpinned Call Activities use `resolve_latest_version/1` (newest `deployed_at` among non-deleted versions of an **enabled** catalog process). Pinned Call Activities use `resolve_specific_version/2` with the child's `evil:version` string. Retry's `version` body uses the same specific-version path; retry `"latest"` is a keyword on that JSON field only.
-- `EvilEngine.Execution.DecisionResolver` (Core port) and `EvilEngine.Persistence.DecisionResolverImpl` (Peripheral adapter) — resolves DMN `decision_definition_id` to its latest enabled, non-deleted `DecisionVersion`. Used by `EvilEngine.Api.evaluate_decision/3` and `FlowNodes.BusinessRuleTask` DMN mode.
+- `BfwEngine.Execution.CalledElementResolver` (Core port) and `BfwEngine.Persistence.CalledElementResolverImpl` (Peripheral adapter) — resolves `calledElement` to a process version. Unpinned Call Activities use `resolve_latest_version/1` (newest `deployed_at` among non-deleted versions of an **enabled** catalog process). Pinned Call Activities use `resolve_specific_version/2` with the child's `bfw:version` string. Retry's `version` body uses the same specific-version path; retry `"latest"` is a keyword on that JSON field only.
+- `BfwEngine.Execution.DecisionResolver` (Core port) and `BfwEngine.Persistence.DecisionResolverImpl` (Peripheral adapter) — resolves DMN `decision_definition_id` to its latest enabled, non-deleted `DecisionVersion`. Used by `BfwEngine.Api.evaluate_decision/3` and `FlowNodes.BusinessRuleTask` DMN mode.
 
-The dependency rule reads "Core ← Peripheral ← API" — that is the **dependency** direction. The forbidden direction is `core_execution → peripheral_persistence`. The permitted direction `peripheral_persistence → core_execution` is exactly what the adapters require: to write `@behaviour EvilEngine.Execution.Persistence`, the compiler must be able to find that module. Hence `peripheral_persistence/mix.exs` declares `{:core_execution, in_umbrella: true}`.
+The dependency rule reads "Core ← Peripheral ← API" — that is the **dependency** direction. The forbidden direction is `core_execution → peripheral_persistence`. The permitted direction `peripheral_persistence → core_execution` is exactly what the adapters require: to write `@behaviour BfwEngine.Execution.Persistence`, the compiler must be able to find that module. Hence `peripheral_persistence/mix.exs` declares `{:core_execution, in_umbrella: true}`.
 
 **Critically, no Peripheral code ever calls a function defined in `core_execution`.** The dependency is purely compile-time, scoped to behaviour callback validation (`@impl true` annotations, missing-callback warnings). At runtime, Core's reference to the adapter is *late-bound* via `Application.get_env(:core_execution, :persistence_adapter)`, so the adapter module name is never hardcoded in Core. Core can run with `NoOp` (tests), the Ash-backed adapter (production), or any future implementation without recompiling.
 
@@ -1142,9 +1142,9 @@ The dependency rule reads "Core ← Peripheral ← API" — that is the **depend
 ## Supervision Tree
 
 ```
-EvilEngine.Execution.ApplicationSupervisor (one_for_one)
-├── Registry (EvilEngine.Execution.Registry, :unique)
-├── DynamicSupervisor (EvilEngine.Execution.Supervisor, :one_for_one)
+BfwEngine.Execution.ApplicationSupervisor (one_for_one)
+├── Registry (BfwEngine.Execution.Registry, :unique)
+├── DynamicSupervisor (BfwEngine.Execution.Supervisor, :one_for_one)
 │   ├── ProcessInstance (PI-1, :temporary)
 │   │   └── Task.Supervisor (linked)
 │   │       ├── FNI Task
@@ -1157,7 +1157,7 @@ EvilEngine.Execution.ApplicationSupervisor (one_for_one)
 
 PI children use `restart: :temporary` — they are not restarted by the DynamicSupervisor on crash. Crash isolation is handled by monitoring FNI Tasks: if an FNI Task crashes, the PI catches the `:DOWN` message and transitions to `:fatal`.
 
-The `ResumeRunner` is started as a one-shot `Task` child. It pages through all PIs with `state == "running"` via `list_running_process_instances(limit: TDE_RESUME_BATCH_SIZE, after: cursor)`, loads each PI's resume-relevant FNIs, and starts each PI under the DynamicSupervisor with `resume: true`. After all batches are processed, it emits `Event.EngineStarted` and exits normally. On graceful shutdown, <code>Application.prep_stop/1</code> emits `Event.EngineShutdown`.
+The `ResumeRunner` is started as a one-shot `Task` child. It pages through all PIs with `state == "running"` via `list_running_process_instances(limit: BFE_RESUME_BATCH_SIZE, after: cursor)`, loads each PI's resume-relevant FNIs, and starts each PI under the DynamicSupervisor with `resume: true`. After all batches are processed, it emits `Event.EngineStarted` and exits normally. On graceful shutdown, <code>Application.prep_stop/1</code> emits `Event.EngineShutdown`.
 
 ---
 
@@ -1195,8 +1195,8 @@ For parallel paths, the array contains one entry per End Event that completed. C
 ## Startup Orphan Cleanup
 
 **Paths:**
-- `apps/core_execution/lib/evil_engine/execution/resume_runner.ex` (orchestration)
-- `apps/peripheral_persistence/lib/evil_engine/persistence/execution_adapter.ex` (SQL implementation)
+- `apps/core_execution/lib/bfw_engine/execution/resume_runner.ex` (orchestration)
+- `apps/peripheral_persistence/lib/bfw_engine/persistence/execution_adapter.ex` (SQL implementation)
 
 When the engine crashes mid-cascade (between persisting a parent PI's terminal state and completing `fatal_all_fnis`/`abort_all_fnis`), two kinds of stale DB rows can survive:
 
@@ -1233,13 +1233,13 @@ Both callbacks are implemented in `ExecutionAdapter` using raw SQL (Ash doesn't 
 
 ## Resume on Startup
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/resume_runner.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/resume_runner.ex`
 
 On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the `core_execution` Application supervisor. It reads all **root-level** `running` PIs from the persistence layer (those without a `parent_process_instance_id`) and starts each under the `DynamicSupervisor` with `resume: true`. Child PIs spawned by Call Activities or Embedded SubProcesses are **not** resumed directly — their parent's Call Activity or SubProcess handler re-attaches to or re-spawns them during its own resume path. This prevents duplicate execution of child process instances.
 
 ### Resume flow
 
-1. `ResumeRunner` drives a tail-recursive batch loop: calls `Persistence.adapter().list_running_process_instances(limit: batch_size, after: cursor)` repeatedly, processing one page at a time until `next_cursor: nil`. Page size is configured via `TDE_RESUME_BATCH_SIZE` (default `1000`); peak memory during resume is bounded by `batch_size × per-PI row size`. A mid-stream DB error logs the cursor and reports how many PIs were resumed before the failure.
+1. `ResumeRunner` drives a tail-recursive batch loop: calls `Persistence.adapter().list_running_process_instances(limit: batch_size, after: cursor)` repeatedly, processing one page at a time until `next_cursor: nil`. Page size is configured via `BFE_RESUME_BATCH_SIZE` (default `1000`); peak memory during resume is bounded by `batch_size × per-PI row size`. A mid-stream DB error logs the cursor and reports how many PIs were resumed before the failure.
 2. For each PI in the batch: loads FNIs via `list_flow_node_instances/1` (PF-2 scope: `:active`/`:waiting` + `:finished` End-Events only), builds resume opts map, starts PI via `DynamicSupervisor.start_child/2`.
 3. `ProcessInstance.init(%{resume: true})` rebuilds the `%State{}` from persisted data
 4. FNI rehydration per state:
@@ -1256,7 +1256,7 @@ On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the 
 | `:finished` (End Event) | Loaded into `flow_node_instance_states` so `build_final_tokens/1` can aggregate the `[FinalToken]` array correctly across restarts |
 | `:finished` (non-End-Event), `:fatal`, `:aborted`, `:interrupted` | Not loaded — see `list_flow_node_instances/1` callback contract above |
 
-**Cap is intentionally bypassed at resume.** `TDE_MAX_CONCURRENT_PIS` enforces a soft client-side pre-check inside `Execution.start_process_instance/1` (the public-API entry point), NOT on the underlying `DynamicSupervisor` (which runs with `max_children: :infinity`). `ResumeRunner` calls `DynamicSupervisor.start_child/2` directly, so resume always brings every `:running` PI back online — regardless of how many slots the cap permits. Once resume completes, the cap immediately starts rejecting new starts via REST and the plugin facade until enough PIs terminate to bring the active count back below the limit. If a finite cap is configured and `count_active() > limit` after `resume_all/0`, `ResumeRunner` publishes `%Event.EngineOverloaded{}` (same shape as the telemetry poller) so operators see the oversubscription; remaining resumes are never refused. This is a deliberate v1 design choice: a PI tree (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children) must come back as a whole; applying the cap mid-resume would leave a parent running and a child unresumed (or the reverse). Predictable resume is more valuable than strict cap enforcement during the transient boot window. See [`Execution.start_process_instance/1`](../../apps/core_execution/lib/evil_engine/execution.ex) and the `I_cap` integration test in [test/integration/execution/resume_test.exs](../../test/integration/execution/resume_test.exs).
+**Cap is intentionally bypassed at resume.** `BFE_MAX_CONCURRENT_PIS` enforces a soft client-side pre-check inside `Execution.start_process_instance/1` (the public-API entry point), NOT on the underlying `DynamicSupervisor` (which runs with `max_children: :infinity`). `ResumeRunner` calls `DynamicSupervisor.start_child/2` directly, so resume always brings every `:running` PI back online — regardless of how many slots the cap permits. Once resume completes, the cap immediately starts rejecting new starts via REST and the plugin facade until enough PIs terminate to bring the active count back below the limit. If a finite cap is configured and `count_active() > limit` after `resume_all/0`, `ResumeRunner` publishes `%Event.EngineOverloaded{}` (same shape as the telemetry poller) so operators see the oversubscription; remaining resumes are never refused. This is a deliberate v1 design choice: a PI tree (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children) must come back as a whole; applying the cap mid-resume would leave a parent running and a child unresumed (or the reverse). Predictable resume is more valuable than strict cap enforcement during the transient boot window. See [`Execution.start_process_instance/1`](../../apps/core_execution/lib/bfw_engine/execution.ex) and the `I_cap` integration test in [test/integration/execution/resume_test.exs](../../test/integration/execution/resume_test.exs).
 
 5. Emits `ProcessInstanceStateChanged{old_state: nil, new_state: :running}`
 6. After all PIs resume, emits `Event.EngineStarted`
@@ -1288,7 +1288,7 @@ The `execute_retry_reset/2` callback receives a pre-computed deletion set from C
 
 ### Retry orchestration (`Execution.retry_process_instance/1`)
 
-The retry mechanism is a three-phase process that prepares the PI tree via pure DB operations, then starts the root PI using the standard resume codepath.
+Retry prepares the PI tree with pure database operations, then starts the root PI using the standard resume codepath. The three steps are targeted reset, tree reset, and resume from root.
 
 ```mermaid
 flowchart TD
@@ -1298,7 +1298,7 @@ flowchart TD
     C -->|no| E[Root PI = targeted PI]
     D --> F{All ancestors terminal?}
     F -->|no| FAIL1[422 root_process_instance_not_terminal]
-    F -->|yes| G[Phase 1: Targeted Reset]
+    F -->|yes| G[Targeted Reset]
     E --> G
 
     G --> H[list_all_flow_node_instances]
@@ -1313,11 +1313,11 @@ flowchart TD
     M -->|ok| N
     N --> O[execute_retry_reset — atomic transaction]
 
-    O --> P[Phase 2: Tree Reset]
+    O --> P[Tree Reset]
     P --> P1[reset_ancestor_chain — bottom-up]
     P1 --> P2[reset_descendants — depth-first DFS]
 
-    P2 --> Q[Phase 3: Resume from Root]
+    P2 --> Q[Resume from Root]
     Q --> Q1{check_capacity}
     Q1 -->|at cap| FAIL3[503 engine_at_capacity]
     Q1 -->|ok| Q2[DynamicSupervisor.start_child — root gen_statem]
@@ -1325,7 +1325,7 @@ flowchart TD
     Q2 -->|fail| S[revert_tree_retry — restore all terminal states]
 ```
 
-**Phase 1 — Targeted reset:**
+**Targeted reset:**
 1. `resolve_tree_context/2` — walk `parent_process_instance_id` upward to find the root PI. Each ancestor must be terminal (`fatal`/`aborted`/`error`). Returns `{root_pi_data, ancestor_chain}`.
 2. `adapter.list_all_flow_node_instances/1` — load all FNIs for the targeted PI (all states, no filter).
 3. `maybe_apply_checkpoint/2` — if a checkpoint FNI ID is provided, compute the **deletion set** via forward reachability BFS from the checkpoint. FNIs downstream of the checkpoint are deleted; the checkpoint FNI itself survives and is reset.
@@ -1333,16 +1333,16 @@ flowchart TD
 5. `build_reset_spec/5` — compute `reset_fni_ids` (terminal FNIs → `"active"`), `delete_fni_ids` (from checkpoint), and optional `version_id`.
 6. `adapter.execute_retry_reset/2` — atomic persistence: delete FNIs + rollback Data Objects + reset FNI states + set PI to `running`, clear `finished_at` and `error_info`, optionally update `process_version_id`.
 
-**Phase 2 — Tree reset:**
+**Tree reset:**
 - `reset_ancestor_chain/2` — iterate ancestors bottom-up. For each ancestor, loads its FNIs via `build_basic_reset_spec/2`, then resets via `execute_retry_reset/2` (reset `fatal`/`aborted`/`error` FNIs to `active`, set PI to `running`). Propagates FNI loading errors cleanly.
 - `reset_descendants/2` — depth-first walk from all reset PIs. For each Call Activity or SubProcess FNI with a `fatal`, `aborted`, or `error` child PI, reset the child and recurse into its own children. `finished` children are preserved.
 
-**Phase 3 — Resume from root:**
+**Resume from root:**
 - `check_capacity/0` — same cap check as `start_process_instance/1`. Unlike resume, retry is user-initiated and subject to capacity limits.
 - `build_resume_opts/2` — build the opts map for `ProcessInstance.start_link` with `resume: true`, same format as `ResumeRunner.resume_one/2`.
 - `DynamicSupervisor.start_child` — start the root PI gen_statem. The gen_statem does not know it was triggered by a retry.
 
-**On success:** `emit_retry_event/5` publishes `Event.ProcessInstanceRetried` via `EngineEventBus` and emits `[:evil_engine, :process_instance, :retried]` telemetry.
+**On success:** `emit_retry_event/5` publishes `Event.ProcessInstanceRetried` via `EngineEventBus` and emits `[:bfw_engine, :process_instance, :retried]` telemetry.
 
 **On gen_statem start failure:** `revert_tree_retry/2` reverts all PIs (targeted + ancestors + descendants) to their original terminal states via `adapter.revert_retry/3`.
 
@@ -1380,7 +1380,7 @@ Duplicate FNI prevention: since the old join FNI is reset (not deleted), `rebuil
 
 On checkpoint reset, FNIs downstream of the checkpoint (identified via forward reachability BFS through `previous_flow_node_instance_ids`) are **deleted**, regardless of state. The checkpoint FNI itself is reset to `active`.
 
-### Version migration validation (Option B — reactivation candidates only)
+### Version migration validation (reactivation candidates only)
 
 When a target version is specified, the engine validates only FNIs that will be **reactivated** after reset — those transitioning from a terminal state (`fatal`, `aborted`, `error`) to `active`, plus already-`active` and `waiting` FNIs. Each such FNI's `flow_node_id` must exist in the target version's parsed model (loaded from `ModelCache`).
 
@@ -1408,21 +1408,21 @@ When a retry targets a PI that participates in a Call Activity tree, child PIs a
 
 | Scenario | Condition | Child PI outcome |
 |----------|-----------|------------------|
-| **A — Implicit retry** | No checkpoint specified, or checkpoint is *after* the Call Activity FNI | Call Activity FNI survives; child PI is **preserved** and reset by Phase 2 (`reset_descendants`). Terminal child → `running`; finished child → preserved |
-| **B — Explicit checkpoint AT Call Activity** | `resetToFlowNodeInstanceId` = the Call Activity FNI itself | Call Activity FNI survives (it is the checkpoint); child PI is **preserved** and reset by Phase 2. Same as Scenario A |
-| **C — Checkpoint BEFORE Call Activity** | `resetToFlowNodeInstanceId` is an FNI that executes before the Call Activity | Call Activity FNI is in the downstream deletion set → **hard-deleted**. Child PI is **hard-deleted** via `EvilEngine.Persistence.ProcessInstancePurge.hard_delete_process_instance_tree/1` (same cascade as Mix retention). A fresh child PI is created when the retried flow re-enters the Call Activity |
+| **A — Implicit retry** | No checkpoint specified, or checkpoint is *after* the Call Activity FNI | Call Activity FNI survives; child PI is **preserved** and reset by tree reset (`reset_descendants`). Terminal child → `running`; finished child → preserved |
+| **B — Explicit checkpoint AT Call Activity** | `resetToFlowNodeInstanceId` = the Call Activity FNI itself | Call Activity FNI survives (it is the checkpoint); child PI is **preserved** and reset by tree reset. Same as Scenario A |
+| **C — Checkpoint BEFORE Call Activity** | `resetToFlowNodeInstanceId` is an FNI that executes before the Call Activity | Call Activity FNI is in the downstream deletion set → **hard-deleted**. Child PI is **hard-deleted** via `BfwEngine.Persistence.ProcessInstancePurge.hard_delete_process_instance_tree/1` (same cascade as Mix retention). A fresh child PI is created when the retried flow re-enters the Call Activity |
 
-`evil:calledProcessVersion` is read only on a **fresh enter** (`handle_enter` / `run_fresh_lifecycle` when no child PI exists). Scenarios A and B **preserve child identity** (`process_instance_id` and `process_version_id`); the pin is unused. Retryable-terminal children (`fatal` / `aborted` / `error`) are **reset in place**; `finished` children are left as-is. Scenario C deletes the child, so the next enter resolves pin or latest from the parent model bound to the PI after any version migration.
+`bfw:calledProcessVersion` is read only on a **fresh enter** (`handle_enter` / `run_fresh_lifecycle` when no child PI exists). Scenarios A and B **preserve child identity** (`process_instance_id` and `process_version_id`); the pin is unused. Retryable-terminal children (`fatal` / `aborted` / `error`) are **reset in place**; `finished` children are left as-is. Scenario C deletes the child, so the next enter resolves pin or latest from the parent model bound to the PI after any version migration.
 
-Phase 2 descendant reset is depth-first: for each reset PI, all Call Activity FNIs with terminal child PIs are walked recursively. Tree depth is bounded by process model nesting (practically 2–4 levels).
+Descendant reset is depth-first: for each reset PI, all Call Activity FNIs with terminal child PIs are walked recursively. Tree depth is bounded by process model nesting (practically 2–4 levels).
 
 ### Event emission
 
 | Event | When |
 |-------|------|
-| `Event.ProcessInstanceRetried` | After successful Phase 3 (gen_statem started). Fields: `processInstanceId` (root), `targetProcessInstanceId` (user-targeted), `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy` |
+| `Event.ProcessInstanceRetried` | After resume from root succeeds (gen_statem started). Fields: `processInstanceId` (root), `targetProcessInstanceId` (user-targeted), `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy` |
 | `Event.ProcessInstanceStateChanged` | Emitted by the gen_statem itself during resume (old_state → new_state transitions) |
-| `[:evil_engine, :process_instance, :retried]` | Telemetry event for metrics/counters |
+| `[:bfw_engine, :process_instance, :retried]` | Telemetry event for metrics/counters |
 
 ### Engine lifecycle events
 
@@ -1434,9 +1434,9 @@ Phase 2 descendant reset is depth-first: for each reset PI, all Call Activity FN
 ### Supervision tree (updated)
 
 ```
-EvilEngine.Execution.ApplicationSupervisor (one_for_one)
-├── Registry (EvilEngine.Execution.Registry, :unique)
-├── DynamicSupervisor (EvilEngine.Execution.Supervisor, :one_for_one)
+BfwEngine.Execution.ApplicationSupervisor (one_for_one)
+├── Registry (BfwEngine.Execution.Registry, :unique)
+├── DynamicSupervisor (BfwEngine.Execution.Supervisor, :one_for_one)
 │   └── … ProcessInstance children
 └── Task (ResumeRunner.resume_all/0, one-shot)
 ```
@@ -1447,9 +1447,9 @@ EvilEngine.Execution.ApplicationSupervisor (one_for_one)
 
 | Struct | Path | Purpose |
 |--------|------|---------|
-| `Token` | `apps/core_types/lib/evil_engine/types/token.ex` | Logical marker flowing through the graph: ID, payload, originating FNI |
-| `FinalToken` | `apps/core_types/lib/evil_engine/types/final_token.ex` | Decorated End Event result |
-| `FlowNodeResult` | `apps/core_execution/lib/evil_engine/execution/flow_node_result.ex` | Canonical handler return: output payload, type properties, metadata |
+| `Token` | `apps/core_types/lib/bfw_engine/types/token.ex` | Logical marker flowing through the graph: ID, payload, originating FNI |
+| `FinalToken` | `apps/core_types/lib/bfw_engine/types/final_token.ex` | Decorated End Event result |
+| `FlowNodeResult` | `apps/core_execution/lib/bfw_engine/execution/flow_node_result.ex` | Canonical handler return: output payload, type properties, metadata |
 
 ---
 
@@ -1479,7 +1479,7 @@ An Error End Event allows process modelers to signal a modeled BPMN error. It di
 
 The handler resolves error information with the following priority:
 
-1. **Inline** `evil:errorCode`/`evil:errorMessage` on the `EventDefinition.Error` (highest priority)
+1. **Inline** `bfw:errorCode`/`bfw:errorMessage` on the `EventDefinition.Error` (highest priority)
 2. **Global** `<bpmn:error>` resolved via `errorRef` from `HandlerContext.definitions.errors`
 3. **nil** (catch-all — any boundary event without an error code filter will match)
 
@@ -1517,7 +1517,7 @@ When a child PI throws a BPMN error (via Call Activity or Embedded SubProcess):
 
 The function includes FNIs in `:error` state (in addition to `:finished`) so the Error End Event's output token is part of the PI's final result.
 
-### File: `apps/core_execution/lib/evil_engine/execution/flow_nodes/error_end_event.ex`
+### File: `apps/core_execution/lib/bfw_engine/execution/flow_nodes/error_end_event.ex`
 
 ---
 
@@ -1527,7 +1527,7 @@ Escalation Events implement the BPMN 2.0 escalation semantics: a process scope s
 
 ### Handler: `FlowNodes.EscalationEndEvent`
 
-Resolves `escalation_info` from the event definition's `escalationRef` → global `<bpmn:escalation escalationCode="...">` in `HandlerContext.definitions.escalations`. There is no inline `evil:escalationCode` override (unlike `ErrorEndEvent`). If `escalationRef` is nil or the referenced definition has no `escalation_code`, the escalation is unnamed (nil code, matches any catch-all boundary).
+Resolves `escalation_info` from the event definition's `escalationRef` → global `<bpmn:escalation escalationCode="...">` in `HandlerContext.definitions.escalations`. There is no inline `bfw:escalationCode` override (unlike `ErrorEndEvent`). If `escalationRef` is nil or the referenced definition has no `escalation_code`, the escalation is unnamed (nil code, matches any catch-all boundary).
 
 Returns `{:escalation_end, escalation_info, %FlowNodeResult{next_flow_node_ids: []}}`.
 
@@ -1547,16 +1547,16 @@ Mirrors `ErrorBoundaryEvent`. Parks the FNI in `:waiting` state via `FniLifecycl
 2. `do_handle_fni_ok` — finish FNI (`:finished`), cancel its own boundary FNIs
 3. `interrupt_remaining_fnis(data, fni_id, :escalation_end_event)` — siblings → `:interrupted`
 4. Set `data.escalation_info = escalation_info`
-5. Emit `EscalationRaised` event + `[:evil_engine, :escalation, :raised]` telemetry
+5. Emit `EscalationRaised` event + `[:bfw_engine, :escalation, :raised]` telemetry
 6. `maybe_finish_or_continue/1` detects `escalation_info != nil` → `persist_pi_escalated/2` → PI `:escalated` → `notify_parent(data, {:escalation, escalation_info})`
 
 **Escalation Intermediate Throw (`{:escalation_throw, escalation_info, result}`):**
 
 1. State guard — skip if FNI already terminal
 2. `do_handle_fni_ok` — finish FNI (`:finished`), dispatch next flow nodes (token continues)
-3. Emit `EscalationRaised` event + `[:evil_engine, :escalation, :raised]` telemetry
+3. Emit `EscalationRaised` event + `[:bfw_engine, :escalation, :raised]` telemetry
 4. If `data.notify_pid != nil`: send `{:child_pi_escalation_passthrough, self(), escalation_info}` to parent handler Task
-5. Else (root-of-root): emit `[:evil_engine, :escalation, :uncaught]` telemetry + `Logger.warning`
+5. Else (root-of-root): emit `[:bfw_engine, :escalation, :uncaught]` telemetry + `Logger.warning`
 6. `maybe_finish_or_continue/1` — PI keeps running (token was dispatched, escalation is a side-effect)
 
 **Escalation Passthrough (`{:escalation_passthrough, escalation_info}`):**
@@ -1584,7 +1584,7 @@ There is no centralized walker function. This mirrors the Error End Event propag
 
 ### `EscalationResolver`
 
-**Path:** `apps/core_execution/lib/evil_engine/execution/escalation_resolver.ex`
+**Path:** `apps/core_execution/lib/bfw_engine/execution/escalation_resolver.ex`
 
 Mirrors `BoundaryResolver`. Provides two public functions:
 
@@ -1622,10 +1622,10 @@ This is intentional BPMN semantics: Intermediate Throw = "I'm not done yet" (chi
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Execution.EscalationResolver` | `apps/core_execution/lib/evil_engine/execution/escalation_resolver.ex` |
-| `EvilEngine.Execution.FlowNodes.EscalationEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/escalation_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.EscalationIntermediateThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/escalation_intermediate_throw_event.ex` |
-| `EvilEngine.Execution.FlowNodes.EscalationBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/escalation_boundary_event.ex` |
+| `BfwEngine.Execution.EscalationResolver` | `apps/core_execution/lib/bfw_engine/execution/escalation_resolver.ex` |
+| `BfwEngine.Execution.FlowNodes.EscalationEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/escalation_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.EscalationIntermediateThrowEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/escalation_intermediate_throw_event.ex` |
+| `BfwEngine.Execution.FlowNodes.EscalationBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/escalation_boundary_event.ex` |
 
 ---
 
@@ -1706,7 +1706,7 @@ Compensation must be explicitly placed in the BPMN diagram. The typical pattern 
 
 ### Compensation-Start Event Subprocess
 
-A `<bpmn:subProcess triggeredByEvent="true">` with a `<bpmn:startEvent>` carrying `<bpmn:compensateEventDefinition>` acts as a scope-level compensation handler. When a Compensate Throw or End Event fires in the scope, `CompensationResolver` checks for a matching compensation-start ESP via `EventSubprocessResolver` (COMP-D5). If found, the ESP is triggered as the scope's compensation handler, reusing the standard ESP child-PI machinery. The ESP start is always interrupting (compensation consumes the scope).
+A `<bpmn:subProcess triggeredByEvent="true">` with a `<bpmn:startEvent>` carrying `<bpmn:compensateEventDefinition>` acts as a scope-level compensation handler. When a Compensate Throw or End Event fires in the scope, `CompensationResolver` checks for a matching compensation-start ESP via `EventSubprocessResolver`. If found, the ESP is triggered as the scope's compensation handler, reusing the standard ESP child-PI machinery. The ESP start is always interrupting (compensation consumes the scope).
 
 ### Responsibility Split
 
@@ -1726,11 +1726,11 @@ Compensation logic is deliberately distributed across thin, focused modules to a
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Execution.CompensationResolver` | `apps/core_execution/lib/evil_engine/execution/compensation_resolver.ex` |
-| `EvilEngine.Execution.ProcessInstance.CompensationOrchestrator` | `apps/core_execution/lib/evil_engine/execution/process_instance/compensation_orchestrator.ex` |
-| `EvilEngine.Execution.FlowNodes.CompensateThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensate_throw_event.ex` |
-| `EvilEngine.Execution.FlowNodes.CompensateEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensate_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.CompensationBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/compensation_boundary_event.ex` |
+| `BfwEngine.Execution.CompensationResolver` | `apps/core_execution/lib/bfw_engine/execution/compensation_resolver.ex` |
+| `BfwEngine.Execution.ProcessInstance.CompensationOrchestrator` | `apps/core_execution/lib/bfw_engine/execution/process_instance/compensation_orchestrator.ex` |
+| `BfwEngine.Execution.FlowNodes.CompensateThrowEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/compensate_throw_event.ex` |
+| `BfwEngine.Execution.FlowNodes.CompensateEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/compensate_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.CompensationBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/compensation_boundary_event.ex` |
 
 ---
 
@@ -1784,11 +1784,11 @@ Two independent restrictions apply to transactions (enforced in `validate_retria
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Execution.FlowNodes.TransactionSubProcess` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/transaction_sub_process.ex` |
-| `EvilEngine.Execution.FlowNodes.CancelEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/cancel_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.CancelBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/cancel_boundary_event.ex` |
-| `EvilEngine.Execution.BoundaryResolver` (find_matching_cancel_boundary) | `apps/core_execution/lib/evil_engine/execution/boundary_resolver.ex` |
-| `EvilEngine.Types.Event.TransactionCancelled` | `apps/core_types/lib/evil_engine/types/event.ex` |
+| `BfwEngine.Execution.FlowNodes.TransactionSubProcess` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/transaction_sub_process.ex` |
+| `BfwEngine.Execution.FlowNodes.CancelEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/cancel_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.CancelBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/cancel_boundary_event.ex` |
+| `BfwEngine.Execution.BoundaryResolver` (find_matching_cancel_boundary) | `apps/core_execution/lib/bfw_engine/execution/boundary_resolver.ex` |
+| `BfwEngine.Types.Event.TransactionCancelled` | `apps/core_types/lib/bfw_engine/types/event.ex` |
 
 ---
 
@@ -1796,14 +1796,14 @@ Two independent restrictions apply to transactions (enforced in `validate_retria
 
 An ad-hoc subprocess (`<bpmn:adHocSubProcess>`) contains activities that are not connected by sequence flows. Activities are activated on demand (plugin-managed) or by the engine (engine-managed).
 
-**Handler:** `EvilEngine.Execution.FlowNodes.AdHocSubProcess`
-**PI Mode:** `EvilEngine.Execution.ProcessInstance.AdHocMode`
+**Handler:** `BfwEngine.Execution.FlowNodes.AdHocSubProcess`
+**PI Mode:** `BfwEngine.Execution.ProcessInstance.AdHocMode`
 
 ### Lifecycle
 
 1. Handler validates contents (no start/end events, at least one activity)
 2. Spawns child PI in `AdHocMode` with ad-hoc configuration propagated to PI state
-3. In engine-managed mode: activates initial activities per `evil:activeElements` or all inner activities. Sequential ordering activates **only the first** matching `activeElements` ID (remaining list IDs are logged and ignored); `maybe_auto_chain_sequential_adhoc` then advances through remaining **unperformed inner activities** as each finishes.
+3. In engine-managed mode: activates initial activities per `bfw:activeElements` or all inner activities. Sequential ordering activates **only the first** matching `activeElements` ID (remaining list IDs are logged and ignored); `maybe_auto_chain_sequential_adhoc` then advances through remaining **unperformed inner activities** as each finishes.
 4. In plugin-managed mode: waits for plugin to activate activities via facade
 5. Child PI completes when completion condition is met or all activities drain naturally
 
@@ -1815,7 +1815,7 @@ An ad-hoc subprocess (`<bpmn:adHocSubProcess>`) contains activities that are not
 ### Ordering Enforcement (Sequential)
 
 - Only one FNI may be `:active` or `:waiting` at a time
-- Sequential `evil:activeElements` is an **initial-set** expression: only `hd(list)` is activated; extra IDs are ignored at start
+- Sequential `bfw:activeElements` is an **initial-set** expression: only `hd(list)` is activated; extra IDs are ignored at start
 - `maybe_auto_chain_sequential_adhoc` dispatches the next unperformed inner activity (model order) when the current one finishes
 - Manual activation via REST/plugin returns `:adhoc_sequential_busy` if an FNI is already active
 
@@ -1834,16 +1834,16 @@ When the completion condition is met and `cancelRemainingInstances=true` (defaul
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Execution.FlowNodes.AdHocSubProcess` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/adhoc_sub_process.ex` |
-| `EvilEngine.Execution.ProcessInstance.AdHocMode` | `apps/core_execution/lib/evil_engine/execution/process_instance/adhoc_mode.ex` |
+| `BfwEngine.Execution.FlowNodes.AdHocSubProcess` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/adhoc_sub_process.ex` |
+| `BfwEngine.Execution.ProcessInstance.AdHocMode` | `apps/core_execution/lib/bfw_engine/execution/process_instance/adhoc_mode.ex` |
 
 ---
 
 ## Data Object Write Path
 
-When an FNI completes successfully, the engine uses a two-phase approach: **pure evaluation** followed by **atomic persistence**.
+When an FNI completes successfully, the engine evaluates the writes with no database access, then persists them in one transaction.
 
-### Phase 1: Evaluate (pure, no DB)
+### Evaluate (no database)
 
 `DataObjectWriter.prepare_associations/4` evaluates all DOAs and builds a list of `DataObjectWriteIntent` structs:
 
@@ -1851,13 +1851,13 @@ When an FNI completes successfully, the engine uses a two-phase approach: **pure
 2. For each DOA (sequentially via `Enum.reduce_while`):
    - Resolve target chain: `DOA.target_ref` → `DataObjectReference.data_object_ref` → `DataObject.id`
    - Evaluate `value_expression` (FEEL) if present; otherwise use full output payload
-   - Validate against `evil:valueContract` (if set on target DataObject)
+   - Validate against `bfw:valueContract` (if set on target DataObject)
    - Check `PayloadCap` on new value
    - Build `%DataObjectWriteIntent{data_object_id, flow_node_instance_id, process_instance_id, previous_value, value}`
    - Update in-memory cache accumulator
 3. Returns `{:ok, updated_cache, [%DataObjectWriteIntent{}, ...]}` or `{:error, reason}`
 
-### Phase 2: Persist (single transaction)
+### Persist (one transaction)
 
 `Persistence.finish_fni_with_data_objects/3` wraps the FNI state transition and all DO writes in **one `Repo.transaction`**:
 
@@ -1929,11 +1929,11 @@ PI continues with next flow nodes
 
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| `TimerStartEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/timer_start_event.ex` | Handler for all Timer Start Event types: cycle (pass-through), date/duration (blocking) |
-| `TimerStartListener` | `apps/core_execution/lib/evil_engine/execution/timer_start_listener.ex` | Receives cycle timer fire messages, creates PIs |
-| `StartEventManager` | `apps/core_timers/lib/evil_engine/timers/start_event_manager.ex` | Cycle schedule lifecycle (register/unregister/enable/disable/record_fire) |
-| `Scheduler` | `apps/core_timers/lib/evil_engine/timers/scheduler.ex` | ETS-based timer management, cycle support |
-| `TimerScheduleController` | `apps/api_web/lib/evil_engine_web/http/controllers/timer_schedule_controller.ex` | REST API for cycle schedule management |
+| `TimerStartEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/timer_start_event.ex` | Handler for all Timer Start Event types: cycle (pass-through), date/duration (blocking) |
+| `TimerStartListener` | `apps/core_execution/lib/bfw_engine/execution/timer_start_listener.ex` | Receives cycle timer fire messages, creates PIs |
+| `StartEventManager` | `apps/core_timers/lib/bfw_engine/timers/start_event_manager.ex` | Cycle schedule lifecycle (register/unregister/enable/disable/record_fire) |
+| `Scheduler` | `apps/core_timers/lib/bfw_engine/timers/scheduler.ex` | ETS-based timer management, cycle support |
+| `TimerScheduleController` | `apps/api_web/lib/bfw_engine_web/http/controllers/timer_schedule_controller.ex` | REST API for cycle schedule management |
 
 ### Deploy Hook
 
@@ -1986,75 +1986,75 @@ The `TimerStartListener` uses a dedicated system identity (`system:timer-start`)
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Execution` | `apps/core_execution/lib/evil_engine/execution.ex` |
-| `EvilEngine.Execution.ProcessInstance` | `apps/core_execution/lib/evil_engine/execution/process_instance.ex` |
-| `EvilEngine.Execution.ProcessInstance.State` | `apps/core_execution/lib/evil_engine/execution/process_instance/state.ex` |
-| `EvilEngine.Execution.ProcessInstance.Facade` | `apps/core_execution/lib/evil_engine/execution/process_instance/facade.ex` |
-| `EvilEngine.Execution.ProcessInstance.Helpers` | `apps/core_execution/lib/evil_engine/execution/process_instance/helpers.ex` |
-| `EvilEngine.Execution.ProcessInstance.BoundaryOrchestrator` | `apps/core_execution/lib/evil_engine/execution/process_instance/boundary_orchestrator.ex` |
-| `EvilEngine.Execution.ProcessInstance.Resumption` | `apps/core_execution/lib/evil_engine/execution/process_instance/resumption.ex` |
-| `EvilEngine.Execution.FniLifecycle` | `apps/core_execution/lib/evil_engine/execution/fni_lifecycle.ex` |
-| `EvilEngine.Execution.FniLifecycle.LifecycleResult` | `apps/core_execution/lib/evil_engine/execution/fni_lifecycle/lifecycle_result.ex` |
-| `EvilEngine.Execution.FlowNodeHandler` | `apps/core_execution/lib/evil_engine/execution/flow_node_handler.ex` |
-| `EvilEngine.Execution.FlowNodeResult` | `apps/core_execution/lib/evil_engine/execution/flow_node_result.ex` |
-| `EvilEngine.Execution.HandlerDispatch` | `apps/core_execution/lib/evil_engine/execution/handler_dispatch.ex` |
-| `EvilEngine.Execution.SequenceFlowResolver` | `apps/core_execution/lib/evil_engine/execution/sequence_flow_resolver.ex` |
-| `EvilEngine.Execution.Persistence` | `apps/core_execution/lib/evil_engine/execution/persistence.ex` |
-| `EvilEngine.Execution.Persistence.NoOp` | `apps/core_execution/lib/evil_engine/execution/persistence.ex` |
-| `EvilEngine.Execution.PersistenceRetry` | `apps/core_execution/lib/evil_engine/execution/persistence_retry.ex` |
-| `EvilEngine.Persistence.ExecutionAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/execution_adapter.ex` |
-| `EvilEngine.Execution.FlowNodes.StartEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/start_event.ex` |
-| `EvilEngine.Execution.FlowNodes.EndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.TerminateEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/terminate_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.ErrorEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/error_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.Task` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/task.ex` |
-| `EvilEngine.Execution.FlowNodes.IntermediateEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/intermediate_event.ex` |
-| `EvilEngine.Execution.FlowNodes.LinkThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/link_throw_event.ex` |
-| `EvilEngine.Execution.FlowNodes.LinkCatchEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/link_catch_event.ex` |
-| `EvilEngine.Execution.FlowNodes.ManualTask` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/manual_task.ex` |
-| `EvilEngine.Execution.FlowNodes.UserTask` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/user_task.ex` |
-| `EvilEngine.Execution.FlowNodes.ServiceTask` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/service_task.ex` |
-| `EvilEngine.Execution.FlowNodes.ExclusiveGateway` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/exclusive_gateway.ex` |
-| `EvilEngine.Execution.FlowNodes.ParallelGateway` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/parallel_gateway.ex` |
-| `EvilEngine.Execution.FlowNodes.CallActivity` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/call_activity.ex` |
-| `EvilEngine.Execution.FlowNodes.SubProcess` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/sub_process.ex` |
-| `EvilEngine.Execution.FlowNodes.BoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/boundary_event.ex` |
-| `EvilEngine.Execution.FlowNodes.TimerStartEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/timer_start_event.ex` |
-| `EvilEngine.Execution.FlowNodes.TimerCatchEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/timer_catch_event.ex` |
-| `EvilEngine.Execution.FlowNodes.TimerBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/timer_boundary_event.ex` |
-| `EvilEngine.Execution.FlowNodes.MessageCatchEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/message_catch_event.ex` |
-| `EvilEngine.Execution.FlowNodes.MessageThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/message_throw_event.ex` |
-| `EvilEngine.Execution.FlowNodes.MessageEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/message_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.MessageStartEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/message_start_event.ex` |
-| `EvilEngine.Execution.FlowNodes.MessageBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/message_boundary_event.ex` |
-| `EvilEngine.Execution.FlowNodes.SendTask` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/send_task.ex` |
-| `EvilEngine.Execution.FlowNodes.ReceiveTask` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/receive_task.ex` |
-| `EvilEngine.Execution.FlowNodes.SignalCatchEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/signal_catch_event.ex` |
-| `EvilEngine.Execution.FlowNodes.SignalThrowEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/signal_throw_event.ex` |
-| `EvilEngine.Execution.FlowNodes.SignalEndEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/signal_end_event.ex` |
-| `EvilEngine.Execution.FlowNodes.SignalStartEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/signal_start_event.ex` |
-| `EvilEngine.Execution.FlowNodes.SignalBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/signal_boundary_event.ex` |
-| `EvilEngine.Execution.FlowNodes.SignalEventHelper` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/signal_event_helper.ex` |
-| `EvilEngine.Execution.FlowNodes.ConditionalCatchEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/conditional_catch_event.ex` |
-| `EvilEngine.Execution.FlowNodes.ConditionalBoundaryEvent` | `apps/core_execution/lib/evil_engine/execution/flow_nodes/conditional_boundary_event.ex` |
-| `EvilEngine.Execution.MessageStartHandler` | `apps/core_execution/lib/evil_engine/execution/message_start_handler.ex` |
-| `EvilEngine.Execution.SignalStartHandler` | `apps/core_execution/lib/evil_engine/execution/signal_start_handler.ex` |
-| `EvilEngine.Events.SignalPublisher` | `apps/core_events/lib/evil_engine/events/signal_publisher.ex` |
-| `EvilEngine.Events.SignalSubscriptions` | `apps/core_events/lib/evil_engine/events/signal_subscriptions.ex` |
-| `EvilEngine.Events.SignalPersistence` | `apps/core_events/lib/evil_engine/events/signal_persistence.ex` |
-| `EvilEngine.Persistence.SignalPersistenceAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/signal_persistence_adapter.ex` |
-| `EvilEngine.Execution.BoundaryAwareHandler` | `apps/core_execution/lib/evil_engine/execution/boundary_aware_handler.ex` |
-| `EvilEngine.Execution.BoundaryResolver` | `apps/core_execution/lib/evil_engine/execution/boundary_resolver.ex` |
-| `EvilEngine.Execution.HandlerContext` | `apps/core_execution/lib/evil_engine/execution/handler_context.ex` |
-| `EvilEngine.Execution.MappingHelper` | `apps/core_execution/lib/evil_engine/execution/mapping_helper.ex` |
-| `EvilEngine.Execution.CalledElementResolver` | `apps/core_execution/lib/evil_engine/execution/called_element_resolver.ex` |
-| `EvilEngine.Execution.DecisionResolver` | `apps/core_execution/lib/evil_engine/execution/decision_resolver.ex` |
-| `EvilEngine.Execution.DataObjectWriter` | `apps/core_execution/lib/evil_engine/execution/data_object_writer.ex` |
-| `EvilEngine.Execution.DataObjectWriteIntent` | `apps/core_execution/lib/evil_engine/execution/data_object_write_intent.ex` |
-| `EvilEngine.Execution.PayloadCap` | `apps/core_execution/lib/evil_engine/execution/payload_cap.ex` |
-| `EvilEngine.Execution.ResumeRunner` | `apps/core_execution/lib/evil_engine/execution/resume_runner.ex` |
-| `EvilEngine.Execution.TimerStartListener` | `apps/core_execution/lib/evil_engine/execution/timer_start_listener.ex` |
-| Execution Application (hidden) | `apps/core_execution/lib/evil_engine/execution/application.ex` |
+| `BfwEngine.Execution` | `apps/core_execution/lib/bfw_engine/execution.ex` |
+| `BfwEngine.Execution.ProcessInstance` | `apps/core_execution/lib/bfw_engine/execution/process_instance.ex` |
+| `BfwEngine.Execution.ProcessInstance.State` | `apps/core_execution/lib/bfw_engine/execution/process_instance/state.ex` |
+| `BfwEngine.Execution.ProcessInstance.Facade` | `apps/core_execution/lib/bfw_engine/execution/process_instance/facade.ex` |
+| `BfwEngine.Execution.ProcessInstance.Helpers` | `apps/core_execution/lib/bfw_engine/execution/process_instance/helpers.ex` |
+| `BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator` | `apps/core_execution/lib/bfw_engine/execution/process_instance/boundary_orchestrator.ex` |
+| `BfwEngine.Execution.ProcessInstance.Resumption` | `apps/core_execution/lib/bfw_engine/execution/process_instance/resumption.ex` |
+| `BfwEngine.Execution.FniLifecycle` | `apps/core_execution/lib/bfw_engine/execution/fni_lifecycle.ex` |
+| `BfwEngine.Execution.FniLifecycle.LifecycleResult` | `apps/core_execution/lib/bfw_engine/execution/fni_lifecycle/lifecycle_result.ex` |
+| `BfwEngine.Execution.FlowNodeHandler` | `apps/core_execution/lib/bfw_engine/execution/flow_node_handler.ex` |
+| `BfwEngine.Execution.FlowNodeResult` | `apps/core_execution/lib/bfw_engine/execution/flow_node_result.ex` |
+| `BfwEngine.Execution.HandlerDispatch` | `apps/core_execution/lib/bfw_engine/execution/handler_dispatch.ex` |
+| `BfwEngine.Execution.SequenceFlowResolver` | `apps/core_execution/lib/bfw_engine/execution/sequence_flow_resolver.ex` |
+| `BfwEngine.Execution.Persistence` | `apps/core_execution/lib/bfw_engine/execution/persistence.ex` |
+| `BfwEngine.Execution.Persistence.NoOp` | `apps/core_execution/lib/bfw_engine/execution/persistence.ex` |
+| `BfwEngine.Execution.PersistenceRetry` | `apps/core_execution/lib/bfw_engine/execution/persistence_retry.ex` |
+| `BfwEngine.Persistence.ExecutionAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/execution_adapter.ex` |
+| `BfwEngine.Execution.FlowNodes.StartEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/start_event.ex` |
+| `BfwEngine.Execution.FlowNodes.EndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.TerminateEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/terminate_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.ErrorEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/error_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.Task` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/task.ex` |
+| `BfwEngine.Execution.FlowNodes.IntermediateEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/intermediate_event.ex` |
+| `BfwEngine.Execution.FlowNodes.LinkThrowEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/link_throw_event.ex` |
+| `BfwEngine.Execution.FlowNodes.LinkCatchEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/link_catch_event.ex` |
+| `BfwEngine.Execution.FlowNodes.ManualTask` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/manual_task.ex` |
+| `BfwEngine.Execution.FlowNodes.UserTask` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/user_task.ex` |
+| `BfwEngine.Execution.FlowNodes.ServiceTask` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/service_task.ex` |
+| `BfwEngine.Execution.FlowNodes.ExclusiveGateway` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/exclusive_gateway.ex` |
+| `BfwEngine.Execution.FlowNodes.ParallelGateway` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/parallel_gateway.ex` |
+| `BfwEngine.Execution.FlowNodes.CallActivity` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/call_activity.ex` |
+| `BfwEngine.Execution.FlowNodes.SubProcess` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/sub_process.ex` |
+| `BfwEngine.Execution.FlowNodes.BoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/boundary_event.ex` |
+| `BfwEngine.Execution.FlowNodes.TimerStartEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/timer_start_event.ex` |
+| `BfwEngine.Execution.FlowNodes.TimerCatchEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/timer_catch_event.ex` |
+| `BfwEngine.Execution.FlowNodes.TimerBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/timer_boundary_event.ex` |
+| `BfwEngine.Execution.FlowNodes.MessageCatchEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/message_catch_event.ex` |
+| `BfwEngine.Execution.FlowNodes.MessageThrowEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/message_throw_event.ex` |
+| `BfwEngine.Execution.FlowNodes.MessageEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/message_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.MessageStartEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/message_start_event.ex` |
+| `BfwEngine.Execution.FlowNodes.MessageBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/message_boundary_event.ex` |
+| `BfwEngine.Execution.FlowNodes.SendTask` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/send_task.ex` |
+| `BfwEngine.Execution.FlowNodes.ReceiveTask` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/receive_task.ex` |
+| `BfwEngine.Execution.FlowNodes.SignalCatchEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/signal_catch_event.ex` |
+| `BfwEngine.Execution.FlowNodes.SignalThrowEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/signal_throw_event.ex` |
+| `BfwEngine.Execution.FlowNodes.SignalEndEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/signal_end_event.ex` |
+| `BfwEngine.Execution.FlowNodes.SignalStartEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/signal_start_event.ex` |
+| `BfwEngine.Execution.FlowNodes.SignalBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/signal_boundary_event.ex` |
+| `BfwEngine.Execution.FlowNodes.SignalEventHelper` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/signal_event_helper.ex` |
+| `BfwEngine.Execution.FlowNodes.ConditionalCatchEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/conditional_catch_event.ex` |
+| `BfwEngine.Execution.FlowNodes.ConditionalBoundaryEvent` | `apps/core_execution/lib/bfw_engine/execution/flow_nodes/conditional_boundary_event.ex` |
+| `BfwEngine.Execution.MessageStartHandler` | `apps/core_execution/lib/bfw_engine/execution/message_start_handler.ex` |
+| `BfwEngine.Execution.SignalStartHandler` | `apps/core_execution/lib/bfw_engine/execution/signal_start_handler.ex` |
+| `BfwEngine.Events.SignalPublisher` | `apps/core_events/lib/bfw_engine/events/signal_publisher.ex` |
+| `BfwEngine.Events.SignalSubscriptions` | `apps/core_events/lib/bfw_engine/events/signal_subscriptions.ex` |
+| `BfwEngine.Events.SignalPersistence` | `apps/core_events/lib/bfw_engine/events/signal_persistence.ex` |
+| `BfwEngine.Persistence.SignalPersistenceAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/signal_persistence_adapter.ex` |
+| `BfwEngine.Execution.BoundaryAwareHandler` | `apps/core_execution/lib/bfw_engine/execution/boundary_aware_handler.ex` |
+| `BfwEngine.Execution.BoundaryResolver` | `apps/core_execution/lib/bfw_engine/execution/boundary_resolver.ex` |
+| `BfwEngine.Execution.HandlerContext` | `apps/core_execution/lib/bfw_engine/execution/handler_context.ex` |
+| `BfwEngine.Execution.MappingHelper` | `apps/core_execution/lib/bfw_engine/execution/mapping_helper.ex` |
+| `BfwEngine.Execution.CalledElementResolver` | `apps/core_execution/lib/bfw_engine/execution/called_element_resolver.ex` |
+| `BfwEngine.Execution.DecisionResolver` | `apps/core_execution/lib/bfw_engine/execution/decision_resolver.ex` |
+| `BfwEngine.Execution.DataObjectWriter` | `apps/core_execution/lib/bfw_engine/execution/data_object_writer.ex` |
+| `BfwEngine.Execution.DataObjectWriteIntent` | `apps/core_execution/lib/bfw_engine/execution/data_object_write_intent.ex` |
+| `BfwEngine.Execution.PayloadCap` | `apps/core_execution/lib/bfw_engine/execution/payload_cap.ex` |
+| `BfwEngine.Execution.ResumeRunner` | `apps/core_execution/lib/bfw_engine/execution/resume_runner.ex` |
+| `BfwEngine.Execution.TimerStartListener` | `apps/core_execution/lib/bfw_engine/execution/timer_start_listener.ex` |
+| Execution Application (hidden) | `apps/core_execution/lib/bfw_engine/execution/application.ex` |
 
 ---
 
@@ -2082,18 +2082,18 @@ When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopChar
 
 #### Multi-Instance (Parallel)
 
-1. Shell FNI enters → evaluate `evil:inputCollection` → determine iteration count
+1. Shell FNI enters → evaluate `bfw:inputCollection` → determine iteration count
 2. Shell parks as `:waiting` (`park_async` + `FlowNodeInstanceStateChanged`); emits `MultiInstanceStarted`
 3. All iteration FNIs are dispatched concurrently via `dispatch_mi_iteration_fni`
 4. Each iteration FNI runs the underlying activity handler with a `loop.*` overlay in the FEEL context
 5. As results arrive via `{:fni_result, iteration_fni_id, result}`:
-   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload`), check `completionCondition` / `evil:loopBreakCondition`
+   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload`), check `completionCondition` / `bfw:loopBreakCondition`
    - On failure: persist iteration FNI as `:fatal`; remaining iterations continue (unless break condition)
-6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI. `evil:outputCollection` is a **variable name** (handbook), not a FEEL expression that replaces the whole payload. The shell `output_token` is always a map: the incoming token plus `outputCollection → [iteration output payloads]`. An empty collection uses the same helper (zero-length list under that name). If the text happens to evaluate as FEEL to a map, that map is used as the full payload.
+6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI. `bfw:outputCollection` is a **variable name** (handbook), not a FEEL expression that replaces the whole payload. The shell `output_token` is always a map: the incoming token plus `outputCollection → [iteration output payloads]`. An empty collection uses the same helper (zero-length list under that name). If the text happens to evaluate as FEEL to a map, that map is used as the full payload.
 
 #### Multi-Instance (Sequential)
 
-Same as parallel but iterations are dispatched one at a time. After each iteration completes, the next is dispatched. `evil:loopInterval` adds an optional delay between iterations.
+Same as parallel but iterations are dispatched one at a time. After each iteration completes, the next is dispatched. `bfw:loopInterval` adds an optional delay between iterations.
 
 #### Standard Loop (while-do / do-while)
 
@@ -2131,8 +2131,8 @@ Iteration FNIs receive a `loop` overlay in their FEEL context via `FeelContext.p
 Several mechanisms can terminate a loop before all iterations complete:
 
 - **`completionCondition`** (MI) — Standard BPMN element; FEEL expression evaluated after each iteration. When true, remaining iterations are not started (parallel: in-flight iterations are awaited but no new ones dispatch).
-- **`evil:loopBreakCondition`** (MI) — Engine extension; same semantics as `completionCondition`.
-- **`evil:maxIterations`** (MI) — Hard cap on iteration count.
+- **`bfw:loopBreakCondition`** (MI) — Engine extension; same semantics as `completionCondition`.
+- **`bfw:maxIterations`** (MI) — Hard cap on iteration count.
 - **`loopMaximum`** (Standard Loop) — Hard cap on loop passes.
 - **Loop condition becomes false** (Standard Loop) — Normal termination for while-do.
 
@@ -2170,7 +2170,7 @@ PI-level cascading (`abort_all_fnis`, `fatal_all_fnis`, `error_all_remaining_fni
 
 | Module | Purpose |
 |--------|---------|
-| `EvilEngine.Execution.FlowNodes.MultiInstanceBody` | Parallel and sequential MI orchestration |
-| `EvilEngine.Execution.FlowNodes.StandardLoopBody` | While-do and do-while loop orchestration |
+| `BfwEngine.Execution.FlowNodes.MultiInstanceBody` | Parallel and sequential MI orchestration |
+| `BfwEngine.Execution.FlowNodes.StandardLoopBody` | While-do and do-while loop orchestration |
 
 Both are dispatched by `HandlerDispatch` when the flow node carries `multiInstanceLoopCharacteristics` or `standardLoopCharacteristics` respectively.

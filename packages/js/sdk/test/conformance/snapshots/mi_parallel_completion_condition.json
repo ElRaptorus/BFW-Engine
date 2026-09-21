@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,7 +42,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": {
             "collectionExpression": "token.items",
@@ -59,7 +63,9 @@
             "outputElementVariable": null
           },
           "name": "Process Item",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "script_task",
           "typeData": {
@@ -79,7 +85,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -100,7 +108,11 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -5,7 +5,7 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogPlugin do
   Copy this module and `DatadogSink` into your own OTP application.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.EventSinks.DatadogMetrics.DatadogSink
 

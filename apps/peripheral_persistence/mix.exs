@@ -1,8 +1,8 @@
 defmodule PeripheralPersistence.MixProject do
   @moduledoc """
   Owns all persistent state: Ash resources, `AshPostgres.Repo`,
-  dual-pool routing, the `mix evil.partitions.ensure` boot hook, and
-  `mix evil.retention.purge` for opt-in hard-delete of aged terminal
+  dual-pool routing, the `mix bfw.partitions.ensure` boot hook, and
+  `mix bfw.retention.purge` for opt-in hard-delete of aged terminal
   process-instance trees.
 
   The built-in `database` EventSink was removed. There is no
@@ -31,7 +31,7 @@ defmodule PeripheralPersistence.MixProject do
   def application do
     [
       extra_applications: [:logger, :runtime_tools],
-      mod: {EvilEngine.Persistence.Application, []}
+      mod: {BfwEngine.Persistence.Application, []}
     ]
   end
 

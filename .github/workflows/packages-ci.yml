@@ -36,13 +36,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run lint
+        run: pnpm --filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client run lint
 
       - name: Build
-        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run build
+        run: pnpm --filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client run build
 
       - name: Unit tests
-        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run test:unit
+        run: pnpm --filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client run test:unit
 
   integration:
     name: Integration Tests
@@ -54,13 +54,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: evil_engine
-          POSTGRES_PASSWORD: evil_engine
-          POSTGRES_DB: evil_engine_dev
+          POSTGRES_USER: bfw_engine
+          POSTGRES_PASSWORD: bfw_engine
+          POSTGRES_DB: bfw_engine_dev
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U evil_engine"
+          --health-cmd="pg_isready -U bfw_engine"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=12
@@ -127,29 +127,29 @@ jobs:
 
       - name: Start engine
         env:
-          TDE_DATABASE_HOST: localhost
-          TDE_DATABASE_PORT: "5432"
-          TDE_DATABASE_NAME: evil_engine_dev
-          TDE_DATABASE_USER: evil_engine
-          TDE_DATABASE_PASS: evil_engine
+          BFE_DATABASE_HOST: localhost
+          BFE_DATABASE_PORT: "5432"
+          BFE_DATABASE_NAME: bfw_engine_dev
+          BFE_DATABASE_USER: bfw_engine
+          BFE_DATABASE_PASS: bfw_engine
           # Production defaults are 100 write + 50 read. GitHub Actions
           # service containers cannot override Postgres' max_connections
           # (100), so size the pools down for this job.
-          TDE_DB_POOL_SIZE: "10"
-          TDE_DB_READ_POOL_SIZE: "5"
-          TDE_HTTP_PORT: "4100"
-          TDE_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-          TDE_ENGINE_ID: "evil-engine-ci-integration"
-          TDE_ENGINE_NAME: "Daemon Engine (CI Integration)"
-          TDE_TOKEN_MAX_BYTES: "65536"
-          TDE_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-          TDE_EVENT_SINK_CONSOLE: "on"
-          TDE_EVENT_SINK_TELEMETRY: "on"
-          TDE_EVENT_SINK_WEBSOCKET: "on"
+          BFE_DB_POOL_SIZE: "10"
+          BFE_DB_READ_POOL_SIZE: "5"
+          BFE_HTTP_PORT: "4100"
+          BFE_HTTP_SECRET_KEY_BASE: "AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!"
+          BFE_ENGINE_ID: "bfw-engine-ci-integration"
+          BFE_ENGINE_NAME: "BFW-Engine (CI Integration)"
+          BFE_TOKEN_MAX_BYTES: "65536"
+          BFE_JWT_HS256_SECRET: "AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!"
+          BFE_EVENT_SINK_CONSOLE: "on"
+          BFE_EVENT_SINK_TELEMETRY: "on"
+          BFE_EVENT_SINK_WEBSOCKET: "on"
         run: |
-          _build/prod/rel/evil_engine/bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
-          _build/prod/rel/evil_engine/bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"
-          _build/prod/rel/evil_engine/bin/evil_engine daemon
+          _build/prod/rel/bfw_engine/bin/bfw_engine eval "BfwEngine.Persistence.Release.migrate()"
+          _build/prod/rel/bfw_engine/bin/bfw_engine eval "BfwEngine.Persistence.Release.ensure_partitions()"
+          _build/prod/rel/bfw_engine/bin/bfw_engine daemon
 
       - name: Wait for engine health
         run: |
@@ -170,18 +170,18 @@ jobs:
 
       - name: Build JS packages
         working-directory: packages/js
-        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run build
+        run: pnpm --filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client run build
 
       - name: Run integration tests
         working-directory: packages/js
         env:
           ENGINE_HTTP_URL: http://localhost:4100
           ENGINE_WS_URL: ws://localhost:4100/socket
-        run: pnpm --filter @elraptorus/daemonengine_client run test:integration
+        run: pnpm --filter @elraptorus/bfw_engine_client run test:integration
 
       - name: Stop engine
         if: always()
-        run: _build/prod/rel/evil_engine/bin/evil_engine stop 2>/dev/null || true
+        run: _build/prod/rel/bfw_engine/bin/bfw_engine stop 2>/dev/null || true
 
   publish:
     name: Publish to GitHub Packages
@@ -210,7 +210,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client run build
+        run: pnpm --filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client run build
 
       - name: Version from release tag
         id: version-release
@@ -226,7 +226,7 @@ jobs:
         if: github.event_name != 'release'
         run: |
           set -euo pipefail
-          PACKAGE_NAME="@elraptorus/daemonengine_sdk"
+          PACKAGE_NAME="@elraptorus/bfw_engine_sdk"
 
           echo "Querying registry for latest published version of $PACKAGE_NAME..."
 
@@ -262,7 +262,7 @@ jobs:
             pnpm version "$VERSION" --no-git-tag-version
           fi
 
-          echo "Publishing @elraptorus/daemonengine_sdk@$VERSION"
+          echo "Publishing @elraptorus/bfw_engine_sdk@$VERSION"
           pnpm publish --no-git-checks --access restricted
 
       - name: Publish Client
@@ -277,7 +277,7 @@ jobs:
             pnpm version "$VERSION" --no-git-tag-version
           fi
 
-          echo "Publishing @elraptorus/daemonengine_client@$VERSION"
+          echo "Publishing @elraptorus/bfw_engine_client@$VERSION"
           pnpm publish --no-git-checks --access restricted
 
       - name: Summary
@@ -288,5 +288,5 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Package | Version |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---------|---------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| \`@elraptorus/daemonengine_sdk\` | \`$VERSION\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| \`@elraptorus/daemonengine_client\` | \`$VERSION\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`@elraptorus/bfw_engine_sdk\` | \`$VERSION\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`@elraptorus/bfw_engine_client\` | \`$VERSION\` |" >> "$GITHUB_STEP_SUMMARY"

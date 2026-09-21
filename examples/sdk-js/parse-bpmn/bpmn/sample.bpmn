@@ -4,9 +4,9 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
   id="Definitions_order_demo"
-  targetNamespace="https://evilengine.dev/examples/order-demo">
+  targetNamespace="https://bifrostforge.world/examples/order-demo">
 
   <bpmn:message id="Message_order_received" name="order-received" />
   <bpmn:signal id="Signal_shipment_ready" name="shipment-ready" />
@@ -17,8 +17,8 @@
 
   <bpmn:process id="order-fulfillment-demo" name="Order fulfillment demo" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>2.1.0</evil:version>
-      <evil:correlationKey>token.orderId</evil:correlationKey>
+      <bfw:version>2.1.0</bfw:version>
+      <bfw:correlationKey>token.orderId</bfw:correlationKey>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -40,7 +40,7 @@
 
     <bpmn:userTask id="UserTask_review" name="Review order">
       <bpmn:extensionElements>
-        <evil:assignees>identity.groups</evil:assignees>
+        <bfw:assignees>identity.groups</bfw:assignees>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_to_review</bpmn:incoming>
       <bpmn:outgoing>Flow_review_to_manual</bpmn:outgoing>
@@ -48,7 +48,7 @@
 
     <bpmn:manualTask id="ManualTask_pack_slip" name="Prepare pack slip">
       <bpmn:extensionElements>
-        <evil:requireConfirmation>true</evil:requireConfirmation>
+        <bfw:requireConfirmation>true</bfw:requireConfirmation>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_review_to_manual</bpmn:incoming>
       <bpmn:outgoing>Flow_manual_to_fork</bpmn:outgoing>
@@ -62,8 +62,8 @@
 
     <bpmn:serviceTask id="ServiceTask_charge" name="Charge payment" implementation="http">
       <bpmn:extensionElements>
-        <evil:httpUrl>https://payments.example.com/v2/charge</evil:httpUrl>
-        <evil:httpMethod>POST</evil:httpMethod>
+        <bfw:httpUrl>https://payments.example.com/v2/charge</bfw:httpUrl>
+        <bfw:httpMethod>POST</bfw:httpMethod>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_approved</bpmn:incoming>
       <bpmn:outgoing>Flow_charge_to_timer</bpmn:outgoing>

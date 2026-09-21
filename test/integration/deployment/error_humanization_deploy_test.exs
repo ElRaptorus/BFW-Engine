@@ -1,22 +1,22 @@
-defmodule EvilEngine.Integration.Deployment.ErrorHumanizationDeployTest do
+defmodule BfwEngine.Integration.Deployment.ErrorHumanizationDeployTest do
   @moduledoc """
   Integration tests for humanized deploy error responses.
 
   Verifies that invalid BPMN deploy failures return HTTP 400 with
   human-readable details and no `inspect/1` leakage in the response body.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   describe "POST /processes — invalid BPMN XML" do
     test "returns 400 with human-readable parse error and no inspect leakage" do
       invalid_xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                         id="Definitions_Broken">
         <bpmn:process id="BrokenProcess" isExecutable="true">
           <bpmn:extensionElements>
-            <evil:version>1.0.0</evil:version>
+            <bfw:version>1.0.0</bfw:version>
           </bpmn:extensionElements>
           <bpmn:startEvent id="Start_1" />
       """
@@ -45,7 +45,7 @@ defmodule EvilEngine.Integration.Deployment.ErrorHumanizationDeployTest do
       missing_version_xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                        xmlns:evil="https://evilengine.dev/schema/bpmn"
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                         id="Definitions_NoVersion">
         <bpmn:process id="NoVersionProcess" isExecutable="true">
           <bpmn:startEvent id="Start_1" />

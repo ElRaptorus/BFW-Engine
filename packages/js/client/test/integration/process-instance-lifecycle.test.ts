@@ -4,10 +4,10 @@ import {
   ProcessDisabledError,
   ProcessInstanceNotTerminalError,
   ProcessNotFoundError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   cleanupInstances,
   createAdminBypassOnlyClient,
@@ -21,12 +21,12 @@ import {
   waitForState,
 } from '../support/test-engine.js';
 
-let adminClient: DaemonEngineClient;
-let readOnlyClient: DaemonEngineClient;
-let ownPiClient: DaemonEngineClient;
-let allPiClient: DaemonEngineClient;
-let laneManagersClient: DaemonEngineClient;
-let adminBypassOnlyClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let readOnlyClient: BfwEngineClient;
+let ownPiClient: BfwEngineClient;
+let allPiClient: BfwEngineClient;
+let laneManagersClient: BfwEngineClient;
+let adminBypassOnlyClient: BfwEngineClient;
 
 const PASSTHROUGH_ID = 'integration-passthrough';
 const LANE_START_ID = 'integration-lane-start';

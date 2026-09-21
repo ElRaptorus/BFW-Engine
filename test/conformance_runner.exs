@@ -11,7 +11,7 @@
 
 Logger.configure(level: :critical)
 
-{:ok, _} = EvilEngine.Persistence.Partitions.ensure_partitions()
+{:ok, _} = BfwEngine.Persistence.Partitions.ensure_partitions()
 
 support_dir = Path.expand("support", __DIR__)
 

@@ -5,7 +5,7 @@ An Event Sink receives every typed engine event emitted to the `EngineEventBus`.
 ## Behaviour
 
 ```elixir
-@behaviour EvilEngine.Plugin.EventSink
+@behaviour BfwEngine.Plugin.EventSink
 
 @callback init(opts :: keyword()) :: {:ok, state :: term()} | {:error, term()}
 @callback accepts?(event :: struct()) :: boolean()
@@ -59,7 +59,7 @@ end
 
 ```elixir
 defmodule MyPlugin.AuditSink do
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
@@ -87,7 +87,7 @@ end
 
 ## Event Types
 
-All events are structs under `EvilEngine.Types.Event.*`:
+All events are structs under `BfwEngine.Types.Event.*`:
 
 - `EngineStarted`, `EngineShutdown`
 - `SinkFailed`, `PluginQuarantined`

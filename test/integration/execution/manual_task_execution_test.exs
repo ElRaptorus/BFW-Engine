@@ -1,6 +1,6 @@
-defmodule EvilEngine.Integration.Execution.ManualTaskExecutionTest do
+defmodule BfwEngine.Integration.Execution.ManualTaskExecutionTest do
   @moduledoc "Integration tests for Manual Task execution with requireConfirmation."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   describe "manual task with requireConfirmation" do
     test "PI pauses at manual task, finish call completes it" do

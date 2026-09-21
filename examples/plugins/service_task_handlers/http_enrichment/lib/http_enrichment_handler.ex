@@ -11,8 +11,8 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandler do
 
   ## Built-in `"http"` handler versus this example
 
-  The engine ships `EvilEngine.Plugins.Builtin.HttpServiceTaskHandler`, registered
-  for `implementation="http"`. It reads `evil:httpUrl`, `evil:httpMethod`, and FEEL
+  The engine ships `BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`, registered
+  for `implementation="http"`. It reads `bfw:httpUrl`, `bfw:httpMethod`, and FEEL
   expressions for body and headers from **BPMN extension elements**, evaluates them
   against the handler context, and performs the request without a separate Elixir module.
 
@@ -21,7 +21,7 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentHandler do
   is awkward to express as static BPMN extensions.
   """
 
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @doc "Validates inputs synchronously, then spawns async HTTP call."
   @impl true

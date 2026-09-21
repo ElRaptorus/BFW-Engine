@@ -1,4 +1,4 @@
-# ThomasTheDaemonEngine Architecture (Detail)
+# Bifrost Forge World Engine Architecture (Detail)
 
 This folder is the technical reference for the engine: one file per
 subsystem. It complements the high-level picture in

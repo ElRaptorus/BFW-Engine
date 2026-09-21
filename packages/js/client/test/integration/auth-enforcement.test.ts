@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -10,11 +10,11 @@ import {
   waitForUserTask,
   readFixture,
 } from '../support/test-engine.js';
-import { UnauthorizedError } from '@elraptorus/daemonengine_sdk';
+import { UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
 
-let adminClient: DaemonEngineClient;
-let unauthenticatedClient: DaemonEngineClient;
-let expiredTokenClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let unauthenticatedClient: BfwEngineClient;
+let expiredTokenClient: BfwEngineClient;
 let existingProcessId: string;
 let existingPiId: string;
 let existingFniId: string;
@@ -43,7 +43,7 @@ afterAll(async () => {
 
 describe('Auth Enforcement', () => {
   describe('401 - no or invalid token on every protected route', () => {
-    const protectedRoutes: { name: string; call: (client: DaemonEngineClient) => Promise<unknown> }[] = [
+    const protectedRoutes: { name: string; call: (client: BfwEngineClient) => Promise<unknown> }[] = [
       { name: 'processes.getAll()', call: (client) => client.processes.getAll() },
       { name: 'processes.get(id)', call: (client) => client.processes.get(existingProcessId) },
       { name: 'processes.getVersions(id)', call: (client) => client.processes.getVersions(existingProcessId) },
@@ -98,7 +98,7 @@ describe('Auth Enforcement', () => {
   });
 
   describe('401 - expired token on every protected route', () => {
-    const protectedRoutes: { name: string; call: (client: DaemonEngineClient) => Promise<unknown> }[] = [
+    const protectedRoutes: { name: string; call: (client: BfwEngineClient) => Promise<unknown> }[] = [
       { name: 'processes.getAll()', call: (client) => client.processes.getAll() },
       { name: 'processes.get(id)', call: (client) => client.processes.get(existingProcessId) },
       { name: 'processes.getVersions(id)', call: (client) => client.processes.getVersions(existingProcessId) },
@@ -169,7 +169,7 @@ describe('Auth Enforcement', () => {
   });
 
   describe('valid token passes on all protected routes', () => {
-    const readOnlyProtectedRoutes: { name: string; call: (client: DaemonEngineClient) => Promise<unknown> }[] = [
+    const readOnlyProtectedRoutes: { name: string; call: (client: BfwEngineClient) => Promise<unknown> }[] = [
       { name: 'processes.getAll()', call: (client) => client.processes.getAll() },
       { name: 'processes.get(id)', call: (client) => client.processes.get(existingProcessId) },
       { name: 'processes.getVersions(id)', call: (client) => client.processes.getVersions(existingProcessId) },

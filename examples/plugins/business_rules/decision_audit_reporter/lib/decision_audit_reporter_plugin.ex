@@ -5,7 +5,7 @@ defmodule Examples.BusinessRules.DecisionAuditReporter.DecisionAuditReporterPlug
   compliance audit report after a collection window.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.DecisionAuditReporter.AuditReporterWorker
   alias Examples.BusinessRules.DecisionAuditReporter.AuditSink

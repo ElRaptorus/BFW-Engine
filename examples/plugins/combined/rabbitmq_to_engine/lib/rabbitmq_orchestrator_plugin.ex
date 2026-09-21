@@ -4,7 +4,7 @@ defmodule Examples.Plugins.Combined.RabbitmqToEngine.RabbitmqOrchestratorPlugin 
   consumer after the engine reaches ready state.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.Plugins.Combined.RabbitmqToEngine.{
     FacadeStore,

@@ -14,11 +14,11 @@ The engine parses BPMN XML, validates structural rules, and executes processes b
 
 A **Process** is a named entry in the catalog, identified by its `processModelId` (the `id` attribute of `<bpmn:process>`). Each deploy creates a new **Process Version** — the engine always starts instances from the latest non-deleted version.
 
-The `<evil:version>` extension element is mandatory on every executable process:
+The `<bfw:version>` extension element is mandatory on every executable process:
 
 ```xml
 <bpmn:extensionElements>
-  <evil:version>1.0.0</evil:version>
+  <bfw:version>1.0.0</bfw:version>
 </bpmn:extensionElements>
 ```
 
@@ -45,7 +45,7 @@ One step within a PI. When a token reaches a flow node, the engine creates an FN
 
 ### Token
 
-The data flowing through the graph. Each token carries a `payload` map and metadata about its origin. Tokens are subject to the engine-wide size cap (`TDE_TOKEN_MAX_BYTES`, default 64 KiB).
+The data flowing through the graph. Each token carries a `payload` map and metadata about its origin. Tokens are subject to the engine-wide size cap (`BFE_TOKEN_MAX_BYTES`, default 64 KiB).
 
 ### Final Tokens
 
@@ -55,78 +55,78 @@ When a PI finishes, each End Event that completed produces a **Final Token** —
 
 Every action carries an **Identity** derived from the caller's JWT claims. The identity includes `id`, `roles`, `groups`, and `claims` (e.g. `deploy_bpmn`, `lane:accounting`). There is **no** `name` field. See [Authentication](../api/authentication.md) for the full claim dictionary.
 
-## The `evil:` Extension Namespace
+## The `bfw:` Extension Namespace
 
-The engine extends BPMN with custom elements under `xmlns:evil="https://evilengine.dev/schema/bpmn"`. The catalog below is the live engine extension vocabulary. FEEL notes live in [FEEL Expressions](../handbook/expressions.md).
+The engine extends BPMN with custom elements under `xmlns:bfw="https://bifrostforge.world/schema/bpmn"`. The catalog below is the live engine extension vocabulary. FEEL notes live in [FEEL Expressions](../handbook/expressions.md).
 
 ### Process and definitions
 
 | Extension | Where | Purpose |
 |-----------|-------|---------|
-| `evil:version` | Process (required) | Deployment version string |
-| `evil:correlationKey` | Process | Catch-side FEEL correlation for messages |
-| `evil:LinterRulesetScore` | Definitions → `evil:Properties` | Studio linter-gate scores (`rulesetId`, `scorePercent`, …) |
+| `bfw:version` | Process (required) | Deployment version string |
+| `bfw:correlationKey` | Process | Catch-side FEEL correlation for messages |
+| `bfw:LinterRulesetScore` | Definitions → `bfw:Properties` | Studio linter-gate scores (`rulesetId`, `scorePercent`, …) |
 
 ### Shared data pipeline
 
 | Extension | Where | Purpose |
 |-----------|-------|---------|
-| `evil:inputMapping` / `evil:outputMapping` | Tasks, Call Activity, SubProcess, throw/catch events | FEEL `source` → `target` |
-| `evil:payloadContract` / `evil:resultContract` | Tasks, throw/catch message events (flow-node `extensionElements`, never inside the event definition) | JSON Schema on input / output |
-| `evil:dataContract` | Any flow node | JSON Schema with `direction` `input` or `output` |
+| `bfw:inputMapping` / `bfw:outputMapping` | Tasks, Call Activity, SubProcess, throw/catch events | FEEL `source` → `target` |
+| `bfw:payloadContract` / `bfw:resultContract` | Tasks, throw/catch message events (flow-node `extensionElements`, never inside the event definition) | JSON Schema on input / output |
+| `bfw:dataContract` | Any flow node | JSON Schema with `direction` `input` or `output` |
 
 ### Service Task
 
 | Extension | Notes |
 |-----------|-------|
 | `implementation` (BPMN attribute) | Required dispatch key (e.g. `"http"`) |
-| `evil:httpUrl` / `evil:httpMethod` | Static text (not FEEL) |
-| `evil:httpBody` / `evil:httpAuthHeader` / `evil:httpResponseHeaders` | FEEL |
+| `bfw:httpUrl` / `bfw:httpMethod` | Static text (not FEEL) |
+| `bfw:httpBody` / `bfw:httpAuthHeader` / `bfw:httpResponseHeaders` | FEEL |
 
 ### Business Rule Task
 
 | Extension | Notes |
 |-----------|-------|
 | `implementation` | `"feel"` (inline `<script>`) or `"dmn"` |
-| `evil:decisionRef` | Required for `"dmn"` |
-| `evil:decisionElementId` | Which `<decision>` in a multi-decision model |
-| `evil:resultVariable` | Output variable name |
-| `evil:traceUnmatchedRules` | When `true`, DMN traces unmatched rules |
+| `bfw:decisionRef` | Required for `"dmn"` |
+| `bfw:decisionElementId` | Which `<decision>` in a multi-decision model |
+| `bfw:resultVariable` | Output variable name |
+| `bfw:traceUnmatchedRules` | When `true`, DMN traces unmatched rules |
 
 ### Script, User, Manual
 
 | Extension | Element | Notes |
 |-----------|---------|-------|
-| `evil:scriptRef` | Script Task | Named script plugin key |
-| `evil:assignees` | User Task | FEEL list of assignees |
-| `evil:formFields` | User Task | Formkit-opaque JSON |
-| `evil:dueDate` | User Task | FEEL **or** ISO 8601 |
-| `evil:priority` | User Task | Integer |
-| `evil:requireConfirmation` | Manual Task | When `true`, waits for `FinishUserTask` |
+| `bfw:scriptRef` | Script Task | Named script plugin key |
+| `bfw:assignees` | User Task | FEEL list of assignees |
+| `bfw:formFields` | User Task | Formkit-opaque JSON |
+| `bfw:dueDate` | User Task | FEEL **or** ISO 8601 |
+| `bfw:priority` | User Task | Integer |
+| `bfw:requireConfirmation` | Manual Task | When `true`, waits for `FinishUserTask` |
 
 ### Message events
 
 | Extension | Side | Notes |
 |-----------|------|-------|
-| `evil:inputMapping` | Throw / Send | FEEL maps the token into the published message body |
-| `evil:outputMapping` | Catch / Receive | FEEL maps the received message into the token |
-| `evil:correlationRetrievalExpression` | Throw | FEEL stamp on the published message |
-| `evil:correlationKey` | Process (catch) | Catch-side expected correlation |
+| `bfw:inputMapping` | Throw / Send | FEEL maps the token into the published message body |
+| `bfw:outputMapping` | Catch / Receive | FEEL maps the received message into the token |
+| `bfw:correlationRetrievalExpression` | Throw | FEEL stamp on the published message |
+| `bfw:correlationKey` | Process (catch) | Catch-side expected correlation |
 
 ### Error (never on escalation)
 
 | Extension | Where |
 |-----------|-------|
-| `evil:errorCode` / `evil:errorMessage` | Inside `<errorEventDefinition>` only |
+| `bfw:errorCode` / `bfw:errorMessage` | Inside `<errorEventDefinition>` only |
 
-Escalation identity is the global `<bpmn:escalation escalationCode="…">` referenced by `escalationRef`. Do not put `evil:errorCode` on an escalation definition.
+Escalation identity is the global `<bpmn:escalation escalationCode="…">` referenced by `escalationRef`. Do not put `bfw:errorCode` on an escalation definition.
 
 ### Call Activity / SubProcess / Ad-hoc
 
 | Extension | Notes |
 |-----------|-------|
-| `evil:startEventId` | Call Activity: which child start event |
-| `evil:activeElements` | Ad-hoc: FEEL list of inner activity IDs |
+| `bfw:startEventId` | Call Activity: which child start event |
+| `bfw:activeElements` | Ad-hoc: FEEL list of inner activity IDs |
 | `implementation` | Ad-hoc: plugin-managed mode when set |
 | `<bpmn:completionCondition>` | Ad-hoc: standard FEEL completion |
 
@@ -134,22 +134,22 @@ Escalation identity is the global `<bpmn:escalation escalationCode="…">` refer
 
 | Extension / attribute | Notes |
 |-----------------------|-------|
-| `evil:inputCollection` / `evil:outputCollection` | MI collections |
-| `evil:elementVariable` / `evil:outputElementVariable` | Item / output names |
-| `evil:loopBreakCondition` | Sequential early exit |
-| `evil:loopInterval` | ISO 8601 pause between sequential iterations |
-| `evil:maxIterations` | Sequential: truncates. Parallel: fail-fast `collection_exceeds_max_iterations` |
+| `bfw:inputCollection` / `bfw:outputCollection` | MI collections |
+| `bfw:elementVariable` / `bfw:outputElementVariable` | Item / output names |
+| `bfw:loopBreakCondition` | Sequential early exit |
+| `bfw:loopInterval` | ISO 8601 pause between sequential iterations |
+| `bfw:maxIterations` | Sequential: truncates. Parallel: fail-fast `collection_exceeds_max_iterations` |
 | `testBefore` / `loopMaximum` / `<loopCondition>` | Standard loop |
 
 ### Data Object
 
 | Extension | Purpose |
 |-----------|---------|
-| `evil:valueContract` | JSON Schema on every write |
+| `bfw:valueContract` | JSON Schema on every write |
 
 ## Data Objects
 
-**Data Objects** are named data containers scoped to a process instance. Flow nodes write to Data Objects via `<bpmn:dataOutputAssociation>` elements and read them via FEEL expressions (`dataObjects.<id>.<property>`). Each write is persisted as a snapshot and an audit trail row. An optional `<evil:valueContract>` JSON Schema can enforce data shape on every write.
+**Data Objects** are named data containers scoped to a process instance. Flow nodes write to Data Objects via `<bpmn:dataOutputAssociation>` elements and read them via FEEL expressions (`dataObjects.<id>.<property>`). Each write is persisted as a snapshot and an audit trail row. An optional `<bfw:valueContract>` JSON Schema can enforce data shape on every write.
 
 See the [Data Objects handbook](../handbook/data-objects.md) for full documentation.
 
@@ -167,11 +167,11 @@ The engine is extensible through a behaviour-based plugin system. Plugins implem
 
 | Behaviour | Purpose |
 |-----------|---------|
-| `EvilEngine.Plugin.ServiceTaskHandler` | Handle Service Task execution for an `implementation` key |
-| `EvilEngine.Plugin.EventSink` | Receive engine events (logging, monitoring, etc.) |
-| `EvilEngine.Plugin.RestApiExtension` | Mount additional REST/HTTP routes |
-| `EvilEngine.Plugin.NamedScript` | Handle `evil:scriptRef` execution |
-| `EvilEngine.Plugin.AuthProvider` | Replace the built-in JWT verifier with custom identity resolution |
+| `BfwEngine.Plugin.ServiceTaskHandler` | Handle Service Task execution for an `implementation` key |
+| `BfwEngine.Plugin.EventSink` | Receive engine events (logging, monitoring, etc.) |
+| `BfwEngine.Plugin.RestApiExtension` | Mount additional REST/HTTP routes |
+| `BfwEngine.Plugin.NamedScript` | Handle `bfw:scriptRef` execution |
+| `BfwEngine.Plugin.AuthProvider` | Replace the built-in JWT verifier with custom identity resolution |
 
 Plugins are loaded at engine boot via `on_load(engine_facade)` and receive an `on_ready(engine_facade)` callback once the full engine is reachable. See [Plugin Development](../plugins/getting-started.md) for implementation details.
 

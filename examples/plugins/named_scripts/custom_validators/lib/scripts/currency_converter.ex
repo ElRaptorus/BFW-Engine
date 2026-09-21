@@ -3,7 +3,7 @@ defmodule Examples.Plugins.CustomValidators.Scripts.CurrencyConverter do
   Converts a monetary `amount` from `currency` into EUR using bundled rates.
   """
 
-  @behaviour EvilEngine.Plugin.NamedScript
+  @behaviour BfwEngine.Plugin.NamedScript
 
   @rates_to_eur %{
     "EUR" => 1.0,

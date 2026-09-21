@@ -1,6 +1,6 @@
-defmodule EvilEngine.Test.CrashingSink do
+defmodule BfwEngine.Test.CrashingSink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
   @dialyzer {:nowarn_function, handle_event: 2}
 
   @impl true

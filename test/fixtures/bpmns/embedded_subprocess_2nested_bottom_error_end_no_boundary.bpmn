@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:error id="Error_Inner" name="Inner Error" errorCode="INNER_ERROR" />
@@ -16,7 +16,7 @@
 
   <bpmn:process id="EmbeddedSubprocess2NestedErrorEndNoBoundary" name="Embedded Subprocess 2 Nested Error End No Boundary" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -35,8 +35,8 @@
         <bpmn:endEvent id="ErrorEnd_Inner" name="Inner Error">
           <bpmn:errorEventDefinition errorRef="Error_Inner">
             <bpmn:extensionElements>
-              <evil:errorCode>INNER_ERROR</evil:errorCode>
-              <evil:errorMessage>Inner subprocess error</evil:errorMessage>
+              <bfw:errorCode>INNER_ERROR</bfw:errorCode>
+              <bfw:errorMessage>Inner subprocess error</bfw:errorMessage>
             </bpmn:extensionElements>
           </bpmn:errorEventDefinition>
         </bpmn:endEvent>

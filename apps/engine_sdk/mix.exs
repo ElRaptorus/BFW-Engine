@@ -6,7 +6,7 @@ defmodule EngineSdk.MixProject do
 
     * `@behaviour` modules for every plugin-facing callback
       (`FlowNodeHandler`, `EventSink`, `IdentityVerifier`, …).
-    * Re-exports `EvilEngine.BPMN.{Model.*, ModelCache, Parser}` so
+    * Re-exports `BfwEngine.BPMN.{Model.*, ModelCache, Parser}` so
       in-engine and out-of-tree Elixir tooling parses BPMN XML with
       the same semantics the engine uses.
     * A curated subset of `core_types`.

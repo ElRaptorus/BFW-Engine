@@ -1,4 +1,4 @@
-import type { DeployResponse, ProcessModel, StartRequest, StartResult } from '@elraptorus/daemonengine_sdk';
+import type { DeployResponse, ProcessModel, StartRequest, StartResult } from '@elraptorus/bfw_engine_sdk';
 
 import type { HttpTransport } from '../http/transport.js';
 

@@ -45,7 +45,7 @@ Every signal type requires a global `<bpmn:signal>` definition and a `signalRef`
 
 <bpmn:process id="shipping-process" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </bpmn:extensionElements>
 
   <!-- Throw: notifies all listeners that the order was shipped -->
@@ -58,7 +58,7 @@ Every signal type requires a global `<bpmn:signal>` definition and a `signalRef`
 
 <bpmn:process id="notification-process" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </bpmn:extensionElements>
 
   <!-- Catch: waits for the order-shipped signal -->
@@ -75,17 +75,17 @@ Every signal type requires a global `<bpmn:signal>` definition and a `signalRef`
 Signals are deliberately minimal. They carry **no data** and use **no correlation**.
 
 - **No payload**: The catch-side token is unchanged when a signal arrives. If your workflow needs to pass data between processes, use [Message Events](message-events.md) instead.
-- **No correlation**: Signals match by `signal_name` only. Every active subscriber for that name receives the signal. There is no `evil:correlationKey` or `evil:correlationRetrievalExpression` for signals.
+- **No correlation**: Signals match by `signal_name` only. Every active subscriber for that name receives the signal. There is no `bfw:correlationKey` or `bfw:correlationRetrievalExpression` for signals.
 
 ### Token manipulation via mappings
 
-Although signals carry no payload, you may still use `evil:inputMapping` and `evil:outputMapping` on signal events. These map the **process token**, not a signal payload — they transform the token before it continues downstream, the same way mappings work on any other BPMN element.
+Although signals carry no payload, you may still use `bfw:inputMapping` and `bfw:outputMapping` on signal events. These map the **process token**, not a signal payload — they transform the token before it continues downstream, the same way mappings work on any other BPMN element.
 
 ```xml
 <bpmn:intermediateCatchEvent id="Catch_1">
   <bpmn:signalEventDefinition signalRef="Signal_order_shipped" />
   <bpmn:extensionElements>
-    <evil:outputMapping source="true" target="shippingNotified" />
+    <bfw:outputMapping source="true" target="shippingNotified" />
   </bpmn:extensionElements>
 </bpmn:intermediateCatchEvent>
 ```
@@ -102,7 +102,7 @@ There is no catch-wins-over-start gating (unlike messages). A single signal broa
 
 ## Pending Signals
 
-When a signal is published but no subscription and no Signal Start Event matches, the engine inserts a row into `pending_signals` with a configurable TTL (default `PT60S` via `TDE_SIGNAL_PENDING_TTL`).
+When a signal is published but no subscription and no Signal Start Event matches, the engine inserts a row into `pending_signals` with a configurable TTL (default `PT60S` via `BFE_SIGNAL_PENDING_TTL`).
 
 | Event | Behaviour |
 |-------|-----------|

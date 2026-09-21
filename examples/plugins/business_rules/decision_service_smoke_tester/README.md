@@ -34,7 +34,7 @@ Fixture input for `PricingService`: age 35, non-smoker, standard coverage, one p
 Start → BusinessRuleTask("Get Insurance Quote") → UserTask("Review Quote") → End
 ```
 
-The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>insurance-pricing</evil:decisionRef>`. Deploy this BPMN together with the DMN when exercising end-to-end process execution; the smoke tester itself calls Decision Services directly through the facade.
+The Business Rule Task uses `implementation="dmn"` and `<bfw:decisionRef>insurance-pricing</bfw:decisionRef>`. Deploy this BPMN together with the DMN when exercising end-to-end process execution; the smoke tester itself calls Decision Services directly through the facade.
 
 ## Health report format
 
@@ -71,7 +71,7 @@ The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>insura
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
 2. Deploy `dmn/insurance_pricing.dmn` via the engine API or Studio.
-3. Set `:plugin_module` to `Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterPlugin` and list your app in `TDE_PLUGINS_INBEAM`.
+3. Set `:plugin_module` to `Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterPlugin` and list your app in `BFE_PLUGINS_INBEAM`.
 4. Start the engine; on plugin ready the worker runs the smoke test sweep.
 5. Inspect engine logs for lines prefixed with `decision_service_smoke_tester:`.
 6. Run unit tests:
@@ -117,8 +117,8 @@ Plugins observe and validate DMN through the facade; they do not replace Busines
 
 ## Further reading
 
-- [`EvilEngine.Plugin`](../../../../apps/engine_sdk/lib/evil_engine/plugin.ex) — lifecycle callbacks
-- [`EvilEngine.EngineFacade.Decisions`](../../../../apps/engine_sdk/lib/evil_engine/engine_facade/decisions.ex) — facade closure surface including `evaluate_service`
+- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade.Decisions`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade/decisions.ex) — facade closure surface including `evaluate_service`
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — Decision Service evaluation
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring
 - [`examples/plugins/business_rules/decision_regression_tester/README.md`](../decision_regression_tester/README.md) — similar facade-store worker pattern

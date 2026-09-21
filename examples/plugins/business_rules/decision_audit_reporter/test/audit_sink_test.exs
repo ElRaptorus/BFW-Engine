@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionAuditReporter.AuditSinkTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionAuditReporter.AuditSink
   alias Examples.BusinessRules.DecisionAuditReporter.EventTracker
 

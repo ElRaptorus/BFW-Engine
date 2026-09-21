@@ -1,8 +1,8 @@
 import type { ProcessInstanceState } from '../types/enums.js';
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when an operation requires a terminal PI but it is not terminal. */
-export class ProcessInstanceNotTerminalError extends DaemonEngineError {
+export class ProcessInstanceNotTerminalError extends BfwEngineError {
   constructor(
     message: string,
     public readonly currentState: ProcessInstanceState,

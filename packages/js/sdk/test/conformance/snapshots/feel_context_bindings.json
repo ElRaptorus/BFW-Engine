@@ -109,7 +109,12 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Script_CaptureAll", "Script_VerifyContext", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Script_CaptureAll",
+            "Script_VerifyContext",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

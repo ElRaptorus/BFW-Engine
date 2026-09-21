@@ -52,7 +52,7 @@ Decision **Shipping Cost** uses **FIRST** hit policy with eight rules covering e
 Start → BusinessRuleTask("Calculate Shipping") → End
 ```
 
-The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>shipping-rates</evil:decisionRef>`.
+The Business Rule Task uses `implementation="dmn"` and `<bfw:decisionRef>shipping-rates</bfw:decisionRef>`.
 
 Sample start payload:
 
@@ -63,7 +63,7 @@ Sample start payload:
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or load the example path in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionAnalytics.DecisionAnalyticsPlugin` and add your app to `TDE_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionAnalytics.DecisionAnalyticsPlugin` and add your app to `BFE_PLUGINS_INBEAM`.
 3. Deploy `dmn/shipping_rates.dmn` via `POST /decisions` (or Studio deploy).
 4. Deploy `bpmn/shipping_cost_process.bpmn` via `POST /processes`.
 5. Start process instances with the sample payload above.
@@ -113,6 +113,6 @@ facade.register_event_sink.("decision_analytics", AnalyticsSink, [])
 
 ## Further reading
 
-- [`EvilEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/evil_engine/plugin/event_sink.ex) — sink callbacks
+- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex) — sink callbacks
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md) — `EngineEventBus` fan-out and crash isolation
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and BRT `type_properties`

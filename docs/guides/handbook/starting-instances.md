@@ -40,7 +40,7 @@ All fields in the body are optional:
 | `401` | Missing or invalid JWT |
 | `403` | Caller has `"read"` / `observe_all` but not `"write"` on the Start Event's lane |
 | `404` | Process not found, no active version, or caller has no observe claim on the Start Event's lane |
-| `413` | Payload exceeds `TDE_TOKEN_MAX_BYTES` (see [Error Handling](error-handling.md)) |
+| `413` | Payload exceeds `BFE_TOKEN_MAX_BYTES` (see [Error Handling](error-handling.md)) |
 | `422` | Process disabled (`process_disabled`), or ambiguous / non-matching start event |
 
 ## Start Event Resolution
@@ -58,7 +58,7 @@ The engine resolves the target Start Event using these rules:
 
 ## Payload Size Limit
 
-The `payload` field is subject to the engine-wide `TDE_TOKEN_MAX_BYTES` cap (default 64 KiB). Oversized payloads are rejected before any engine state changes. See [Error Handling](error-handling.md) for the error response shape.
+The `payload` field is subject to the engine-wide `BFE_TOKEN_MAX_BYTES` cap (default 64 KiB). Oversized payloads are rejected before any engine state changes. See [Error Handling](error-handling.md) for the error response shape.
 
 ## Identity
 

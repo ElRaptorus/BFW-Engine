@@ -1,14 +1,14 @@
 // GENERATED FILE — do not edit by hand.
 //
 // The JSON payload (`extension-manifest.json`, in this same directory) is
-// written by `mix evil.gen.extension_manifest` from
-// `EvilEngine.BPMN.ExtensionManifest` (Phase 6.1, WP-5). This wrapper adds
+// written by `mix bfw.gen.extension_manifest` from
+// `BfwEngine.BPMN.ExtensionManifest` (Phase 6.1, WP-5). This wrapper adds
 // the TypeScript types the Studio's moddle-conformance check (§4.6 of the
 // plan) and other consumers need — it is hand-written once and does not
 // change shape unless the manifest schema itself changes.
 //
-// `mix evil.gen.extension_manifest --check` is the CI diff-guard: it fails
-// if this JSON drifts from `EvilEngine.BPMN.ExtensionManifest`.
+// `mix bfw.gen.extension_manifest --check` is the CI diff-guard: it fails
+// if this JSON drifts from `BfwEngine.BPMN.ExtensionManifest`.
 import extensionManifestJson from './extension-manifest.json' with { type: 'json' };
 
 /** How the extension element's text/attribute value should be interpreted. */
@@ -18,11 +18,11 @@ export type ExtensionValueKind = 'feel' | 'json_schema' | 'static_string' | 'int
 export type ExtensionCarrier = 'body' | 'attributes';
 
 /**
- * One `evil:*` extension element the Engine's parser
- * (`EvilEngine.BPMN.Parser.SaxHandler`) reads.
+ * One `bfw:*` extension element the Engine's parser
+ * (`BfwEngine.BPMN.Parser.SaxHandler`) reads.
  */
 export interface ExtensionManifestEntry {
-  /** The `evil:*` element name as written in XML (e.g. `httpUrl`). */
+  /** The `bfw:*` element name as written in XML (e.g. `httpUrl`). */
   element: string;
   valueKind: ExtensionValueKind;
   carrier: ExtensionCarrier;
@@ -73,5 +73,5 @@ function toCamelCase(raw: RawManifest): ExtensionManifest {
   };
 }
 
-/** The Engine's `evil:*` extension vocabulary, typed and camelCased. */
+/** The Engine's `bfw:*` extension vocabulary, typed and camelCased. */
 export const extensionManifest: ExtensionManifest = toCamelCase(extensionManifestJson as RawManifest);

@@ -1,6 +1,6 @@
 # Parse DMN Example
 
-Demonstrates using the `@elraptorus/daemonengine_sdk` to parse DMN XML into a typed
+Demonstrates using the `@elraptorus/bfw_engine_sdk` to parse DMN XML into a typed
 decision table model. No running engine required.
 
 ## Prerequisites

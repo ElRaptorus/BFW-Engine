@@ -1,4 +1,4 @@
-defmodule EvilEngine.Load.ExecutionDurabilityLoadTest do
+defmodule BfwEngine.Load.ExecutionDurabilityLoadTest do
   @moduledoc """
   Opt-in HTTP execution durability: 20,000 / 50,000 / 100,000 process
   instances per shape.
@@ -10,15 +10,15 @@ defmodule EvilEngine.Load.ExecutionDurabilityLoadTest do
   GitHub `ubuntu-latest` is the wrong box for this file.
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.AutoFinisher
-  alias EvilEngine.Test.CompletionCounter
-  alias EvilEngine.Test.DbAssertions
-  alias EvilEngine.Test.ExamplePlugin
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.AutoFinisher
+  alias BfwEngine.Test.CompletionCounter
+  alias BfwEngine.Test.DbAssertions
+  alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Test.LoadHelpers
 
   @moduletag :load
   @moduletag :durability

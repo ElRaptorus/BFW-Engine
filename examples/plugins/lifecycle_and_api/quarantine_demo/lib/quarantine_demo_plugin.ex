@@ -3,7 +3,7 @@ defmodule Examples.Plugins.QuarantineDemo.QuarantineDemoPlugin do
   Demonstrates Loader quarantine: `on_load/1` returns `{:error, :intentional_quarantine}`
   and registers **nothing** first.
 
-  This matches `EvilEngine.Plugins.Loader` `run_on_load`: `{:error, reason}` →
+  This matches `BfwEngine.Plugins.Loader` `run_on_load`: `{:error, reason}` →
   `quarantine/2` → `Event.PluginQuarantined` (`tier: :inbeam`,
   `reason: {:on_load_failed, :intentional_quarantine}`). Engine boot continues.
   Quarantined plugins do not auto-revive.
@@ -13,7 +13,7 @@ defmodule Examples.Plugins.QuarantineDemo.QuarantineDemoPlugin do
   `on_ready` failure rolls back). Teach the real contract.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Returns an error without registering capabilities so the Loader quarantines this plugin."
   @impl true

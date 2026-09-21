@@ -4,7 +4,7 @@ defmodule Examples.BusinessRules.DecisionAuditReporter.BoundaryTester do
   to complement runtime coverage collected from live process instances.
   """
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
 
   @type boundary_input :: %{test_case: String.t(), input: map()}
 

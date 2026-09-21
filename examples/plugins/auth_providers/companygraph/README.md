@@ -5,13 +5,13 @@ Tokens are toy prefixes (`cg-admin-`, `cg-deployer-`, `cg-viewer-`). Permission
 seeding is stubbed logging. Keep it next to LDAP as the HTTP-IdP variant.
 
 Ready-to-copy starting point for building a CompanyGraph-based auth provider
-for ThomasTheDaemonEngine.
+for Bifrost Forge World Engine.
 
 ## What it does
 
 1. **Auth provider** (`on_load`) — Receives a raw bearer token on every
    authenticated request, validates it against the CompanyGraph API (stubbed),
-   and maps the CompanyGraph user profile to `%EvilEngine.Types.Identity{}`,
+   and maps the CompanyGraph user profile to `%BfwEngine.Types.Identity{}`,
    including engine-specific authorization claims.
 2. **Permission seeding** (`on_ready`) — Registers the tool name and a
    permission catalog with CompanyGraph at startup (stubbed), mirroring the
@@ -71,10 +71,10 @@ The stub logs the registration and returns `:ok`.
    config :my_company_plugin, :plugin_module, MyCompany.CompanyGraphPlugin
    ```
 
-5. Add your plugin's OTP app name to `TDE_PLUGINS_INBEAM`:
+5. Add your plugin's OTP app name to `BFE_PLUGINS_INBEAM`:
 
    ```
-   TDE_PLUGINS_INBEAM=my_company_plugin
+   BFE_PLUGINS_INBEAM=my_company_plugin
    ```
 
 ## Configuration
@@ -93,15 +93,15 @@ config :my_company_plugin, :companygraph,
 | CompanyGraph field | Identity field | Notes |
 |---|---|---|
 | `employee_id` | `id` | Unique user identifier |
-| `teams` | `groups` | Used for `<evil:assignees>` matching |
+| `teams` | `groups` | Used for `<bfw:assignees>` matching |
 | `roles` | `roles` | Drives engine claim derivation (see table above) |
 | `email`, `display_name`, `org_unit` | `claims["email"]`, `claims["name"]`, `claims["org_unit"]` | Informational |
 | `custom_attrs` | `claims["companygraph"]` | Passthrough for custom CG attributes |
 
 ## Further reading
 
-- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `TDE_PLUGINS_INBEAM`
-- [`EvilEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/evil_engine/plugin/auth_provider.ex)
+- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `BFE_PLUGINS_INBEAM`
+- [`BfwEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/auth_provider.ex)
   — the behaviour your provider must implement.
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — full
   plugin system documentation.

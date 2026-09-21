@@ -14,7 +14,7 @@ You have `docker` available. You can start containers. There is no legitimate re
 Before running `mix quality`, `mix test`, `mix test.integration`, `mix test.full`, `mix test.conformance`, or any test that touches the database, run this one-liner:
 
 ```bash
-(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+(docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate
 ```
 
 ## When delegating to subagents
@@ -22,7 +22,7 @@ Before running `mix quality`, `mix test`, `mix test.integration`, `mix test.full
 Subagents do NOT inherit workspace rules. When launching a subagent (via the Task tool) that will run tests, you MUST include this instruction in the Task prompt:
 
 > Before running any tests, ensure the PostgreSQL test container is running:
-> `(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate`
+> `(docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate`
 
 ## Prohibited behaviors
 

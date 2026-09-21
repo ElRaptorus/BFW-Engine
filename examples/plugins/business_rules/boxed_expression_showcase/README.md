@@ -50,7 +50,7 @@ Side decisions (benefits package, bands, iterators) are required in the DRG so e
 Start → BusinessRuleTask("Calculate Compensation") → End
 ```
 
-The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>expression-showcase</evil:decisionRef>`. The engine evaluates the deployed DMN model against the process start payload.
+The Business Rule Task uses `implementation="dmn"` and `<bfw:decisionRef>expression-showcase</bfw:decisionRef>`. The engine evaluates the deployed DMN model against the process start payload.
 
 ## Expected output for sample input
 
@@ -85,7 +85,7 @@ Log lines are prefixed with `boxed_expression_showcase:` and include `process` a
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcasePlugin` and list your app in `TDE_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcasePlugin` and list your app in `BFE_PLUGINS_INBEAM`.
 3. Start the engine; on plugin ready the worker deploys DMN + BPMN and runs the showcase.
 4. Inspect engine logs for lines prefixed with `boxed_expression_showcase:`.
 5. Run unit tests:
@@ -124,8 +124,8 @@ flowchart LR
 
 ## Further reading
 
-- [`EvilEngine.Plugin`](../../../../apps/engine_sdk/lib/evil_engine/plugin.ex) — lifecycle callbacks
-- [`EvilEngine.EngineFacade`](../../../../apps/engine_sdk/lib/evil_engine/engine_facade.ex) — facade closure surface
+- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade.ex) — facade closure surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — CL3 boxed expressions and evaluation traces
 - [`docs/guides/handbook/business-rule-tasks.md`](../../../../docs/guides/handbook/business-rule-tasks.md) — DMN Business Rule Tasks
 - [`examples/plugins/business_rules/decision_audit_reporter/README.md`](../decision_audit_reporter/README.md) — similar deploy + process + trace pattern

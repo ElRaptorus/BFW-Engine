@@ -4,10 +4,10 @@ Script Tasks evaluate an inline FEEL expression or dispatch to a plugin-register
 
 ## How It Works
 
-1. The BPMN process defines a `<bpmn:scriptTask>` with either an inline `<script>` body or an `<evil:scriptRef>` extension element (or both — `scriptRef` wins)
+1. The BPMN process defines a `<bpmn:scriptTask>` with either an inline `<script>` body or an `<bfw:scriptRef>` extension element (or both — `scriptRef` wins)
 2. At runtime, the engine runs the **input pipeline**: input mappers (FEEL) → payload contract (JSON Schema)
 3. The engine evaluates the script:
-   - If `evil:scriptRef` is set, dispatches to the registered `NamedScript` plugin handler
+   - If `bfw:scriptRef` is set, dispatches to the registered `NamedScript` plugin handler
    - Otherwise, evaluates the `<script>` body as a FEEL expression
 4. The **output pipeline** runs: output mappers (FEEL) → result contract (JSON Schema) → PayloadCap
 5. The token advances to the next flow node
@@ -28,17 +28,17 @@ If the FEEL expression returns a scalar value (number, string, boolean), the eng
 
 ## Plugin-Dispatched Named Script
 
-For complex logic that cannot be expressed in FEEL, use `evil:scriptRef` to dispatch to a plugin:
+For complex logic that cannot be expressed in FEEL, use `bfw:scriptRef` to dispatch to a plugin:
 
 ```xml
 <bpmn:scriptTask id="Validate_1" name="Custom Validation">
   <bpmn:extensionElements>
-    <evil:scriptRef>my_validation_plugin</evil:scriptRef>
+    <bfw:scriptRef>my_validation_plugin</bfw:scriptRef>
   </bpmn:extensionElements>
 </bpmn:scriptTask>
 ```
 
-The plugin must implement `EvilEngine.Plugin.NamedScript` and register with the matching `script_key`:
+The plugin must implement `BfwEngine.Plugin.NamedScript` and register with the matching `script_key`:
 
 ```elixir
 facade.register_named_script.("my_validation_plugin", MyPlugin.CustomValidation)
@@ -52,10 +52,10 @@ Script Tasks support the same data pipeline as Service Tasks and User Tasks:
 <bpmn:scriptTask id="Mapped_1" name="Mapped Script" scriptFormat="feel">
   <bpmn:script>{"computed": token.input_value * 3}</bpmn:script>
   <bpmn:extensionElements>
-    <evil:inputMapping source="token.raw_amount" target="input_value"/>
-    <evil:payloadContract>{"type":"object","required":["input_value"]}</evil:payloadContract>
-    <evil:outputMapping source="token.computed" target="tripled"/>
-    <evil:resultContract>{"type":"object","required":["tripled"]}</evil:resultContract>
+    <bfw:inputMapping source="token.raw_amount" target="input_value"/>
+    <bfw:payloadContract>{"type":"object","required":["input_value"]}</bfw:payloadContract>
+    <bfw:outputMapping source="token.computed" target="tripled"/>
+    <bfw:resultContract>{"type":"object","required":["tripled"]}</bfw:resultContract>
   </bpmn:extensionElements>
 </bpmn:scriptTask>
 ```
@@ -68,10 +68,10 @@ token → in_mappings (FEEL) → payload_contract (JSON Schema) → script/plugi
 
 | Extension | Purpose |
 |-----------|---------|
-| `evil:inputMapping` | FEEL expression to transform input before script execution |
-| `evil:payloadContract` | JSON Schema to validate the mapped input |
-| `evil:outputMapping` | FEEL expression to transform script output |
-| `evil:resultContract` | JSON Schema to validate the mapped output |
+| `bfw:inputMapping` | FEEL expression to transform input before script execution |
+| `bfw:payloadContract` | JSON Schema to validate the mapped input |
+| `bfw:outputMapping` | FEEL expression to transform script output |
+| `bfw:resultContract` | JSON Schema to validate the mapped output |
 
 ## Error Handling
 
@@ -87,7 +87,7 @@ All failures in the Script Task pipeline transition the FNI to `fatal`:
 
 ## scriptRef vs. Inline Script Precedence
 
-When both `evil:scriptRef` and `<script>` are set on the same element, `scriptRef` takes precedence. This allows BPMN diagrams to carry a readable FEEL fallback while still dispatching to a plugin at runtime.
+When both `bfw:scriptRef` and `<script>` are set on the same element, `scriptRef` takes precedence. This allows BPMN diagrams to carry a readable FEEL fallback while still dispatching to a plugin at runtime.
 
 ## Related
 

@@ -4,7 +4,7 @@ defmodule Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorPlugin
   runs it through a Business Rule Task, and logs the full evaluation chain trace.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.DrdChainOrchestrator.{DrdChainOrchestratorWorker, FacadeStore}
 

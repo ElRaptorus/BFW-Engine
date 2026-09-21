@@ -10,8 +10,8 @@ advance which tasks will run, how many times, or in what order.
 > **Prerequisite reading.** An Ad-hoc Sub-Process spawns a child process
 > instance exactly like an [Embedded Subprocess](embedded-subprocesses.md) —
 > read that guide first if you are not already familiar with the shell/child-PI
-> pattern. Everything about data pipeline (`evil:inputMapping` /
-> `evil:outputMapping`) and boundary events carries over unchanged.
+> pattern. Everything about data pipeline (`bfw:inputMapping` /
+> `bfw:outputMapping`) and boundary events carries over unchanged.
 
 ---
 
@@ -58,10 +58,10 @@ fundamentally different execution models.
 The engine itself decides which activities to activate and when, using two
 optional controls:
 
-- **`evil:activeElements`** — a FEEL expression, evaluated once when the
+- **`bfw:activeElements`** — a FEEL expression, evaluated once when the
   ad-hoc scope starts, that must return a list of flow node IDs. Those
   activities are activated immediately.
-- **No `evil:activeElements`** — every inner activity that has **no incoming
+- **No `bfw:activeElements`** — every inner activity that has **no incoming
   sequence flow** (the "enabled set") auto-activates immediately.
   Activities that *do* have an incoming sequence flow become enabled only
   after their predecessor finishes (§5).
@@ -131,7 +131,7 @@ controls how many inner activities may be active at once.
 ### §3.1 Parallel ordering (default)
 
 Multiple activities may be active simultaneously; there is no engine-imposed
-mutual exclusion between them. `evil:activeElements` is optional here — it
+mutual exclusion between them. `bfw:activeElements` is optional here — it
 only narrows the *initial* set, it does not impose an order among them.
 
 > **Example — "Document Processing Pipeline".** Extract metadata, scan for
@@ -142,7 +142,7 @@ only narrows the *initial* set, it does not impose an order among them.
 
 At most one inner activity is active at a time.
 
-- **Engine-managed + Sequential requires `evil:activeElements`**. The
+- **Engine-managed + Sequential requires `bfw:activeElements`**. The
   *order of the list* returned by the FEEL expression is used only to pick the
   **first** matching ID. Sequential engine-managed mode activates that one
   activity at start; remaining list IDs are logged and ignored. After it
@@ -150,7 +150,7 @@ At most one inner activity is active at a time.
   activity in **model order** (not the leftover FEEL list). Plugin/REST
   `activate_activity` is how a caller drives a different next step.
   Deploying (or linting in `bpmn-production-ready`) a sequential, engine-managed
-  ad-hoc sub-process without `evil:activeElements` is rejected — without an
+  ad-hoc sub-process without `bfw:activeElements` is rejected — without an
   explicit ordering expression the engine has no deterministic basis for
   picking the first activity.
 - **Plugin-managed + Sequential**: the plugin is responsible for activating
@@ -169,7 +169,7 @@ selected still vary run-to-run.
 > issue) → `AnalyzeHeapDump` → (finds a leak in module X) → `RestartService`.
 >
 > **Example — "Sequential Data Migration".** Engine-managed, with
-> `evil:activeElements` returning
+> `bfw:activeElements` returning
 > `["ValidateSchema", "MigrateTable_Users", "MigrateTable_Orders", "VerifyIntegrity"]`.
 > Only `ValidateSchema` is activated at start. After it finishes, auto-chain
 > continues with the next unperformed inner activity in the model (not the
@@ -183,7 +183,7 @@ selected still vary run-to-run.
 ### §4.1 Completion condition (FEEL expression)
 
 `<bpmn:completionCondition>` is the standard BPMN child element (not
-an `evil:*` extension), a FEEL expression re-evaluated after every inner
+an `bfw:*` extension), a FEEL expression re-evaluated after every inner
 activity completes. It receives three dedicated bindings, present **only**
 during this evaluation — the standard `token` / `this` / `context` bindings
 are **not** available here:
@@ -278,11 +278,11 @@ Signal, Escalation, Conditional, and Compensation.
 The ad-hoc sub-process shell supports the same data pipeline extensions as
 every other subprocess variant:
 
-- **`evil:inputMapping`** — shapes the child PI's initial token from the
+- **`bfw:inputMapping`** — shapes the child PI's initial token from the
   parent's token.
-- **`evil:outputMapping`** — shapes the parent's continuation token from the
+- **`bfw:outputMapping`** — shapes the parent's continuation token from the
   child PI's final state once the ad-hoc scope completes.
-- **`evil:payloadContract` / `evil:resultContract`** — JSON Schema validation
+- **`bfw:payloadContract` / `bfw:resultContract`** — JSON Schema validation
   on entry and exit; a violation is fatal to the shell FNI, same as Call
   Activity and Embedded Subprocess.
 
@@ -290,7 +290,7 @@ every other subprocess variant:
 
 ## §8 Decision Guide: Choosing the Right Mode
 
-| Scenario | Ordering | Mode | `evil:activeElements` | Completion | Example |
+| Scenario | Ordering | Mode | `bfw:activeElements` | Completion | Example |
 |----------|----------|------|-------------------------|------------|---------|
 | Independent checklist tasks | Parallel | Engine | Optional | All performed | Onboarding |
 | Deterministic multi-step pipeline | Sequential | Engine | Required | Condition or all performed | Data migration |
@@ -321,7 +321,7 @@ every other subprocess variant:
   inner scope's non-deterministic execution order makes a mid-scope checkpoint
   meaningless. Retry from the shell FNI (or further upstream) instead. See
   [Retry](retry.md).
-- **Sequential engine-managed without `evil:activeElements` is rejected at
+- **Sequential engine-managed without `bfw:activeElements` is rejected at
   deploy time** and flagged by the Studio linter's
   `adhoc-subprocess-config` rule even before deployment.
 - **`completionCondition`'s FEEL bindings are not the standard ones.** Only

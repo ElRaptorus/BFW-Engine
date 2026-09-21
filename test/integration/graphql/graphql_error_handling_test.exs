@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlErrorHandlingTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlErrorHandlingTest do
   @moduledoc """
   GraphQL integration tests for error handling and schema validation.
 
   Verifies that invalid syntax, nonexistent fields, and invalid sort
   enum values produce structured GraphQL errors rather than HTTP 500s.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

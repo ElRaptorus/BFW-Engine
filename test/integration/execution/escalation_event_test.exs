@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.EscalationEventTest do
+defmodule BfwEngine.Integration.Execution.EscalationEventTest do
   @moduledoc """
   Umbrella-level integration tests for Escalation Events (E1–E16).
 
@@ -25,10 +25,10 @@ defmodule EvilEngine.Integration.Execution.EscalationEventTest do
   - E15: Escalation End reached after PI abort + retry (PI :escalated)
   - E16: Catch-all boundary catches unnamed escalation
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -36,7 +36,7 @@ defmodule EvilEngine.Integration.Execution.EscalationEventTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->

@@ -1,4 +1,4 @@
-import { DaemonEngineClient } from '@elraptorus/daemonengine_client';
+import { BfwEngineClient } from '@elraptorus/bfw_engine_client';
 
 function formatRecord(label: string, value: unknown): void {
   console.log(label, JSON.stringify(value, null, 2));
@@ -7,7 +7,7 @@ function formatRecord(label: string, value: unknown): void {
 export async function main(): Promise<void> {
   const engineUrl = process.env['ENGINE_URL'] ?? 'http://localhost:4000';
   const token = process.env['ENGINE_TOKEN'] ?? 'dev-token';
-  const client = new DaemonEngineClient(engineUrl, token);
+  const client = new BfwEngineClient(engineUrl, token);
 
   const processModelsPage = await client.graphql.queryProcessModels({
     fields: ['id', 'processModelId', 'name', 'enabled'],

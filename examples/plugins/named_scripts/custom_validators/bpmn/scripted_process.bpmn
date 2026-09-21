@@ -3,15 +3,15 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_scripted_validators">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_scripted-validators-demo" name="Scripted Validators Demo" processRef="scripted-validators-demo" />
   </bpmn:collaboration>
   <bpmn:process id="scripted-validators-demo" name="Scripted Validators Demo" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -27,21 +27,21 @@
     </bpmn:startEvent>
     <bpmn:scriptTask id="Task_validate" name="Validate payload">
       <bpmn:extensionElements>
-        <evil:scriptRef>validate_payload</evil:scriptRef>
+        <bfw:scriptRef>validate_payload</bfw:scriptRef>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_validate</bpmn:incoming>
       <bpmn:outgoing>Flow_validate_convert</bpmn:outgoing>
     </bpmn:scriptTask>
     <bpmn:scriptTask id="Task_convert" name="Convert currency">
       <bpmn:extensionElements>
-        <evil:scriptRef>convert_currency</evil:scriptRef>
+        <bfw:scriptRef>convert_currency</bfw:scriptRef>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_validate_convert</bpmn:incoming>
       <bpmn:outgoing>Flow_convert_idempotency</bpmn:outgoing>
     </bpmn:scriptTask>
     <bpmn:scriptTask id="Task_idempotency" name="Idempotency guard">
       <bpmn:extensionElements>
-        <evil:scriptRef>idempotency_guard</evil:scriptRef>
+        <bfw:scriptRef>idempotency_guard</bfw:scriptRef>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_convert_idempotency</bpmn:incoming>
       <bpmn:outgoing>Flow_idempotency_end</bpmn:outgoing>

@@ -1,21 +1,21 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
+defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
   @moduledoc """
   Phase 6.1 WP-7 tests (v)-(vii) for the BPMN Model graph that need a live
   HTTP/GraphQL pipeline: Dataloader batching, authorization, and cold-cache
   behaviour plus the depth-limit regression for the canonical debugger query.
 
   Tests (i) and (iv) are pure schema-introspection unit tests — see
-  `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest` in `apps/api_web`.
+  `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest` in `apps/api_web`.
   Test (ii)'s flattening half is `ModelResolversTest`; the HTTP half
   (inner-scope `flowNode` via a child PI) is in this file. Test (iii)
   (extension manifest corpus round-trip) is
-  `EvilEngine.BPMN.ExtensionManifestTest`.
+  `BfwEngine.BPMN.ExtensionManifestTest`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 
-  alias EvilEngine.BPMN.ModelCache
+  alias BfwEngine.BPMN.ModelCache
 
   @admin_claims %{"sub" => "admin", "zeeky_boogie_doog" => true}
   @lane_default_claims %{"sub" => "lane-default-user", "lane:default" => "write"}
@@ -71,7 +71,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
 
       :telemetry.attach(
         handler_id,
-        [:evil_engine, :model_cache, :fetch],
+        [:bfw_engine, :model_cache, :fetch],
         fn _event, _measurements, metadata, _config ->
           send(test_pid, {:model_cache_fetch, metadata.process_version_id})
         end,
@@ -235,7 +235,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
       Application.put_env(
         :core_bpmn,
         :model_cache_loader,
-        {EvilEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}
+        {BfwEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}
       )
 
       on_exit(fn ->
@@ -314,7 +314,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
       configured_depth = Application.get_env(:api_web, :graphql_max_depth, 16)
 
       assert configured_depth >= 16,
-             "TDE_GRAPHQL_MAX_DEPTH was re-tuned to 16 for SubProcessNode.flowNodes recursion; " <>
+             "BFE_GRAPHQL_MAX_DEPTH was re-tuned to 16 for SubProcessNode.flowNodes recursion; " <>
                "got #{configured_depth}"
     end
   end

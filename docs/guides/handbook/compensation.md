@@ -183,8 +183,8 @@ The complete BPMN for this pattern:
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -193,7 +193,7 @@ The complete BPMN for this pattern:
 
   <bpmn:process id="CompensationLifo" name="Compensation LIFO" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -319,8 +319,8 @@ Here is the BPMN for this pattern:
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -329,7 +329,7 @@ Here is the BPMN for this pattern:
 
   <bpmn:process id="SagaPattern" name="Saga Pattern" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -729,7 +729,7 @@ indicate a failure.
 ## Extension Elements Reference
 
 Quick-reference table of all compensation-related BPMN attributes and elements
-used by ThomasTheDaemonEngine:
+used by Bifrost Forge World Engine:
 
 | Element | Attribute / Child | Description |
 |---------|-------------------|-------------|

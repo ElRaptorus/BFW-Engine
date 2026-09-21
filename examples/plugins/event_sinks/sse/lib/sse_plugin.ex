@@ -5,7 +5,7 @@ defmodule Examples.EventSinks.Sse.SsePlugin do
   Does **not** start a second HTTP listener. Routes live on the existing Bandit/Phoenix server.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.EventSinks.Sse.{ConnectionHub, SsePlug, SseSink}
 

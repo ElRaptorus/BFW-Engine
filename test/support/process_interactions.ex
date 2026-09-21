@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.ProcessInteractions do
+defmodule BfwEngine.Test.ProcessInteractions do
   @moduledoc """
   Reusable functions for interacting with running process instances
   across integration, conformance, and load test suites.
@@ -10,10 +10,10 @@ defmodule EvilEngine.Test.ProcessInteractions do
 
   require Ash.Query
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Persistence.Resources.FlowNodeInstance
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
-  alias EvilEngine.Test.DbAssertions
+  alias BfwEngine.Execution
+  alias BfwEngine.Persistence.Resources.FlowNodeInstance
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias BfwEngine.Test.DbAssertions
 
   @doc """
   Finish a waiting UserTask via the REST endpoint.
@@ -79,7 +79,7 @@ defmodule EvilEngine.Test.ProcessInteractions do
   end
 
   defp send_through_endpoint(conn) do
-    EvilEngineWeb.Http.Endpoint.call(conn, EvilEngineWeb.Http.Endpoint.init([]))
+    BfwEngineWeb.Http.Endpoint.call(conn, BfwEngineWeb.Http.Endpoint.init([]))
   end
 
   @doc """

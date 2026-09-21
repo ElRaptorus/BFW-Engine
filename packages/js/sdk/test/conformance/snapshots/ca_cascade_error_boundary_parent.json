@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -34,17 +36,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_1"],
+          "boundaryEventRefs": [
+            "BE_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Waiting Child",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "call_activity",
           "typeData": {
@@ -66,7 +74,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_BE"],
+          "outgoing": [
+            "Flow_BE"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -89,7 +99,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -109,7 +121,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Boundary",
-          "incoming": ["Flow_BE"],
+          "incoming": [
+            "Flow_BE"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Error Handled",
@@ -130,7 +144,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "CA_1", "BE_1", "End_1", "End_Boundary"],
+          "flowNodeRefs": [
+            "Start_1",
+            "CA_1",
+            "BE_1",
+            "End_1",
+            "End_Boundary"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

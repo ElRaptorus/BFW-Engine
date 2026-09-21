@@ -31,7 +31,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_ToFork"],
+          "outgoing": [
+            "Flow_ToFork"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -47,11 +49,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Fork_1",
-          "incoming": ["Flow_ToFork"],
+          "incoming": [
+            "Flow_ToFork"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
-          "outgoing": ["Flow_Branch2", "Flow_Branch1"],
+          "outgoing": [
+            "Flow_Branch2",
+            "Flow_Branch1"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -63,11 +70,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": ["Flow_Branch1"],
+          "incoming": [
+            "Flow_Branch1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": ["Flow_ToThrow"],
+          "outgoing": [
+            "Flow_ToThrow"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -79,11 +90,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Compensation",
-          "incoming": ["Flow_ToThrow"],
+          "incoming": [
+            "Flow_ToThrow"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw Compensation",
-          "outgoing": ["Flow_ToEnd1"],
+          "outgoing": [
+            "Flow_ToEnd1"
+          ],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -102,7 +117,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Branch1",
-          "incoming": ["Flow_ToEnd1"],
+          "incoming": [
+            "Flow_ToEnd1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End Branch 1",
@@ -116,17 +133,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Comp_B"],
+          "boundaryEventRefs": [
+            "BE_Comp_B"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_B",
-          "incoming": ["Flow_Branch2"],
+          "incoming": [
+            "Flow_Branch2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "User Task B",
-          "outgoing": ["Flow_ToEnd2"],
+          "outgoing": [
+            "Flow_ToEnd2"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -190,7 +213,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Branch2",
-          "incoming": ["Flow_ToEnd2"],
+          "incoming": [
+            "Flow_ToEnd2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End Branch 2",

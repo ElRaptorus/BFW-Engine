@@ -72,7 +72,7 @@ export type { TimerSchedule } from './types/index.js';
 
 // --- Error classes (runtime values) ---
 export {
-  DaemonEngineError,
+  BfwEngineError,
   PayloadTooLargeError,
   RateLimitedError,
   EngineAtCapacityError,

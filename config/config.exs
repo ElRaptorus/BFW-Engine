@@ -1,6 +1,6 @@
 # Umbrella-wide compile-time defaults. Per-env overrides live in
 # `dev.exs` / `test.exs` / `prod.exs`. Runtime-only, environment-driven
-# settings (the `TDE_*` vars documented in `docs/architecture/configuration.md`)
+# settings (the `BFE_*` vars documented in `docs/architecture/configuration.md`)
 # live in `runtime.exs`.
 import Config
 
@@ -38,27 +38,27 @@ config :ash,
   policies: [no_filter_static_forbidden_reads?: false]
 
 config :peripheral_persistence,
-  ash_domains: [EvilEngine.Persistence.Api],
-  ecto_repos: [EvilEngine.Persistence.Repo, EvilEngine.Persistence.ReadRepo]
+  ash_domains: [BfwEngine.Persistence.Api],
+  ecto_repos: [BfwEngine.Persistence.Repo, BfwEngine.Persistence.ReadRepo]
 
 # --- Phoenix / HTTP ------------------------------------------------------
 # Minimal stub endpoint configs so the Phoenix supervision tree starts.
 # Real env values (port, secret, etc.) are set in runtime.exs.
-config :api_web, EvilEngineWeb.Http.Endpoint,
+config :api_web, BfwEngineWeb.Http.Endpoint,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [json: EvilEngineWeb.Http.ErrorJSON],
+    formats: [json: BfwEngineWeb.Http.ErrorJSON],
     layout: false
   ],
-  pubsub_server: EvilEngine.PubSub
+  pubsub_server: BfwEngine.PubSub
 
 # --- Task Dispatch (Service Task + Script Task) ---------------------------
 config :core_execution,
-  service_task_dispatch: EvilEngine.Plugins.RegistryDispatch,
-  script_dispatch: EvilEngine.Plugins.ScriptRegistryDispatch,
-  persistence_adapter: EvilEngine.Persistence.ExecutionAdapter,
-  called_element_resolver: EvilEngine.Persistence.CalledElementResolverImpl,
-  decision_resolver: EvilEngine.Persistence.DecisionResolverImpl,
+  service_task_dispatch: BfwEngine.Plugins.RegistryDispatch,
+  script_dispatch: BfwEngine.Plugins.ScriptRegistryDispatch,
+  persistence_adapter: BfwEngine.Persistence.ExecutionAdapter,
+  called_element_resolver: BfwEngine.Persistence.CalledElementResolverImpl,
+  decision_resolver: BfwEngine.Persistence.DecisionResolverImpl,
   token_max_bytes: 65_536,
   dmn_evaluation_timeout_ms: 30_000,
   persistence_retry_max_attempts: 5,
@@ -66,10 +66,10 @@ config :core_execution,
 
 # --- ModelCache loader (auto-heal cache misses from DB) ------------------
 config :core_bpmn,
-  model_cache_loader: {EvilEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}
+  model_cache_loader: {BfwEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}
 
 config :core_dmn,
-  model_cache_loader: {EvilEngine.Persistence.ExecutionAdapter, :load_dmn_xml},
+  model_cache_loader: {BfwEngine.Persistence.ExecutionAdapter, :load_dmn_xml},
   max_import_depth: 10
 
 # --- Event sink modules ---------------------------------------------
@@ -78,36 +78,36 @@ config :core_dmn,
 # to avoid cross-domain imports.
 config :core_events,
   sink_modules: %{
-    "console" => EvilEngine.Events.Sinks.Console,
-    "telemetry" => EvilEngine.Telemetry.Sink,
-    "websocket" => EvilEngineWeb.Ws.Sinks.WebSocket
+    "console" => BfwEngine.Events.Sinks.Console,
+    "telemetry" => BfwEngine.Telemetry.Sink,
+    "websocket" => BfwEngineWeb.Ws.Sinks.WebSocket
   },
   message_start_event_handler:
-    {EvilEngine.Execution.MessageStartHandler, :start_processes_for_message},
-  message_persistence_adapter: EvilEngine.Persistence.MessagePersistenceAdapter,
+    {BfwEngine.Execution.MessageStartHandler, :start_processes_for_message},
+  message_persistence_adapter: BfwEngine.Persistence.MessagePersistenceAdapter,
   signal_start_event_handler:
-    {EvilEngine.Execution.SignalStartHandler, :start_processes_for_signal},
-  signal_persistence_adapter: EvilEngine.Persistence.SignalPersistenceAdapter
+    {BfwEngine.Execution.SignalStartHandler, :start_processes_for_signal},
+  signal_persistence_adapter: BfwEngine.Persistence.SignalPersistenceAdapter
 
 # --- Auth provider registry (boundary injection) ----------------------
 # peripheral_plugins (Peripheral) must not compile-depend on api_auth (API).
 # The ProviderRegistry module reference is injected at runtime.
-config :peripheral_plugins, auth_provider_registry: EvilEngine.Auth.ProviderRegistry
+config :peripheral_plugins, auth_provider_registry: BfwEngine.Auth.ProviderRegistry
 
 # --- Timers --------------------------------------------------
 config :core_timers,
   tick_interval_ms: 1_000,
-  timer_start_target: EvilEngine.Execution.TimerStartListener,
-  persistence_module: EvilEngine.Persistence.TimerStartScheduleAdapter
+  timer_start_target: BfwEngine.Execution.TimerStartListener,
+  persistence_module: BfwEngine.Persistence.TimerStartScheduleAdapter
 
 # --- Telemetry -----------------------------------------------------------
-# In-process `:telemetry` plus optional Prometheus scrape (`TDE_METRICS_ENABLED`).
+# In-process `:telemetry` plus optional Prometheus scrape (`BFE_METRICS_ENABLED`).
 config :peripheral_telemetry,
   enabled: true,
   db_queue_time_warning_ms: 500
 
 # --- GraphQL safety limits (S-4) -----------------------------------------
-# Runtime overrides are read from TDE_GRAPHQL_* in runtime.exs.
+# Runtime overrides are read from BFE_GRAPHQL_* in runtime.exs.
 # Complexity default 10000 is sized for the Studio debugger snapshot
 # (`dataObjectValues` with limit 500 → AshGraphql score 6500).
 config :api_web,

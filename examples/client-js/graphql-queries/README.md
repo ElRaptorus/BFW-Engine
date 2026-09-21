@@ -10,7 +10,7 @@ Runs several typed GraphQL list and get calls against an engine that already has
 ## Run
 
 ```bash
-pnpm --filter @daemonengine/example-graphql-queries start
+pnpm --filter @bfw-engine/example-graphql-queries start
 ```
 
 ## Expected output

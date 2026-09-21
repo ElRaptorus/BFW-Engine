@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.Execution.CallActivityVersionPinTest do
+defmodule BfwEngine.Integration.Execution.CallActivityVersionPinTest do
   @moduledoc """
-  Persistence-backed Call Activity `evil:calledProcessVersion` resolution.
+  Persistence-backed Call Activity `bfw:calledProcessVersion` resolution.
 
   NoOp cannot prove `deployed_at` order. These tests use the real
   `CalledElementResolverImpl` against two child versions of the same process.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @bpmn_fixtures_dir Path.expand("../../fixtures/bpmns", __DIR__)
   @child_fixture Path.join(@bpmn_fixtures_dir, "call_activity_child.bpmn")
@@ -37,7 +37,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityVersionPinTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
@@ -66,7 +66,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityVersionPinTest do
       assert child.process_version_id == version_id_for("ChildProcess", "2.0.0")
     end
 
-    test "pinned Call Activity resolves the named evil:version, not latest" do
+    test "pinned Call Activity resolves the named bfw:version, not latest" do
       deploy_child_versions()
       {201, _} = http_deploy_xml(pin_call_activity(File.read!(@parent_fixture), "1.0.0"))
 
@@ -261,7 +261,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityVersionPinTest do
       """
       <bpmn:callActivity id="CA_1"#{attributes}>
         <bpmn:extensionElements>
-          <evil:calledProcessVersion>#{version_string}</evil:calledProcessVersion>
+          <bfw:calledProcessVersion>#{version_string}</bfw:calledProcessVersion>
         </bpmn:extensionElements>
       </bpmn:callActivity>
       """
@@ -271,8 +271,8 @@ defmodule EvilEngine.Integration.Execution.CallActivityVersionPinTest do
   defp bump_evil_version(xml, from_version, to_version) do
     String.replace(
       xml,
-      "<evil:version>#{from_version}</evil:version>",
-      "<evil:version>#{to_version}</evil:version>"
+      "<bfw:version>#{from_version}</bfw:version>",
+      "<bfw:version>#{to_version}</bfw:version>"
     )
   end
 

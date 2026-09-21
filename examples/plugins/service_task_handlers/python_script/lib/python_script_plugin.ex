@@ -34,7 +34,7 @@ defmodule Examples.ServiceTaskHandlers.PythonScript.PythonScriptPlugin do
   `examples/plugins/named_scripts/local_script_runner/`.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Stores the facade for async completion and registers the python_script handler."
   @impl true

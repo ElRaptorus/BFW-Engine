@@ -19,11 +19,11 @@ defmodule Examples.ServiceTaskHandlers.RabbitmqRoundtrip.RabbitmqFacadeStore do
   end
 
   @doc "Stores the engine facade reference for the RabbitMQ consumer and async completions."
-  @spec put(EvilEngine.EngineFacade.t()) :: :ok
+  @spec put(BfwEngine.EngineFacade.t()) :: :ok
   def put(facade), do: Agent.update(__MODULE__, fn _ -> facade end)
 
   @doc "Returns the cached engine facade, or nil if this store has not been written yet."
-  @spec get() :: EvilEngine.EngineFacade.t() | nil
+  @spec get() :: BfwEngine.EngineFacade.t() | nil
   def get, do: Agent.get(__MODULE__, & &1)
 end
 
@@ -34,7 +34,7 @@ defmodule Examples.ServiceTaskHandlers.RabbitmqRoundtrip.RabbitmqPlugin do
 
   alias Examples.ServiceTaskHandlers.RabbitmqRoundtrip.{RabbitmqConsumer, RabbitmqFacadeStore}
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Caches the facade, starts the stub consumer, and registers the rabbitmq Service Task handler."
   @impl true

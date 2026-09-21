@@ -1,9 +1,9 @@
-defmodule EvilEngine.Load.CompletionCounterTest do
+defmodule BfwEngine.Load.CompletionCounterTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.Test.CompletionCounter
+  alias BfwEngine.Test.CompletionCounter
 
-  @event [:evil_engine, :process_instance, :state_change]
+  @event [:bfw_engine, :process_instance, :state_change]
   @child_parent_id "00000000-0000-0000-0000-000000000001"
 
   defp emit_state_change(metadata) do

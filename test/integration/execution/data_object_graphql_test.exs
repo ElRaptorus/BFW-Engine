@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.Execution.DataObjectGraphqlTest do
+defmodule BfwEngine.Integration.Execution.DataObjectGraphqlTest do
   @moduledoc """
   GraphQL integration tests for Data Object queries.
   Deploys BPMNs with Data Objects, runs PIs, and queries the GraphQL API.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   describe "DO-GQL1: query data_object_values for a PI" do
     test "returns correct snapshots after a DO write" do

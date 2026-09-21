@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
+defmodule BfwEngine.Integration.Execution.EventSubprocessConflictTest do
   @moduledoc """
   Umbrella-level integration tests for Event Subprocess conflict resolution.
 
@@ -32,10 +32,10 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
   Signal (§4.2):
   - SIG-1: ESP signal start + active signal catch + standalone start all fire
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   @moduletag :integration
 
@@ -55,7 +55,7 @@ defmodule EvilEngine.Integration.Execution.EventSubprocessConflictTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->

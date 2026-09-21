@@ -1,4 +1,4 @@
-import type { EngineEventEnvelope } from '@elraptorus/daemonengine_sdk';
+import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
 import { Socket } from 'phoenix';
 import type { Channel, MessageRef } from 'phoenix';
 

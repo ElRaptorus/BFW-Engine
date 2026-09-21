@@ -4,7 +4,7 @@ defmodule Examples.ServiceTaskHandlers.WebhookCallback.WebhookCallbackHandler do
   the engine through `EngineFacade.ServiceTasks.finish_async/2` or `fail_async/3`.
   """
 
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   require Logger
 

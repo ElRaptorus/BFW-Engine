@@ -3,8 +3,8 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_deep_grandchild">
 
   <bpmn:collaboration id="Collaboration_deep_grandchild">
@@ -15,7 +15,7 @@
        Used by TX-RETRY-NESTED-DEEP to verify retry from grandchild is blocked. -->
   <bpmn:process id="tx_retry_deep_grandchild" name="TX Retry Deep Grandchild" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_gc1">
       <bpmn:lane id="Lane_gc1" name="default">

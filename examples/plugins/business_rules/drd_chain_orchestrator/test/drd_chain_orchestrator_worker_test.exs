@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorWorkerTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorWorker
 
   @process_version_id "process-version-credit-underwriting"

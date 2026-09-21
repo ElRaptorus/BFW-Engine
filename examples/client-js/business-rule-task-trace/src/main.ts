@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DaemonEngineClient } from '@elraptorus/daemonengine_client';
+import { BfwEngineClient } from '@elraptorus/bfw_engine_client';
 
 const sourceDirectoryPath = dirname(fileURLToPath(import.meta.url));
 
 export async function main(): Promise<void> {
   const engineUrl = process.env['ENGINE_URL'] ?? 'http://localhost:4000';
   const token = process.env['ENGINE_TOKEN'] ?? 'dev-token';
-  const client = new DaemonEngineClient(engineUrl, token);
+  const client = new BfwEngineClient(engineUrl, token);
 
   try {
     const decisionModelFilePath = join(sourceDirectoryPath, '..', 'dmn', 'discount_rules.dmn');

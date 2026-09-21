@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlSoftDeleteTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlSoftDeleteTest do
   @moduledoc """
   GraphQL integration tests for soft-delete invisibility.
 
@@ -6,13 +6,13 @@ defmodule EvilEngine.Integration.Graphql.GraphqlSoftDeleteTest do
   DecisionVersion records are invisible through both list and get queries.
   (ProcessInstance soft-delete is already tested in `soft_delete_security_test.exs`.)
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 
   @admin_claims %{"sub" => "admin", "zeeky_boogie_doog" => true}
 
-  alias EvilEngine.Persistence.Resources
+  alias BfwEngine.Persistence.Resources
 
   defp soft_delete_record(resource, record_id) do
     {:ok, record} = Ash.get(resource, record_id, authorize?: false)

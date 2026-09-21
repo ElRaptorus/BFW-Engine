@@ -1,6 +1,6 @@
 # Structured JSON logger — example event sink
 
-Minimal newline-delimited JSON (NDJSON) writer: one `EvilEngine.Types.Event.*` record per line.
+Minimal newline-delimited JSON (NDJSON) writer: one `BfwEngine.Types.Event.*` record per line.
 Ideal as a first sink because it avoids HTTP clients, queues, or vendor SDKs.
 
 ## Usage
@@ -27,5 +27,5 @@ from the event struct (strings, ISO-8601 for `DateTime`, atoms as strings).
 
 ## Further reading
 
-- [`EvilEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/evil_engine/plugin/event_sink.ex)
+- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md)

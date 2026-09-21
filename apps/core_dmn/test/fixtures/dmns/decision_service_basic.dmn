@@ -3,7 +3,7 @@
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              id="Definitions_ds_basic"
              name="Decision Service Basic"
-             namespace="https://evilengine.dev/test/decision-service-basic">
+             namespace="https://bifrostforge.world/test/decision-service-basic">
 
   <inputData id="InputData_age" name="Age" />
   <inputData id="InputData_income" name="Income" />

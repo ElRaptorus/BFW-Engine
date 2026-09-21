@@ -37,7 +37,7 @@ defmodule IncidentReporter do
   (tests) for reference.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   require Logger
 

@@ -4,7 +4,7 @@
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              id="Definitions_default_output"
              name="Default Output Entry Test"
-             namespace="https://evilengine.dev/test/default-output">
+             namespace="https://bifrostforge.world/test/default-output">
 
   <inputData id="InputData_status" name="status">
     <variable id="var_status" name="status" typeRef="string"/>

@@ -3,7 +3,7 @@ defmodule Examples.Plugins.LocalScriptRunner.ScriptRunnerPlugin do
   Registers the `local_script` named script entry point.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.Plugins.LocalScriptRunner.ScriptRunner
 

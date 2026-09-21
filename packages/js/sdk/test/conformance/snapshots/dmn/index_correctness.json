@@ -627,5 +627,5 @@
   "itemDefinitions": [],
   "knowledgeSources": [],
   "name": "Index Correctness",
-  "namespace": "https://evilengine.dev/dmn/test/index-correctness"
+  "namespace": "https://bifrostforge.world/dmn/test/index-correctness"
 }

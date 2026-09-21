@@ -11,13 +11,23 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ---
 
+## Legacy `xmlns:evil` is rejected at validate, not parse
+
+**Mistake:** Deploying BPMN that still declares `xmlns:evil` or a legacy URI (`https://evilengine.dev/schema/bpmn`, `http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`, `https://evil.studio/schema/bpmn/platform/1.0`), or omitting `xmlns:bfw`.
+
+**Why:** The parser strips prefixes and still builds a model. `BfwEngine.BPMN.Validator` scans `definitions.raw_xml` once: forbidden markers yield `:legacy_extension_namespace`; an executable process without exact `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` yields `:missing_extension_namespace`.
+
+**Correct approach:** Declare `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` on `<bpmn:definitions>` and use `bfw:*` extensions. Do not keep a second xmlns for the old prefix.
+
+---
+
 ## Core must not import Peripheral — use a Persistence behaviour
 
 **Mistake:** Calling `Ash.create/3` from `core_execution` to persist PI/FNI state.
 
 **Why:** Core must not depend on Peripheral. Ash lives in `peripheral_persistence`.
 
-**Correct approach:** `@behaviour EvilEngine.Execution.Persistence` in Core. Wire `EvilEngine.Persistence.ExecutionAdapter` via `:core_execution, :persistence_adapter`. Tests use `NoOp`. See [execution.md](execution.md).
+**Correct approach:** `@behaviour BfwEngine.Execution.Persistence` in Core. Wire `BfwEngine.Persistence.ExecutionAdapter` via `:core_execution, :persistence_adapter`. Tests use `NoOp`. See [execution.md](execution.md).
 
 ---
 
@@ -117,7 +127,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 **Why:** User keys are part of the process contract. Structural keys are camelCase; opaque subtrees pass through.
 
-**Correct approach:** `EvilEngine.Types.Wire` — convert struct fields only. See [api.md](api.md).
+**Correct approach:** `BfwEngine.Types.Wire` — convert struct fields only. See [api.md](api.md).
 
 ---
 
@@ -125,7 +135,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 **Mistake:** Inserting into a `PARTITION BY RANGE` parent when the target period's child table does not exist.
 
-**Why:** Postgres rejects the INSERT. Boot `mix evil.partitions.ensure` only creates the current window plus `TDE_PARTITION_AHEAD_MONTHS`.
+**Why:** Postgres rejects the INSERT. Boot `mix bfw.partitions.ensure` only creates the current window plus `BFE_PARTITION_AHEAD_MONTHS`.
 
 **Correct approach:** Run `ensure_partitions` at boot / release pre-start. Long-uptime nodes need `pg_partman` (or equivalent) for drop. See [data-model.md](data-model.md) and [database.md](../guides/operations/database.md).
 
@@ -221,13 +231,13 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ---
 
-## Claim and lane checks belong in `EvilEngine.Api`
+## Claim and lane checks belong in `BfwEngine.Api`
 
 **Mistake:** Re-implementing JWT claim or lane checks in a Phoenix controller.
 
 **Why:** Plugins call the same facade with `skip_claims: true`. A controller-only check is a bypass.
 
-**Correct approach:** `EvilEngine.Api.Validation`. Controllers map HTTP and call the facade. See [authorization.md](authorization.md).
+**Correct approach:** `BfwEngine.Api.Validation`. Controllers map HTTP and call the facade. See [authorization.md](authorization.md).
 
 ---
 
@@ -285,7 +295,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 **Mistake:** Matching boundaries on raw XML order, or expecting `{:error, _}` from Service Task `handle_enter/3`.
 
-**Why:** Catch-side codes come from inline `evil:errorCode` else global `errorRef`. Service Tasks are async-only; production failure is `fail_async`.
+**Why:** Catch-side codes come from inline `bfw:errorCode` else global `errorRef`. Service Tasks are async-only; production failure is `fail_async`.
 
 **Correct approach:** Specific resolved code first, then catch-all. `facade.service_tasks.fail_async.(id, code, message)`. See [execution.md](execution.md).
 
@@ -303,7 +313,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ## GraphQL: offset pagination, complexity is `limit × fields`, no empty fragments
 
-**Mistake:** Keyset pagination (`hasNextPage` missing); setting `TDE_GRAPHQL_MAX_COMPLEXITY` as if it were "how big the PI is"; emitting `... on TaskNode { }`.
+**Mistake:** Keyset pagination (`hasNextPage` missing); setting `BFE_GRAPHQL_MAX_COMPLEXITY` as if it were "how big the PI is"; emitting `... on TaskNode { }`.
 
 **Why:** Lists use offset pagination. AshGraphql scores `limit × selected child fields` (debugger `dataObjectValues(limit: 500)` is 6500; default cap 10000). Empty inline fragments are invalid GraphQL. Depth is sized for recursive `SubProcessNode.flowNodes`.
 
@@ -313,7 +323,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ## Do not put `max_children` on the PI DynamicSupervisor
 
-**Mistake:** Setting `max_children` from `TDE_MAX_CONCURRENT_PIS`, or queueing leftover PIs during resume.
+**Mistake:** Setting `max_children` from `BFE_MAX_CONCURRENT_PIS`, or queueing leftover PIs during resume.
 
 **Why:** Resume must bring the whole tree back. A cap mid-resume orphans children.
 
@@ -327,27 +337,27 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 **Why:** NoOp is the test default. Cycle Timer Starts then vanish across restart.
 
-**Correct approach:** Production uses `EvilEngine.Persistence.TimerStartScheduleAdapter`. Tests keep NoOp except `ExecutionCase`. See [timers.md](timers.md).
+**Correct approach:** Production uses `BfwEngine.Persistence.TimerStartScheduleAdapter`. Tests keep NoOp except `ExecutionCase`. See [timers.md](timers.md).
 
 ---
 
-## Do not type `latest` in `evil:calledProcessVersion` to mean unpinned
+## Do not type `latest` in `bfw:calledProcessVersion` to mean unpinned
 
 **Mistake:** Setting Call Activity pin to `latest`, expecting the same keyword as retry JSON `"version": "latest"`.
 
-**Why:** The pin is an exact `<evil:version>` string. `latest` looks up a version actually named `latest` and fatals if none exists. Empty/omitted means newest `deployed_at` at enter time.
+**Why:** The pin is an exact `<bfw:version>` string. `latest` looks up a version actually named `latest` and fatals if none exists. Empty/omitted means newest `deployed_at` at enter time.
 
 **Correct approach:** Leave the property blank for dynamic latest. See [call-activities.md](../guides/handbook/call-activities.md).
 
 ---
 
-## Call Activity pin is the child's `evil:version` string, not a UUID
+## Call Activity pin is the child's `bfw:version` string, not a UUID
 
-**Mistake:** Storing a `process_versions.id` UUID in `<evil:calledProcessVersion>`, or treating a changed pin on a surviving Call Activity as live.
+**Mistake:** Storing a `process_versions.id` UUID in `<bfw:calledProcessVersion>`, or treating a changed pin on a surviving Call Activity as live.
 
 **Why:** Studio only knows the modeled version string. The spawned child binds `process_version_id` at enter. Resume and identity-preserving retry (checkpoint at/after the Call Activity) reconnect that UUID; they do not re-read the pin.
 
-**Correct approach:** Pin the child's `<evil:version>`. Empty = latest at enter. Checkpoint **before** the Call Activity to re-resolve. See [execution.md](execution.md) Call Activity reconciliation.
+**Correct approach:** Pin the child's `<bfw:version>`. Empty = latest at enter. Checkpoint **before** the Call Activity to re-resolve. See [execution.md](execution.md) Call Activity reconciliation.
 
 ---
 

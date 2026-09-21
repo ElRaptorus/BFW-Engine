@@ -1,5 +1,5 @@
 {
-  "name": "@daemonengine/example-batch-deploy",
+  "name": "@bfw-engine/example-batch-deploy",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,8 +7,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@elraptorus/daemonengine_sdk": "workspace:*",
-    "@elraptorus/daemonengine_client": "workspace:*"
+    "@elraptorus/bfw_engine_sdk": "workspace:*",
+    "@elraptorus/bfw_engine_client": "workspace:*"
   },
   "devDependencies": {
     "tsx": "catalog:",

@@ -1,6 +1,6 @@
 // Main client
-export { DaemonEngineClient } from './daemon-engine-client.js';
-export type { DaemonEngineClientOptions } from './daemon-engine-client.js';
+export { BfwEngineClient } from './bfw-engine-client.js';
+export type { BfwEngineClientOptions } from './bfw-engine-client.js';
 
 // Sub-clients
 export { AdHocSubprocessClient } from './rest/adhoc-subprocess-client.js';

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Load.PoolPressureTest do
+defmodule BfwEngine.Load.PoolPressureTest do
   @moduledoc """
   Concurrent mixed-workload load tests that exercise execution writes
   and GraphQL reads simultaneously against the dual-pool architecture.
@@ -20,14 +20,14 @@ defmodule EvilEngine.Load.PoolPressureTest do
   Timing ceilings use ~5x baseline headroom for CI variability.
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.AutoFinisher
-  alias EvilEngine.Test.CompletionCounter
-  alias EvilEngine.Test.DbAssertions
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.AutoFinisher
+  alias BfwEngine.Test.CompletionCounter
+  alias BfwEngine.Test.DbAssertions
+  alias BfwEngine.Test.LoadHelpers
 
   @pi_concurrency 20
   @graphql_reader_count 50
@@ -69,7 +69,7 @@ defmodule EvilEngine.Load.PoolPressureTest do
 
   setup do
     facade = Loader.facade_for_plugin("evil:test_load")
-    EvilEngine.Test.ExamplePlugin.on_load(facade)
+    BfwEngine.Test.ExamplePlugin.on_load(facade)
 
     EngineEventBus.register_sink("test:auto_finisher", AutoFinisher, [])
 

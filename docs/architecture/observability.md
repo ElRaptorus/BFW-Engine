@@ -21,10 +21,10 @@ Mix retention purge does **not** emit bus events.
 |---------|------|------------|
 | Console EventSink + Logger | n/a | One structured line per accepted bus event (and other Logger output). In `MIX_ENV=prod`, `logger_json` formats stdout as JSON. |
 | `GET /stats` | JWT | On-demand snapshot assembled by `StatsCollector` from live Ash counts, Scheduler ETS, the plugin registry, and registered sinks. Not a time-series store. |
-| `GET /metrics` | none | Prometheus text exposition from `TelemetryMetricsPrometheus.Core`. Disabled with `TDE_METRICS_ENABLED=false` → HTTP 404 `metrics_disabled`. |
+| `GET /metrics` | none | Prometheus text exposition from `TelemetryMetricsPrometheus.Core`. Disabled with `BFE_METRICS_ENABLED=false` → HTTP 404 `metrics_disabled`. |
 | `GET /health` | none | Liveness probe: **204 No Content**, empty body. |
 | `GET /info` | none | Engine id, name, version, `startedAt`. |
-| WebSocket EventSink | JWT (channel join) | Live `EvilEngine.Types.Event.*` push to Phoenix Channels. |
+| WebSocket EventSink | JWT (channel join) | Live `BfwEngine.Types.Event.*` push to Phoenix Channels. |
 | Plugin EventSinks | n/a | Operator-authored destinations (Datadog, Kafka, webhook, …). |
 
 `GET /admin/graphiql` is the GraphQL playground (devtools-gated). Swagger UI
@@ -35,22 +35,22 @@ is `GET /`. There is no stats dashboard at `/admin/`.
 Everything typed the engine emits at runtime (PI/FNI transitions, messages,
 signals, timers, Data Object writes, escalation/compensation, deploy, sink
 failures) is published with `EngineEventBus.publish/1`. Each registered
-`@behaviour EvilEngine.Plugin.EventSink` receives the event independently
+`@behaviour BfwEngine.Plugin.EventSink` receives the event independently
 (at-most-once, crash-isolated). Catalog and dispatch: [event-system.md](./event-system.md).
 
-Built-in sinks registered at boot by `EvilEngine.Events.SinkRegistrar`:
+Built-in sinks registered at boot by `BfwEngine.Events.SinkRegistrar`:
 
 | Sink | Module | Default | Filter | Operator effect |
 |------|--------|---------|--------|-----------------|
-| `console` | `EvilEngine.Events.Sinks.Console` | ON (`TDE_EVENT_SINK_CONSOLE`) | `TDE_LOG_MIN_SEVERITY` (default `info`; `error` / `warn` / `info` / `debug` / `verbose`) | Logger line per accepted event. `SinkFailed` is never accepted. |
-| `telemetry` | `EvilEngine.Telemetry.Sink` | ON (`TDE_EVENT_SINK_TELEMETRY`) | none (`accepts?/1` always true) | Increments `[:evil_engine, :event_bus]` (Prometheus `evil_engine.event_bus.events.total` by `event_type`). **Does not feed `/stats`.** |
-| `websocket` | `EvilEngineWeb.Ws.Sinks.WebSocket` | ON (`TDE_EVENT_SINK_WEBSOCKET`) | rejects only `SinkFailed` | Phoenix.PubSub broadcast to `engine:events`, `process_instance:<id>`, root-PI fan-out, and `user_tasks:pending` where applicable. |
+| `console` | `BfwEngine.Events.Sinks.Console` | ON (`BFE_EVENT_SINK_CONSOLE`) | `BFE_LOG_MIN_SEVERITY` (default `info`; `error` / `warn` / `info` / `debug` / `verbose`) | Logger line per accepted event. `SinkFailed` is never accepted. |
+| `telemetry` | `BfwEngine.Telemetry.Sink` | ON (`BFE_EVENT_SINK_TELEMETRY`) | none (`accepts?/1` always true) | Increments `[:bfw_engine, :event_bus]` (Prometheus `bfw_engine.event_bus.events.total` by `event_type`). **Does not feed `/stats`.** |
+| `websocket` | `BfwEngineWeb.Ws.Sinks.WebSocket` | ON (`BFE_EVENT_SINK_WEBSOCKET`) | rejects only `SinkFailed` | Phoenix.PubSub broadcast to `engine:events`, `process_instance:<id>`, root-PI fan-out, and `user_tasks:pending` where applicable. |
 
 Plugin sinks register from `on_load/1` via
 `facade.register_event_sink.(name, module, opts)`.
 
-**Database sink removed.** There is no `EvilEngine.Events.Sinks.Database`,
-no `TDE_EVENT_SINK_DATABASE`, and no GraphQL resource over a typed-event
+**Database sink removed.** There is no `BfwEngine.Events.Sinks.Database`,
+no `BFE_EVENT_SINK_DATABASE`, and no GraphQL resource over a typed-event
 log. The `process_instance_events` table is retained for schema/migration
 compatibility, partitioned monthly, and stays empty unless a **plugin**
 sink writes it. Mix `evil.retention.purge` still deletes leftover rows
@@ -79,7 +79,7 @@ accepted → info). Metadata keys present when the struct has them:
 `event_type`, `engine_id`, `process_instance_id`, `flow_node_instance_id`.
 There is no `identity.id` on that metadata map.
 
-`TDE_LOG_MIN_SEVERITY` is the floor. Engine-internal Logger calls outside
+`BFE_LOG_MIN_SEVERITY` is the floor. Engine-internal Logger calls outside
 the bus (startup, sink-registration warnings, DB pool-pressure warnings,
 API `ErrorResponse`, GraphQL `ErrorLogger`) share the same Logger backend.
 In production that backend is `logger_json` (`{:logger_json, "~> 7.0", only: :prod}`).
@@ -89,19 +89,19 @@ API error audit: [api.md](./api.md) §Audit-trail logging.
 
 ### `GET /stats`
 
-JWT-gated. `EvilEngineWeb.Http.StatsController` camelizes
-`EvilEngine.Telemetry.StatsCollector.snapshot/0`. Assembly is **live
+JWT-gated. `BfwEngineWeb.Http.StatsController` camelizes
+`BfwEngine.Telemetry.StatsCollector.snapshot/0`. Assembly is **live
 queries on request**, not a counter cache:
 
 | Block | Source |
 |-------|--------|
-| `engine` | `:peripheral_telemetry` config, `:core_execution` app vsn, `:persistent_term` start time, load from `DynamicSupervisor.count_children(EvilEngine.Execution.Supervisor)` vs `TDE_MAX_CONCURRENT_PIS` |
+| `engine` | `:peripheral_telemetry` config, `:core_execution` app vsn, `:persistent_term` start time, load from `DynamicSupervisor.count_children(BfwEngine.Execution.Supervisor)` vs `BFE_MAX_CONCURRENT_PIS` |
 | `processInstances` | Ash `count` on `ProcessInstance` per state `running` / `finished` / `fatal` / `aborted` / `error` |
 | `flowNodeInstances` | Ash `count` on `FlowNodeInstance` per state including `waiting` / `interrupted` / `error` |
 | `userTasksPending.count` | waiting `user_task` FNIs |
 | `asyncFlowNodes.waiting` | waiting FNIs that are not user tasks |
-| `timers` | Scheduler ETS `:evil_engine_timers_primary` size + count with `fire_at` ≤ now+60s |
-| `plugins` | `EvilEngine.Plugins.Registry.list_plugins/0` |
+| `timers` | Scheduler ETS `:bfw_engine_timers_primary` size + count with `fire_at` ≤ now+60s |
+| `plugins` | `BfwEngine.Plugins.Registry.list_plugins/0` |
 | `listeners` | `EngineEventBus.list_sinks/0` |
 | `dbPools` | configured `pool_size` for write `Repo` and, if started, `ReadRepo` |
 
@@ -152,7 +152,7 @@ from this snapshot). Disabling the telemetry sink does **not** zero
 `/stats`.
 
 `engine.load` is `normal` / `elevated` / `critical` at 70% / 90% of
-`TDE_MAX_CONCURRENT_PIS` when the cap is a positive integer; always
+`BFE_MAX_CONCURRENT_PIS` when the cap is a positive integer; always
 `normal` when the cap is `:infinity`. The same thresholds drive
 `Event.EngineOverloaded` / `Event.EngineRecovered` from the 10s poller
 (crossings only, not every tick).
@@ -163,7 +163,7 @@ from this snapshot). Disabling the telemetry sink does **not** zero
 ### `GET /metrics`
 
 Public Prometheus text (`text/plain`). Definitions:
-`EvilEngine.Telemetry.Metrics.metrics/0`. The reporter plus
+`BfwEngine.Telemetry.Metrics.metrics/0`. The reporter plus
 `:telemetry_poller` (period 10s) start only when
 `:peripheral_telemetry, :metrics_enabled` is true.
 
@@ -172,27 +172,27 @@ Scrape names use underscores (dots in the Telemetry.Metrics name become
 
 | Telemetry.Metrics name | Type | Labels | Source event |
 |------------------------|------|--------|--------------|
-| `evil_engine.http.request.total` | counter | `method`, `route`, `status` | `[:evil_engine, :http, :stop]` (`Plug.Telemetry`) |
-| `evil_engine.http.request.duration_ms` | distribution | — | same |
-| `evil_engine.process_instance.state_change.total` | counter | `old_state`, `new_state` | `[:evil_engine, :process_instance, :state_change]` |
-| `evil_engine.process_instance.active.count` | last_value | — | `[:evil_engine, :process_instance, :active]` (poller) |
-| `evil_engine.process_instance.capacity.ratio` | last_value | — | `[:evil_engine, :process_instance, :capacity]` (poller; `0.0` when cap is infinity) |
-| `evil_engine.flow_node_instance.started.total` | counter | — | `[:evil_engine, :flow_node_instance, :started]` |
-| `evil_engine.flow_node_instance.state_change.total` | counter | `flow_node_type`, `terminal_state` | `[:evil_engine, :flow_node_instance, :state_change]` |
-| `evil_engine.event_bus.events.total` | counter | `event_type` | `[:evil_engine, :event_bus]` (telemetry sink) |
-| `evil_engine.dmn.evaluations.total` | counter | `hit_policy` | `[:evil_engine, :dmn, :evaluate, :stop]` |
-| `evil_engine.dmn.evaluate.duration.milliseconds` | distribution | — | same |
-| `evil_engine.dmn.evaluations.exceptions.total` | counter | — | `[:evil_engine, :dmn, :evaluate, :exception]` |
-| `evil_engine.dmn.cache.hit.total` | counter | — | `[:evil_engine, :dmn, :cache, :hit]` |
-| `evil_engine.dmn.cache.miss.total` | counter | — | `[:evil_engine, :dmn, :cache, :miss]` |
-| `evil_engine.escalation.raised.total` | counter | `throw_type` | `[:evil_engine, :escalation, :raised]` |
-| `evil_engine.escalation.uncaught.total` | counter | — | `[:evil_engine, :escalation, :uncaught]` |
-| `evil_engine.db.query.queue_time_ms` | distribution | `repo` | `[:evil_engine, :db, :query]` (`DbQueryHandler`) |
-| `evil_engine.db.query.total_time_ms` | distribution | `repo` | same |
-| `evil_engine.db.query.count` | counter | `repo`, `source` | same |
-| `evil_engine.db.pool.size` | last_value | `repo` | `[:evil_engine, :db, :pool]` (poller) |
-| `evil_engine.db.pool.checked_out` | last_value | `repo` | same |
-| `evil_engine.db.pool.idle` | last_value | `repo` | same |
+| `bfw_engine.http.request.total` | counter | `method`, `route`, `status` | `[:bfw_engine, :http, :stop]` (`Plug.Telemetry`) |
+| `bfw_engine.http.request.duration_ms` | distribution | — | same |
+| `bfw_engine.process_instance.state_change.total` | counter | `old_state`, `new_state` | `[:bfw_engine, :process_instance, :state_change]` |
+| `bfw_engine.process_instance.active.count` | last_value | — | `[:bfw_engine, :process_instance, :active]` (poller) |
+| `bfw_engine.process_instance.capacity.ratio` | last_value | — | `[:bfw_engine, :process_instance, :capacity]` (poller; `0.0` when cap is infinity) |
+| `bfw_engine.flow_node_instance.started.total` | counter | — | `[:bfw_engine, :flow_node_instance, :started]` |
+| `bfw_engine.flow_node_instance.state_change.total` | counter | `flow_node_type`, `terminal_state` | `[:bfw_engine, :flow_node_instance, :state_change]` |
+| `bfw_engine.event_bus.events.total` | counter | `event_type` | `[:bfw_engine, :event_bus]` (telemetry sink) |
+| `bfw_engine.dmn.evaluations.total` | counter | `hit_policy` | `[:bfw_engine, :dmn, :evaluate, :stop]` |
+| `bfw_engine.dmn.evaluate.duration.milliseconds` | distribution | — | same |
+| `bfw_engine.dmn.evaluations.exceptions.total` | counter | — | `[:bfw_engine, :dmn, :evaluate, :exception]` |
+| `bfw_engine.dmn.cache.hit.total` | counter | — | `[:bfw_engine, :dmn, :cache, :hit]` |
+| `bfw_engine.dmn.cache.miss.total` | counter | — | `[:bfw_engine, :dmn, :cache, :miss]` |
+| `bfw_engine.escalation.raised.total` | counter | `throw_type` | `[:bfw_engine, :escalation, :raised]` |
+| `bfw_engine.escalation.uncaught.total` | counter | — | `[:bfw_engine, :escalation, :uncaught]` |
+| `bfw_engine.db.query.queue_time_ms` | distribution | `repo` | `[:bfw_engine, :db, :query]` (`DbQueryHandler`) |
+| `bfw_engine.db.query.total_time_ms` | distribution | `repo` | same |
+| `bfw_engine.db.query.count` | counter | `repo`, `source` | same |
+| `bfw_engine.db.pool.size` | last_value | `repo` | `[:bfw_engine, :db, :pool]` (poller) |
+| `bfw_engine.db.pool.checked_out` | last_value | `repo` | same |
+| `bfw_engine.db.pool.idle` | last_value | `repo` | same |
 | `vm.memory.total` | last_value | — | VM poller |
 | `vm.memory.processes` | last_value | — | VM poller |
 | `vm.total_run_queue_lengths.total` | last_value | — | VM poller |
@@ -201,8 +201,8 @@ Scrape names use underscores (dots in the Telemetry.Metrics name become
 | `vm.system_counts.process_count` | last_value | — | VM poller |
 
 **DB pool pressure:** `DbQueryHandler` attaches to each Repo’s Ecto `:query`
-event and re-emits `[:evil_engine, :db, :query]` with millisecond
-`queue_time_ms`. Checkout wait above `TDE_DB_QUEUE_TIME_WARNING_MS`
+event and re-emits `[:bfw_engine, :db, :query]` with millisecond
+`queue_time_ms`. Checkout wait above `BFE_DB_QUEUE_TIME_WARNING_MS`
 (default 500) logs a warning. `repo` is `:write` or `:read`. `source` is
 the Ecto schema source, or a table name parsed from raw SQL so adapter
 queries are not all `unknown`.
@@ -212,13 +212,13 @@ attach; `/metrics` does not):
 
 | Event | Typical site |
 |-------|----------------|
-| `[:evil_engine, :timer, :armed \| :fired \| :cancelled]` | `core_timers` Scheduler |
-| `[:evil_engine, :message, :published \| :arrived]` | `MessagePublisher` |
-| `[:evil_engine, :signal, :published \| :arrived]` | `SignalPublisher` |
-| `[:evil_engine, :subprocess, :child_started]` | SubProcess / ESP spawn |
-| `[:evil_engine, :transaction, :cancelled]` | Transaction cancel |
-| `[:evil_engine, :process_instance, :retried]` | PI retry |
-| `[:evil_engine, :model_cache, :fetch]` | BPMN `ModelCache` |
+| `[:bfw_engine, :timer, :armed \| :fired \| :cancelled]` | `core_timers` Scheduler |
+| `[:bfw_engine, :message, :published \| :arrived]` | `MessagePublisher` |
+| `[:bfw_engine, :signal, :published \| :arrived]` | `SignalPublisher` |
+| `[:bfw_engine, :subprocess, :child_started]` | SubProcess / ESP spawn |
+| `[:bfw_engine, :transaction, :cancelled]` | Transaction cancel |
+| `[:bfw_engine, :process_instance, :retried]` | PI retry |
+| `[:bfw_engine, :model_cache, :fetch]` | BPMN `ModelCache` |
 
 ### `GET /health` and `GET /info`
 
@@ -248,7 +248,7 @@ in-memory event ring buffer.
 | Gap | Notes |
 |-----|--------|
 | Built-in database EventSink | Removed; see Event sinks above |
-| Admin stats HTML | `/admin/` is GraphiQL + empty `EvilEngineWeb.Admin` namespace; Swagger is `GET /` ([post-v1-ideas.md](../post-v1-ideas.md) idea 7) |
+| Admin stats HTML | `/admin/` is GraphiQL + empty `BfwEngineWeb.Admin` namespace; Swagger is `GET /` ([post-v1-ideas.md](../post-v1-ideas.md) idea 7) |
 | `/stats` breakdowns | `byType` / `byAssigneeRole` / `byPlugin` / `monitoringPanelsCount` are stubs |
 
 ---
@@ -259,13 +259,13 @@ Env vars (full table: [configuration.md](./configuration.md)):
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `TDE_EVENT_SINK_CONSOLE` | `on` | Register console sink |
-| `TDE_EVENT_SINK_TELEMETRY` | `on` | Register telemetry sink (Prometheus event-bus counter) |
-| `TDE_EVENT_SINK_WEBSOCKET` | `on` | Register WebSocket sink |
-| `TDE_LOG_MIN_SEVERITY` | `info` | Console sink floor |
-| `TDE_METRICS_ENABLED` | `true` | Start Prometheus reporter + poller; `GET /metrics` vs 404 |
-| `TDE_MAX_CONCURRENT_PIS` | `infinity` | Load level, capacity gauge, admission |
-| `TDE_DB_QUEUE_TIME_WARNING_MS` | `500` | DB checkout-wait warning |
+| `BFE_EVENT_SINK_CONSOLE` | `on` | Register console sink |
+| `BFE_EVENT_SINK_TELEMETRY` | `on` | Register telemetry sink (Prometheus event-bus counter) |
+| `BFE_EVENT_SINK_WEBSOCKET` | `on` | Register WebSocket sink |
+| `BFE_LOG_MIN_SEVERITY` | `info` | Console sink floor |
+| `BFE_METRICS_ENABLED` | `true` | Start Prometheus reporter + poller; `GET /metrics` vs 404 |
+| `BFE_MAX_CONCURRENT_PIS` | `infinity` | Load level, capacity gauge, admission |
+| `BFE_DB_QUEUE_TIME_WARNING_MS` | `500` | DB checkout-wait warning |
 
 EventSink behaviour: [plugins.md](./plugins.md) and
 [event-system.md](./event-system.md). REST/GraphQL/WebSocket endpoint
@@ -277,18 +277,18 @@ index: [api.md](./api.md).
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Events.EngineEventBus` | `apps/core_events/lib/evil_engine/events/engine_event_bus.ex` |
-| `EvilEngine.Events.SinkRegistrar` | `apps/core_events/lib/evil_engine/events/sink_registrar.ex` |
-| `EvilEngine.Events.Sinks.Console` | `apps/core_events/lib/evil_engine/events/sinks/console.ex` |
-| `EvilEngine.Telemetry.Sink` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/sink.ex` |
-| `EvilEngine.Telemetry.StatsCollector` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/stats_collector.ex` |
-| `EvilEngine.Telemetry.Metrics` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/metrics.ex` |
-| `EvilEngine.Telemetry.Measurements` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/measurements.ex` |
-| `EvilEngine.Telemetry.DbQueryHandler` | `apps/peripheral_telemetry/lib/evil_engine/telemetry/db_query_handler.ex` |
-| Telemetry OTP application | `apps/peripheral_telemetry/lib/evil_engine/telemetry/application.ex` |
-| `EvilEngineWeb.Ws.Sinks.WebSocket` | `apps/api_web/lib/evil_engine_web/ws/sinks/websocket.ex` |
-| `EvilEngineWeb.Http.StatsController` | `apps/api_web/lib/evil_engine_web/http/controllers/stats_controller.ex` |
-| `EvilEngineWeb.Http.MetricsController` | `apps/api_web/lib/evil_engine_web/http/controllers/metrics_controller.ex` |
-| `EvilEngineWeb.Http.HealthController` | `apps/api_web/lib/evil_engine_web/http/controllers/health_controller.ex` |
-| `EvilEngineWeb.Http.InfoController` | `apps/api_web/lib/evil_engine_web/http/controllers/info_controller.ex` |
-| `EvilEngineWeb.Admin` | `apps/api_web/lib/evil_engine_web/admin.ex` |
+| `BfwEngine.Events.EngineEventBus` | `apps/core_events/lib/bfw_engine/events/engine_event_bus.ex` |
+| `BfwEngine.Events.SinkRegistrar` | `apps/core_events/lib/bfw_engine/events/sink_registrar.ex` |
+| `BfwEngine.Events.Sinks.Console` | `apps/core_events/lib/bfw_engine/events/sinks/console.ex` |
+| `BfwEngine.Telemetry.Sink` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/sink.ex` |
+| `BfwEngine.Telemetry.StatsCollector` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/stats_collector.ex` |
+| `BfwEngine.Telemetry.Metrics` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/metrics.ex` |
+| `BfwEngine.Telemetry.Measurements` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/measurements.ex` |
+| `BfwEngine.Telemetry.DbQueryHandler` | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/db_query_handler.ex` |
+| Telemetry OTP application | `apps/peripheral_telemetry/lib/bfw_engine/telemetry/application.ex` |
+| `BfwEngineWeb.Ws.Sinks.WebSocket` | `apps/api_web/lib/bfw_engine_web/ws/sinks/websocket.ex` |
+| `BfwEngineWeb.Http.StatsController` | `apps/api_web/lib/bfw_engine_web/http/controllers/stats_controller.ex` |
+| `BfwEngineWeb.Http.MetricsController` | `apps/api_web/lib/bfw_engine_web/http/controllers/metrics_controller.ex` |
+| `BfwEngineWeb.Http.HealthController` | `apps/api_web/lib/bfw_engine_web/http/controllers/health_controller.ex` |
+| `BfwEngineWeb.Http.InfoController` | `apps/api_web/lib/bfw_engine_web/http/controllers/info_controller.ex` |
+| `BfwEngineWeb.Admin` | `apps/api_web/lib/bfw_engine_web/admin.ex` |

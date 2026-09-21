@@ -8,7 +8,7 @@ defmodule IncidentReporter.EventSinkTest do
 
   use ExUnit.Case, async: true
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias IncidentReporter.EventSink
   alias IncidentReporter.MessageBus.InMemoryAdapter
 

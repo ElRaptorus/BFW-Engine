@@ -26,5 +26,5 @@ docker run --name evil-rabbit -p 5672:5672 -p 15672:15672 -d rabbitmq:3-manageme
 
 ## Further reading
 
-- [`EvilEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/evil_engine/plugin/service_task_handler.ex)
+- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/service_task_handler.ex)
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md)

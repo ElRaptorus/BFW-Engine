@@ -6,7 +6,7 @@ defmodule MyCompany.LdapPlugin do
   See the engine's Plugin documentation for the full lifecycle.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Registers the LDAP auth provider with the engine facade during plugin initialization."
   @impl true

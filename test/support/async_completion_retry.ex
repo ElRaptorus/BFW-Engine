@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.AsyncCompletionRetry do
+defmodule BfwEngine.Test.AsyncCompletionRetry do
   @moduledoc """
   Retries a finish call that raced the PI's transition to `:waiting`.
 

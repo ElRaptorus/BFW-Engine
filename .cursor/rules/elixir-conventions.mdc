@@ -31,17 +31,17 @@ implementation.
 
 ```elixir
 # BAD — premature abstraction
-defmodule EvilEngine.Expressions.Evaluator do
+defmodule BfwEngine.Expressions.Evaluator do
   @callback evaluate(expression, context) :: result
 end
 
-defmodule EvilEngine.Expressions.FeelEvaluator do
-  @behaviour EvilEngine.Expressions.Evaluator
+defmodule BfwEngine.Expressions.FeelEvaluator do
+  @behaviour BfwEngine.Expressions.Evaluator
   def evaluate(expression, context), do: ...
 end
 
 # GOOD — there is only one evaluator, so use a plain module
-defmodule EvilEngine.Expressions do
+defmodule BfwEngine.Expressions do
   def evaluate(expression, context), do: ...
 end
 ```
@@ -273,7 +273,7 @@ defp unique_key_for(:timer_source, %{timer_type: key}), do: key
   `actions`, `policies`, `calculations`
 - Code Interface functions are the single service layer — never bypass them
   from API or plugin code
-- Ash actions map 1:1 to Core access points (`EvilEngine.Api` → Core)
+- Ash actions map 1:1 to Core access points (`BfwEngine.Api` → Core)
 
 ## Credo Compliance
 

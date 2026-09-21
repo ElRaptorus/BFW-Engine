@@ -1,9 +1,9 @@
 defmodule CoreDmn.MixProject do
   @moduledoc """
   DMN 1.5 parser + validator + evaluator + in-memory
-  `EvilEngine.DMN.ModelCache` GenServer.
+  `BfwEngine.DMN.ModelCache` GenServer.
 
-  Owns the parsed DMN Model AST under `EvilEngine.DMN.Model.*`.
+  Owns the parsed DMN Model AST under `BfwEngine.DMN.Model.*`.
   Authoritative persistent form is `decision_versions.dmn_xml`;
   the AST is only ever in memory.
   """
@@ -29,7 +29,7 @@ defmodule CoreDmn.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {EvilEngine.DMN.Application, []}
+      mod: {BfwEngine.DMN.Application, []}
     ]
   end
 

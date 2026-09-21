@@ -18,7 +18,7 @@ The engine retries process instances that have failed (`fatal`), been aborted (`
 curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
   -H "Authorization: Bearer $TOKEN"
 
-# Retry with version migration (evil:version string or "latest")
+# Retry with version migration (bfw:version string or "latest")
 curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -39,7 +39,7 @@ curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `version` | string | Target **`evil:version`** to migrate to. Use `"latest"` to auto-resolve to the most recent enabled, non-deleted version. Omit to retry on the same version. |
+| `version` | string | Target **`bfw:version`** to migrate to. Use `"latest"` to auto-resolve to the most recent enabled, non-deleted version. Omit to retry on the same version. |
 | `resetToFlowNodeInstanceId` | string | Checkpoint FNI ID. All FNIs causally downstream of this FNI are deleted, and this FNI is reset to `active`. Omit to retry from the Start Event. |
 
 Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
@@ -53,7 +53,7 @@ Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
 | 422 | PI is not retryable, checkpoint restriction, or version migration is incompatible |
 | 401 | Missing or invalid authentication |
 | 403 | Caller lacks `retry_process_instance` permission for this PI |
-| 503 | Engine at capacity (`TDE_MAX_CONCURRENT_PIS` reached) |
+| 503 | Engine at capacity (`BFE_MAX_CONCURRENT_PIS` reached) |
 
 ### HTTP 422 restriction codes
 
@@ -114,7 +114,7 @@ When a PI is part of a Call Activity hierarchy (parent/child relationships), ret
 | Retry on the root PI | Resets the root and cascades to descendants as needed |
 | Retry on a child PI | Resets the child; the parent's Call Activity FNI re-enters `waiting` |
 | Call Activity FNI survives checkpoint (no checkpoint, checkpoint **after** the CA, or checkpoint **at** the CA) | Child PI identity is **preserved** (same PI id and `process_version_id`). Retryable-terminal children (`fatal` / `aborted` / `error`) are **reset in place**. A `finished` child is left as-is. The Call Activity pin is **not** re-read. |
-| Call Activity FNI is deleted by checkpoint (checkpoint **before** the CA) | Child PI is hard-deleted along with its entire subtree. The next enter resolves `<evil:calledProcessVersion>` or latest **now**. Preceding parent work is re-run. |
+| Call Activity FNI is deleted by checkpoint (checkpoint **before** the CA) | Child PI is hard-deleted along with its entire subtree. The next enter resolves `<bfw:calledProcessVersion>` or latest **now**. Preceding parent work is re-run. |
 
 **Retrying at the Call Activity does not pick a new child diagram.** Same child process instance; reset in place if the child is retryable-terminal; left as-is if finished. Use a checkpoint **before** the Call Activity to hard-delete and re-resolve pin or latest.
 
@@ -126,19 +126,19 @@ Until a follow-up API exists, there is no parent-side control that means “run 
 
 - Retry **at** the Call Activity keeps the child’s `process_version_id`.
 - Checkpoint **before** the Call Activity re-runs preceding parent work (for example an expensive Service Task).
-- Workaround: retry the **child** process instance and choose Target Version (same / latest / a specific `evil:version`). Phase 1 migrates only that PI. The parent pin / `calledElement` is not consulted.
+- Workaround: retry the **child** process instance and choose Target Version (same / latest / a specific `bfw:version`). Targeted reset migrates only that PI. The parent pin / `calledElement` is not consulted.
 
 See [call-activities.md](call-activities.md) Version Resolution.
 
-## Three-Phase Mechanism
+## Retry steps
 
-Internally, retry follows three phases:
+Internally, retry follows three steps:
 
 1. **Targeted reset** — checkpoint + version migration on the specified PI (pure DB operations)
 2. **Tree reset** — reconcile ancestors (upward) and descendants (downward through Call Activities)
-3. **Resume** — resume from the root PI via the standard `ResumeRunner` code path
+3. **Resume from root** — resume from the root PI via the standard `ResumeRunner` code path
 
-Phases 1 and 2 are pure database operations. Phase 3 reuses the same resume logic as engine-restart recovery, ensuring consistency.
+Targeted reset and tree reset are pure database operations. Resume from root reuses the same resume logic as engine-restart recovery.
 
 ## Authorization
 
@@ -159,7 +159,7 @@ A successful retry emits `ProcessInstanceRetried` via the EngineEventBus (camelC
 | `processInstanceId` | Root PI of the tree |
 | `targetProcessInstanceId` | The PI the caller targeted (may differ from the root) |
 | `processModelId` | BPMN process ID string |
-| `version` | **Process version UUID** of the version the PI is now on (not the `evil:version` string) |
+| `version` | **Process version UUID** of the version the PI is now on (not the `bfw:version` string) |
 | `previousState` | `"fatal"`, `"aborted"`, or `"error"` |
 | `previousVersion` | Process version UUID before migration, or `null` |
 | `newVersion` | Process version UUID after migration, or `null` when no migration |

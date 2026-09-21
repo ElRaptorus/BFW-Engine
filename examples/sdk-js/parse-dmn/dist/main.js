@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parseDmn } from '@elraptorus/daemonengine_sdk';
+import { parseDmn } from '@elraptorus/bfw_engine_sdk';
 export function main() {
     const decisionModelFilePath = resolve(import.meta.dirname, '../dmn/sample.dmn');
     const dmnXml = readFileSync(decisionModelFilePath, 'utf8');

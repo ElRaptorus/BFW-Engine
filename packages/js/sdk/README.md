@@ -1,31 +1,31 @@
-# @elraptorus/daemonengine_sdk
+# @elraptorus/bfw_engine_sdk
 
-Type definitions, error classes, event types, BPMN XML and DMN 1.5 parsers for ThomasTheDaemonEngine.
+Type definitions, error classes, event types, BPMN XML and DMN 1.5 parsers for Bifrost Forge World Engine.
 
 This package is the **contract layer** between the engine and all consumers (the client library, plugins, and third-party integrations). It contains no runtime network code -- only types, lightweight parsers, and error constructors.
 
 ## Installation
 
 ```bash
-pnpm add @elraptorus/daemonengine_sdk
+pnpm add @elraptorus/bfw_engine_sdk
 # or
-npm install @elraptorus/daemonengine_sdk
+npm install @elraptorus/bfw_engine_sdk
 ```
 
 ## BPMN Parser
 
-Parse BPMN 2.0 XML (with `evil:*` extensions) into a typed model:
+Parse BPMN 2.0 XML (with `bfw:*` extensions) into a typed model:
 
 ```typescript
-import { parseBpmn } from '@elraptorus/daemonengine_sdk';
+import { parseBpmn } from '@elraptorus/bfw_engine_sdk';
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_1">
   <bpmn:process id="my-process" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:startEvent id="Start_1">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
@@ -48,7 +48,7 @@ Parse DMN 1.5 XML into a typed model covering all CL3 elements (decision tables,
 
 ```typescript
 import { readFileSync } from 'node:fs';
-import { parseDmn, DmnHitPolicy, type DmnDecisionTable } from '@elraptorus/daemonengine_sdk';
+import { parseDmn, DmnHitPolicy, type DmnDecisionTable } from '@elraptorus/bfw_engine_sdk';
 
 const xml = readFileSync('discount.dmn', 'utf8');
 const definitions = parseDmn(xml);
@@ -94,23 +94,23 @@ import type {
   AdHocActivateResult,
   AdHocStatus,
   AdHocCompleteResult,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 ```
 
 ## Error Class Hierarchy
 
-All errors extend `DaemonEngineError`, which carries `statusCode`, `errorCode`, `message`, and `rawBody`. Use `instanceof` to narrow:
+All errors extend `BfwEngineError`, which carries `statusCode`, `errorCode`, `message`, and `rawBody`. Use `instanceof` to narrow:
 
 ```typescript
 import {
-  DaemonEngineError,
+  BfwEngineError,
   NotFoundError,
   ForbiddenError,
   ProcessDisabledError,
   ParseError,
   VersionExistsError,
   UnauthorizedError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 try {
   await client.processes.start('my-process');
@@ -119,7 +119,7 @@ try {
     console.log('Process is disabled:', error.message);
   } else if (error instanceof ForbiddenError) {
     console.log('Missing claim:', error.requiredClaim);
-  } else if (error instanceof DaemonEngineError) {
+  } else if (error instanceof BfwEngineError) {
     console.log('Engine error:', error.statusCode, error.errorCode);
   }
 }
@@ -188,7 +188,7 @@ import type {
   DataObjectWritten,
   AdHocActivityActivated,
   AdHocSubProcessCompleted,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 ```
 
 `SubProcessChildStarted` also carries an `isAdHocSubprocess` boolean discriminating ad-hoc sub-process children from embedded/transaction/event sub-process children.

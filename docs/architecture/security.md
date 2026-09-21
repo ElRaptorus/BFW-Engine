@@ -32,18 +32,18 @@ Plugins are **in-BEAM only** and sit inside the trust boundary with a privileged
 
 | Algorithm family | Configuration | Library |
 |-----------------|---------------|---------|
-| HS256 | `TDE_JWT_HS256_SECRET` (min 32 bytes) | Joken + JOSE |
-| RS256 / ES256 | `TDE_JWT_JWKS_URL` (JWKS with caching + refresh + retry) | Joken + JOSE |
+| HS256 | `BFE_JWT_HS256_SECRET` (min 32 bytes) | Joken + JOSE |
+| RS256 / ES256 | `BFE_JWT_JWKS_URL` (JWKS with caching + refresh + retry) | Joken + JOSE |
 
 Both can coexist — the engine tries JWKS first, falls back to HS256. At least one
-must be configured unless `TDE_AUTH_DISABLED=true`.
+must be configured unless `BFE_AUTH_DISABLED=true`.
 
-**`TDE_AUTH_DISABLED`:** When `true`, disables JWT verification entirely.
+**`BFE_AUTH_DISABLED`:** When `true`, disables JWT verification entirely.
 All requests receive a synthetic anonymous Identity with least-privilege defaults.
 The engine logs a `warn` every 60 seconds while active. Not suitable for production
 ([authorization.md](authorization.md) §1.1).
 
-Authentication is pluggable via `@behaviour EvilEngine.Plugin.AuthProvider`.
+Authentication is pluggable via `@behaviour BfwEngine.Plugin.AuthProvider`.
 A plugin registers a custom auth provider during `on_load/1` via
 `facade.register_auth_provider.(module)`. Only one provider may be active at a
 time (first-writer wins; duplicates are rejected and the offending plugin is
@@ -62,7 +62,7 @@ Key design choices (summary only — authorization.md is the source of truth):
 - **Default-deny.** Every endpoint requires a valid JWT except `/health`, `/info`, the OpenAPI spec, and non-production admin UIs.
 - **Lane-as-claim.** BPMN lanes map to `lane:<name>` JWT claims (`"read"` or `"write"`). Boolean `true` is not a write alias.
 - **Engine claims**: `deploy_bpmn`, `delete_bpmn`, `purge_audit_data`, `zeeky_boogie_doog` (admin read+write), `observe_all` (unbounded read, never write), `trigger_message`, `trigger_signal`, `trigger_escalation` (boolean); `abort_process_instance`, `retry_process_instance`, `delete_process_instance` (`none|own|all`); `lane:<name>` (`"read"` \| `"write"`).
-- **PI visibility (Option B)**: a caller sees a PI if they started it, OR if any FNI ever on the PI sits on an accessible `"read"`/`"write"` lane (or no lane), OR `zeeky_boogie_doog=true`, OR `observe_all=true`.
+- **PI visibility**: a caller sees a PI if they started it, OR if any FNI ever on the PI sits on an accessible `"read"`/`"write"` lane (or no lane), OR `zeeky_boogie_doog=true`, OR `observe_all=true`.
 - **Execution-detached.** Once a PI starts, the starting user's claims are never re-checked.
 - **Plugins bypass claim checks** with a privileged `plugin:<name>` identity; audit is preserved.
 - **Triggers claim-gated.** Message / signal / escalation publish endpoints require `trigger_message` / `trigger_signal` / `trigger_escalation` respectively.
@@ -88,8 +88,8 @@ allowed reads without any actor has been removed (S-2). All legitimate internal
 reads (`execution_adapter`, `called_element_resolver_impl`, `final_tokens`, system
 safety checks in `process_controller`) use `authorize?: false` explicitly.
 
-**Ash actor propagation for REST.** `EvilEngineWeb.Http.Plugs.AshActorPlug` is the
-third plug in the `:authenticated` pipeline (after `EvilEngine.Auth.Plug`). It calls
+**Ash actor propagation for REST.** `BfwEngineWeb.Http.Plugs.AshActorPlug` is the
+third plug in the `:authenticated` pipeline (after `BfwEngine.Auth.Plug`). It calls
 `Ash.PlugHelpers.set_actor/2` to store a flat actor map on `conn.private[:ash][:actor]`,
 derived from the JWT-resolved `%Identity{}`:
 
@@ -118,8 +118,8 @@ Two enforcement layers guarantee this:
 
 | Layer | Location | Behaviour |
 |-------|----------|-----------|
-| **Public boundary** | `EvilEngineWeb.Http.ProcessController` (private `do_start`) + `EvilEngine.Api.start_process_instance/3` | The public start contract is Model/Version + Start Event + payload/context/businessKey. `subprocess_node_id` is not a public parameter; extraneous request-body params are **ignored** (consistent with every other endpoint), not rejected. The controller builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`, so internal execution keys are *structurally absent* from the REST path. |
-| **Core chokepoint** | `EvilEngine.Execution.start_process_instance/1` | The authoritative guard: if `subprocess_node_id` is present but `parent_process_instance_id` is not, the call is rejected with `{:error, :orphan_subprocess_start}` before the PI is ever supervised. Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through this pipeline. |
+| **Public boundary** | `BfwEngineWeb.Http.ProcessController` (private `do_start`) + `BfwEngine.Api.start_process_instance/3` | The public start contract is Model/Version + Start Event + payload/context/businessKey. `subprocess_node_id` is not a public parameter; extraneous request-body params are **ignored** (consistent with every other endpoint), not rejected. The controller builds `start_opts` from only the public request fields plus server-derived `identity`/`process_instance_id`, so internal execution keys are *structurally absent* from the REST path. |
+| **Core chokepoint** | `BfwEngine.Execution.start_process_instance/1` | The authoritative guard: if `subprocess_node_id` is present but `parent_process_instance_id` is not, the call is rejected with `{:error, :orphan_subprocess_start}` before the PI is ever supervised. Every entry point (REST, plugin, Call Activity, SubProcess, ESP) flows through this pipeline. |
 
 Supporting guarantees:
 
@@ -144,8 +144,8 @@ concern.
 ## Input Validation
 
 - **JSON Schema 2020-12** on every inbound payload: triggers, task completions, data contracts. Strict mode is always on. Library: `ex_json_schema`.
-- **Payload cap**: `TDE_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [database.md](../guides/operations/database.md).
-- **BPMN linter gate**: deploy-time validation of `<evil:linterRulesetScore>` entries against configured thresholds. See [configuration.md](configuration.md).
+- **Payload cap**: `BFE_TOKEN_MAX_BYTES` (default 64 KiB, minimum 1 KiB) enforced at every boundary — facade, REST, async completion. Overflow returns `{:error, :payload_too_large, ...}` from the facade; HTTP 413 from wire adapters. See [database.md](../guides/operations/database.md).
+- **BPMN linter gate**: deploy-time validation of `<bfw:linterRulesetScore>` entries against configured thresholds. See [configuration.md](configuration.md).
 
 ---
 
@@ -154,7 +154,7 @@ concern.
 All database access goes through Ash resources or raw Ecto queries with bound
 parameters. **No user-controlled input is ever interpolated into SQL.** The
 single exception — partition DDL in
-`apps/peripheral_persistence/lib/evil_engine/persistence/partitions.ex` — uses
+`apps/peripheral_persistence/lib/bfw_engine/persistence/partitions.ex` — uses
 inline interpolation because Postgres does not support parameter binding inside
 `CREATE TABLE ... PARTITION OF ... FOR VALUES FROM (...) TO (...)`. The values
 that flow into that DDL are the engine-controlled `@partitioned_tables` constant
@@ -174,8 +174,8 @@ partition DDL exists.
 In-BEAM plugins:
 
 - Run with a privileged identity that bypasses all engine claim checks ([authorization.md](authorization.md)).
-- Are audited — every `EvilEngine.Api.*` call records the plugin identity in the audit trail.
-- Can be include-listed / exclude-listed via `TDE_PLUGINS_INCLUDE` / `TDE_PLUGINS_EXCLUDE` ([plugins.md](plugins.md)).
+- Are audited — every `BfwEngine.Api.*` call records the plugin identity in the audit trail.
+- Can be include-listed / exclude-listed via `BFE_PLUGINS_INCLUDE` / `BFE_PLUGINS_EXCLUDE` ([plugins.md](plugins.md)).
 - Are quarantined on `on_load` / `on_ready` failure ([plugins.md](plugins.md)).
 
 Per-plugin claim sets / per-action allow-deny are not an engine feature. Plugins stay privileged; callers that need JWT claim checks use the public REST/GraphQL/WebSocket API.
@@ -184,9 +184,9 @@ Per-plugin claim sets / per-action allow-deny are not an engine feature. Plugins
 
 ## Secrets Management
 
-- All secrets are read from environment variables (`TDE_JWT_HS256_SECRET`, `TDE_DATABASE_URL`, etc.) or a configurable secret-provider behaviour.
+- All secrets are read from environment variables (`BFE_JWT_HS256_SECRET`, `BFE_DATABASE_URL`, etc.) or a configurable secret-provider behaviour.
 - **No hard-coded secrets** anywhere in the codebase — enforced by `mix sobelow` in CI.
-- In test environments, `engine_sdk.MintTestToken` uses `TDE_JWT_HS256_SECRET` to sign test JWTs.
+- In test environments, `engine_sdk.MintTestToken` uses `BFE_JWT_HS256_SECRET` to sign test JWTs.
 
 ---
 
@@ -218,7 +218,7 @@ documentation alongside the TLS examples.
 configuration that the reverse proxy already owns and create a second source of
 truth for allowed origins. If a future deployment model removes the reverse
 proxy (e.g. edge-deployed engine with native TLS), a `corsica` Plug gated
-behind an `TDE_CORS_ALLOWED_ORIGINS` env var becomes the natural upgrade path.
+behind an `BFE_CORS_ALLOWED_ORIGINS` env var becomes the natural upgrade path.
 
 ---
 
@@ -234,7 +234,7 @@ making reflected/stored XSS via API responses a non-issue.
 |---------|----------|------------|
 | `/stats` HTML dashboard | Low — renders server-side counters, no user-supplied content | Phoenix templates with default auto-escaping; no `raw`/`Phoenix.HTML.raw` calls |
 | Swagger UI (`/api/docs`) | Low — static asset bundle | Served from a pinned, vendored release; no dynamic interpolation |
-| Admin UIs (non-production) | Low — dev-only, no user-supplied rendering | `TDE_AUTH_DISABLED` required or valid admin JWT |
+| Admin UIs (non-production) | Low — dev-only, no user-supplied rendering | `BFE_AUTH_DISABLED` required or valid admin JWT |
 
 **Engine-level controls:**
 
@@ -278,9 +278,9 @@ high request volume:
 
 | Control | Effect |
 |---------|--------|
-| **Payload cap** | `TDE_TOKEN_MAX_BYTES` (default 64 KiB) — rejects oversize bodies before allocation, preventing memory exhaustion via large payloads |
+| **Payload cap** | `BFE_TOKEN_MAX_BYTES` (default 64 KiB) — rejects oversize bodies before allocation, preventing memory exhaustion via large payloads |
 | **Bandit/Cowboy connection limits** | The HTTP server enforces configurable `max_connections` (Bandit default: 16384) and `idle_timeout` — prevents connection-pool exhaustion |
-| **Ecto pool size** | Database connection pools (`TDE_DB_POOL_SIZE`, production default 100 for writes; `TDE_DB_READ_POOL_SIZE`, production default 50 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres. Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` |
+| **Ecto pool size** | Database connection pools (`BFE_DB_POOL_SIZE`, production default 100 for writes; `BFE_DB_READ_POOL_SIZE`, production default 50 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres. Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` |
 | **Plugin quarantine** | Repeatedly-failing plugins are quarantined ([plugins.md](plugins.md) §9.3), preventing a misbehaving plugin from amplifying load |
 | **JWT validation is stateless** | No database lookup on auth — a flood of invalid JWTs costs CPU (JOSE signature verification) but does not hit the database |
 
@@ -337,7 +337,7 @@ The engine does not implement:
 ## Security Headers
 
 The engine injects a baseline set of defensive headers on all JSON/REST/GraphQL
-responses via `EvilEngineWeb.Http.Plugs.SecurityHeadersPlug`, which is the
+responses via `BfwEngineWeb.Http.Plugs.SecurityHeadersPlug`, which is the
 second plug in both the `:api` and `:authenticated` router pipelines.
 
 ### Engine-emitted headers (always present on JSON responses)
@@ -382,12 +382,12 @@ reference when commissioning a penetration test.
 | **A02 — Cryptographic Failures** | Addressed | JWT via JOSE (HS256 min-32-byte / RS256 / ES256); no custom crypto; secrets from env vars; `mix sobelow` enforces no hardcoded secrets |
 | **A03 — Injection** | Addressed | SQL: Ash/Ecto parameterization (zero string interpolation). NoSQL: not applicable. LDAP: not applicable. OS command: no `System.cmd` with user input. FEEL expressions: sandboxed evaluator with no side effects |
 | **A04 — Insecure Design** | Addressed | Threat model documented (see above); defense-in-depth via payload cap, plugin quarantine, uniform error responses |
-| **A05 — Security Misconfiguration** | Partially addressed | `mix sobelow` in CI; no debug endpoints in production; `TDE_AUTH_DISABLED` logs persistent warnings. Gap: no startup-time config validator beyond individual env var checks |
+| **A05 — Security Misconfiguration** | Partially addressed | `mix sobelow` in CI; no debug endpoints in production; `BFE_AUTH_DISABLED` logs persistent warnings. Gap: no startup-time config validator beyond individual env var checks |
 | **A06 — Vulnerable Components** | Addressed | `mix deps.audit` in CI; `mix sobelow` for Elixir-specific vulnerabilities; Dependabot / Renovate recommended for automated PR-level checks |
 | **A07 — Auth Failures** | Addressed | Stateless JWT; constant-time HMAC; uniform 401 responses; no session management; no login endpoint. Brute-force: delegated to IdP + proxy (see above) |
 | **A08 — Data Integrity Failures** | Addressed | JWT signature verification on every request; BPMN deploy-time linter gate; JSON Schema validation on all inbound payloads; no deserialization of untrusted binary formats |
 | **A09 — Logging & Monitoring Failures** | Partially addressed | Structured JSON logging for all auth events; `/stats` counters; console and websocket event sinks. The `process_instance_events` table is retained for migration compatibility but is no longer populated (the built-in database sink was removed). Gap: no dedicated security-event log stream or SIEM integration in v1 |
-| **A10 — SSRF** | Operator-trust | The builtin HTTP Service Task (`implementation="http"`) **does** make outbound HTTP to the URL in deployed `evil:httpUrl`. That URL is process-author / operator-controlled BPMN, not an unauthenticated request parameter. JWKS URL is operator-configured. Treat deployed models and plugins as trusted; SSRF mitigation (URL allowlists, egress proxy) is an operator/plugin-trust concern, not an engine invariant that "the engine never dials out." |
+| **A10 — SSRF** | Operator-trust | The builtin HTTP Service Task (`implementation="http"`) **does** make outbound HTTP to the URL in deployed `bfw:httpUrl`. That URL is process-author / operator-controlled BPMN, not an unauthenticated request parameter. JWKS URL is operator-configured. Treat deployed models and plugins as trusted; SSRF mitigation (URL allowlists, egress proxy) is an operator/plugin-trust concern, not an engine invariant that "the engine never dials out." |
 
 ### Additional pentest-relevant controls
 
@@ -395,11 +395,11 @@ reference when commissioning a penetration test.
 |-----------------|-------------|
 | **Error message information leakage** | Production error responses use structured JSON with fixed keys — no stack traces, no internal module names, no SQL fragments |
 | **HTTP verb tampering** | Phoenix router enforces method matching; unmatched verbs return 404 |
-| **Request body size limit** | `TDE_TOKEN_MAX_BYTES` at the application layer; Bandit/Cowboy `max_request_body_size` at the HTTP server layer |
+| **Request body size limit** | `BFE_TOKEN_MAX_BYTES` at the application layer; Bandit/Cowboy `max_request_body_size` at the HTTP server layer |
 | **Timeout and resource exhaustion** | Bandit `idle_timeout` + `request_timeout`; Ecto pool checkout timeout; GenServer call timeouts on engine internals |
 | **Directory traversal** | Not applicable — the engine does not serve static files from user-supplied paths; BPMN upload is parsed as XML, not stored as a file |
 | **WebSocket abuse** | Channel authentication via JWT on connect; topic-level authorization (lane filtering); idle connection timeout |
-| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: TDE_GRAPHQL_MAX_COMPLEXITY` (default **10000**, sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot which AshGraphql scores at 6500) applied at request time by `EvilEngineWeb.Graphql.PipelineModifier`; `EvilEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `TDE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `EvilEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `TDE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). Depth and complexity are read from `Application.get_env/3` at request time — no recompile required. |
+| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: BFE_GRAPHQL_MAX_COMPLEXITY` (default **10000**, sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot which AshGraphql scores at 6500) applied at request time by `BfwEngineWeb.Graphql.PipelineModifier`; `BfwEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `BFE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `BfwEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `BFE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). Depth and complexity are read from `Application.get_env/3` at request time — no recompile required. |
 
 ---
 
@@ -411,8 +411,8 @@ the recommended workaround.
 
 | Gap | Rationale | Workaround |
 |-----|-----------|------------|
-| ~~Pluggable authentication~~ | **Implemented** via `@behaviour EvilEngine.Plugin.AuthProvider`. Claims are materialized in `Identity.claims` at `verify_and_resolve/1`; there is no lazy per-claim resolver | Register a custom provider via `facade.register_auth_provider.(module)` |
+| ~~Pluggable authentication~~ | **Implemented** via `@behaviour BfwEngine.Plugin.AuthProvider`. Claims are materialized in `Identity.claims` at `verify_and_resolve/1`; there is no lazy per-claim resolver | Register a custom provider via `facade.register_auth_provider.(module)` |
 | **Per-plugin claim sets / per-action allow-deny** | Plugins are inside the trust boundary by design | Include/exclude lists control which plugins load. Callers that need JWT claim checks use the public API |
 | **Push-gateway / remote-write for Prometheus** | Engine exposes pull-only `/metrics` | Run Prometheus scrape against the engine or federate via your own agent |
 | **Cross-cluster message routing** | Single-node deployment expected in v1 | Messages reach only same-node subscriptions |
-| **Content-addressed blob store** | Complexity vs. payoff at v1 scale | `TDE_TOKEN_MAX_BYTES` caps individual payloads; LZ4 compression reduces storage |
+| **Content-addressed blob store** | Complexity vs. payoff at v1 scale | `BFE_TOKEN_MAX_BYTES` caps individual payloads; LZ4 compression reduces storage |

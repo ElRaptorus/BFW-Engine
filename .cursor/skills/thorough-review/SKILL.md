@@ -1,7 +1,7 @@
 ---
 name: thorough-review
 description: >-
-  Comprehensive review checklist for ThomasTheDaemonEngine. Covers build
+  Comprehensive review checklist for Bifrost Forge World Engine. Covers build
   verification, static analysis, tests, architecture docs freshness, code
   quality spot checks, and documentation integrity. Use when the user asks
   for a "thorough review", "final review", "full review", "verify everything",
@@ -15,7 +15,7 @@ When the user requests a thorough review, execute every section below **in order
 ## 0. Ensure Test Database (MANDATORY prerequisite)
 
 **Before anything else**, follow the `ensure-test-db` skill to verify that the
-PostgreSQL Docker container (`evil-engine-postgres-test`) is running and
+PostgreSQL Docker container (`bfw-engine-postgres-test`) is running and
 accepting connections. The quality gate includes integration tests and coverage
 collection — both require a live database.
 
@@ -48,8 +48,8 @@ After the quality gate passes, verify coverage in the output:
 - [ ] `docs/architecture/common-pitfalls.md` updated **only** if a competent person could hit the constraint again (not CI/test incident reports)
 - [ ] No architecture doc describes code that no longer exists
 - [ ] Do **not** append `docs/poc/ImplementationPlan.md` or `docs/poc/ImplementationPhases.md` (archival)
-- [ ] `AGENTS.md` updated **only** if `evil:*` elements, supported BPMN types, validator rules, FEEL bindings, or umbrella apps changed
-- [ ] `apps/api_web/priv/openapi/spec.yaml` matches the actual REST API surface: every route in the router has a corresponding path entry, and no stale operations reference removed endpoints. Compare `spec.yaml` paths against the routes in `apps/api_web/lib/evil_engine_web/http/router.ex`
+- [ ] `AGENTS.md` updated **only** if `bfw:*` elements, supported BPMN types, validator rules, FEEL bindings, or umbrella apps changed
+- [ ] `apps/api_web/priv/openapi/spec.yaml` matches the actual REST API surface: every route in the router has a corresponding path entry, and no stale operations reference removed endpoints. Compare `spec.yaml` paths against the routes in `apps/api_web/lib/bfw_engine_web/http/router.ex`
 
 ## 3. Code Quality Spot Check
 
@@ -121,7 +121,7 @@ All builds must succeed with zero TypeScript errors. All tests must pass (intent
 
 ### 5d. REST route coverage
 
-- [ ] Every route in `apps/api_web/lib/evil_engine_web/http/router.ex` has a corresponding method in the Client's REST sub-clients
+- [ ] Every route in `apps/api_web/lib/bfw_engine_web/http/router.ex` has a corresponding method in the Client's REST sub-clients
 - [ ] Client methods that call routes not yet implemented in the Engine are documented as future/planned (not silently present)
 - [ ] HTTP methods match (GET vs HEAD, POST vs PUT, etc.)
 

@@ -9,7 +9,7 @@ defmodule Examples.BusinessRules.DecisionAuditReporter.AuditReporterWorker do
 
   require Logger
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionAuditReporter.AuditReportBuilder
   alias Examples.BusinessRules.DecisionAuditReporter.BoundaryTester
   alias Examples.BusinessRules.DecisionAuditReporter.EventTracker

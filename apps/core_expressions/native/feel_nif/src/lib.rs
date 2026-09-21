@@ -27,7 +27,7 @@ struct CompiledExpression {
 #[rustler::resource_impl]
 impl rustler::Resource for CompiledExpression {}
 
-rustler::init!("Elixir.EvilEngine.Expressions.Nif");
+rustler::init!("Elixir.BfwEngine.Expressions.Nif");
 
 // ---------------------------------------------------------------------------
 // NIF functions

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.SignalEventsTest do
+defmodule BfwEngine.Integration.Execution.SignalEventsTest do
   @moduledoc """
   Umbrella-level integration tests for BPMN Signal Events.
 
@@ -15,7 +15,7 @@ defmodule EvilEngine.Integration.Execution.SignalEventsTest do
   - S-SIG-2: Signal throw starts a PI via Signal Start Event — the newly started PI's
     `triggerer_flow_node_instance_id` points to the throw FNI in the thrower PI.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   # ---------------------------------------------------------------------------
   # S-SIG-1: Cross-process signal catch — triggerer propagation
@@ -81,9 +81,9 @@ defmodule EvilEngine.Integration.Execution.SignalEventsTest do
       require Ash.Query
 
       started_pis =
-        EvilEngine.Persistence.Resources.ProcessInstance
+        BfwEngine.Persistence.Resources.ProcessInstance
         |> Ash.Query.filter(triggerer_flow_node_instance_id == ^throw_fni.id)
-        |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+        |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
 
       assert length(started_pis) == 1,
              "Exactly one PI should have been started by the signal start event triggered by Throw_1"

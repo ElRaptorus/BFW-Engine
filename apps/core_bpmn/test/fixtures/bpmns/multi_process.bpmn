@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_Multi"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -16,8 +16,8 @@
 
   <bpmn:process id="Process_Main" name="Main Process" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>2.0.0</evil:version>
-      <evil:correlationKey>order.customerId</evil:correlationKey>
+      <bfw:version>2.0.0</bfw:version>
+      <bfw:correlationKey>order.customerId</bfw:correlationKey>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -32,9 +32,9 @@
 
     <bpmn:userTask id="Task_1" name="Review Order">
       <bpmn:extensionElements>
-        <evil:assignees>clerk_role</evil:assignees>
-        <evil:dueDate>2026-12-31T23:59:59Z</evil:dueDate>
-        <evil:priority>5</evil:priority>
+        <bfw:assignees>clerk_role</bfw:assignees>
+        <bfw:dueDate>2026-12-31T23:59:59Z</bfw:dueDate>
+        <bfw:priority>5</bfw:priority>
       </bpmn:extensionElements>
     </bpmn:userTask>
 
@@ -51,16 +51,16 @@
     <bpmn:scriptTask id="Script_1" name="Calculate Tax" scriptFormat="feel">
       <bpmn:script>token.amount * 1.19</bpmn:script>
       <bpmn:extensionElements>
-        <evil:payloadContract>{"type":"object","required":["amount"]}</evil:payloadContract>
-        <evil:resultContract>{"type":"object"}</evil:resultContract>
-        <evil:inputMapping source="token.raw" target="amount"/>
-        <evil:outputMapping source="token.result" target="taxed"/>
+        <bfw:payloadContract>{"type":"object","required":["amount"]}</bfw:payloadContract>
+        <bfw:resultContract>{"type":"object"}</bfw:resultContract>
+        <bfw:inputMapping source="token.raw" target="amount"/>
+        <bfw:outputMapping source="token.result" target="taxed"/>
       </bpmn:extensionElements>
     </bpmn:scriptTask>
 
     <bpmn:scriptTask id="Script_2" name="Custom Validation">
       <bpmn:extensionElements>
-        <evil:scriptRef>my_validator</evil:scriptRef>
+        <bfw:scriptRef>my_validator</bfw:scriptRef>
       </bpmn:extensionElements>
     </bpmn:scriptTask>
 
@@ -76,7 +76,7 @@
 
     <bpmn:dataObject id="DO_1" name="OrderData">
       <bpmn:extensionElements>
-        <evil:valueContract>{"type":"object","required":["status"]}</evil:valueContract>
+        <bfw:valueContract>{"type":"object","required":["status"]}</bfw:valueContract>
       </bpmn:extensionElements>
     </bpmn:dataObject>
     <bpmn:dataObjectReference id="DOR_1" name="Order" dataObjectRef="DO_1"/>
@@ -84,7 +84,7 @@
 
   <bpmn:process id="Process_Helper" name="Helper" isExecutable="false">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">

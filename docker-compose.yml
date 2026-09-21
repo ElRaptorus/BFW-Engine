@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: evil-engine-postgres
+    container_name: bfw-engine-postgres
     # Production pools are 100 write + 50 read; stock Postgres allows 100.
     command: postgres -c max_connections=200
     environment:
-      POSTGRES_USER: evil_engine
-      POSTGRES_PASSWORD: evil_engine
-      POSTGRES_DB: evil_engine_dev
+      POSTGRES_USER: bfw_engine
+      POSTGRES_PASSWORD: bfw_engine
+      POSTGRES_DB: bfw_engine_dev
       # Per Schema.md — LZ4 JSONB compression (D39).
       POSTGRES_INITDB_ARGS: "--data-checksums"
     ports:
       - "5432:5432"
     volumes:
-      - evil_engine_postgres_data:/var/lib/postgresql/data
+      - bfw_engine_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "evil_engine", "-d", "evil_engine_dev"]
+      test: ["CMD", "pg_isready", "-U", "bfw_engine", "-d", "bfw_engine_dev"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -24,27 +24,27 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: evil-engine
+    container_name: bfw-engine
     environment:
-      TDE_DATABASE_HOST: postgres
-      TDE_DATABASE_PORT: 5432
-      TDE_DATABASE_NAME: evil_engine_dev
-      TDE_DATABASE_USER: evil_engine
-      TDE_DATABASE_PASS: evil_engine
-      TDE_HTTP_PORT: "4000"
-      TDE_HTTP_SECRET_KEY_BASE: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-      TDE_ENGINE_ID: "evil-engine-local"
-      TDE_ENGINE_NAME: "Daemon Engine (production)"
+      BFE_DATABASE_HOST: postgres
+      BFE_DATABASE_PORT: 5432
+      BFE_DATABASE_NAME: bfw_engine_dev
+      BFE_DATABASE_USER: bfw_engine
+      BFE_DATABASE_PASS: bfw_engine
+      BFE_HTTP_PORT: "4000"
+      BFE_HTTP_SECRET_KEY_BASE: "AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!"
+      BFE_ENGINE_ID: "bfw-engine-local"
+      BFE_ENGINE_NAME: "BFW-Engine (local)"
       # Payload cap + compression defaults.
-      TDE_TOKEN_MAX_BYTES: "65536"
-      TDE_JSONB_COMPRESSION: "lz4"
-      # Auth — HS256 dev secret. Mint tokens with: mix evil.mint_token
-      TDE_JWT_HS256_SECRET: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
-      TDE_EVENT_SINK_CONSOLE: "on"
-      TDE_EVENT_SINK_TELEMETRY: "on"
-      TDE_EVENT_SINK_WEBSOCKET: "on"
+      BFE_TOKEN_MAX_BYTES: "65536"
+      BFE_JSONB_COMPRESSION: "lz4"
+      # Auth — HS256 dev secret. Mint tokens with: mix bfw.mint_token
+      BFE_JWT_HS256_SECRET: "AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!"
+      BFE_EVENT_SINK_CONSOLE: "on"
+      BFE_EVENT_SINK_TELEMETRY: "on"
+      BFE_EVENT_SINK_WEBSOCKET: "on"
       # Optional seeding directory. Mount a host folder to use it.
-      # TDE_SEEDING_DIRECTORY: "/app/seeding"
+      # BFE_SEEDING_DIRECTORY: "/app/seeding"
     ports:
       - "4000:4000"
     depends_on:
@@ -59,4 +59,4 @@ services:
       start_period: 30s
 
 volumes:
-  evil_engine_postgres_data:
+  bfw_engine_postgres_data:

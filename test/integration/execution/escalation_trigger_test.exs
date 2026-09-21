@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.EscalationTriggerTest do
+defmodule BfwEngine.Integration.Execution.EscalationTriggerTest do
   @moduledoc """
   Full-stack tests for `POST /escalations/{code}/trigger`.
 
@@ -7,10 +7,10 @@ defmodule EvilEngine.Integration.Execution.EscalationTriggerTest do
   file covers waiter delivery semantics.
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   test "unknown code with no waiters returns empty deliveries" do
     {200, body} = http_trigger_escalation("NO_SUCH_CODE")

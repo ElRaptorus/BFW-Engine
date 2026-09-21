@@ -1,6 +1,6 @@
-defmodule EvilEngine.Integration.Execution.LinkEventsTest do
+defmodule BfwEngine.Integration.Execution.LinkEventsTest do
   @moduledoc "Integration tests for Link Intermediate Throw/Catch events."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   describe "Link events — happy path" do
     test "basic link pair: Start → Task → LinkThrow(A) … LinkCatch(A) → Task → End", %{collector: _collector} do

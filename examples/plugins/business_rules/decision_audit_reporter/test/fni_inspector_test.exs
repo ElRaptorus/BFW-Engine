@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionAuditReporter.FniInspectorTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionAuditReporter.FniInspector
 
   defp facade_with_get(get_fun) do

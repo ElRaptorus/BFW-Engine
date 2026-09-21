@@ -7,7 +7,7 @@ defmodule Examples.EventSinks.WebhookForwarder.WebhookSink do
   in the sink worker process dictionary when `init/1` runs (one registration per worker).
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @filter_types_key :examples_webhook_forwarder_sink_filter_types
 

@@ -2,6 +2,6 @@
   verbose: false,
   private: false,
   skip: ["Config.HTTPS"],
-  router: "apps/api_http/lib/evil_engine_web/http/router.ex",
+  router: "apps/api_web/lib/bfw_engine_web/http/router.ex",
   threshold: "medium"
 ]

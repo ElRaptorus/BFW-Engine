@@ -1,6 +1,6 @@
 # error-handling
 
-Runs a sequence of failing calls against a live engine to show typed errors from `@elraptorus/daemonengine_sdk`. The BPMN process ID is `example-error-handling-process` (deployed at startup, undeployed at the end).
+Runs a sequence of failing calls against a live engine to show typed errors from `@elraptorus/bfw_engine_sdk`. The BPMN process ID is `example-error-handling-process` (deployed at startup, undeployed at the end).
 
 Covered types:
 
@@ -8,9 +8,9 @@ Covered types:
 - `NotFoundError` — `get` on an unknown model id.
 - `UnauthorizedError` — second client with a broken JWT calling `engine.stats()`.
 - `PayloadTooLargeError` — start with an oversized payload (tunable if your engine cap differs).
-- `ValidationError` — shape is shown via `mapResponseError` from `@elraptorus/daemonengine_client` for an unmapped `422` body (real engines usually return more specific subclasses such as `DeployValidationFailedError`).
+- `ValidationError` — shape is shown via `mapResponseError` from `@elraptorus/bfw_engine_client` for an unmapped `422` body (real engines usually return more specific subclasses such as `DeployValidationFailedError`).
 - `VersionExistsError` — deploy the same BPMN version twice.
-- `DaemonEngineError` — duplicate BPMN strings in one `deploy` batch (`batch_conflict` / HTTP 409), which the mapper surfaces as the base class.
+- `BfwEngineError` — duplicate BPMN strings in one `deploy` batch (`batch_conflict` / HTTP 409), which the mapper surfaces as the base class.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Covered types:
 ## Run
 
 ```bash
-pnpm --filter @daemonengine/example-error-handling start
+pnpm --filter @bfw-engine/example-error-handling start
 ```
 
 ## Test

@@ -4,7 +4,7 @@ defmodule Examples.EventSinks.Sse.SsePlug do
   """
 
   @behaviour Plug
-  @behaviour EvilEngine.Plugin.RestApiExtension
+  @behaviour BfwEngine.Plugin.RestApiExtension
 
   import Plug.Conn
 

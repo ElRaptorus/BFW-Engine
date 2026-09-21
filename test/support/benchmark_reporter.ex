@@ -1,8 +1,8 @@
-defmodule EvilEngine.Test.BenchmarkReporter do
+defmodule BfwEngine.Test.BenchmarkReporter do
   @moduledoc false
   use Agent
 
-  alias EvilEngine.Types.Wire
+  alias BfwEngine.Types.Wire
 
   @regression_drop_factor 0.8
   @regression_rise_factor 1.2

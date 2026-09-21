@@ -4,15 +4,15 @@ Connects the Phoenix notification client, subscribes to `engine:events`, starts 
 
 ## Prerequisites
 
-- Engine WebSocket URL derived from `ENGINE_URL` (or override via `DaemonEngineClient` options in your own code).
+- Engine WebSocket URL derived from `ENGINE_URL` (or override via `BfwEngineClient` options in your own code).
 - JWT accepted by both HTTP and socket.
 
-If HTTP and WebSocket use different ports in your environment, construct `DaemonEngineClient` with `{ wsUrl: ... }` (see client README).
+If HTTP and WebSocket use different ports in your environment, construct `BfwEngineClient` with `{ wsUrl: ... }` (see client README).
 
 ## Run
 
 ```bash
-pnpm --filter @daemonengine/example-realtime-monitoring start
+pnpm --filter @bfw-engine/example-realtime-monitoring start
 ```
 
 ## Expected output

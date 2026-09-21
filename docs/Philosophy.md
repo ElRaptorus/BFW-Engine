@@ -13,7 +13,7 @@ becomes coupled to one consumer's expectations.
 
 ## Frontend-Agnostic
 
-ThomasTheDaemonEngine is built frontend-agnostic by design. Other applications, like a BPMN modeller, are first-class consumers, but not privileged ones. The REST surface, the GraphQL schema, the WebSocket event stream, and the plugin contract are all designed
+Bifrost Forge World Engine is built frontend-agnostic by design. Other applications, like a BPMN modeller, are first-class consumers, but not privileged ones. The REST surface, the GraphQL schema, the WebSocket event stream, and the plugin contract are all designed
 so that a team could build an entirely different frontend — or no frontend
 at all — and lose nothing.
 
@@ -64,10 +64,6 @@ By keeping the hot path in-process and in-memory, the engine can focus its
 complexity budget on the things that actually matter: correct BPMN semantics,
 crash isolation, and observable state transitions.
 
-When the single-node ceiling is eventually reached, clustering is a separate
-phase (Phase 6) with its own design — not a premature architectural tax
-imposed on every request from day one.
-
 ## Encounter-Time Validation, Not Pre-Flight Linting
 
 The engine does not reject a BPMN model because it contains an anti-pattern.
@@ -89,8 +85,8 @@ everything the linter dislikes" and "silently do something undefined".
 BPMN models are data. Tokens are data. Event payloads are data. Plugin
 capabilities are data.
 
-The engine represents these as plain structs — `%EvilEngine.BPMN.Model.Process{}`,
-`%EvilEngine.Execution.Token{}`, `%EvilEngine.Types.Event.FlowNodeInstanceStarted{}`. They
+The engine represents these as plain structs — `%BfwEngine.BPMN.Model.Process{}`,
+`%BfwEngine.Execution.Token{}`, `%BfwEngine.Types.Event.FlowNodeInstanceStarted{}`. They
 have no methods, no inheritance hierarchies, no mutable state. They are
 validated at the boundary (parsing, API ingestion, plugin registration) and
 trusted thereafter.

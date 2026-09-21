@@ -29,7 +29,7 @@ defmodule CoreExecution.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {EvilEngine.Execution.Application, []}
+      mod: {BfwEngine.Execution.Application, []}
     ]
   end
 

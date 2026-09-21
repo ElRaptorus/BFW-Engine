@@ -1,13 +1,13 @@
-# @elraptorus/daemonengine_client
+# @elraptorus/bfw_engine_client
 
-TypeScript client for ThomasTheDaemonEngine -- REST, GraphQL, and WebSocket access to the BPMN 2.0 workflow engine.
+TypeScript client for Bifrost Forge World Engine -- REST, GraphQL, and WebSocket access to the BPMN 2.0 workflow engine.
 
 ## Installation
 
 ```bash
-pnpm add @elraptorus/daemonengine_client @elraptorus/daemonengine_sdk
+pnpm add @elraptorus/bfw_engine_client @elraptorus/bfw_engine_sdk
 # or
-npm install @elraptorus/daemonengine_client @elraptorus/daemonengine_sdk
+npm install @elraptorus/bfw_engine_client @elraptorus/bfw_engine_sdk
 ```
 
 The SDK is a peer dependency that provides all type definitions and error classes.
@@ -15,9 +15,9 @@ The SDK is a peer dependency that provides all type definitions and error classe
 ## Quick Start
 
 ```typescript
-import { DaemonEngineClient } from '@elraptorus/daemonengine_client';
+import { BfwEngineClient } from '@elraptorus/bfw_engine_client';
 
-const client = new DaemonEngineClient('http://localhost:4100', 'your-jwt-token');
+const client = new BfwEngineClient('http://localhost:4100', 'your-jwt-token');
 
 // Deploy a BPMN process
 const bpmnXml = '...';
@@ -44,10 +44,10 @@ The client accepts a JWT factory -- either a static token string or an async fun
 
 ```typescript
 // Static token
-const client = new DaemonEngineClient(url, 'eyJhbGciOiJIUzI1NiI...');
+const client = new BfwEngineClient(url, 'eyJhbGciOiJIUzI1NiI...');
 
 // Async factory for token refresh
-const client = new DaemonEngineClient(url, async () => {
+const client = new BfwEngineClient(url, async () => {
   const response = await fetch('/auth/token');
   const { token } = await response.json();
   return token;
@@ -141,7 +141,7 @@ const { completed } = await client.adHocSubprocesses.complete(childProcessInstan
 const status = await client.adHocSubprocesses.getStatus(childProcessInstanceId);
 ```
 
-Engine-managed Ad-hoc Sub-Processes (no `implementation` attribute) do not require any of these calls — the engine drives activation and completion itself based on `ordering`, `completionCondition`, and `evil:ActiveElements`. Real-time notifications for both modes (`AdHocActivityActivated`, `AdHocSubProcessCompleted`) arrive over `client.notifications`, not this REST sub-client — see [WebSocket Event Subscriptions](#websocket-event-subscriptions).
+Engine-managed Ad-hoc Sub-Processes (no `implementation` attribute) do not require any of these calls — the engine drives activation and completion itself based on `ordering`, `completionCondition`, and `bfw:ActiveElements`. Real-time notifications for both modes (`AdHocActivityActivated`, `AdHocSubProcessCompleted`) arrive over `client.notifications`, not this REST sub-client — see [WebSocket Event Subscriptions](#websocket-event-subscriptions).
 
 ## GraphQL Typed Queries
 
@@ -216,11 +216,11 @@ client.dispose();
 
 ## Error Handling
 
-All errors thrown by the client are instances of `DaemonEngineError` (from `@elraptorus/daemonengine_sdk`). Use `instanceof` to narrow to specific error types:
+All errors thrown by the client are instances of `BfwEngineError` (from `@elraptorus/bfw_engine_sdk`). Use `instanceof` to narrow to specific error types:
 
 ```typescript
 import {
-  DaemonEngineError,
+  BfwEngineError,
   ProcessDisabledError,
   ForbiddenError,
   NotFoundError,
@@ -228,7 +228,7 @@ import {
   DecisionDefinitionNotFoundError,
   DmnEvaluationError,
   DmnParseError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 try {
   await client.processes.start('my-process');
@@ -241,7 +241,7 @@ try {
     console.log('Process is disabled');
   } else if (error instanceof NotFoundError) {
     console.log('Resource not found');
-  } else if (error instanceof DaemonEngineError) {
+  } else if (error instanceof BfwEngineError) {
     console.log('Engine error:', error.statusCode, error.errorCode, error.message);
     console.log('Raw body:', error.rawBody);
   }

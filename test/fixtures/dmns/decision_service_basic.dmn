@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="Definitions_ds_basic"
              name="Decision Service Basic"
-             namespace="https://evilengine.dev/test/decision-service-basic"
+             namespace="https://bifrostforge.world/test/decision-service-basic"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">

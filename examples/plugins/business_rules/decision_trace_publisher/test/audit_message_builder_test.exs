@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionTracePublisher.AuditMessageBuilderTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionTracePublisher.AuditMessageBuilder
 
   defp dmn_brt_finished_event(overrides \\ %{}) do

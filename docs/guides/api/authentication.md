@@ -6,27 +6,27 @@ The engine uses JWT (JSON Web Token) bearer authentication. All authenticated en
 
 | Algorithm | Config | Use Case |
 |-----------|--------|----------|
-| HS256 | `TDE_JWT_HS256_SECRET` | Symmetric, shared secret (min 32 bytes) |
-| RS256 / ES256 | `TDE_JWT_JWKS_URL` | Asymmetric, JWKS endpoint |
+| HS256 | `BFE_JWT_HS256_SECRET` | Symmetric, shared secret (min 32 bytes) |
+| RS256 / ES256 | `BFE_JWT_JWKS_URL` | Asymmetric, JWKS endpoint |
 
 Both can coexist — the engine tries JWKS first, then falls back to HS256.
 
-At least one key source must be configured unless `TDE_AUTH_DISABLED=true`. The engine refuses to start otherwise.
+At least one key source must be configured unless `BFE_AUTH_DISABLED=true`. The engine refuses to start otherwise.
 
 ## Configuration
 
 | Env Var | Purpose | Default |
 |---------|---------|---------|
-| `TDE_JWT_HS256_SECRET` | Shared secret for HS256 (min 32 bytes) | -- |
-| `TDE_JWT_JWKS_URL` | JWKS endpoint for RS256/ES256 | -- |
-| `TDE_JWKS_REFRESH_SECONDS` | JWKS key refresh interval | `3600` |
-| `TDE_JWT_AUDIENCE` | Expected `aud` claim (optional) | -- |
-| `TDE_JWT_ISSUER` | Expected `iss` claim (optional) | -- |
-| `TDE_AUTH_DISABLED` | Disable JWT verification entirely | `false` |
+| `BFE_JWT_HS256_SECRET` | Shared secret for HS256 (min 32 bytes) | -- |
+| `BFE_JWT_JWKS_URL` | JWKS endpoint for RS256/ES256 | -- |
+| `BFE_JWKS_REFRESH_SECONDS` | JWKS key refresh interval | `3600` |
+| `BFE_JWT_AUDIENCE` | Expected `aud` claim (optional) | -- |
+| `BFE_JWT_ISSUER` | Expected `iss` claim (optional) | -- |
+| `BFE_AUTH_DISABLED` | Disable JWT verification entirely | `false` |
 
 ## Auth Disabled Mode
 
-Setting `TDE_AUTH_DISABLED=true` disables JWT verification. All requests receive a synthetic anonymous identity with least-privilege defaults. The engine logs a warning every 60 seconds while this mode is active.
+Setting `BFE_AUTH_DISABLED=true` disables JWT verification. All requests receive a synthetic anonymous identity with least-privilege defaults. The engine logs a warning every 60 seconds while this mode is active.
 
 **Not suitable for production.**
 
@@ -37,12 +37,12 @@ Two tools are provided for local development:
 ### Mix Task
 
 ```bash
-mix evil.mint_token
-mix evil.mint_token --sub operator-1 --roles admin,viewer --exp 3600
-mix evil.mint_token --claim tenant_id=acme --claim env=staging
+mix bfw.mint_token
+mix bfw.mint_token --sub operator-1 --roles admin,viewer --exp 3600
+mix bfw.mint_token --claim tenant_id=acme --claim env=staging
 
 # Use with curl
-curl -H "Authorization: Bearer $(mix evil.mint_token)" http://localhost:4000/stats
+curl -H "Authorization: Bearer $(mix bfw.mint_token)" http://localhost:4000/stats
 ```
 
 ### Shell Script (no Elixir needed)
@@ -62,8 +62,8 @@ Standard claims:
 |-------|---------|
 | `sub` | Subject identifier (user ID). Falls back to `client_id` or `"unknown"` if absent. |
 | `exp` | Expiration time |
-| `aud` | Audience (validated if `TDE_JWT_AUDIENCE` is set) |
-| `iss` | Issuer (validated if `TDE_JWT_ISSUER` is set) |
+| `aud` | Audience (validated if `BFE_JWT_AUDIENCE` is set) |
+| `iss` | Issuer (validated if `BFE_JWT_ISSUER` is set) |
 
 Engine-specific claims:
 
@@ -104,16 +104,16 @@ The engine's authentication mechanism is pluggable. By default, the built-in JWT
 
 ### How It Works
 
-A plugin implements `EvilEngine.Plugin.AuthProvider` and registers via `facade.register_auth_provider.(module)` during `on_load/1`. The custom provider receives the raw bearer token and returns an `Identity` struct or an error:
+A plugin implements `BfwEngine.Plugin.AuthProvider` and registers via `facade.register_auth_provider.(module)` during `on_load/1`. The custom provider receives the raw bearer token and returns an `Identity` struct or an error:
 
 ```elixir
-@behaviour EvilEngine.Plugin.AuthProvider
+@behaviour BfwEngine.Plugin.AuthProvider
 
 @impl true
 def verify_and_resolve(token) do
   case MyCompanyGraph.validate(token) do
     {:ok, user} ->
-      {:ok, %EvilEngine.Types.Identity{
+      {:ok, %BfwEngine.Types.Identity{
         id: user.id,
         roles: user.roles,
         groups: user.groups,
@@ -129,9 +129,9 @@ end
 
 | Env Var | Values | Default | Description |
 |---------|--------|---------|-------------|
-| `TDE_AUTH_PROVIDER` | `builtin`, `plugin` | `builtin` | `builtin` uses the JWT verifier. `plugin` requires a plugin to register a provider; the engine refuses to start if none does. |
+| `BFE_AUTH_PROVIDER` | `builtin`, `plugin` | `builtin` | `builtin` uses the JWT verifier. `plugin` requires a plugin to register a provider; the engine refuses to start if none does. |
 
-Only one auth provider can be active at a time. If multiple plugins register providers, **first-writer wins** — a later registration is rejected (`{:error, :conflict, incumbent_plugin_name}`) and the offending plugin is quarantined. When no plugin registers a provider and `TDE_AUTH_PROVIDER=builtin`, the built-in JWT provider is used.
+Only one auth provider can be active at a time. If multiple plugins register providers, **first-writer wins** — a later registration is rejected (`{:error, :conflict, incumbent_plugin_name}`) and the offending plugin is quarantined. When no plugin registers a provider and `BFE_AUTH_PROVIDER=builtin`, the built-in JWT provider is used.
 
 See [Plugin Development](../plugins/getting-started.md) for the full plugin lifecycle.
 

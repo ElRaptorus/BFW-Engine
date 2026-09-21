@@ -6,7 +6,7 @@ defmodule Examples.BusinessRules.DecisionTracePublisher.TracePublisherPlugin do
   payloads via a configurable delivery function.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.DecisionTracePublisher.Sink
 

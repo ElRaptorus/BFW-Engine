@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `core_dmn` umbrella app implements a DMN 1.5 decision engine: SAX-based XML parsing, structural validation, FEEL expression precompilation, ETS-backed model caching, and synchronous evaluation with structured execution traces. Phase 3 covers single decision tables and literal expressions (G8); Phase 4 adds DRD chaining via `DependencyResolver` and multi-decision evaluation in `Evaluator`; Phase 6 adds all CL3 boxed expression types (G9–G16), Decision Services (G17–G18), and FEEL verification (G20–G21). DMNDI elements are silently skipped by the engine parser — diagram rendering is handled client-side by the SDK parser.
+The `core_dmn` umbrella app implements a DMN 1.5 decision engine: SAX-based XML parsing, structural validation, FEEL expression precompilation, ETS-backed model caching, and synchronous evaluation with structured execution traces. The DMN engine supports multiple decision tables per diagram, DRD chaining via `DependencyResolver`, multi-decision evaluation, full CL3 boxed expression support, Decision Services, and FEEL verification. DMNDI elements are silently skipped by the engine parser — diagram rendering is handled client-side by the SDK parser.
 
 Dependencies: `core_types`, `core_expressions` (same Core-layer boundary as other engine apps).
 
@@ -34,9 +34,9 @@ Evaluation (decision service):
 
 ### Core Layer (`core_dmn`)
 
-#### EvilEngine.DMN
+#### BfwEngine.DMN
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn.ex`
 
 Public facade re-exporting the three pipeline stages:
 
@@ -48,7 +48,7 @@ Public facade re-exporting the three pipeline stages:
 
 #### Parser
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/parser.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/parser.ex`
 
 ```elixir
 @spec parse(String.t()) :: {:ok, Definitions.t()} | {:error, term()}
@@ -56,13 +56,13 @@ Public facade re-exporting the three pipeline stages:
 
 SAX-based (Saxy) stream parser. The `SaxHandler` module uses a stack-based approach identical to the BPMN parser: `definitions → decision → decisionTable → input/output/rule → entries`. Hit policy strings (`UNIQUE`, `U`, `FIRST`, `F`, etc.) are normalized to atoms. The full raw XML is preserved on `%Definitions{raw_xml: ...}` for re-serialization.
 
-Phase 6 extends the handler with a **recursive expression body attachment pattern**: every container that holds an `expression_body()` child (Decision, ContextEntry, Binding, BoxedConditional branches, BoxedFilter/For/Every/Some sub-expressions, etc.) receives finished child expressions through `attach_completed_expression/2` → `do_attach/3`, which dispatches on the parent tag found in the handler stack. Nestable expression types (context, invocation, list, relation, conditional, filter, for, every, some) use `push_*`/`pop_*` helper pairs to support arbitrary nesting depth. DMNDI elements are silently skipped by the catch-all handler — diagram interchange is a rendering concern handled by the SDK parser client-side.
+The handler uses a **recursive expression body attachment pattern**: every container that holds an `expression_body()` child (Decision, ContextEntry, Binding, BoxedConditional branches, BoxedFilter/For/Every/Some sub-expressions, etc.) receives finished child expressions through `attach_completed_expression/2` → `do_attach/3`, which dispatches on the parent tag found in the handler stack. Nestable expression types (context, invocation, list, relation, conditional, filter, for, every, some) use `push_*`/`pop_*` helper pairs to support arbitrary nesting depth. DMNDI elements are silently skipped by the catch-all handler — diagram interchange is a rendering concern handled by the SDK parser client-side.
 
-**Decision Service parsing (G17):** `<decisionService>` is parsed as a top-level definitions child. Children `<outputDecision>`, `<encapsulatedDecision>`, `<inputDecision>`, and `<inputData>` (within a service) use `href` attributes to reference element IDs. The handler disambiguates top-level `<inputData>` (creates `%InputData{}`) from service-nested `<inputData>` (extracts href) via stack guards.
+**Decision Service parsing:** `<decisionService>` is parsed as a top-level definitions child. Children `<outputDecision>`, `<encapsulatedDecision>`, `<inputDecision>`, and `<inputData>` (within a service) use `href` attributes to reference element IDs. The handler disambiguates top-level `<inputData>` (creates `%InputData{}`) from service-nested `<inputData>` (extracts href) via stack guards.
 
 #### Validator
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/validator.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/validator.ex`
 
 ```elixir
 @spec validate(Definitions.t()) :: {:ok, Definitions.t()} | {:error, [{atom(), String.t()}]}
@@ -111,21 +111,21 @@ Collects all violations across all decisions, BKMs, and DRG references — never
 
 #### Precompiler
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/precompiler.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/precompiler.ex`
 
 ```elixir
 @spec precompile(Definitions.t(), precompile_opts()) :: {:ok, Definitions.t()} | {:error, term()}
 ```
 
-Walks all decisions and `business_knowledge_models` at deploy time and compiles FEEL expressions into `compiled_ref` / `compiled_expression_ref` fields via `EvilEngine.Expressions.compile/2`. Builds a context shape from `definitions.input_data` names, decision output variable names, BKM output variable names, and (when imports can be resolved) imported decision/BKM variable names. This allows the FEEL parser to resolve variable references at compile time. Input-entry unary tests are compiled as `__unary_input__ in (<test>)` so evaluation reuses `Expressions.evaluate/2` with `__unary_input__` bound to the cell value. Skips `"-"` and `""` input entries (wildcard matches). Accepts an optional `import_resolver` in opts; defaults to `ImportResolver.build_model_cache_resolver/0`. Falls back gracefully if imports cannot be resolved at precompile time (imported model not yet deployed).
+Walks all decisions and `business_knowledge_models` at deploy time and compiles FEEL expressions into `compiled_ref` / `compiled_expression_ref` fields via `BfwEngine.Expressions.compile/2`. Builds a context shape from `definitions.input_data` names, decision output variable names, BKM output variable names, and (when imports can be resolved) imported decision/BKM variable names. This allows the FEEL parser to resolve variable references at compile time. Input-entry unary tests are compiled as `__unary_input__ in (<test>)` so evaluation reuses `Expressions.evaluate/2` with `__unary_input__` bound to the cell value. Skips `"-"` and `""` input entries (wildcard matches). Accepts an optional `import_resolver` in opts; defaults to `ImportResolver.build_model_cache_resolver/0`. Falls back gracefully if imports cannot be resolved at precompile time (imported model not yet deployed).
 
-Phase 6 extends the precompiler with `precompile_expression_body/2` and `precompile_function_body/2` dispatchers that recursively traverse boxed expression trees. Each boxed expression type has a dedicated `precompile_boxed_*` function that walks its sub-expressions. Iterator expressions (`BoxedFor`, `BoxedEvery`, `BoxedSome`) enrich the `context_shape` with their `iterator_variable` when precompiling the return/satisfies body, enabling FEEL variable resolution within loops.
+The precompiler walks boxed expression trees with `precompile_expression_body/2` and `precompile_function_body/2` dispatchers that recursively traverse boxed expression trees. Each boxed expression type has a dedicated `precompile_boxed_*` function that walks its sub-expressions. Iterator expressions (`BoxedFor`, `BoxedEvery`, `BoxedSome`) enrich the `context_shape` with their `iterator_variable` when precompiling the return/satisfies body, enabling FEEL variable resolution within loops.
 
 **Rule indexing (P9.3):** At the end of `precompile_decision_table/2`, the precompiler calls `build_rule_index/1` which analyzes input entries across all rules. For columns where **every** entry is either a simple equality literal (e.g. `"A"`, `42`) or a wildcard (`"-"`, `""`), it builds a per-column index: `literal_value → MapSet(rule_indices)` plus a `wildcards` set for dash/empty entries. The index is stored on `%DecisionTable{rule_index: ...}` and used at runtime by `DecisionTableEvaluator.filter_by_rule_index/2` for O(1) candidate pre-filtering before FEEL evaluation of remaining non-indexed columns. Columns containing FEEL expressions (ranges, comparisons, function calls) are not indexed — the indexer is conservative, only indexing what it can guarantee as exact equality matches.
 
 #### DecisionTableEvaluator
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/evaluator/decision_table_evaluator.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/decision_table_evaluator.ex`
 
 Extracted module containing decision table evaluation logic shared by `Evaluator` and `BkmInvoker`:
 
@@ -144,14 +144,14 @@ Extracted module containing decision table evaluation logic shared by `Evaluator
 
 #### ModelCache
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/model_cache.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/model_cache.ex`
 
-GenServer + ETS cache keyed by `decision_version_id` (UUID). Same single-flight pattern as `EvilEngine.BPMN.ModelCache`.
+GenServer + ETS cache keyed by `decision_version_id` (UUID). Same single-flight pattern as `BfwEngine.BPMN.ModelCache`.
 
 | Aspect | Value |
 |--------|-------|
-| Primary ETS table | `:evil_engine_dmn_model_cache` (`:set`, `:public`, `read_concurrency: true`) |
-| Namespace index table | `:evil_engine_dmn_namespace_index` (`:set`, `:public`) |
+| Primary ETS table | `:bfw_engine_dmn_model_cache` (`:set`, `:public`, `read_concurrency: true`) |
+| Namespace index table | `:bfw_engine_dmn_namespace_index` (`:set`, `:public`) |
 | Cache key | `decision_version_id` (UUID string) |
 | Cached value | `%Definitions{}` (parsed + precompiled AST) |
 
@@ -167,15 +167,15 @@ Public API:
 | `list_cached_ids/0` | Returns all cached keys |
 | `lookup_by_namespace/1` | O(1) lookup of `decision_version_id` by namespace string via the secondary index |
 
-On cache miss, `fetch/1` calls `GenServer.call({:load_and_cache, id})`. Concurrent misses for the same ID coalesce via `Task.async`. The loader is configured via `Application.get_env(:core_dmn, :model_cache_loader)` — in production this is `{EvilEngine.Persistence.ExecutionAdapter, :load_dmn_xml}`.
+On cache miss, `fetch/1` calls `GenServer.call({:load_and_cache, id})`. Concurrent misses for the same ID coalesce via `Task.async`. The loader is configured via `Application.get_env(:core_dmn, :model_cache_loader)` — in production this is `{BfwEngine.Persistence.ExecutionAdapter, :load_dmn_xml}`.
 
-**Namespace index (P9.1):** The secondary ETS table `:evil_engine_dmn_namespace_index` maps `namespace → decision_version_id` for O(1) import resolution. `put_new/2` inserts the mapping on cache store; `delete/1` removes it and backfills from remaining cached versions sharing the same namespace. `ImportResolver.build_model_cache_resolver/0` delegates to `lookup_by_namespace/1` instead of scanning all cached IDs.
+**Namespace index (P9.1):** The secondary ETS table `:bfw_engine_dmn_namespace_index` maps `namespace → decision_version_id` for O(1) import resolution. `put_new/2` inserts the mapping on cache store; `delete/1` removes it and backfills from remaining cached versions sharing the same namespace. `ImportResolver.build_model_cache_resolver/0` delegates to `lookup_by_namespace/1` instead of scanning all cached IDs.
 
 #### TypeResolver
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/type_resolver.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/type_resolver.ex`
 
-Resolves `typeRef` values against `ItemDefinition` declarations and built-in FEEL types (G6). Used by the Evaluator for input coercion (before evaluation) and output type checking (after evaluation).
+Resolves `typeRef` values against `ItemDefinition` declarations and built-in FEEL types. Used by the Evaluator for input coercion (before evaluation) and output type checking (after evaluation).
 
 | Function | Purpose |
 |----------|---------|
@@ -197,9 +197,9 @@ Input coercion pipeline (runs in `Evaluator.evaluate/4` before decision resoluti
 
 #### ImportResolver
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/import_resolver.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/import_resolver.ex`
 
-Resolves DMN `<import>` cross-model references (G7). Lookup is injected via a resolver function `(namespace -> {:ok, Definitions.t()} | {:error, term()})`, matching the `CalledElementResolver` pattern in `core_execution`.
+Resolves DMN `<import>` cross-model references. Lookup is injected via a resolver function `(namespace -> {:ok, Definitions.t()} | {:error, term()})`, matching the `CalledElementResolver` pattern in `core_execution`.
 
 | Function | Purpose |
 |----------|---------|
@@ -213,7 +213,7 @@ Resolves DMN `<import>` cross-model references (G7). Lookup is injected via a re
 
 #### Evaluator
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/evaluator.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator.ex`
 
 ```elixir
 @spec evaluate(Definitions.t(), String.t() | nil, map(), evaluate_opts()) ::
@@ -222,17 +222,17 @@ Resolves DMN `<import>` cross-model references (G7). Lookup is injected via a re
 
 Decision resolution when `decision_id` is `nil`: evaluates the single decision if the model contains exactly one; returns `{:error, {:ambiguous_decision, ...}}` for 2+ decisions, `{:error, {:no_decisions, ...}}` for 0.
 
-DRD chaining (G1): before evaluation, `DependencyResolver.resolve_evaluation_order/2` topologically sorts transitive `required_decision_id` dependencies (diamond-safe, DFS post-order with visited/visiting sets). Each decision in order is evaluated with a shared context: required `InputData` names must be present (`:missing_required_input`), upstream decision outputs are keyed by `Decision.output_variable_name/1` (priority: `variable.name` > `name` > `id`). Errors: `:drg_cycle`, `:missing_required_decision`. Models with no `required_decision_id` links behave as single-decision evaluation (one `DecisionTrace`).
+Before evaluation, `DependencyResolver.resolve_evaluation_order/2` topologically sorts transitive `required_decision_id` dependencies (diamond-safe, DFS post-order with visited/visiting sets). Each decision in order is evaluated with a shared context: required `InputData` names must be present (`:missing_required_input`), upstream decision outputs are keyed by `Decision.output_variable_name/1` (priority: `variable.name` > `name` > `id`). Errors: `:drg_cycle`, `:missing_required_decision`. Models with no `required_decision_id` links behave as single-decision evaluation (one `DecisionTrace`).
 
-BKM invocation (G2): when a decision has `KnowledgeRequirement` edges, `BkmInvoker.resolve_and_invoke/4` pre-evaluates each referenced BKM before the decision's own expression. Formal parameters are bound by name from the calling context. BKM-to-BKM chains are resolved recursively with cycle detection (`:bkm_cycle`, `:bkm_not_found`). Results are stored in the decision's context under `BkmInvoker.output_variable_name/1` (priority: `variable.name` > `name` > `id`). Single-output decision table results are unwrapped to a scalar value.
+When a decision has `KnowledgeRequirement` edges, `BkmInvoker.resolve_and_invoke/4` pre-evaluates each referenced BKM before the decision's own expression. Formal parameters are bound by name from the calling context. BKM-to-BKM chains are resolved recursively with cycle detection (`:bkm_cycle`, `:bkm_not_found`). Results are stored in the decision's context under `BkmInvoker.output_variable_name/1` (priority: `variable.name` > `name` > `id`). Single-output decision table results are unwrapped to a scalar value.
 
-Decision Service evaluation (G17–G18): `Evaluator.evaluate_service/4` delegates to `DecisionServiceEvaluator.evaluate/4`. The evaluator resolves the `DecisionService` by ID, pre-evaluates input decisions (external to the service scope), then builds a scoped sub-DRG from output + encapsulated + input decisions. The `DependencyResolver` resolves dependency order over the full scoped graph, but only output and encapsulated decisions are actually evaluated (input decisions are already in the context). Returns `%ServiceEvaluationResult{outputs, trace, ...}` containing only the output decision results. REST endpoint: `POST /decisions/:model_id/services/:service_id/evaluate`.
+`Evaluator.evaluate_service/4` delegates to `DecisionServiceEvaluator.evaluate/4`. The evaluator resolves the `DecisionService` by ID, pre-evaluates input decisions (external to the service scope), then builds a scoped sub-DRG from output + encapsulated + input decisions. The `DependencyResolver` resolves dependency order over the full scoped graph, but only output and encapsulated decisions are actually evaluated (input decisions are already in the context). Returns `%ServiceEvaluationResult{outputs, trace, ...}` containing only the output decision results. REST endpoint: `POST /decisions/:model_id/services/:service_id/evaluate`.
 
-Cross-model import resolution (G7): at evaluation start, `resolve_imports_if_needed/2` resolves all `<import>` namespaces using the injected `import_resolver` (defaults to `ImportResolver.build_model_cache_resolver/0`). The `DependencyResolver` skips qualified references (`namespace#elementId`) in the local topological sort. When `bind_required_decisions` encounters a qualified `required_decision_id`, it calls `ImportResolver.resolve_imported_element/3` to find the decision in the imported model, then recursively evaluates it via `evaluate/4` on the imported `Definitions`. The result is stored in the shared context under the imported decision's output variable name. Errors: `:import_not_found` (imported model not deployed), `:element_not_found` (decision ID missing in imported model). Deploy-time import validation is intentionally omitted (same rationale as BPMN CallActivities: allow WIP deployments).
+At evaluation start, `resolve_imports_if_needed/2` resolves all `<import>` namespaces using the injected `import_resolver` (defaults to `ImportResolver.build_model_cache_resolver/0`). The `DependencyResolver` skips qualified references (`namespace#elementId`) in the local topological sort. When `bind_required_decisions` encounters a qualified `required_decision_id`, it calls `ImportResolver.resolve_imported_element/3` to find the decision in the imported model, then recursively evaluates it via `evaluate/4` on the imported `Definitions`. The result is stored in the shared context under the imported decision's output variable name. Errors: `:import_not_found` (imported model not deployed), `:element_not_found` (decision ID missing in imported model). Deploy-time import validation is intentionally omitted (same rationale as BPMN CallActivities: allow WIP deployments).
 
 #### DependencyResolver
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/evaluator/dependency_resolver.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/dependency_resolver.ex`
 
 ```elixir
 @spec resolve_evaluation_order(String.t(), Definitions.t()) ::
@@ -245,7 +245,7 @@ Filters out qualified references (`namespace#elementId`) from the local dependen
 
 #### BkmInvoker
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/evaluator/bkm_invoker.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/bkm_invoker.ex`
 
 ```elixir
 @spec resolve_and_invoke([KnowledgeRequirement.t()], Definitions.t(), map(), MapSet.t()) ::
@@ -268,9 +268,9 @@ Evaluation paths (dispatched on `decision.expression`):
 | Boxed expression | Any other `expression_body()` struct | Dispatched via `evaluate_expression_body/3` (see below) |
 | Guard: missing | `decision.expression == nil` | `{:missing_decision_logic, ...}` |
 
-#### BoxedExpressionEvaluator (Phase 6)
+#### BoxedExpressionEvaluator
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/evaluator/boxed_expression_evaluator.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/boxed_expression_evaluator.ex`
 
 `Evaluator.evaluate_expression_body/3` is the generic entry point for evaluating any expression body type. It pattern-matches on the struct and delegates to `BoxedExpressionEvaluator` for CL3 boxed types. All boxed evaluation functions return `{:ok, result, bkm_traces}` to support explicit BKM trace threading.
 
@@ -291,7 +291,7 @@ Options: `include_unmatched_details: true` includes unmatched rules in the trace
 
 #### HitPolicies
 
-**Path:** `apps/core_dmn/lib/evil_engine/dmn/evaluator/hit_policies.ex`
+**Path:** `apps/core_dmn/lib/bfw_engine/dmn/evaluator/hit_policies.ex`
 
 ```elixir
 @spec apply(atom(), atom() | nil, [{struct(), map()}], struct()) ::
@@ -326,7 +326,7 @@ COLLECT aggregations:
 
 ## Model Structs
 
-All under `apps/core_dmn/lib/evil_engine/dmn/model/`:
+All under `apps/core_dmn/lib/bfw_engine/dmn/model/`:
 
 | Struct | Key fields |
 |--------|-----------|
@@ -385,7 +385,7 @@ Every evaluation produces a structured `%EvaluationResult{}` with an embedded `%
 }
 ```
 
-Phase 7 enrichment fields (`definitions_id`, `definitions_namespace`, `decision_version_id`) are populated by `Evaluator.evaluate/4` and serialized via `EvaluationResult.to_json_map/1` for REST and FNI `type_properties`.
+`definitions_id`, `definitions_namespace`, and `decision_version_id` are populated by `Evaluator.evaluate/4` and serialized via `EvaluationResult.to_json_map/1` for REST and FNI `type_properties`.
 
 Trace nesting:
 
@@ -400,7 +400,7 @@ Trace nesting:
 | Import | `ImportTrace` | `namespace`, `decision_id`, `source_definitions_id`, `evaluation_trace`, `result`, `duration_microseconds` |
 | Coercion | `CoercionTrace` | `input_name`, `original_value`, `coerced_value`, `target_type`, `coerced` |
 
-In single-decision models, `trace.decisions` contains exactly one `DecisionTrace`. In DRD chaining (Phase 4), upstream decisions appear in dependency order.
+In single-decision models, `trace.decisions` contains exactly one `DecisionTrace`. In DRD chaining, upstream decisions appear in dependency order.
 
 All trace structs expose `to_json_map/1` for REST serialization and FNI `type_properties` storage.
 
@@ -421,7 +421,7 @@ REST serialization: `ServiceEvaluationResult.to_json_map/1` then `Wire.camelize_
 
 ---
 
-## Observability & Trace (Phase 7)
+## Observability & Trace
 
 ### Telemetry event catalog
 
@@ -429,28 +429,28 @@ Emitted via `:telemetry.span/3` and `:telemetry.execute/3` in `Evaluator` and `M
 
 | Event prefix | Lifecycle | Measurements | Metadata |
 |---|---|---|---|
-| `[:evil_engine, :dmn, :evaluate]` | `:start` | `system_time` | `decision_model_id`, `decision_version_id` |
-| `[:evil_engine, :dmn, :evaluate]` | `:stop` (success) | `duration` | `hit_policy`, `matched_rule_count`, `decision_count`, `decision_model_id`, `decision_version_id` |
-| `[:evil_engine, :dmn, :evaluate]` | `:stop` (error) | `duration` | `decision_model_id`, `decision_version_id` (no `hit_policy`/counts) |
-| `[:evil_engine, :dmn, :evaluate]` | `:exception` | `duration` | start metadata + `kind`, `reason`, `stacktrace` |
-| `[:evil_engine, :dmn, :cache, :hit]` | `:execute` | `count: 1` | `decision_version_id` |
-| `[:evil_engine, :dmn, :cache, :miss]` | `:execute` | `count: 1` | `decision_version_id` |
+| `[:bfw_engine, :dmn, :evaluate]` | `:start` | `system_time` | `decision_model_id`, `decision_version_id` |
+| `[:bfw_engine, :dmn, :evaluate]` | `:stop` (success) | `duration` | `hit_policy`, `matched_rule_count`, `decision_count`, `decision_model_id`, `decision_version_id` |
+| `[:bfw_engine, :dmn, :evaluate]` | `:stop` (error) | `duration` | `decision_model_id`, `decision_version_id` (no `hit_policy`/counts) |
+| `[:bfw_engine, :dmn, :evaluate]` | `:exception` | `duration` | start metadata + `kind`, `reason`, `stacktrace` |
+| `[:bfw_engine, :dmn, :cache, :hit]` | `:execute` | `count: 1` | `decision_version_id` |
+| `[:bfw_engine, :dmn, :cache, :miss]` | `:execute` | `count: 1` | `decision_version_id` |
 
-`evaluate_service/4` shares the `[:evil_engine, :dmn, :evaluate]` span with additional metadata: `service_id` (on `:start`/`:stop`), `output_decision_count` (on success `:stop`), and `decision_model_id: nil`.
+`evaluate_service/4` shares the `[:bfw_engine, :dmn, :evaluate]` span with additional metadata: `service_id` (on `:start`/`:stop`), `output_decision_count` (on success `:stop`), and `decision_model_id: nil`.
 
 Note: tagged error returns (`{:error, atom(), map()}`) emit `:stop` (not `:exception`). `:exception` is only emitted when the callback raises (standard `:telemetry.span/3` behavior).
 
 #### Prometheus metrics
 
-Attached in `EvilEngine.Telemetry.Metrics` (`apps/peripheral_telemetry/lib/evil_engine/telemetry/metrics.ex`):
+Attached in `BfwEngine.Telemetry.Metrics` (`apps/peripheral_telemetry/lib/bfw_engine/telemetry/metrics.ex`):
 
 | Prometheus name (dots → underscores on wire) | Type | Tags | Source event |
 |---|---|---|---|
-| `evil_engine.dmn.evaluations.total` | counter | `hit_policy` | `[:evil_engine, :dmn, :evaluate, :stop]` |
-| `evil_engine.dmn.evaluate.duration.milliseconds` | distribution | — | `[:evil_engine, :dmn, :evaluate, :stop]` |
-| `evil_engine.dmn.evaluations.exceptions.total` | counter | — | `[:evil_engine, :dmn, :evaluate, :exception]` |
-| `evil_engine.dmn.cache.hit.total` | counter | — | `[:evil_engine, :dmn, :cache, :hit]` |
-| `evil_engine.dmn.cache.miss.total` | counter | — | `[:evil_engine, :dmn, :cache, :miss]` |
+| `bfw_engine.dmn.evaluations.total` | counter | `hit_policy` | `[:bfw_engine, :dmn, :evaluate, :stop]` |
+| `bfw_engine.dmn.evaluate.duration.milliseconds` | distribution | — | `[:bfw_engine, :dmn, :evaluate, :stop]` |
+| `bfw_engine.dmn.evaluations.exceptions.total` | counter | — | `[:bfw_engine, :dmn, :evaluate, :exception]` |
+| `bfw_engine.dmn.cache.hit.total` | counter | — | `[:bfw_engine, :dmn, :cache, :hit]` |
+| `bfw_engine.dmn.cache.miss.total` | counter | — | `[:bfw_engine, :dmn, :cache, :miss]` |
 
 ### BkmTrace
 
@@ -570,9 +570,9 @@ The `zeeky_boogie_doog` admin override claim bypasses all DMN authorization chec
 
 ## Plugin Facade
 
-Plugins access DMN operations through `facade.decisions`, a namespace on the `EngineFacade` struct wired by the `Loader` to `EvilEngine.Api.*` functions with the plugin's synthetic identity pre-injected.
+Plugins access DMN operations through `facade.decisions`, a namespace on the `EngineFacade` struct wired by the `Loader` to `BfwEngine.Api.*` functions with the plugin's synthetic identity pre-injected.
 
-**Path:** `apps/engine_sdk/lib/evil_engine/engine_facade/decisions.ex`
+**Path:** `apps/engine_sdk/lib/bfw_engine/engine_facade/decisions.ex`
 
 | Closure | Arity | Delegates to |
 |---------|-------|-------------|
@@ -595,7 +595,7 @@ All closures that accept a `model_id` resolve through `with_decision/2`, returni
 
 ---
 
-## BRT Integration (Phase 5)
+## BRT Integration
 
 The Business Rule Task handler (`FlowNodes.BusinessRuleTask`) in DMN mode
 wires the execution runtime to the DMN evaluator. The dispatch chain:
@@ -648,7 +648,7 @@ Note: `type_properties` is an opaque field — inner keys are stored and returne
 When a DMN model contains multiple `<decision>` elements, the evaluator
 cannot auto-resolve which decision to evaluate and returns
 `{:error, {:ambiguous_decision, ...}}`. The BRT handler reads
-`evil:decisionElementId` from the BPMN extension elements and passes it
+`bfw:decisionElementId` from the BPMN extension elements and passes it
 as the `decision_id` argument to `DMN.Evaluator.evaluate/4`. When the
 extension is omitted, `nil` is passed and single-decision models
 auto-resolve as before.
@@ -704,63 +704,63 @@ See `examples/plugins/business_rules/` in the repository root for all Elixir exa
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.DMN` | `apps/core_dmn/lib/evil_engine/dmn.ex` |
-| EvilEngine.DMN.Application (@moduledoc false) | `apps/core_dmn/lib/evil_engine/dmn/application.ex` |
-| `EvilEngine.DMN.Parser` | `apps/core_dmn/lib/evil_engine/dmn/parser.ex` |
-| `EvilEngine.DMN.Parser.SaxHandler` | `apps/core_dmn/lib/evil_engine/dmn/parser/sax_handler.ex` |
-| `EvilEngine.DMN.Parser.SaxHandler.BoxedExpressions` | `apps/core_dmn/lib/evil_engine/dmn/parser/sax_handler/boxed_expressions.ex` |
-| `EvilEngine.DMN.Validator` | `apps/core_dmn/lib/evil_engine/dmn/validator.ex` |
-| `EvilEngine.DMN.Precompiler` | `apps/core_dmn/lib/evil_engine/dmn/precompiler.ex` |
-| `EvilEngine.DMN.ModelCache` | `apps/core_dmn/lib/evil_engine/dmn/model_cache.ex` |
-| `EvilEngine.DMN.TypeResolver` | `apps/core_dmn/lib/evil_engine/dmn/type_resolver.ex` |
-| `EvilEngine.DMN.ImportResolver` | `apps/core_dmn/lib/evil_engine/dmn/import_resolver.ex` |
-| `EvilEngine.DMN.QualifiedReference` | `apps/core_dmn/lib/evil_engine/dmn/qualified_reference.ex` |
-| `EvilEngine.DMN.Evaluator` | `apps/core_dmn/lib/evil_engine/dmn/evaluator.ex` |
-| `EvilEngine.DMN.Evaluator.DecisionTableEvaluator` | `apps/core_dmn/lib/evil_engine/dmn/evaluator/decision_table_evaluator.ex` |
-| `EvilEngine.DMN.Evaluator.BoxedExpressionEvaluator` | `apps/core_dmn/lib/evil_engine/dmn/evaluator/boxed_expression_evaluator.ex` |
-| `EvilEngine.DMN.Evaluator.BkmInvoker` | `apps/core_dmn/lib/evil_engine/dmn/evaluator/bkm_invoker.ex` |
-| `EvilEngine.DMN.Evaluator.DependencyResolver` | `apps/core_dmn/lib/evil_engine/dmn/evaluator/dependency_resolver.ex` |
-| `EvilEngine.DMN.Evaluator.HitPolicies` | `apps/core_dmn/lib/evil_engine/dmn/evaluator/hit_policies.ex` |
-| `EvilEngine.DMN.EvaluationResult` | `apps/core_dmn/lib/evil_engine/dmn/evaluation_result.ex` |
-| `EvilEngine.DMN.EvaluationTrace` | `apps/core_dmn/lib/evil_engine/dmn/evaluation_trace.ex` |
-| `EvilEngine.DMN.EvaluationTrace.BkmTrace` | `apps/core_dmn/lib/evil_engine/dmn/evaluation_trace.ex` (nested module) |
-| `EvilEngine.DMN.EvaluationTrace.ImportTrace` | `apps/core_dmn/lib/evil_engine/dmn/evaluation_trace.ex` (nested module) |
-| `EvilEngine.DMN.EvaluationTrace.CoercionTrace` | `apps/core_dmn/lib/evil_engine/dmn/evaluation_trace.ex` (nested module) |
-| `EvilEngine.DMN.Model.Types` | `apps/core_dmn/lib/evil_engine/dmn/model/types.ex` |
-| `EvilEngine.DMN.Model.Definitions` | `apps/core_dmn/lib/evil_engine/dmn/model/definitions.ex` |
-| `EvilEngine.DMN.Model.Decision` | `apps/core_dmn/lib/evil_engine/dmn/model/decision.ex` |
-| `EvilEngine.DMN.Model.DecisionTable` | `apps/core_dmn/lib/evil_engine/dmn/model/decision_table.ex` |
-| `EvilEngine.DMN.Model.LiteralExpression` | `apps/core_dmn/lib/evil_engine/dmn/model/literal_expression.ex` |
-| `EvilEngine.DMN.Model.Input` | `apps/core_dmn/lib/evil_engine/dmn/model/input.ex` |
-| `EvilEngine.DMN.Model.InputData` | `apps/core_dmn/lib/evil_engine/dmn/model/input_data.ex` |
-| `EvilEngine.DMN.Model.InputEntry` | `apps/core_dmn/lib/evil_engine/dmn/model/input_entry.ex` |
-| `EvilEngine.DMN.Model.Output` | `apps/core_dmn/lib/evil_engine/dmn/model/output.ex` |
-| `EvilEngine.DMN.Model.OutputEntry` | `apps/core_dmn/lib/evil_engine/dmn/model/output_entry.ex` |
-| `EvilEngine.DMN.Model.Rule` | `apps/core_dmn/lib/evil_engine/dmn/model/rule.ex` |
-| `EvilEngine.DMN.Model.InformationRequirement` | `apps/core_dmn/lib/evil_engine/dmn/model/information_requirement.ex` |
-| `EvilEngine.DMN.Model.BusinessKnowledgeModel` | `apps/core_dmn/lib/evil_engine/dmn/model/business_knowledge_model.ex` |
-| `EvilEngine.DMN.Model.FunctionDefinition` | `apps/core_dmn/lib/evil_engine/dmn/model/function_definition.ex` |
-| `EvilEngine.DMN.Model.InformationItem` | `apps/core_dmn/lib/evil_engine/dmn/model/information_item.ex` |
-| `EvilEngine.DMN.Model.KnowledgeRequirement` | `apps/core_dmn/lib/evil_engine/dmn/model/knowledge_requirement.ex` |
-| `EvilEngine.DMN.Model.KnowledgeSource` | `apps/core_dmn/lib/evil_engine/dmn/model/knowledge_source.ex` |
-| `EvilEngine.DMN.Model.AuthorityRequirement` | `apps/core_dmn/lib/evil_engine/dmn/model/authority_requirement.ex` |
-| `EvilEngine.DMN.Model.ItemDefinition` | `apps/core_dmn/lib/evil_engine/dmn/model/item_definition.ex` |
-| `EvilEngine.DMN.Model.Import` | `apps/core_dmn/lib/evil_engine/dmn/model/import.ex` |
-| `EvilEngine.DMN.Model.BoxedContext` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_context.ex` |
-| `EvilEngine.DMN.Model.ContextEntry` | `apps/core_dmn/lib/evil_engine/dmn/model/context_entry.ex` |
-| `EvilEngine.DMN.Model.BoxedInvocation` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_invocation.ex` |
-| `EvilEngine.DMN.Model.Binding` | `apps/core_dmn/lib/evil_engine/dmn/model/binding.ex` |
-| `EvilEngine.DMN.Model.BoxedList` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_list.ex` |
-| `EvilEngine.DMN.Model.Relation` | `apps/core_dmn/lib/evil_engine/dmn/model/relation.ex` |
-| `EvilEngine.DMN.Model.BoxedConditional` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_conditional.ex` |
-| `EvilEngine.DMN.Model.BoxedFilter` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_filter.ex` |
-| `EvilEngine.DMN.Model.BoxedFor` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_for.ex` |
-| `EvilEngine.DMN.Model.BoxedEvery` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_every.ex` |
-| `EvilEngine.DMN.Model.BoxedSome` | `apps/core_dmn/lib/evil_engine/dmn/model/boxed_some.ex` |
-| `EvilEngine.DMN.Model.DecisionService` | `apps/core_dmn/lib/evil_engine/dmn/model/decision_service.ex` — DecisionService model struct |
-| `EvilEngine.DMN.Evaluator.DecisionServiceEvaluator` | `apps/core_dmn/lib/evil_engine/dmn/evaluator/decision_service_evaluator.ex` — Scoped sub-DRG evaluator |
-| `EvilEngine.DMN.ServiceEvaluationResult` | `apps/core_dmn/lib/evil_engine/dmn/service_evaluation_result.ex` — Service evaluation result struct |
-| `DecisionDefinition` (Ash) | `apps/peripheral_persistence/lib/evil_engine/persistence/resources/decision_definition.ex` |
-| `DecisionVersion` (Ash) | `apps/peripheral_persistence/lib/evil_engine/persistence/resources/decision_version.ex` |
-| `DecisionResolverImpl` | `apps/peripheral_persistence/lib/evil_engine/persistence/decision_resolver_impl.ex` |
-| `DecisionController` | `apps/api_web/lib/evil_engine_web/http/controllers/decision_controller.ex` |
+| `BfwEngine.DMN` | `apps/core_dmn/lib/bfw_engine/dmn.ex` |
+| BfwEngine.DMN.Application (@moduledoc false) | `apps/core_dmn/lib/bfw_engine/dmn/application.ex` |
+| `BfwEngine.DMN.Parser` | `apps/core_dmn/lib/bfw_engine/dmn/parser.ex` |
+| `BfwEngine.DMN.Parser.SaxHandler` | `apps/core_dmn/lib/bfw_engine/dmn/parser/sax_handler.ex` |
+| `BfwEngine.DMN.Parser.SaxHandler.BoxedExpressions` | `apps/core_dmn/lib/bfw_engine/dmn/parser/sax_handler/boxed_expressions.ex` |
+| `BfwEngine.DMN.Validator` | `apps/core_dmn/lib/bfw_engine/dmn/validator.ex` |
+| `BfwEngine.DMN.Precompiler` | `apps/core_dmn/lib/bfw_engine/dmn/precompiler.ex` |
+| `BfwEngine.DMN.ModelCache` | `apps/core_dmn/lib/bfw_engine/dmn/model_cache.ex` |
+| `BfwEngine.DMN.TypeResolver` | `apps/core_dmn/lib/bfw_engine/dmn/type_resolver.ex` |
+| `BfwEngine.DMN.ImportResolver` | `apps/core_dmn/lib/bfw_engine/dmn/import_resolver.ex` |
+| `BfwEngine.DMN.QualifiedReference` | `apps/core_dmn/lib/bfw_engine/dmn/qualified_reference.ex` |
+| `BfwEngine.DMN.Evaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator.ex` |
+| `BfwEngine.DMN.Evaluator.DecisionTableEvaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/decision_table_evaluator.ex` |
+| `BfwEngine.DMN.Evaluator.BoxedExpressionEvaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/boxed_expression_evaluator.ex` |
+| `BfwEngine.DMN.Evaluator.BkmInvoker` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/bkm_invoker.ex` |
+| `BfwEngine.DMN.Evaluator.DependencyResolver` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/dependency_resolver.ex` |
+| `BfwEngine.DMN.Evaluator.HitPolicies` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/hit_policies.ex` |
+| `BfwEngine.DMN.EvaluationResult` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_result.ex` |
+| `BfwEngine.DMN.EvaluationTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` |
+| `BfwEngine.DMN.EvaluationTrace.BkmTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
+| `BfwEngine.DMN.EvaluationTrace.ImportTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
+| `BfwEngine.DMN.EvaluationTrace.CoercionTrace` | `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex` (nested module) |
+| `BfwEngine.DMN.Model.Types` | `apps/core_dmn/lib/bfw_engine/dmn/model/types.ex` |
+| `BfwEngine.DMN.Model.Definitions` | `apps/core_dmn/lib/bfw_engine/dmn/model/definitions.ex` |
+| `BfwEngine.DMN.Model.Decision` | `apps/core_dmn/lib/bfw_engine/dmn/model/decision.ex` |
+| `BfwEngine.DMN.Model.DecisionTable` | `apps/core_dmn/lib/bfw_engine/dmn/model/decision_table.ex` |
+| `BfwEngine.DMN.Model.LiteralExpression` | `apps/core_dmn/lib/bfw_engine/dmn/model/literal_expression.ex` |
+| `BfwEngine.DMN.Model.Input` | `apps/core_dmn/lib/bfw_engine/dmn/model/input.ex` |
+| `BfwEngine.DMN.Model.InputData` | `apps/core_dmn/lib/bfw_engine/dmn/model/input_data.ex` |
+| `BfwEngine.DMN.Model.InputEntry` | `apps/core_dmn/lib/bfw_engine/dmn/model/input_entry.ex` |
+| `BfwEngine.DMN.Model.Output` | `apps/core_dmn/lib/bfw_engine/dmn/model/output.ex` |
+| `BfwEngine.DMN.Model.OutputEntry` | `apps/core_dmn/lib/bfw_engine/dmn/model/output_entry.ex` |
+| `BfwEngine.DMN.Model.Rule` | `apps/core_dmn/lib/bfw_engine/dmn/model/rule.ex` |
+| `BfwEngine.DMN.Model.InformationRequirement` | `apps/core_dmn/lib/bfw_engine/dmn/model/information_requirement.ex` |
+| `BfwEngine.DMN.Model.BusinessKnowledgeModel` | `apps/core_dmn/lib/bfw_engine/dmn/model/business_knowledge_model.ex` |
+| `BfwEngine.DMN.Model.FunctionDefinition` | `apps/core_dmn/lib/bfw_engine/dmn/model/function_definition.ex` |
+| `BfwEngine.DMN.Model.InformationItem` | `apps/core_dmn/lib/bfw_engine/dmn/model/information_item.ex` |
+| `BfwEngine.DMN.Model.KnowledgeRequirement` | `apps/core_dmn/lib/bfw_engine/dmn/model/knowledge_requirement.ex` |
+| `BfwEngine.DMN.Model.KnowledgeSource` | `apps/core_dmn/lib/bfw_engine/dmn/model/knowledge_source.ex` |
+| `BfwEngine.DMN.Model.AuthorityRequirement` | `apps/core_dmn/lib/bfw_engine/dmn/model/authority_requirement.ex` |
+| `BfwEngine.DMN.Model.ItemDefinition` | `apps/core_dmn/lib/bfw_engine/dmn/model/item_definition.ex` |
+| `BfwEngine.DMN.Model.Import` | `apps/core_dmn/lib/bfw_engine/dmn/model/import.ex` |
+| `BfwEngine.DMN.Model.BoxedContext` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_context.ex` |
+| `BfwEngine.DMN.Model.ContextEntry` | `apps/core_dmn/lib/bfw_engine/dmn/model/context_entry.ex` |
+| `BfwEngine.DMN.Model.BoxedInvocation` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_invocation.ex` |
+| `BfwEngine.DMN.Model.Binding` | `apps/core_dmn/lib/bfw_engine/dmn/model/binding.ex` |
+| `BfwEngine.DMN.Model.BoxedList` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_list.ex` |
+| `BfwEngine.DMN.Model.Relation` | `apps/core_dmn/lib/bfw_engine/dmn/model/relation.ex` |
+| `BfwEngine.DMN.Model.BoxedConditional` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_conditional.ex` |
+| `BfwEngine.DMN.Model.BoxedFilter` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_filter.ex` |
+| `BfwEngine.DMN.Model.BoxedFor` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_for.ex` |
+| `BfwEngine.DMN.Model.BoxedEvery` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_every.ex` |
+| `BfwEngine.DMN.Model.BoxedSome` | `apps/core_dmn/lib/bfw_engine/dmn/model/boxed_some.ex` |
+| `BfwEngine.DMN.Model.DecisionService` | `apps/core_dmn/lib/bfw_engine/dmn/model/decision_service.ex` — DecisionService model struct |
+| `BfwEngine.DMN.Evaluator.DecisionServiceEvaluator` | `apps/core_dmn/lib/bfw_engine/dmn/evaluator/decision_service_evaluator.ex` — Scoped sub-DRG evaluator |
+| `BfwEngine.DMN.ServiceEvaluationResult` | `apps/core_dmn/lib/bfw_engine/dmn/service_evaluation_result.ex` — Service evaluation result struct |
+| `DecisionDefinition` (Ash) | `apps/peripheral_persistence/lib/bfw_engine/persistence/resources/decision_definition.ex` |
+| `DecisionVersion` (Ash) | `apps/peripheral_persistence/lib/bfw_engine/persistence/resources/decision_version.ex` |
+| `DecisionResolverImpl` | `apps/peripheral_persistence/lib/bfw_engine/persistence/decision_resolver_impl.ex` |
+| `DecisionController` | `apps/api_web/lib/bfw_engine_web/http/controllers/decision_controller.ex` |

@@ -3,15 +3,15 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_EEE_Standalone">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_1" name="Error End Standalone" processRef="ErrorEndStandalone" />
   </bpmn:collaboration>
   <bpmn:process id="ErrorEndStandalone" name="Error End Standalone" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -26,8 +26,8 @@
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:errorEventDefinition>
         <bpmn:extensionElements>
-          <evil:errorCode>STANDALONE_ERROR</evil:errorCode>
-          <evil:errorMessage>Process encountered an error condition</evil:errorMessage>
+          <bfw:errorCode>STANDALONE_ERROR</bfw:errorCode>
+          <bfw:errorMessage>Process encountered an error condition</bfw:errorMessage>
         </bpmn:extensionElements>
       </bpmn:errorEventDefinition>
     </bpmn:endEvent>

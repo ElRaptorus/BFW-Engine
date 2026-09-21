@@ -56,7 +56,7 @@ The audit report map includes:
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionAuditReporter.DecisionAuditReporterPlugin` and list your app in `TDE_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionAuditReporter.DecisionAuditReporterPlugin` and list your app in `BFE_PLUGINS_INBEAM`.
 3. Deploy `dmn/employee_benefits.dmn` and `bpmn/employee_benefits_process.bpmn`.
 4. Start process instances during the collection window (default 60 s).
 5. Inspect engine logs for lines prefixed with `decision_audit_reporter:`.
@@ -91,7 +91,7 @@ mix test examples/plugins/business_rules/decision_audit_reporter/test/audit_repo
 
 ## Further reading
 
-- [`EvilEngine.Plugin`](../../../../apps/engine_sdk/lib/evil_engine/plugin.ex) — lifecycle callbacks
-- [`EvilEngine.EngineFacade`](../../../../apps/engine_sdk/lib/evil_engine/engine_facade.ex) — facade namespace surface
+- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade.ex) — facade namespace surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and traces
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring

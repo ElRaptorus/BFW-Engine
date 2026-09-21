@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.LoadHelpers do
+defmodule BfwEngine.Test.LoadHelpers do
   @moduledoc """
   Helpers for load / benchmark tests.
 
@@ -6,10 +6,10 @@ defmodule EvilEngine.Test.LoadHelpers do
   normal execution path) and timing utilities for benchmark reporting.
   """
 
-  alias EvilEngine.Persistence.Api, as: Domain
-  alias EvilEngine.Persistence.Resources.FlowNodeInstance
-  alias EvilEngine.Persistence.Resources.ProcessInstance
-  alias EvilEngine.Test.BenchmarkReporter
+  alias BfwEngine.Persistence.Api, as: Domain
+  alias BfwEngine.Persistence.Resources.FlowNodeInstance
+  alias BfwEngine.Persistence.Resources.ProcessInstance
+  alias BfwEngine.Test.BenchmarkReporter
 
   @doc """
   Seed `count` process instances with FNIs into the database.
@@ -96,7 +96,7 @@ defmodule EvilEngine.Test.LoadHelpers do
   Measure the wall-clock time of a function and log it as a benchmark.
 
   Returns `{elapsed_ms, result}`. When `opts` includes `:id`, also records a
-  workload into `EvilEngine.Test.BenchmarkReporter` (no-op if the agent is not
+  workload into `BfwEngine.Test.BenchmarkReporter` (no-op if the agent is not
   started).
 
   ## Options
@@ -133,7 +133,7 @@ defmodule EvilEngine.Test.LoadHelpers do
   """
   @spec terminate_all_process_instances() :: :ok
   def terminate_all_process_instances do
-    children = DynamicSupervisor.which_children(EvilEngine.Execution.Supervisor)
+    children = DynamicSupervisor.which_children(BfwEngine.Execution.Supervisor)
 
     pids =
       Enum.flat_map(children, fn
@@ -162,7 +162,7 @@ defmodule EvilEngine.Test.LoadHelpers do
   @doc "Count how many PI processes are registered in the Execution Registry."
   @spec count_registered_process_instances() :: non_neg_integer()
   def count_registered_process_instances do
-    Registry.count(EvilEngine.Execution.Registry)
+    Registry.count(BfwEngine.Execution.Registry)
   end
 
   @doc """
@@ -176,8 +176,8 @@ defmodule EvilEngine.Test.LoadHelpers do
   def resume_all_with_sandbox_retry do
     # Do not checkout/restore before the first attempt: a fresh sandbox
     # transaction hides rows seeded in the test's existing shared checkout (P82).
-    EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
-      EvilEngine.Execution.ResumeRunner.resume_all()
+    BfwEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+      BfwEngine.Execution.ResumeRunner.resume_all()
     end)
   end
 
@@ -193,7 +193,7 @@ defmodule EvilEngine.Test.LoadHelpers do
 
     :telemetry.attach(
       handler_id,
-      [:evil_engine, :db, :query],
+      [:bfw_engine, :db, :query],
       fn _event, measurements, _metadata, config ->
         queue_time_ms = measurements[:queue_time_ms]
 
@@ -284,7 +284,7 @@ defmodule EvilEngine.Test.LoadHelpers do
   ]
 
   @doc """
-  Collect `query_time_ms` from `[:evil_engine, :db, :query]` keyed by
+  Collect `query_time_ms` from `[:bfw_engine, :db, :query]` keyed by
   `metadata.source` (table name). Detaches on `on_exit` (P88).
   """
   @spec start_source_query_collector() :: map()
@@ -294,7 +294,7 @@ defmodule EvilEngine.Test.LoadHelpers do
 
     :telemetry.attach(
       handler_id,
-      [:evil_engine, :db, :query],
+      [:bfw_engine, :db, :query],
       fn _event, measurements, metadata, config ->
         source = metadata[:source]
         query_time_ms = measurements[:query_time_ms]
@@ -350,11 +350,11 @@ defmodule EvilEngine.Test.LoadHelpers do
   @spec set_jsonb_compression!(String.t()) :: :ok
   def set_jsonb_compression!(algorithm) when algorithm in ["lz4", "pglz"] do
     Enum.each(@jsonb_compression_columns, fn {table_name, column_name} ->
-      EvilEngine.Persistence.Repo.query!(
+      BfwEngine.Persistence.Repo.query!(
         "ALTER TABLE #{table_name} ALTER COLUMN #{column_name} SET COMPRESSION #{algorithm}"
       )
 
-      EvilEngine.Persistence.Repo.query!(
+      BfwEngine.Persistence.Repo.query!(
         "UPDATE #{table_name} SET #{column_name} = #{column_name}"
       )
     end)
@@ -367,7 +367,7 @@ defmodule EvilEngine.Test.LoadHelpers do
   def jsonb_payload_bytes do
     Enum.reduce(@jsonb_compression_columns, 0, fn {table_name, column_name}, accumulator ->
       %{rows: [[size]]} =
-        EvilEngine.Persistence.Repo.query!(
+        BfwEngine.Persistence.Repo.query!(
           "SELECT COALESCE(SUM(pg_column_size(#{column_name})), 0) FROM #{table_name}"
         )
 
@@ -407,12 +407,12 @@ defmodule EvilEngine.Test.LoadHelpers do
         binary_uuid
       end)
 
-    EvilEngine.Persistence.Repo.query!(
+    BfwEngine.Persistence.Repo.query!(
       "DELETE FROM flow_node_instances WHERE process_instance_id = ANY($1::uuid[])",
       [process_instance_ids]
     )
 
-    EvilEngine.Persistence.Repo.query!(
+    BfwEngine.Persistence.Repo.query!(
       "DELETE FROM process_instances WHERE id = ANY($1::uuid[])",
       [process_instance_ids]
     )

@@ -3,7 +3,7 @@ defmodule Examples.BusinessRules.DecisionServiceSmokeTester.HealthReporter do
   Pure helpers that turn per-service smoke test outcomes into a structured health report.
   """
 
-  alias EvilEngine.DMN.ServiceEvaluationResult
+  alias BfwEngine.DMN.ServiceEvaluationResult
 
   @type test_result :: %{
           model_id: String.t(),

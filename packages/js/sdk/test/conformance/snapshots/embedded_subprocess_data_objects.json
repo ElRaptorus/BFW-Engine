@@ -230,7 +230,12 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "Task_After", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "Task_After",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

@@ -5,13 +5,13 @@ is stubbed (`valid-ldap-{id}`). Replace `ldap_bind_and_lookup/1` with `:eldap` o
 `exldap` before using it against a real directory.
 
 Ready-to-copy starting point for building an LDAP-based `AuthProvider` for
-ThomasTheDaemonEngine.
+Bifrost Forge World Engine.
 
 ## What it does
 
 1. Receives a raw bearer token on every authenticated request.
 2. Verifies the token against an LDAP directory (stubbed in this example).
-3. Maps the LDAP user record to `%EvilEngine.Types.Identity{}`.
+3. Maps the LDAP user record to `%BfwEngine.Types.Identity{}`.
 
 ## Usage
 
@@ -25,10 +25,10 @@ ThomasTheDaemonEngine.
    config :my_company_plugin, :plugin_module, MyCompany.LdapPlugin
    ```
 
-4. Add your plugin's OTP app name to `TDE_PLUGINS_INBEAM`:
+4. Add your plugin's OTP app name to `BFE_PLUGINS_INBEAM`:
 
    ```
-   TDE_PLUGINS_INBEAM=my_company_plugin
+   BFE_PLUGINS_INBEAM=my_company_plugin
    ```
 
 ## Configuration
@@ -52,8 +52,8 @@ config :my_company_plugin, :ldap,
 
 ## Further reading
 
-- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `TDE_PLUGINS_INBEAM`
-- [`EvilEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/evil_engine/plugin/auth_provider.ex)
+- [Getting Started](../../../../docs/guides/plugins/getting-started.md) — plugin lifecycle and `BFE_PLUGINS_INBEAM`
+- [`BfwEngine.Plugin.AuthProvider`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/auth_provider.ex)
   — the behaviour your provider must implement.
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — full
   plugin system documentation.

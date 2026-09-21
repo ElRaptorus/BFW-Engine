@@ -1,0 +1,105 @@
+defmodule BfwEngine.BPMN.Precompiler do
+  @moduledoc """
+  Structural precompilation pass for parsed BPMN model structs.
+
+  Called after parse+validate, before the `Definitions` struct is placed
+  into the ModelCache. Walks the flow-node tree so that future
+  precompilation hooks (e.g. condition expressions) have a single
+  traversal point.
+
+  MI and Standard Loop FEEL expressions (`collection_expression`,
+  `loop_condition`, `completion_condition`, `loop_break_condition`,
+  `output_collection`) are intentionally **not** precompiled. They
+  reference runtime context variables (`token.*`, `loop.*`) whose
+  shape is unknown at deploy time. The Rust NIF requires a matching
+  context shape at compile time — expressions compiled without it
+  silently evaluate to `nil` at runtime. The handlers always use
+  `Expressions.eval/2` (one-shot parse+evaluate). The performance
+  cost is negligible since these expressions are evaluated at most a
+  handful of times per PI.
+
+  Ad-hoc subprocess FEEL expressions (`adhoc_completion_condition`,
+  `active_elements_expression`) are precompiled when their context
+  shapes are known at deploy time. The completion condition uses
+  fixed bindings (`performedActivities`, `activeCount`,
+  `totalActivities`). The active elements expression may reference
+  `token.*` but the compile step still succeeds — unknown variables
+  resolve at evaluation time.
+  """
+
+  alias BfwEngine.BPMN.Model.Definitions
+  alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.Model.FlowNodeData
+  alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
+
+  @doc """
+  Walks the definitions tree and precompiles FEEL expressions on all
+  flow nodes. Currently a structural pass only — MI and Standard Loop
+  expressions are intentionally left uncompiled (see moduledoc).
+  Returns the updated `%Definitions{}`.
+  """
+  @spec precompile(Definitions.t()) :: Definitions.t()
+  def precompile(%Definitions{} = definitions) do
+    processes = Enum.map(definitions.processes, &precompile_process/1)
+    %{definitions | processes: processes}
+  end
+
+  defp precompile_process(%BpmnProcess{} = process) do
+    flow_nodes = Enum.map(process.flow_nodes, &precompile_flow_node/1)
+    %{process | flow_nodes: flow_nodes}
+  end
+
+  defp precompile_flow_node(%FlowNode{} = node) do
+    precompile_subprocess_children(node)
+  end
+
+  defp precompile_subprocess_children(
+         %FlowNode{type_data: %FlowNodeData.SubProcess{} = sp_data} = node
+       ) do
+    inner_flow_nodes = Enum.map(sp_data.flow_nodes, &precompile_flow_node/1)
+    sp_data = precompile_adhoc_expressions(%{sp_data | flow_nodes: inner_flow_nodes})
+    %{node | type_data: sp_data}
+  end
+
+  defp precompile_subprocess_children(node), do: node
+
+  @adhoc_completion_shape %{
+    "performedActivities" => 0,
+    "activeCount" => 0,
+    "totalActivities" => 0
+  }
+
+  defp precompile_adhoc_expressions(%FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data) do
+    sp_data
+    |> maybe_compile_completion_condition()
+    |> maybe_compile_active_elements()
+  end
+
+  defp precompile_adhoc_expressions(sp_data), do: sp_data
+
+  defp maybe_compile_completion_condition(%{adhoc_completion_condition: condition} = sp_data)
+       when is_binary(condition) and condition != "" do
+    case BfwEngine.Expressions.compile(condition, @adhoc_completion_shape) do
+      {:ok, compiled} ->
+        %{sp_data | adhoc_completion_condition_compiled: compiled}
+
+      {:error, _reason} ->
+        sp_data
+    end
+  end
+
+  defp maybe_compile_completion_condition(sp_data), do: sp_data
+
+  defp maybe_compile_active_elements(%{active_elements_expression: expression} = sp_data)
+       when is_binary(expression) and expression != "" do
+    case BfwEngine.Expressions.compile(expression) do
+      {:ok, compiled} ->
+        %{sp_data | active_elements_compiled: compiled}
+
+      {:error, _reason} ->
+        sp_data
+    end
+  end
+
+  defp maybe_compile_active_elements(sp_data), do: sp_data
+end

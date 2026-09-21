@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,17 +42,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["BoundaryError_1"],
+          "boundaryEventRefs": [
+            "BoundaryError_1"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "AdHoc_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Ad-hoc with Boundary",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -111,7 +119,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Error Boundary",
-          "outgoing": ["Flow_Error"],
+          "outgoing": [
+            "Flow_Error"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -134,7 +144,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -154,7 +166,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Error",
-          "incoming": ["Flow_Error"],
+          "incoming": [
+            "Flow_Error"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Error End",
@@ -175,7 +189,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "AdHoc_1", "BoundaryError_1", "End_1", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "AdHoc_1",
+            "BoundaryError_1",
+            "End_1",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

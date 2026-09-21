@@ -1,16 +1,16 @@
 defmodule MyCompany.LdapPluginTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias MyCompany.LdapPlugin
 
-  test "implements EvilEngine.Plugin" do
+  test "implements BfwEngine.Plugin" do
     behaviours =
       LdapPlugin.__info__(:attributes)
       |> Keyword.get_values(:behaviour)
       |> List.flatten()
 
-    assert EvilEngine.Plugin in behaviours
+    assert BfwEngine.Plugin in behaviours
   end
 
   test "on_load/1 registers the LDAP auth provider on a fake facade" do

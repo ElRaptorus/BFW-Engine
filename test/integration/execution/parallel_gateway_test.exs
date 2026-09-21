@@ -1,17 +1,17 @@
-defmodule EvilEngine.Integration.Execution.ParallelGatewayTest do
+defmodule BfwEngine.Integration.Execution.ParallelGatewayTest do
   @moduledoc """
   Integration tests for parallel gateway resume and retry semantics.
 
   Covers plan scenarios 10d, 10e (retry), 11a, 11b, 11c (resume).
   Uses real persistence (ExecutionAdapter) and real BPMN fixtures.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Persistence.Resources.GatewayPendingArrival
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.ExamplePlugin
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Persistence.Resources.GatewayPendingArrival
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.ExamplePlugin
 
   require Ash.Query
 
@@ -280,7 +280,7 @@ defmodule EvilEngine.Integration.Execution.ParallelGatewayTest do
   # -------------------------------------------------------------------
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, EvilEngine.Plugins.RegistryDispatch)
+    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
     facade = Loader.facade_for_plugin("evil:test_parallel_gateway")
     ExamplePlugin.on_load(facade)
   end
@@ -288,7 +288,7 @@ defmodule EvilEngine.Integration.Execution.ParallelGatewayTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok

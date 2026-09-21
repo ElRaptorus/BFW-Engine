@@ -3,7 +3,7 @@ defmodule Examples.BusinessRules.DecisionAnalytics.AnalyticsSinkTest do
 
   import ExUnit.CaptureLog
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionAnalytics.AnalyticsCollector
   alias Examples.BusinessRules.DecisionAnalytics.AnalyticsSink
 

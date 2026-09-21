@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Auth.ObserveAllAuthorizationTest do
+defmodule BfwEngine.Integration.Auth.ObserveAllAuthorizationTest do
   @moduledoc """
   Live authorization matrix for `observe_all`.
 
@@ -6,7 +6,7 @@ defmodule EvilEngine.Integration.Auth.ObserveAllAuthorizationTest do
   WS join). It never grants write: start, finish, cancel, timer trigger,
   deploy, and abort stay 403. Soft-deleted PIs remain invisible.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

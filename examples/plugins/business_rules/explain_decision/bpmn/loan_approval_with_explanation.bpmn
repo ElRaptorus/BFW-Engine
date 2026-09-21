@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_loan_approval_explanation">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_loan-approval-with-explanation" name="Loan Approval With Explanation" processRef="loan-approval-with-explanation" />
@@ -13,7 +13,7 @@
 
   <bpmn:process id="loan-approval-with-explanation" name="Loan Approval With Explanation" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -30,10 +30,10 @@
 
     <bpmn:businessRuleTask id="BRT_assess_eligibility" name="Assess Eligibility" implementation="dmn">
       <bpmn:extensionElements>
-        <evil:decisionRef>loan-eligibility</evil:decisionRef>
-        <evil:outputMapping source="approved" target="approved"/>
-        <evil:outputMapping source="maxAmount" target="maxAmount"/>
-        <evil:outputMapping source="reason" target="reason"/>
+        <bfw:decisionRef>loan-eligibility</bfw:decisionRef>
+        <bfw:outputMapping source="approved" target="approved"/>
+        <bfw:outputMapping source="maxAmount" target="maxAmount"/>
+        <bfw:outputMapping source="reason" target="reason"/>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_to_assess</bpmn:incoming>
       <bpmn:outgoing>Flow_assess_to_explain</bpmn:outgoing>
@@ -41,9 +41,9 @@
 
     <bpmn:scriptTask id="Script_explain_decision" name="Explain Decision">
       <bpmn:extensionElements>
-        <evil:scriptRef>explain_decision</evil:scriptRef>
-        <evil:outputMapping source="explanation" target="explanation"/>
-        <evil:outputMapping source="decision_count" target="decision_count"/>
+        <bfw:scriptRef>explain_decision</bfw:scriptRef>
+        <bfw:outputMapping source="explanation" target="explanation"/>
+        <bfw:outputMapping source="decision_count" target="decision_count"/>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_assess_to_explain</bpmn:incoming>
       <bpmn:outgoing>Flow_explain_to_end</bpmn:outgoing>

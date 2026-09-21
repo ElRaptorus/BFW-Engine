@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.AdminEndpointsTest do
+defmodule BfwEngine.Integration.Execution.AdminEndpointsTest do
   @moduledoc """
   Integration tests for the REST admin endpoints:
   - PUT /user-tasks/:fni_id/finish
@@ -8,7 +8,7 @@ defmodule EvilEngine.Integration.Execution.AdminEndpointsTest do
 
   All tests are strictly black-box (HTTP round-trips only).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   # ===========================================================================
   # Finish User Task

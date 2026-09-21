@@ -1,13 +1,13 @@
-defmodule EvilEngine.Integration.Execution.CallActivityCascadeTest do
+defmodule BfwEngine.Integration.Execution.CallActivityCascadeTest do
   @moduledoc """
   Integration tests for Call Activity child PI cascade on parent termination.
 
   Verifies that when a parent PI terminates (fatal or aborted), child PIs
   spawned by Call Activities are cascaded to the matching terminal state.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
+  alias BfwEngine.Execution
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -15,7 +15,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityCascadeTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->

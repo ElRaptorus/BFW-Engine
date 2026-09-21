@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.PluginRegistryTest do
+defmodule BfwEngine.Integration.PluginRegistryTest do
   @moduledoc "Full-stack: plugin registration, conflict detection, quarantine."
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Plugins.Registry
-  alias EvilEngine.Test.{FakePlugin, IntegrationSink}
-  alias EvilEngine.Types.Event.PluginQuarantined
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.Registry
+  alias BfwEngine.Test.{FakePlugin, IntegrationSink}
+  alias BfwEngine.Types.Event.PluginQuarantined
 
   describe "registration" do
     test "registers and lists a plugin" do

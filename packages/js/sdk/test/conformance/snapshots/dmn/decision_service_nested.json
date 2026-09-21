@@ -2,20 +2,36 @@
   "businessKnowledgeModels": [],
   "decisionServices": [
     {
-      "encapsulatedDecisions": ["Decision_adjusted_rate", "Decision_base_rate"],
+      "encapsulatedDecisions": [
+        "Decision_adjusted_rate",
+        "Decision_base_rate"
+      ],
       "id": "DS_fee_calculation",
-      "inputData": ["InputData_amount", "InputData_category"],
+      "inputData": [
+        "InputData_amount",
+        "InputData_category"
+      ],
       "inputDecisions": [],
       "name": "Fee Calculation Service",
-      "outputDecisions": ["Decision_fee"]
+      "outputDecisions": [
+        "Decision_fee"
+      ]
     },
     {
-      "encapsulatedDecisions": ["Decision_adjusted_rate"],
+      "encapsulatedDecisions": [
+        "Decision_adjusted_rate"
+      ],
       "id": "DS_with_input_decisions",
-      "inputData": ["InputData_amount"],
-      "inputDecisions": ["Decision_base_rate"],
+      "inputData": [
+        "InputData_amount"
+      ],
+      "inputDecisions": [
+        "Decision_base_rate"
+      ],
       "name": "Service With Input Decisions",
-      "outputDecisions": ["Decision_fee"]
+      "outputDecisions": [
+        "Decision_fee"
+      ]
     }
   ],
   "decisions": [
@@ -110,5 +126,5 @@
   "itemDefinitions": [],
   "knowledgeSources": [],
   "name": "Decision Service Nested",
-  "namespace": "https://evilengine.dev/test/decision-service-nested"
+  "namespace": "https://bifrostforge.world/test/decision-service-nested"
 }

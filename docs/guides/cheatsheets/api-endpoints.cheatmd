@@ -4,15 +4,15 @@
 
 ```
 GET  /health           204 No Content (liveness). Load lives on /stats.
-GET  /metrics          Prometheus text (TDE_METRICS_ENABLED, default on; unauthenticated)
+GET  /metrics          Prometheus text (BFE_METRICS_ENABLED, default on; unauthenticated)
 GET  /info             Engine identity
 ```
 
-## Devtools (disabled in prod by default — TDE_DEVTOOLS_ENABLED)
+## Devtools (disabled in prod by default — BFE_DEVTOOLS_ENABLED)
 
 ```
 GET  /                 Swagger UI
-GET  /api/openapi      OpenAPI 3.x spec (also via TDE_EXPOSE_OPENAPI_SPEC)
+GET  /api/openapi      OpenAPI 3.x spec (also via BFE_EXPOSE_OPENAPI_SPEC)
 GET  /admin/graphiql   Playground with example tabs
 ```
 

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Execution.TestSupport.SchedulerWait do
+defmodule BfwEngine.Execution.TestSupport.SchedulerWait do
   @moduledoc """
   Poll the timer Scheduler instead of `Process.sleep` in tests.
 
@@ -7,7 +7,7 @@ defmodule EvilEngine.Execution.TestSupport.SchedulerWait do
   or an arbitrary predicate until the condition holds.
   """
 
-  alias EvilEngine.Timers.Scheduler
+  alias BfwEngine.Timers.Scheduler
 
   @default_timeout_ms 2_000
   @poll_interval_ms 20

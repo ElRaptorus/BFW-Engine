@@ -1,22 +1,22 @@
-# ThomasTheDaemonEngine — Agent & Contributor Guide
+# Bifrost Forge World Engine — Agent & Contributor Guide
 
 > **TEST DATABASE — NON-NEGOTIABLE:** Before running ANY test command (`mix quality`, `mix test`, `mix test.integration`, etc.), you MUST ensure the PostgreSQL container is running. Copy-paste this one-liner:
 >
 > ```bash
-> (docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+> (docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate
 > ```
 >
 > **"Integration tests deferred because the database is not running" is a rule violation. Start the container yourself. No exceptions.**
 >
 > **QUALITY GATE — NON-NEGOTIABLE:** After any Engine code change, run `mix quality` from the project root (after the database one-liner). That alias in `mix.exs` is the only acceptable completion check. Do not substitute a subset (`mix compile`, `mix test apps/…`, `mix credo`) and claim the work is verified. See `.cursor/rules/build.mdc`.
 
-This document is the domain knowledge reference for ThomasTheDaemonEngine,
-a BPMN 2.0 Workflow Engine built with Elixir/OTP and oceans of sacrificial blood collected from all over the false emperors rotting domain in honor of the [Blood God](https://wh40k.lexicanum.com/wiki/Khorne).
+This document is the domain knowledge reference for Bifrost Forge World Engine,
+a BPMN 2.0 Workflow Engine built with Elixir/OTP and sanctified oils and pistons from the holy Forges of Mars, in honor of the Omnissiah.
 It covers the engine's custom BPMN extension vocabulary, parser expectations, validator rules, FEEL expression conventions, and project structure.
 
-**Scope:** This reference covers Phase 0 through Phase 9 capabilities (BPMN
-execution engine + DMN CL3 DRG decision engine + DMN observability traces +
-BPMN compensation + ad-hoc subprocesses). It will be extended as new phases land.
+**Scope:** This reference covers the BPMN execution engine, the DMN CL3 DRG
+decision engine, DMN observability traces, BPMN compensation, and ad-hoc
+subprocesses.
 
 **Coding conventions, build verification, test conventions, and review
 checklists** are maintained in the Cursor-specific `.cursor/rules/` and
@@ -31,26 +31,26 @@ checklists** are maintained in the Cursor-specific `.cursor/rules/` and
 ### One-liner (copy-paste)
 
 ```bash
-(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+(docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate
 ```
 
 ### Step-by-step (if the one-liner fails)
 
 ```bash
 # Check container status
-docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null
 # "true" → running, skip to migrations
-# "false" → docker start evil-engine-postgres-test
+# "false" → docker start bfw-engine-postgres-test
 # error/empty → bash scripts/create-test-db.sh
 
 # Verify readiness
-docker exec evil-engine-postgres-test pg_isready -U evil_engine
+docker exec bfw-engine-postgres-test pg_isready -U bfw_engine
 
 # Run pending migrations
 MIX_ENV=test mix ecto.migrate
 ```
 
-Container: `evil-engine-postgres-test` | Port: `5543` | User: `evil_engine` | Image: `postgres:16-alpine`
+Container: `bfw-engine-postgres-test` | Port: `5543` | User: `bfw_engine` | Image: `postgres:16-alpine`
 
 ### Prohibited behaviors
 
@@ -71,11 +71,11 @@ Container: `evil-engine-postgres-test` | Port: `5543` | User: `evil_engine` | Im
 
 ## Namespace Declaration
 
-ThomasTheDaemonEngine uses standard BPMN 2.0 XML with custom extension
-elements under the `evil:` namespace. The **canonical namespace URI** is
-`https://evilengine.dev/schema/bpmn`. All new and existing BPMN files
-**must** use this URI — older variants (`http://evilengine.dev/bpmn`,
-`http://evilengine.io/schema/bpmn`) are deprecated and must not be used.
+Bifrost Forge World Engine uses standard BPMN 2.0 XML with custom extension
+elements under the `bfw:` namespace. The **canonical namespace URI** is
+`https://bifrostforge.world/schema/bpmn`. All new and existing BPMN files
+**must** use this URI. Older evilengine.dev / evilengine.io variants are
+deprecated and must not be used.
 
 Every BPMN file consumed by the engine must declare the namespace in the
 `<bpmn:definitions>` root element:
@@ -86,13 +86,13 @@ Every BPMN file consumed by the engine must declare the namespace in the
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 ```
 
 The parser strips namespace prefixes before matching element names, so
-`evil:version` and `version` inside an `<extensionElements>` block are
+`bfw:version` and `version` inside an `<extensionElements>` block are
 treated identically.
 
 ---
@@ -101,35 +101,35 @@ treated identically.
 
 REST and WebSocket JSON surfaces use **camelCase structural keys**. GraphQL was already camelCase via AshGraphql. The three wire surfaces now agree.
 
-**Boundary rule:** Structural fields defined in engine structs are camelCased by per-struct `Jason.Encoder` implementations in `EvilEngine.Types.Wire`. Opaque user-payload subtrees (`payload`, `result`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `formFields`, `typeProperties`, `errorInfo`, etc.) pass through unchanged — their nested keys are NOT transformed.
+**Boundary rule:** Structural fields defined in engine structs are camelCased by per-struct `Jason.Encoder` implementations in `BfwEngine.Types.Wire`. Opaque user-payload subtrees (`payload`, `result`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `formFields`, `typeProperties`, `errorInfo`, etc.) pass through unchanged — their nested keys are NOT transformed.
 
-**Implementation:** `apps/core_types/lib/evil_engine/types/wire.ex` (conversion logic), `apps/core_events/lib/evil_engine/events/json_encoders.ex` (Jason.Encoder implementations).
+**Implementation:** `apps/core_types/lib/bfw_engine/types/wire.ex` (conversion logic), `apps/core_events/lib/bfw_engine/events/json_encoders.ex` (Jason.Encoder implementations).
 
 ---
 
 ## Extension Elements Reference
 
-All `evil:*` extensions live inside `<bpmn:extensionElements>` on the
+All `bfw:*` extensions live inside `<bpmn:extensionElements>` on the
 owning BPMN element. The parser (`SaxHandler`) reads them; the validator
 enforces required ones.
 
 ### Process-Level Extensions
 
-#### `evil:version` (required)
+#### `bfw:version` (required)
 
 The deployment version string. The validator rejects any executable process
-that does not carry a non-blank `<evil:version>`.
+that does not carry a non-blank `<bfw:version>`.
 
 ```xml
 <bpmn:process id="order-process" name="Order Process" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </bpmn:extensionElements>
   ...
 </bpmn:process>
 ```
 
-#### `evil:correlationKey`
+#### `bfw:correlationKey`
 
 Optional process-level FEEL expression evaluated on **catch-side** subscribe
 (Intermediate Catch, Boundary, Receive Task) against current PI state (token,
@@ -139,16 +139,16 @@ stamp are delivered. Also evaluated against the incoming payload when a
 Message Start Event creates a new PI (there is no PI state yet).
 
 ```xml
-<evil:correlationKey>token.orderId</evil:correlationKey>
+<bfw:correlationKey>token.orderId</bfw:correlationKey>
 ```
 
-#### `evil:LinterRulesetScore` (definitions-level)
+#### `bfw:LinterRulesetScore` (definitions-level)
 
 Carries linter gate scores attached to the **definitions** at design time by
-the Studio. Read by the deploy-time linter gate. Unlike other `evil:*`
+the Studio. Read by the deploy-time linter gate. Unlike other `bfw:*`
 extensions, these live at the **definitions level** — inside
-`<bpmn:definitions>/<bpmn:extensionElements>/<evil:Properties>`, **not** on a
-process. The element name is capitalised (`evil:LinterRulesetScore`, upper-L).
+`<bpmn:definitions>/<bpmn:extensionElements>/<bfw:Properties>`, **not** on a
+process. The element name is capitalised (`bfw:LinterRulesetScore`, upper-L).
 
 Every field is a string attribute; numeric values are bare (no `%` suffix):
 
@@ -167,9 +167,9 @@ Every field is a string attribute; numeric values are bare (no `%` suffix):
 ```xml
 <bpmn:definitions ...>
  <bpmn:extensionElements>
- <evil:Properties>
- <evil:LinterRulesetScore
- rulesetId="evil-default"
+ <bfw:Properties>
+ <bfw:LinterRulesetScore
+ rulesetId="bfw-default"
  scorePercent="92.5"
  complianceStatus="compliant"
  computedAtIso="2026-07-03T12:00:00Z"
@@ -178,7 +178,7 @@ Every field is a string attribute; numeric values are bare (no `%` suffix):
  penaltyPoints="7.5"
  rawErrorFindings="0"
  rawWarningFindings="2" />
- </evil:Properties>
+ </bfw:Properties>
  </bpmn:extensionElements>
  <bpmn:process id="order-process" ...>...</bpmn:process>
 </bpmn:definitions>
@@ -213,26 +213,26 @@ handler). The validator rejects any ServiceTask missing a non-blank
 </bpmn:serviceTask>
 ```
 
-#### `evil:payloadContract`
+#### `bfw:payloadContract`
 
 Optional JSON Schema (as a JSON string) validated against the task's input
 payload at runtime.
 
 ```xml
-<evil:payloadContract>{"type":"object","required":["amount"]}</evil:payloadContract>
+<bfw:payloadContract>{"type":"object","required":["amount"]}</bfw:payloadContract>
 ```
 
 Also supported on throw-side message events (`IntermediateThrowEvent`,
 `EndEvent`) and `SendTask` — placed at the flow-node's `<extensionElements>`
 level (never inside `<messageEventDefinition>`).
 
-#### `evil:resultContract`
+#### `bfw:resultContract`
 
 Optional JSON Schema validated against the task's output at runtime. The
 engine transitions the FNI to Fatal on schema violation.
 
 ```xml
-<evil:resultContract>{"type":"object","required":["transactionId"]}</evil:resultContract>
+<bfw:resultContract>{"type":"object","required":["transactionId"]}</bfw:resultContract>
 ```
 
 Also supported on `<bpmn:userTask>` and on catch-side message events
@@ -242,23 +242,23 @@ Also supported on `<bpmn:userTask>` and on catch-side message events
 
 #### ServiceTask HTTP extensions (`implementation` = `"http"`)
 
-Used by the built-in `EvilEngine.Plugins.Builtin.HttpServiceTaskHandler`. **`evil:httpUrl`** and **`evil:httpMethod`** are **static** text (not FEEL). **`evil:httpBody`**, **`evil:httpAuthHeader`**, and **`evil:httpResponseHeaders`** are **FEEL** expressions evaluated with the standard bindings (`token`, `this`, `context`, `dataObjects`, `process`, `processInstance`, `identity`) plus any active `loop.*` overlay.
+Used by the built-in `BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`. **`bfw:httpUrl`** and **`bfw:httpMethod`** are **static** text (not FEEL). **`bfw:httpBody`**, **`bfw:httpAuthHeader`**, and **`bfw:httpResponseHeaders`** are **FEEL** expressions evaluated with the standard bindings (`token`, `this`, `context`, `dataObjects`, `process`, `processInstance`, `identity`) plus any active `loop.*` overlay.
 
 | Element | FEEL? | Description |
 |---------|-------|-------------|
-| `evil:httpUrl` | No | Request URL (required for the HTTP handler) |
-| `evil:httpMethod` | No | HTTP verb; default `GET` |
-| `evil:httpBody` | Yes | Request body |
-| `evil:httpAuthHeader` | Yes | Value for the `Authorization` header |
-| `evil:httpResponseHeaders` | Yes | Maps selected response headers into the task output (handler-specific) |
+| `bfw:httpUrl` | No | Request URL (required for the HTTP handler) |
+| `bfw:httpMethod` | No | HTTP verb; default `GET` |
+| `bfw:httpBody` | Yes | Request body |
+| `bfw:httpAuthHeader` | Yes | Value for the `Authorization` header |
+| `bfw:httpResponseHeaders` | Yes | Maps selected response headers into the task output (handler-specific) |
 
 ```xml
 <bpmn:serviceTask id="Task_http" name="Call API" implementation="http">
   <bpmn:extensionElements>
-    <evil:httpUrl>https://api.example.com/v1/echo</evil:httpUrl>
-    <evil:httpMethod>POST</evil:httpMethod>
-    <evil:httpBody>{ "message": token.message }</evil:httpBody>
-    <evil:httpAuthHeader>"Bearer " + token.apiToken</evil:httpAuthHeader>
+    <bfw:httpUrl>https://api.example.com/v1/echo</bfw:httpUrl>
+    <bfw:httpMethod>POST</bfw:httpMethod>
+    <bfw:httpBody>{ "message": token.message }</bfw:httpBody>
+    <bfw:httpAuthHeader>"Bearer " + token.apiToken</bfw:httpAuthHeader>
   </bpmn:extensionElements>
 </bpmn:serviceTask>
 ```
@@ -271,7 +271,7 @@ BPMN `implementation` attribute**:
 | `implementation` | Mode | Required companion | Description |
 |-------------------|------|--------------------|-------------|
 | `"feel"` | FEEL | `<bpmn:script>` child element | Evaluate an inline FEEL expression |
-| `"dmn"` | DMN | `evil:decisionRef` | Evaluate a deployed DMN decision table via `DecisionResolver` → `ModelCache` → `Evaluator` |
+| `"dmn"` | DMN | `bfw:decisionRef` | Evaluate a deployed DMN decision table via `DecisionResolver` → `ModelCache` → `Evaluator` |
 
 **Standard BPMN properties:** `implementation` (XML attribute) and `<bpmn:script>`
 (child element) are standard BPMN 2.0 properties. The `<script>` child element
@@ -281,7 +281,7 @@ reuses the same pattern as `<bpmn:scriptTask>`.
 > Plugins observe BRT execution via engine events and analyze results through
 > the facade — they never replace the execution path.
 
-#### `evil:decisionRef`
+#### `bfw:decisionRef`
 
 DMN decision model reference. Required when `implementation="dmn"`. The engine
 resolves the latest version of the DMN model at runtime.
@@ -289,12 +289,12 @@ resolves the latest version of the DMN model at runtime.
 ```xml
 <bpmn:businessRuleTask id="BRT_1" name="Evaluate Table" implementation="dmn">
   <bpmn:extensionElements>
-    <evil:decisionRef>discount-rules</evil:decisionRef>
+    <bfw:decisionRef>discount-rules</bfw:decisionRef>
   </bpmn:extensionElements>
 </bpmn:businessRuleTask>
 ```
 
-#### `evil:decisionElementId`
+#### `bfw:decisionElementId`
 
 Optional. When a DMN model contains multiple `<decision>` elements,
 specifies which decision element to evaluate as the DRG root. Passed
@@ -305,17 +305,17 @@ without this element produce `{:error, {:ambiguous_decision, ...}}`.
 ```xml
 <bpmn:businessRuleTask id="BRT_1" name="Evaluate Risk" implementation="dmn">
   <bpmn:extensionElements>
-    <evil:decisionRef>order-risk-rules</evil:decisionRef>
-    <evil:decisionElementId>Decision_Risk_Level</evil:decisionElementId>
+    <bfw:decisionRef>order-risk-rules</bfw:decisionRef>
+    <bfw:decisionElementId>Decision_Risk_Level</bfw:decisionElementId>
   </bpmn:extensionElements>
 </bpmn:businessRuleTask>
 ```
 
-#### `evil:resultVariable`
+#### `bfw:resultVariable`
 
 Output variable name for the decision result.
 
-#### `evil:traceUnmatchedRules`
+#### `bfw:traceUnmatchedRules`
 
 When `true` and `implementation="dmn"`, the DMN evaluator includes full detail
 for unmatched rules in the execution trace.
@@ -329,12 +329,12 @@ for unmatched rules in the execution trace.
 ```
 
 BusinessRuleTask also supports the shared data pipeline extensions:
-`evil:inputMapping`, `evil:outputMapping`, `evil:payloadContract`,
-`evil:resultContract` — same semantics as ServiceTask and ScriptTask.
+`bfw:inputMapping`, `bfw:outputMapping`, `bfw:payloadContract`,
+`bfw:resultContract` — same semantics as ServiceTask and ScriptTask.
 
 ### ScriptTask Extensions
 
-#### `evil:scriptRef`
+#### `bfw:scriptRef`
 
 Named script plugin key. When set, the engine dispatches to the plugin
 registered under this key (via `ScriptDispatch` → `ScriptRegistryDispatch`).
@@ -344,25 +344,25 @@ Takes precedence over the inline `<script>` body. The standard BPMN
 ```xml
 <bpmn:scriptTask id="Script_1" name="Custom Validation">
   <bpmn:extensionElements>
-    <evil:scriptRef>my_validation_plugin</evil:scriptRef>
+    <bfw:scriptRef>my_validation_plugin</bfw:scriptRef>
   </bpmn:extensionElements>
 </bpmn:scriptTask>
 ```
 
 ScriptTask also supports the shared data pipeline extensions:
-`evil:inputMapping`, `evil:outputMapping`, `evil:payloadContract`,
-`evil:resultContract` — same semantics as ServiceTask and UserTask.
+`bfw:inputMapping`, `bfw:outputMapping`, `bfw:payloadContract`,
+`bfw:resultContract` — same semantics as ServiceTask and UserTask.
 
 ### UserTask Extensions
 
-#### `evil:assignees`
+#### `bfw:assignees`
 
 FEEL expression that resolves to the list of assignees at runtime.
 
 ```xml
 <bpmn:userTask id="Task_review" name="Review Order">
   <bpmn:extensionElements>
-    <evil:assignees>identity.groups</evil:assignees>
+    <bfw:assignees>identity.groups</bfw:assignees>
   </bpmn:extensionElements>
 </bpmn:userTask>
 ```
@@ -371,33 +371,33 @@ FEEL expression that resolves to the list of assignees at runtime.
 effect as `PUT /process-instances/{id}/abort`. Error Boundary Events do not
 catch the abort.
 
-#### `evil:formFields`
+#### `bfw:formFields`
 
 JSON string defining the form schema (Formkit-opaque).
 
 ```xml
-<evil:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</evil:formFields>
+<bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
 ```
 
-#### `evil:dueDate`
+#### `bfw:dueDate`
 
 FEEL expression or ISO 8601 string for the task's due date.
 
 ```xml
-<evil:dueDate>2025-12-01T10:00:00Z</evil:dueDate>
+<bfw:dueDate>2025-12-01T10:00:00Z</bfw:dueDate>
 ```
 
-#### `evil:priority`
+#### `bfw:priority`
 
 Integer priority value.
 
 ```xml
-<evil:priority>5</evil:priority>
+<bfw:priority>5</bfw:priority>
 ```
 
 ### ManualTask Extensions
 
-#### `evil:requireConfirmation`
+#### `bfw:requireConfirmation`
 
 When `true`, the ManualTask waits for an explicit `FinishUserTask` call
 instead of passing through immediately.
@@ -405,7 +405,7 @@ instead of passing through immediately.
 ```xml
 <bpmn:manualTask id="Task_pack" name="Pack Order">
   <bpmn:extensionElements>
-    <evil:requireConfirmation>true</evil:requireConfirmation>
+    <bfw:requireConfirmation>true</bfw:requireConfirmation>
   </bpmn:extensionElements>
 </bpmn:manualTask>
 ```
@@ -416,24 +416,24 @@ These extensions live inside the `<bpmn:extensionElements>` of a
 `<bpmn:messageEventDefinition>`.
 
 **Contract placement:** Message event contracts are **not** placed
-inside the event definition. They use `<evil:payloadContract>` (throw-side) or
-`<evil:resultContract>` (catch-side) at the **flow-node's own**
+inside the event definition. They use `<bfw:payloadContract>` (throw-side) or
+`<bfw:resultContract>` (catch-side) at the **flow-node's own**
 `<extensionElements>` level — the same location as task contracts. See the
-`evil:payloadContract` and `evil:resultContract` sections above.
+`bfw:payloadContract` and `bfw:resultContract` sections above.
 
-#### `evil:correlationRetrievalExpression`
+#### `bfw:correlationRetrievalExpression`
 
 FEEL expression evaluated on **throw-side** events (Intermediate Throw,
 Message End Event, Send Task) against the outgoing token / handler context.
 The result is stamped onto the published message as `correlation_value`
 before delivery. Catch-side events do not use this extension — they rely on
-the process-level `evil:correlationKey` instead.
+the process-level `bfw:correlationKey` instead.
 
 ```xml
 <bpmn:intermediateThrowEvent id="Throw_payment" name="Notify Payment">
 <bpmn:messageEventDefinition messageRef="Msg_payment">
   <bpmn:extensionElements>
-      <evil:correlationRetrievalExpression>token.orderId</evil:correlationRetrievalExpression>
+      <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
   </bpmn:extensionElements>
 </bpmn:messageEventDefinition>
   <bpmn:incoming>Flow_In</bpmn:incoming>
@@ -441,19 +441,19 @@ the process-level `evil:correlationKey` instead.
 </bpmn:intermediateThrowEvent>
 ```
 
-Throw-side message shaping uses `evil:inputMapping` on the flow node (not the
-event definition). Catch-side shaping uses `evil:outputMapping`. There is no
-`evil:payload` or `evil:eventMapping` extension.
+Throw-side message shaping uses `bfw:inputMapping` on the flow node (not the
+event definition). Catch-side shaping uses `bfw:outputMapping`. There is no
+`bfw:payload` or `bfw:eventMapping` extension.
 
 **One-sided Send / Receive pipeline:** Send Task and throw-side message events
-consume `evil:inputMapping` + `evil:payloadContract` only (`outputMapping` in
+consume `bfw:inputMapping` + `bfw:payloadContract` only (`outputMapping` in
 XML is ignored). Receive Task and catch-side message events consume
-`evil:resultContract` + `evil:outputMapping` only (`inputMapping` in XML is
+`bfw:resultContract` + `bfw:outputMapping` only (`inputMapping` in XML is
 ignored). Do not apply the unused side at runtime.
 
 ### Signal Event Extensions
 
-Signals use **standard BPMN only** for identity — no `evil:*` correlation or
+Signals use **standard BPMN only** for identity — no `bfw:*` correlation or
 payload extensions. Signal routing is based on the global `<bpmn:signal>`
 definition's `name` attribute, resolved via `signalRef` on the event definition.
 
@@ -461,11 +461,11 @@ definition's `name` attribute, resolved via `signalRef` on the event definition.
 |-----------|------------|-------|
 | `signalRef` on `<bpmn:signalEventDefinition>` | All signal event positions | Must reference a global `<bpmn:signal id="..." name="...">` |
 | Global `<bpmn:signal@name>` | Routing key | Runtime resolves `signalRef` → `SignalDefinition.name`; blank `name` → FNI fatal (`:signal_name_blank`) |
-| `evil:inputMapping` | Throw, End (signal) | FEEL over current token before publish (same semantics); does **not** become signal payload |
-| `evil:outputMapping` | Catch, Boundary (signal) | FEEL over **existing token** after `{:signal_arrived, ...}`; signals carry no inbound payload |
+| `bfw:inputMapping` | Throw, End (signal) | FEEL over current token before publish (same semantics); does **not** become signal payload |
+| `bfw:outputMapping` | Catch, Boundary (signal) | FEEL over **existing token** after `{:signal_arrived, ...}`; signals carry no inbound payload |
 
-**Not supported on signals:** `evil:correlationKey`,
-`evil:correlationRetrievalExpression`. Signals carry no payload.
+**Not supported on signals:** `bfw:correlationKey`,
+`bfw:correlationRetrievalExpression`. Signals carry no payload.
 
 **Semantics:** broadcast-all by `signal_name`; no payload; no
 correlation; Signal Start + catch/boundary fire **simultaneously** (no
@@ -476,26 +476,26 @@ catch-wins-over-start); pending signals use **FIFO single-claim** drain.
 These live inside `<bpmn:extensionElements>` of an
 `<bpmn:errorEventDefinition>`.
 
-#### `evil:errorCode`
+#### `bfw:errorCode`
 
 Runtime error code for matching boundary error events.
 
 ```xml
-<evil:errorCode>VALIDATION_FAILED</evil:errorCode>
+<bfw:errorCode>VALIDATION_FAILED</bfw:errorCode>
 ```
 
 Catch-side Error Boundary matching resolves the boundary's code the same way as
-throw-side: inline `evil:errorCode` if present, else global `<bpmn:error errorCode>`
+throw-side: inline `bfw:errorCode` if present, else global `<bpmn:error errorCode>`
 via `errorRef`, else `nil` (catch-all). Ranking among boundaries on the same host:
 first specific resolved-code match, then first catch-all. Document order is not a
 specificity tiebreak. `fail_async` `error_code` uses this same matcher.
 
-#### `evil:errorMessage`
+#### `bfw:errorMessage`
 
 Human-readable error message attached to the error event.
 
 ```xml
-<evil:errorMessage>Input validation failed</evil:errorMessage>
+<bfw:errorMessage>Input validation failed</bfw:errorMessage>
 ```
 
 ### Compensation Extensions
@@ -552,7 +552,7 @@ A `<bpmn:boundaryEvent>` with `<bpmn:compensateEventDefinition>` and `cancelActi
 
 ### CallActivity Extensions
 
-#### `evil:startEventId`
+#### `bfw:startEventId`
 
 Selects which Start Event the called child process should begin at.
 Required when the child process has multiple untyped Start Events;
@@ -565,14 +565,14 @@ Start Events and this property is omitted, the engine returns an
 ```xml
 <bpmn:callActivity id="Call_fulfill" name="Fulfill Order" calledElement="order-fulfillment">
   <bpmn:extensionElements>
-    <evil:startEventId>Start_Express</evil:startEventId>
+    <bfw:startEventId>Start_Express</bfw:startEventId>
   </bpmn:extensionElements>
 </bpmn:callActivity>
 ```
 
-#### `evil:calledProcessVersion`
+#### `bfw:calledProcessVersion`
 
-Optional static string. Pins the child to that process's `<evil:version>`
+Optional static string. Pins the child to that process's `<bfw:version>`
 (not a process-version UUID). Evaluated only when the Call Activity
 **enters** (or re-enters after the child PI was deleted). Omit or leave
 blank to resolve the latest enabled, non-deleted version by newest
@@ -586,7 +586,7 @@ property is not.
 ```xml
 <bpmn:callActivity id="Call_fulfill" name="Fulfill Order" calledElement="order-fulfillment">
   <bpmn:extensionElements>
-    <evil:calledProcessVersion>1.2.0</evil:calledProcessVersion>
+    <bfw:calledProcessVersion>1.2.0</bfw:calledProcessVersion>
   </bpmn:extensionElements>
 </bpmn:callActivity>
 ```
@@ -598,7 +598,7 @@ starts. An already-spawned child PI keeps its `process_version_id` on
 resume and on retry that preserves the child (checkpoint at or after
 the Call Activity).
 
-#### `evil:inputMapping` / `evil:outputMapping`
+#### `bfw:inputMapping` / `bfw:outputMapping`
 
 Maps variables between the calling and called process scopes. `source` is
 a FEEL expression, `target` is a variable name.
@@ -606,31 +606,31 @@ a FEEL expression, `target` is a variable name.
 ```xml
 <bpmn:callActivity id="Call_fulfill" name="Fulfill Order">
   <bpmn:extensionElements>
-    <evil:inputMapping source="token.orderId" target="orderId" />
-    <evil:outputMapping source="result.trackingNumber" target="trackingNumber" />
+    <bfw:inputMapping source="token.orderId" target="orderId" />
+    <bfw:outputMapping source="result.trackingNumber" target="trackingNumber" />
   </bpmn:extensionElements>
 </bpmn:callActivity>
 ```
 
 ### SubProcess Extensions
 
-Embedded SubProcesses (`triggeredByEvent="false"`) support the same data pipeline extensions as Call Activity, except there is no `calledElement` or `evil:startEventId` — the inner scope is defined inline in the BPMN XML and the engine auto-selects the single None Start Event at runtime.
+Embedded SubProcesses (`triggeredByEvent="false"`) support the same data pipeline extensions as Call Activity, except there is no `calledElement` or `bfw:startEventId` — the inner scope is defined inline in the BPMN XML and the engine auto-selects the single None Start Event at runtime.
 
-#### `evil:inputMapping` / `evil:outputMapping`
+#### `bfw:inputMapping` / `bfw:outputMapping`
 
 Maps variables between the parent process token and the subprocess child PI scope. `source` is a FEEL expression, `target` is a variable name. Semantics match Call Activity (see above).
 
 ```xml
 <bpmn:subProcess id="SubProcess_validate" name="Validate Order">
   <bpmn:extensionElements>
-    <evil:inputMapping source="token.orderId" target="orderId" />
-    <evil:outputMapping source="result.validated" target="validated" />
+    <bfw:inputMapping source="token.orderId" target="orderId" />
+    <bfw:outputMapping source="result.validated" target="validated" />
   </bpmn:extensionElements>
   ...
 </bpmn:subProcess>
 ```
 
-#### `evil:payloadContract` / `evil:resultContract`
+#### `bfw:payloadContract` / `bfw:resultContract`
 
 JSON Schema contracts on the subprocess shell's input and output, validated at runtime via `MappingHelper` (same semantics as Call Activity — violations are fatal to the shell FNI).
 
@@ -655,7 +655,7 @@ inner FNIs), `activeCount` (currently active/waiting FNIs), `totalActivities`
 (total inner activities in the model). When the expression evaluates to `true`,
 the ad-hoc subprocess completes.
 
-#### `evil:activeElements`
+#### `bfw:activeElements`
 
 FEEL expression that returns a list of flow node IDs to activate initially.
 Evaluated against the standard FEEL bindings (`token`, `this`, `context`, etc.).
@@ -668,11 +668,11 @@ advances through remaining unperformed inner activities (model order).
 
 Optional. When set, the ad-hoc subprocess operates in plugin-managed mode —
 the plugin controls which activities are activated via the facade. When absent,
-the engine manages activation based on `evil:activeElements` or activates all
+the engine manages activation based on `bfw:activeElements` or activates all
 inner activities.
 
-Also supports: `evil:inputMapping`, `evil:outputMapping`, `evil:payloadContract`,
-`evil:resultContract` — same semantics as embedded SubProcess.
+Also supports: `bfw:inputMapping`, `bfw:outputMapping`, `bfw:payloadContract`,
+`bfw:resultContract` — same semantics as embedded SubProcess.
 
 ### Event Subprocess Extensions / Semantics
 
@@ -683,7 +683,7 @@ Instead it lies dormant until its single **event start event** is triggered
 by an event that occurs within its enclosing **scope** (the process or
 subprocess that contains it). When triggered, the engine spawns a **child
 process instance** running the ESP's inner flow — the same execution model as
-an embedded subprocess (`EvilEngine.Execution.FlowNodes.EventSubprocess`
+an embedded subprocess (`BfwEngine.Execution.FlowNodes.EventSubprocess`
 handler; child PI within the same deployment/version, no separate deploy).
 
 #### Trigger types
@@ -693,19 +693,19 @@ back them:
 
 | Trigger | Mechanism | Notes |
 |---------|-----------|-------|
-| Message | Subscription registered at scope activation | Gated start event — **not** a message fan-out delivery (ESP-D13) |
+| Message | Subscription registered at scope activation | Gated start event — **not** a message fan-out delivery |
 | Signal | Subscription registered at scope activation | Broadcast-all by signal name |
 | Timer | Scheduler registration at scope activation | `timeDuration` / `timeDate` / `timeCycle`; cyclic supported for non-interrupting (see below) |
 | Conditional | Edge-triggered re-evaluation | Fires on a `false → true` transition of the FEEL condition |
-| Error | Reactive hook (`EventSubprocessResolver`) | Catches a BPMN error raised within the scope; **must be interrupting** (ESP-D7) |
+| Error | Reactive hook (`EventSubprocessResolver`) | Catches a BPMN error raised within the scope; **must be interrupting** |
 | Escalation | Reactive hook (`EventSubprocessResolver`) | Catches an escalation raised within the scope |
-| Compensation | Reactive hook (`CompensationResolver`) | Consumes a thrown compensation for the scope; registered as scope's compensation handler (COMP-D5) |
+| Compensation | Reactive hook (`CompensationResolver`) | Consumes a thrown compensation for the scope; registered as the scope's compensation handler |
 
 #### `isInterrupting` (standard BPMN attribute on the ESP start event)
 
 `isInterrupting="true"` (the BPMN default) makes the ESP **interrupting**;
 `isInterrupting="false"` makes it **non-interrupting**. This is
-modeler-controlled only — there is no property-pane toggle and no `evil:*`
+modeler-controlled only — there is no property-pane toggle and no `bfw:*`
 override.
 
 - **Interrupting:** on trigger, the engine cancels every other active/waiting
@@ -729,7 +729,7 @@ override.
 | Timer | ✓ | ✓ |
 | Conditional | ✓ | ✓ |
 | Escalation | ✓ | ✓ |
-| Error | ✓ | — (Error must interrupt, ESP-D7) |
+| Error | ✓ | — (Error must interrupt) |
 | Compensation | ✓ | — (Compensation consumes scope, always interrupting) |
 
 #### Cyclic timer ESP starts
@@ -742,9 +742,9 @@ initial dispatch, so the child does not re-schedule the cycle.
 
 #### Message / escalation precedence
 
-- **ESP-D13:** an Intermediate Catch or Boundary event **always** beats an ESP
+- An Intermediate Catch or Boundary event **always** beats an ESP
   Message Start for the same message — the ESP message start is a gated start
-  event, not a fan-out delivery. **ESP-D13b:** an ESP Message Start beats a
+  event, not a fan-out delivery. An ESP Message Start beats a
   standalone Message Start Event (a running instance handles the message; no
   new top-level PI is created).
 - **Escalation proximity:** a scope-level escalation ESP start catches an
@@ -758,7 +758,7 @@ initial dispatch, so the child does not re-schedule the cycle.
 
 Triggering emits an `EventSubprocessTriggered` engine event, and the child
 spawn emits `SubProcessChildStarted` carrying the mandatory
-`is_event_subprocess: true` flag (ESP-D16). See §Engine Events and
+`is_event_subprocess: true` flag. See §Engine Events and
 [`docs/architecture/event-system.md`](docs/architecture/event-system.md).
 
 #### Not supported
@@ -767,18 +767,18 @@ Multiple / Parallel-Multiple start events are not supported.
 
 ### Data Contract Extension
 
-#### `evil:dataContract`
+#### `bfw:dataContract`
 
 JSON string defining a typed data contract on any flow node. Contains
 `direction` (`"input"` or `"output"`) and `schema` (JSON Schema map).
 
 ```xml
-<evil:dataContract>{"direction":"input","schema":{"type":"object","required":["orderId"]}}</evil:dataContract>
+<bfw:dataContract>{"direction":"input","schema":{"type":"object","required":["orderId"]}}</bfw:dataContract>
 ```
 
 ### Data Object Extensions
 
-#### `evil:valueContract`
+#### `bfw:valueContract`
 
 JSON Schema string on a `<bpmn:dataObject>` element. Validates every value
 written to this Data Object via DOA. Violation is fatal to the causing FNI.
@@ -786,7 +786,7 @@ written to this Data Object via DOA. Violation is fatal to the causing FNI.
 ```xml
 <bpmn:dataObject id="DO_Order" name="Order">
   <bpmn:extensionElements>
-    <evil:valueContract>{"type":"object","required":["status"]}</evil:valueContract>
+    <bfw:valueContract>{"type":"object","required":["status"]}</bfw:valueContract>
   </bpmn:extensionElements>
 </bpmn:dataObject>
 ```
@@ -830,9 +830,9 @@ PIs are spawned. See the execution architecture docs for details.
 **`loopCardinality` is NOT supported.** The parser stores the text, and the
 validator rejects the deploy with `:loop_cardinality_not_supported`. Iteration
 count is exclusively determined by the input collection length (or
-`evil:maxIterations` cap).
+`bfw:maxIterations` cap).
 
-#### `evil:inputCollection` / `evil:outputCollection`
+#### `bfw:inputCollection` / `bfw:outputCollection`
 
 FEEL expressions for the input collection to iterate over and the output
 collection to aggregate results into.
@@ -840,23 +840,23 @@ collection to aggregate results into.
 ```xml
 <bpmn:multiInstanceLoopCharacteristics isSequential="false">
   <bpmn:extensionElements>
-    <evil:inputCollection>token.items</evil:inputCollection>
-    <evil:outputCollection>processedItems</evil:outputCollection>
+    <bfw:inputCollection>token.items</bfw:inputCollection>
+    <bfw:outputCollection>processedItems</bfw:outputCollection>
   </bpmn:extensionElements>
 </bpmn:multiInstanceLoopCharacteristics>
 ```
 
-#### `evil:elementVariable`
+#### `bfw:elementVariable`
 
 Name of the variable bound to the current collection item in each iteration.
 When set, the item is accessible as `loop.item` in FEEL expressions. Falls
 back to `<bpmn:inputDataItem>` if the extension is absent.
 
 ```xml
-<evil:elementVariable>item</evil:elementVariable>
+<bfw:elementVariable>item</bfw:elementVariable>
 ```
 
-#### `evil:outputElementVariable`
+#### `bfw:outputElementVariable`
 
 Name of the variable used to collect the output of each iteration into the
 output collection. Falls back to `<bpmn:outputDataItem>` if the extension
@@ -864,27 +864,27 @@ is absent. When set, the engine uses this variable name as the key for
 aggregating per-iteration results.
 
 ```xml
-<evil:outputElementVariable>processedItem</evil:outputElementVariable>
+<bfw:outputElementVariable>processedItem</bfw:outputElementVariable>
 ```
 
-#### `evil:loopBreakCondition`
+#### `bfw:loopBreakCondition`
 
 FEEL expression evaluated after each iteration; loop terminates early when
 it evaluates to `true`.
 
 ```xml
-<evil:loopBreakCondition>errorCount > 3</evil:loopBreakCondition>
+<bfw:loopBreakCondition>errorCount > 3</bfw:loopBreakCondition>
 ```
 
-#### `evil:loopInterval`
+#### `bfw:loopInterval`
 
 Interval between sequential loop iterations (e.g. rate-limiting).
 
 ```xml
-<evil:loopInterval>PT1S</evil:loopInterval>
+<bfw:loopInterval>PT1S</bfw:loopInterval>
 ```
 
-#### `evil:maxIterations`
+#### `bfw:maxIterations`
 
 Safety cap on the number of iterations. Behavior differs by MI mode:
 
@@ -895,13 +895,13 @@ Safety cap on the number of iterations. Behavior differs by MI mode:
   spawning an unbounded number of parallel iterations.
 
 ```xml
-<evil:maxIterations>100</evil:maxIterations>
+<bfw:maxIterations>100</bfw:maxIterations>
 ```
 
 ### Standard Loop Extensions
 
 Standard loop characteristics (`<bpmn:standardLoopCharacteristics>`) use
-standard BPMN attributes and one `evil:*` extension.
+standard BPMN attributes and one `bfw:*` extension.
 
 **Standard BPMN properties:**
 
@@ -915,7 +915,7 @@ standard BPMN attributes and one `evil:*` extension.
 
 | Extension | Description |
 |-----------|-------------|
-| `evil:loopInterval` | ISO 8601 duration between iterations (polling/healthcheck pattern) |
+| `bfw:loopInterval` | ISO 8601 duration between iterations (polling/healthcheck pattern) |
 
 ```xml
 <bpmn:scriptTask id="Task_poll" name="Poll Status" scriptFormat="feel">
@@ -923,7 +923,7 @@ standard BPMN attributes and one `evil:*` extension.
   <bpmn:standardLoopCharacteristics testBefore="true" loopMaximum="10">
     <bpmn:loopCondition>loop.completed &lt; 5</bpmn:loopCondition>
     <bpmn:extensionElements>
-      <evil:loopInterval>PT1S</evil:loopInterval>
+      <bfw:loopInterval>PT1S</bfw:loopInterval>
     </bpmn:extensionElements>
   </bpmn:standardLoopCharacteristics>
 </bpmn:scriptTask>
@@ -1058,21 +1058,25 @@ validator rejects invalid combinations.
 An **Event Subprocess start event** must carry a typed event definition —
 Error, Escalation, and Compensation are valid there (unlike a top-level
 StartEvent), and a None (untyped) start is rejected
-(`:event_subprocess_untyped_start`). An Error ESP start must be interrupting
-(ESP-D7). A Compensation start consumes a thrown compensation for its scope
-(COMP-D5).
+(`:event_subprocess_untyped_start`). An Error ESP start must be interrupting.
+A Compensation start consumes a thrown compensation for its scope.
 
 ---
 
 ## Validator Rules
 
-The validator (`EvilEngine.BPMN.Validator`) collects all violations and
+The validator (`BfwEngine.BPMN.Validator`) collects all violations and
 returns them as a single error list so the user can fix every issue in one
 pass. It never short-circuits on the first problem.
 
+### Definitions-level checks
+
+- Executable definitions must declare `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` (exact URI). Absence yields `:missing_extension_namespace`.
+- `xmlns:evil` and legacy URIs (`https://evilengine.dev/schema/bpmn`, `http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`, `https://evil.studio/schema/bpmn/platform/1.0`) are rejected with `:legacy_extension_namespace`. The parser still strips prefixes; this scan is on `definitions.raw_xml`.
+
 ### Process-level checks
 
-- Every executable process must have a non-blank `<evil:version>`
+- Every executable process must have a non-blank `<bfw:version>`
 - Every executable process must contain at least one StartEvent
 - Every executable process must contain at least one EndEvent
 
@@ -1094,7 +1098,7 @@ pass. It never short-circuits on the first problem.
 | SendTask | `messageRef` |
 | ReceiveTask | `messageRef` |
 | ScriptTask | `script` or `scriptRef` (at least one) |
-| BusinessRuleTask | `implementation` (must be `"feel"` or `"dmn"`); `feel` requires `<script>`, `dmn` requires `evil:decisionRef` |
+| BusinessRuleTask | `implementation` (must be `"feel"` or `"dmn"`); `feel` requires `<script>`, `dmn` requires `bfw:decisionRef` |
 | ComplexGateway (join) | `activationCondition` — required only when the gateway is a **join** (many incoming, one outgoing). See Complex Gateway rules below. |
 | BoundaryEvent | `attachedToRef` |
 
@@ -1119,7 +1123,7 @@ pass. It never short-circuits on the first problem.
 - DataObjectReference `dataObjectRef` must point to an existing DataObject ID
 - DataOutputAssociation `targetRef` must point to an existing DataObjectReference ID
 - DataInputAssociation `sourceRef` (when present) must point to an existing DataObjectReference ID
-- `evil:valueContract` JSON Schema must be parseable by `ExJsonSchema`
+- `bfw:valueContract` JSON Schema must be parseable by `ExJsonSchema`
 - Event definition `messageRef` / `signalRef` / `errorRef` / `escalationRef` must match a global definition
 - SendTask / ReceiveTask `messageRef` must match a global MessageDefinition
 - BoundaryEvent `attachedToRef` must point to an existing FlowNode in the same process
@@ -1151,8 +1155,8 @@ classifies each Complex Gateway by its incoming/outgoing flow counts and enforce
   absent. The join is a single-fire **threshold** join: it fires when the FEEL
   `activationCondition` (with `activatedCount` / `incomingCount` bindings) becomes
   true. If all branches resolve but the condition is never met, the join FNI fatals
-  with `complex_join_condition_unmet` (Twist 1).
-- **Pairing / SESE rule (Twist 2)** — every Complex Join must pair to exactly one
+  with `complex_join_condition_unmet`.
+- **Pairing / SESE rule** — every Complex Join must pair to exactly one
   dominating Complex Split (`S = idom_complex(J)`), and the region between them must
   be single-entry / single-exit. `ComplexRegionAnalysis.region_violations/1` (folded
   into `check_complex_gateways/1`) rejects: an unpaired join
@@ -1163,14 +1167,14 @@ classifies each Complex Gateway by its incoming/outgoing flow counts and enforce
 Runtime split outcomes: `complex_gateway_unconditional_flow` (unmarked
 non-default outgoing), `complex_split_no_matching_condition` (zero truthy, no
 default), `complex_split_condition_failed` (FEEL error). Runtime join outcomes:
-`complex_join_condition_failed` (FEEL error). **Twist 2 cancellation:** when a
+`complex_join_condition_failed` (FEEL error). **Scoped cancellation:** when a
 Complex Join fires, every `:active`/`:waiting` FNI whose flow node lies inside the
 paired SESE region is interrupted (`Process.exit` + `handle_aborted/1` cleanup +
 recursive child-PI abort) and persisted as `:interrupted` with reason
 `:cancelled_by_complex_join`; unlike a Terminate/Error End Event this is scoped to
 the region and does not purge process-wide subscriptions. Because cancellation
 removes the losers, a straggler token reaching an already-fired join is absorbed
-silently (Phase 5.1's interim `complex_join_already_fired` fatal was removed). See
+silently. See
 [`docs/architecture/execution.md`](docs/architecture/execution.md) §Complex Gateway
 and the user handbook `docs/guides/handbook/complex-gateways.md`.
 
@@ -1197,7 +1201,7 @@ inner-scope structural checks as embedded subprocesses (messages prefixed
 | `:event_subprocess_no_start_event` | The ESP has no start event |
 | `:event_subprocess_multiple_start_events` | The ESP has more than one start event |
 | `:event_subprocess_untyped_start` | The ESP start event carries no event definition (a None start is not a valid trigger) |
-| `:event_subprocess_error_start_must_interrupt` | The ESP start event is an Error start with `isInterrupting="false"` (Error must interrupt, ESP-D7) |
+| `:event_subprocess_error_start_must_interrupt` | The ESP start event is an Error start with `isInterrupting="false"` (Error must interrupt) |
 
 ### Ad-hoc SubProcess structural checks (deploy-time)
 
@@ -1210,7 +1214,7 @@ runs first, then ad-hoc-specific checks are applied on top:
 | `:adhoc_subprocess_empty` | The ad-hoc subprocess contains no activities (tasks, call activities, subprocesses) |
 | `:adhoc_subprocess_has_start_event` | The ad-hoc subprocess contains a Start Event |
 | `:adhoc_subprocess_has_end_event` | The ad-hoc subprocess contains an End Event |
-| `:adhoc_sequential_missing_active_elements` | `adhoc_ordering == :sequential` with no `implementation` and no `evil:ActiveElements` expression |
+| `:adhoc_sequential_missing_active_elements` | `adhoc_ordering == :sequential` with no `implementation` and no `bfw:ActiveElements` expression |
 | `:adhoc_subprocess_empty_implementation` | `implementation` attribute is present but blank (whitespace-only) |
 
 Nesting restrictions (checked recursively across all subprocess scopes):
@@ -1233,7 +1237,7 @@ plugin, or Call Activity). Inner scopes are reachable only when the owning
 subprocess element is executed by its parent process instance.
 
 - **Public start contract:** `POST /processes/{model_id}/start` (and
-  `EvilEngine.Api.start_process_instance/3`) accept only Model/Version + Start
+  `BfwEngine.Api.start_process_instance/3`) accept only Model/Version + Start
   Event + payload/context/businessKey. `subprocess_node_id`,
   `parent_process_instance_id`, and `triggerer_flow_node_instance_id` are
   internal execution options, **not** public parameters. Extraneous request-body
@@ -1326,22 +1330,22 @@ to the string-keyed format required by the Rust NIF.
 - `<bpmn:condition>` inside `<bpmn:conditionalEventDefinition>` — FEEL expression re-evaluated by the PI on every state mutation until it becomes true
 - `<bpmn:activationCondition>` inside `<bpmn:complexGateway>` (join only) — FEEL threshold expression re-evaluated on every arrival / state change; gets the `activatedCount` / `incomingCount` overlay bindings
 - `<bpmn:timeDuration>`, `<bpmn:timeDate>`, `<bpmn:timeCycle>` (expression-based)
-- `evil:assignees`, `evil:dueDate`,
-  `evil:correlationRetrievalExpression`, `evil:correlationKey`,
-  `evil:inputCollection`, `evil:outputCollection`, `evil:loopBreakCondition`,
+- `bfw:assignees`, `bfw:dueDate`,
+  `bfw:correlationRetrievalExpression`, `bfw:correlationKey`,
+  `bfw:inputCollection`, `bfw:outputCollection`, `bfw:loopBreakCondition`,
   `<bpmn:completionCondition>` (MI), `<bpmn:loopCondition>` (Standard Loop)
-- `evil:httpBody`, `evil:httpAuthHeader`, `evil:httpResponseHeaders` on Service Tasks with `implementation` `"http"` (built-in HTTP handler)
-- `evil:inputMapping` / `evil:outputMapping` `source` attributes
+- `bfw:httpBody`, `bfw:httpAuthHeader`, `bfw:httpResponseHeaders` on Service Tasks with `implementation` `"http"` (built-in HTTP handler)
+- `bfw:inputMapping` / `bfw:outputMapping` `source` attributes
 - `<bpmn:completionCondition>` on ad-hoc subprocess — FEEL expression evaluated after each inner activity completion
-- `evil:activeElements` — FEEL expression returning list of element IDs for initial activation
-- `evil:dataContract` / `evil:payloadContract` / `evil:resultContract` do
+- `bfw:activeElements` — FEEL expression returning list of element IDs for initial activation
+- `bfw:dataContract` / `bfw:payloadContract` / `bfw:resultContract` do
   **not** contain FEEL — they contain JSON Schema
 
 ### Precompilation
 
 Expressions are parsed at deploy time into an opaque compiled reference
-using `EvilEngine.Expressions.compile/2`. At runtime,
-`EvilEngine.Expressions.evaluate/2` evaluates the compiled reference
+using `BfwEngine.Expressions.compile/2`. At runtime,
+`BfwEngine.Expressions.evaluate/2` evaluates the compiled reference
 against the context without re-parsing.
 
 For architecture details, see [`docs/architecture/expressions.md`](docs/architecture/expressions.md).
@@ -1360,7 +1364,7 @@ Events are delivered via WebSocket in a camelCase JSON envelope:
 }
 ```
 
-Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Full catalog and sink semantics: [`docs/architecture/event-system.md`](docs/architecture/event-system.md).
+Selected `BfwEngine.Types.Event.*` structs fan out through `EngineEventBus`. Full catalog and sink semantics: [`docs/architecture/event-system.md`](docs/architecture/event-system.md).
 
 ### Current Events
 
@@ -1371,21 +1375,21 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `EngineOverloaded` | `level`, `activeProcessInstances`, `limit` | Levels: `elevated`, `critical` |
 | `EngineRecovered` | `previousLevel`, `activeProcessInstances`, `limit` | Symmetric counterpart to `EngineOverloaded`; emitted when load drops back to normal |
 | `PluginQuarantined` | `pluginName`, `reason` | |
-| `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `parentProcessInstanceId`, `rootProcessInstanceId`, `oldState`, `newState`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `processModelId` is the BPMN process ID string; `version` is the `evil:version` string. `rootProcessInstanceId` equals `processInstanceId` for root PIs; inherited from parent for child PIs (SP-13). Visibility stamps drive `engine:events` dispatch without a DB lookup. |
+| `ProcessInstanceStateChanged` | `processInstanceId`, `processModelId`, `version`, `parentProcessInstanceId`, `rootProcessInstanceId`, `oldState`, `newState`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `processModelId` is the BPMN process ID string; `version` is the `bfw:version` string. `rootProcessInstanceId` equals `processInstanceId` for root PIs; inherited from parent for child PIs. Visibility stamps drive `engine:events` dispatch without a DB lookup. |
 | `FlowNodeInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `laneName`, `multiInstanceId`, `iterationIndex` | `flowNodeType` uses `FlowNodeType` enum values; `eventType` is the event definition subtype (`message`, `timer`, `error`, etc.) or `null` for non-event nodes and plain events. `multiInstanceId` / `iterationIndex` are set on MI/Loop iteration FNIs, `null` otherwise. `laneName` is `null` for laneless FNIs (always delivered on WebSocket). |
 | `FlowNodeInstanceFinished` | Same + `terminalState`, `typeProperties`, `errorInfo`, `multiInstanceId`, `iterationIndex` | `terminalState` uses `FlowNodeInstanceState` enum values; `typeProperties` carries handler-specific metadata (e.g. DMN trace, hit policy, matched rules for BRTs); defaults to `%{}` for non-success states; `errorInfo` is a normalized `%{error_code, message, detail?}` map for fatal FNIs, `null` otherwise |
 | `FlowNodeInstanceStateChanged` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `laneName`, `oldState`, `newState`, `multiInstanceId`, `iterationIndex` | Emitted on non-terminal state transitions (currently `active` → `waiting`). Enables the Studio Debugger to track FNI state without polling. |
 | `MultiInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `loopType`, `totalIterations`, `laneName`, `occurredAt` | Emitted when an MI or Standard Loop shell FNI begins execution. `loopType`: `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"`. `totalIterations` is the collection length for MI, `null` for Standard Loop. `laneName` is `null` for laneless shells (always delivered on WebSocket). |
-| `MultiInstanceCompleted` | Same + `completedIterations`, `earlyBreak` | Emitted when an MI or Standard Loop shell FNI finishes. `earlyBreak` is `true` when the loop terminated before exhausting all iterations (e.g. `evil:loopBreakCondition` or `completionCondition`) |
+| `MultiInstanceCompleted` | Same + `completedIterations`, `earlyBreak` | Emitted when an MI or Standard Loop shell FNI finishes. `earlyBreak` is `true` when the loop terminated before exhausting all iterations (e.g. `bfw:loopBreakCondition` or `completionCondition`) |
 | `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `laneName` | Also broadcast to `user_tasks:pending`. `laneName` is `null` for laneless user tasks. |
 | `UserTaskFinished` | Same + `outcome` | `outcome`: `completed` or `aborted`. Also broadcast to `user_tasks:pending` |
 | `UserTaskValidationFailed` | Same + `violations` | `violations`: array of `{message, path}` |
 | `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName`, `laneName` | `pluginName` may be `null` |
-| `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `rootProcessInstanceId`, `laneName` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `evil:version` string. `laneName` is the Call Activity shell's lane. `rootProcessInstanceId` is the emitting parent PI's root (SP-13). |
-| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when an Embedded SubProcess, Event Subprocess, or Ad-hoc SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` (mandatory, ESP-D16) is `true` when the child is an Event Subprocess spawn, `false` otherwise. `isAdHocSubprocess` is `true` when the child is an Ad-hoc SubProcess spawn, `false` otherwise. `rootProcessInstanceId` is the emitting parent PI's root (SP-13). Paired with `[:evil_engine, :subprocess, :child_started]` telemetry. |
+| `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `rootProcessInstanceId`, `laneName` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `bfw:version` string. `laneName` is the Call Activity shell's lane. `rootProcessInstanceId` is the emitting parent PI's root. |
+| `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when an Embedded SubProcess, Event Subprocess, or Ad-hoc SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` is `true` when the child is an Event Subprocess spawn, `false` otherwise. `isAdHocSubprocess` is `true` when the child is an Ad-hoc SubProcess spawn, `false` otherwise. `rootProcessInstanceId` is the emitting parent PI's root. Paired with `[:bfw_engine, :subprocess, :child_started]` telemetry. |
 | `EventSubprocessTriggered` | `scopeProcessInstanceId`, `rootProcessInstanceId`, `subprocessNodeId`, `childProcessInstanceId`, `triggerKind`, `isInterrupting`, `laneName`, `occurredAt` | Emitted by the scope PI when an Event Subprocess trigger fires and spawns an ESP child PI. `triggerKind` is one of `message`, `signal`, `timer`, `error`, `escalation`, `conditional`. `isInterrupting` reflects the ESP start event's `isInterrupting` attribute. The Studio debugger primarily consumes `SubProcessChildStarted` (with `isEventSubprocess`); this event additionally exposes the trigger kind |
 | `DataObjectWritten` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `dataObjectId`, `writeId`, `previousValue`, `value`, `createdAt`, `laneName` | Emitted after each successful DOA write. `previousValue` is computed from the in-memory cache (not stored in DB). `laneName` is the causing FNI's lane. |
-| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI (cycle start-event fire). Cycle Timer Start fires leave `processInstanceId` and `rootProcessInstanceId` null. Scheduler telemetry `[:evil_engine, :timer, :armed|:fired|:cancelled]` covers arm/cancel; there are no typed `TimerArmed` / `TimerCancelled` events. |
+| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI (cycle start-event fire). Cycle Timer Start fires leave `processInstanceId` and `rootProcessInstanceId` null. Scheduler telemetry `[:bfw_engine, :timer, :armed|:fired|:cancelled]` covers arm/cancel; there are no typed `TimerArmed` / `TimerCancelled` events. |
 | `ProcessDefinitionDeployed` | `processModelId`, `version`, `source` | Emitted per deployed version from `persist_deploy_batch/3` |
 | `ProcessDefinitionUndeployed` | `processModelId`, `version`, `source` | `version` is `null` for bulk undeploy |
 | `ProcessDefinitionEnabled` | `processModelId`, `source` | Emitted when a process is re-enabled via REST or plugin |
@@ -1393,11 +1397,11 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `DecisionDefinitionDeployed` | `decisionDefinitionId`, `version`, `source` | `source` is `"user:<id>"` or `"plugin:<name>"` |
 | `DecisionDefinitionUndeployed` | `decisionDefinitionId`, `version`, `source` | `version` is `null` for bulk undeploy |
 | `DecisionEvaluated` | `decisionDefinitionId`, `decisionModelId`, `version`, `decisionVersionId`, `durationMicroseconds`, `source` | Ad-hoc evaluations only (REST + plugin facade); BRT evaluations are observable via `FlowNodeInstanceFinished.typeProperties` |
-| `ProcessInstanceRetried` | `processInstanceId`, `targetProcessInstanceId`, `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `processInstanceId` is the root PI; `targetProcessInstanceId` is the user-targeted PI. `version`, `previousVersion`, `newVersion` are **process version UUIDs** (not `evil:version` strings). `previousVersion`/`newVersion` are `null` when no version migration. `resetToFlowNodeInstanceId` is `null` when no checkpoint. Visibility stamps match `ProcessInstanceStateChanged`. |
+| `ProcessInstanceRetried` | `processInstanceId`, `targetProcessInstanceId`, `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy`, `startedById`, `hasLanelessFlowNode`, `laneNames` | `processInstanceId` is the root PI; `targetProcessInstanceId` is the user-targeted PI. `version`, `previousVersion`, `newVersion` are **process version UUIDs** (not `bfw:version` strings). `previousVersion`/`newVersion` are `null` when no version migration. `resetToFlowNodeInstanceId` is `null` when no checkpoint. Visibility stamps match `ProcessInstanceStateChanged`. |
 | `MessagePublished` | `messageId`, `messageName`, `correlationValue`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | Emitted after pipeline completes |
-| `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a message reaches a waiting subscription. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription (SP-13). |
+| `MessageArrived` | `messageId`, `messageName`, `correlationValue`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a message reaches a waiting subscription. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription. |
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | No payload, no correlation; true broadcast. Emitted after pipeline completes |
-| `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | No payload — signal identity and recipient only. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription (SP-13). |
+| `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | No payload — signal identity and recipient only. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription. |
 | `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught) and on REST/plugin inject. `throwType`: `"end_event"`, `"intermediate_throw"`, or `"api_trigger"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. `laneName` is the throw FNI's lane. |
 | `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `laneName`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
 | `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `laneName`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
@@ -1406,9 +1410,9 @@ Selected `EvilEngine.Types.Event.*` structs fan out through `EngineEventBus`. Fu
 | `AdHocSubProcessCompleted` | `processInstanceId`, `rootProcessInstanceId`, `adhocFlowNodeInstanceId`, `adhocNodeId`, `completionReason`, `totalActivations`, `laneName`, `occurredAt` | `completionReason`: `completed`, `fatal`, `error`, `aborted`, `crashed`, `escalation`, `unknown`. `laneName` is the ad-hoc shell's lane. |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
 
-**`rootProcessInstanceId` and root PI WebSocket fan-out (SP-13):** Event types that carry `rootProcessInstanceId` include PI lifecycle, FNI lifecycle, user-task, data-object, compensation, multi-instance, `TimerFired`, `MessageArrived`, `SignalArrived`, `CallActivityChildStarted`, and `SubProcessChildStarted`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`EvilEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both the primary PI topic (`process_instance:<processInstanceId>` or, for child-spawn events, `process_instance:<parentProcessInstanceId>`) and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives descendant FNI, user-task, data-object, compensation, timer, message/signal arrival, and nested spawn events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
+**`rootProcessInstanceId` and root PI WebSocket fan-out:** Event types that carry `rootProcessInstanceId` include PI lifecycle, FNI lifecycle, user-task, data-object, compensation, multi-instance, `TimerFired`, `MessageArrived`, `SignalArrived`, `CallActivityChildStarted`, and `SubProcessChildStarted`. For root-level PIs, `rootProcessInstanceId` equals `processInstanceId`. For child PIs (Call Activity or Embedded SubProcess at any depth), it points to the top-level root PI. The WebSocket sink (`BfwEngineWeb.Ws.Sinks.WebSocket`) broadcasts events with a distinct root to both the primary PI topic (`process_instance:<processInstanceId>` or, for child-spawn events, `process_instance:<parentProcessInstanceId>`) and `process_instance:<rootProcessInstanceId>`, so a Studio debugger subscribed only to the root channel receives descendant FNI, user-task, data-object, compensation, timer, message/signal arrival, and nested spawn events. See [`docs/architecture/event-system.md`](docs/architecture/event-system.md) §Root Process Instance ID and WebSocket Fan-out.
 
-**`EngineOverloaded` / `EngineRecovered` detail:** Emitted on load-threshold **crossings** (`normal` ↔ `elevated` ↔ `critical`), not on every poller tick. `EngineOverloaded` fires on upward transitions (normal→elevated, elevated→critical, normal→critical). `EngineRecovered` fires on downward transitions to normal (elevated→normal, critical→normal). Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). Detection lives in `EvilEngine.Telemetry.Measurements`.
+**`EngineOverloaded` / `EngineRecovered` detail:** Emitted on load-threshold **crossings** (`normal` ↔ `elevated` ↔ `critical`), not on every poller tick. `EngineOverloaded` fires on upward transitions (normal→elevated, elevated→critical, normal→critical). `EngineRecovered` fires on downward transitions to normal (elevated→normal, critical→normal). Published via `EngineEventBus` only (no `:telemetry.execute/3` pairing). Detection lives in `BfwEngine.Telemetry.Measurements`.
 
 ### Error Diagnostics
 
@@ -1433,7 +1437,7 @@ Example (WebSocket `FlowNodeInstanceFinished.errorInfo`):
 }
 ```
 
-**Diagnostic quality requirement:** Every `message` must be a complete English sentence that names the specific element or construct that failed and explains why. Good messages include flow node IDs, BPMN element names, FEEL expression text, `implementation` values, DMN decision refs, contract violation summaries, or payload size figures. Generic fallbacks such as `"An unexpected error occurred"` or atom-to-words conversions (`"In mapping failed"`) are temporary placeholders — each must be replaced with a specific `humanize_error/1` clause in `apps/core_execution/lib/evil_engine/execution/process_instance/helpers.ex` as the error shape is identified.
+**Diagnostic quality requirement:** Every `message` must be a complete English sentence that names the specific element or construct that failed and explains why. Good messages include flow node IDs, BPMN element names, FEEL expression text, `implementation` values, DMN decision refs, contract violation summaries, or payload size figures. Generic fallbacks such as `"An unexpected error occurred"` or atom-to-words conversions (`"In mapping failed"`) are temporary placeholders — each must be replaced with a specific `humanize_error/1` clause in `apps/core_execution/lib/bfw_engine/execution/process_instance/helpers.ex` as the error shape is identified.
 
 **Implementation contract:**
 
@@ -1443,7 +1447,7 @@ Example (WebSocket `FlowNodeInstanceFinished.errorInfo`):
 
 See also `docs/architecture/common-pitfalls.md` (error messages must be diagnostic sentences).
 
-### Planned Events (Phase 2)
+### Planned Events
 
 These event names are reserved for future implementation:
 
@@ -1454,7 +1458,7 @@ These event names are reserved for future implementation:
 ## PI Retry / Restart (Runtime API)
 
 Process Instance retry is a **runtime API feature**, not a BPMN modelling
-concern. There are no `evil:*` extension elements related to retry — the
+concern. There are no `bfw:*` extension elements related to retry — the
 capability is exposed exclusively through:
 
 - **REST:** `PUT /process-instances/{id}/retry` (body: optional `version`,
@@ -1540,24 +1544,24 @@ For implementation details see
 
 ## EngineFacade (Plugin API Surface)
 
-The `EvilEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/evil_engine/engine_facade.ex`) provides the runtime API available to plugins. It is the Elixir-side counterpart of the TypeScript `EngineFacade` interface in `@elraptorus/daemonengine_sdk`.
+The `BfwEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/bfw_engine/engine_facade.ex`) provides the runtime API available to plugins. It is the Elixir-side counterpart of the TypeScript `EngineFacade` interface in `@elraptorus/bfw_engine_sdk`.
 
 ### Key corrections (2026-05-07 audit)
 
 - `fail_async_service_task/3` takes three string arguments: `(flow_node_instance_id, reason, details)` — not a map for details
-- Typed registration closures (`register_service_task_handler/2`, `register_named_script/2`, `register_rest_api_extension/2`, `register_auth_provider/1`) return `:ok`, `{:error, :conflict, incumbent_plugin_name}`, `{:error, :invalid_handler, message}`, or `{:error, :module_not_loaded, message}`. For in-BEAM plugins, the Registry validates at registration time that the handler module implements the expected `@behaviour` (e.g. `EvilEngine.Plugin.ServiceTaskHandler` for service task handlers, `EvilEngine.Plugin.AuthProvider` for auth providers). Auth provider is a singleton capability — first-writer wins, duplicate registration is rejected and the offending plugin is quarantined. Non-atom handler descriptors skip the behaviour check. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them.
+- Typed registration closures (`register_service_task_handler/2`, `register_named_script/2`, `register_rest_api_extension/2`, `register_auth_provider/1`) return `:ok`, `{:error, :conflict, incumbent_plugin_name}`, `{:error, :invalid_handler, message}`, or `{:error, :module_not_loaded, message}`. For in-BEAM plugins, the Registry validates at registration time that the handler module implements the expected `@behaviour` (e.g. `BfwEngine.Plugin.ServiceTaskHandler` for service task handlers, `BfwEngine.Plugin.AuthProvider` for auth providers). Auth provider is a singleton capability — first-writer wins, duplicate registration is rejected and the offending plugin is quarantined. Non-atom handler descriptors skip the behaviour check. PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them.
 - `register_event_sink/3` returns `{:ok, :registered}` or `{:error, :already_registered}` — duplicate sink names are rejected
 - `get_config/1` retrieves engine configuration by key
 
 ### Signal facade
 
-- `facade.signals.publish.(signal_name)` → `EvilEngine.Api.publish_signal/3` (with `skip_claims: true` for plugins)
+- `facade.signals.publish.(signal_name)` → `BfwEngine.Api.publish_signal/3` (with `skip_claims: true` for plugins)
   (no payload, no correlation; plugin identity injected into `origin`)
 - Returns `{:ok, %{signal_id, signal_name, deliveries, started_process_instance_ids, pending}}`
 
 ### Escalation facade
 
-- `facade.escalations.publish.(escalation_code)` → `EvilEngine.Api.trigger_escalation/3` (with `skip_claims: true` for plugins)
+- `facade.escalations.publish.(escalation_code)` → `BfwEngine.Api.trigger_escalation/3` (with `skip_claims: true` for plugins)
   (no payload; engine-wide waiter delivery to ESP starts and waiting Escalation Boundary FNIs)
 - Returns `{:ok, %{escalation_code, deliveries, pending: false}}`
 
@@ -1565,23 +1569,23 @@ The `EvilEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/evil_engine/eng
 
 - REST: `POST /timer-events/{flow_node_instance_id}/trigger` — manually fire a waiting timer FNI
 - Client: `EventClient.triggerTimer(flowNodeInstanceId)` → `TimerTriggerResult` (`{ triggered: boolean }`)
-- Api: `EvilEngine.Api.trigger_timer_event/3` — lane access + type/state validation, then `Execution.trigger_timer_event/2`
+- Api: `BfwEngine.Api.trigger_timer_event/3` — lane access + type/state validation, then `Execution.trigger_timer_event/2`
 - No dedicated JWT trigger claim; gated by `lane:<name>` (same model as User Task finish)
-- Facade: `facade.timers.trigger_event.(flow_node_instance_id)` plus schedule `list_schedules` / `get_schedule` / `enable_schedule` / `disable_schedule` (wired through `EvilEngine.Api`, skip_claims)
+- Facade: `facade.timers.trigger_event.(flow_node_instance_id)` plus schedule `list_schedules` / `get_schedule` / `enable_schedule` / `disable_schedule` (wired through `BfwEngine.Api`, skip_claims)
 
 ### Process catalog facade
 
-- `facade.processes.list.()` → `EvilEngine.Api.list_processes/1`
-- `facade.processes.undeploy.(process_model_id, version)` → `EvilEngine.Api.undeploy_process/3` (`skip_claims: true`)
+- `facade.processes.list.()` → `BfwEngine.Api.list_processes/1`
+- `facade.processes.undeploy.(process_model_id, version)` → `BfwEngine.Api.undeploy_process/3` (`skip_claims: true`)
 - Also on the processes namespace: `get`, `deploy`, `enable`, `disable`, `delete_version`, `start`
 
 ### alignment
 
-All external entry points converge through `EvilEngine.Api`. REST controllers are thin HTTP adapters — they call facade functions and map errors; claim and lane enforcement lives in the facade via `EvilEngine.Api.Validation`. Plugins call the same facade with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/d51_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found.
+All external entry points converge through `BfwEngine.Api`. REST controllers are thin HTTP adapters — they call facade functions and map errors; claim and lane enforcement lives in the facade via `BfwEngine.Api.Validation`. Plugins call the same facade with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/d51_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found.
 
 ---
 
-## DMN Decision Engine (Phase 3–7)
+## DMN Decision Engine
 
 The `core_dmn` umbrella app implements a DMN 1.5 CL3-conformant decision
 engine. It parses DMN XML, validates structural constraints, precompiles
@@ -1667,7 +1671,7 @@ DMNDI elements (`<DMNDI>`, `<DMNDiagram>`, `<DMNShape>`, `<DMNEdge>`,
 They have no relevance for evaluation — the engine does not render diagrams.
 The raw XML (including DMNDI) is preserved verbatim in `%Definitions{raw_xml: ...}`
 for retrieval via `GET /decisions/:id?includeXml=true`; the Studio's SDK
-parser (`@elraptorus/daemonengine_sdk`) handles DMNDI extraction client-side.
+parser (`@elraptorus/bfw_engine_sdk`) handles DMNDI extraction client-side.
 
 ### DMN Evaluation Pipeline
 
@@ -1697,9 +1701,9 @@ Input + decision_id → DependencyResolver (topo sort)
 | `input_value_violation` | 422 | Input value does not satisfy `inputValues` constraint |
 | `missing_service_input` | 422 | Required `inputData` not provided for Decision Service |
 
-### Phase 7 trace structs (observability)
+### Trace structs (observability)
 
-Phase 7 extends `EvaluationTrace` and `EvaluationResult` with nested trace types for Studio debugger "step-into" navigation. Modules live under `EvilEngine.DMN.EvaluationTrace` in `apps/core_dmn/lib/evil_engine/dmn/evaluation_trace.ex`.
+`EvaluationTrace` and `EvaluationResult` carry nested trace types for Studio debugger "step-into" navigation. Modules live under `BfwEngine.DMN.EvaluationTrace` in `apps/core_dmn/lib/bfw_engine/dmn/evaluation_trace.ex`.
 
 #### `BkmTrace`
 
@@ -1863,7 +1867,7 @@ that the Process Instance recognises in its `:running` state machine.
 
 The `error_info` map contains `error_code` and `error_message`, resolved
 with the following priority:
-1. Inline `evil:errorCode` on the `<errorEventDefinition>` (highest)
+1. Inline `bfw:errorCode` on the `<errorEventDefinition>` (highest)
 2. Global `<bpmn:error errorCode="...">` referenced via `errorRef`
 3. `nil` (catch-all compatible — any boundary without a filter matches)
 
@@ -1961,19 +1965,19 @@ routing to a Compensate Throw, then a Cancel End.
 6. If found: returns `{:boundary, cancel_boundary_node_id, token, true}` — parent continues
 7. If not found: returns `{:error, :unhandled_cancel}` — parent fatals (hazard)
 
-### Design Decisions (TX-D1 through TX-D9)
+### Transaction rules
 
-| ID | Decision |
-|----|----------|
-| TX-D1 | `bpmn:transaction` maps to `:sub_process` with `is_transaction: true`. Reuses 95% of embedded subprocess infrastructure. |
-| TX-D2 | New PI terminal state `:cancelled`. Distinct from `:aborted` (API kill) and `:compensated` (explicit compensation). |
-| TX-D3 | Cancel End fires automatic LIFO compensation within the child PI before transitioning to `:cancelled`. |
-| TX-D4 | Cancel Boundary is reactive (Error-model), not subscription-based. Matched via `BoundaryResolver.find_matching_cancel_boundary/2`. |
-| TX-D5 | No nested transactions in v1. Deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. |
-| TX-D6 | `method` attribute parsed and stored as `transaction_method` but not executed (no wire-level protocol integration). |
-| TX-D7 | Hazard (uncaught error) does NOT trigger compensation. Error propagates to parent same as any subprocess fatal. |
-| TX-D8 | Retry restrictions: (a) checkpoint must not point inside a transaction scope; (b) no PI below a transaction ancestor may be retried independently. Error codes: `retry_checkpoint_inside_transaction`, `retry_inside_transaction_scope`. |
-| TX-D9 | `:cancelled` is NOT retryable — it is a handled business outcome, not a failure. |
+| Rule | Behavior |
+|------|----------|
+| Representation | `bpmn:transaction` maps to `:sub_process` with `is_transaction: true`. It reuses the embedded subprocess infrastructure. |
+| Terminal state | `:cancelled` is distinct from `:aborted` (API kill) and `:compensated` (explicit compensation). |
+| Cancel End | Fires automatic LIFO compensation within the child PI before transitioning to `:cancelled`. |
+| Cancel Boundary | Reactive, matched via `BoundaryResolver.find_matching_cancel_boundary/2`. It is not a subscription. |
+| Nesting | The deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. |
+| `method` | Parsed and stored as `transaction_method`. It is not executed. |
+| Hazard | An uncaught error does not trigger compensation. The error propagates to the parent the same way as any subprocess fatal. |
+| Retry | A checkpoint must not point inside a transaction scope, and no PI below a transaction ancestor may be retried independently. Error codes: `retry_checkpoint_inside_transaction`, `retry_inside_transaction_scope`. |
+| `:cancelled` | Not retryable. It is a handled business outcome. |
 
 ### Events
 
@@ -1983,7 +1987,7 @@ routing to a Compensate Throw, then a Cancel End.
 | `ProcessInstanceStateChanged` (`:cancelled`) | Standard fields | Emitted when child PI transitions to `:cancelled` |
 
 `TransactionCancelled` is broadcast to both `process_instance:<child_pi_id>` and
-`process_instance:<root_pi_id>` channels via the standard root-PI fan-out (SP-13).
+`process_instance:<root_pi_id>` channels via the standard root-PI fan-out.
 
 ### Retry Restrictions
 
@@ -1997,7 +2001,7 @@ For architecture details see [`docs/architecture/execution.md`](docs/architectur
 
 ## Project Structure
 
-ThomasTheDaemonEngine is an Elixir umbrella project following DDD domain
+Bifrost Forge World Engine is an Elixir umbrella project following DDD domain
 boundaries with a strict dependency direction.
 
 ### Dependency rule
@@ -2024,7 +2028,7 @@ API. Violations of this rule break the architecture.
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
 | `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |
-| `api_facade` | API | `EvilEngine.Api` service-layer facade (no Phoenix dep) |
+| `api_facade` | API | `BfwEngine.Api` service-layer facade (no Phoenix dep) |
 | `api_web` | API | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |
 
 ### TypeScript packages (`packages/js/`)
@@ -2033,8 +2037,8 @@ The engine ships two npm packages in a pnpm monorepo under `packages/js/`:
 
 | Package | npm name | Purpose |
 |---------|----------|---------|
-| `packages/js/sdk/` | `@elraptorus/daemonengine_sdk` | Type definitions, error classes, event types, BPMN XML parser. Contract layer -- no network code. |
-| `packages/js/client/` | `@elraptorus/daemonengine_client` | REST, GraphQL, and WebSocket client. Consumes types from the SDK. |
+| `packages/js/sdk/` | `@elraptorus/bfw_engine_sdk` | Type definitions, error classes, event types, BPMN XML parser. Contract layer -- no network code. |
+| `packages/js/client/` | `@elraptorus/bfw_engine_client` | REST, GraphQL, and WebSocket client. Consumes types from the SDK. |
 
 **Dependency direction:** `client` depends on `sdk` (`workspace:*`). The SDK never imports from the client.
 
@@ -2086,8 +2090,8 @@ namespaces in addition to the BPMN model namespace:
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 ```
 
@@ -2174,7 +2178,7 @@ Minimal pool + lane skeleton:
 
 ## Timer Event REST Endpoint
 
-The `TimerEventController` (`apps/api_web/lib/evil_engine_web/http/controllers/timer_event_controller.ex`)
+The `TimerEventController` (`apps/api_web/lib/bfw_engine_web/http/controllers/timer_event_controller.ex`)
 exposes manual timer trigger via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Access |
@@ -2183,15 +2187,15 @@ exposes manual timer trigger via REST. JWT authentication required.
 
 Body: empty or `{}`. Response `200`: `TimerTriggerResult` — `{ "triggered": true }` (camelCase on wire). Errors: `404` (not found / lane-invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
 
-TypeScript SDK type: `TimerTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult` alongside `MessageTriggerResult` and `SignalTriggerResult`). Client method: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client`.
+TypeScript SDK type: `TimerTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult` alongside `MessageTriggerResult` and `SignalTriggerResult`). Client method: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/bfw_engine_client`.
 
-Eligible FNIs: Intermediate Catch or Boundary events with `event_type: "timer"`. Delegates to `EvilEngine.Api.trigger_timer_event/3`.
+Eligible FNIs: Intermediate Catch or Boundary events with `event_type: "timer"`. Delegates to `BfwEngine.Api.trigger_timer_event/3`.
 
 ---
 
 ## Escalation REST Endpoint
 
-The `EscalationController` (`apps/api_web/lib/evil_engine_web/http/controllers/escalation_controller.ex`)
+The `EscalationController` (`apps/api_web/lib/bfw_engine_web/http/controllers/escalation_controller.ex`)
 exposes engine-wide escalation inject via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Access |
@@ -2200,15 +2204,15 @@ exposes engine-wide escalation inject via REST. JWT authentication required.
 
 Body: empty or `{}`. Response `200`: `EscalationTriggerResult` — `{ "escalationCode", "deliveries": [{ "processInstanceId", "flowNodeInstanceId" }], "pending": false }` (camelCase on wire). Empty `deliveries` is success. Errors: `403` (forbidden), `422` (`escalation_code_blank` / `escalation_code_too_long`). Not a modeled throw; no pending; unmatched PIs are not `:escalated`.
 
-TypeScript SDK type: `EscalationTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult`). Client method: `EventClient.triggerEscalation(escalationCode)` in `@elraptorus/daemonengine_client`.
+TypeScript SDK type: `EscalationTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult`). Client method: `EventClient.triggerEscalation(escalationCode)` in `@elraptorus/bfw_engine_client`.
 
-Delegates to `EvilEngine.Api.trigger_escalation/3`.
+Delegates to `BfwEngine.Api.trigger_escalation/3`.
 
 ---
 
 ## Ad-hoc Subprocess REST Endpoints
 
-The `AdhocSubprocessController` (`apps/api_web/lib/evil_engine_web/http/controllers/adhoc_subprocess_controller.ex`)
+The `AdhocSubprocessController` (`apps/api_web/lib/bfw_engine_web/http/controllers/adhoc_subprocess_controller.ex`)
 exposes ad-hoc subprocess control via REST. JWT authentication required.
 
 | Method | Path | Purpose | Required Claim |
@@ -2235,7 +2239,7 @@ Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities, activate_acti
 
 ## DMN REST Endpoints
 
-The `DecisionController` (`apps/api_web/lib/evil_engine_web/http/controllers/decision_controller.ex`)
+The `DecisionController` (`apps/api_web/lib/bfw_engine_web/http/controllers/decision_controller.ex`)
 exposes DMN operations via REST. All endpoints require JWT authentication.
 
 | Method | Path | Purpose | Required Claim |
@@ -2263,7 +2267,7 @@ namespace exposes: `list`, `get`, `get_latest_version`, `deploy`, `evaluate`,
 
 ## Complete Example
 
-A valid, minimal BPMN file exercising multiple `evil:*` extensions:
+A valid, minimal BPMN file exercising multiple `bfw:*` extensions:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -2272,16 +2276,16 @@ A valid, minimal BPMN file exercising multiple `evil:*` extensions:
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:message id="Message_payment" name="payment-received" />
 
   <bpmn:process id="order-process" name="Order Process" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
-      <evil:correlationKey>token.orderId</evil:correlationKey>
+      <bfw:version>1.0.0</bfw:version>
+      <bfw:correlationKey>token.orderId</bfw:correlationKey>
     </bpmn:extensionElements>
 
     <bpmn:startEvent id="Start_1" name="Order received">
@@ -2290,8 +2294,8 @@ A valid, minimal BPMN file exercising multiple `evil:*` extensions:
 
     <bpmn:userTask id="UserTask_1" name="Review Order">
       <bpmn:extensionElements>
-        <evil:assignees>identity.groups</evil:assignees>
-        <evil:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</evil:formFields>
+        <bfw:assignees>identity.groups</bfw:assignees>
+        <bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
@@ -2305,7 +2309,7 @@ A valid, minimal BPMN file exercising multiple `evil:*` extensions:
 
     <bpmn:serviceTask id="ServiceTask_1" name="Charge Payment" implementation="http">
       <bpmn:extensionElements>
-        <evil:resultContract>{"type":"object","required":["transactionId"]}</evil:resultContract>
+        <bfw:resultContract>{"type":"object","required":["transactionId"]}</bfw:resultContract>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_approved</bpmn:incoming>
       <bpmn:outgoing>Flow_3</bpmn:outgoing>
@@ -2320,7 +2324,7 @@ A valid, minimal BPMN file exercising multiple `evil:*` extensions:
     <bpmn:endEvent id="End_success" name="Order Complete">
       <bpmn:messageEventDefinition messageRef="Message_payment">
         <bpmn:extensionElements>
-          <evil:correlationRetrievalExpression>token.orderId</evil:correlationRetrievalExpression>
+          <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
         </bpmn:extensionElements>
       </bpmn:messageEventDefinition>
       <bpmn:incoming>Flow_4</bpmn:incoming>
@@ -2398,11 +2402,11 @@ A valid, minimal BPMN file exercising multiple `evil:*` extensions:
 ```
 
 This example demonstrates:
-- `evil:version` on the process (required)
-- `evil:assignees` and `evil:formFields` on a UserTask
-- `implementation` and `evil:resultContract` on a ServiceTask
-- `evil:correlationKey` on the process (catch-side correlation)
-- `evil:correlationRetrievalExpression` on a Message End Event (throw-side correlation stamp)
+- `bfw:version` on the process (required)
+- `bfw:assignees` and `bfw:formFields` on a UserTask
+- `implementation` and `bfw:resultContract` on a ServiceTask
+- `bfw:correlationKey` on the process (catch-side correlation)
+- `bfw:correlationRetrievalExpression` on a Message End Event (throw-side correlation stamp)
 - Conditional expression on a SequenceFlow
 - Default flow on an ExclusiveGateway
 - Global message definition referenced by catch and end events

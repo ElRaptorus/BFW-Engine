@@ -10,7 +10,7 @@
 original_logger_level = Logger.level()
 Logger.configure(level: :critical)
 
-{:ok, _} = EvilEngine.Persistence.Partitions.ensure_partitions()
+{:ok, _} = BfwEngine.Persistence.Partitions.ensure_partitions()
 
 support_dir = Path.expand("support", __DIR__)
 
@@ -36,10 +36,10 @@ ebin_dirs =
   |> Enum.map(&String.to_charlist/1)
 
 # `:cover.compile_beam_directory` rewrites every module in memory.
-# Instrumenting `EvilEngine.Expressions.Nif` drops the Rustler on_load
+# Instrumenting `BfwEngine.Expressions.Nif` drops the Rustler on_load
 # hook, so `Nif.compile/2` becomes undefined and FEEL/DMN deploys fatal
 # (see common-pitfalls.md P79). Skip that beam; leave the loaded NIF.
-feel_nif_beam = "Elixir.EvilEngine.Expressions.Nif.beam"
+feel_nif_beam = "Elixir.BfwEngine.Expressions.Nif.beam"
 
 for dir <- ebin_dirs do
   directory = List.to_string(dir)

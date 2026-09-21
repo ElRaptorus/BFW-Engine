@@ -1,4 +1,4 @@
-import { GraphqlDepthLimitError } from '@elraptorus/daemonengine_sdk';
+import { GraphqlDepthLimitError } from '@elraptorus/bfw_engine_sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GraphqlClient } from '../../src/graphql/graphql-client.js';

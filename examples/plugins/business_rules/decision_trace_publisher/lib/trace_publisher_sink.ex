@@ -8,11 +8,11 @@ defmodule Examples.BusinessRules.DecisionTracePublisher.Sink do
   HTTP POST logger).
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionTracePublisher.AuditMessageBuilder
 
   @doc "Stores optional `deliver_fn` for audit payload delivery."

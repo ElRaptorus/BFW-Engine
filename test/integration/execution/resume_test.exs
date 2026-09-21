@@ -1,14 +1,14 @@
-defmodule EvilEngine.Integration.Execution.ResumeTest do
+defmodule BfwEngine.Integration.Execution.ResumeTest do
   @moduledoc "Integration tests for resume-on-startup (Item 15)."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ProcessInstance
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Test.ExamplePlugin
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Types.Event
 
   # -------------------------------------------------------------------
   # I1: Resume user task
@@ -38,9 +38,9 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
 
       reloaded_fni =
         Ash.get!(
-          EvilEngine.Persistence.Resources.FlowNodeInstance,
+          BfwEngine.Persistence.Resources.FlowNodeInstance,
           ut_fni.id,
-          domain: EvilEngine.Persistence.Api,
+          domain: BfwEngine.Persistence.Api,
           authorize?: false
         )
 
@@ -77,7 +77,7 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
       {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
 
       assert [{^process_instance_pid, :async}] =
-               Registry.lookup(EvilEngine.Execution.Registry, {:fni, st_fni.id})
+               Registry.lookup(BfwEngine.Execution.Registry, {:fni, st_fni.id})
 
       assert :ok =
                ProcessInstance.finish_async_service_task(process_instance_pid, st_fni.id, %{
@@ -287,7 +287,7 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
       :ok
     end
 
-    test "resumes all PIs ignoring TDE_MAX_CONCURRENT_PIS; new HTTP starts return 503",
+    test "resumes all PIs ignoring BFE_MAX_CONCURRENT_PIS; new HTTP starts return 503",
          %{collector: _collector} do
       cap = 3
       total = 5
@@ -311,7 +311,7 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
 
       {:ok, resumed_count} = ResumeRunner.resume_all()
       assert resumed_count == total
-      assert DynamicSupervisor.count_children(EvilEngine.Execution.Supervisor).active == total
+      assert DynamicSupervisor.count_children(BfwEngine.Execution.Supervisor).active == total
 
       Enum.each(process_instance_ids, fn process_instance_id ->
         assert_pi_state!(process_instance_id, "running")
@@ -350,7 +350,7 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok
@@ -377,7 +377,7 @@ defmodule EvilEngine.Integration.Execution.ResumeTest do
     Application.put_env(
       :core_execution,
       :service_task_dispatch,
-      EvilEngine.Plugins.RegistryDispatch
+      BfwEngine.Plugins.RegistryDispatch
     )
 
     facade = Loader.facade_for_plugin("evil:test_resume")

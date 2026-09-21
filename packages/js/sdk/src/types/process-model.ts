@@ -17,7 +17,7 @@ export interface ProcessModel {
   definitionsId?: string;
   /** Internal UUID of the ProcessVersion row. Present in REST listing, detail, and version-list responses. */
   versionId?: string;
-  /** Deployment version string (`evil:version`). REST-only (use ProcessVersion in GraphQL). */
+  /** Deployment version string (`bfw:version`). REST-only (use ProcessVersion in GraphQL). */
   version?: string;
   /** Human-readable name from the BPMN `name` attribute. */
   name: string | null;

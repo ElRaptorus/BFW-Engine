@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_1"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -10,7 +10,7 @@
   </bpmn:collaboration>
   <bpmn:process id="DataObjectContractPass" name="Data Object Contract Pass" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -21,7 +21,7 @@
     </bpmn:laneSet>
     <bpmn:dataObject id="DO_1" name="StrictData">
       <bpmn:extensionElements>
-        <evil:valueContract>{"type": "object", "required": ["name", "email"], "properties": {"name": {"type": "string"}, "email": {"type": "string"}}}</evil:valueContract>
+        <bfw:valueContract>{"type": "object", "required": ["name", "email"], "properties": {"name": {"type": "string"}, "email": {"type": "string"}}}</bfw:valueContract>
       </bpmn:extensionElements>
     </bpmn:dataObject>
     <bpmn:dataObjectReference id="DOR_1" dataObjectRef="DO_1"/>

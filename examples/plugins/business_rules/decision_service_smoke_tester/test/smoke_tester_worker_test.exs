@@ -1,8 +1,8 @@
 defmodule Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterWorkerTest do
   use ExUnit.Case
 
-  alias EvilEngine.DMN.{EvaluationTrace, ServiceEvaluationResult}
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.DMN.{EvaluationTrace, ServiceEvaluationResult}
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterWorker
 
   @insurance_dmn_xml """

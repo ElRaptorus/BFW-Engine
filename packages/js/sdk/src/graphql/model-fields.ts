@@ -39,7 +39,7 @@ export interface NestedSelectionField {
 
 /**
  * Common fields shared by every concrete `*Node` type, mirrored from
- * `EvilEngineWeb.Graphql.ModelSchema.CommonFields.common_flow_node_fields/0`.
+ * `BfwEngineWeb.Graphql.ModelSchema.CommonFields.common_flow_node_fields/0`.
  */
 export const FLOW_NODE_COMMON_FIELDS: SelectionField[] = [
   'id',

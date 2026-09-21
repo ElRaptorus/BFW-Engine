@@ -11,7 +11,7 @@ defmodule MyCompany.LdapAuthProvider do
      or a JWT issued by your corporate IdP).
   2. It verifies the token against an external system (LDAP bind in this
      example).
-  3. It maps the external user record to an `%EvilEngine.Types.Identity{}`
+  3. It maps the external user record to an `%BfwEngine.Types.Identity{}`
      that the engine understands.
 
   ## Registration
@@ -34,9 +34,9 @@ defmodule MyCompany.LdapAuthProvider do
         base_dn: System.get_env("LDAP_BASE_DN", "dc=corp,dc=example,dc=com")
   """
 
-  @behaviour EvilEngine.Plugin.AuthProvider
+  @behaviour BfwEngine.Plugin.AuthProvider
 
-  alias EvilEngine.Types.Identity
+  alias BfwEngine.Types.Identity
 
   @doc "Verifies the bearer token with the stubbed LDAP lookup and returns a resolved engine identity."
   @impl true

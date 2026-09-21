@@ -1,6 +1,6 @@
 defmodule Examples.Plugins.Combined.RabbitmqToEngine.FacadeStore do
   @moduledoc """
-  Agent-backed stash for the `EvilEngine.EngineFacade` from `on_load/1` so the
+  Agent-backed stash for the `BfwEngine.EngineFacade` from `on_load/1` so the
   RabbitMQ consumer process can resolve the wired facade closures later.
   """
 
@@ -13,14 +13,14 @@ defmodule Examples.Plugins.Combined.RabbitmqToEngine.FacadeStore do
   end
 
   @doc "Persists the orchestrator engine facade so the RabbitMQ consumer can read it later."
-  @spec put(EvilEngine.EngineFacade.t()) :: :ok
+  @spec put(BfwEngine.EngineFacade.t()) :: :ok
   def put(engine_facade) do
     ensure_started()
     Agent.update(__MODULE__, fn _previous -> engine_facade end)
   end
 
   @doc "Returns the stored engine facade after ensuring the Agent has been started."
-  @spec get() :: EvilEngine.EngineFacade.t() | nil
+  @spec get() :: BfwEngine.EngineFacade.t() | nil
   def get do
     ensure_started()
     Agent.get(__MODULE__, & &1)

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Security.SoftDeleteInvisibilityTest do
+defmodule BfwEngine.Integration.Security.SoftDeleteInvisibilityTest do
   @moduledoc """
   Security-critical tests verifying that soft-deleted records are absolutely
   invisible through every external surface — GraphQL get, GraphQL list, REST,
@@ -9,14 +9,14 @@ defmodule EvilEngine.Integration.Security.SoftDeleteInvisibilityTest do
   bypasses Ash **policies** but the read action's `filter expr(deleted == false)`
   is architectural and cannot be bypassed.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   import Phoenix.ChannelTest
 
-  @endpoint EvilEngineWeb.Http.Endpoint
+  @endpoint BfwEngineWeb.Http.Endpoint
   @moduletag :integration
 
-  alias EvilEngine.Persistence.Resources
+  alias BfwEngine.Persistence.Resources
 
   @admin_claims %{"sub" => "admin-user", "zeeky_boogie_doog" => true}
 
@@ -348,7 +348,7 @@ defmodule EvilEngine.Integration.Security.SoftDeleteInvisibilityTest do
 
       soft_delete_record(Resources.ProcessInstance, process_instance_id)
 
-      identity = %EvilEngine.Types.Identity{
+      identity = %BfwEngine.Types.Identity{
         id: "admin-ws-user",
         roles: [],
         groups: [],
@@ -356,11 +356,11 @@ defmodule EvilEngine.Integration.Security.SoftDeleteInvisibilityTest do
       }
 
       admin_socket =
-        socket(EvilEngineWeb.Ws.UserSocket, "user:admin-ws-user", %{identity: identity})
+        socket(BfwEngineWeb.Ws.UserSocket, "user:admin-ws-user", %{identity: identity})
 
       case subscribe_and_join(
              admin_socket,
-             EvilEngineWeb.Ws.EngineChannel,
+             BfwEngineWeb.Ws.EngineChannel,
              "process_instance:#{process_instance_id}",
              %{}
            ) do

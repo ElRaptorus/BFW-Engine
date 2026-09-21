@@ -1,15 +1,15 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphTest do
   @moduledoc """
   Integration tests for the BPMN Model graph (Phase 6.1, WP-2/WP-3):
   `ProcessVersion.processModel`, `FlowNodeInstance.flowNode`, and
   `FlowNodeInstance.processVersion`.
 
-  Exercises the full HTTP/GraphQL pipeline against `EvilEngineWeb.Graphql.ModelTypes`
-  and `EvilEngineWeb.Graphql.ModelResolvers`, including the polymorphic
+  Exercises the full HTTP/GraphQL pipeline against `BfwEngineWeb.Graphql.ModelTypes`
+  and `BfwEngineWeb.Graphql.ModelResolvers`, including the polymorphic
   `FlowNode` interface (inline fragments per concrete `*Node` type) and the
   `EventDefinition` union.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 
@@ -278,7 +278,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlModelGraphTest do
 
       assert found != nil
 
-      alias EvilEngine.BPMN.ModelCache
+      alias BfwEngine.BPMN.ModelCache
       ModelCache.delete(found["id"])
 
       {200, body} =

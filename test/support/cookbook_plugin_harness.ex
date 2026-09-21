@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.CookbookPluginHarness do
+defmodule BfwEngine.Test.CookbookPluginHarness do
   @moduledoc """
   Sequential real-engine boot helpers for cookbook examples.
 
@@ -12,11 +12,11 @@ defmodule EvilEngine.Test.CookbookPluginHarness do
 
   import ExUnit.Assertions
 
-  alias EvilEngine.Auth.ProviderRegistry
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Plugins.Registry
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.Registry
+  alias BfwEngine.Types.Event
 
   @compile {:no_warn_undefined, Examples.Shared.ExampleCompiler}
 
@@ -475,7 +475,7 @@ defmodule EvilEngine.Test.CookbookPluginHarness do
     :ok =
       EngineEventBus.register_sink(
         sink_name,
-        EvilEngine.Test.CookbookPluginHarness.QuarantineCaptureSink,
+        BfwEngine.Test.CookbookPluginHarness.QuarantineCaptureSink,
         collector: collector_name
       )
 
@@ -580,12 +580,12 @@ defmodule EvilEngine.Test.CookbookPluginHarness do
   defp restore_env(application, key, value), do: Application.put_env(application, key, value)
 end
 
-defmodule EvilEngine.Test.CookbookPluginHarness.QuarantineCaptureSink do
+defmodule BfwEngine.Test.CookbookPluginHarness.QuarantineCaptureSink do
   @moduledoc false
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @impl true
   def init(options) do

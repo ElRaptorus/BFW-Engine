@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.HttpAuthHelper do
+defmodule BfwEngine.Test.HttpAuthHelper do
   @moduledoc false
 
   @test_secret "test_only_secret_at_least_32_bytes!"

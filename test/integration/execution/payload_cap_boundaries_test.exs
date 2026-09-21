@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.PayloadCapBoundariesTest do
+defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
   @moduledoc """
   Layer A CAP-* matrix with real persistence.
 
@@ -8,26 +8,26 @@ defmodule EvilEngine.Integration.Execution.PayloadCapBoundariesTest do
   `messages` row). This file covers write_result / DOA / publish / user-task
   finish / exactly-at-limit / configurable Application env.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   require Ash.Query
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Persistence.Api, as: Domain
-  alias EvilEngine.Persistence.Repo
-  alias EvilEngine.Persistence.Resources.DataObject
-  alias EvilEngine.Persistence.Resources.DataObjectWrite
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Test.ExamplePlugin
-  alias EvilEngine.Test.PayloadCapFixtures
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Execution
+  alias BfwEngine.Persistence.Api, as: Domain
+  alias BfwEngine.Persistence.Repo
+  alias BfwEngine.Persistence.Resources.DataObject
+  alias BfwEngine.Persistence.Resources.DataObjectWrite
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Test.PayloadCapFixtures
+  alias BfwEngine.Types.Event
 
   setup do
     Application.put_env(
       :core_execution,
       :service_task_dispatch,
-      EvilEngine.Plugins.RegistryDispatch
+      BfwEngine.Plugins.RegistryDispatch
     )
 
     facade = Loader.facade_for_plugin("evil:test_payload_cap")

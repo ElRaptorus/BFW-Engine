@@ -5,7 +5,7 @@ Multi-Instance lets you run the same activity once per element in a collection �
 ## How It Works
 
 1. You annotate any BPMN activity (task, call activity, subprocess) with `<bpmn:multiInstanceLoopCharacteristics>`
-2. At runtime, the engine evaluates the `evil:inputCollection` FEEL expression to get the collection
+2. At runtime, the engine evaluates the `bfw:inputCollection` FEEL expression to get the collection
 3. For each element in the collection, the engine creates a lightweight **iteration FNI** (flow node instance) within the same process instance
 4. Each iteration runs the underlying activity handler independently
 5. When all iterations complete (or the completion/break condition is met), the shell aggregates results
@@ -20,9 +20,9 @@ All iterations start simultaneously. Use when iterations are independent and you
 <bpmn:serviceTask id="Task_charge" name="Charge Each Item" implementation="http">
   <bpmn:multiInstanceLoopCharacteristics isSequential="false">
     <bpmn:extensionElements>
-      <evil:inputCollection>token.items</evil:inputCollection>
-      <evil:outputCollection>chargeResults</evil:outputCollection>
-      <evil:elementVariable>item</evil:elementVariable>
+      <bfw:inputCollection>token.items</bfw:inputCollection>
+      <bfw:outputCollection>chargeResults</bfw:outputCollection>
+      <bfw:elementVariable>item</bfw:elementVariable>
     </bpmn:extensionElements>
   </bpmn:multiInstanceLoopCharacteristics>
 </bpmn:serviceTask>
@@ -36,33 +36,33 @@ One iteration at a time — each starts only after the previous completes. Use f
 <bpmn:serviceTask id="Task_notify" name="Notify Each Recipient" implementation="http">
   <bpmn:multiInstanceLoopCharacteristics isSequential="true">
     <bpmn:extensionElements>
-      <evil:inputCollection>token.recipients</evil:inputCollection>
-      <evil:outputCollection>notificationResults</evil:outputCollection>
-      <evil:elementVariable>recipient</evil:elementVariable>
-      <evil:loopInterval>PT1S</evil:loopInterval>
+      <bfw:inputCollection>token.recipients</bfw:inputCollection>
+      <bfw:outputCollection>notificationResults</bfw:outputCollection>
+      <bfw:elementVariable>recipient</bfw:elementVariable>
+      <bfw:loopInterval>PT1S</bfw:loopInterval>
     </bpmn:extensionElements>
   </bpmn:multiInstanceLoopCharacteristics>
 </bpmn:serviceTask>
 ```
 
-`evil:loopInterval` adds a delay (ISO 8601 duration) between iterations — useful for rate-limited APIs.
+`bfw:loopInterval` adds a delay (ISO 8601 duration) between iterations — useful for rate-limited APIs.
 
 ## Extension Elements Reference
 
 | Extension Element | Purpose |
 |-------------------|---------|
-| `evil:inputCollection` | FEEL expression that evaluates to the list to iterate over |
-| `evil:outputCollection` | Variable name for the aggregated results list |
-| `evil:elementVariable` | Name of the per-iteration variable (accessible as `loop.item`) |
-| `evil:outputElementVariable` | Name of the key used to collect each iteration's output into the output collection |
-| `evil:loopBreakCondition` | FEEL expression — loop stops when `true` |
-| `evil:loopInterval` | ISO 8601 duration between sequential iterations |
-| `evil:maxIterations` | Safety cap — sequential truncates; parallel fail-fast |
+| `bfw:inputCollection` | FEEL expression that evaluates to the list to iterate over |
+| `bfw:outputCollection` | Variable name for the aggregated results list |
+| `bfw:elementVariable` | Name of the per-iteration variable (accessible as `loop.item`) |
+| `bfw:outputElementVariable` | Name of the key used to collect each iteration's output into the output collection |
+| `bfw:loopBreakCondition` | FEEL expression — loop stops when `true` |
+| `bfw:loopInterval` | ISO 8601 duration between sequential iterations |
+| `bfw:maxIterations` | Safety cap — sequential truncates; parallel fail-fast |
 | `<bpmn:completionCondition>` | Standard BPMN FEEL expression — MI terminates early when `true` |
 
 ## Input Collection
 
-The `evil:inputCollection` is a FEEL expression that must evaluate to a list. Examples:
+The `bfw:inputCollection` is a FEEL expression that must evaluate to a list. Examples:
 
 - `token.items` — list from the process token
 - `dataObjects.OrderList` — list from a Data Object
@@ -72,26 +72,26 @@ If the input collection evaluates to an empty list, the MI completes immediately
 
 ## Element Variable
 
-`evil:elementVariable` (or `<bpmn:inputDataItem>`) names the variable for the current collection element. It is accessible as `loop.item` in FEEL expressions within the iteration.
+`bfw:elementVariable` (or `<bpmn:inputDataItem>`) names the variable for the current collection element. It is accessible as `loop.item` in FEEL expressions within the iteration.
 
 ```xml
-<evil:inputCollection>token.orders</evil:inputCollection>
-<evil:elementVariable>order</evil:elementVariable>
+<bfw:inputCollection>token.orders</bfw:inputCollection>
+<bfw:elementVariable>order</bfw:elementVariable>
 ```
 
 Inside the iteration, `loop.item` refers to the current `order` object.
 
 ## Output Collection
 
-`evil:outputCollection` names the variable that collects all iteration results. After completion, the aggregated list is available in the output token under the specified name.
+`bfw:outputCollection` names the variable that collects all iteration results. After completion, the aggregated list is available in the output token under the specified name.
 
 ```xml
-<evil:outputCollection>processedOrders</evil:outputCollection>
+<bfw:outputCollection>processedOrders</bfw:outputCollection>
 ```
 
 When all iterations finish, `token.processedOrders` contains a list with one entry per iteration, ordered by iteration index.
 
-`evil:outputElementVariable` (or `<bpmn:outputDataItem>`) names the key used when aggregating each iteration's result into that collection. When set, the engine uses this variable name as the aggregation key.
+`bfw:outputElementVariable` (or `<bpmn:outputDataItem>`) names the key used when aggregating each iteration's result into that collection. When set, the engine uses this variable name as the aggregation key.
 
 ## FEEL `loop.*` Context
 
@@ -119,7 +119,7 @@ BPMN's `<bpmn:completionCondition>` is a FEEL expression evaluated after each it
 <bpmn:multiInstanceLoopCharacteristics isSequential="false">
   <bpmn:completionCondition>loop.completed >= 3</bpmn:completionCondition>
   <bpmn:extensionElements>
-    <evil:inputCollection>token.candidates</evil:inputCollection>
+    <bfw:inputCollection>token.candidates</bfw:inputCollection>
   </bpmn:extensionElements>
 </bpmn:multiInstanceLoopCharacteristics>
 ```
@@ -128,15 +128,15 @@ This is useful for "first N wins" patterns — start parallel work, stop as soon
 
 ## Break Condition
 
-`evil:loopBreakCondition` is an engine extension that works similarly to completion condition — a FEEL expression evaluated after each iteration. When `true`, the loop stops.
+`bfw:loopBreakCondition` is an engine extension that works similarly to completion condition — a FEEL expression evaluated after each iteration. When `true`, the loop stops.
 
 ```xml
-<evil:loopBreakCondition>loop.results[loop.completed].status = "failed"</evil:loopBreakCondition>
+<bfw:loopBreakCondition>loop.results[loop.completed].status = "failed"</bfw:loopBreakCondition>
 ```
 
 ## Max Iterations
 
-`evil:maxIterations` is a safety cap. Behavior differs by MI mode:
+`bfw:maxIterations` is a safety cap. Behavior differs by MI mode:
 
 | Mode | When the collection is larger than the cap |
 |------|---------------------------------------------|
@@ -144,7 +144,7 @@ This is useful for "first N wins" patterns — start parallel work, stop as soon
 | Parallel | Fail-fast — the shell fatals with `collection_exceeds_max_iterations` |
 
 ```xml
-<evil:maxIterations>50</evil:maxIterations>
+<bfw:maxIterations>50</bfw:maxIterations>
 ```
 
 Parallel MI fails fast so a misconfigured collection cannot spawn an unbounded number of concurrent iteration FNIs.
@@ -205,7 +205,7 @@ The engine emits lifecycle events for MI activities:
 
 ## `loopCardinality` Is Not Supported
 
-The engine does not support BPMN's `<loopCardinality>` element. The parser stores the text; **deploy is rejected** with `:loop_cardinality_not_supported`. Iteration count is always determined by the input collection length (optionally capped by `evil:maxIterations`). This is a deliberate design decision — collection-driven iteration is more explicit and debuggable.
+The engine does not support BPMN's `<loopCardinality>` element. The parser stores the text; **deploy is rejected** with `:loop_cardinality_not_supported`. Iteration count is always determined by the input collection length (optionally capped by `bfw:maxIterations`). This is a deliberate design decision — collection-driven iteration is more explicit and debuggable.
 
 ## Related
 

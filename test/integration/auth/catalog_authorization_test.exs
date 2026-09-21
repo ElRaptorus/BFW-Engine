@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Auth.CatalogAuthorizationTest do
+defmodule BfwEngine.Integration.Auth.CatalogAuthorizationTest do
   @moduledoc """
   Authorization tests for REST catalog endpoints.
 
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.Auth.CatalogAuthorizationTest do
   - `delete_bpmn` on DELETE /…/versions/{version}
   - Lane-based start check on POST /…/start (laned start event)
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   # -------------------------------------------------------------------------
   # Deploy — deploy_bpmn claim

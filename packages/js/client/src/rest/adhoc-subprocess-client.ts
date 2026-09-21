@@ -3,7 +3,7 @@ import type {
   AdHocActivity,
   AdHocCompleteResult,
   AdHocStatus,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 import type { HttpTransport } from '../http/transport.js';
 

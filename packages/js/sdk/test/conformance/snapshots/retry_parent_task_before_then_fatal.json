@@ -115,7 +115,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Task_Before", "CA_1", "Task_DeadEnd", "End_Unreachable"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_Before",
+            "CA_1",
+            "Task_DeadEnd",
+            "End_Unreachable"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

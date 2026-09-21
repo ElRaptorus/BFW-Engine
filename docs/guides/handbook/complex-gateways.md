@@ -1,6 +1,6 @@
 # Complex Gateways
 
-Complex Gateways are ThomasTheDaemonEngine's **opinionated, deterministic**
+Complex Gateways are Bifrost Forge World Engine's **opinionated, deterministic**
 take on the BPMN 2.0 Complex Gateway. Where the BPMN specification leaves the
 Complex Gateway deliberately under-defined ("you supply your own activation
 rule"), this engine gives it a precise, predictable contract:
@@ -12,7 +12,7 @@ rule"), this engine gives it a precise, predictable contract:
   approvals arrive" style quorums.
 
 > **Not portable BPMN.** These semantics are specific to
-> ThomasTheDaemonEngine. A model that relies on the Complex Gateway behaviours
+> Bifrost Forge World Engine. A model that relies on the Complex Gateway behaviours
 > described here will **not** behave the same way (or at all) on other BPMN
 > engines. If you need a portable model, use an [Inclusive
 > Gateway](inclusive-gateways.md) instead. See
@@ -136,15 +136,15 @@ flow node state change** in the process instance. Each time, it decides:
    flow. This happens **exactly once**.
 2. **Wait** — the condition is `false`, but at least one branch could still
    deliver a token. The join keeps waiting.
-3. **Error (Twist 1)** — the condition is `false` **and** every incoming branch
+3. **Error** — the condition is `false` **and** every incoming branch
    has either already arrived or is now dead (no upstream activity can still
    reach the join). The threshold can never be met, so the join FNI transitions
    to `fatal` with `complex_join_condition_unmet` and a message such as *"all
    branches have finished but the gateway's activation condition
    'activatedCount >= 3' was not met (activatedCount=2, incomingCount=3)"*.
 
-Twist 1 exists so that an impossible quorum fails loudly and immediately,
-rather than leaving the process silently stuck forever.
+An impossible quorum fails loudly and immediately, rather than leaving the
+process silently stuck.
 
 ### Worked example — "2 of 3"
 
@@ -166,13 +166,13 @@ two of them respond.
   process continues to `Flow_Decide` immediately, without waiting for
   reviewer 3.
 - Reviewer 3's branch is a *loser*. When the join fires, the engine actively
-  **cancels** reviewer 3's still-open task (see [Scoped Cancellation](#scoped-cancellation-twist-2)
+  **cancels** reviewer 3's still-open task (see [Scoped Cancellation](#scoped-cancellation)
   below), so it is not left dangling and no straggler token can reach the
   already-fired join.
 
 If you had instead written `activationCondition` as `activatedCount >= 3` but
 one reviewer's branch died (e.g. an upstream exclusive gateway sent the token
-elsewhere), the join would hit **Twist 1**: all branches resolved,
+elsewhere), the join would fail: all branches resolved,
 `activatedCount` stuck at 2, threshold of 3 unreachable → `fatal`
 (`complex_join_condition_unmet`).
 
@@ -187,13 +187,12 @@ Branch R2 token: { "caseId": "42", "r2": "approve" }
 → Merged:        { "caseId": "42", "r1": "approve", "r2": "approve" }
 ```
 
-## Scoped Cancellation (Twist 2)
+## Scoped Cancellation
 
 A threshold join fires the moment its quorum is reached — but the branches that
 lost the race may still be running (a reviewer still has their task open, a
-timer is still counting down, a service call is still in flight). **Twist 2**
-makes the winning fire clean up after itself: it **cancels the losing branches**
-so nothing is left dangling.
+timer is still counting down, a service call is still in flight). The winning
+fire **cancels the losing branches** so nothing is left dangling.
 
 Crucially, this cancellation is **scoped**. It only touches the work that lives
 **between the Complex Split that opened the branches and the Complex Join that
@@ -282,8 +281,8 @@ straight:
 | Join — what makes it fire | Dead-path elimination: all live paths arrived | A FEEL `activationCondition` becomes true |
 | Join — inputs you control | None (structural only) | `activatedCount`, `incomingCount`, and the merged `token` |
 | Join — threshold / quorum | Not supported | Yes — that is its whole purpose |
-| Join — impossible / unmet condition | N/A (fires with whatever arrived) | `fatal` (`complex_join_condition_unmet`, Twist 1) |
-| Join — losing branches on fire | Left to complete | Cancelled within the paired SESE region (Twist 2) |
+| Join — impossible / unmet condition | N/A (fires with whatever arrived) | `fatal` (`complex_join_condition_unmet`) |
+| Join — losing branches on fire | Left to complete | Cancelled within the paired SESE region |
 | Split ↔ Join pairing | None | Mandatory 1:1; unpaired / leaky / overlapping regions rejected at deploy |
 | Portable BPMN | Yes (standard) | No (engine-specific) |
 
@@ -300,7 +299,7 @@ straight:
   - a split that **refuses to silently fan out** — you want every outgoing flow
     to be an explicit decision (conditional or default), enforced at deploy;
   - a winning branch that should **cancel the losers** inside a bounded SESE
-    region (Twist 2).
+    region.
 
   In exchange for these capabilities you give up BPMN portability and opt into
   engine-specific semantics.
@@ -321,7 +320,7 @@ splitting and joining as two separate Complex Gateway nodes.
 | `complex_gateway_join_missing_activation_condition` | A Complex Join has no `<bpmn:activationCondition>` | Deploy |
 | `complex_split_no_matching_condition` | No outgoing condition is truthy and there is no default flow | Runtime (`fatal`) |
 | `complex_split_condition_failed` | A FEEL condition on an outgoing flow failed to evaluate | Runtime (`fatal`) |
-| `complex_join_condition_unmet` | All branches resolved but the `activationCondition` was never met (Twist 1) | Runtime (`fatal`) |
+| `complex_join_condition_unmet` | All branches resolved but the `activationCondition` was never met | Runtime (`fatal`) |
 | `complex_join_condition_failed` | The `activationCondition` FEEL expression failed to evaluate | Runtime (`fatal`) |
 | `complex_join_no_paired_split` | A Complex Join has no dominating Complex Split to pair with | Deploy |
 | `complex_region_cross_boundary` | A branch escapes the split→join region other than through the split or join (not single-entry / single-exit) | Deploy |

@@ -10,46 +10,46 @@ tables for test infrastructure components.
 ### DataCase
 
 ```elixir
-defmodule EvilEngine.DataCase do
+defmodule BfwEngine.DataCase do
   use ExUnit.CaseTemplate
 
   using do
     quote do
-      alias EvilEngine.Repo
+      alias BfwEngine.Repo
       import Ecto.Changeset
       import Ecto.Query
-      import EvilEngine.DataCase
+      import BfwEngine.DataCase
     end
   end
 
   setup tags do
-    EvilEngine.DataCase.setup_sandbox(tags)
+    BfwEngine.DataCase.setup_sandbox(tags)
     :ok
   end
 end
 ```
 
 **Setup callbacks**: `setup_sandbox/1` — checks out an Ecto sandbox connection.
-**Imported modules**: `Ecto.Changeset`, `Ecto.Query`, `EvilEngine.DataCase`.
+**Imported modules**: `Ecto.Changeset`, `Ecto.Query`, `BfwEngine.DataCase`.
 
 ### ConnCase
 
 ```elixir
-defmodule EvilEngine.ConnCase do
+defmodule BfwEngine.ConnCase do
   use ExUnit.CaseTemplate
 
   using do
     quote do
       import Plug.Conn
       import Phoenix.ConnTest
-      import EvilEngine.ConnCase
-      alias EvilEngine.Router.Helpers, as: Routes
-      @endpoint EvilEngine.Endpoint
+      import BfwEngine.ConnCase
+      alias BfwEngine.Router.Helpers, as: Routes
+      @endpoint BfwEngine.Endpoint
     end
   end
 
   setup tags do
-    EvilEngine.DataCase.setup_sandbox(tags)
+    BfwEngine.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end
@@ -62,19 +62,19 @@ end
 ### EngineCase
 
 ```elixir
-defmodule EvilEngine.EngineCase do
+defmodule BfwEngine.EngineCase do
   use ExUnit.CaseTemplate
 
   using do
     quote do
-      import EvilEngine.EngineCase
-      alias EvilEngine.Test.{AuthHelper, FixtureProvider, ProcessInteraction, AssertionBundle}
+      import BfwEngine.EngineCase
+      alias BfwEngine.Test.{AuthHelper, FixtureProvider, ProcessInteraction, AssertionBundle}
     end
   end
 
   setup tags do
-    EvilEngine.DataCase.setup_sandbox(tags)
-    {:ok, _} = start_supervised(EvilEngine.Supervisor)
+    BfwEngine.DataCase.setup_sandbox(tags)
+    {:ok, _} = start_supervised(BfwEngine.Supervisor)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end
@@ -95,7 +95,7 @@ end
 | `load_fixture/1` | `fixture_name :: String.t()` | `{:ok, %{bpmn: String.t(), spec: map()}}` | Loads both BPMN + YAML |
 | `deploy_fixture/2` | `fixture_name, identity` | `{:ok, process_version}` | Deploys BPMN via REST, returns version |
 | `mint_payload/1` | `n_bytes :: pos_integer()` | `map()` | Generates a JSON payload of exactly `n_bytes` |
-| `oversize_payload/0` | — | `map()` | `mint_payload(TDE_TOKEN_MAX_BYTES + 1)` |
+| `oversize_payload/0` | — | `map()` | `mint_payload(BFE_TOKEN_MAX_BYTES + 1)` |
 | `register_test_plugin/2` | `module_or_name` | `:ok` | Registers an in-BEAM plugin for the test session |
 | `unregister_test_plugin/1` | `module_or_name` | `:ok` | Removes a test plugin |
 | `test_process_payload/0` | — | `map()` | Standard valid payload for process start |
@@ -196,11 +196,11 @@ end
 
 | Variable | Test default | Override for | Relevant scenarios |
 |----------|-------------|-------------|-------------------|
-| `TDE_TOKEN_MAX_BYTES` | `65536` | Cap-rejection / cap-configurable | CAP-* scenarios |
-| `TDE_AUTH_DISABLED` | `false` | Unit tests (set `true`) vs integration (`false`) | Auth-sensitive tests |
-| `TDE_MESSAGE_PENDING_TTL` | `PT30S` | Pending message TTL tests | S10c, S10d, S10e |
-| `TDE_SIGNAL_PENDING_TTL` | `PT30S` | Pending signal TTL tests | Signal variants |
-| `TDE_JWT_HS256_SECRET` | `test-secret-min-32-bytes-long!!!` | AuthHelper token signing | All authenticated tests |
-| `TDE_PARTITION_AHEAD_MONTHS` | `1` | Partition creation for tests | Partition tests |
-| `TDE_RETENTION_FINISHED_DAYS` | unset | Retention runner tests | Retention scenarios |
-| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | unset | Engine audit retention | Audit retention tests |
+| `BFE_TOKEN_MAX_BYTES` | `65536` | Cap-rejection / cap-configurable | CAP-* scenarios |
+| `BFE_AUTH_DISABLED` | `false` | Unit tests (set `true`) vs integration (`false`) | Auth-sensitive tests |
+| `BFE_MESSAGE_PENDING_TTL` | `PT30S` | Pending message TTL tests | S10c, S10d, S10e |
+| `BFE_SIGNAL_PENDING_TTL` | `PT30S` | Pending signal TTL tests | Signal variants |
+| `BFE_JWT_HS256_SECRET` | `test-secret-min-32-bytes-long!!!` | AuthHelper token signing | All authenticated tests |
+| `BFE_PARTITION_AHEAD_MONTHS` | `1` | Partition creation for tests | Partition tests |
+| `BFE_RETENTION_FINISHED_DAYS` | unset | Retention runner tests | Retention scenarios |
+| `BFE_RETENTION_ENGINE_AUDIT_DAYS` | unset | Engine audit retention | Audit retention tests |

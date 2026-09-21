@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlPaginationTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlPaginationTest do
   @moduledoc """
   GraphQL integration tests for offset pagination edge cases.
 
@@ -6,7 +6,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlPaginationTest do
   `hasPreviousPage`, `pageNumber`, `lastPage`) on processInstances,
   processVersions, and decisionDefinitions list queries.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   id="Definitions_RetryUserTaskWithBoundary"
-                  targetNamespace="https://evilengine.dev/schema/bpmn">
+                  targetNamespace="https://bifrostforge.world/schema/bpmn">
 
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_1" name="Default" processRef="RetryUserTaskWithBoundary" />
@@ -13,7 +13,7 @@
 
   <bpmn:process id="RetryUserTaskWithBoundary" name="Retry User Task With Boundary" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">

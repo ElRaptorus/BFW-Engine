@@ -1,5 +1,5 @@
 import type { FlowNodeInstanceState } from '../types/enums.js';
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /**
  * Thrown when a user-task or async-FNI operation targets an FNI in the wrong state.
@@ -9,7 +9,7 @@ import { DaemonEngineError } from './daemon-engine-error.js';
  * `fni_already_interrupted`, `fni_already_fatal`. All are mapped to this class
  * with the actual wire error code preserved in `errorCode`.
  */
-export class FniNotWaitingError extends DaemonEngineError {
+export class FniNotWaitingError extends BfwEngineError {
   constructor(
     message: string,
     public readonly currentState: FlowNodeInstanceState,

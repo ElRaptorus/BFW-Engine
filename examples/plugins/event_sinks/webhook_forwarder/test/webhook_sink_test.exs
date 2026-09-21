@@ -1,7 +1,7 @@
 defmodule Examples.EventSinks.WebhookForwarder.WebhookSinkTest do
   use ExUnit.Case
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.EventSinks.WebhookForwarder.WebhookSink
 
   @webhook_url "https://hooks.example.test/engine"
@@ -83,7 +83,7 @@ defmodule Examples.EventSinks.WebhookForwarder.WebhookSinkTest do
     assert received_headers == [{"content-type", "application/json"}]
 
     decoded = Jason.decode!(json_body)
-    assert decoded["type"] == "EvilEngine.Types.Event.EngineStarted"
+    assert decoded["type"] == "BfwEngine.Types.Event.EngineStarted"
     assert decoded["engine_id"] == "engine-1"
     assert decoded["engine_name"] == "local"
     assert decoded["version"] == "1.0.0"

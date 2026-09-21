@@ -8,15 +8,15 @@ FEEL (Friendly Enough Expression Language) is the expression language defined by
 |---------|---------|
 | Conditional sequence flows | `token.amount > 1000` on Exclusive / Inclusive / Complex Gateway outgoing flows |
 | Script Task / FEEL BRT | `<bpmn:script>` body |
-| Service Task HTTP body / auth / response headers | `evil:httpBody`, `evil:httpAuthHeader`, `evil:httpResponseHeaders` |
-| Input/output mappings | `evil:inputMapping` / `evil:outputMapping` `source` |
-| Correlation | Process `evil:correlationKey`; throw `evil:correlationRetrievalExpression` |
-| Message shaping | Throw/Send `evil:inputMapping`; Catch/Receive `evil:outputMapping` |
+| Service Task HTTP body / auth / response headers | `bfw:httpBody`, `bfw:httpAuthHeader`, `bfw:httpResponseHeaders` |
+| Input/output mappings | `bfw:inputMapping` / `bfw:outputMapping` `source` |
+| Correlation | Process `bfw:correlationKey`; throw `bfw:correlationRetrievalExpression` |
+| Message shaping | Throw/Send `bfw:inputMapping`; Catch/Receive `bfw:outputMapping` |
 | Timer expressions | `timeDate` / `timeDuration` / `timeCycle` |
-| User Task | `evil:assignees`, `evil:dueDate` |
-| Multi-Instance / Standard Loop | `evil:inputCollection`, `evil:loopBreakCondition`, `<loopCondition>` |
+| User Task | `bfw:assignees`, `bfw:dueDate` |
+| Multi-Instance / Standard Loop | `bfw:inputCollection`, `bfw:loopBreakCondition`, `<loopCondition>` |
 | Complex Join | `<bpmn:activationCondition>` (gets `activatedCount` / `incomingCount`) |
-| Ad-hoc completion / activation | `<completionCondition>`, `evil:activeElements` |
+| Ad-hoc completion / activation | `<completionCondition>`, `bfw:activeElements` |
 | Unary tests | Decision table cells |
 
 ## Context Bindings
@@ -77,7 +77,7 @@ loop.index                => 0
 For simple expressions:
 
 ```elixir
-{:ok, result} = EvilEngine.Expressions.eval("token.amount * 2", context)
+{:ok, result} = BfwEngine.Expressions.eval("token.amount * 2", context)
 ```
 
 ### Precompiled Evaluation
@@ -85,8 +85,8 @@ For simple expressions:
 For performance-critical paths (repeated evaluation with different contexts):
 
 ```elixir
-{:ok, ref} = EvilEngine.Expressions.compile("token.amount * rate", context_shape)
-{:ok, result} = EvilEngine.Expressions.evaluate(ref, context)
+{:ok, ref} = BfwEngine.Expressions.compile("token.amount * rate", context_shape)
+{:ok, result} = BfwEngine.Expressions.evaluate(ref, context)
 ```
 
 ### Unary Tests
@@ -94,9 +94,9 @@ For performance-critical paths (repeated evaluation with different contexts):
 For DMN-style decision table conditions and gateway routing:
 
 ```elixir
-{:ok, true}  = EvilEngine.Expressions.evaluate_unary("< 100", 50)
-{:ok, true}  = EvilEngine.Expressions.evaluate_unary("[1..5]", 3)
-{:ok, false} = EvilEngine.Expressions.evaluate_unary("> 10", 5)
+{:ok, true}  = BfwEngine.Expressions.evaluate_unary("< 100", 50)
+{:ok, true}  = BfwEngine.Expressions.evaluate_unary("[1..5]", 3)
+{:ok, false} = BfwEngine.Expressions.evaluate_unary("> 10", 5)
 ```
 
 ## Built-in Functions

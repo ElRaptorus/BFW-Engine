@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when DMN evaluation fails (e.g. hit policy violation, FEEL error). */
-export class DmnEvaluationError extends DaemonEngineError {
+export class DmnEvaluationError extends BfwEngineError {
   constructor(
     message: string,
     public readonly decisionModelId: string | null,

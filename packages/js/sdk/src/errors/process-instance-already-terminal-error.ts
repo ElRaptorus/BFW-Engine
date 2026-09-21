@@ -1,8 +1,8 @@
 import type { ProcessInstanceState } from '../types/enums.js';
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when an operation targets a PI that has already reached a terminal state. */
-export class ProcessInstanceAlreadyTerminalError extends DaemonEngineError {
+export class ProcessInstanceAlreadyTerminalError extends BfwEngineError {
   constructor(
     message: string,
     public readonly currentState: ProcessInstanceState,

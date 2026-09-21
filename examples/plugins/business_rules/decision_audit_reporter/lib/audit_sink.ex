@@ -6,9 +6,9 @@ defmodule Examples.BusinessRules.DecisionAuditReporter.AuditSink do
   so the audit report is assembled from persisted `type_properties`.
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionAuditReporter.EventTracker
 
   @doc "Starts the event tracker agent and stores its registered name in sink state."

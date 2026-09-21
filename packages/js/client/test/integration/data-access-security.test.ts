@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -24,7 +24,7 @@ import {
   waitForUserTask,
 } from '../support/test-engine.js';
 
-let adminClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
 
 beforeAll(async () => {
   await ensureEngineReachable();
@@ -82,8 +82,8 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
     it('admin cannot see deleted process version via REST', async () => {
       const secondVersionBpmn = readFixture('integration-passthrough.bpmn')
         .replace(
-          '<evil:version>1.0.0</evil:version>',
-          '<evil:version>99.99.99</evil:version>',
+          '<bfw:version>1.0.0</bfw:version>',
+          '<bfw:version>99.99.99</bfw:version>',
         );
 
       await adminClient.processes.deploy(secondVersionBpmn);

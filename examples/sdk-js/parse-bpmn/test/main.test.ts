@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { FlowNodeType, parseBpmn } from '@elraptorus/daemonengine_sdk';
+import { FlowNodeType, parseBpmn } from '@elraptorus/bfw_engine_sdk';
 
 const sourceDirectoryPath = dirname(fileURLToPath(import.meta.url));
 const sampleFilePath = join(sourceDirectoryPath, '..', 'bpmn', 'sample.bpmn');

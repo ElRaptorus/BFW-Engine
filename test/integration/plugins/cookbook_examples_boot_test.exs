@@ -1,15 +1,15 @@
-defmodule EvilEngine.Integration.CookbookExamplesBootTest do
+defmodule BfwEngine.Integration.CookbookExamplesBootTest do
   @moduledoc """
   Acceptance (ii): every remaining cookbook example boots into a real engine
   and registers the capabilities its README claims.
   """
 
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.CookbookPluginHarness
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.CookbookPluginHarness
+  alias BfwEngine.Types.Event
 
   @compile {:no_warn_undefined,
             [

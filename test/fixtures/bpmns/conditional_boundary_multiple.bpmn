@@ -3,9 +3,9 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_ConditionalBoundaryMultiple">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -14,7 +14,7 @@
 
   <bpmn:process id="ConditionalBoundaryMultiple" name="Conditional Boundary Multiple" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -47,8 +47,8 @@
 
     <bpmn:userTask id="UserTask_LongRunning" name="Long Running Task">
       <bpmn:extensionElements>
-        <evil:assignees>identity.groups</evil:assignees>
-        <evil:formFields>{"fields":[]}</evil:formFields>
+        <bfw:assignees>identity.groups</bfw:assignees>
+        <bfw:formFields>{"fields":[]}</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_A</bpmn:incoming>
       <bpmn:outgoing>Flow_A2</bpmn:outgoing>

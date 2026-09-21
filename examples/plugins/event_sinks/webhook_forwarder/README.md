@@ -1,6 +1,6 @@
 # Webhook forwarder — example event sink
 
-Forwards `EvilEngine.Types.Event.*` structs to a single HTTP endpoint as JSON.
+Forwards `BfwEngine.Types.Event.*` structs to a single HTTP endpoint as JSON.
 Use this as a starting point for Zapier, n8n, or your own automation receiver.
 
 ## Usage
@@ -21,12 +21,12 @@ Use this as a starting point for Zapier, n8n, or your own automation receiver.
 
 ## Crash isolation
 
-Each sink runs inside a dedicated supervised worker (`EvilEngine.Events.SinkWorker`). If
+Each sink runs inside a dedicated supervised worker (`BfwEngine.Events.SinkWorker`). If
 `handle_event/2` raises, the worker is restarted, other sinks keep running, and the bus emits
-`%EvilEngine.Types.Event.SinkFailed{}` for observability. Your webhook endpoint should be
+`%BfwEngine.Types.Event.SinkFailed{}` for observability. Your webhook endpoint should be
 idempotent when possible so retries remain safe.
 
 ## Further reading
 
-- [`EvilEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/evil_engine/plugin/event_sink.ex)
+- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md)

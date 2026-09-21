@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.EventCollector do
+defmodule BfwEngine.Test.EventCollector do
   @moduledoc """
   Collects EngineEventBus events in order for test assertions.
 
@@ -9,7 +9,7 @@ defmodule EvilEngine.Test.EventCollector do
 
   use GenServer
 
-  alias EvilEngine.Events.EngineEventBus
+  alias BfwEngine.Events.EngineEventBus
 
   # -- Client API ----------------------------------------------------------
 
@@ -18,18 +18,18 @@ defmodule EvilEngine.Test.EventCollector do
 
     EngineEventBus.register_sink(
       "test:event_collector_#{inspect(pid)}",
-      EvilEngine.Test.EventCollector.Sink,
+      BfwEngine.Test.EventCollector.Sink,
       collector_pid: pid
     )
 
-    Process.put(:evil_engine_test_event_collector, pid)
+    Process.put(:bfw_engine_test_event_collector, pid)
 
     {:ok, pid}
   end
 
   @doc "Collector pid for the current test process, or nil."
   def current do
-    Process.get(:evil_engine_test_event_collector)
+    Process.get(:bfw_engine_test_event_collector)
   end
 
   @doc "Return all collected events in order."
@@ -100,9 +100,9 @@ defmodule EvilEngine.Test.EventCollector do
   end
 end
 
-defmodule EvilEngine.Test.EventCollector.Sink do
+defmodule BfwEngine.Test.EventCollector.Sink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @impl true
   def init(opts) do

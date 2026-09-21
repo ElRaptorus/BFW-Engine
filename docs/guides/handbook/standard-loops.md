@@ -32,8 +32,8 @@ The first iteration always runs. The condition is checked **after** each iterati
 ```xml
 <bpmn:userTask id="Review_1" name="Review Document">
   <bpmn:extensionElements>
-    <evil:assignees>identity.groups</evil:assignees>
-    <evil:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</evil:formFields>
+    <bfw:assignees>identity.groups</bfw:assignees>
+    <bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
   </bpmn:extensionElements>
   <bpmn:standardLoopCharacteristics testBefore="false" loopMaximum="5">
     <bpmn:loopCondition>token.approved != true</bpmn:loopCondition>
@@ -63,7 +63,7 @@ The validator warns (but does not error) when `loopMaximum` is absent — an unc
 
 ## Loop Interval
 
-`evil:loopInterval` adds an ISO 8601 duration delay between iterations. This is the recommended pattern for **polling** and **healthcheck** scenarios:
+`bfw:loopInterval` adds an ISO 8601 duration delay between iterations. This is the recommended pattern for **polling** and **healthcheck** scenarios:
 
 ```xml
 <bpmn:scriptTask id="Health_1" name="Healthcheck" scriptFormat="feel">
@@ -71,7 +71,7 @@ The validator warns (but does not error) when `loopMaximum` is absent — an unc
   <bpmn:standardLoopCharacteristics testBefore="true" loopMaximum="60">
     <bpmn:loopCondition>token.healthy != true</bpmn:loopCondition>
     <bpmn:extensionElements>
-      <evil:loopInterval>PT5S</evil:loopInterval>
+      <bfw:loopInterval>PT5S</bfw:loopInterval>
     </bpmn:extensionElements>
   </bpmn:standardLoopCharacteristics>
 </bpmn:scriptTask>
@@ -79,7 +79,7 @@ The validator warns (but does not error) when `loopMaximum` is absent — an unc
 
 This polls every 5 seconds, up to 60 times (5 minutes total), until `token.healthy` becomes `true`.
 
-Without `evil:loopInterval`, iterations run back-to-back with no delay. For CPU-bound logic (pure computation, FEEL evaluation) this is fine. For I/O-bound patterns (HTTP polling, external system checks), always set an interval to avoid hammering the target.
+Without `bfw:loopInterval`, iterations run back-to-back with no delay. For CPU-bound logic (pure computation, FEEL evaluation) this is fine. For I/O-bound patterns (HTTP polling, external system checks), always set an interval to avoid hammering the target.
 
 ## Token Evolution
 
@@ -130,7 +130,7 @@ This is useful for conditional work: "poll only if the status isn't already fina
 | Poll until a condition is met | Standard Loop (condition-driven) |
 | Retry until success | Standard Loop with `loopMaximum` |
 | Fixed N iterations | Sequential MI with a generated collection (`for i in 1..n return i`) |
-| Rate-limited batch processing | Sequential MI with `evil:loopInterval` |
+| Rate-limited batch processing | Sequential MI with `bfw:loopInterval` |
 
 The key distinction: if you have a **collection** to iterate, use Multi-Instance. If you have a **condition** to satisfy, use Standard Loop.
 

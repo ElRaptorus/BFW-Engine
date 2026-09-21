@@ -16,12 +16,12 @@ Call Activities invoke another BPMN process as a child, creating a separate Proc
 ```xml
 <bpmn:callActivity id="CA_1" name="Process Order" calledElement="OrderSubProcess">
   <bpmn:extensionElements>
-    <evil:startEventId>Start_Express</evil:startEventId>
-    <evil:inputMapping source="token.orderId" target="order_id" />
-    <evil:inputMapping source="token.customer" target="customer_info" />
-    <evil:outputMapping source="token.result" target="order_result" />
-    <evil:payloadContract>{"type":"object","required":["order_id"]}</evil:payloadContract>
-    <evil:resultContract>{"type":"object","required":["order_result"]}</evil:resultContract>
+    <bfw:startEventId>Start_Express</bfw:startEventId>
+    <bfw:inputMapping source="token.orderId" target="order_id" />
+    <bfw:inputMapping source="token.customer" target="customer_info" />
+    <bfw:outputMapping source="token.result" target="order_result" />
+    <bfw:payloadContract>{"type":"object","required":["order_id"]}</bfw:payloadContract>
+    <bfw:resultContract>{"type":"object","required":["order_result"]}</bfw:resultContract>
   </bpmn:extensionElements>
   <bpmn:incoming>Flow_In</bpmn:incoming>
   <bpmn:outgoing>Flow_Out</bpmn:outgoing>
@@ -31,21 +31,21 @@ Call Activities invoke another BPMN process as a child, creating a separate Proc
 | Extension Element | Purpose |
 |-------------------|---------|
 | `calledElement` (attribute) | Process key of the child process to invoke |
-| `evil:startEventId` | Child Start Event to enter. Required when the child has multiple untyped starts; optional when it has exactly one |
-| `evil:inputMapping` | FEEL expression mapping parent token fields to child start payload |
-| `evil:outputMapping` | FEEL expression mapping child result fields back to parent token |
-| `evil:payloadContract` | JSON Schema on the child's start payload (after input mapping). Violation is fatal to the Call Activity FNI |
-| `evil:resultContract` | JSON Schema on the child's aggregated result (after output mapping). Violation is fatal to the Call Activity FNI |
+| `bfw:startEventId` | Child Start Event to enter. Required when the child has multiple untyped starts; optional when it has exactly one |
+| `bfw:inputMapping` | FEEL expression mapping parent token fields to child start payload |
+| `bfw:outputMapping` | FEEL expression mapping child result fields back to parent token |
+| `bfw:payloadContract` | JSON Schema on the child's start payload (after input mapping). Violation is fatal to the Call Activity FNI |
+| `bfw:resultContract` | JSON Schema on the child's aggregated result (after output mapping). Violation is fatal to the Call Activity FNI |
 
-`evil:startEventId` selects which Start Event the child begins at. Required when the child has multiple untyped Start Events; optional when it has exactly one. If the ID is missing from the child model the Call Activity fatals with `start_event_not_found`. If the child has multiple untyped starts and this extension is omitted, the engine returns `ambiguous_start_event`.
+`bfw:startEventId` selects which Start Event the child begins at. Required when the child has multiple untyped Start Events; optional when it has exactly one. If the ID is missing from the child model the Call Activity fatals with `start_event_not_found`. If the child has multiple untyped starts and this extension is omitted, the engine returns `ambiguous_start_event`.
 
 ## Input Mappings
 
 Input mappings use [FEEL expressions](expressions.md) to build the child's start payload from the parent's current token. Each mapping has a `source` (FEEL expression) and a `target` (output field name).
 
 ```xml
-<evil:inputMapping source="token.orderId" target="order_id" />
-<evil:inputMapping source="token.amount * 1.1" target="total_with_tax" />
+<bfw:inputMapping source="token.orderId" target="order_id" />
+<bfw:inputMapping source="token.amount * 1.1" target="total_with_tax" />
 ```
 
 The expression is evaluated against the parent PI's full [FEEL context](expressions.md) (including `token`, `identity`, `dataObjects`, etc.). If any mapping expression fails to evaluate, the parent PI transitions to `fatal` without spawning a child.
@@ -57,8 +57,8 @@ When no input mappings are configured, the parent's full token payload is passed
 Output mappings transform the child PI's aggregated result before it flows back to the parent. The child's result is built by merging payloads from all End Events the child reached (FinalToken aggregation).
 
 ```xml
-<evil:outputMapping source="token.result" target="order_result" />
-<evil:outputMapping source="token.status" target="child_status" />
+<bfw:outputMapping source="token.result" target="order_result" />
+<bfw:outputMapping source="token.status" target="child_status" />
 ```
 
 The expression is evaluated against a FEEL context where `token` is the child's aggregated result payload. If any output mapping expression fails, the parent PI transitions to `fatal`.
@@ -84,7 +84,7 @@ When a child PI is spawned, the engine emits:
 | Event | Channel | Content |
 |-------|---------|---------|
 | `CallActivityChildStarted` | `EngineEventBus` | `call_activity_flow_node_instance_id`, `parent_process_instance_id`, `child_process_instance_id`, `child_process_version_id`, `occurred_at` |
-| Telemetry `[:evil_engine, :call_activity, :child_started]` | `:telemetry` | Same fields as the struct |
+| Telemetry `[:bfw_engine, :call_activity, :child_started]` | `:telemetry` | Same fields as the struct |
 
 Additionally, `ProcessInstanceStateChanged` events for child PIs include the `parent_process_instance_id` field, and `FniStateChanged` events include the `process_instance_id` field.
 
@@ -122,12 +122,12 @@ Call Activities support full resume-on-restart. When the engine restarts and res
 
 ## Version Resolution
 
-The `calledElement` attribute is the process key (not a version). Optional `<evil:calledProcessVersion>` pins the child to that process's `<evil:version>` string.
+The `calledElement` attribute is the process key (not a version). Optional `<bfw:calledProcessVersion>` pins the child to that process's `<bfw:version>` string.
 
 | Pin | What the engine does at enter time |
 |-----|-------------------------------------|
 | Omitted or blank | Latest **enabled**, non-deleted catalog version — newest `deployed_at`, not semver order |
-| Set to a version string | Exact `evil:version` match. Missing / soft-deleted → Call Activity fatals (`called_process_version_not_found`). Catalog process disabled → `version_disabled` (this atom is **not** rewritten to `process_not_found`) |
+| Set to a version string | Exact `bfw:version` match. Missing / soft-deleted → Call Activity fatals (`called_process_version_not_found`). Catalog process disabled → `version_disabled` (this atom is **not** rewritten to `process_not_found`) |
 | Set to the word `latest` | Looks up a version **actually named** `latest`. That is not a keyword. Retry's JSON `"version": "latest"` *is* a keyword; this field is not. Leave the property empty for dynamic latest. |
 
 Resolution happens when the Call Activity **enters** (or re-enters after the child tree was deleted). The spawned child PI stores `process_version_id` (UUID). Resume reconnects that UUID. Multi-instance iterations each resolve independently: unpinned iterations can straddle a child deploy; a pin keeps every iteration on the same child version. Nested Call Activities resolve independently; a parent pin does not constrain grandchildren.

@@ -9,10 +9,10 @@ defmodule Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorWorker
 
   require Logger
 
-  alias EvilEngine.BPMN.Model.Definitions
-  alias EvilEngine.DMN.EvaluationResult
-  alias EvilEngine.DMN.EvaluationTrace
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.BPMN.Model.Definitions
+  alias BfwEngine.DMN.EvaluationResult
+  alias BfwEngine.DMN.EvaluationTrace
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DrdChainOrchestrator.TraceInspector
 
   @decision_model_id "credit-underwriting"
@@ -44,7 +44,7 @@ defmodule Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorWorker
       Keyword.get(
         options,
         :demo_identity,
-        %EvilEngine.Types.Identity{
+        %BfwEngine.Types.Identity{
           id: "plugin:examples-drd-chain-orchestrator",
           roles: ["plugin"],
           groups: []
@@ -125,7 +125,7 @@ defmodule Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorWorker
   defp deploy_bpmn_process(%EngineFacade{processes: processes}) do
     xml = bundled_bpmn_xml()
 
-    case EvilEngine.BPMN.parse_and_validate(xml) do
+    case BfwEngine.BPMN.parse_and_validate(xml) do
       {:ok, %Definitions{} = definitions} ->
         executable_process = pick_executable_process!(definitions)
 
@@ -267,7 +267,7 @@ defmodule Examples.BusinessRules.DrdChainOrchestrator.DrdChainOrchestratorWorker
 
   defp pick_executable_process!(%Definitions{processes: processes}) do
     case Enum.find(processes, & &1.is_executable) do
-      %EvilEngine.BPMN.Model.Process{} = process ->
+      %BfwEngine.BPMN.Model.Process{} = process ->
         process
 
       nil ->

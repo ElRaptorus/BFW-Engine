@@ -3,15 +3,15 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_EEE_Child">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_1" name="Error End Child" processRef="ErrorEndChild" />
   </bpmn:collaboration>
   <bpmn:process id="ErrorEndChild" name="Error End Child" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -31,8 +31,8 @@
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:errorEventDefinition>
         <bpmn:extensionElements>
-          <evil:errorCode>VALIDATION_FAILED</evil:errorCode>
-          <evil:errorMessage>Input validation failed</evil:errorMessage>
+          <bfw:errorCode>VALIDATION_FAILED</bfw:errorCode>
+          <bfw:errorMessage>Input validation failed</bfw:errorMessage>
         </bpmn:extensionElements>
       </bpmn:errorEventDefinition>
     </bpmn:endEvent>

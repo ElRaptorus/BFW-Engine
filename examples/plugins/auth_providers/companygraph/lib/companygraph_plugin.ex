@@ -27,7 +27,7 @@ defmodule MyCompany.CompanyGraphPlugin do
   pattern without introducing external dependencies.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   require Logger
 

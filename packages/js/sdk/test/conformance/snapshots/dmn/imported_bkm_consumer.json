@@ -21,7 +21,7 @@
       "knowledgeRequirements": [
         {
           "id": "kr_tax_rate",
-          "requiredKnowledgeId": "https://evilengine.dev/test/bkm-helper#BKM_tax_rate"
+          "requiredKnowledgeId": "https://bifrostforge.world/test/bkm-helper#BKM_tax_rate"
         }
       ],
       "name": "Total Tax",
@@ -39,7 +39,7 @@
       "id": "Import_helper",
       "importType": "https://www.omg.org/spec/DMN/20191111/MODEL/",
       "locationUri": null,
-      "namespace": "https://evilengine.dev/test/bkm-helper"
+      "namespace": "https://bifrostforge.world/test/bkm-helper"
     }
   ],
   "inputData": [
@@ -52,5 +52,5 @@
   "itemDefinitions": [],
   "knowledgeSources": [],
   "name": "Imported BKM Consumer",
-  "namespace": "https://evilengine.dev/test/bkm-consumer"
+  "namespace": "https://bifrostforge.world/test/bkm-consumer"
 }

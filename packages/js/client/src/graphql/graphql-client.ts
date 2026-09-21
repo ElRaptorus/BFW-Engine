@@ -33,8 +33,8 @@ import type {
   ProcessVersionField,
   ProcessVersionFilter,
   SelectionField,
-} from '@elraptorus/daemonengine_sdk';
-import { buildFlowNodeSelection, buildProcessModelSelection } from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
+import { buildFlowNodeSelection, buildProcessModelSelection } from '@elraptorus/bfw_engine_sdk';
 
 import { mapResponseError } from '../errors/error-mapper.js';
 import type { HttpTransport } from '../http/transport.js';

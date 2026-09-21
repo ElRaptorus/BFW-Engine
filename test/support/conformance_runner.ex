@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.ConformanceRunner do
+defmodule BfwEngine.Test.ConformanceRunner do
   @moduledoc """
   YAML-driven conformance test runner.
 
@@ -21,8 +21,8 @@ defmodule EvilEngine.Test.ConformanceRunner do
 
   require Ash.Query
 
-  alias EvilEngine.Persistence.Api, as: Domain
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias BfwEngine.Persistence.Api, as: Domain
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: PiResource
 
   @conformance_dir Path.expand("../conformance", __DIR__)
   @terminal_process_instance_states ["finished", "fatal", "aborted", "escalated", "cancelled", "compensated"]
@@ -49,7 +49,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
   Run a full auto-tier conformance test: deploy, start, wait, assert.
 
   Uses `ExecutionCase` helper functions directly (they are public
-  in the module and can be called as `EvilEngine.ExecutionCase.fn()`).
+  in the module and can be called as `BfwEngine.ExecutionCase.fn()`).
   """
   def run_auto(spec) do
     process_instance_id = deploy_and_start(spec)
@@ -79,7 +79,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
     deploy_dmn_fixtures(spec["dmn_fixtures"] || [])
     deploy_child_fixtures(spec["child_fixtures"] || [])
 
-    {201, _} = apply(EvilEngine.ExecutionCase, :http_deploy, [fixture])
+    {201, _} = apply(BfwEngine.ExecutionCase, :http_deploy, [fixture])
 
     case start_config["mode"] do
       "timer_auto" -> poll_for_timer_started_pi(spec["process_model_id"])
@@ -103,7 +103,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
         id -> Map.put(body, "startEventId", id)
       end
 
-    {201, response} = apply(EvilEngine.ExecutionCase, :http_start, [process_model_id, body])
+    {201, response} = apply(BfwEngine.ExecutionCase, :http_start, [process_model_id, body])
     response["processInstanceId"]
   end
 
@@ -129,8 +129,8 @@ defmodule EvilEngine.Test.ConformanceRunner do
   end
 
   defp resolve_version_id(process_model_id) do
-    alias EvilEngine.Persistence.Resources.Process, as: ProcessResource
-    alias EvilEngine.Persistence.Resources.ProcessVersion, as: PvResource
+    alias BfwEngine.Persistence.Resources.Process, as: ProcessResource
+    alias BfwEngine.Persistence.Resources.ProcessVersion, as: PvResource
 
     process =
       ProcessResource
@@ -180,7 +180,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
       end
 
     if final_state in @terminal_process_instance_states do
-      case apply(EvilEngine.Test.ProcessInteractions, :await_process_instance_state, [
+      case apply(BfwEngine.Test.ProcessInteractions, :await_process_instance_state, [
              process_instance_id,
              final_state,
              [timeout: timeout_milliseconds]
@@ -203,7 +203,7 @@ defmodule EvilEngine.Test.ConformanceRunner do
     assert_final_state(process_instance_id, expected_final_state)
 
     if expected_final_state in @terminal_process_instance_states do
-      apply(EvilEngine.Test.DbAssertions, :assert_all_fnis_terminal!, [process_instance_id])
+      apply(BfwEngine.Test.DbAssertions, :assert_all_fnis_terminal!, [process_instance_id])
     end
 
     if expected_final_state == "finished" do
@@ -216,13 +216,13 @@ defmodule EvilEngine.Test.ConformanceRunner do
 
     if expected["fni_count"] do
       flow_node_instances =
-        apply(EvilEngine.Test.DbAssertions, :fetch_flow_node_instances, [process_instance_id])
+        apply(BfwEngine.Test.DbAssertions, :fetch_flow_node_instances, [process_instance_id])
       assert_flow_node_instance_count(flow_node_instances, expected["fni_count"])
     end
   end
 
   defp assert_final_state(process_instance_id, expected_state) do
-    apply(EvilEngine.Test.DbAssertions, :assert_pi_state!, [process_instance_id, expected_state])
+    apply(BfwEngine.Test.DbAssertions, :assert_pi_state!, [process_instance_id, expected_state])
   end
 
   defp assert_final_tokens_not_nil(process_instance_id) do
@@ -325,13 +325,13 @@ defmodule EvilEngine.Test.ConformanceRunner do
 
   defp deploy_dmn_fixtures(dmn_fixture_names) do
     Enum.each(dmn_fixture_names, fn dmn_fixture ->
-      {201, _} = apply(EvilEngine.ExecutionCase, :http_deploy_dmn, [dmn_fixture])
+      {201, _} = apply(BfwEngine.ExecutionCase, :http_deploy_dmn, [dmn_fixture])
     end)
   end
 
   defp deploy_child_fixtures(child_fixture_names) do
     Enum.each(child_fixture_names, fn child_fixture ->
-      {201, _} = apply(EvilEngine.ExecutionCase, :http_deploy, [child_fixture])
+      {201, _} = apply(BfwEngine.ExecutionCase, :http_deploy, [child_fixture])
     end)
   end
 end

@@ -1,7 +1,7 @@
 defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerPluginTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerPlugin
 
   describe "on_load/1" do

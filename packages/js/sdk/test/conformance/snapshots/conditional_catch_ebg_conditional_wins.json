@@ -38,7 +38,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -54,11 +56,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Fork_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
-          "outgoing": ["Flow_Ebg", "Flow_User"],
+          "outgoing": [
+            "Flow_Ebg",
+            "Flow_User"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -77,11 +84,15 @@
           ],
           "documentation": null,
           "id": "UserTask_WriteReady",
-          "incoming": ["Flow_User"],
+          "incoming": [
+            "Flow_User"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Write Ready",
-          "outgoing": ["Flow_User_Join"],
+          "outgoing": [
+            "Flow_User_Join"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -110,11 +121,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EBG_1",
-          "incoming": ["Flow_Ebg"],
+          "incoming": [
+            "Flow_Ebg"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Event",
-          "outgoing": ["Flow_Timer", "Flow_Conditional"],
+          "outgoing": [
+            "Flow_Timer",
+            "Flow_Conditional"
+          ],
           "standardLoop": null,
           "type": "event_based_gateway",
           "typeData": {}
@@ -126,11 +142,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ConditionalCatch_DataReady",
-          "incoming": ["Flow_Conditional"],
+          "incoming": [
+            "Flow_Conditional"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait for Data Ready",
-          "outgoing": ["Flow_Conditional_Merge"],
+          "outgoing": [
+            "Flow_Conditional_Merge"
+          ],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -148,11 +168,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "TimerCatch_Timeout",
-          "incoming": ["Flow_Timer"],
+          "incoming": [
+            "Flow_Timer"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout",
-          "outgoing": ["Flow_Timer_Merge"],
+          "outgoing": [
+            "Flow_Timer_Merge"
+          ],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -172,11 +196,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "XorMerge_1",
-          "incoming": ["Flow_Timer_Merge", "Flow_Conditional_Merge"],
+          "incoming": [
+            "Flow_Timer_Merge",
+            "Flow_Conditional_Merge"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "EBG Winner",
-          "outgoing": ["Flow_Winner_Join"],
+          "outgoing": [
+            "Flow_Winner_Join"
+          ],
           "standardLoop": null,
           "type": "exclusive_gateway",
           "typeData": {
@@ -190,11 +219,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Join_1",
-          "incoming": ["Flow_Winner_Join", "Flow_User_Join"],
+          "incoming": [
+            "Flow_Winner_Join",
+            "Flow_User_Join"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Join",
-          "outgoing": ["Flow_End"],
+          "outgoing": [
+            "Flow_End"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -206,7 +240,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_End"],
+          "incoming": [
+            "Flow_End"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",

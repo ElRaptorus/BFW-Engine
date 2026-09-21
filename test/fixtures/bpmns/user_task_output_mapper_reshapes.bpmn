@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_UT_OutReshape"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -10,7 +10,7 @@
   </bpmn:collaboration>
   <bpmn:process id="UserTaskOutputMapperReshapes" name="User Task Output Mapper Reshapes" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -22,8 +22,8 @@
     <bpmn:startEvent id="Start_1" name="Start"/>
     <bpmn:userTask id="UserTask_1" name="Reshape Output">
       <bpmn:extensionElements>
-        <evil:outputMapping source="token.is_approved" target="approved"/>
-        <evil:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</evil:resultContract>
+        <bfw:outputMapping source="token.is_approved" target="approved"/>
+        <bfw:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</bfw:resultContract>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:endEvent id="End_1" name="Done"/>

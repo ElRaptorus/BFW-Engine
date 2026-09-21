@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DaemonEngineClient } from '@elraptorus/daemonengine_client';
-import type { EngineEventEnvelope } from '@elraptorus/daemonengine_sdk';
+import { BfwEngineClient } from '@elraptorus/bfw_engine_client';
+import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -14,7 +14,7 @@ function sleep(milliseconds: number): Promise<void> {
 export async function main(): Promise<void> {
   const engineUrl = process.env['ENGINE_URL'] ?? 'http://localhost:4000';
   const token = process.env['ENGINE_TOKEN'] ?? 'dev-token';
-  const client = new DaemonEngineClient(engineUrl, token);
+  const client = new BfwEngineClient(engineUrl, token);
 
   const bpmnPath = resolve(__dirname, '../bpmn/rt-demo.bpmn');
   const bpmnXml = readFileSync(bpmnPath, 'utf8');

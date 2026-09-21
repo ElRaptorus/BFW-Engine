@@ -1,6 +1,6 @@
 defmodule Examples.Plugins.Combined.MetricsPipeline.FacadeStore do
   @moduledoc """
-  Agent-backed stash for the `EvilEngine.EngineFacade` from `on_load/1` so the
+  Agent-backed stash for the `BfwEngine.EngineFacade` from `on_load/1` so the
   aggregator handler can call facade closures while executing a Service Task.
 
   Same indirection pattern as
@@ -18,14 +18,14 @@ defmodule Examples.Plugins.Combined.MetricsPipeline.FacadeStore do
   end
 
   @doc "Stores the engine facade from plugin load for later use by the metrics aggregator handler."
-  @spec put(EvilEngine.EngineFacade.t()) :: :ok
+  @spec put(BfwEngine.EngineFacade.t()) :: :ok
   def put(engine_facade) do
     ensure_started()
     Agent.update(__MODULE__, fn _previous -> engine_facade end)
   end
 
   @doc "Returns the last stored facade, or nil before put/1 or in tests that omit registration."
-  @spec get() :: EvilEngine.EngineFacade.t() | nil
+  @spec get() :: BfwEngine.EngineFacade.t() | nil
   def get do
     ensure_started()
     Agent.get(__MODULE__, & &1)

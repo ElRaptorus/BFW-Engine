@@ -1,4 +1,4 @@
-defmodule EvilEngine.Persistence.Repo.Migrations.CreateInitialSchema do
+defmodule BfwEngine.Persistence.Repo.Migrations.CreateInitialSchema do
   @moduledoc """
   Single migration containing the full initial schema.
 

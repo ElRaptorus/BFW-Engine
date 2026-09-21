@@ -38,7 +38,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Main_Flow_1"],
+          "outgoing": [
+            "Main_Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -61,11 +63,15 @@
           ],
           "documentation": null,
           "id": "Script_WriteDO",
-          "incoming": ["Main_Flow_1"],
+          "incoming": [
+            "Main_Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Write Data Object",
-          "outgoing": ["Main_Flow_2"],
+          "outgoing": [
+            "Main_Flow_2"
+          ],
           "standardLoop": null,
           "type": "script_task",
           "typeData": {
@@ -85,11 +91,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_UserTask",
-          "incoming": ["Main_Flow_2"],
+          "incoming": [
+            "Main_Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Work",
-          "outgoing": ["Main_Flow_3"],
+          "outgoing": [
+            "Main_Flow_3"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -111,7 +121,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Main_Flow_3"],
+          "incoming": [
+            "Main_Flow_3"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -159,7 +171,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Condition Met",
-                "outgoing": ["ESP_Flow_1"],
+                "outgoing": [
+                  "ESP_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -177,11 +191,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": ["ESP_Flow_1"],
+                "incoming": [
+                  "ESP_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Condition",
-                "outgoing": ["ESP_Flow_2"],
+                "outgoing": [
+                  "ESP_Flow_2"
+                ],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -193,7 +211,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": ["ESP_Flow_2"],
+                "incoming": [
+                  "ESP_Flow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",

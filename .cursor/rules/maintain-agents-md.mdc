@@ -11,7 +11,7 @@ alwaysApply: false
 
 # Maintain AGENTS.md
 
-`AGENTS.md` at the project root is the tool-agnostic domain knowledge reference for agents and contributors. It documents the `evil:*` BPMN extension vocabulary, supported element types, validator rules, FEEL context bindings, and project structure.
+`AGENTS.md` at the project root is the tool-agnostic domain knowledge reference for agents and contributors. It documents the `bfw:*` BPMN extension vocabulary, supported element types, validator rules, FEEL context bindings, and project structure.
 
 ## When this rule fires
 
@@ -25,11 +25,11 @@ This rule activates when you edit any of the files that `AGENTS.md` describes:
 
 After making changes to any of these files, verify that `AGENTS.md` still accurately reflects:
 
-1. **Extension elements**: Every `evil:*` element parsed by `SaxHandler` has a corresponding entry in the "Extension Elements Reference" section. No stale entries remain for removed extensions.
+1. **Extension elements**: Every `bfw:*` element parsed by `SaxHandler` has a corresponding entry in the "Extension Elements Reference" section. No stale entries remain for removed extensions.
 2. **Supported element types**: The "Supported BPMN Element Types" tables match `@flow_node_elements` and `@event_definition_elements` in `SaxHandler`.
 3. **Event position rules**: The "Event Definition Position Rules" table matches `@valid_event_positions` in `Validator`.
 4. **Validator rules**: The "Validator Rules" section reflects all checks performed by `Validator.validate/1`, including type-specific required properties and event definition completeness.
-5. **FEEL context bindings**: The "Context bindings" table matches the fields in `EvilEngine.Expressions.Context` and its `to_feel_scope/1` mapping.
+5. **FEEL context bindings**: The "Context bindings" table matches the fields in `BfwEngine.Expressions.Context` and its `to_feel_scope/1` mapping.
 6. **Project structure**: The umbrella app table matches the actual `apps/` directory if apps were added or removed.
 
 ## What to do

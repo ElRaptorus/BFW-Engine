@@ -6,30 +6,30 @@ The engine requires PostgreSQL 16+ for JSONB support and LZ4 toast compression.
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_DATABASE_URL` | -- | Full connection string (preferred) |
-| `TDE_DATABASE_HOST` | -- | Hostname (alternative to URL) |
-| `TDE_DATABASE_PORT` | `5432` | Port |
-| `TDE_DATABASE_NAME` | -- | Database name |
-| `TDE_DATABASE_USER` | -- | Username |
-| `TDE_DATABASE_PASS` | -- | Password |
-| `TDE_DB_POOL_SIZE` | `100` | Write pool size (PI/FNI lifecycle, deploys, message/signal persistence) |
-| `TDE_DB_READ_POOL_SIZE` | `50` | Read pool size (GraphQL queries, REST list/get endpoints) |
-| `TDE_DB_CHECKOUT_RETRIES` | `3` | DBConnection retries on mid-query disconnect (Layer 1) |
-| `TDE_DB_QUEUE_TARGET` | `100` | CoDel target latency (ms) |
-| `TDE_DB_QUEUE_INTERVAL` | `2000` | CoDel measurement interval (ms) |
-| `TDE_DB_CHECKOUT_TIMEOUT` | `15000` | Max wait for a pool connection (ms) |
-| `TDE_DB_QUEUE_TIME_WARNING_MS` | `500` | Log warning when queue_time exceeds this threshold (ms) |
-| `TDE_DB_IPV6` | `false` | Connect over IPv6 |
-| `TDE_DB_SSL` | `false` | Enable SSL |
+| `BFE_DATABASE_URL` | -- | Full connection string (preferred) |
+| `BFE_DATABASE_HOST` | -- | Hostname (alternative to URL) |
+| `BFE_DATABASE_PORT` | `5432` | Port |
+| `BFE_DATABASE_NAME` | -- | Database name |
+| `BFE_DATABASE_USER` | -- | Username |
+| `BFE_DATABASE_PASS` | -- | Password |
+| `BFE_DB_POOL_SIZE` | `100` | Write pool size (PI/FNI lifecycle, deploys, message/signal persistence) |
+| `BFE_DB_READ_POOL_SIZE` | `50` | Read pool size (GraphQL queries, REST list/get endpoints) |
+| `BFE_DB_CHECKOUT_RETRIES` | `3` | DBConnection retries on mid-query disconnect (Layer 1) |
+| `BFE_DB_QUEUE_TARGET` | `100` | CoDel target latency (ms) |
+| `BFE_DB_QUEUE_INTERVAL` | `2000` | CoDel measurement interval (ms) |
+| `BFE_DB_CHECKOUT_TIMEOUT` | `15000` | Max wait for a pool connection (ms) |
+| `BFE_DB_QUEUE_TIME_WARNING_MS` | `500` | Log warning when queue_time exceeds this threshold (ms) |
+| `BFE_DB_IPV6` | `false` | Connect over IPv6 |
+| `BFE_DB_SSL` | `false` | Enable SSL |
 
-`TDE_DATABASE_URL` takes precedence over individual vars. Both the write pool (`Repo`) and read pool (`ReadRepo`) connect to the same database URL.
+`BFE_DATABASE_URL` takes precedence over individual vars. Both the write pool (`Repo`) and read pool (`ReadRepo`) connect to the same database URL.
 
 ### Dual-Pool Architecture
 
 The engine uses two Ecto repos with separate connection pools:
 
-- **Write pool** (`EvilEngine.Persistence.Repo`, `TDE_DB_POOL_SIZE`) — handles all mutations: PI/FNI state writes, deployments, message/signal persistence, retry orchestration.
-- **Read pool** (`EvilEngine.Persistence.ReadRepo`, `TDE_DB_READ_POOL_SIZE`) — handles all reads: GraphQL queries, REST list/get, Ash read actions.
+- **Write pool** (`BfwEngine.Persistence.Repo`, `BFE_DB_POOL_SIZE`) — handles all mutations: PI/FNI state writes, deployments, message/signal persistence, retry orchestration.
+- **Read pool** (`BfwEngine.Persistence.ReadRepo`, `BFE_DB_READ_POOL_SIZE`) — handles all reads: GraphQL queries, REST list/get, Ash read actions.
 
 The 2:1 default (100 write / 50 read) reflects workload asymmetry: tens of thousands of PIs produce massively concurrent writes, while a comparatively small number of Studio users issue read queries. Adjust based on your workload profile.
 
@@ -39,9 +39,9 @@ Size PostgreSQL with `max_connections >= (write + read) * engine_nodes + 20`. Pr
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_DB_CHECKOUT_RETRIES` | `3` | DBConnection-level retries on mid-query disconnect (Layer 1) |
-| `TDE_PERSISTENCE_RETRY_MAX_ATTEMPTS` | `5` | Application-level retry attempts per adapter call (Layer 2) |
-| `TDE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` | `100` | Initial backoff before first retry; doubles on each attempt (Layer 2) |
+| `BFE_DB_CHECKOUT_RETRIES` | `3` | DBConnection-level retries on mid-query disconnect (Layer 1) |
+| `BFE_PERSISTENCE_RETRY_MAX_ATTEMPTS` | `5` | Application-level retry attempts per adapter call (Layer 2) |
+| `BFE_PERSISTENCE_RETRY_INITIAL_BACKOFF_MS` | `100` | Initial backoff before first retry; doubles on each attempt (Layer 2) |
 
 Layer 1 handles transparent reconnection at the pool level. Layer 2 (`PersistenceRetry`) wraps all adapter calls with bounded exponential backoff and jitter. Total worst-case retry window: ~3.1s. See `docs/architecture/execution.md` §Persistence Resilience for the fail-fast vs. log-and-continue classification.
 
@@ -54,7 +54,7 @@ The engine uses a **single initial migration**. Edit `apps/peripheral_persistenc
 MIX_ENV=test mix ecto.migrate
 
 # Production release
-bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
+bin/bfw_engine eval "BfwEngine.Persistence.Release.migrate()"
 ```
 
 ## Key Tables
@@ -86,16 +86,16 @@ Six tables are range-partitioned by timestamp: `process_instance_events`,
 period and upcoming periods:
 
 ```bash
-mix evil.partitions.ensure    # dev
-bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"  # prod
+mix bfw.partitions.ensure    # dev
+bin/bfw_engine eval "BfwEngine.Persistence.Release.ensure_partitions()"  # prod
 ```
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_PARTITION_INTERVAL` | `quarterly` | `monthly`, `quarterly`, `half_yearly`, `yearly`, or `off` |
-| `TDE_PARTITION_AHEAD_MONTHS` | `3` | Future partition lead time (at least 1) |
+| `BFE_PARTITION_INTERVAL` | `quarterly` | `monthly`, `quarterly`, `half_yearly`, `yearly`, or `off` |
+| `BFE_PARTITION_AHEAD_MONTHS` | `3` | Future partition lead time (at least 1) |
 
-`mix evil.partitions.ensure` only **creates** upcoming partitions. It does
+`mix bfw.partitions.ensure` only **creates** upcoming partitions. It does
 not drop old ones. For long-uptime nodes, run `pg_partman` (or equivalent)
 `DETACH` / `DROP` on those six tables. See [Partition drop](#partition-drop-pg_partman) below.
 
@@ -107,35 +107,35 @@ Two independent jobs:
 2. **Message / signal audit rows** — operator SQL. The engine does not
    delete those tables on a schedule.
 
-Unset `TDE_RETENTION_*_DAYS` → the Mix task is a no-op.
+Unset `BFE_RETENTION_*_DAYS` → the Mix task is a no-op.
 
 ```bash
-mix evil.retention.purge
-mix evil.retention.purge --dry-run
-bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"
-bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention(dry_run: true)"
+mix bfw.retention.purge
+mix bfw.retention.purge --dry-run
+bin/bfw_engine eval "BfwEngine.Persistence.Release.purge_retention()"
+bin/bfw_engine eval "BfwEngine.Persistence.Release.purge_retention(dry_run: true)"
 ```
 
 Example cron (daily 03:00 UTC):
 
 ```cron
-0 3 * * * cd /opt/evil_engine && bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"
+0 3 * * * cd /opt/bfw_engine && bin/bfw_engine eval "BfwEngine.Persistence.Release.purge_retention()"
 ```
 
 | Env Var | Purpose |
 |---------|---------|
-| `TDE_RETENTION_FINISHED_DAYS` | Max age for `finished` PIs |
-| `TDE_RETENTION_ERROR_DAYS` | Max age for `error` PIs |
-| `TDE_RETENTION_FATAL_DAYS` | Max age for `fatal` PIs |
-| `TDE_RETENTION_ABORTED_DAYS` | Max age for `aborted` PIs |
-| `TDE_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
-| `TDE_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
-| `TDE_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
-| `TDE_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
-| `TDE_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
-| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | Not read by the engine. Use it as the cutoff (in days) for the SQL below |
-| `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | Default `true`: keep pending-message rows after deliver/expire/cancel (audit). `false`: destroy the row on transition, so the table only holds live `pending` rows |
-| `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same for pending signals |
+| `BFE_RETENTION_FINISHED_DAYS` | Max age for `finished` PIs |
+| `BFE_RETENTION_ERROR_DAYS` | Max age for `error` PIs |
+| `BFE_RETENTION_FATAL_DAYS` | Max age for `fatal` PIs |
+| `BFE_RETENTION_ABORTED_DAYS` | Max age for `aborted` PIs |
+| `BFE_RETENTION_ESCALATED_DAYS` | Max age for `escalated` PIs |
+| `BFE_RETENTION_COMPENSATED_DAYS` | Max age for `compensated` PIs |
+| `BFE_RETENTION_CANCELLED_DAYS` | Max age for `cancelled` PIs (Mix purge only; REST delete still omits `cancelled`) |
+| `BFE_RETENTION_BATCH_SIZE` | Max root trees per Mix invocation (default `500`) |
+| `BFE_RETENTION_RUN_INTERVAL` | Ignored; cron owns the interval |
+| `BFE_RETENTION_ENGINE_AUDIT_DAYS` | Not read by the engine. Use it as the cutoff (in days) for the SQL below |
+| `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | Default `true`: keep pending-message rows after deliver/expire/cancel (audit). `false`: destroy the row on transition, so the table only holds live `pending` rows |
+| `BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same for pending signals |
 
 ### What the Mix task deletes
 
@@ -152,14 +152,14 @@ Example cron (daily 03:00 UTC):
   PI and its FNIs. There is no REST purge endpoint.
 
 Ad-hoc cleanup of a specific aged cohort: lower the matching
-`TDE_RETENTION_*_DAYS` temporarily and run the Mix task (or `--dry-run`
+`BFE_RETENTION_*_DAYS` temporarily and run the Mix task (or `--dry-run`
 first).
 
 ### Message and signal audit cleanup (operator SQL)
 
 Do **not** DELETE `timer_start_schedules`. Never delete rows with
 `state = 'pending'`. Substitute `:cutoff` with
-`now() - make_interval(days => <TDE_RETENTION_ENGINE_AUDIT_DAYS>)` or a
+`now() - make_interval(days => <BFE_RETENTION_ENGINE_AUDIT_DAYS>)` or a
 literal timestamptz.
 
 ```sql
@@ -204,14 +204,14 @@ For `DETACH` / `DROP` of old partitions, run `pg_partman` (or equivalent)
 on `process_instance_events`, `data_object_writes`, `messages`,
 `pending_messages`, `signals`, and `pending_signals`.
 
-## Payload cap (`TDE_TOKEN_MAX_BYTES`)
+## Payload cap (`BFE_TOKEN_MAX_BYTES`)
 
 Every user-supplied payload is checked against a single engine-wide byte
 cap. The check uses the canonicalized JSON size.
 
 | Env Var | Default | Floor |
 |---------|---------|-------|
-| `TDE_TOKEN_MAX_BYTES` | `65536` (64 KiB) | `1024` — values below this refuse boot |
+| `BFE_TOKEN_MAX_BYTES` | `65536` (64 KiB) | `1024` — values below this refuse boot |
 
 There is no per-process or per-endpoint override. There is no maximum;
 raise it if the workload legitimately needs larger tokens.
@@ -237,11 +237,11 @@ JSONB compression below; the cap is a size gate, not a compressor.
 See [Error Handling](../handbook/error-handling.md) for the HTTP body
 shape and [Troubleshooting](troubleshooting.md) for 413.
 
-## JSONB compression (`TDE_JSONB_COMPRESSION`)
+## JSONB compression (`BFE_JSONB_COMPRESSION`)
 
 | Env Var | Default |
 |---------|---------|
-| `TDE_JSONB_COMPRESSION` | `lz4` |
+| `BFE_JSONB_COMPRESSION` | `lz4` |
 
 Requires PostgreSQL 14+ (the engine requires 16+). The setting applies to
 **new** column data created by migrations. Existing rows keep whatever

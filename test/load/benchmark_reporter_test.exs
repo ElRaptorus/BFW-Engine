@@ -1,10 +1,10 @@
-defmodule EvilEngine.Load.BenchmarkReporterTest do
+defmodule BfwEngine.Load.BenchmarkReporterTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO
 
-  alias EvilEngine.Test.BenchmarkReporter
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Test.BenchmarkReporter
+  alias BfwEngine.Test.LoadHelpers
 
   @tag :load
   test "write! emits schemaVersion 1 with recorded workload and runtime snapshot" do

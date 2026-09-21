@@ -4,7 +4,7 @@ Transforms a DMN Business Rule Task evaluation trace on the process token into a
 
 ## What this demonstrates
 
-- **Named Script pattern** — one `EvilEngine.Plugin` module registers `explain_decision` via `register_named_script/2`
+- **Named Script pattern** — one `BfwEngine.Plugin` module registers `explain_decision` via `register_named_script/2`
 - **Trace consumption** — a Script Task reads the structured execution trace (`trace.decisions`) produced by a preceding Business Rule Task
 - **Decide-then-explain** — linear BPMN flow: evaluate DMN, then explain the outcome for operators or end users
 
@@ -31,15 +31,15 @@ Start → BusinessRuleTask("Assess Eligibility") → ScriptTask("Explain Decisio
 
 | Element | Configuration |
 |---------|----------------|
-| Business Rule Task | `implementation="dmn"`, `<evil:decisionRef>loan-eligibility</evil:decisionRef>` |
-| Script Task | `<evil:scriptRef>explain_decision</evil:scriptRef>` |
+| Business Rule Task | `implementation="dmn"`, `<bfw:decisionRef>loan-eligibility</bfw:decisionRef>` |
+| Script Task | `<bfw:scriptRef>explain_decision</bfw:scriptRef>` |
 
 Output mappings on the Business Rule Task forward `approved`, `maxAmount`, and `reason` into the downstream token. The Script Task maps `explanation` and `decision_count` forward.
 
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or load the example path in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.ExplainDecision.ExplainDecisionPlugin` and add your app to `TDE_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.ExplainDecision.ExplainDecisionPlugin` and add your app to `BFE_PLUGINS_INBEAM`.
 3. Deploy `dmn/loan_eligibility.dmn` via `POST /decisions` (claim `deploy_dmn`).
 4. Deploy `bpmn/loan_approval_with_explanation.bpmn` via `POST /processes`.
 5. Start a process instance with applicant data, for example:
@@ -104,8 +104,8 @@ flowchart LR
 
 ## Further reading
 
-- [Plugin Development — Getting Started](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/guides/plugins/getting-started.md)
-- [NamedScript behaviour](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/apps/engine_sdk/lib/evil_engine/plugin/named_script.ex)
-- [Business Rule Tasks handbook](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/guides/handbook/business-rule-tasks.md)
-- [DMN architecture — evaluation trace](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/architecture/dmn.md)
-- [Script Tasks handbook](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/guides/handbook/script-tasks.md)
+- [Plugin Development — Getting Started](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/plugins/getting-started.md)
+- [NamedScript behaviour](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/named_script.ex)
+- [Business Rule Tasks handbook](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/handbook/business-rule-tasks.md)
+- [DMN architecture — evaluation trace](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/architecture/dmn.md)
+- [Script Tasks handbook](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/handbook/script-tasks.md)

@@ -1,6 +1,6 @@
 /**
  * Unit tests for the SDK BPMN parser covering happy paths, edge cases,
- * all evil:* extension elements, and event definition positions.
+ * all bfw:* extension elements, and event definition positions.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -35,7 +35,7 @@ function wrap(processBody: string, extras = ''): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions
   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1"
   ${extras}>
   ${processBody}
@@ -46,7 +46,7 @@ function processWrap(processId: string, body: string, version = '1.0.0'): string
   return wrap(`
     <bpmn:process id="${processId}" name="${processId}" isExecutable="true">
       <bpmn:extensionElements>
-        <evil:version>${version}</evil:version>
+        <bfw:version>${version}</bfw:version>
       </bpmn:extensionElements>
       ${body}
     </bpmn:process>
@@ -88,7 +88,7 @@ describe('parseBpmn', () => {
       expect(process.sequenceFlows[0]!.isDefault).toBe(false);
     });
 
-    it('parses process version from evil:version', () => {
+    it('parses process version from bfw:version', () => {
       const xml = processWrap('V', '<bpmn:startEvent id="S1"/>', '2.5.0');
       const result = parseBpmn(xml);
       expect(result.processes[0]!.version).toBe('2.5.0');
@@ -101,7 +101,7 @@ describe('parseBpmn', () => {
         <bpmn:error id="Err_1" name="Timeout" errorCode="ERR_TIMEOUT"/>
         <bpmn:escalation id="Esc_1" name="ManagerReview" escalationCode="ESC_REVIEW"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S1"/>
         </bpmn:process>
       `);
@@ -131,11 +131,11 @@ describe('parseBpmn', () => {
     it('parses multiple processes', () => {
       const xml = wrap(`
         <bpmn:process id="P1" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S1"/>
         </bpmn:process>
         <bpmn:process id="P2" isExecutable="false">
-          <bpmn:extensionElements><evil:version>2.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>2.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S2"/>
         </bpmn:process>
       `);
@@ -184,7 +184,7 @@ describe('parseBpmn', () => {
     it('sets isExecutable to true by default', () => {
       const xml = wrap(`
         <bpmn:process id="P">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S1"/>
         </bpmn:process>
       `);
@@ -346,7 +346,7 @@ describe('parseBpmn', () => {
         <bpmn:boundaryEvent id="BE1" attachedToRef="ST1">
           <bpmn:errorEventDefinition>
             <bpmn:extensionElements>
-              <evil:errorCode>FAIL</evil:errorCode>
+              <bfw:errorCode>FAIL</bfw:errorCode>
             </bpmn:extensionElements>
           </bpmn:errorEventDefinition>
         </bpmn:boundaryEvent>
@@ -395,13 +395,13 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderReceived"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S1">
             <bpmn:messageEventDefinition messageRef="Msg_1">
               <bpmn:extensionElements>
-                <evil:correlationRetrievalExpression>payload.orderId</evil:correlationRetrievalExpression>
-                <evil:payload>{ orderId: token.orderId }</evil:payload>
-                <evil:eventMapping>{ order: event }</evil:eventMapping>
+                <bfw:correlationRetrievalExpression>payload.orderId</bfw:correlationRetrievalExpression>
+                <bfw:payload>{ orderId: token.orderId }</bfw:payload>
+                <bfw:eventMapping>{ order: event }</bfw:eventMapping>
               </bpmn:extensionElements>
             </bpmn:messageEventDefinition>
           </bpmn:startEvent>
@@ -422,11 +422,11 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderReceived"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:intermediateCatchEvent id="Catch_1">
             <bpmn:messageEventDefinition messageRef="Msg_1">
               <bpmn:extensionElements>
-                <evil:correlationRetrievalExpression>payload.id</evil:correlationRetrievalExpression>
+                <bfw:correlationRetrievalExpression>payload.id</bfw:correlationRetrievalExpression>
               </bpmn:extensionElements>
             </bpmn:messageEventDefinition>
           </bpmn:intermediateCatchEvent>
@@ -442,10 +442,10 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderReceived"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:intermediateCatchEvent id="Catch_1">
             <bpmn:extensionElements>
-              <evil:resultContract>{"type":"object","required":["orderId"]}</evil:resultContract>
+              <bfw:resultContract>{"type":"object","required":["orderId"]}</bfw:resultContract>
             </bpmn:extensionElements>
             <bpmn:messageEventDefinition messageRef="Msg_1"/>
           </bpmn:intermediateCatchEvent>
@@ -461,10 +461,10 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderReceived"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:intermediateThrowEvent id="Throw_1">
             <bpmn:extensionElements>
-              <evil:payloadContract>{"type":"object","required":["amount"]}</evil:payloadContract>
+              <bfw:payloadContract>{"type":"object","required":["amount"]}</bfw:payloadContract>
             </bpmn:extensionElements>
             <bpmn:messageEventDefinition messageRef="Msg_1"/>
           </bpmn:intermediateThrowEvent>
@@ -480,11 +480,11 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderReceived"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
           <bpmn:endEvent id="E1">
             <bpmn:extensionElements>
-              <evil:payloadContract>{"type":"object","required":["total"]}</evil:payloadContract>
+              <bfw:payloadContract>{"type":"object","required":["total"]}</bfw:payloadContract>
             </bpmn:extensionElements>
             <bpmn:messageEventDefinition messageRef="Msg_1"/>
             <bpmn:incoming>F1</bpmn:incoming>
@@ -502,11 +502,11 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="test"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:userTask id="UT1"/>
           <bpmn:boundaryEvent id="B1" attachedToRef="UT1">
             <bpmn:extensionElements>
-              <evil:resultContract>{"type":"object","required":["status"]}</evil:resultContract>
+              <bfw:resultContract>{"type":"object","required":["status"]}</bfw:resultContract>
             </bpmn:extensionElements>
             <bpmn:messageEventDefinition messageRef="Msg_1"/>
           </bpmn:boundaryEvent>
@@ -523,10 +523,10 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderStart"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="S1">
             <bpmn:extensionElements>
-              <evil:resultContract>{"type":"object","required":["orderId"]}</evil:resultContract>
+              <bfw:resultContract>{"type":"object","required":["orderId"]}</bfw:resultContract>
             </bpmn:extensionElements>
             <bpmn:messageEventDefinition messageRef="Msg_1"/>
           </bpmn:startEvent>
@@ -542,10 +542,10 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="test"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:sendTask id="ST1" messageRef="Msg_1">
             <bpmn:extensionElements>
-              <evil:payloadContract>{"type":"object","required":["payload"]}</evil:payloadContract>
+              <bfw:payloadContract>{"type":"object","required":["payload"]}</bfw:payloadContract>
             </bpmn:extensionElements>
           </bpmn:sendTask>
         </bpmn:process>
@@ -560,10 +560,10 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="test"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:receiveTask id="RT1" messageRef="Msg_1">
             <bpmn:extensionElements>
-              <evil:resultContract>{"type":"object","required":["result"]}</evil:resultContract>
+              <bfw:resultContract>{"type":"object","required":["result"]}</bfw:resultContract>
             </bpmn:extensionElements>
           </bpmn:receiveTask>
         </bpmn:process>
@@ -578,7 +578,7 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:signal id="Sig_1" name="Done"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:endEvent id="E1">
             <bpmn:signalEventDefinition signalRef="Sig_1"/>
           </bpmn:endEvent>
@@ -621,8 +621,8 @@ describe('parseBpmn', () => {
         <bpmn:boundaryEvent id="BE1" attachedToRef="T1">
           <bpmn:errorEventDefinition errorRef="Err_1">
             <bpmn:extensionElements>
-              <evil:errorCode>CUSTOM_ERROR</evil:errorCode>
-              <evil:errorMessage>Something went wrong</evil:errorMessage>
+              <bfw:errorCode>CUSTOM_ERROR</bfw:errorCode>
+              <bfw:errorMessage>Something went wrong</bfw:errorMessage>
             </bpmn:extensionElements>
           </bpmn:errorEventDefinition>
         </bpmn:boundaryEvent>
@@ -641,7 +641,7 @@ describe('parseBpmn', () => {
       const xml = wrap(`
         <bpmn:escalation id="Esc_1" name="Review" escalationCode="ESC_1"/>
         <bpmn:process id="P" isExecutable="true">
-          <bpmn:extensionElements><evil:version>1.0.0</evil:version></bpmn:extensionElements>
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
           <bpmn:endEvent id="E1">
             <bpmn:escalationEventDefinition escalationRef="Esc_1"/>
           </bpmn:endEvent>
@@ -704,20 +704,20 @@ describe('parseBpmn', () => {
   });
 
   // -------------------------------------------------------------------------
-  // evil:* extensions — UserTask
+  // bfw:* extensions — UserTask
   // -------------------------------------------------------------------------
 
-  describe('evil:* extensions — UserTask', () => {
+  describe('bfw:* extensions — UserTask', () => {
     it('parses assignees, formFields, dueDate, priority', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:userTask id="UT1" name="Review">
           <bpmn:extensionElements>
-            <evil:assignees>identity.groups</evil:assignees>
-            <evil:formFields>{"fields":[{"name":"ok","type":"boolean"}]}</evil:formFields>
-            <evil:dueDate>2026-12-31T23:59:59Z</evil:dueDate>
-            <evil:priority>5</evil:priority>
+            <bfw:assignees>identity.groups</bfw:assignees>
+            <bfw:formFields>{"fields":[{"name":"ok","type":"boolean"}]}</bfw:formFields>
+            <bfw:dueDate>2026-12-31T23:59:59Z</bfw:dueDate>
+            <bfw:priority>5</bfw:priority>
           </bpmn:extensionElements>
         </bpmn:userTask>
       `,
@@ -739,8 +739,8 @@ describe('parseBpmn', () => {
         `
         <bpmn:userTask id="UT1">
           <bpmn:extensionElements>
-            <evil:payloadContract>{"type":"object","required":["name"]}</evil:payloadContract>
-            <evil:resultContract>{"type":"object","required":["approved"]}</evil:resultContract>
+            <bfw:payloadContract>{"type":"object","required":["name"]}</bfw:payloadContract>
+            <bfw:resultContract>{"type":"object","required":["approved"]}</bfw:resultContract>
           </bpmn:extensionElements>
         </bpmn:userTask>
       `,
@@ -764,8 +764,8 @@ describe('parseBpmn', () => {
         `
         <bpmn:userTask id="UT1">
           <bpmn:extensionElements>
-            <evil:inputMapping source="token.raw_name" target="name"/>
-            <evil:outputMapping source="token.approved" target="result"/>
+            <bfw:inputMapping source="token.raw_name" target="name"/>
+            <bfw:outputMapping source="token.approved" target="result"/>
           </bpmn:extensionElements>
         </bpmn:userTask>
       `,
@@ -779,10 +779,10 @@ describe('parseBpmn', () => {
   });
 
   // -------------------------------------------------------------------------
-  // evil:* extensions — ServiceTask
+  // bfw:* extensions — ServiceTask
   // -------------------------------------------------------------------------
 
-  describe('evil:* extensions — ServiceTask', () => {
+  describe('bfw:* extensions — ServiceTask', () => {
     it('parses implementation from BPMN attribute', () => {
       const xml = processWrap(
         'P',
@@ -802,11 +802,11 @@ describe('parseBpmn', () => {
         `
         <bpmn:serviceTask id="ST1" implementation="http">
           <bpmn:extensionElements>
-            <evil:httpUrl>https://api.example.com/v1/echo</evil:httpUrl>
-            <evil:httpMethod>post</evil:httpMethod>
-            <evil:httpBody>{ "message": token.message }</evil:httpBody>
-            <evil:httpAuthHeader>"Bearer " + token.apiToken</evil:httpAuthHeader>
-            <evil:httpResponseHeaders>response.headers</evil:httpResponseHeaders>
+            <bfw:httpUrl>https://api.example.com/v1/echo</bfw:httpUrl>
+            <bfw:httpMethod>post</bfw:httpMethod>
+            <bfw:httpBody>{ "message": token.message }</bfw:httpBody>
+            <bfw:httpAuthHeader>"Bearer " + token.apiToken</bfw:httpAuthHeader>
+            <bfw:httpResponseHeaders>response.headers</bfw:httpResponseHeaders>
           </bpmn:extensionElements>
         </bpmn:serviceTask>
       `,
@@ -827,10 +827,10 @@ describe('parseBpmn', () => {
         `
         <bpmn:serviceTask id="ST1" implementation="echo">
           <bpmn:extensionElements>
-            <evil:inputMapping source="token.order_id" target="id"/>
-            <evil:outputMapping source="token.input.id" target="result_id"/>
-            <evil:payloadContract>{"required":["id"],"type":"object"}</evil:payloadContract>
-            <evil:resultContract>{"type":"object"}</evil:resultContract>
+            <bfw:inputMapping source="token.order_id" target="id"/>
+            <bfw:outputMapping source="token.input.id" target="result_id"/>
+            <bfw:payloadContract>{"required":["id"],"type":"object"}</bfw:payloadContract>
+            <bfw:resultContract>{"type":"object"}</bfw:resultContract>
           </bpmn:extensionElements>
         </bpmn:serviceTask>
       `,
@@ -848,17 +848,17 @@ describe('parseBpmn', () => {
   });
 
   // -------------------------------------------------------------------------
-  // evil:* extensions — ManualTask
+  // bfw:* extensions — ManualTask
   // -------------------------------------------------------------------------
 
-  describe('evil:* extensions — ManualTask', () => {
+  describe('bfw:* extensions — ManualTask', () => {
     it('parses requireConfirmation', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:manualTask id="MT1">
           <bpmn:extensionElements>
-            <evil:requireConfirmation>true</evil:requireConfirmation>
+            <bfw:requireConfirmation>true</bfw:requireConfirmation>
           </bpmn:extensionElements>
         </bpmn:manualTask>
       `,
@@ -878,10 +878,10 @@ describe('parseBpmn', () => {
   });
 
   // -------------------------------------------------------------------------
-  // evil:* extensions — ScriptTask
+  // bfw:* extensions — ScriptTask
   // -------------------------------------------------------------------------
 
-  describe('evil:* extensions — ScriptTask', () => {
+  describe('bfw:* extensions — ScriptTask', () => {
     it('parses inline script and scriptFormat', () => {
       const xml = processWrap(
         'P',
@@ -899,13 +899,13 @@ describe('parseBpmn', () => {
       expect(typeData.scriptRef).toBeNull();
     });
 
-    it('parses evil:scriptRef', () => {
+    it('parses bfw:scriptRef', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:scriptTask id="SCT1">
           <bpmn:extensionElements>
-            <evil:scriptRef>my_validator</evil:scriptRef>
+            <bfw:scriptRef>my_validator</bfw:scriptRef>
           </bpmn:extensionElements>
         </bpmn:scriptTask>
       `,
@@ -919,18 +919,18 @@ describe('parseBpmn', () => {
   });
 
   // -------------------------------------------------------------------------
-  // evil:* extensions — CallActivity
+  // bfw:* extensions — CallActivity
   // -------------------------------------------------------------------------
 
-  describe('evil:* extensions — CallActivity', () => {
+  describe('bfw:* extensions — CallActivity', () => {
     it('parses calledElement and mappings', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:callActivity id="CA1" calledElement="ChildProcess">
           <bpmn:extensionElements>
-            <evil:inputMapping source="token.orderId" target="orderId"/>
-            <evil:outputMapping source="result.trackingNumber" target="trackingNumber"/>
+            <bfw:inputMapping source="token.orderId" target="orderId"/>
+            <bfw:outputMapping source="result.trackingNumber" target="trackingNumber"/>
           </bpmn:extensionElements>
         </bpmn:callActivity>
       `,
@@ -945,13 +945,13 @@ describe('parseBpmn', () => {
       expect(typeData.outMappings).toEqual([{ source: 'result.trackingNumber', target: 'trackingNumber' }]);
     });
 
-    it('parses evil:calledProcessVersion', () => {
+    it('parses bfw:calledProcessVersion', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:callActivity id="CA1" calledElement="ChildProcess">
           <bpmn:extensionElements>
-            <evil:calledProcessVersion>1.2.0</evil:calledProcessVersion>
+            <bfw:calledProcessVersion>1.2.0</bfw:calledProcessVersion>
           </bpmn:extensionElements>
         </bpmn:callActivity>
       `,
@@ -968,7 +968,7 @@ describe('parseBpmn', () => {
         `
         <bpmn:callActivity id="CA1" calledElement="ChildProcess">
           <bpmn:extensionElements>
-            <evil:calledProcessVersion>   </evil:calledProcessVersion>
+            <bfw:calledProcessVersion>   </bfw:calledProcessVersion>
           </bpmn:extensionElements>
         </bpmn:callActivity>
       `,
@@ -981,16 +981,16 @@ describe('parseBpmn', () => {
   });
 
   // -------------------------------------------------------------------------
-  // evil:* extensions — correlationKey
+  // bfw:* extensions — correlationKey
   // -------------------------------------------------------------------------
 
-  describe('evil:* extensions — correlationKey', () => {
+  describe('bfw:* extensions — correlationKey', () => {
     it('parses correlationKey on process', () => {
       const xml = wrap(`
         <bpmn:process id="P" isExecutable="true">
           <bpmn:extensionElements>
-            <evil:version>1.0.0</evil:version>
-            <evil:correlationKey>order.customerId</evil:correlationKey>
+            <bfw:version>1.0.0</bfw:version>
+            <bfw:correlationKey>order.customerId</bfw:correlationKey>
           </bpmn:extensionElements>
           <bpmn:startEvent id="S1"/>
         </bpmn:process>
@@ -1074,13 +1074,13 @@ describe('parseBpmn', () => {
       expect(node.dataOutputAssociations[0]!.targetRef).toBe('DOR_1');
     });
 
-    it('parses evil:valueContract on data object', () => {
+    it('parses bfw:valueContract on data object', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:dataObject id="DO_1" name="StrictData">
           <bpmn:extensionElements>
-            <evil:valueContract>{"type":"object","required":["name"]}</evil:valueContract>
+            <bfw:valueContract>{"type":"object","required":["name"]}</bfw:valueContract>
           </bpmn:extensionElements>
         </bpmn:dataObject>
         <bpmn:startEvent id="S1"/>
@@ -1109,11 +1109,11 @@ describe('parseBpmn', () => {
             <bpmn:loopCardinality>5</bpmn:loopCardinality>
             <bpmn:completionCondition>done</bpmn:completionCondition>
             <bpmn:extensionElements>
-              <evil:inputCollection>token.items</evil:inputCollection>
-              <evil:outputCollection>processedItems</evil:outputCollection>
-              <evil:loopBreakCondition>errorCount > 3</evil:loopBreakCondition>
-              <evil:loopInterval>PT1S</evil:loopInterval>
-              <evil:maxIterations>100</evil:maxIterations>
+              <bfw:inputCollection>token.items</bfw:inputCollection>
+              <bfw:outputCollection>processedItems</bfw:outputCollection>
+              <bfw:loopBreakCondition>errorCount > 3</bfw:loopBreakCondition>
+              <bfw:loopInterval>PT1S</bfw:loopInterval>
+              <bfw:maxIterations>100</bfw:maxIterations>
             </bpmn:extensionElements>
           </bpmn:multiInstanceLoopCharacteristics>
         </bpmn:task>
@@ -1138,13 +1138,13 @@ describe('parseBpmn', () => {
   // -------------------------------------------------------------------------
 
   describe('data contracts', () => {
-    it('parses evil:dataContract on flow node', () => {
+    it('parses bfw:dataContract on flow node', () => {
       const xml = processWrap(
         'P',
         `
         <bpmn:task id="T1">
           <bpmn:extensionElements>
-            <evil:dataContract>{"direction":"input","schema":{"type":"object","required":["orderId"]}}</evil:dataContract>
+            <bfw:dataContract>{"direction":"input","schema":{"type":"object","required":["orderId"]}}</bfw:dataContract>
           </bpmn:extensionElements>
         </bpmn:task>
       `,
@@ -1307,13 +1307,13 @@ describe('parseBpmn', () => {
         `
         <bpmn:businessRuleTask id="BRT_1" implementation="dmn">
           <bpmn:extensionElements>
-            <evil:decisionRef>discount-rules</evil:decisionRef>
-            <evil:decisionElementId>Decision_Risk</evil:decisionElementId>
-            <evil:resultVariable>discount</evil:resultVariable>
-            <evil:traceUnmatchedRules>true</evil:traceUnmatchedRules>
-            <evil:inputMapping source="token.amount" target="amount"/>
-            <evil:outputMapping source="result.discount" target="discount"/>
-            <evil:resultContract>{"type":"object"}</evil:resultContract>
+            <bfw:decisionRef>discount-rules</bfw:decisionRef>
+            <bfw:decisionElementId>Decision_Risk</bfw:decisionElementId>
+            <bfw:resultVariable>discount</bfw:resultVariable>
+            <bfw:traceUnmatchedRules>true</bfw:traceUnmatchedRules>
+            <bfw:inputMapping source="token.amount" target="amount"/>
+            <bfw:outputMapping source="result.discount" target="discount"/>
+            <bfw:resultContract>{"type":"object"}</bfw:resultContract>
           </bpmn:extensionElements>
         </bpmn:businessRuleTask>
       `,
@@ -1352,12 +1352,12 @@ describe('parseBpmn', () => {
         `
         <bpmn:sendTask id="Send_1" messageRef="Msg_1">
           <bpmn:extensionElements>
-            <evil:inputMapping source="token.id" target="id"/>
+            <bfw:inputMapping source="token.id" target="id"/>
           </bpmn:extensionElements>
         </bpmn:sendTask>
         <bpmn:receiveTask id="Receive_1" messageRef="Msg_1">
           <bpmn:extensionElements>
-            <evil:outputMapping source="event.ack" target="ack"/>
+            <bfw:outputMapping source="event.ack" target="ack"/>
           </bpmn:extensionElements>
         </bpmn:receiveTask>
       `,

@@ -7,7 +7,7 @@ defmodule Examples.ServiceTaskHandlers.Echo.EchoHandler do
   demonstrating the simplest possible async handler pattern.
   """
 
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @doc "Echoes the input token payload by spawning async completion."
   @impl true

@@ -43,12 +43,12 @@ Reading an unset Data Object yields `null`.
 
 ## Value Contracts
 
-Attach an `<evil:valueContract>` JSON Schema to a `<bpmn:dataObject>` to validate every write:
+Attach an `<bfw:valueContract>` JSON Schema to a `<bpmn:dataObject>` to validate every write:
 
 ```xml
 <bpmn:dataObject id="DO_OrderData" name="OrderData">
   <bpmn:extensionElements>
-    <evil:valueContract>{"type":"object","required":["status","amount"]}</evil:valueContract>
+    <bfw:valueContract>{"type":"object","required":["status","amount"]}</bfw:valueContract>
   </bpmn:extensionElements>
 </bpmn:dataObject>
 ```

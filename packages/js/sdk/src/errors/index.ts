@@ -1,4 +1,4 @@
-export { DaemonEngineError } from './daemon-engine-error.js';
+export { BfwEngineError } from './bfw-engine-error.js';
 export { PayloadTooLargeError } from './payload-too-large-error.js';
 export { RateLimitedError } from './rate-limited-error.js';
 export { EngineAtCapacityError } from './engine-at-capacity-error.js';

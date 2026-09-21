@@ -4,7 +4,7 @@ defmodule Examples.BusinessRules.DecisionAuditReporter.FniInspector do
   evaluation metadata from `type_properties`.
   """
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
 
   @type flow_node_instance_details :: %{
           flow_node_instance_id: String.t(),

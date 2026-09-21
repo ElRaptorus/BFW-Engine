@@ -1,4 +1,4 @@
-import type { AbortRequest, RetryRequest } from '@elraptorus/daemonengine_sdk';
+import type { AbortRequest, RetryRequest } from '@elraptorus/bfw_engine_sdk';
 
 import type { HttpTransport } from '../http/transport.js';
 

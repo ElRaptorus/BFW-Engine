@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
   id="definitions_brt_cl3"
   name="BRT CL3 BKM Invocation"
   namespace="https://example.com/dmn/brt-cl3"
@@ -9,7 +9,7 @@
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
 
   <extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </extensionElements>
 
   <inputData id="InputData_orderTotal" name="orderTotal">

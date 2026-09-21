@@ -59,7 +59,7 @@ import type { RestApiExtensionHandler } from './rest-api-extension.js';
 import type { ServiceTaskHandler } from './service-task-handler.js';
 
 /**
- * This interface mirrors the in-BEAM Elixir `EvilEngine.EngineFacade` struct
+ * This interface mirrors the in-BEAM Elixir `BfwEngine.EngineFacade` struct
  * passed to plugin `on_load` / `on_ready`. Sidecar host (gRPC) is deferred
  * (PLUG-D1). PersistenceAdapter, MonitoringPanel, TimerSource, and
  * DataStoreAdapter plugin capabilities do not exist — do not register them.
@@ -180,10 +180,10 @@ export interface FacadeAdHocSubprocesses {
 }
 
 /**
- * Full typed GraphQL surface — mirrors GraphqlClient from @elraptorus/daemonengine_client
+ * Full typed GraphQL surface — mirrors GraphqlClient from @elraptorus/bfw_engine_client
  * exactly, so plugin developers get the same typed query builder as SDK client
  * consumers. All query-builder types (field literals, filters, sorts, pagination,
- * includes) are imported from @elraptorus/daemonengine_sdk.
+ * includes) are imported from @elraptorus/bfw_engine_sdk.
  */
 export interface FacadeGraphql {
   queryProcessModels<F extends ProcessModelField>(
@@ -254,7 +254,7 @@ export interface FacadeTimerScheduleFilters {
   enabled?: boolean;
 }
 
-/** Optional evaluate options matching `EvilEngine.Api` keyword arguments. */
+/** Optional evaluate options matching `BfwEngine.Api` keyword arguments. */
 export interface FacadeEvaluateOptions {
   decisionModelId?: string;
   includeUnmatchedDetails?: boolean;
@@ -262,7 +262,7 @@ export interface FacadeEvaluateOptions {
 
 /**
  * Runtime namespace for Decision Model catalog and evaluation — mirrors
- * `EvilEngine.EngineFacade.Decisions`.
+ * `BfwEngine.EngineFacade.Decisions`.
  */
 export interface FacadeDecisions {
   list(): Promise<DecisionDefinition[]>;
@@ -297,7 +297,7 @@ export interface FacadeDecisions {
 
 /**
  * Runtime namespace for timer event trigger and cycle-schedule management —
- * mirrors `EvilEngine.EngineFacade.Timers`.
+ * mirrors `BfwEngine.EngineFacade.Timers`.
  */
 export interface FacadeTimers {
   triggerEvent(flowNodeInstanceId: string): Promise<TimerTriggerResult>;

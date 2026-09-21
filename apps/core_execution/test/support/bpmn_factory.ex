@@ -1,18 +1,18 @@
-defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
+defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
   @moduledoc """
   Helpers for building in-memory BPMN model structs for tests.
   Avoids XML parsing overhead and keeps tests focused on runtime logic.
   """
 
-  alias EvilEngine.BPMN.Model.Definitions
-  alias EvilEngine.BPMN.Model.EventDefinition
-  alias EvilEngine.BPMN.Model.FlowNode
-  alias EvilEngine.BPMN.Model.FlowNodeData
-  alias EvilEngine.BPMN.Model.MessageDefinition
-  alias EvilEngine.BPMN.Model.MultiInstance
-  alias EvilEngine.BPMN.Model.Process, as: BpmnProcess
-  alias EvilEngine.BPMN.Model.SequenceFlow
-  alias EvilEngine.BPMN.Model.SignalDefinition
+  alias BfwEngine.BPMN.Model.Definitions
+  alias BfwEngine.BPMN.Model.EventDefinition
+  alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.Model.FlowNodeData
+  alias BfwEngine.BPMN.Model.MessageDefinition
+  alias BfwEngine.BPMN.Model.MultiInstance
+  alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
+  alias BfwEngine.BPMN.Model.SequenceFlow
+  alias BfwEngine.BPMN.Model.SignalDefinition
 
   @doc "Build a minimal Start → End process."
   def linear_start_end(process_id \\ "test-process") do
@@ -3869,7 +3869,7 @@ defmodule EvilEngine.Execution.TestSupport.BpmnFactory do
   @doc """
   Start → sequential ad-hoc subprocess with three inner user tasks.
 
-  `evil:activeElements` lists Task_C then Task_A so list order differs
+  `bfw:activeElements` lists Task_C then Task_A so list order differs
   from inner-activity model order (A, B, C).
   """
   def sequential_adhoc_user_tasks(opts \\ []) do

@@ -35,7 +35,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -51,11 +53,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Esc_Y",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw ESC_Y",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -74,7 +80,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -122,7 +130,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Specific X Start",
-                "outgoing": ["ESP_X_Flow_1"],
+                "outgoing": [
+                  "ESP_X_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -141,7 +151,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_X_End",
-                "incoming": ["ESP_X_Flow_1"],
+                "incoming": [
+                  "ESP_X_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP X End",
@@ -211,7 +223,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "CatchAll Start",
-                "outgoing": ["ESP_CatchAll_Flow_1"],
+                "outgoing": [
+                  "ESP_CatchAll_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -230,7 +244,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_CatchAll_End",
-                "incoming": ["ESP_CatchAll_Flow_1"],
+                "incoming": [
+                  "ESP_CatchAll_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "CatchAll End",
@@ -273,7 +289,11 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Throw_Esc_Y", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Throw_Esc_Y",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

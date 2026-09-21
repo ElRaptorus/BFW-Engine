@@ -7,109 +7,109 @@ Docker and release layout: [shipping.md](./shipping.md). Operator recipes:
 
 ## Configuration sources (priority order)
 
-1. Env vars (`TDE_*` — ThomasDaemonEngine; the former `EVIL_` prefix is not read)
+1. Env vars (`BFE_*` — Forge Engine; the former `EVIL_` prefix is not read)
 2. `config.exs` compiled-in defaults
 3. `runtime.exs` reading env
-4. `/etc/evil-engine/engine.toml` override (optional, mounted into container)
+4. `/etc/bfw-engine/engine.toml` override (optional, mounted into container)
 
-### Application keys (besides `TDE_*` env vars)
+### Application keys (besides `BFE_*` env vars)
 
 | App / key path | Purpose |
 |---|---|
-| `config :core_execution, :service_task_dispatch` | Module implementing `EvilEngine.Execution.ServiceTaskDispatch` behaviour. Default **`EvilEngine.Plugins.RegistryDispatch`** (wired in `config/config.exs`) resolves `implementation` handlers from the plugin registry in `peripheral_plugins`. |
-| `config :core_execution, :persistence_adapter` | Module implementing `EvilEngine.Execution.Persistence` behaviour. Default **`EvilEngine.Persistence.ExecutionAdapter`** (production). Set to `EvilEngine.Execution.Persistence.NoOp` in test environments. Used by `ResumeRunner` at boot and by runtime PI/FNI persistence. |
-| `config :core_bpmn, :model_cache_loader` | MFA tuple `{Module, :function}` called by `ModelCache.fetch/1` on a cache miss. The function receives a `process_version_id` (string) and must return `{:ok, bpmn_xml}` or `{:error, :not_found}`. Configured as `{EvilEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}` in `config.exs` to auto-heal the cache from the `process_versions` DB table. |
+| `config :core_execution, :service_task_dispatch` | Module implementing `BfwEngine.Execution.ServiceTaskDispatch` behaviour. Default **`BfwEngine.Plugins.RegistryDispatch`** (wired in `config/config.exs`) resolves `implementation` handlers from the plugin registry in `peripheral_plugins`. |
+| `config :core_execution, :persistence_adapter` | Module implementing `BfwEngine.Execution.Persistence` behaviour. Default **`BfwEngine.Persistence.ExecutionAdapter`** (production). Set to `BfwEngine.Execution.Persistence.NoOp` in test environments. Used by `ResumeRunner` at boot and by runtime PI/FNI persistence. |
+| `config :core_bpmn, :model_cache_loader` | MFA tuple `{Module, :function}` called by `ModelCache.fetch/1` on a cache miss. The function receives a `process_version_id` (string) and must return `{:ok, bpmn_xml}` or `{:error, :not_found}`. Configured as `{BfwEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}` in `config.exs` to auto-heal the cache from the `process_versions` DB table. |
 | `config :core_bpmn, :seeding_persist_fn` | Optional **callable** (function capture or `&Mod.fun/4`-style) invoked as `persist_fn.(process, bpmn_xml, version_id)` after parse/validate/(optional) linter gate — must return `{:ok, _}` or `{:error, reason}`. Wired at boot by `peripheral_persistence` (or tests) to write `processes` / `process_versions` rows. When `nil`, seeding only populates `ModelCache` (no catalog writes). |
-| `config :core_bpmn, :linter_gate` | Keyword list: `:rules` (JSON string from `TDE_LINTER_GATE`), `:skip_seeding` (boolean from `TDE_LINTER_GATE_SKIP_SEEDING`). See [Linter-score deploy gate](#linter-score-deploy-gate). |
-| `config :peripheral_plugins, :inbeam_apps` | OTP app atoms to load as in-BEAM plugins (from `TDE_PLUGINS_INBEAM`). |
-| `config :peripheral_plugins, :include_plugins` | Include-only list of plugin names (from `TDE_PLUGINS_INCLUDE`); when non-empty, only listed names load. |
-| `config :peripheral_plugins, :exclude_plugins` | Exclude list of plugin names (from `TDE_PLUGINS_EXCLUDE`); **exclude wins** over include on the same name. |
+| `config :core_bpmn, :linter_gate` | Keyword list: `:rules` (JSON string from `BFE_LINTER_GATE`), `:skip_seeding` (boolean from `BFE_LINTER_GATE_SKIP_SEEDING`). See [Linter-score deploy gate](#linter-score-deploy-gate). |
+| `config :peripheral_plugins, :inbeam_apps` | OTP app atoms to load as in-BEAM plugins (from `BFE_PLUGINS_INBEAM`). |
+| `config :peripheral_plugins, :include_plugins` | Include-only list of plugin names (from `BFE_PLUGINS_INCLUDE`); when non-empty, only listed names load. |
+| `config :peripheral_plugins, :exclude_plugins` | Exclude list of plugin names (from `BFE_PLUGINS_EXCLUDE`); **exclude wins** over include on the same name. |
 | `config :ash, :default_string_length_count` | Required since Ash 3.33. Set to `:codepoints` in `config/config.exs` so `min_length` / `max_length` match PostgreSQL `LENGTH`. Compile fails without it. |
 
 Notable env vars:
 
 | Var | Purpose | Default |
 |---|---|---|
-| `TDE_DATABASE_URL` | Postgres connection string (`ecto://USER:PASS@HOST/DB`). Mutually exclusive with the individual `TDE_DATABASE_*` vars below — if both are set, `TDE_DATABASE_URL` wins | required (unless individual vars are set) |
-| `TDE_DATABASE_HOST` | Postgres hostname. When set, `TDE_DATABASE_NAME`, `TDE_DATABASE_USER`, and `TDE_DATABASE_PASS` become required | — |
-| `TDE_DATABASE_PORT` | Postgres port (only used with `TDE_DATABASE_HOST`) | `5432` |
-| `TDE_DATABASE_NAME` | Postgres database name (only used with `TDE_DATABASE_HOST`) | required |
-| `TDE_DATABASE_USER` | Postgres username (only used with `TDE_DATABASE_HOST`) | required |
-| `TDE_DATABASE_PASS` | Postgres password (only used with `TDE_DATABASE_HOST`) | required |
-| `TDE_DB_POOL_SIZE` | Write connection pool size (production default). Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` | `100` |
-| `TDE_DB_READ_POOL_SIZE` | Read connection pool size (production default). Combined with write pool, production defaults already exceed Postgres's default `max_connections` of 100 — raise it (recommend 200 on a single node) | `50` |
-| `TDE_DB_CHECKOUT_RETRIES` | DBConnection Layer 1 retries on mid-query disconnect | `3` |
-| `TDE_DB_QUEUE_TARGET` | CoDel target latency (ms) | `100` |
-| `TDE_DB_QUEUE_INTERVAL` | CoDel measurement interval (ms) | `2000` |
-| `TDE_DB_CHECKOUT_TIMEOUT` | Max wait for a pool connection (ms) | `15000` |
-| `TDE_DB_QUEUE_TIME_WARNING_MS` | Log warning threshold for queue_time (ms) | `500` |
-| `TDE_DB_IPV6` | Connect to Postgres over IPv6 | `false` |
-| `TDE_DB_SSL` | Enable SSL for the Postgres connection | `false` |
-| `TDE_DEVTOOLS_ENABLED` | Toggle Swagger UI (`/`), GraphQL Playground (`/admin/graphiql`), and OpenAPI spec (`/api/openapi`). Disabled in production to prevent schema reconnaissance | `true` (dev/test), `false` (prod) |
-| `TDE_EXPOSE_OPENAPI_SPEC` | Allow `GET /api/openapi` even when devtools are off. Supports production CI pipelines that need the spec for client generation | `false` |
-| `TDE_GRAPHQL_MAX_DEPTH` | Max GraphQL field nesting. Sized for `SubProcessNode.flowNodes` recursion (SDK default depth 4). | `16` |
-| `TDE_GRAPHQL_MAX_COMPLEXITY` | Max GraphQL query complexity. AshGraphql scores paginated lists as `limit × selected child fields` (including page metadata). Sized for the Studio debugger snapshot (`dataObjectValues` with `limit: 500`, score 6500). | `10000` |
-| `TDE_GRAPHQL_INTROSPECTION_DISABLED` | When `true`, reject `__schema` / `__type` root fields | `false` |
-| `TDE_HTTP_PORT` | HTTP, GraphQL, and WebSocket listen port | `4000` |
-| `TDE_WS_CHECK_ORIGIN` | WebSocket `check_origin` setting. `false` disables the Origin header check (safe when using JWT auth). `true` restricts to the endpoint's own origin. A comma-separated list of URLs (e.g. `http://localhost:5173,https://studio.example.com`) allows specific origins. Defaults to `false` because the engine uses bearer-token auth, not cookie-based sessions, so the Origin header carries no security value | `false` |
-| `TDE_HTTP_SECRET_KEY_BASE` | Phoenix secret key base (min 64 chars). Generate with `mix phx.gen.secret` | required |
-| `TDE_ENGINE_ID` / `TDE_ENGINE_NAME` | Identity on `/info` and `/stats` | derived from hostname |
-| `TDE_METRICS_ENABLED` | When `true`, starts the Prometheus reporter + poller in `peripheral_telemetry` and serves `GET /metrics`; when `false`, `/metrics` returns `404` | `true` |
-| `TDE_SEEDING_DIRECTORY` | Filesystem path whose `*.bpmn` files are deployed exactly like `POST /processes` calls at startup. If unset, no seeding runs | *(unset)* |
-| `TDE_JWT_JWKS_URL` | JWKS endpoint URL for RS256/ES256 validation. Cached with automatic refresh + retry. At least one of `TDE_JWT_JWKS_URL` or `TDE_JWT_HS256_SECRET` must be set unless `TDE_AUTH_DISABLED=true` — engine refuses to start otherwise ([authorization.md](./authorization.md) §12) | — |
-| `TDE_JWT_HS256_SECRET` | Shared secret for HS256 validation. Minimum 32 bytes. Can coexist with `TDE_JWT_JWKS_URL` — the engine tries JWKS first, falls back to HS256. In test environments, `engine_sdk.MintTestToken` uses this to sign test JWTs | — |
-| `TDE_AUTH_DISABLED` | When `true`, disables JWT verification entirely. All requests are assigned a synthetic anonymous Identity with least-privilege defaults. Engine logs `warn` every 60s while active. **Not suitable for production** ([authorization.md](./authorization.md) §1.1) | `false` |
-| `TDE_JWKS_REFRESH_SECONDS` | How often the JWKS key set is re-fetched from `TDE_JWT_JWKS_URL` | `3600` |
-| `TDE_JWT_AUDIENCE` | Expected `aud` claim in JWT tokens. If unset, audience is not validated | *(unset)* |
-| `TDE_JWT_ISSUER` | Expected `iss` claim in JWT tokens. If unset, issuer is not validated | *(unset)* |
-| `TDE_TIMER_TICK_MS` | Scheduler precision; `1000` in prod | `1000` |
-| `TDE_LINTER_GATE` | Compact JSON array of linter-gate rules (see [Linter-score deploy gate](#linter-score-deploy-gate)). Unset = gate disabled | *(unset)* |
-| `TDE_LINTER_GATE_SKIP_SEEDING` | `true` turns the gate off for Seeding-Directory auto-deploys while leaving it on for `POST /processes` | `false` |
-| `TDE_MESSAGE_PENDING_TTL` | How long a published message with zero matching subscriptions and zero matching Message Start Events is held in `pending_messages` before being dropped ([routing.md](./routing.md) §3.5.4). Accepts ISO 8601 duration (e.g. `PT60S`, `PT5M`). Set to `PT0S` to disable pending-message hold (unmatched publishes are recorded to `messages` with `correlations=[]` and immediately expired) | `PT60S` |
-| `TDE_SIGNAL_PENDING_TTL` | How long a published signal with zero matching Signal Catch / Signal Boundary subscriptions and zero matching Signal Start Events is held in `pending_signals` before being dropped ([routing.md](./routing.md) §3.5.6). Accepts ISO 8601 duration. Set to `PT0S` to disable pending-signal hold (zero-match publishes are recorded to `signals` with `correlations=[]` and immediately expired, matching pre-pending-signal-hold behavior). Default matches `TDE_MESSAGE_PENDING_TTL` intentionally — a unified "resume-race window" is easier for operators to reason about than per-event-type knobs | `PT60S` |
-| ~~`TDE_ESCALATION_PENDING_TTL`~~ | **Removed.** There is no pending-escalation cache and no `pending_escalations` table | — |
-| `TDE_LOG_MIN_SEVERITY` | Global severity floor for the `console` event sink ([event-system.md](./event-system.md), [observability.md](./observability.md)). Values: `error` / `warn` / `info` / `debug` / `verbose`. Events below this level are dropped by the console sink only | `info` |
-| `TDE_EVENT_SINK_CONSOLE` | Toggle for the `console` sink. Values: `on` / `off` | `on` |
-| `TDE_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink (Prometheus `evil_engine.event_bus.events.total`). Does **not** feed `/stats` | `on` |
-| `TDE_EVENT_SINK_WEBSOCKET` | Toggle for the `websocket` sink that pushes events to connected Phoenix Channels clients | `on` |
-| ~~`TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `TDE_LOG_MIN_SEVERITY` only. The WebSocket sink rejects only `SinkFailed`. | — |
-| ~~`TDE_EVENT_SINK_DATABASE`~~ | **Removed.** The built-in database sink has been removed. Use a plugin sink for DB-backed event persistence. | — |
-| `TDE_RETENTION_RUN_INTERVAL` | **Ignored.** Cron/systemd owns the Mix-task interval. The key remains in `runtime.exs` unused | `PT1H` |
-| `TDE_RETENTION_BATCH_SIZE` | Max number of **root trees** purged per `mix evil.retention.purge` invocation | `500` |
-| `TDE_RETENTION_FINISHED_DAYS` | Max age, in days, for PIs with state `finished` before they are eligible for Mix purge. Unset = never auto-purge `finished` PIs | *(unset)* |
-| `TDE_RETENTION_ERROR_DAYS` | Same, for state `error` | *(unset)* |
-| `TDE_RETENTION_FATAL_DAYS` | Same, for state `fatal` | *(unset)* |
-| `TDE_RETENTION_ABORTED_DAYS` | Same, for state `aborted` | *(unset)* |
-| `TDE_RETENTION_ESCALATED_DAYS` | Same, for state `escalated` | *(unset)* |
-| `TDE_RETENTION_COMPENSATED_DAYS` | Same, for state `compensated` | *(unset)* |
-| `TDE_RETENTION_CANCELLED_DAYS` | Same, for state `cancelled`. REST `DELETE /process-instances/{id}` still omits `cancelled`; only the Mix purge uses this knob | *(unset)* |
-| `TDE_RETENTION_ENGINE_AUDIT_DAYS` | **Unused by the engine.** Operator convention for the message/signal SQL cutoff ([database.md](../guides/operations/database.md)). Unset = do not DELETE those rows | *(unset)* |
-| `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then eligible for operator SQL via the `TDE_RETENTION_ENGINE_AUDIT_DAYS` cutoff convention. When `false`, the engine physically deletes the row on deliver/expire/cancel, so the table only ever holds live `pending` rows. Destroy still requires `state == 'pending'` | `true` |
-| `TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals` | `true` |
-| ~~`TDE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`~~ | **Removed / not applicable.** There is no `pending_escalations` table | — |
-| `TDE_PARTITION_AHEAD_MONTHS` | Number of future monthly partitions the `mix evil.partitions.ensure` boot hook creates ahead of time for the tables in `EvilEngine.Persistence.Partitions`: `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`. There is no `pending_escalations` table. There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and unpartitioned. At least 1 is enforced regardless of configured value | `3` |
-| `TDE_TOKEN_MAX_BYTES` | **Hard payload cap** applied to the canonicalized JSON byte size of every user-supplied payload across: FNI output tokens via `write_result/2`, Data Object values at DOA-commit time (DOA-only: check runs when the engine materializes each `dataOutputAssociation` post-`onFinished`), published messages/signals/escalations via the PI facade + API trigger surfaces, PI `started_with_context` at start, User Task completion results, async Service Task completion/fail payloads via `engine_facade.finish_async_service_task/2` and `fail_async_service_task/3` ([plugins.md](./plugins.md); operator guide: [database.md](../guides/operations/database.md)) — **no dedicated public REST path** for async plugin callbacks; cap is enforced on the facade and REST. Overflow → structured `{:error, :payload_too_large, size, limit}` from the facade; causing FNI transitions to `fatal`; HTTP endpoints return HTTP 413 before any engine-side work runs. Values below `1024` (1 KiB) **refuse boot** with `minimum_required: 1024` in the error (`EvilEngine.Execution.PayloadCap.parse_token_max_bytes/1` from `runtime.exs`); they are not silently clamped. No max — operators running legitimately large-payload workloads can raise this arbitrarily. Configurable for the **entire engine**; no per-process/per-endpoint override in v1 | `65536` (64 KiB) |
-| `TDE_MAX_CONCURRENT_PIS` | **PI admission control (Layer 1)** — soft cap on **new** PI starts via the public API. Enforced as a pre-check inside `Execution.start_process_instance/1` (not on the `DynamicSupervisor`, which runs with `max_children: :infinity`). When the active PI count is at or above the cap, the function returns `{:error, :engine_at_capacity, %{active, limit}}` and `POST /processes/{model_id}/start` responds **503** with `Retry-After: 5`. **Does not apply during resume at boot** — `ResumeRunner` brings every `:running` PI back online regardless of the cap, so the cap may be briefly exceeded after a restart. The cap then resumes governing new starts until active count drops back below the limit. See [`execution.md`](execution.md) §Resume on Startup. Literal `infinity` (default) disables the cap. | `infinity` |
-| `TDE_RESUME_BATCH_SIZE` | **Resume pagination (PF-1)** — batch size for paginated resume of `:running` PIs at boot. `ResumeRunner` pages through the DB one batch at a time, loading at most this many root PI rows (plus their resume-relevant FNIs) before processing them and moving to the next batch. Higher = faster resume on small datasets; lower = bounded peak memory at boot. Must be a positive integer; refusing values ≤ 0 at startup | `1000` |
-| `TDE_PI_START_RATE_LIMIT` | **Start rate limiting (Layer 2)** — maximum number of `POST /processes/{model_id}/start` calls allowed per `TDE_PI_START_RATE_WINDOW_MS` sliding window, **globally** (not per caller). Enforced in `EvilEngineWeb.Http.Plugs.RateLimitPlug` via an ETS token bucket. `0` (default) disables the plug entirely | `0` |
-| `TDE_PI_START_RATE_WINDOW_MS` | Window length in milliseconds for `TDE_PI_START_RATE_LIMIT`. Used only when the limit is > 0 | `1000` |
-| `TDE_JSONB_COMPRESSION` | JSONB column compression for heavy-payload columns listed in [data-model.md](./data-model.md). `lz4` requires Postgres ≥ 14. Setting this changes only new writes — existing column data retains whatever compression was applied at write time until rewritten. Operator measurements: [database.md](../guides/operations/database.md). Leave `lz4` unless a representative workload is >10% slower than PGLZ | `lz4` |
-| `TDE_PLUGINS_INBEAM` | **[plugins.md](./plugins.md)**: Comma- or whitespace-separated list of OTP-app names to load as in-BEAM plugins. Order is significant — `on_load` is invoked in list order, sequentially. Apps named here must be present in the release; missing apps are quarantined. Unset = no in-BEAM plugins | *(unset)* |
-| `TDE_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **include** list of plugin names (OTP-app name for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied | *(unset)* |
-| `TDE_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **exclude** list. **Exclude wins** on conflict with `TDE_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
+| `BFE_DATABASE_URL` | Postgres connection string (`ecto://USER:PASS@HOST/DB`). Mutually exclusive with the individual `BFE_DATABASE_*` vars below — if both are set, `BFE_DATABASE_URL` wins | required (unless individual vars are set) |
+| `BFE_DATABASE_HOST` | Postgres hostname. When set, `BFE_DATABASE_NAME`, `BFE_DATABASE_USER`, and `BFE_DATABASE_PASS` become required | — |
+| `BFE_DATABASE_PORT` | Postgres port (only used with `BFE_DATABASE_HOST`) | `5432` |
+| `BFE_DATABASE_NAME` | Postgres database name (only used with `BFE_DATABASE_HOST`) | required |
+| `BFE_DATABASE_USER` | Postgres username (only used with `BFE_DATABASE_HOST`) | required |
+| `BFE_DATABASE_PASS` | Postgres password (only used with `BFE_DATABASE_HOST`) | required |
+| `BFE_DB_POOL_SIZE` | Write connection pool size (production default). Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` | `100` |
+| `BFE_DB_READ_POOL_SIZE` | Read connection pool size (production default). Combined with write pool, production defaults already exceed Postgres's default `max_connections` of 100 — raise it (recommend 200 on a single node) | `50` |
+| `BFE_DB_CHECKOUT_RETRIES` | DBConnection Layer 1 retries on mid-query disconnect | `3` |
+| `BFE_DB_QUEUE_TARGET` | CoDel target latency (ms) | `100` |
+| `BFE_DB_QUEUE_INTERVAL` | CoDel measurement interval (ms) | `2000` |
+| `BFE_DB_CHECKOUT_TIMEOUT` | Max wait for a pool connection (ms) | `15000` |
+| `BFE_DB_QUEUE_TIME_WARNING_MS` | Log warning threshold for queue_time (ms) | `500` |
+| `BFE_DB_IPV6` | Connect to Postgres over IPv6 | `false` |
+| `BFE_DB_SSL` | Enable SSL for the Postgres connection | `false` |
+| `BFE_DEVTOOLS_ENABLED` | Toggle Swagger UI (`/`), GraphQL Playground (`/admin/graphiql`), and OpenAPI spec (`/api/openapi`). Disabled in production to prevent schema reconnaissance | `true` (dev/test), `false` (prod) |
+| `BFE_EXPOSE_OPENAPI_SPEC` | Allow `GET /api/openapi` even when devtools are off. Supports production CI pipelines that need the spec for client generation | `false` |
+| `BFE_GRAPHQL_MAX_DEPTH` | Max GraphQL field nesting. Sized for `SubProcessNode.flowNodes` recursion (SDK default depth 4). | `16` |
+| `BFE_GRAPHQL_MAX_COMPLEXITY` | Max GraphQL query complexity. AshGraphql scores paginated lists as `limit × selected child fields` (including page metadata). Sized for the Studio debugger snapshot (`dataObjectValues` with `limit: 500`, score 6500). | `10000` |
+| `BFE_GRAPHQL_INTROSPECTION_DISABLED` | When `true`, reject `__schema` / `__type` root fields | `false` |
+| `BFE_HTTP_PORT` | HTTP, GraphQL, and WebSocket listen port | `4000` |
+| `BFE_WS_CHECK_ORIGIN` | WebSocket `check_origin` setting. `false` disables the Origin header check (safe when using JWT auth). `true` restricts to the endpoint's own origin. A comma-separated list of URLs (e.g. `http://localhost:5173,https://studio.example.com`) allows specific origins. Defaults to `false` because the engine uses bearer-token auth, not cookie-based sessions, so the Origin header carries no security value | `false` |
+| `BFE_HTTP_SECRET_KEY_BASE` | Phoenix secret key base (min 64 chars). Generate with `mix phx.gen.secret` | required |
+| `BFE_ENGINE_ID` / `BFE_ENGINE_NAME` | Identity on `/info` and `/stats` | derived from hostname |
+| `BFE_METRICS_ENABLED` | When `true`, starts the Prometheus reporter + poller in `peripheral_telemetry` and serves `GET /metrics`; when `false`, `/metrics` returns `404` | `true` |
+| `BFE_SEEDING_DIRECTORY` | Filesystem path whose `*.bpmn` files are deployed exactly like `POST /processes` calls at startup. If unset, no seeding runs | *(unset)* |
+| `BFE_JWT_JWKS_URL` | JWKS endpoint URL for RS256/ES256 validation. Cached with automatic refresh + retry. At least one of `BFE_JWT_JWKS_URL` or `BFE_JWT_HS256_SECRET` must be set unless `BFE_AUTH_DISABLED=true` — engine refuses to start otherwise ([authorization.md](./authorization.md) §12) | — |
+| `BFE_JWT_HS256_SECRET` | Shared secret for HS256 validation. Minimum 32 bytes. Can coexist with `BFE_JWT_JWKS_URL` — the engine tries JWKS first, falls back to HS256. In test environments, `engine_sdk.MintTestToken` uses this to sign test JWTs | — |
+| `BFE_AUTH_DISABLED` | When `true`, disables JWT verification entirely. All requests are assigned a synthetic anonymous Identity with least-privilege defaults. Engine logs `warn` every 60s while active. **Not suitable for production** ([authorization.md](./authorization.md) §1.1) | `false` |
+| `BFE_JWKS_REFRESH_SECONDS` | How often the JWKS key set is re-fetched from `BFE_JWT_JWKS_URL` | `3600` |
+| `BFE_JWT_AUDIENCE` | Expected `aud` claim in JWT tokens. If unset, audience is not validated | *(unset)* |
+| `BFE_JWT_ISSUER` | Expected `iss` claim in JWT tokens. If unset, issuer is not validated | *(unset)* |
+| `BFE_TIMER_TICK_MS` | Scheduler precision; `1000` in prod | `1000` |
+| `BFE_LINTER_GATE` | Compact JSON array of linter-gate rules (see [Linter-score deploy gate](#linter-score-deploy-gate)). Unset = gate disabled | *(unset)* |
+| `BFE_LINTER_GATE_SKIP_SEEDING` | `true` turns the gate off for Seeding-Directory auto-deploys while leaving it on for `POST /processes` | `false` |
+| `BFE_MESSAGE_PENDING_TTL` | How long a published message with zero matching subscriptions and zero matching Message Start Events is held in `pending_messages` before being dropped ([routing.md](./routing.md) §3.5.4). Accepts ISO 8601 duration (e.g. `PT60S`, `PT5M`). Set to `PT0S` to disable pending-message hold (unmatched publishes are recorded to `messages` with `correlations=[]` and immediately expired) | `PT60S` |
+| `BFE_SIGNAL_PENDING_TTL` | How long a published signal with zero matching Signal Catch / Signal Boundary subscriptions and zero matching Signal Start Events is held in `pending_signals` before being dropped ([routing.md](./routing.md) §3.5.6). Accepts ISO 8601 duration. Set to `PT0S` to disable pending-signal hold (zero-match publishes are recorded to `signals` with `correlations=[]` and immediately expired, matching pre-pending-signal-hold behavior). Default matches `BFE_MESSAGE_PENDING_TTL` intentionally — a unified "resume-race window" is easier for operators to reason about than per-event-type knobs | `PT60S` |
+| ~~`BFE_ESCALATION_PENDING_TTL`~~ | **Removed.** There is no pending-escalation cache and no `pending_escalations` table | — |
+| `BFE_LOG_MIN_SEVERITY` | Global severity floor for the `console` event sink ([event-system.md](./event-system.md), [observability.md](./observability.md)). Values: `error` / `warn` / `info` / `debug` / `verbose`. Events below this level are dropped by the console sink only | `info` |
+| `BFE_EVENT_SINK_CONSOLE` | Toggle for the `console` sink. Values: `on` / `off` | `on` |
+| `BFE_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink (Prometheus `bfw_engine.event_bus.events.total`). Does **not** feed `/stats` | `on` |
+| `BFE_EVENT_SINK_WEBSOCKET` | Toggle for the `websocket` sink that pushes events to connected Phoenix Channels clients | `on` |
+| ~~`BFE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `BFE_LOG_MIN_SEVERITY` only. The WebSocket sink rejects only `SinkFailed`. | — |
+| ~~`BFE_EVENT_SINK_DATABASE`~~ | **Removed.** The built-in database sink has been removed. Use a plugin sink for DB-backed event persistence. | — |
+| `BFE_RETENTION_RUN_INTERVAL` | **Ignored.** Cron/systemd owns the Mix-task interval. The key remains in `runtime.exs` unused | `PT1H` |
+| `BFE_RETENTION_BATCH_SIZE` | Max number of **root trees** purged per `mix bfw.retention.purge` invocation | `500` |
+| `BFE_RETENTION_FINISHED_DAYS` | Max age, in days, for PIs with state `finished` before they are eligible for Mix purge. Unset = never auto-purge `finished` PIs | *(unset)* |
+| `BFE_RETENTION_ERROR_DAYS` | Same, for state `error` | *(unset)* |
+| `BFE_RETENTION_FATAL_DAYS` | Same, for state `fatal` | *(unset)* |
+| `BFE_RETENTION_ABORTED_DAYS` | Same, for state `aborted` | *(unset)* |
+| `BFE_RETENTION_ESCALATED_DAYS` | Same, for state `escalated` | *(unset)* |
+| `BFE_RETENTION_COMPENSATED_DAYS` | Same, for state `compensated` | *(unset)* |
+| `BFE_RETENTION_CANCELLED_DAYS` | Same, for state `cancelled`. REST `DELETE /process-instances/{id}` still omits `cancelled`; only the Mix purge uses this knob | *(unset)* |
+| `BFE_RETENTION_ENGINE_AUDIT_DAYS` | **Unused by the engine.** Operator convention for the message/signal SQL cutoff ([database.md](../guides/operations/database.md)). Unset = do not DELETE those rows | *(unset)* |
+| `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then eligible for operator SQL via the `BFE_RETENTION_ENGINE_AUDIT_DAYS` cutoff convention. When `false`, the engine physically deletes the row on deliver/expire/cancel, so the table only ever holds live `pending` rows. Destroy still requires `state == 'pending'` | `true` |
+| `BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals` | `true` |
+| ~~`BFE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`~~ | **Removed / not applicable.** There is no `pending_escalations` table | — |
+| `BFE_PARTITION_AHEAD_MONTHS` | Number of future monthly partitions the `mix bfw.partitions.ensure` boot hook creates ahead of time for the tables in `BfwEngine.Persistence.Partitions`: `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`. There is no `pending_escalations` table. There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and unpartitioned. At least 1 is enforced regardless of configured value | `3` |
+| `BFE_TOKEN_MAX_BYTES` | **Hard payload cap** applied to the canonicalized JSON byte size of every user-supplied payload across: FNI output tokens via `write_result/2`, Data Object values at DOA-commit time (DOA-only: check runs when the engine materializes each `dataOutputAssociation` post-`onFinished`), published messages/signals/escalations via the PI facade + API trigger surfaces, PI `started_with_context` at start, User Task completion results, async Service Task completion/fail payloads via `engine_facade.finish_async_service_task/2` and `fail_async_service_task/3` ([plugins.md](./plugins.md); operator guide: [database.md](../guides/operations/database.md)) — **no dedicated public REST path** for async plugin callbacks; cap is enforced on the facade and REST. Overflow → structured `{:error, :payload_too_large, size, limit}` from the facade; causing FNI transitions to `fatal`; HTTP endpoints return HTTP 413 before any engine-side work runs. Values below `1024` (1 KiB) **refuse boot** with `minimum_required: 1024` in the error (`BfwEngine.Execution.PayloadCap.parse_token_max_bytes/1` from `runtime.exs`); they are not silently clamped. No max — operators running legitimately large-payload workloads can raise this arbitrarily. Configurable for the **entire engine**; no per-process/per-endpoint override in v1 | `65536` (64 KiB) |
+| `BFE_MAX_CONCURRENT_PIS` | **PI admission control (Layer 1)** — soft cap on **new** PI starts via the public API. Enforced as a pre-check inside `Execution.start_process_instance/1` (not on the `DynamicSupervisor`, which runs with `max_children: :infinity`). When the active PI count is at or above the cap, the function returns `{:error, :engine_at_capacity, %{active, limit}}` and `POST /processes/{model_id}/start` responds **503** with `Retry-After: 5`. **Does not apply during resume at boot** — `ResumeRunner` brings every `:running` PI back online regardless of the cap, so the cap may be briefly exceeded after a restart. The cap then resumes governing new starts until active count drops back below the limit. See [`execution.md`](execution.md) §Resume on Startup. Literal `infinity` (default) disables the cap. | `infinity` |
+| `BFE_RESUME_BATCH_SIZE` | **Resume pagination (PF-1)** — batch size for paginated resume of `:running` PIs at boot. `ResumeRunner` pages through the DB one batch at a time, loading at most this many root PI rows (plus their resume-relevant FNIs) before processing them and moving to the next batch. Higher = faster resume on small datasets; lower = bounded peak memory at boot. Must be a positive integer; refusing values ≤ 0 at startup | `1000` |
+| `BFE_PI_START_RATE_LIMIT` | **Start rate limiting (Layer 2)** — maximum number of `POST /processes/{model_id}/start` calls allowed per `BFE_PI_START_RATE_WINDOW_MS` sliding window, **globally** (not per caller). Enforced in `BfwEngineWeb.Http.Plugs.RateLimitPlug` via an ETS token bucket. `0` (default) disables the plug entirely | `0` |
+| `BFE_PI_START_RATE_WINDOW_MS` | Window length in milliseconds for `BFE_PI_START_RATE_LIMIT`. Used only when the limit is > 0 | `1000` |
+| `BFE_JSONB_COMPRESSION` | JSONB column compression for heavy-payload columns listed in [data-model.md](./data-model.md). `lz4` requires Postgres ≥ 14. Setting this changes only new writes — existing column data retains whatever compression was applied at write time until rewritten. Operator measurements: [database.md](../guides/operations/database.md). Leave `lz4` unless a representative workload is >10% slower than PGLZ | `lz4` |
+| `BFE_PLUGINS_INBEAM` | **[plugins.md](./plugins.md)**: Comma- or whitespace-separated list of OTP-app names to load as in-BEAM plugins. Order is significant — `on_load` is invoked in list order, sequentially. Apps named here must be present in the release; missing apps are quarantined. Unset = no in-BEAM plugins | *(unset)* |
+| `BFE_PLUGINS_INCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **include** list of plugin names (OTP-app name for in-BEAM). When non-empty, only listed plugins are candidates; when unset/empty, no include filter is applied | *(unset)* |
+| `BFE_PLUGINS_EXCLUDE` | **[plugins.md](./plugins.md)**: Comma-separated **exclude** list. **Exclude wins** on conflict with `BFE_PLUGINS_INCLUDE` — a name appearing in both is rejected with `reason: :ambiguous_policy` | *(unset)* |
 
-**`TDE_METRICS_ENABLED`** toggles the public Prometheus scrape endpoint and
+**`BFE_METRICS_ENABLED`** toggles the public Prometheus scrape endpoint and
 in-process reporter startup (`config :peripheral_telemetry, :metrics_enabled`,
 default `true`).
 
 #### Copy-paste reference: complete configuration with defaults
 
-The following shows every `TDE_*` environment variable with its default value.
+The following shows every `BFE_*` environment variable with its default value.
 Copy this block and adjust only the values you need to override.
 
 ```bash
 # ==============================================================================
-# Daemon Engine — Full Configuration Reference
+# Bifrost Forge World Engine — Full Configuration Reference
 # ==============================================================================
 # Copy this into your .env, docker-compose.yml environment block, or
 # Kubernetes ConfigMap/Secret. Lines marked "required" have no default and
@@ -117,109 +117,109 @@ Copy this block and adjust only the values you need to override.
 
 # --- Database -----------------------------------------------------------------
 # Option A: connection string (preferred for production)
-TDE_DATABASE_URL=ecto://evil_engine:evil_engine@localhost:5432/evil_engine
+BFE_DATABASE_URL=ecto://bfw_engine:bfw_engine@localhost:5432/bfw_engine
 
-# Option B: individual fields (alternative to TDE_DATABASE_URL)
-# TDE_DATABASE_HOST=localhost
-# TDE_DATABASE_PORT=5432
-# TDE_DATABASE_NAME=evil_engine
-# TDE_DATABASE_USER=evil_engine
-# TDE_DATABASE_PASS=evil_engine
+# Option B: individual fields (alternative to BFE_DATABASE_URL)
+# BFE_DATABASE_HOST=localhost
+# BFE_DATABASE_PORT=5432
+# BFE_DATABASE_NAME=bfw_engine
+# BFE_DATABASE_USER=bfw_engine
+# BFE_DATABASE_PASS=bfw_engine
 
-TDE_DB_POOL_SIZE=100
-TDE_DB_READ_POOL_SIZE=50
+BFE_DB_POOL_SIZE=100
+BFE_DB_READ_POOL_SIZE=50
 # Postgres max_connections >= (write + read) * engine_nodes + 20
 # With production defaults on one node: 100 + 50 + 20 = 170; recommend 200.
-TDE_DB_CHECKOUT_RETRIES=3
-TDE_DB_QUEUE_TARGET=100
-TDE_DB_QUEUE_INTERVAL=2000
-TDE_DB_CHECKOUT_TIMEOUT=15000
-TDE_DB_QUEUE_TIME_WARNING_MS=500
-TDE_DB_IPV6=false
-TDE_DB_SSL=false
+BFE_DB_CHECKOUT_RETRIES=3
+BFE_DB_QUEUE_TARGET=100
+BFE_DB_QUEUE_INTERVAL=2000
+BFE_DB_CHECKOUT_TIMEOUT=15000
+BFE_DB_QUEUE_TIME_WARNING_MS=500
+BFE_DB_IPV6=false
+BFE_DB_SSL=false
 
 # --- Developer UIs (Swagger, Playground, OpenAPI spec) -----------------------
-# TDE_DEVTOOLS_ENABLED=true          # false in prod by default
-# TDE_EXPOSE_OPENAPI_SPEC=false      # opt-in for /api/openapi in prod
+# BFE_DEVTOOLS_ENABLED=true          # false in prod by default
+# BFE_EXPOSE_OPENAPI_SPEC=false      # opt-in for /api/openapi in prod
 
 # --- GraphQL safety -----------------------------------------------------------
-TDE_GRAPHQL_MAX_DEPTH=16
-TDE_GRAPHQL_MAX_COMPLEXITY=10000
-TDE_GRAPHQL_INTROSPECTION_DISABLED=false
+BFE_GRAPHQL_MAX_DEPTH=16
+BFE_GRAPHQL_MAX_COMPLEXITY=10000
+BFE_GRAPHQL_INTROSPECTION_DISABLED=false
 
 # --- HTTP / GraphQL / WebSocket -----------------------------------------------
-TDE_HTTP_PORT=4000
-TDE_HTTP_SECRET_KEY_BASE=CHANGE_ME_generate_with_mix_phx_gen_secret_min_64_chars
+BFE_HTTP_PORT=4000
+BFE_HTTP_SECRET_KEY_BASE=CHANGE_ME_generate_with_mix_phx_gen_secret_min_64_chars
 
 # --- Engine identity ----------------------------------------------------------
-TDE_ENGINE_ID=evil-engine-local
-TDE_ENGINE_NAME=Daemon Engine (local)
-TDE_METRICS_ENABLED=true
+BFE_ENGINE_ID=bfw-engine-local
+BFE_ENGINE_NAME=Bifrost Forge World Engine (local)
+BFE_METRICS_ENABLED=true
 
 # --- Authentication (JWT) -----------------------------------------------------
 # At least one of HS256_SECRET or JWKS_URL is required unless AUTH_DISABLED=true.
 # The docker-compose default uses HS256 with a known dev secret.
-# Mint tokens with: mix evil.mint_token  (or ./scripts/mint-token.sh)
-TDE_JWT_HS256_SECRET=BloodForTheBloodGod!_SkullsForTheSkullThrone!
-# TDE_AUTH_DISABLED=false
-# TDE_JWT_JWKS_URL=https://auth.example.com/.well-known/jwks.json
-TDE_JWKS_REFRESH_SECONDS=3600
-# TDE_JWT_AUDIENCE=
-# TDE_JWT_ISSUER=
+# Mint tokens with: mix bfw.mint_token  (or ./scripts/mint-token.sh)
+BFE_JWT_HS256_SECRET=AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!
+# BFE_AUTH_DISABLED=false
+# BFE_JWT_JWKS_URL=https://auth.example.com/.well-known/jwks.json
+BFE_JWKS_REFRESH_SECONDS=3600
+# BFE_JWT_AUDIENCE=
+# BFE_JWT_ISSUER=
 
 # --- Payload & compression ---------------------------------------------------
-TDE_TOKEN_MAX_BYTES=65536
-# TDE_MAX_CONCURRENT_PIS=infinity
-# TDE_RESUME_BATCH_SIZE=1000
-# TDE_PI_START_RATE_LIMIT=0
-# TDE_PI_START_RATE_WINDOW_MS=1000
-TDE_JSONB_COMPRESSION=lz4
+BFE_TOKEN_MAX_BYTES=65536
+# BFE_MAX_CONCURRENT_PIS=infinity
+# BFE_RESUME_BATCH_SIZE=1000
+# BFE_PI_START_RATE_LIMIT=0
+# BFE_PI_START_RATE_WINDOW_MS=1000
+BFE_JSONB_COMPRESSION=lz4
 
 # --- Seeding ------------------------------------------------------------------
-# TDE_SEEDING_DIRECTORY=/app/seeding
+# BFE_SEEDING_DIRECTORY=/app/seeding
 
 # --- Timers -------------------------------------------------------------------
-TDE_TIMER_TICK_MS=1000
+BFE_TIMER_TICK_MS=1000
 
 # --- Linter gate (unset = disabled) -------------------------------------------
-# TDE_LINTER_GATE=[{"rulesetId":"bpmn-production-ready","minScorePercent":100}]
-TDE_LINTER_GATE_SKIP_SEEDING=false
+# BFE_LINTER_GATE=[{"rulesetId":"bpmn-production-ready","minScorePercent":100}]
+BFE_LINTER_GATE_SKIP_SEEDING=false
 
 # --- Event sinks -------------------------------------------------------
-TDE_EVENT_SINK_CONSOLE=on
-TDE_EVENT_SINK_TELEMETRY=on
-TDE_EVENT_SINK_WEBSOCKET=on
-TDE_LOG_MIN_SEVERITY=info
+BFE_EVENT_SINK_CONSOLE=on
+BFE_EVENT_SINK_TELEMETRY=on
+BFE_EVENT_SINK_WEBSOCKET=on
+BFE_LOG_MIN_SEVERITY=info
 
 # --- Pending TTLs (ISO 8601 duration) ----------------------------------------
-TDE_MESSAGE_PENDING_TTL=PT60S
-TDE_SIGNAL_PENDING_TTL=PT60S
+BFE_MESSAGE_PENDING_TTL=PT60S
+BFE_SIGNAL_PENDING_TTL=PT60S
 
 # --- Retention (unset = never auto-purge) -------------------------------------
-TDE_RETENTION_RUN_INTERVAL=PT1H
-TDE_RETENTION_BATCH_SIZE=500
-# TDE_RETENTION_FINISHED_DAYS=
-# TDE_RETENTION_ERROR_DAYS=
-# TDE_RETENTION_FATAL_DAYS=
-# TDE_RETENTION_ABORTED_DAYS=
-# TDE_RETENTION_ESCALATED_DAYS=
-# TDE_RETENTION_COMPENSATED_DAYS=
-# TDE_RETENTION_CANCELLED_DAYS=
-# TDE_RETENTION_ENGINE_AUDIT_DAYS=
-TDE_PARTITION_AHEAD_MONTHS=3
-TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
-TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
+BFE_RETENTION_RUN_INTERVAL=PT1H
+BFE_RETENTION_BATCH_SIZE=500
+# BFE_RETENTION_FINISHED_DAYS=
+# BFE_RETENTION_ERROR_DAYS=
+# BFE_RETENTION_FATAL_DAYS=
+# BFE_RETENTION_ABORTED_DAYS=
+# BFE_RETENTION_ESCALATED_DAYS=
+# BFE_RETENTION_COMPENSATED_DAYS=
+# BFE_RETENTION_CANCELLED_DAYS=
+# BFE_RETENTION_ENGINE_AUDIT_DAYS=
+BFE_PARTITION_AHEAD_MONTHS=3
+BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
+BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
 
 # --- Plugins ------------------------------------------------------------------
-# TDE_PLUGINS_INBEAM=
-# TDE_PLUGINS_INCLUDE=
-# TDE_PLUGINS_EXCLUDE=
+# BFE_PLUGINS_INBEAM=
+# BFE_PLUGINS_INCLUDE=
+# BFE_PLUGINS_EXCLUDE=
 ```
 
 ## Minting dev tokens
 
-The `docker-compose.yml` ships with `TDE_JWT_HS256_SECRET` set to a known dev
-secret and `TDE_AUTH_DISABLED` **unset** (auth is enforced). Authenticated routes
+The `docker-compose.yml` ships with `BFE_JWT_HS256_SECRET` set to a known dev
+secret and `BFE_AUTH_DISABLED` **unset** (auth is enforced). Authenticated routes
 like `/stats` require a valid `Authorization: Bearer <token>` header.
 
 Two tools are provided for minting tokens locally:
@@ -228,16 +228,16 @@ Two tools are provided for minting tokens locally:
 
 ```bash
 # Quick admin token (24h, default claims)
-mix evil.mint_token
+mix bfw.mint_token
 
 # Custom operator with 1h expiry
-mix evil.mint_token --sub operator-1 --roles admin,viewer --exp 3600
+mix bfw.mint_token --sub operator-1 --roles admin,viewer --exp 3600
 
 # Arbitrary extra claims
-mix evil.mint_token --sub qa-bot --claim tenant_id=acme --claim env=staging
+mix bfw.mint_token --sub qa-bot --claim tenant_id=acme --claim env=staging
 
 # Use with curl in one shot
-curl -H "Authorization: Bearer $(mix evil.mint_token)" http://localhost:4000/stats
+curl -H "Authorization: Bearer $(mix bfw.mint_token)" http://localhost:4000/stats
 ```
 
 **Standalone shell script** (no Elixir needed — uses `openssl`):
@@ -250,7 +250,7 @@ curl -H "Authorization: Bearer $(mix evil.mint_token)" http://localhost:4000/sta
 ./scripts/mint-token.sh '{"sub":"operator-1","roles":["admin","viewer"]}'
 
 # Override secret or expiry
-TDE_JWT_HS256_SECRET=my-secret TDE_TOKEN_EXP_SECONDS=3600 ./scripts/mint-token.sh
+BFE_JWT_HS256_SECRET=my-secret BFE_TOKEN_EXP_SECONDS=3600 ./scripts/mint-token.sh
 ```
 
 Both tools default to the same secret as `docker-compose.yml`, so tokens work
@@ -259,19 +259,19 @@ against the local engine out of the box.
 ## Linter-score deploy gate
 
 An external component (the Studio's `bpmn-linter` extension) attaches one or
-more `<evil:LinterRulesetScore>` entries to the BPMN XML at the **definitions
-level**, under `<bpmn:definitions>/<bpmn:extensionElements>/<evil:Properties>`,
+more `<bfw:LinterRulesetScore>` entries to the BPMN XML at the **definitions
+level**, under `<bpmn:definitions>/<bpmn:extensionElements>/<bfw:Properties>`,
 each summarizing the result of one linter ruleset evaluation. The element name
-is capitalised (`evil:LinterRulesetScore`, upper-L) and every field is a string
+is capitalised (`bfw:LinterRulesetScore`, upper-L) and every field is a string
 attribute (numeric values are bare, no `%`). This is the authoritative shape
-written by the Studio's `UpdateEvilLinterRulesetScoreHandler`; the
+written by the Studio's `UpdateBfwLinterRulesetScoreHandler`; the
 engine parser matches it exactly:
 
 ```xml
 <bpmn:definitions ...>
   <bpmn:extensionElements>
-    <evil:Properties>
-      <evil:LinterRulesetScore
+    <bfw:Properties>
+      <bfw:LinterRulesetScore
         rulesetId="bpmn-production-ready"
         scorePercent="100"
         complianceStatus="valid"
@@ -281,7 +281,7 @@ engine parser matches it exactly:
         penaltyPoints="0"
         rawErrorFindings="0"
         rawWarningFindings="0" />
-    </evil:Properties>
+    </bfw:Properties>
   </bpmn:extensionElements>
   <!-- processes ... -->
 </bpmn:definitions>
@@ -295,7 +295,7 @@ not to individual processes.
 ### Gate configuration
 
 The gate is configured once at engine boot via the compact JSON env var
-`TDE_LINTER_GATE`. If the var is unset, the gate is disabled and no linter
+`BFE_LINTER_GATE`. If the var is unset, the gate is disabled and no linter
 checks are performed.
 
 Shape (JSON array of per-ruleset rules):
@@ -317,18 +317,18 @@ Shape (JSON array of per-ruleset rules):
 ```
 
 **Per-environment, not per-mode.** The gate config is an env var, so it naturally
-varies per deployment the same way `TDE_AUTH_DISABLED` does. A typical setup:
+varies per deployment the same way `BFE_AUTH_DISABLED` does. A typical setup:
 
 - **Development** — lenient threshold on the development ruleset:
 
   ```bash
-  TDE_LINTER_GATE='[{"rulesetId":"bpmn-development","minScorePercent":80,"maxErrors":0}]'
+  BFE_LINTER_GATE='[{"rulesetId":"bpmn-development","minScorePercent":80,"maxErrors":0}]'
   ```
 
 - **Production** — strict threshold on the production ruleset:
 
   ```bash
-  TDE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","requirePresence":true,"minScorePercent":100,"maxErrors":0,"maxWarnings":0,"requireComplianceStatus":"valid"}]'
+  BFE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","requirePresence":true,"minScorePercent":100,"maxErrors":0,"maxWarnings":0,"requireComplianceStatus":"valid"}]'
   ```
 
 Do **not** combine both in the same config unless they test orthogonal concerns —
@@ -366,7 +366,7 @@ failure:
   directory never halts boot.
 
 The gate can be disabled for Seeding-Directory only by setting
-`TDE_LINTER_GATE_SKIP_SEEDING=true`. In that case the gate still applies to
+`BFE_LINTER_GATE_SKIP_SEEDING=true`. In that case the gate still applies to
 `POST /processes`.
 
 ### Runtime behavior
@@ -429,7 +429,7 @@ to existing rows.
 
 ## Database housekeeping & retention
 
-High-volume operators running tens of thousands of PIs per day need an explicit retention story; low-volume operators need the engine to never delete anything they did not opt into. Process-instance trees are an opt-in Mix task (`mix evil.retention.purge`). Message and signal audit rows are operator SQL. A fresh installation never deletes anything until the operator sets at least one `TDE_RETENTION_*_DAYS` env var and schedules the Mix task, or runs the SQL recipe. Operator guide: [database.md](../guides/operations/database.md).
+High-volume operators running tens of thousands of PIs per day need an explicit retention story; low-volume operators need the engine to never delete anything they did not opt into. Process-instance trees are an opt-in Mix task (`mix bfw.retention.purge`). Message and signal audit rows are operator SQL. A fresh installation never deletes anything until the operator sets at least one `BFE_RETENTION_*_DAYS` env var and schedules the Mix task, or runs the SQL recipe. Operator guide: [database.md](../guides/operations/database.md).
 
 ### Configurable partitioning
 
@@ -444,7 +444,7 @@ Audit tables that grow in append-only fashion ship as `PARTITION BY RANGE` on th
 
 **Shipped (partitioned on `published_at`):** `messages`, `pending_messages`, `signals`, `pending_signals`. There are no `escalations` or `compensations` tables.
 
-**Partition interval** is controlled by `TDE_PARTITION_INTERVAL` (default `quarterly`):
+**Partition interval** is controlled by `BFE_PARTITION_INTERVAL` (default `quarterly`):
 
 | Value | Partition boundaries |
 |---|---|
@@ -456,12 +456,12 @@ Audit tables that grow in append-only fashion ship as `PARTITION BY RANGE` on th
 
 Composite primary keys `(id, <timestamp>)` are used when partitioning is on, because the partition key must be in the PK. When `off`, a simple `id` PK is used instead.
 
-At engine boot, `mix evil.partitions.ensure` (run from the release pre-start hook) confirms that:
+At engine boot, `mix bfw.partitions.ensure` (run from the release pre-start hook) confirms that:
 
-1. All partitions for the current period and `TDE_PARTITION_AHEAD_MONTHS` (default `3`) future periods exist; missing ones are created.
-2. When `TDE_PARTITION_INTERVAL=off`, the task is a no-op.
+1. All partitions for the current period and `BFE_PARTITION_AHEAD_MONTHS` (default `3`) future periods exist; missing ones are created.
+2. When `BFE_PARTITION_INTERVAL=off`, the task is a no-op.
 
-The partition management logic lives in `EvilEngine.Persistence.Partitions` with a single declarative `@partitioned_tables` list. Adding a new partitioned table is a one-line change.
+The partition management logic lives in `BfwEngine.Persistence.Partitions` with a single declarative `@partitioned_tables` list. Adding a new partitioned table is a one-line change.
 
 Boot-time `ensure_partitions` is **not** a `pg_partman` replacement. It only pre-creates upcoming partitions; it never `DETACH`/`DROP`s old ones. Operators with long-uptime nodes (or who need to drop aged partitions) should run `pg_partman` (or equivalent) alongside cron. See [database.md](../guides/operations/database.md).
 
@@ -469,25 +469,25 @@ Boot-time `ensure_partitions` is **not** a `pg_partman` replacement. It only pre
 
 #### Mix-scheduled PI tree purge
 
-`mix evil.retention.purge` (and `EvilEngine.Persistence.Release.purge_retention/0` for release eval) hard-deletes aged terminal **root** process-instance trees. Schedule it with cron or systemd. The engine does not wake a GenServer.
+`mix bfw.retention.purge` (and `BfwEngine.Persistence.Release.purge_retention/0` for release eval) hard-deletes aged terminal **root** process-instance trees. Schedule it with cron or systemd. The engine does not wake a GenServer.
 
-- Unset `TDE_RETENTION_*_DAYS` → the task is a no-op (prints that nothing is configured).
+- Unset `BFE_RETENTION_*_DAYS` → the task is a no-op (prints that nothing is configured).
 - Only **root** PIs (`parent_process_instance_id IS NULL`) are selection keys. Age column: `finished_at`. Raw SQL bypasses the Ash `deleted == false` filter so already-soft-deleted terminal roots still free disk.
 - States with a days knob: `finished`, `error`, `fatal`, `aborted`, `escalated`, `compensated`, `cancelled`. Unset knob for a state → that state is never selected.
 - If the whole tree is fully terminal, delete **every** descendant with the root (even if a child is younger than cutoff). If any descendant is `running` or `suspended`, skip the root.
 - One transaction per root tree. Cascade order: `process_instance_events` → `gateway_pending_arrivals` → `data_object_writes` → `data_objects` → `flow_node_instances` → `process_instances`.
 - Do not touch `messages` / `signals` / `pending_*` / `timer_start_schedules` / catalog rows.
-- Batch size = `TDE_RETENTION_BATCH_SIZE` (default 500) = max trees per Mix invocation.
+- Batch size = `BFE_RETENTION_BATCH_SIZE` (default 500) = max trees per Mix invocation.
 - `--dry-run` counts eligible roots without deleting.
-- `TDE_RETENTION_RUN_INTERVAL` is **ignored**; cron owns the interval. The key remains in `runtime.exs` unused.
+- `BFE_RETENTION_RUN_INTERVAL` is **ignored**; cron owns the interval. The key remains in `runtime.exs` unused.
 
 There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 
-**KEEP_AFTER_TRANSITION.** When `TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` (or the signals twin), `mark_pending_delivered`, expire, and cancel **destroy** the pending row instead of updating state. Destroy still requires `state == 'pending'` so a lost claim cannot wipe another waiter. Default `true` keeps terminal-state rows as delivery-attempt audit until operator SQL ages them out.
+**KEEP_AFTER_TRANSITION.** When `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` (or the signals twin), `mark_pending_delivered`, expire, and cancel **destroy** the pending row instead of updating state. Destroy still requires `state == 'pending'` so a lost claim cannot wipe another waiter. Default `true` keeps terminal-state rows as delivery-attempt audit until operator SQL ages them out.
 
 #### Operator SQL (message / signal audit)
 
-`TDE_RETENTION_ENGINE_AUDIT_DAYS` is an unused operator convention for the SQL recipe in [database.md](../guides/operations/database.md). The engine never sweeps `messages` / `signals` / terminal `pending_*` rows. REST/CLI `purge` and `purge_audit_data` enforcement are deferred / not v1.
+`BFE_RETENTION_ENGINE_AUDIT_DAYS` is an unused operator convention for the SQL recipe in [database.md](../guides/operations/database.md). The engine never sweeps `messages` / `signals` / terminal `pending_*` rows. REST/CLI `purge` and `purge_audit_data` enforcement are deferred / not v1.
 
 ### Interaction with other features
 
@@ -499,8 +499,8 @@ There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 | **`data_object_writes` always-on** | Purged together with the parent PI tree. A Data Object write audit can live no longer than the PI whose writes it records. |
 | **External sinks** | Retention does not affect data already shipped to external sinks. There are no purge bus events; operators who need a trail log Mix/cron output or wrap the SQL recipe. |
 | **Range partitions** | Row `DELETE`s from Mix purge land in the right partition automatically. Dropping old partitions is an operator `pg_partman` (or equivalent) job — boot-time `ensure_partitions` does not drop. `timer_start_schedules` is unpartitioned; do not DELETE it with audit SQL. |
-| **`TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false`** | `pending_messages` is zero-retention for terminal-state rows — rows are destroyed on deliver/expire/cancel. Operator SQL over terminal pending rows then finds nothing under normal operation. |
-| **`TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false`** | Identical semantics for `pending_signals`. Independent per-table. |
+| **`BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false`** | `pending_messages` is zero-retention for terminal-state rows — rows are destroyed on deliver/expire/cancel. Operator SQL over terminal pending rows then finds nothing under normal operation. |
+| **`BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false`** | Identical semantics for `pending_signals`. Independent per-table. |
 | **Pending escalations** | **Not applicable.** There is no pending-escalation cache. |
 | **Cross-PI broadcasts & unmatched publishes** | A `messages` row that fanned out to 5 PIs still occupies one row. Mix purge does not delete it. Operator SQL deletes by `published_at` alone. |
 | **REST `DELETE /process-instances/{id}`** | Remains **soft-delete of one PI + its FNIs**. It does not walk children, does not hard-delete DOs/gateway rows, and still omits `cancelled`. Mix `evil.retention.purge` is the hard-delete path. |
@@ -510,6 +510,6 @@ There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 - A `RetentionRunner` GenServer, REST/CLI `purge`, and per-PI bus events for purge.
 - Automatic archival to external storage (S3, GCS, cold-storage Postgres).
 - Per-PI retention overrides (e.g. "keep this one PI forever") — Mix purge is global by terminal state.
-- Engine-owned sweep of `messages` / `signals` / terminal `pending_*` — operators run the SQL recipe (or `pg_partman`) themselves. `TDE_RETENTION_ENGINE_AUDIT_DAYS` is a cutoff convention only.
+- Engine-owned sweep of `messages` / `signals` / terminal `pending_*` — operators run the SQL recipe (or `pg_partman`) themselves. `BFE_RETENTION_ENGINE_AUDIT_DAYS` is a cutoff convention only.
 - Cascading engine-audit rows with PI purge: a `messages` row is not deleted when any of its recipient PIs is purged.
 - Event-level retention (keep PI rows but drop old events): leftover `process_instance_events` live as long as the PI row does.

@@ -8,21 +8,21 @@ See [Authentication](../api/authentication.md) for the full JWT setup including 
 
 ### Key Requirements
 
-- **HS256:** `TDE_JWT_HS256_SECRET` must be at least 32 bytes
-- **JWKS:** `TDE_JWT_JWKS_URL` for RS256/ES256 keys, auto-refreshed every `TDE_JWKS_REFRESH_SECONDS` (default 3600)
-- At least one key source must be configured unless `TDE_AUTH_DISABLED=true`
+- **HS256:** `BFE_JWT_HS256_SECRET` must be at least 32 bytes
+- **JWKS:** `BFE_JWT_JWKS_URL` for RS256/ES256 keys, auto-refreshed every `BFE_JWKS_REFRESH_SECONDS` (default 3600)
+- At least one key source must be configured unless `BFE_AUTH_DISABLED=true`
 
 ### Key Rotation
 
-JWKS keys are refreshed automatically. For HS256, rotate by updating `TDE_JWT_HS256_SECRET` and restarting. During rotation, temporarily accept both old and new secrets by running two engine instances or using JWKS with both keys.
+JWKS keys are refreshed automatically. For HS256, rotate by updating `BFE_JWT_HS256_SECRET` and restarting. During rotation, temporarily accept both old and new secrets by running two engine instances or using JWKS with both keys.
 
 ## Auth Disabled Mode
 
-`TDE_AUTH_DISABLED=true` disables all JWT verification. The engine logs a warning every 60 seconds. **Do not use in production** — all requests receive an anonymous identity with least-privilege defaults.
+`BFE_AUTH_DISABLED=true` disables all JWT verification. The engine logs a warning every 60 seconds. **Do not use in production** — all requests receive an anonymous identity with least-privilege defaults.
 
 ## Payload Cap
 
-`TDE_TOKEN_MAX_BYTES` (default 64 KiB) limits the size of every user-supplied payload. This protects against memory exhaustion from oversized request bodies. See [Database administration](database.md) for tuning and [Error Handling](../handbook/error-handling.md) for the rejection behavior.
+`BFE_TOKEN_MAX_BYTES` (default 64 KiB) limits the size of every user-supplied payload. This protects against memory exhaustion from oversized request bodies. See [Database administration](database.md) for tuning and [Error Handling](../handbook/error-handling.md) for the rejection behavior.
 
 ## Plugin Trust Boundary
 
@@ -48,7 +48,7 @@ Plugins bypass claim checks (they are within the operator's trust boundary) but 
 
 ## Telemetry Security
 
-`GET /metrics` is public Prometheus text, default **on** (`TDE_METRICS_ENABLED=true`). The scrape is **unauthenticated**. Restrict it at the network edge (firewall, ingress, or bind the engine to a private network). Set `TDE_METRICS_ENABLED=false` to disable the endpoint (404).
+`GET /metrics` is public Prometheus text, default **on** (`BFE_METRICS_ENABLED=true`). The scrape is **unauthenticated**. Restrict it at the network edge (firewall, ingress, or bind the engine to a private network). Set `BFE_METRICS_ENABLED=false` to disable the endpoint (404).
 
 `/stats` remains JWT-gated.
 

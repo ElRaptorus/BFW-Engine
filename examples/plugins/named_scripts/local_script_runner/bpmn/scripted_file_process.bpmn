@@ -3,15 +3,15 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_local_script_file">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_local-script-file-demo" name="Local Script File Demo" processRef="local-script-file-demo" />
   </bpmn:collaboration>
   <bpmn:process id="local-script-file-demo" name="Local Script File Demo" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -25,7 +25,7 @@
     </bpmn:startEvent>
     <bpmn:scriptTask id="Task_local_script" name="Run file-backed script">
       <bpmn:extensionElements>
-        <evil:scriptRef>local_script</evil:scriptRef>
+        <bfw:scriptRef>local_script</bfw:scriptRef>
       </bpmn:extensionElements>
       <bpmn:script><![CDATA[scripts/transform_order.py]]></bpmn:script>
       <bpmn:incoming>Flow_start_script</bpmn:incoming>

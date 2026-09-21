@@ -3,7 +3,7 @@ defmodule Examples.Plugins.LocalScriptRunner.ScriptRunner do
   Named script `local_script` that shells out to files described by `flow_node.type_data.script`.
   """
 
-  @behaviour EvilEngine.Plugin.NamedScript
+  @behaviour BfwEngine.Plugin.NamedScript
 
   alias Examples.Plugins.Shared.ScriptSandbox
 

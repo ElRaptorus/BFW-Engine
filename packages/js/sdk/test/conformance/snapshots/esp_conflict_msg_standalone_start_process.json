@@ -29,7 +29,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Message Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -48,7 +50,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Started",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -69,7 +73,10 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["MsgStart_1", "End_Started"],
+          "flowNodeRefs": [
+            "MsgStart_1",
+            "End_Started"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

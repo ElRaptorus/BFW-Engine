@@ -40,7 +40,9 @@
           "itemSubjectRef": null,
           "name": "OrderData",
           "valueContract": {
-            "required": ["status"],
+            "required": [
+              "status"
+            ],
             "type": "object"
           }
         }
@@ -165,7 +167,9 @@
               }
             ],
             "payloadContract": {
-              "required": ["amount"],
+              "required": [
+                "amount"
+              ],
               "type": "object"
             },
             "resultContract": {
@@ -230,7 +234,9 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Task_1"],
+          "flowNodeRefs": [
+            "Task_1"
+          ],
           "id": "Lane_1",
           "name": "Clerk"
         }
@@ -336,7 +342,10 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_Helper", "End_Helper"],
+          "flowNodeRefs": [
+            "Start_Helper",
+            "End_Helper"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

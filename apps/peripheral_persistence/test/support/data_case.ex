@@ -1,17 +1,17 @@
-defmodule EvilEngine.Persistence.DataCase do
+defmodule BfwEngine.Persistence.DataCase do
   @moduledoc """
   Ecto SQL Sandbox checkout for Ash/Repo-backed tests in `peripheral_persistence`.
   """
 
   use ExUnit.CaseTemplate
 
+  alias BfwEngine.Persistence.ReadRepo
+  alias BfwEngine.Persistence.Repo
   alias Ecto.Adapters.SQL.Sandbox
-  alias EvilEngine.Persistence.ReadRepo
-  alias EvilEngine.Persistence.Repo
 
   using do
     quote do
-      import EvilEngine.Persistence.DataCase
+      import BfwEngine.Persistence.DataCase
     end
   end
 

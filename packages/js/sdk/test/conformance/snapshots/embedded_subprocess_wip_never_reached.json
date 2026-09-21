@@ -197,7 +197,14 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "ExclusiveGateway_1", "Task_Safe", "SubProcess_1", "End_OK", "End_Fail"],
+          "flowNodeRefs": [
+            "Start_1",
+            "ExclusiveGateway_1",
+            "Task_Safe",
+            "SubProcess_1",
+            "End_OK",
+            "End_Fail"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

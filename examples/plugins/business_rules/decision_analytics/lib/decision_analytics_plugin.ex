@@ -7,7 +7,7 @@ defmodule Examples.BusinessRules.DecisionAnalytics.DecisionAnalyticsPlugin do
   latency spikes, and periodically logs a JSON analytics report.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.DecisionAnalytics.AnalyticsSink
   alias Examples.BusinessRules.DecisionAnalytics.ReportScheduler

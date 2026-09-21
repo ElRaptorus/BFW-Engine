@@ -1,8 +1,8 @@
-defmodule EvilEngine.Load.PayloadCapChaosLoadTest do
+defmodule BfwEngine.Load.PayloadCapChaosLoadTest do
   @moduledoc """
   Item 5 — 5% oversize mix under load. Opt-in via `mix test.load.hardening`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :load
   @moduletag :hardening
@@ -10,10 +10,10 @@ defmodule EvilEngine.Load.PayloadCapChaosLoadTest do
   # opens debug, Ecto SQL with 64 KiB params). That buffer is not engine RSS.
   @moduletag capture_log: false
 
-  alias EvilEngine.Persistence.Repo
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Test.LoadHelpers
-  alias EvilEngine.Test.PayloadCapFixtures
+  alias BfwEngine.Persistence.Repo
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Test.LoadHelpers
+  alias BfwEngine.Test.PayloadCapFixtures
 
   @memory_slack_bytes 32 * 1024 * 1024
 
@@ -32,7 +32,7 @@ defmodule EvilEngine.Load.PayloadCapChaosLoadTest do
 
   @tag timeout: 1_200_000
   test "payload_cap_chaos_5pct keeps memory flat and never inserts oversize messages" do
-    chaos_seconds = String.to_integer(System.get_env("TDE_LOAD_CHAOS_SECONDS") || "600")
+    chaos_seconds = String.to_integer(System.get_env("BFE_LOAD_CHAOS_SECONDS") || "600")
 
     {201, _} = http_deploy("linear_start_end.bpmn")
     {201, _} = http_deploy("user_task_simple.bpmn")

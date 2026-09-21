@@ -5,9 +5,9 @@ defmodule Examples.EventSinks.StructuredLogger.LoggerSink do
   Zero third-party dependencies beyond what the engine already uses (`Jason`).
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @doc "Opens stdout or an append-only file as the sink output based on registration options."
   @impl true

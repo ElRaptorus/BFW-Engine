@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
+defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
   @moduledoc """
   GraphQL visibility tests for PI/FNI authorization.
 
@@ -9,7 +9,7 @@ defmodule EvilEngine.Integration.Auth.GraphqlVisibilityTest do
   - Default-lane FNI visibility
   - `zeeky_boogie_doog` admin override
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @get_pi_query """
   query GetProcessInstance($id: ID!) {

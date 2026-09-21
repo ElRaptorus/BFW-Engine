@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -16,13 +16,13 @@ import {
   FniNotWaitingError,
   NotFoundError,
   UnauthorizedError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
-let adminClient: DaemonEngineClient;
-let readOnlyClient: DaemonEngineClient;
-let laneAccountingClient: DaemonEngineClient;
-let adminBypassClient: DaemonEngineClient;
-let unauthenticatedClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let readOnlyClient: BfwEngineClient;
+let laneAccountingClient: BfwEngineClient;
+let adminBypassClient: BfwEngineClient;
+let unauthenticatedClient: BfwEngineClient;
 
 const USER_TASK_ID = 'integration-user-task';
 const USER_TASK_LANE_ID = 'integration-user-task-lane';

@@ -20,13 +20,13 @@ defmodule Examples.ServiceTaskHandlers.WebhookCallback.WebhookCallbackFacadeStor
   end
 
   @doc "Stores the engine facade reference for asynchronous completions that call back into the engine."
-  @spec put(EvilEngine.EngineFacade.t()) :: :ok
+  @spec put(BfwEngine.EngineFacade.t()) :: :ok
   def put(facade) do
     Agent.update(__MODULE__, fn _ -> facade end)
   end
 
   @doc "Returns the engine facade cached for this example, if one was stored."
-  @spec get() :: EvilEngine.EngineFacade.t() | nil
+  @spec get() :: BfwEngine.EngineFacade.t() | nil
   def get do
     Agent.get(__MODULE__, & &1)
   end
@@ -39,7 +39,7 @@ defmodule Examples.ServiceTaskHandlers.WebhookCallback.WebhookCallbackPlugin do
 
   alias Examples.ServiceTaskHandlers.WebhookCallback.WebhookCallbackFacadeStore
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Caches the facade, ensures the Agent is running, and registers the webhook_callback Service Task handler."
   @impl true

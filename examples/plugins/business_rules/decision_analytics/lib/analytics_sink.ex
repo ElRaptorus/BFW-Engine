@@ -9,11 +9,11 @@ defmodule Examples.BusinessRules.DecisionAnalytics.AnalyticsSink do
   and logs a warning when a spike is detected.
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionAnalytics.AnalyticsCollector
   alias Examples.BusinessRules.DecisionAnalytics.AnomalyDetector
 

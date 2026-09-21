@@ -5,12 +5,12 @@ import type {
   ProcessModel,
   StartRequest,
   StartResult,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 import {
   FlowNodeInstanceState,
   FlowNodeType,
   ProcessInstanceState,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 export async function main(): Promise<void> {
   const startRequest: StartRequest = {

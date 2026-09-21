@@ -17,7 +17,7 @@ The `docker-publish` job in `.github/workflows/ci.yml` pushes a **private** imag
 
 | Item | Value |
 |------|--------|
-| Image | `ghcr.io/<github-username>/daemon_engine` (Docker/OCI form of `@elraptorus/daemon_engine`; GHCR has no npm `@scope/` prefix) |
+| Image | `ghcr.io/<github-username>/bfw_engine` (Docker/OCI form of `@elraptorus/bfw_engine`; GHCR has no npm `@scope/` prefix) |
 | Tag | `mix.exs` `@version` |
 | When | After **both** `build_and_test` and `docker` succeed, and only when `github.ref` is `refs/heads/main` |
 | Visibility | Private (GHCR default on first publish; the job fails if the package is public) |
@@ -32,7 +32,7 @@ Two services:
 - `engine` (image built from the repo)
 - `postgres:16` with a volume, started as `postgres -c max_connections=200`
 
-Production pool defaults (`TDE_DB_POOL_SIZE` 100 + `TDE_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:16-alpine`.
+Production pool defaults (`BFE_DB_POOL_SIZE` 100 + `BFE_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:16-alpine`.
 
 There is no tracing sidecar and no metrics sidecar. Prometheus scrape is the engine's own `GET /metrics`.
 

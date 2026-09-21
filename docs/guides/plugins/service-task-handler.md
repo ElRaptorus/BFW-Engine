@@ -6,12 +6,12 @@ A Service Task handler processes automated tasks dispatched by the engine based 
 
 All Service Task handlers are **asynchronous**. `handle_enter/3` must return `{:async, ref}` and complete the FNI later through the engine facade. Synchronous `{:ok, ...}` returns are not supported.
 
-This is a deliberate design choice: Service Tasks represent external delegation to remote systems. The async contract enforces this boundary. If your work is local, synchronous computation, use a **Script Task** with a Named Script plugin instead — see `EvilEngine.Plugin.NamedScript`.
+This is a deliberate design choice: Service Tasks represent external delegation to remote systems. The async contract enforces this boundary. If your work is local, synchronous computation, use a **Script Task** with a Named Script plugin instead — see `BfwEngine.Plugin.NamedScript`.
 
 ## Behaviour
 
 ```elixir
-@behaviour EvilEngine.Plugin.ServiceTaskHandler
+@behaviour BfwEngine.Plugin.ServiceTaskHandler
 
 @callback handle_enter(
   flow_node :: struct(),
@@ -64,7 +64,7 @@ The pattern for all Service Task handlers: validate synchronously, spawn async w
 
 ```elixir
 defmodule MyPlugin.CrmHandler do
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @impl true
   def handle_enter(_flow_node, token, context) do
@@ -96,7 +96,7 @@ For long-running external processes (approval workflows, third-party integration
 
 ```elixir
 defmodule MyPlugin.ExternalApprovalHandler do
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @impl true
   def handle_enter(_flow_node, token, context) do
@@ -157,7 +157,7 @@ end
 
 ## Payload Cap
 
-Handler output (passed to `finish_async`) is checked against `TDE_TOKEN_MAX_BYTES` during the output pipeline. Oversized output causes the FNI to transition to `fatal`. See [Error Handling](../handbook/error-handling.md).
+Handler output (passed to `finish_async`) is checked against `BFE_TOKEN_MAX_BYTES` during the output pipeline. Oversized output causes the FNI to transition to `fatal`. See [Error Handling](../handbook/error-handling.md).
 
 ## Related
 

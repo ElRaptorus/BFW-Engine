@@ -271,7 +271,11 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_Outer", "End_Outer"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_Outer",
+            "End_Outer"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

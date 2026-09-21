@@ -1,13 +1,13 @@
-defmodule EvilEngine.Integration.Deployment.ChildLaneSetDeployTest do
+defmodule BfwEngine.Integration.Deployment.ChildLaneSetDeployTest do
   @moduledoc """
   Integration test for BPMN deploy with nested `childLaneSet` elements.
 
   Verifies that the REST deploy pipeline accepts BPMN containing nested lane
   sets and that the parser flattens child lanes into the parent lane set.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.BPMN.ModelCache
+  alias BfwEngine.BPMN.ModelCache
 
   @process_model_id "ChildLaneSetProcess"
 

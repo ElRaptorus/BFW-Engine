@@ -3,7 +3,7 @@ defmodule Examples.Plugins.CustomValidators.Scripts.IdempotencyGuard do
   Blocks execution when a boolean flag lives in `data_objects` under `"processed_flag"`.
   """
 
-  @behaviour EvilEngine.Plugin.NamedScript
+  @behaviour BfwEngine.Plugin.NamedScript
 
   @doc "For a map payload, blocks when data_objects marks processed_flag true and otherwise records processing_started; rejects non-map payloads with an error."
   @impl true

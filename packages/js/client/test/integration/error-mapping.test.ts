@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -12,7 +12,7 @@ import {
   waitForUserTask,
 } from '../support/test-engine.js';
 import {
-  DaemonEngineError,
+  BfwEngineError,
   ParseError,
   VersionExistsError,
   NotFoundError,
@@ -23,11 +23,11 @@ import {
   FniNotWaitingError,
   UnauthorizedError,
   ForbiddenError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
-let adminClient: DaemonEngineClient;
-let readOnlyClient: DaemonEngineClient;
-let unauthenticatedClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let readOnlyClient: BfwEngineClient;
+let unauthenticatedClient: BfwEngineClient;
 
 const passthroughProcessModelId = 'integration-passthrough';
 const userTaskProcessModelId = 'integration-user-task';
@@ -55,7 +55,7 @@ describe('Error Mapping', { concurrent: false }, () => {
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(ParseError);
-        expect(error).toBeInstanceOf(DaemonEngineError);
+        expect(error).toBeInstanceOf(BfwEngineError);
         if (error instanceof ParseError) {
           expect(error.errorCode).toBe('parse_error');
           expect(error.rawBody).toBeDefined();
@@ -246,15 +246,15 @@ describe('Error Mapping', { concurrent: false }, () => {
   });
 
   describe('instanceof narrowing verification', () => {
-    it('supports DaemonEngineError base instanceof', async () => {
+    it('supports BfwEngineError base instanceof', async () => {
       try {
         await adminClient.processes.start('nonexistent-xyz');
         expect.fail('Should have thrown');
       } catch (error) {
-        expect(error).toBeInstanceOf(DaemonEngineError);
+        expect(error).toBeInstanceOf(BfwEngineError);
         expect(error).toBeInstanceOf(ProcessNotFoundError);
         expect(error).not.toBeInstanceOf(ParseError);
-        if (error instanceof DaemonEngineError) {
+        if (error instanceof BfwEngineError) {
           expect(error.name).toBe('ProcessNotFoundError');
           expect(typeof error.message).toBe('string');
           expect(error.message.length).toBeGreaterThan(0);
@@ -269,7 +269,7 @@ describe('Error Mapping', { concurrent: false }, () => {
         await adminClient.processes.start('nonexistent-xyz');
         expect.fail('Should have thrown');
       } catch (error) {
-        if (error instanceof DaemonEngineError) {
+        if (error instanceof BfwEngineError) {
           expect(error.rawBody).toBeDefined();
           expect(error.rawBody?.error).toBe('process_not_found');
           expect(error.rawBody?.message).toBeDefined();

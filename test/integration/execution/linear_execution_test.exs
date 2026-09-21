@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.Execution.LinearExecutionTest do
+defmodule BfwEngine.Integration.Execution.LinearExecutionTest do
   @moduledoc "Integration tests for linear process execution (Start→End, Start→Task→End)."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   describe "Start → End" do
     test "PI finishes with 2 FNIs, both persisted as finished", %{collector: collector} do

@@ -1,8 +1,8 @@
 defmodule Examples.Plugins.ApiConsumer.WorkerTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
-  alias EvilEngine.Types.Identity
+  alias BfwEngine.EngineFacade
+  alias BfwEngine.Types.Identity
   alias Examples.Plugins.ApiConsumer.Worker
 
   test "runs orchestration callbacks in the documented order" do

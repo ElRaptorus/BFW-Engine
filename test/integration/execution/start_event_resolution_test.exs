@@ -1,6 +1,6 @@
-defmodule EvilEngine.Integration.Execution.StartEventResolutionTest do
+defmodule BfwEngine.Integration.Execution.StartEventResolutionTest do
   @moduledoc "Integration tests for multi-start-event disambiguation."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   setup do
     {201, _} = http_deploy("multi_start_events.bpmn")

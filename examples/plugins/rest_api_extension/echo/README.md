@@ -37,7 +37,7 @@ Reserved prefixes such as `/processes` are rejected at registration (`{:error, :
    config :my_plugin, :plugin_module, Examples.Plugins.RestApiExtension.EchoPlugin
    ```
 
-3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
+3. Add your OTP app name to `BFE_PLUGINS_INBEAM`.
 
 ## Further reading
 

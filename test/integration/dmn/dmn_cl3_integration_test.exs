@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.DMN.DmnCl3IntegrationTest do
+defmodule BfwEngine.Integration.DMN.DmnCl3IntegrationTest do
   @moduledoc """
   Full-stack integration tests for DMN CL3 features.
 
@@ -6,7 +6,7 @@ defmodule EvilEngine.Integration.DMN.DmnCl3IntegrationTest do
   the HTTP pipeline: deploy via `POST /decisions`, evaluate via service and
   ad-hoc endpoints.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when deploying a DMN version that already exists. */
-export class DecisionVersionExistsError extends DaemonEngineError {
+export class DecisionVersionExistsError extends BfwEngineError {
   constructor(
     message: string,
     public readonly conflicts: { decisionDefinitionId: string; version: string }[],

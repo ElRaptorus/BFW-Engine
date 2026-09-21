@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.DMN.DmnBkmTraceIntegrationTest do
+defmodule BfwEngine.Integration.DMN.DmnBkmTraceIntegrationTest do
   @moduledoc """
   Integration test verifying BKM trace presence in FNI type_properties
   when a BRT evaluates a DMN model with BKM invocations (7H.1).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

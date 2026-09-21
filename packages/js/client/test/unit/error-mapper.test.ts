@@ -4,7 +4,7 @@ import {
   BkmNotFoundError,
   DecisionServiceNotFoundError,
   DecisionServiceValidationError,
-  DaemonEngineError,
+  BfwEngineError,
   PayloadTooLargeError,
   RateLimitedError,
   EngineAtCapacityError,
@@ -54,7 +54,7 @@ import {
   NoMatchingConditionError,
   NoDecisionsError,
   ServiceUnavailableError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 describe('mapResponseError — domain error code mapping', () => {
   it('maps payload_too_large to PayloadTooLargeError', () => {
@@ -757,9 +757,9 @@ describe('mapResponseError — HTTP status fallback', () => {
     expect(error).toBeInstanceOf(InternalEngineError);
   });
 
-  it('returns a base DaemonEngineError for unrecognized status and code', () => {
+  it('returns a base BfwEngineError for unrecognized status and code', () => {
     const error = mapResponseError(418, { error: 'teapot', message: 'I am a teapot' });
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(418);
     expect(error.errorCode).toBe('teapot');
     expect(error.message).toBe('I am a teapot');

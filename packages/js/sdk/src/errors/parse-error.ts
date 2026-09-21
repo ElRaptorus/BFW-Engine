@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when BPMN XML parsing fails. */
-export class ParseError extends DaemonEngineError {
+export class ParseError extends BfwEngineError {
   constructor(
     message: string,
     public readonly failures: { file: string; details: string[] }[],

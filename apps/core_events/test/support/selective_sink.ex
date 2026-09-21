@@ -1,6 +1,6 @@
-defmodule EvilEngine.Test.SelectiveSink do
+defmodule BfwEngine.Test.SelectiveSink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @impl true
   def init(opts) do
@@ -9,7 +9,7 @@ defmodule EvilEngine.Test.SelectiveSink do
   end
 
   @impl true
-  def accepts?(%EvilEngine.Types.Event.EngineStarted{}), do: true
+  def accepts?(%BfwEngine.Types.Event.EngineStarted{}), do: true
   def accepts?(_event), do: false
 
   @impl true

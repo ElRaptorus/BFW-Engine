@@ -1,7 +1,7 @@
 defmodule Examples.EventSinks.Sse.SseSinkTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.EventSinks.Sse.{ConnectionHub, SseSink}
 
   setup do

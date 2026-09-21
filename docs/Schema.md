@@ -11,7 +11,7 @@ Operator retention, payload cap, and compression: [database.md](./guides/operati
 > `engine_timers` tables. Escalation and compensation observability is
 > EngineEventBus plus in-memory registries; PI-scoped catch/boundary timers
 > persist in FNI `type_properties` plus Scheduler ETS. Production Timer Start
-> persistence is `EvilEngine.Persistence.TimerStartScheduleAdapter`.
+> persistence is `BfwEngine.Persistence.TimerStartScheduleAdapter`.
 
 ## 1. Legend
 
@@ -20,7 +20,7 @@ Operator retention, payload cap, and compression: [database.md](./guides/operati
   scheme so a native multi-table FK isn't expressible cleanly; integrity is
   enforced at the application layer for `pending_messages` / `pending_signals`).
 - **Tables tagged "PARTITIONED"** use `PARTITION BY RANGE (ts)`. Partitions
-  are pre-created by `mix evil.partitions.ensure` on every engine boot
+  are pre-created by `mix bfw.partitions.ensure` on every engine boot
   ([configuration.md](./architecture/configuration.md)).
 - **LZ4**: JSONB column declared `COMPRESSION lz4` (Postgres 14+).
 
@@ -43,7 +43,7 @@ erDiagram
   process_versions {
     uuid        id PK
     uuid        process_id FK
-    text        version "evil:version, required"
+    text        version "bfw:version, required"
     text        definitions_id "nullable; bpmn:definitions@id"
     text        bpmn_xml "source of truth"
     jsonb       deployer
@@ -70,7 +70,7 @@ erDiagram
   }
 
   %% ===========================================================
-  %% DMN Catalog (Phase 3–5)
+  %% DMN Catalog
   %% ===========================================================
   decision_definitions ||--o{ decision_versions : "has versions"
   decision_definitions {
@@ -112,7 +112,7 @@ erDiagram
     timestamptz started_at
     timestamptz finished_at "nullable"
     jsonb       started_by "identity claim"
-    jsonb       started_with_context "LZ4, capped by TDE_TOKEN_MAX_BYTES"
+    jsonb       started_with_context "LZ4, capped by BFE_TOKEN_MAX_BYTES"
     jsonb       error_info "nullable, fatal/abort reason"
   }
 
@@ -128,7 +128,7 @@ erDiagram
     timestamptz finished_at "nullable"
     uuid_ARRAY  previous_flow_node_instance_ids
     uuid        triggerer_flow_node_instance_id "nullable"
-    jsonb       input_token "LZ4, TDE_TOKEN_MAX_BYTES"
+    jsonb       input_token "LZ4, BFE_TOKEN_MAX_BYTES"
     jsonb       output_token "LZ4, nullable"
     jsonb       type_properties "LZ4"
   }
@@ -198,7 +198,7 @@ erDiagram
     text        correlation_value "nullable"
     jsonb       payload "LZ4"
     timestamptz published_at "PARTITION KEY"
-    timestamptz expires_at "= published_at + TDE_MESSAGE_PENDING_TTL"
+    timestamptz expires_at "= published_at + BFE_MESSAGE_PENDING_TTL"
     text        state "pending|delivered|expired|cancelled"
     timestamptz delivered_at "nullable"
     timestamptz expired_at "nullable"
@@ -220,7 +220,7 @@ erDiagram
     text        signal_name
     jsonb       payload "LZ4"
     timestamptz published_at "PARTITION KEY"
-    timestamptz expires_at "= published_at + TDE_SIGNAL_PENDING_TTL"
+    timestamptz expires_at "= published_at + BFE_SIGNAL_PENDING_TTL"
     text        state
     timestamptz delivered_at "nullable"
     timestamptz expired_at "nullable"
@@ -261,15 +261,15 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 ### 4.1 Catalog
 
 - **`processes`** — one row per deployed BPMN process definition (by `process_model_id`, which is the BPMN `bpmn:process@id` attribute). Carries the `enabled` master switch.
-- **`process_versions`** — one row per deployed BPMN *version* of a process. `definitions_id` stores the `bpmn:definitions@id` attribute from the BPMN XML (nullable for legacy deploys). Deletion is a binary flag: `deleted BOOLEAN NOT NULL DEFAULT false`, paired with `deleted_at TIMESTAMPTZ NULL` (timestamp of deletion) and `deleted_by JSONB NULL` (identity claim of the deleter, same shape as `started_by` on `process_instances`). `WHERE NOT deleted` is the active-version predicate. Mirrors the sibling boolean `processes.enabled`. Stores the raw `bpmn_xml` as the **single persistent source of truth** — the parsed AST is only in-memory via `EvilEngine.BPMN.ModelCache`.
+- **`process_versions`** — one row per deployed BPMN *version* of a process. `definitions_id` stores the `bpmn:definitions@id` attribute from the BPMN XML (nullable for legacy deploys). Deletion is a binary flag: `deleted BOOLEAN NOT NULL DEFAULT false`, paired with `deleted_at TIMESTAMPTZ NULL` (timestamp of deletion) and `deleted_by JSONB NULL` (identity claim of the deleter, same shape as `started_by` on `process_instances`). `WHERE NOT deleted` is the active-version predicate. Mirrors the sibling boolean `processes.enabled`. Stores the raw `bpmn_xml` as the **single persistent source of truth** — the parsed AST is only in-memory via `BfwEngine.BPMN.ModelCache`.
 - **`decision_definitions`** — one row per deployed DMN decision definition (by `decision_definition_id`, the DMN `definitions@id` attribute). Carries its own `enabled` master switch. Mirrors the BPMN `processes` pattern. See [`dmn.md`](./architecture/dmn.md) §Persistence Layer.
 - **`decision_versions`** — one row per deployed DMN *version* of a decision definition. Stores the raw `dmn_xml` as the persistent source of truth. Same soft-delete pattern as `process_versions`: `deleted` boolean + `deleted_at` + `deleted_by`. `WHERE NOT deleted` is the active-version predicate. See [`dmn.md`](./architecture/dmn.md) §Persistence Layer.
-- **`timer_start_schedules`** — operational cycle Timer Start rows (kind `'cycle'` only). Unique `(process_version_id, flow_node_id)`. Production persistence: `EvilEngine.Persistence.TimerStartScheduleAdapter`. Not engine-audit; operator SQL must not DELETE these rows. Deleted on undeploy / unregister / version CASCADE.
+- **`timer_start_schedules`** — operational cycle Timer Start rows (kind `'cycle'` only). Unique `(process_version_id, flow_node_id)`. Production persistence: `BfwEngine.Persistence.TimerStartScheduleAdapter`. Not engine-audit; operator SQL must not DELETE these rows. Deleted on undeploy / unregister / version CASCADE.
 
 ### 4.2 Execution state
 
 - **`process_instances`** — one row per Process Instance. Pinned to an immutable `process_version_id` for its lifetime so Resume always sees the originally-deployed BPMN. No `final_token` column (derived via the `finalTokens` GraphQL calc from End-Event FNIs' `output_token`).
-- **`flow_node_instances`** — one row per executed Flow Node. Carries `input_token` (always set) + `output_token` (nullable, retained in v1 ) both LZ4-compressed and capped by `TDE_TOKEN_MAX_BYTES`. Array `previous_flow_node_instance_ids` supports parallel/inclusive joins.
+- **`flow_node_instances`** — one row per executed Flow Node. Carries `input_token` (always set) + `output_token` (nullable, retained in v1 ) both LZ4-compressed and capped by `BFE_TOKEN_MAX_BYTES`. Array `previous_flow_node_instance_ids` supports parallel/inclusive joins.
 - **`gateway_pending_arrivals`** — one row per (gateway-FNI, incoming-branch) awaiting siblings at a parallel/inclusive join. Atomically deleted when the gateway fires or when the enclosing scope is interrupted. Replaces the former `active_tokens` table. Not partitioned — working set is bounded by the count of currently-waiting joins across all running PIs.
 - **`data_objects`** — current-value snapshot per (PI, DO). Upserted on every write; history goes into `data_object_writes`. Row absence means "unset" — distinct from a legitimately-written `jsonb 'null'`.
 
@@ -277,16 +277,16 @@ This is deliberate and is what makes engine-audit retention independent of PI re
 
 - **`process_instance_events`** — **partitioned monthly** by `occurred_at`. The built-in database EventSink is gone; this table stays empty on a stock engine. Mix retention still deletes leftover rows with the PI tree. **Not required** for debugger BPMN-flow reconstruction (kernel tables). A plugin sink can write a custom log if a flat SQL event store is needed.
 - **`messages`** — **partitioned monthly** by `published_at`. One row per published message (via API trigger or Message Throw event). `correlations` JSONB array records who received it (broadcast-within-key ).
-- **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `TDE_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible.
+- **`pending_messages`** — **partitioned monthly** by `published_at`. Messages published with zero matching subscriptions are held until `BFE_MESSAGE_PENDING_TTL` expires or a matching subscription registers (§3.5.4). Operational state (`state='pending'`) is NEVER retention-swept; terminal states (`delivered`/`expired`/`cancelled`) are retention-eligible.
 - **`signals`** — **partitioned monthly** by `published_at`. Broadcast-to-all semantics (no correlation dimension). `correlations` JSONB array records every delivered subscription.
-- **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `TDE_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`.
+- **`pending_signals`** — **partitioned monthly** by `published_at`. Signals published with zero matching listeners held for `BFE_SIGNAL_PENDING_TTL`. Drained when any catching subscription registers within TTL; broadcast-to-all semantics preserved via the parent `signals.correlations` append. Same retention + delete-on-transition semantics as `pending_messages`.
 - **`pending_escalations`** — **dropped (escalation D1).** Not created, not swept, no late-catch drain. Escalation observability is `Event.EscalationRaised` on EngineEventBus.
 - **`data_object_writes`** — **partitioned** by `created_at`. Append-only history; atomically consistent with the `data_objects` snapshot update. Every row is DOA-originated (the `source` column was dropped since all writes come from `bpmn:dataOutputAssociation`). Always written regardless of sink config — this is kernel state, not an observability sink.
 
 ## 5. Partitioning summary
 
 Six tables ship as `PARTITION BY RANGE (timestamp)`, pre-created by
-`mix evil.partitions.ensure` on every engine boot. Composite primary keys
+`mix bfw.partitions.ensure` on every engine boot. Composite primary keys
 `(id, <timestamp>)` because the partition key must be in the PK.
 
 | Table | Partition key |

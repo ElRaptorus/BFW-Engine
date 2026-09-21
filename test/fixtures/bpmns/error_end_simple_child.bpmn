@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_ErrorEndSimpleChild">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -14,7 +14,7 @@
 
   <bpmn:process id="ErrorEndChild" name="Error End Simple Child" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -28,8 +28,8 @@
     <bpmn:endEvent id="End_Error" name="Child Error">
       <bpmn:errorEventDefinition>
         <bpmn:extensionElements>
-          <evil:errorCode>CHILD_ERROR</evil:errorCode>
-          <evil:errorMessage>Child process error</evil:errorMessage>
+          <bfw:errorCode>CHILD_ERROR</bfw:errorCode>
+          <bfw:errorMessage>Child process error</bfw:errorMessage>
         </bpmn:extensionElements>
       </bpmn:errorEventDefinition>
     </bpmn:endEvent>

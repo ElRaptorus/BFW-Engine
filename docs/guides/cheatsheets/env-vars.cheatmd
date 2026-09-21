@@ -3,37 +3,37 @@
 ## Database
 
 ```bash
-TDE_DATABASE_URL=ecto://user:pass@host:5432/evil_engine
-TDE_DB_POOL_SIZE=100
-TDE_DB_READ_POOL_SIZE=50
-TDE_DB_IPV6=false
-TDE_DB_SSL=false
+BFE_DATABASE_URL=ecto://user:pass@host:5432/bfw_engine
+BFE_DB_POOL_SIZE=100
+BFE_DB_READ_POOL_SIZE=50
+BFE_DB_IPV6=false
+BFE_DB_SSL=false
 ```
 
 ## HTTP / GraphQL / WebSocket
 
 ```bash
-TDE_HTTP_PORT=4000
-TDE_HTTP_SECRET_KEY_BASE=<min 64 chars>
-TDE_WS_CHECK_ORIGIN=false
+BFE_HTTP_PORT=4000
+BFE_HTTP_SECRET_KEY_BASE=<min 64 chars>
+BFE_WS_CHECK_ORIGIN=false
 ```
 
 ## Engine Identity
 
 ```bash
-TDE_ENGINE_ID=evil-engine-local
-TDE_ENGINE_NAME=Daemon Engine (local)
+BFE_ENGINE_ID=bfw-engine-local
+BFE_ENGINE_NAME=Bifrost Forge World Engine (local)
 ```
 
 ## Authentication
 
 ```bash
-TDE_JWT_HS256_SECRET=<min 32 bytes>
-TDE_JWT_JWKS_URL=https://auth.example.com/.well-known/jwks.json
-TDE_JWKS_REFRESH_SECONDS=3600
-TDE_JWT_AUDIENCE=
-TDE_JWT_ISSUER=
-TDE_AUTH_DISABLED=false
+BFE_JWT_HS256_SECRET=<min 32 bytes>
+BFE_JWT_JWKS_URL=https://auth.example.com/.well-known/jwks.json
+BFE_JWKS_REFRESH_SECONDS=3600
+BFE_JWT_AUDIENCE=
+BFE_JWT_ISSUER=
+BFE_AUTH_DISABLED=false
 ```
 
 ## Payload and Compression
@@ -42,43 +42,43 @@ Hard payload cap and JSONB toast algorithm. Operator guide:
 [Database administration](../operations/database.md).
 
 ```bash
-TDE_TOKEN_MAX_BYTES=65536
-TDE_JSONB_COMPRESSION=lz4
+BFE_TOKEN_MAX_BYTES=65536
+BFE_JSONB_COMPRESSION=lz4
 ```
 
 ## Seeding
 
 ```bash
-TDE_SEEDING_DIRECTORY=/app/seeding
+BFE_SEEDING_DIRECTORY=/app/seeding
 ```
 
 ## Timers
 
 ```bash
-TDE_TIMER_TICK_MS=1000
+BFE_TIMER_TICK_MS=1000
 ```
 
 ## Linter Gate
 
 ```bash
-TDE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","minScorePercent":100}]'
-TDE_LINTER_GATE_SKIP_SEEDING=false
+BFE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","minScorePercent":100}]'
+BFE_LINTER_GATE_SKIP_SEEDING=false
 ```
 
 ## Event Sinks
 
 ```bash
-TDE_EVENT_SINK_CONSOLE=on
-TDE_EVENT_SINK_TELEMETRY=on
-TDE_EVENT_SINK_WEBSOCKET=on
-TDE_LOG_MIN_SEVERITY=info
+BFE_EVENT_SINK_CONSOLE=on
+BFE_EVENT_SINK_TELEMETRY=on
+BFE_EVENT_SINK_WEBSOCKET=on
+BFE_LOG_MIN_SEVERITY=info
 ```
 
 ## Pending TTLs
 
 ```bash
-TDE_MESSAGE_PENDING_TTL=PT60S
-TDE_SIGNAL_PENDING_TTL=PT60S
+BFE_MESSAGE_PENDING_TTL=PT60S
+BFE_SIGNAL_PENDING_TTL=PT60S
 ```
 
 Escalations are not queued as pending events; there is no pending-escalation table or TTL.
@@ -86,37 +86,37 @@ Escalations are not queued as pending events; there is no pending-escalation tab
 ## Retention (Mix task; unset days = never auto-purge)
 
 ```bash
-TDE_RETENTION_RUN_INTERVAL=PT1H
-TDE_RETENTION_BATCH_SIZE=500
-TDE_RETENTION_FINISHED_DAYS=
-TDE_RETENTION_ERROR_DAYS=
-TDE_RETENTION_FATAL_DAYS=
-TDE_RETENTION_ABORTED_DAYS=
-TDE_RETENTION_ESCALATED_DAYS=
-TDE_RETENTION_COMPENSATED_DAYS=
-TDE_RETENTION_CANCELLED_DAYS=
-TDE_RETENTION_ENGINE_AUDIT_DAYS=
-TDE_PARTITION_INTERVAL=quarterly
-TDE_PARTITION_AHEAD_MONTHS=3
-TDE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
-TDE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
+BFE_RETENTION_RUN_INTERVAL=PT1H
+BFE_RETENTION_BATCH_SIZE=500
+BFE_RETENTION_FINISHED_DAYS=
+BFE_RETENTION_ERROR_DAYS=
+BFE_RETENTION_FATAL_DAYS=
+BFE_RETENTION_ABORTED_DAYS=
+BFE_RETENTION_ESCALATED_DAYS=
+BFE_RETENTION_COMPENSATED_DAYS=
+BFE_RETENTION_CANCELLED_DAYS=
+BFE_RETENTION_ENGINE_AUDIT_DAYS=
+BFE_PARTITION_INTERVAL=quarterly
+BFE_PARTITION_AHEAD_MONTHS=3
+BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=true
+BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=true
 ```
 
-`mix evil.retention.purge` hard-deletes aged terminal PI trees. `TDE_RETENTION_RUN_INTERVAL` is ignored (cron owns the interval). `TDE_RETENTION_ENGINE_AUDIT_DAYS` is not read by the engine; use it as the cutoff for the SQL recipe in [database.md](../operations/database.md).
+`mix bfw.retention.purge` hard-deletes aged terminal PI trees. `BFE_RETENTION_RUN_INTERVAL` is ignored (cron owns the interval). `BFE_RETENTION_ENGINE_AUDIT_DAYS` is not read by the engine; use it as the cutoff for the SQL recipe in [database.md](../operations/database.md).
 
 ## Prometheus Metrics
 
 ```bash
-TDE_METRICS_ENABLED=true
+BFE_METRICS_ENABLED=true
 ```
 
 ## Back-Pressure
 
 ```bash
-TDE_MAX_CONCURRENT_PIS=infinity
-TDE_RESUME_BATCH_SIZE=1000
-TDE_PI_START_RATE_LIMIT=0
-TDE_PI_START_RATE_WINDOW_MS=1000
+BFE_MAX_CONCURRENT_PIS=infinity
+BFE_RESUME_BATCH_SIZE=1000
+BFE_PI_START_RATE_LIMIT=0
+BFE_PI_START_RATE_WINDOW_MS=1000
 ```
 
 ## Plugins
@@ -124,7 +124,7 @@ TDE_PI_START_RATE_WINDOW_MS=1000
 In-BEAM OTP apps only.
 
 ```bash
-TDE_PLUGINS_INBEAM=
-TDE_PLUGINS_INCLUDE=
-TDE_PLUGINS_EXCLUDE=
+BFE_PLUGINS_INBEAM=
+BFE_PLUGINS_INCLUDE=
+BFE_PLUGINS_EXCLUDE=
 ```

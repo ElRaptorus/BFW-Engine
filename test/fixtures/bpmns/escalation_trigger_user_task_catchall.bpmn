@@ -3,15 +3,15 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_EscTriggerCatchall">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_1" name="Escalation Trigger Catch-all" processRef="EscalationTriggerCatchall" />
   </bpmn:collaboration>
   <bpmn:process id="EscalationTriggerCatchall" name="Escalation Trigger Catch-all" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -27,7 +27,7 @@
     </bpmn:startEvent>
     <bpmn:userTask id="UserTask_1" name="Review">
       <bpmn:extensionElements>
-        <evil:assignees>["admin"]</evil:assignees>
+        <bfw:assignees>["admin"]</bfw:assignees>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>

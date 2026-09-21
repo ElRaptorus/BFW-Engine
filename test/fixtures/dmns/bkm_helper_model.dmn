@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="Definitions_bkm_helper"
              name="BKM Helper Model"
-             namespace="https://evilengine.dev/test/bkm-helper"
+             namespace="https://bifrostforge.world/test/bkm-helper"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">

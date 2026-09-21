@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
+defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
   @moduledoc """
   WebSocket channel authorization tests.
 
@@ -8,14 +8,14 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
   - Lane-filtered event dispatch: laned FNI events dropped for
     subscribers without matching lane claim; default lane enforcement
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   import Phoenix.ChannelTest
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngineWeb.Ws.Sinks.WebSocket, as: WebSocketSink
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngineWeb.Ws.Sinks.WebSocket, as: WebSocketSink
 
-  @endpoint EvilEngineWeb.Http.Endpoint
+  @endpoint BfwEngineWeb.Http.Endpoint
   @moduletag :integration
 
   # -------------------------------------------------------------------------
@@ -23,7 +23,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
   # -------------------------------------------------------------------------
 
   defp make_identity(opts) do
-    %EvilEngine.Types.Identity{
+    %BfwEngine.Types.Identity{
       id: opts[:id] || "test-user",
       roles: opts[:roles] || [],
       groups: opts[:groups] || [],
@@ -32,7 +32,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
   end
 
   defp connect_socket(identity) do
-    socket(EvilEngineWeb.Ws.UserSocket, "user:#{identity.id}", %{identity: identity})
+    socket(BfwEngineWeb.Ws.UserSocket, "user:#{identity.id}", %{identity: identity})
   end
 
   defp start_laned_process do
@@ -69,7 +69,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:error, %{reason: "not_found"}} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
 
     test "nonexistent PI is rejected" do
@@ -77,7 +77,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:error, %{reason: "not_found"}} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:00000000-0000-0000-0000-000000000000", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:00000000-0000-0000-0000-000000000000", %{})
     end
   end
 
@@ -89,7 +89,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
 
     test "user with matching lane claim can join" do
@@ -99,7 +99,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
 
     test "user with read-only lane claim can join" do
@@ -111,7 +111,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       assert {:ok, _, _socket} =
                subscribe_and_join(
                  socket,
-                 EvilEngineWeb.Ws.EngineChannel,
+                 BfwEngineWeb.Ws.EngineChannel,
                  "process_instance:#{process_instance_id}",
                  %{}
                )
@@ -124,7 +124,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
 
     test "observe_all can join a foreign-lane PI" do
@@ -136,7 +136,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       assert {:ok, _, _socket} =
                subscribe_and_join(
                  socket,
-                 EvilEngineWeb.Ws.EngineChannel,
+                 BfwEngineWeb.Ws.EngineChannel,
                  "process_instance:#{process_instance_id}",
                  %{}
                )
@@ -149,7 +149,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
 
     test "user without default lane claim cannot join PI with default lane" do
@@ -159,7 +159,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:error, %{reason: "not_found"}} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "process_instance:#{process_instance_id}", %{})
     end
   end
 
@@ -177,7 +177,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, socket} =
         subscribe_and_join(
           socket,
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
@@ -196,7 +196,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, socket} =
         subscribe_and_join(
           socket,
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
@@ -223,7 +223,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, socket} =
         subscribe_and_join(
           socket,
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
@@ -242,7 +242,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, socket} =
         subscribe_and_join(
           socket,
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
@@ -259,7 +259,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
     end
 
     test "any authenticated user can join user_tasks:pending" do
@@ -267,7 +267,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:ok, _, _socket} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
     end
 
     test "unknown user_tasks subtopic is rejected" do
@@ -275,7 +275,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       socket = connect_socket(identity)
 
       assert {:error, %{reason: "not_found"}} =
-               subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:other", %{})
+               subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "user_tasks:other", %{})
     end
   end
 
@@ -292,7 +292,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "subscriber without Management never receives live Management FlowNodeInstanceStarted on engine:events" do
       identity = make_identity(%{id: "starter-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
 
       process_instance_id = deploy_and_start_laned()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -311,7 +311,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, _} =
         subscribe_and_join(
           socket,
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
@@ -326,7 +326,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "live laneless FlowNodeInstanceStarted is delivered on engine:events" do
       identity = make_identity(%{id: "stranger-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
 
       process_instance_id = deploy_and_start_laneless()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -353,7 +353,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, _} =
         subscribe_and_join(
           socket,
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
@@ -376,7 +376,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "stranger on engine:events does not receive ProcessInstanceStateChanged for LanedUserTask" do
       identity = make_identity(%{id: "stranger-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
 
       process_instance_id = deploy_and_start_laned()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -394,7 +394,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "starter on engine:events receives ProcessInstanceStateChanged via startedById" do
       identity = make_identity(%{id: "starter-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
 
       process_instance_id = deploy_and_start_laned()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -415,7 +415,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "subscriber with Management receives live Management FNI events on engine:events" do
       identity = make_identity(%{id: "lane-observer", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "engine:events", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
 
       process_instance_id = deploy_and_start_laned()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -435,7 +435,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "user_tasks:pending delivers Management UserTaskCreated with lane:Management" do
       identity = make_identity(%{id: "inbox-lane-user", claims: %{"lane:Management" => "write"}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
 
       process_instance_id = deploy_and_start_laned()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -449,7 +449,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
     test "user_tasks:pending drops Management UserTaskCreated without lane:Management" do
       identity = make_identity(%{id: "inbox-no-lane-user", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
 
       process_instance_id = deploy_and_start_laned()
       {:ok, _user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
@@ -466,7 +466,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
       {:ok, _, _} =
         subscribe_and_join(
           connect_socket(identity),
-          EvilEngineWeb.Ws.EngineChannel,
+          BfwEngineWeb.Ws.EngineChannel,
           "user_tasks:pending",
           %{}
         )
@@ -486,7 +486,7 @@ defmodule EvilEngine.Integration.Auth.WebsocketAuthorizationTest do
 
       identity = make_identity(%{id: "inbox-no-lane-finish", claims: %{}})
       socket = connect_socket(identity)
-      {:ok, _, _} = subscribe_and_join(socket, EvilEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+      {:ok, _, _} = subscribe_and_join(socket, BfwEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
 
       {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => "write"})
       wait_for_process_instance(process_instance_id)

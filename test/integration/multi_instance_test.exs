@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.MultiInstanceTest do
+defmodule BfwEngine.Integration.MultiInstanceTest do
   @moduledoc """
   Umbrella-level integration tests for Multi-Instance (parallel and sequential)
   execution via the lightweight iteration scope architecture.
@@ -7,12 +7,12 @@ defmodule EvilEngine.Integration.MultiInstanceTest do
   real PostgreSQL persistence, covering happy paths, error handling, boundary
   events, empty/capped collections, nested MI, resume, and retry.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   require Ash.Query
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   @default_timeout 15_000
 
@@ -47,7 +47,7 @@ defmodule EvilEngine.Integration.MultiInstanceTest do
       assert multi_instance_completed.early_break == false
 
       iteration_records =
-        EvilEngine.Persistence.Resources.FlowNodeInstance
+        BfwEngine.Persistence.Resources.FlowNodeInstance
         |> Ash.Query.filter(
           process_instance_id == ^process_instance_id and not is_nil(multi_instance_id)
         )
@@ -671,7 +671,7 @@ defmodule EvilEngine.Integration.MultiInstanceTest do
          deadline
        ) do
     waiting_flow_node_instances =
-      EvilEngine.Persistence.Resources.FlowNodeInstance
+      BfwEngine.Persistence.Resources.FlowNodeInstance
       |> Ash.Query.filter(
         process_instance_id == ^process_instance_id and
           flow_node_type == ^flow_node_type and
@@ -710,13 +710,13 @@ defmodule EvilEngine.Integration.MultiInstanceTest do
     Application.put_env(
       :core_execution,
       :service_task_dispatch,
-      EvilEngine.Plugins.RegistryDispatch
+      BfwEngine.Plugins.RegistryDispatch
     )
 
-    EvilEngine.Plugins.Registry.register_capability(
+    BfwEngine.Plugins.Registry.register_capability(
       "test_mi_plugin",
       :service_task_handler,
-      %{implementation: "test", module: EvilEngine.Test.ExamplePlugin.AsyncParkHandler}
+      %{implementation: "test", module: BfwEngine.Test.ExamplePlugin.AsyncParkHandler}
     )
   end
 end

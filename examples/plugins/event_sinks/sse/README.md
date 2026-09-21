@@ -1,6 +1,6 @@
 # SSE Event Sink + RestApiExtension
 
-Production-realistic plugin: consume `EvilEngine.Types.Event.*` via an EventSink
+Production-realistic plugin: consume `BfwEngine.Types.Event.*` via an EventSink
 and push JSON frames to browsers/`curl` over **the engine's existing HTTP
 server**. There is no second Bandit listener.
 
@@ -20,7 +20,7 @@ engine core.
    config :my_plugin, :plugin_module, Examples.EventSinks.Sse.SsePlugin
    ```
 
-3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
+3. Add your OTP app name to `BFE_PLUGINS_INBEAM`.
 
 ## Lifecycle
 

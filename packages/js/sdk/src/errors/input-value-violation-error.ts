@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when an input value does not satisfy the `inputValues` constraint on a decision table column. */
-export class InputValueViolationError extends DaemonEngineError {
+export class InputValueViolationError extends BfwEngineError {
   constructor(
     message: string,
     /** The DMN input element ID whose constraint was violated. */

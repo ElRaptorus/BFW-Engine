@@ -253,12 +253,12 @@ result into the process token.
 ### Basic Wiring
 
 Set `implementation="dmn"` on the Business Rule Task and reference the
-deployed DMN model via `evil:decisionRef`:
+deployed DMN model via `bfw:decisionRef`:
 
 ```xml
 <bpmn:businessRuleTask id="BRT_discount" name="Apply Discount" implementation="dmn">
   <bpmn:extensionElements>
-    <evil:decisionRef>discount-rules</evil:decisionRef>
+    <bfw:decisionRef>discount-rules</bfw:decisionRef>
   </bpmn:extensionElements>
   <bpmn:incoming>Flow_1</bpmn:incoming>
   <bpmn:outgoing>Flow_2</bpmn:outgoing>
@@ -276,19 +276,19 @@ At runtime:
 
 When a DMN model contains multiple `<decision>` elements (a DRD), the engine
 needs to know which decision to evaluate as the entry point. Use
-`evil:decisionElementId` to select it:
+`bfw:decisionElementId` to select it:
 
 ```xml
 <bpmn:businessRuleTask id="BRT_approval" name="Underwriting" implementation="dmn">
   <bpmn:extensionElements>
-    <evil:decisionRef>credit-underwriting</evil:decisionRef>
-    <evil:decisionElementId>Decision_final_approval</evil:decisionElementId>
+    <bfw:decisionRef>credit-underwriting</bfw:decisionRef>
+    <bfw:decisionElementId>Decision_final_approval</bfw:decisionElementId>
   </bpmn:extensionElements>
 </bpmn:businessRuleTask>
 ```
 
 The engine evaluates the named decision and all its upstream dependencies
-(per the DRD). If `evil:decisionElementId` is omitted and the model contains
+(per the DRD). If `bfw:decisionElementId` is omitted and the model contains
 exactly one decision, it auto-resolves. If it contains multiple decisions
 and no element ID is specified, the FNI transitions to `fatal` with an
 `{:error, :ambiguous_decision}` error.
@@ -296,10 +296,10 @@ and no element ID is specified, the FNI transitions to `fatal` with an
 ### Result Variable Wrapping
 
 By default, the DMN evaluation result is merged directly into the output
-token. Use `evil:resultVariable` to wrap it under a specific key:
+token. Use `bfw:resultVariable` to wrap it under a specific key:
 
 ```xml
-<evil:resultVariable>discountResult</evil:resultVariable>
+<bfw:resultVariable>discountResult</bfw:resultVariable>
 ```
 
 | Scenario | Output token |
@@ -317,11 +317,11 @@ contracts available on Service Tasks and Script Tasks:
 ```xml
 <bpmn:businessRuleTask id="BRT_1" name="Mapped Decision" implementation="dmn">
   <bpmn:extensionElements>
-    <evil:decisionRef>my-rules</evil:decisionRef>
-    <evil:inputMapping source="token.orderData" target="order"/>
-    <evil:payloadContract>{"type":"object","required":["order"]}</evil:payloadContract>
-    <evil:outputMapping source="token.riskLevel" target="risk"/>
-    <evil:resultContract>{"type":"object","required":["risk"]}</evil:resultContract>
+    <bfw:decisionRef>my-rules</bfw:decisionRef>
+    <bfw:inputMapping source="token.orderData" target="order"/>
+    <bfw:payloadContract>{"type":"object","required":["order"]}</bfw:payloadContract>
+    <bfw:outputMapping source="token.riskLevel" target="risk"/>
+    <bfw:resultContract>{"type":"object","required":["risk"]}</bfw:resultContract>
   </bpmn:extensionElements>
 </bpmn:businessRuleTask>
 ```
@@ -334,12 +334,12 @@ token → in_mappings (FEEL) → payload_contract (JSON Schema) → DMN evaluati
 
 ### Unmatched Rule Tracing
 
-Enable `evil:traceUnmatchedRules` to include details about rules that
+Enable `bfw:traceUnmatchedRules` to include details about rules that
 did *not* match in the evaluation trace. This is valuable for debugging
 decision logic and detecting dead rules:
 
 ```xml
-<evil:traceUnmatchedRules>true</evil:traceUnmatchedRules>
+<bfw:traceUnmatchedRules>true</bfw:traceUnmatchedRules>
 ```
 
 ## Evaluation Trace and Observability
@@ -390,8 +390,8 @@ The engine emits `:telemetry` events for DMN operations:
 
 | Event | Measurements | Metadata |
 |-------|-------------|----------|
-| `[:evil_engine, :dmn, :evaluation, :stop]` | `duration` (native time) | `decision_model_id`, `hit_policy`, `matched_rule_count` |
-| `[:evil_engine, :dmn, :deploy, :stop]` | `duration` | `model_id`, `version`, `decision_count` |
+| `[:bfw_engine, :dmn, :evaluation, :stop]` | `duration` (native time) | `decision_model_id`, `hit_policy`, `matched_rule_count` |
+| `[:bfw_engine, :dmn, :deploy, :stop]` | `duration` | `model_id`, `version`, `decision_count` |
 
 These events feed into the Prometheus `/metrics` endpoint when enabled.
 
@@ -421,13 +421,13 @@ All DMN-related failures in a Business Rule Task transition the FNI to `fatal`:
 
 | Error | Cause |
 |-------|-------|
-| `{:decision_not_found, ref}` | `evil:decisionRef` does not match any deployed definition |
+| `{:decision_not_found, ref}` | `bfw:decisionRef` does not match any deployed definition |
 | `{:decision_disabled, ref}` | The definition exists but is disabled |
 | `{:decision_version_not_found, ref}` | No active (non-deleted) version available |
 | `{:dmn_cache_load_failed, reason}` | Model cache could not load the compiled model |
 | `{:dmn_evaluation_failed, type, meta}` | FEEL evaluation error during rule matching |
 | `{:dmn_evaluation_timeout, meta}` | Evaluation exceeded the configured timeout (default 30s) |
-| `{:error, :ambiguous_decision}` | Multi-decision model without `evil:decisionElementId` |
+| `{:error, :ambiguous_decision}` | Multi-decision model without `bfw:decisionElementId` |
 
 Standalone REST evaluation returns structured error responses with the same
 error types as HTTP 422 bodies.
@@ -497,7 +497,7 @@ process.
 ```xml
 <bpmn:process id="order-discount" name="Apply Order Discount" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </bpmn:extensionElements>
 
   <bpmn:startEvent id="Start_1">
@@ -507,7 +507,7 @@ process.
   <bpmn:businessRuleTask id="BRT_discount" name="Calculate Discount"
                          implementation="dmn">
     <bpmn:extensionElements>
-      <evil:decisionRef>discount-rules</evil:decisionRef>
+      <bfw:decisionRef>discount-rules</bfw:decisionRef>
     </bpmn:extensionElements>
     <bpmn:incoming>Flow_1</bpmn:incoming>
     <bpmn:outgoing>Flow_2</bpmn:outgoing>

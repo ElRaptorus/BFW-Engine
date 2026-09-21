@@ -32,8 +32,8 @@ The simplest form specifies the error code directly on the event definition:
 <bpmn:endEvent id="End_Error" name="Payment Failed">
   <bpmn:errorEventDefinition>
     <bpmn:extensionElements>
-      <evil:errorCode>PAYMENT_DECLINED</evil:errorCode>
-      <evil:errorMessage>The payment provider declined the transaction</evil:errorMessage>
+      <bfw:errorCode>PAYMENT_DECLINED</bfw:errorCode>
+      <bfw:errorMessage>The payment provider declined the transaction</bfw:errorMessage>
     </bpmn:extensionElements>
   </bpmn:errorEventDefinition>
 </bpmn:endEvent>
@@ -69,11 +69,11 @@ When both inline and global error codes are available, the engine resolves them 
 
 | Priority | Source | Example |
 |----------|--------|---------|
-| 1 (highest) | Inline `evil:errorCode` on the event definition | `<evil:errorCode>INLINE_CODE</evil:errorCode>` |
+| 1 (highest) | Inline `bfw:errorCode` on the event definition | `<bfw:errorCode>INLINE_CODE</bfw:errorCode>` |
 | 2 | Global `<bpmn:error errorCode="...">` via `errorRef` | `<bpmn:error id="Err1" errorCode="GLOBAL_CODE" />` |
 | 3 (lowest) | No code — catch-all | `<bpmn:errorEventDefinition />` |
 
-If inline `evil:errorCode` is set, it **overrides** the global definition's code. This allows reusing a global error definition while customizing the code per throw site.
+If inline `bfw:errorCode` is set, it **overrides** the global definition's code. This allows reusing a global error definition while customizing the code per throw site.
 
 Catch-side [Error Boundary Events](error-boundary-events.md) resolve `errorRef` the same way and **rank** a specific resolved code before a catch-all. Document order is not a specificity tiebreak.
 
@@ -103,7 +103,7 @@ When a child process (started via a Call Activity) reaches an Error End Event, t
 <bpmn:boundaryEvent id="Boundary_1" attachedToRef="CA_1">
   <bpmn:errorEventDefinition>
     <bpmn:extensionElements>
-      <evil:errorCode>PAYMENT_DECLINED</evil:errorCode>
+      <bfw:errorCode>PAYMENT_DECLINED</bfw:errorCode>
     </bpmn:extensionElements>
   </bpmn:errorEventDefinition>
   <bpmn:outgoing>Flow_ToFallback</bpmn:outgoing>
@@ -170,8 +170,8 @@ A child process that validates an order and throws an error if validation fails:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_1">
 
   <bpmn:error id="Err_Validation" name="Validation Error"
@@ -180,7 +180,7 @@ A child process that validates an order and throws an error if validation fails:
   <bpmn:process id="OrderValidation" name="Order Validation"
                 isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:startEvent id="Start_1">
@@ -224,7 +224,7 @@ The parent process calls this via a Call Activity and catches the validation err
 <bpmn:boundaryEvent id="BE_ValidationFailed" attachedToRef="CA_Validate">
   <bpmn:errorEventDefinition>
     <bpmn:extensionElements>
-      <evil:errorCode>VALIDATION_FAILED</evil:errorCode>
+      <bfw:errorCode>VALIDATION_FAILED</bfw:errorCode>
     </bpmn:extensionElements>
   </bpmn:errorEventDefinition>
   <bpmn:outgoing>Flow_ToManualReview</bpmn:outgoing>

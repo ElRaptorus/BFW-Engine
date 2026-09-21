@@ -1,6 +1,6 @@
-defmodule EvilEngine.Test.PayloadCapFixtures do
+defmodule BfwEngine.Test.PayloadCapFixtures do
   @moduledoc """
-  Exact-size JSON payload builders for `TDE_TOKEN_MAX_BYTES` tests.
+  Exact-size JSON payload builders for `BFE_TOKEN_MAX_BYTES` tests.
 
   `mint_payload/1` returns a map whose `Jason.encode!/1` byte size is
   exactly the requested target. Cap tests are meaningless if size is

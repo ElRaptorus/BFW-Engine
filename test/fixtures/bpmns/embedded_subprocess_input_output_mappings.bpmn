@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -14,7 +14,7 @@
 
   <bpmn:process id="EmbeddedSubprocessInputOutputMappings" name="Embedded Subprocess Input Output Mappings" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -28,8 +28,8 @@
     <bpmn:startEvent id="Start_1" name="Start" />
     <bpmn:subProcess id="SubProcess_1" name="Sub Process">
       <bpmn:extensionElements>
-        <evil:inputMapping source="token.order_id" target="id" />
-        <evil:outputMapping source="token.id" target="mapped_result" />
+        <bfw:inputMapping source="token.order_id" target="id" />
+        <bfw:outputMapping source="token.id" target="mapped_result" />
       </bpmn:extensionElements>
       <bpmn:startEvent id="Sub_Start" name="Sub Start" />
       <bpmn:task id="Sub_Task" name="Sub Task" />

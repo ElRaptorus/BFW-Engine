@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlGetQueriesTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlGetQueriesTest do
   @moduledoc """
   GraphQL integration tests for single-record get queries.
 
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlGetQueriesTest do
   `getProcessInstance`, `getFlowNodeInstance`, `getDecisionDefinition`,
   `getDecisionVersion`, and `getDataObjectValue`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

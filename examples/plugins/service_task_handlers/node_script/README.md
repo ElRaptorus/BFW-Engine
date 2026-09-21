@@ -4,7 +4,7 @@ Async Service Task that delegates work to an operator-reviewed Node.js script.
 The engine stays in Elixir; `node` runs as the engine OS user with JSON on
 stdin and JSON on stdout.
 
-This is **not** a Named Script. Script Tasks with `evil:scriptRef` stay
+This is **not** a Named Script. Script Tasks with `bfw:scriptRef` stay
 synchronous. Other-language **work** belongs on a Service Task — compare
 [`named_scripts/local_script_runner`](../../named_scripts/local_script_runner/)
 (Python/Bash, sync) and
@@ -31,7 +31,7 @@ Never interpolate payload fields into the shell command.
    config :node_script_example, :timeout_milliseconds, 30_000
    ```
 
-3. Add your OTP app name to `TDE_PLUGINS_INBEAM`.
+3. Add your OTP app name to `BFE_PLUGINS_INBEAM`.
 
 ## BPMN dispatch
 
@@ -45,4 +45,4 @@ Default script is `echo.js`. Override with token payload `"script"`.
 
 - [Service Task Handler guide](../../../../docs/guides/plugins/service-task-handler.md)
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md)
-- [`EvilEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/evil_engine/plugin/service_task_handler.ex)
+- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/service_task_handler.ex)

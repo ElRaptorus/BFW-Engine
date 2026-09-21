@@ -24,20 +24,20 @@ Prefer a **boundary event** when the reaction is tied to one specific activity. 
 
 ## BPMN Configuration
 
-An Event Subprocess is a `<bpmn:subProcess triggeredByEvent="true">` with **exactly one** start event that carries a typed event definition. There are **no ESP-specific `evil:` extensions** — you use standard BPMN `triggeredByEvent` and `isInterrupting` only.
+An Event Subprocess is a `<bpmn:subProcess triggeredByEvent="true">` with **exactly one** start event that carries a typed event definition. There are **no ESP-specific `bfw:` extensions** — you use standard BPMN `triggeredByEvent` and `isInterrupting` only.
 
 ```xml
 <bpmn:definitions
   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:message id="Msg_Cancel" name="order-cancelled" />
 
   <bpmn:process id="order-process" name="Order Process" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:startEvent id="Start_Main">
@@ -81,7 +81,7 @@ The ESP's start event carries one typed event definition. Each is registered aga
 
 ### Message
 
-Fires when a correlated message reaches the scope. The correlation is evaluated at scope activation from `<evil:correlationKey>` (see [Message Events](message-events.md)).
+Fires when a correlated message reaches the scope. The correlation is evaluated at scope activation from `<bfw:correlationKey>` (see [Message Events](message-events.md)).
 
 ```xml
 <bpmn:subProcess id="ESP_Msg" triggeredByEvent="true">
@@ -175,7 +175,7 @@ Catches an escalation raised within the scope (see [Escalation Events](escalatio
 
 ## Interrupting vs Non-Interrupting
 
-`isInterrupting` is a standard BPMN attribute on the ESP start event (default `true`). It is modeler-controlled — there is no `evil:*` override and no property-pane toggle.
+`isInterrupting` is a standard BPMN attribute on the ESP start event (default `true`). It is modeler-controlled — there is no `bfw:*` override and no property-pane toggle.
 
 | | Interrupting (`isInterrupting="true"`) | Non-interrupting (`isInterrupting="false"`) |
 |---|---|---|

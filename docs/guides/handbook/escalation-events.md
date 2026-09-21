@@ -45,7 +45,7 @@ An Escalation End Event terminates the current process scope with escalation sem
 
 <bpmn:process id="child-process" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </bpmn:extensionElements>
 
   <bpmn:startEvent id="Start" />
@@ -61,7 +61,7 @@ An Escalation End Event terminates the current process scope with escalation sem
 
 ### Inline Extension Elements
 
-The escalation code comes from the global `<bpmn:escalation escalationCode="…">` referenced by `escalationRef`. A missing or blank code is catch-all compatible. Do **not** put `evil:errorCode` or `evil:errorMessage` on an escalation event definition — those extensions exist only on `<errorEventDefinition>`.
+The escalation code comes from the global `<bpmn:escalation escalationCode="…">` referenced by `escalationRef`. A missing or blank code is catch-all compatible. Do **not** put `bfw:errorCode` or `bfw:errorMessage` on an escalation event definition — those extensions exist only on `<errorEventDefinition>`.
 
 ## Escalation Intermediate Throw Event
 
@@ -195,8 +195,8 @@ If an Escalation Intermediate Throw Event propagates to a top-level process with
 `EscalationRaised` fields: `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType` (`end_event` / `intermediate_throw` / `api_trigger`), `laneName`, `occurredAt`. Broadcast to `process_instance:<piId>` and the root PI channel.
 
 Telemetry events:
-- `[:evil_engine, :escalation, :raised]` — fired on every escalation
-- `[:evil_engine, :escalation, :uncaught]` — fired when no boundary matched at the root
+- `[:bfw_engine, :escalation, :raised]` — fired on every escalation
+- `[:bfw_engine, :escalation, :uncaught]` — fired when no boundary matched at the root
 
 ## Process Instance States
 

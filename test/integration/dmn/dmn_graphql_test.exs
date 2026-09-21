@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.DMN.DmnGraphqlTest do
+defmodule BfwEngine.Integration.DMN.DmnGraphqlTest do
   @moduledoc """
   GraphQL integration tests for DMN decision definitions.
 
   Exercises `listDecisionDefinitions` and `getDecisionDefinition` queries
   through the full HTTP/GraphQL pipeline.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

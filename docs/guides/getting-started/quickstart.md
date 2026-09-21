@@ -26,7 +26,7 @@ docker compose up --build
 ```
 
 - Engine (HTTP, GraphQL, WebSocket): `http://localhost:4000`
-- PostgreSQL: `localhost:5432` (db: `evil_engine_dev`)
+- PostgreSQL: `localhost:5432` (db: `bfw_engine_dev`)
 
 ## Option B: Local Development
 
@@ -34,8 +34,20 @@ docker compose up --build
 mix deps.get
 mix compile
 mix ash_postgres.migrate
-mix evil.partitions.ensure
+mix bfw.partitions.ensure
 mix phx.server
+```
+
+## Check Engine Health
+
+No authentication required:
+
+```bash
+curl -i http://localhost:4000/health
+# HTTP/1.1 204 No Content
+
+curl http://localhost:4000/info
+# {"engineId":"...","engineName":"...","version":"0.1.0","startedAt":"..."}
 ```
 
 ## Mint a Dev Token
@@ -44,31 +56,31 @@ Authenticated endpoints require a JWT. The dev setup ships with a known HS256 se
 
 ```bash
 # Quick admin token (24h expiry)
-mix evil.mint_token
+mix bfw.mint_token
 
 # Custom claims
-mix evil.mint_token --sub operator-1 --roles admin,viewer --exp 3600
+mix bfw.mint_token --sub operator-1 --roles admin,viewer --exp 3600
 ```
 
 Store the token for subsequent requests:
 
 ```bash
-export TOKEN=$(mix evil.mint_token)
+export TOKEN=$(mix bfw.mint_token)
 ```
 
 See [Authentication](../api/authentication.md) for production JWT configuration.
 
 ## Deploy a BPMN Process
 
-Every BPMN file must include the mandatory `<evil:version>` extension element. Minimal example:
+Every BPMN file must include the mandatory `<bfw:version>` extension element. Minimal example:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn">
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn">
   <bpmn:process id="hello_world" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:startEvent id="start"/>
     <bpmn:endEvent id="end"/>
@@ -98,18 +110,6 @@ curl -X POST http://localhost:4000/processes/hello_world/start \
 ```
 
 The response includes `processInstanceId` and current state. See [Starting Process Instances](../handbook/starting-instances.md) for start event resolution and payload details.
-
-## Check Engine Health
-
-No authentication required:
-
-```bash
-curl -i http://localhost:4000/health
-# HTTP/1.1 204 No Content
-
-curl http://localhost:4000/info
-# {"engineId":"...","engineName":"...","version":"0.1.0","startedAt":"..."}
-```
 
 ## Next Steps
 

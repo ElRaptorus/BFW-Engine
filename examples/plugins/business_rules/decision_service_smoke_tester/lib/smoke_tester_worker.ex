@@ -8,8 +8,8 @@ defmodule Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterWorker do
 
   require Logger
 
-  alias EvilEngine.DMN.ServiceEvaluationResult
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.DMN.ServiceEvaluationResult
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionServiceSmokeTester.{
     HealthReporter,
     ServiceDiscoverer,

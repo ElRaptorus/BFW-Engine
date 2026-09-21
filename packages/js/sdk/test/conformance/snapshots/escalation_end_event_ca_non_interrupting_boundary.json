@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,17 +42,23 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Escalation"],
+          "boundaryEventRefs": [
+            "BE_Escalation"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "CA_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Call Escalation Child",
-          "outgoing": ["Flow_Normal"],
+          "outgoing": [
+            "Flow_Normal"
+          ],
           "standardLoop": null,
           "type": "call_activity",
           "typeData": {
@@ -72,7 +80,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_Parallel"],
+          "outgoing": [
+            "Flow_Parallel"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -94,7 +104,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_Normal"],
+          "incoming": [
+            "Flow_Normal"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "CA Finished",
@@ -114,7 +126,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Parallel",
-          "incoming": ["Flow_Parallel"],
+          "incoming": [
+            "Flow_Parallel"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation Handled",
@@ -135,7 +149,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "CA_1", "BE_Escalation", "End_Normal", "End_Parallel"],
+          "flowNodeRefs": [
+            "Start_1",
+            "CA_1",
+            "BE_Escalation",
+            "End_Normal",
+            "End_Parallel"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

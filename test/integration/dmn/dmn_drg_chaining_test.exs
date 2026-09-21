@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.DMN.DmnDrgChainingTest do
+defmodule BfwEngine.Integration.DMN.DmnDrgChainingTest do
   @moduledoc """
   Full-stack integration tests for DMN Phase 4: DRD chaining, BKM invocation,
   and cross-model import resolution.
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.DMN.DmnDrgChainingTest do
   and `POST /decisions/{model_id}/evaluate` for multi-decision models,
   BKM-backed decisions, and import resolution.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

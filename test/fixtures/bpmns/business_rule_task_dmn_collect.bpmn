@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_BrtDmnCollectProcess" name="BRT DMN Collect Mode" processRef="BrtDmnCollectProcess" />
@@ -13,7 +13,7 @@
 
   <bpmn:process id="BrtDmnCollectProcess" name="BRT DMN Collect Mode" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -29,7 +29,7 @@
 
     <bpmn:businessRuleTask id="BRT_dmn_collect" name="Evaluate Bonus" implementation="dmn">
       <bpmn:extensionElements>
-        <evil:decisionRef>definitions_bonus</evil:decisionRef>
+        <bfw:decisionRef>definitions_bonus</bfw:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>

@@ -1,14 +1,14 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
   @moduledoc """
   GraphQL integration tests for security validation phases through the full
   HTTP pipeline.
 
   Verifies depth limiting, complexity limiting, and introspection blocking
   as configured via `Application.get_env/3` on `:api_web`. Complements the
-  unit tests in `apps/api_web/test/evil_engine_web/graphql/` which exercise
+  unit tests in `apps/api_web/test/bfw_engine_web/graphql/` which exercise
   the phase modules on synthetic Absinthe blueprints only.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

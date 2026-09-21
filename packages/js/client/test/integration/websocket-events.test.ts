@@ -13,8 +13,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
-import type { EngineEventEnvelope } from '@elraptorus/daemonengine_sdk';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
+import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -28,7 +28,7 @@ function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-let adminClient: DaemonEngineClient | undefined;
+let adminClient: BfwEngineClient | undefined;
 
 const USER_TASK_ID = 'integration-user-task';
 

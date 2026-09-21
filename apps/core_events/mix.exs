@@ -5,7 +5,7 @@ defmodule CoreEvents.MixProject do
 
   Owns the four built-in sinks (`console`, `telemetry`, `websocket`,
   `database`) as skeleton modules — each implementing
-  `@behaviour EvilEngine.Plugin.EventSink` once the SDK behaviour ships
+  `@behaviour BfwEngine.Plugin.EventSink` once the SDK behaviour ships
   in Phase 1.
   """
 
@@ -36,7 +36,7 @@ defmodule CoreEvents.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {EvilEngine.Events.Application, []}
+      mod: {BfwEngine.Events.Application, []}
     ]
   end
 

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlListFeaturesTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlListFeaturesTest do
   @moduledoc """
   GraphQL integration tests for list features used by Bifrost Forge World
   Engine Workspace views.
@@ -6,7 +6,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlListFeaturesTest do
   Covers process/decision version listing, ilike filtering, offset pagination,
   sorting, total counts, and nested version includes.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

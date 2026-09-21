@@ -1,7 +1,7 @@
-defmodule EvilEngineWeb.Architecture.FacadeEnforcementTest do
+defmodule BfwEngineWeb.Architecture.FacadeEnforcementTest do
   @moduledoc """
   Static-analysis test ensuring that api_web code never calls Ash
-  resources directly. All data access must go through EvilEngine.Api.
+  resources directly. All data access must go through BfwEngine.Api.
 
   This is a file-scan test, not a runtime check.
   """
@@ -28,7 +28,7 @@ defmodule EvilEngineWeb.Architecture.FacadeEnforcementTest do
     if violations != [] do
       message =
         [
-          "Facade violation: api_web code must not call Ash directly. Use EvilEngine.Api instead.\n"
+          "Facade violation: api_web code must not call Ash directly. Use BfwEngine.Api instead.\n"
           | Enum.map(violations, fn {file, line_no, line} ->
               "  #{Path.relative_to(file, @api_web_lib)}:#{line_no}: #{String.trim(line)}"
             end)

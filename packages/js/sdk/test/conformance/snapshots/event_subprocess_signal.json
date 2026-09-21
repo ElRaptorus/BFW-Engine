@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Main_Flow_1"],
+          "outgoing": [
+            "Main_Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_UserTask",
-          "incoming": ["Main_Flow_1"],
+          "incoming": [
+            "Main_Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Work",
-          "outgoing": ["Main_Flow_2"],
+          "outgoing": [
+            "Main_Flow_2"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -66,7 +72,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Main_Flow_2"],
+          "incoming": [
+            "Main_Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -114,7 +122,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Signal Received",
-                "outgoing": ["ESP_Flow_1"],
+                "outgoing": [
+                  "ESP_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -132,11 +142,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": ["ESP_Flow_1"],
+                "incoming": [
+                  "ESP_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Signal",
-                "outgoing": ["ESP_Flow_2"],
+                "outgoing": [
+                  "ESP_Flow_2"
+                ],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -148,7 +162,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": ["ESP_Flow_2"],
+                "incoming": [
+                  "ESP_Flow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",
@@ -199,7 +215,12 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Signal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Main_UserTask",
+            "End_1",
+            "ESP_Signal"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

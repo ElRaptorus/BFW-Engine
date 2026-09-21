@@ -1,16 +1,16 @@
 ---
 name: understand-codebase
 description: >-
-  Onboards agents to the ThomasTheDaemonEngine codebase structure, architecture,
+  Onboards agents to the Bifrost Forge World Engine codebase structure, architecture,
   and key patterns. Use when exploring the project for the first time, when asked
   to understand how something works, or before making architectural changes.
 ---
 
-# Understanding the ThomasTheDaemonEngine Codebase
+# Understanding the Bifrost Forge World Engine Codebase
 
 ## Step 0: Project Overview
 
-ThomasTheDaemonEngine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 16+. It is structured as an Elixir umbrella project following DDD domain boundaries.
+Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 16+. It is structured as an Elixir umbrella project following DDD domain boundaries.
 
 | Directory | What's here |
 |-----------|------------|
@@ -68,18 +68,18 @@ Infrastructure adapters. May import Core, never imported by Core.
 
 | App | Purpose |
 |-----|---------|
-| `peripheral_persistence` | Ash + AshPostgres resources. Mix `evil.retention.purge` hard-deletes aged terminal PI trees |
+| `peripheral_persistence` | Ash + AshPostgres resources. Mix `bfw.retention.purge` hard-deletes aged terminal PI trees |
 | `peripheral_telemetry` | `:telemetry` counters, /stats data |
 | `peripheral_plugins` | Plugin registry, in-BEAM loader |
 
 ### API (`apps/api_*`)
 
-Wire adapters. Thin translation layer between external protocols and `EvilEngine.Api`.
+Wire adapters. Thin translation layer between external protocols and `BfwEngine.Api`.
 
 | App | Purpose |
 |-----|---------|
 | `api_auth` | JWT validation, claim extraction |
-| `api_facade` | `EvilEngine.Api` service-layer facade — no Phoenix dep |
+| `api_facade` | `BfwEngine.Api` service-layer facade — no Phoenix dep |
 | `api_web` | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |
 
 ## Step 4: Core Patterns
@@ -88,7 +88,7 @@ The 4 patterns agents encounter most:
 
 ### 1. Ash Code Interface as Single Service Layer
 
-`EvilEngine.Api` is the convergence point for all consumers. Every wire adapter (REST, GraphQL, WebSocket) and every in-BEAM plugin calls `EvilEngine.Api.*` actions. No consumer bypasses this layer to call Core directly.
+`BfwEngine.Api` is the convergence point for all consumers. Every wire adapter (REST, GraphQL, WebSocket) and every in-BEAM plugin calls `BfwEngine.Api.*` actions. No consumer bypasses this layer to call Core directly.
 
 ### 2. Dependency Direction
 

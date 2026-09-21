@@ -1,5 +1,5 @@
 {
-  "name": "@daemonengine/example-sdk-parse-bpmn",
+  "name": "@bfw-engine/example-sdk-parse-bpmn",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@elraptorus/daemonengine_sdk": "workspace:*"
+    "@elraptorus/bfw_engine_sdk": "workspace:*"
   },
   "devDependencies": {
     "tsx": "catalog:",

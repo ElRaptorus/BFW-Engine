@@ -3,7 +3,7 @@
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              id="Definitions_ds_nested"
              name="Decision Service Nested"
-             namespace="https://evilengine.dev/test/decision-service-nested">
+             namespace="https://bifrostforge.world/test/decision-service-nested">
 
   <inputData id="InputData_amount" name="Amount" />
   <inputData id="InputData_category" name="Category" />

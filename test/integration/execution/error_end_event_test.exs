@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.ErrorEndEventTest do
+defmodule BfwEngine.Integration.Execution.ErrorEndEventTest do
   @moduledoc """
   Umbrella-level integration tests for Error End Event (EE-1 through EE-6).
 
@@ -7,10 +7,10 @@ defmodule EvilEngine.Integration.Execution.ErrorEndEventTest do
   error propagation through Call Activities, boundary catch semantics,
   and event emission against a real database.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -18,7 +18,7 @@ defmodule EvilEngine.Integration.Execution.ErrorEndEventTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->

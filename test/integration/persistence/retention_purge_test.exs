@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Persistence.RetentionPurgeTest do
+defmodule BfwEngine.Integration.Persistence.RetentionPurgeTest do
   @moduledoc """
   Integration test for Mix-scheduled process-instance tree hard-delete.
 
@@ -7,11 +7,11 @@ defmodule EvilEngine.Integration.Persistence.RetentionPurgeTest do
   row is gone.
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   alias Ecto.Adapters.SQL, as: EctoSQL
-  alias EvilEngine.Persistence.ProcessInstancePurge
-  alias EvilEngine.Persistence.Repo
+  alias BfwEngine.Persistence.ProcessInstancePurge
+  alias BfwEngine.Persistence.Repo
 
   @moduletag :integration
 

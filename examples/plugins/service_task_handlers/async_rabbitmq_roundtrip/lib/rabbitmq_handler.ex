@@ -4,7 +4,7 @@ defmodule Examples.ServiceTaskHandlers.RabbitmqRoundtrip.RabbitmqHandler do
   Instance id, then returns `{:async, flow_node_instance_id}`.
   """
 
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @doc "Publishes a work message keyed by the flow node instance id and returns {:async, id} for the parked task."
   @impl true

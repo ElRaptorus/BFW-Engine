@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.OrphanCleanupTest do
+defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
   @moduledoc """
   Integration tests for the boot-time orphan cleanup sweep.
 
@@ -6,14 +6,14 @@ defmodule EvilEngine.Integration.Execution.OrphanCleanupTest do
   the engine died mid-cascade, leaving orphaned PIs or FNIs. They then
   call the adapter's cleanup functions and verify the resulting DB state.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.ExecutionAdapter
+  alias BfwEngine.Persistence.ExecutionAdapter
 
-  alias EvilEngine.Persistence.Resources.FlowNodeInstance, as: FniResource
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias BfwEngine.Persistence.Resources.FlowNodeInstance, as: FniResource
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: PiResource
 
-  @domain EvilEngine.Persistence.Api
+  @domain BfwEngine.Persistence.Api
   @dummy_process_version_id "01966b00-0000-7000-8000-000000000001"
 
   # -------------------------------------------------------------------

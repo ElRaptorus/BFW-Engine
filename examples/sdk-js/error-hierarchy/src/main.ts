@@ -2,7 +2,7 @@ import {
   ActiveInstancesExistError,
   AmbiguousStartEventError,
   ContractViolationError,
-  DaemonEngineError,
+  BfwEngineError,
   DeployValidationFailedError,
   EngineAtCapacityError,
   FniNotWaitingError,
@@ -29,23 +29,23 @@ import {
   UnauthorizedError,
   ValidationError,
   VersionExistsError,
-} from '@elraptorus/daemonengine_sdk';
-import { FlowNodeInstanceState, ProcessInstanceState } from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
+import { FlowNodeInstanceState, ProcessInstanceState } from '@elraptorus/bfw_engine_sdk';
 
-import { mapDaemonEngineError } from './map-daemon-engine-error.js';
+import { mapBfwEngineError } from './map-bfw-engine-error.js';
 
 type ErrorSpecimen = {
   name: string;
   statusLine: string;
-  instance: DaemonEngineError;
+  instance: BfwEngineError;
 };
 
-function describeDaemonEngineError(error: DaemonEngineError): string {
-  return mapDaemonEngineError(error);
+function describeBfwEngineError(error: BfwEngineError): string {
+  return mapBfwEngineError(error);
 }
 
 const inheritanceTreeLines = [
-  'DaemonEngineError (base)',
+  'BfwEngineError (base)',
   '├── PayloadTooLargeError (413)',
   '├── RateLimitedError (429)',
   '├── EngineAtCapacityError (503)',
@@ -216,26 +216,26 @@ function buildSpecimens(): ErrorSpecimen[] {
 }
 
 export async function main(): Promise<void> {
-  console.log('Reference tree (each class extends DaemonEngineError directly in the SDK):\n');
+  console.log('Reference tree (each class extends BfwEngineError directly in the SDK):\n');
   console.log(inheritanceTreeLines.join('\n'));
   console.log('\nInstances\n');
   const specimens = buildSpecimens();
   for (const specimen of specimens) {
     console.log(`--- ${specimen.name} (${specimen.statusLine})`);
-    console.log(describeDaemonEngineError(specimen.instance));
+    console.log(describeBfwEngineError(specimen.instance));
   }
   console.log('\ninstanceof illustration');
   const notFound = new NotFoundError('a');
   const processNotFound = new ProcessNotFoundError('b');
-  console.log(`notFound instanceof DaemonEngineError → ${notFound instanceof DaemonEngineError}`);
-  console.log(`processNotFound instanceof DaemonEngineError → ${processNotFound instanceof DaemonEngineError}`);
+  console.log(`notFound instanceof BfwEngineError → ${notFound instanceof BfwEngineError}`);
+  console.log(`processNotFound instanceof BfwEngineError → ${processNotFound instanceof BfwEngineError}`);
   console.log(`processNotFound instanceof NotFoundError → ${processNotFound instanceof NotFoundError}`);
 
-  console.log('\nmapDaemonEngineError');
+  console.log('\nmapBfwEngineError');
   try {
     throw new UnauthorizedError('missing bearer');
   } catch (caughtError: unknown) {
-    console.log(mapDaemonEngineError(caughtError));
+    console.log(mapBfwEngineError(caughtError));
   }
 }
 

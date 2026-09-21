@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
+defmodule BfwEngine.Integration.Execution.MapperContractPipelineTest do
   @moduledoc """
   Integration tests for the mapper/contract pipeline across ServiceTask,
   UserTask, and CallActivity. Each test deploys a real BPMN, starts a PI
@@ -8,13 +8,13 @@ defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
   Key principle: every failure path must produce an observable error —
   no silent swallowing.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.ExamplePlugin
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.ExamplePlugin
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, EvilEngine.Plugins.RegistryDispatch)
+    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
     facade = Loader.facade_for_plugin("evil:test_mapper_contract")
     ExamplePlugin.on_load(facade)
   end
@@ -209,7 +209,7 @@ defmodule EvilEngine.Integration.Execution.MapperContractPipelineTest do
       Application.put_env(
         :core_execution,
         :called_element_resolver,
-        EvilEngine.Persistence.CalledElementResolverImpl
+        BfwEngine.Persistence.CalledElementResolverImpl
       )
 
       on_exit(fn ->

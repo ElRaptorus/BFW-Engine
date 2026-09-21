@@ -4,7 +4,7 @@ defmodule Examples.BusinessRules.DecisionRegressionTester.RegressionTesterPlugin
   across a fixture input set for regression detection.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.DecisionRegressionTester.{FacadeStore, RegressionTesterWorker}
 

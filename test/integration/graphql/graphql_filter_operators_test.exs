@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlFilterOperatorsTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlFilterOperatorsTest do
   @moduledoc """
   GraphQL integration tests for filter operators beyond `eq` and `ilike`.
 
   Covers notEq, in, DateTime comparisons, isNil, composite and/or/not,
   boolean filters, and relationship filters on processInstances and processes.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

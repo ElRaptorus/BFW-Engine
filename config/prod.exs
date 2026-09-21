@@ -20,5 +20,5 @@ config :logger, level: :info
 config :logger_json, encoder: JSON
 
 # All other runtime values — DB URL, HTTP port, JWT config, seeding
-# directory, retention knobs, payload cap, … — are sourced from `TDE_*`
+# directory, retention knobs, payload cap, … — are sourced from `BFE_*`
 # env vars in `runtime.exs` per `docs/architecture/configuration.md`.

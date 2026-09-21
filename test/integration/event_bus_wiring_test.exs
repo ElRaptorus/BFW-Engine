@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.EventBusWiringTest do
+defmodule BfwEngine.Integration.EventBusWiringTest do
   @moduledoc "Full-stack: event bus → sink pipeline, crash isolation."
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Types.Event.{EngineStarted, SinkFailed}
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Types.Event.{EngineStarted, SinkFailed}
 
   defp engine_started(version \\ "0.1.0") do
     %EngineStarted{
@@ -18,7 +18,7 @@ defmodule EvilEngine.Integration.EventBusWiringTest do
       :ok =
         EngineEventBus.register_sink(
           "test:observer",
-          EvilEngine.Test.IntegrationSink,
+          BfwEngine.Test.IntegrationSink,
           test_pid: self()
         )
 
@@ -31,14 +31,14 @@ defmodule EvilEngine.Integration.EventBusWiringTest do
       :ok =
         EngineEventBus.register_sink(
           "test:crasher",
-          EvilEngine.Test.IntegrationCrashSink,
+          BfwEngine.Test.IntegrationCrashSink,
           []
         )
 
       :ok =
         EngineEventBus.register_sink(
           "test:observer",
-          EvilEngine.Test.IntegrationSink,
+          BfwEngine.Test.IntegrationSink,
           test_pid: self()
         )
 
@@ -52,7 +52,7 @@ defmodule EvilEngine.Integration.EventBusWiringTest do
       :ok =
         EngineEventBus.register_sink(
           "test:observer",
-          EvilEngine.Test.IntegrationSink,
+          BfwEngine.Test.IntegrationSink,
           test_pid: self()
         )
 

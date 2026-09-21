@@ -1,17 +1,17 @@
 {
-  "name": "@elraptorus/daemonengine_sdk",
+  "name": "@elraptorus/bfw_engine_sdk",
   "version": "0.1.0",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ElRaptorus/ThomasTheDaemonEngine.git",
+    "url": "https://github.com/ElRaptorus/BFW-Engine.git",
     "directory": "packages/js/sdk"
   },
-  "description": "Everything you ever wanted to build yourself a blooddrenched altar for making sacrifies to the daemon engine. Choo Choo.",
+  "description": "TypeScript contract layer for the Bifrost Forge World Engine: types, errors, events, and BPMN/DMN parsers.",
   "main": "dist/index.js",
-  "author": "Khorne",
+  "author": "Bifrost Forge World",
   "license": "MIT",
   "type": "module",
   "engines": {

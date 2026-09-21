@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlNestedQueriesTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlNestedQueriesTest do
   @moduledoc """
   GraphQL integration tests for nested relationship includes with filtering
   and sorting on nested associations.
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlNestedQueriesTest do
   ProcessInstance → flowNodeInstances, dataObjectValues, and
   dataObjectHistory nested queries.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

@@ -3,8 +3,8 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_MultiInstance">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -13,7 +13,7 @@
 
   <bpmn:process id="Process_MultiInstance" name="Multi Instance" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -35,12 +35,12 @@
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
       <bpmn:multiInstanceLoopCharacteristics isSequential="true">
         <bpmn:extensionElements>
-          <evil:inputCollection>token.items</evil:inputCollection>
-          <evil:outputCollection>processedItems</evil:outputCollection>
-          <evil:elementVariable>item</evil:elementVariable>
-          <evil:loopBreakCondition>errorCount &gt; 3</evil:loopBreakCondition>
-          <evil:loopInterval>PT1S</evil:loopInterval>
-          <evil:maxIterations>100</evil:maxIterations>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:outputCollection>processedItems</bfw:outputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
+          <bfw:loopBreakCondition>errorCount &gt; 3</bfw:loopBreakCondition>
+          <bfw:loopInterval>PT1S</bfw:loopInterval>
+          <bfw:maxIterations>100</bfw:maxIterations>
         </bpmn:extensionElements>
         <bpmn:loopCardinality>5</bpmn:loopCardinality>
         <bpmn:completionCondition>done = true</bpmn:completionCondition>

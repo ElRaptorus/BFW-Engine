@@ -1,7 +1,7 @@
 defmodule Examples.Plugins.Adhoc.AiToolbox.AiToolboxSinkTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.Plugins.Adhoc.AiToolbox.AiToolboxSink
 
   defp activity(id, enabled), do: %{id: id, name: id, type: "task", enabled: enabled, performed_count: 0, active_count: 0}

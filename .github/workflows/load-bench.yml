@@ -16,19 +16,19 @@ jobs:
     timeout-minutes: 120
     env:
       MIX_ENV: test
-      TDE_LOAD_TEST_POOL: "1"
-      TDE_LOAD_TEST_POOL_SIZE: "20"
+      BFE_LOAD_TEST_POOL: "1"
+      BFE_LOAD_TEST_POOL_SIZE: "20"
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: evil_engine
-          POSTGRES_PASSWORD: evil_engine
-          POSTGRES_DB: evil_engine_test
+          POSTGRES_USER: bfw_engine
+          POSTGRES_PASSWORD: bfw_engine
+          POSTGRES_DB: bfw_engine_test
         ports:
           - 5543:5432
         options: >-
-          --health-cmd="pg_isready -U evil_engine"
+          --health-cmd="pg_isready -U bfw_engine"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=12

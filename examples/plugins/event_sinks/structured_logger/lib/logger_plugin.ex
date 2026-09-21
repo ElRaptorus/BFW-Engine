@@ -5,7 +5,7 @@ defmodule Examples.EventSinks.StructuredLogger.LoggerPlugin do
   Copy this module and `LoggerSink` into your own OTP application.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.EventSinks.StructuredLogger.LoggerSink
 

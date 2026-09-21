@@ -272,7 +272,7 @@
     "global": null,
     "strategy": null
   },
-  "repo": "Elixir.EvilEngine.Persistence.Repo",
+  "repo": "Elixir.BfwEngine.Persistence.Repo",
   "schema": null,
   "table": "flow_node_instances"
 }

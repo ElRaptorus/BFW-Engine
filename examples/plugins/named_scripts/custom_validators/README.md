@@ -1,10 +1,10 @@
 # Custom validator named scripts
 
-This folder is a copy-paste starter (no `mix.exs`) showing how one `EvilEngine.Plugin` module can register several [`EvilEngine.Plugin.NamedScript`](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/apps/engine_sdk/lib/evil_engine/plugin/named_script.ex) handlers through `facade.register_named_script/2`.
+This folder is a copy-paste starter (no `mix.exs`) showing how one `BfwEngine.Plugin` module can register several [`BfwEngine.Plugin.NamedScript`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/named_script.ex) handlers through `facade.register_named_script/2`.
 
 ## Behaviour
 
-Process modelling references each handler with `<evil:scriptRef>...</evil:scriptRef>` on a `<bpmn:scriptTask>`. The engine resolves the key, calls `handle_enter/3`, and expects an immediate `{:ok, map()}` or `{:error, term()}`. There is no async parking.
+Process modelling references each handler with `<bfw:scriptRef>...</bfw:scriptRef>` on a `<bpmn:scriptTask>`. The engine resolves the key, calls `handle_enter/3`, and expects an immediate `{:ok, map()}` or `{:error, term()}`. There is no async parking.
 
 ## Layout
 
@@ -22,9 +22,9 @@ See `bpmn/scripted_process.bpmn` for a linear Start → validate → convert →
 
 ## Docs
 
-- Lifecycle and registration: [Plugin Development — Getting Started](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/guides/plugins/getting-started.md)
-- Named scripts in the architecture reference: [plugins.md — NamedScript](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/architecture/plugins.md)
-- Cheat sheet: [plugin-behaviours.cheatmd](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/guides/cheatsheets/plugin-behaviours.cheatmd)
+- Lifecycle and registration: [Plugin Development — Getting Started](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/plugins/getting-started.md)
+- Named scripts in the architecture reference: [plugins.md — NamedScript](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/architecture/plugins.md)
+- Cheat sheet: [plugin-behaviours.cheatmd](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/cheatsheets/plugin-behaviours.cheatmd)
 
 ## Tests
 

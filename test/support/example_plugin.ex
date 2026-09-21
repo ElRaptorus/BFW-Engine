@@ -1,7 +1,7 @@
-defmodule EvilEngine.Test.ExamplePlugin do
+defmodule BfwEngine.Test.ExamplePlugin do
   @moduledoc """
   Fixture plugin for integration tests. Implements the full
-  `EvilEngine.Plugin` lifecycle and registers Service Task handlers
+  `BfwEngine.Plugin` lifecycle and registers Service Task handlers
   and Named Script handlers:
 
   Service Task handlers (all async ):
@@ -13,17 +13,17 @@ defmodule EvilEngine.Test.ExamplePlugin do
   - `test_validator` — synchronous script that adds a `validated` flag
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @impl true
   def on_load(facade) do
-    EvilEngine.Test.ExamplePlugin.FacadeStore.put(facade)
+    BfwEngine.Test.ExamplePlugin.FacadeStore.put(facade)
 
-    facade.register_service_task_handler.("echo", EvilEngine.Test.ExamplePlugin.EchoHandler)
-    facade.register_service_task_handler.("async_echo", EvilEngine.Test.ExamplePlugin.AsyncEchoHandler)
-    facade.register_service_task_handler.("async_fail", EvilEngine.Test.ExamplePlugin.AsyncFailHandler)
-    facade.register_service_task_handler.("async_park", EvilEngine.Test.ExamplePlugin.AsyncParkHandler)
-    facade.register_named_script.("test_validator", EvilEngine.Test.ExamplePlugin.TestValidatorScript)
+    facade.register_service_task_handler.("echo", BfwEngine.Test.ExamplePlugin.EchoHandler)
+    facade.register_service_task_handler.("async_echo", BfwEngine.Test.ExamplePlugin.AsyncEchoHandler)
+    facade.register_service_task_handler.("async_fail", BfwEngine.Test.ExamplePlugin.AsyncFailHandler)
+    facade.register_service_task_handler.("async_park", BfwEngine.Test.ExamplePlugin.AsyncParkHandler)
+    facade.register_named_script.("test_validator", BfwEngine.Test.ExamplePlugin.TestValidatorScript)
 
     :ok
   end
@@ -32,7 +32,7 @@ defmodule EvilEngine.Test.ExamplePlugin do
   def on_ready(_facade), do: :ok
 end
 
-defmodule EvilEngine.Test.ExamplePlugin.FacadeStore do
+defmodule BfwEngine.Test.ExamplePlugin.FacadeStore do
   @moduledoc false
   use Agent
 
@@ -58,20 +58,20 @@ defmodule EvilEngine.Test.ExamplePlugin.FacadeStore do
   end
 end
 
-defmodule EvilEngine.Test.ExamplePlugin.EchoHandler do
+defmodule BfwEngine.Test.ExamplePlugin.EchoHandler do
   @moduledoc """
   Async Service Task handler that echoes the input token (all
   Service Task handlers are async-only). Spawns a task that immediately
   completes the FNI via `finish_async_service_task`.
   """
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
-  alias EvilEngine.Test.AsyncCompletionRetry
+  alias BfwEngine.Test.AsyncCompletionRetry
 
   @impl true
   def handle_enter(flow_node, token, context) do
     flow_node_instance_id = context.flow_node_instance_id
-    facade = EvilEngine.Test.ExamplePlugin.FacadeStore.get()
+    facade = BfwEngine.Test.ExamplePlugin.FacadeStore.get()
 
     spawn(fn ->
       AsyncCompletionRetry.until_ok(fn ->
@@ -87,20 +87,20 @@ defmodule EvilEngine.Test.ExamplePlugin.EchoHandler do
   end
 end
 
-defmodule EvilEngine.Test.ExamplePlugin.AsyncEchoHandler do
+defmodule BfwEngine.Test.ExamplePlugin.AsyncEchoHandler do
   @moduledoc """
   Async Service Task handler that parks the FNI, then completes it
   via the `EngineFacade` after a brief delay — proving the full
   plugin-driven async lifecycle works end-to-end.
   """
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
-  alias EvilEngine.Test.AsyncCompletionRetry
+  alias BfwEngine.Test.AsyncCompletionRetry
 
   @impl true
   def handle_enter(_flow_node, token, context) do
     flow_node_instance_id = context.flow_node_instance_id
-    facade = EvilEngine.Test.ExamplePlugin.FacadeStore.get()
+    facade = BfwEngine.Test.ExamplePlugin.FacadeStore.get()
 
     spawn(fn ->
       AsyncCompletionRetry.until_ok(fn ->
@@ -116,12 +116,12 @@ defmodule EvilEngine.Test.ExamplePlugin.AsyncEchoHandler do
   end
 end
 
-defmodule EvilEngine.Test.ExamplePlugin.AsyncParkHandler do
+defmodule BfwEngine.Test.ExamplePlugin.AsyncParkHandler do
   @moduledoc """
   Async Service Task handler that parks the FNI indefinitely.
   The test must explicitly complete or fail it via the Execution API.
   """
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @impl true
   def handle_enter(_flow_node, _token, context) do
@@ -129,17 +129,17 @@ defmodule EvilEngine.Test.ExamplePlugin.AsyncParkHandler do
   end
 end
 
-defmodule EvilEngine.Test.ExamplePlugin.AsyncFailHandler do
+defmodule BfwEngine.Test.ExamplePlugin.AsyncFailHandler do
   @moduledoc """
   Async Service Task handler that parks the FNI, then fails it
   via the `EngineFacade` — proving the async failure path works.
   """
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @impl true
   def handle_enter(_flow_node, _token, context) do
     flow_node_instance_id = context.flow_node_instance_id
-    facade = EvilEngine.Test.ExamplePlugin.FacadeStore.get()
+    facade = BfwEngine.Test.ExamplePlugin.FacadeStore.get()
 
     spawn(fn ->
       Process.sleep(100)
@@ -150,12 +150,12 @@ defmodule EvilEngine.Test.ExamplePlugin.AsyncFailHandler do
   end
 end
 
-defmodule EvilEngine.Test.ExamplePlugin.TestValidatorScript do
+defmodule BfwEngine.Test.ExamplePlugin.TestValidatorScript do
   @moduledoc """
   Named script handler for integration tests. Adds a `validated` flag
   to the payload, proving that scriptRef dispatch works end-to-end.
   """
-  @behaviour EvilEngine.Plugin.NamedScript
+  @behaviour BfwEngine.Plugin.NamedScript
 
   @impl true
   def handle_enter(_flow_node, payload, _context) do

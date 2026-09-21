@@ -1,15 +1,15 @@
 # AI Agent Toolbox — Ad-hoc Sub-Process Example Plugin
 
 Demonstrates **plugin-managed** Ad-hoc Sub-Process control via
-`EvilEngine.EngineFacade.adhoc_subprocesses`. Copy this plugin into an OTP
-application that already depends on `engine_sdk` (for `EvilEngine.Plugin`
-and `EvilEngine.Plugin.EventSink`) and `core_types` (for `EvilEngine.Types.Event`).
+`BfwEngine.EngineFacade.adhoc_subprocesses`. Copy this plugin into an OTP
+application that already depends on `engine_sdk` (for `BfwEngine.Plugin`
+and `BfwEngine.Plugin.EventSink`) and `core_types` (for `BfwEngine.Types.Event`).
 
 ## Scenario
 
 The bundled BPMN (`bpmn/ai_toolbox_process.bpmn`) models an AI agent handling a
 customer inquiry. The Ad-hoc Sub-Process `AdHocSubprocess_Toolbox` carries
-`implementation="ai-toolbox"` (plugin-managed mode, no `evil:ordering`
+`implementation="ai-toolbox"` (plugin-managed mode, no `bfw:ordering`
 override — defaults to `Parallel`) and offers five tools as inner tasks, none
 connected by sequence flow (all free-standing, all enabled from the start):
 

@@ -39,7 +39,7 @@
 
 ## Scheduler
 
-**Path:** `apps/core_timers/lib/evil_engine/timers/scheduler.ex`
+**Path:** `apps/core_timers/lib/bfw_engine/timers/scheduler.ex`
 
 GenServer managing all in-memory timers via two ETS tables.
 
@@ -82,7 +82,7 @@ Cycle timers decrement their `remaining` counter on each fire. When `remaining` 
 
 ### Manual timer trigger (`fire_now_for_target/2`)
 
-**Path:** `EvilEngine.Timers.Scheduler.fire_now_for_target/2`
+**Path:** `BfwEngine.Timers.Scheduler.fire_now_for_target/2`
 
 Immediately delivers `{:timer_fired, timer_ref, metadata}` to the target PID for every armed timer in the target index, then removes each from ETS. Cycle timers follow the same re-arm path as tick-based expiry (`maybe_rearm_cycle/5`). Returns the number of timers fired.
 
@@ -90,8 +90,8 @@ Used by the timer event manual trigger API (debugger / test acceleration):
 
 ```
 POST /timer-events/:flow_node_instance_id/trigger
-  → EvilEngine.Api.trigger_timer_event/3
-    → EvilEngine.Execution.trigger_timer_event/2
+  → BfwEngine.Api.trigger_timer_event/3
+    → BfwEngine.Execution.trigger_timer_event/2
       → ProcessInstance.trigger_timer_event/2  (gen_statem.call)
         → Scheduler.fire_now_for_target(handler_task_pid)
           → {:timer_fired, ...} to timer handler Task
@@ -99,13 +99,13 @@ POST /timer-events/:flow_node_instance_id/trigger
 
 The Api layer validates FNI type (`intermediate_catch_event` or `boundary_event` with `event_type: "timer"`), active/waiting state, and lane access before reaching Execution. The PI gen_statem performs a minimal in-memory guard: the FNI must still be `:active` or `:waiting` with a live handler PID, otherwise `{:error, :fni_not_active_or_found}`.
 
-REST: `EvilEngineWeb.Http.TimerEventController` (`POST /timer-events/:flow_node_instance_id/trigger`). Client: `EventClient.triggerTimer/1` in `@elraptorus/daemonengine_client`.
+REST: `BfwEngineWeb.Http.TimerEventController` (`POST /timer-events/:flow_node_instance_id/trigger`). Client: `EventClient.triggerTimer/1` in `@elraptorus/bfw_engine_client`.
 
 ---
 
 ## ISO 8601 Module
 
-**Path:** `apps/core_timers/lib/evil_engine/timers/iso8601.ex`
+**Path:** `apps/core_timers/lib/bfw_engine/timers/iso8601.ex`
 
 Pure-function module for ISO 8601 timer spec resolution. No GenServer, no side effects.
 
@@ -129,7 +129,7 @@ Uses Elixir 1.18 `Duration.from_iso8601/1` for durations and `DateTime.from_iso8
 
 ## StartEventManager
 
-**Path:** `apps/core_timers/lib/evil_engine/timers/start_event_manager.ex`
+**Path:** `apps/core_timers/lib/bfw_engine/timers/start_event_manager.ex`
 
 Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted timer specs from the deploy path — does **not** scan BPMN models or evaluate FEEL.
 
@@ -167,7 +167,7 @@ Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted tim
 
 ## Persistence Behaviour
 
-**Path:** `apps/core_timers/lib/evil_engine/timers/persistence.ex`
+**Path:** `apps/core_timers/lib/bfw_engine/timers/persistence.ex`
 
 Only Timer Start Event schedules use this persistence layer. PI-scoped timers (Intermediate Catch and Boundary) are stored in FNI `type_properties` and do not need dedicated persistence.
 
@@ -184,8 +184,8 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Module | Domain | Purpose |
 |--------|--------|---------|
-| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | **Implemented.** Ash + AshPostgres adapter for the operational `timer_start_schedules` table. **Production default** (`config/config.exs` sets `:core_timers, :persistence_module` to this module). Cycle Timer Start schedules survive engine restart; boot reload from Postgres is real. |
-| `EvilEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory GenServer. **Test-only default** (`config/test.exs`). `ExecutionCase` switches tests that exercise Timer Start persistence to `TimerStartScheduleAdapter`. |
+| `BfwEngine.Persistence.TimerStartScheduleAdapter` | `peripheral_persistence` | **Implemented.** Ash + AshPostgres adapter for the operational `timer_start_schedules` table. **Production default** (`config/config.exs` sets `:core_timers, :persistence_module` to this module). Cycle Timer Start schedules survive engine restart; boot reload from Postgres is real. |
+| `BfwEngine.Timers.Persistence.NoOp` | `core_timers` | In-memory GenServer. **Test-only default** (`config/test.exs`). `ExecutionCase` switches tests that exercise Timer Start persistence to `TimerStartScheduleAdapter`. |
 
 ---
 
@@ -195,7 +195,7 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 |-----|---------|------|-------------|
 | `:core_timers, :tick_interval_ms` | `1000` | `50` | Scheduler tick frequency |
 | `:core_timers, :timer_start_target` | `:timer_start_listener` | — | Registered name for Timer Start fire delivery |
-| `:core_timers, :persistence_module` | `EvilEngine.Persistence.TimerStartScheduleAdapter` | `EvilEngine.Timers.Persistence.NoOp` | Persistence behaviour implementation. Production uses the Ash adapter; test env keeps NoOp; `ExecutionCase` switches to the adapter. |
+| `:core_timers, :persistence_module` | `BfwEngine.Persistence.TimerStartScheduleAdapter` | `BfwEngine.Timers.Persistence.NoOp` | Persistence behaviour implementation. Production uses the Ash adapter; test env keeps NoOp; `ExecutionCase` switches to the adapter. |
 
 ---
 
@@ -205,9 +205,9 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Event | Measurements | Metadata |
 |-------|-------------|----------|
-| `[:evil_engine, :timer, :armed]` | `%{count: 1}` | `%{timer_ref, target}` |
-| `[:evil_engine, :timer, :fired]` | `%{count: 1}` | `%{timer_ref, target}` |
-| `[:evil_engine, :timer, :cancelled]` | `%{count: 1}` | `%{timer_ref, target}` |
+| `[:bfw_engine, :timer, :armed]` | `%{count: 1}` | `%{timer_ref, target}` |
+| `[:bfw_engine, :timer, :fired]` | `%{count: 1}` | `%{timer_ref, target}` |
+| `[:bfw_engine, :timer, :cancelled]` | `%{count: 1}` | `%{timer_ref, target}` |
 
 ---
 
@@ -215,11 +215,11 @@ Only Timer Start Event schedules use this persistence layer. PI-scoped timers (I
 
 | Module | Path |
 |--------|------|
-| `EvilEngine.Timers` | `apps/core_timers/lib/evil_engine/timers.ex` |
-| `EvilEngine.Timers.Scheduler` | `apps/core_timers/lib/evil_engine/timers/scheduler.ex` |
-| `EvilEngine.Timers.ISO8601` | `apps/core_timers/lib/evil_engine/timers/iso8601.ex` |
-| `EvilEngine.Timers.StartEventManager` | `apps/core_timers/lib/evil_engine/timers/start_event_manager.ex` |
-| `EvilEngine.Timers.Persistence` | `apps/core_timers/lib/evil_engine/timers/persistence.ex` |
-| `EvilEngine.Timers.Persistence.NoOp` | `apps/core_timers/lib/evil_engine/timers/persistence/no_op.ex` |
-| `EvilEngine.Persistence.TimerStartScheduleAdapter` | `apps/peripheral_persistence/lib/evil_engine/persistence/timer_start_schedule_adapter.ex` |
-| `EvilEngine.Timers.Application` | `apps/core_timers/lib/evil_engine/timers/application.ex` |
+| `BfwEngine.Timers` | `apps/core_timers/lib/bfw_engine/timers.ex` |
+| `BfwEngine.Timers.Scheduler` | `apps/core_timers/lib/bfw_engine/timers/scheduler.ex` |
+| `BfwEngine.Timers.ISO8601` | `apps/core_timers/lib/bfw_engine/timers/iso8601.ex` |
+| `BfwEngine.Timers.StartEventManager` | `apps/core_timers/lib/bfw_engine/timers/start_event_manager.ex` |
+| `BfwEngine.Timers.Persistence` | `apps/core_timers/lib/bfw_engine/timers/persistence.ex` |
+| `BfwEngine.Timers.Persistence.NoOp` | `apps/core_timers/lib/bfw_engine/timers/persistence/no_op.ex` |
+| `BfwEngine.Persistence.TimerStartScheduleAdapter` | `apps/peripheral_persistence/lib/bfw_engine/persistence/timer_start_schedule_adapter.ex` |
+| `BfwEngine.Timers.Application` | `apps/core_timers/lib/bfw_engine/timers/application.ex` |

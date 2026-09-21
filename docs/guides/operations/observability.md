@@ -48,7 +48,7 @@ Load level lives on **`GET /stats`** (`engine.load`: `normal` / `elevated` / `cr
 
 ## Prometheus (`GET /metrics`)
 
-`GET /metrics` is public Prometheus text (`text/plain; version=0.0.4`). It is **on by default** via `TDE_METRICS_ENABLED=true`. Set `TDE_METRICS_ENABLED=false` to return 404.
+`GET /metrics` is public Prometheus text (`text/plain; version=0.0.4`). It is **on by default** via `BFE_METRICS_ENABLED=true`. Set `BFE_METRICS_ENABLED=false` to return 404.
 
 The scrape endpoint is **unauthenticated**. Restrict it at the network edge if the engine is reachable from untrusted networks.
 
@@ -60,24 +60,24 @@ The engine routes typed events through `EngineEventBus` to **three** built-in si
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_EVENT_SINK_CONSOLE` | `on` | Enable/disable |
-| `TDE_LOG_MIN_SEVERITY` | `info` | Floor: `error`, `warn`, `info`, `debug`, `verbose` |
+| `BFE_EVENT_SINK_CONSOLE` | `on` | Enable/disable |
+| `BFE_LOG_MIN_SEVERITY` | `info` | Floor: `error`, `warn`, `info`, `debug`, `verbose` |
 
 ### Telemetry Sink
 
 | Env Var | Default |
 |---------|---------|
-| `TDE_EVENT_SINK_TELEMETRY` | `on` |
+| `BFE_EVENT_SINK_TELEMETRY` | `on` |
 
-Disabling this stops the Prometheus `evil_engine.event_bus.events.total` series from incrementing. It does **not** zero `/stats` — that snapshot is live Ash/ETS queries.
+Disabling this stops the Prometheus `bfw_engine.event_bus.events.total` series from incrementing. It does **not** zero `/stats` — that snapshot is live Ash/ETS queries.
 
 ### WebSocket Sink
 
 | Env Var | Default |
 |---------|---------|
-| `TDE_EVENT_SINK_WEBSOCKET` | `on` |
+| `BFE_EVENT_SINK_WEBSOCKET` | `on` |
 
-There is no `TDE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`. The WebSocket sink rejects only `SinkFailed`; it does not filter by log severity. Console severity is `TDE_LOG_MIN_SEVERITY` only.
+There is no `BFE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`. The WebSocket sink rejects only `SinkFailed`; it does not filter by log severity. Console severity is `BFE_LOG_MIN_SEVERITY` only.
 
 ## Logging
 
@@ -85,7 +85,7 @@ In production, the engine outputs structured JSON log lines via `logger_json`. U
 
 ## Custom Event Sinks
 
-Build a plugin implementing `@behaviour EvilEngine.Plugin.EventSink` to forward events to external systems (Datadog, Kafka, PagerDuty, etc.). See [Implementing Event Sinks](../plugins/event-sink.md).
+Build a plugin implementing `@behaviour BfwEngine.Plugin.EventSink` to forward events to external systems (Datadog, Kafka, PagerDuty, etc.). See [Implementing Event Sinks](../plugins/event-sink.md).
 
 ## Related
 

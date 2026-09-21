@@ -2,7 +2,7 @@
 
 Manual Tasks represent work performed outside the engine that optionally requires explicit operator confirmation before the process continues.
 
-## The `evil:requireConfirmation` Extension
+## The `bfw:requireConfirmation` Extension
 
 | Value | Behavior |
 |-------|----------|
@@ -12,7 +12,7 @@ Manual Tasks represent work performed outside the engine that optionally require
 ```xml
 <bpmn:manualTask id="verify_shipment" name="Verify Shipment">
   <bpmn:extensionElements>
-    <evil:requireConfirmation>true</evil:requireConfirmation>
+    <bfw:requireConfirmation>true</bfw:requireConfirmation>
   </bpmn:extensionElements>
 </bpmn:manualTask>
 ```

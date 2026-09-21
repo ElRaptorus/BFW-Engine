@@ -1,6 +1,6 @@
-defmodule EvilEngine.Test.SkippingSink do
+defmodule BfwEngine.Test.SkippingSink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @impl true
   def init(opts) do

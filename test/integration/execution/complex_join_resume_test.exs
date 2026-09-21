@@ -1,12 +1,12 @@
-defmodule EvilEngine.Integration.Execution.ComplexJoinResumeTest do
+defmodule BfwEngine.Integration.Execution.ComplexJoinResumeTest do
   @moduledoc """
   Resume of a Complex Join whose activation condition is already true
   (two of three branches arrived) must complete after engine restart.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
 
   @tag :integration
   test "resume fires a complex join whose activation condition is already true" do
@@ -51,7 +51,7 @@ defmodule EvilEngine.Integration.Execution.ComplexJoinResumeTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok

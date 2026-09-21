@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.ComplexGatewayTest do
+defmodule BfwEngine.Integration.Execution.ComplexGatewayTest do
   @moduledoc """
   Integration tests for the Complex Gateway (Phase 5.1 + 5.2):
 
@@ -16,11 +16,11 @@ defmodule EvilEngine.Integration.Execution.ComplexGatewayTest do
   - Unmarked Complex Split — an unconditional non-default outgoing flow
     still deploys; entering the split fatals `:complex_gateway_unconditional_flow`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Persistence.Resources.GatewayPendingArrival
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Persistence.Resources.GatewayPendingArrival
 
   require Ash.Query
 
@@ -320,7 +320,7 @@ defmodule EvilEngine.Integration.Execution.ComplexGatewayTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok

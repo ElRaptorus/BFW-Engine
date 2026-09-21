@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlCalculationsTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlCalculationsTest do
   @moduledoc """
   GraphQL integration tests for Ash calculation fields on ProcessInstance.
 
   Covers `finalTokens` (end-event output tokens for finished PIs) and
   `idText` (UUID text cast, filterable via ilike).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

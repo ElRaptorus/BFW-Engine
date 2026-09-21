@@ -1,12 +1,12 @@
-defmodule EvilEngine.Conformance.DmnConformanceTest do
+defmodule BfwEngine.Conformance.DmnConformanceTest do
   @moduledoc """
   YAML-driven DMN conformance specs (C40–C61).
 
-  All specs with `type: dmn` are executed by `EvilEngine.Test.DmnConformanceRunner`.
+  All specs with `type: dmn` are executed by `BfwEngine.Test.DmnConformanceRunner`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.DmnConformanceRunner, as: Runner
+  alias BfwEngine.Test.DmnConformanceRunner, as: Runner
 
   @moduletag :conformance
 

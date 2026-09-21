@@ -28,10 +28,10 @@ Supported extension elements on the `<bpmn:subProcess>`:
 
 | Extension Element | Purpose |
 |-------------------|---------|
-| `evil:inputMapping` | FEEL expression mapping parent token fields to child start payload |
-| `evil:outputMapping` | FEEL expression mapping child result fields back to parent token |
-| `evil:payloadContract` | JSON Schema validated against the input payload before entering the subprocess |
-| `evil:resultContract` | JSON Schema validated against the output before returning to the parent |
+| `bfw:inputMapping` | FEEL expression mapping parent token fields to child start payload |
+| `bfw:outputMapping` | FEEL expression mapping child result fields back to parent token |
+| `bfw:payloadContract` | JSON Schema validated against the input payload before entering the subprocess |
+| `bfw:resultContract` | JSON Schema validated against the output before returning to the parent |
 
 ## Subprocess Contents Rules
 
@@ -52,8 +52,8 @@ Input and output mappings work identically to [Call Activity mappings](call-acti
 ```xml
 <bpmn:subProcess id="SP_1" name="Process Order">
   <bpmn:extensionElements>
-    <evil:inputMapping source="token.orderId" target="order_id" />
-    <evil:outputMapping source="token.result" target="validation_result" />
+    <bfw:inputMapping source="token.orderId" target="order_id" />
+    <bfw:outputMapping source="token.result" target="validation_result" />
   </bpmn:extensionElements>
   <!-- inner flow nodes -->
 </bpmn:subProcess>
@@ -66,8 +66,8 @@ When no mappings are configured, the parent's full token payload is passed to th
 Contracts validate data at the subprocess boundary:
 
 ```xml
-<evil:payloadContract>{"type":"object","required":["orderId"]}</evil:payloadContract>
-<evil:resultContract>{"type":"object","required":["status"]}</evil:resultContract>
+<bfw:payloadContract>{"type":"object","required":["orderId"]}</bfw:payloadContract>
+<bfw:resultContract>{"type":"object","required":["status"]}</bfw:resultContract>
 ```
 
 A payload contract violation prevents the child from starting. A result contract violation causes the parent PI to go `fatal` after the child has already completed.
@@ -91,7 +91,7 @@ When a subprocess child PI is spawned, the engine emits:
 | Event | Channel | Content |
 |-------|---------|---------|
 | `SubProcessChildStarted` | `EngineEventBus` | `subprocess_flow_node_instance_id`, `parent_process_instance_id`, `child_process_instance_id`, `subprocess_model_id`, `subprocess_version`, `occurred_at` |
-| Telemetry `[:evil_engine, :subprocess, :child_started]` | `:telemetry` | Same fields as the struct |
+| Telemetry `[:bfw_engine, :subprocess, :child_started]` | `:telemetry` | Same fields as the struct |
 
 ## Error Handling
 

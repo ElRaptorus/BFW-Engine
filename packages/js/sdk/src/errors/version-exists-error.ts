@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when a deploy creates a version conflict. */
-export class VersionExistsError extends DaemonEngineError {
+export class VersionExistsError extends BfwEngineError {
   constructor(
     message: string,
     public readonly conflicts: { processModelId: string; version: string }[],

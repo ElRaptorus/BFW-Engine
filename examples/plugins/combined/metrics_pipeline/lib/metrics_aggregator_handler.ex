@@ -23,13 +23,13 @@ defmodule Examples.Plugins.Combined.MetricsPipeline.MetricsAggregatorHandler do
   via the process dictionary).
   """
 
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
-  alias EvilEngine.BPMN.Model.FlowNode
-  alias EvilEngine.EngineFacade
-  alias EvilEngine.EngineFacade.{Graphql, ProcessInstances}
-  alias EvilEngine.Execution.HandlerContext
-  alias EvilEngine.Types.Token
+  alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.EngineFacade
+  alias BfwEngine.EngineFacade.{Graphql, ProcessInstances}
+  alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Types.Token
   alias Examples.Plugins.Combined.MetricsPipeline.FacadeStore
 
   @process_dictionary_table_key :metrics_pipeline_ets_table

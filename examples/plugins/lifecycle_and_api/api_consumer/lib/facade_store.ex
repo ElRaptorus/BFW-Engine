@@ -1,6 +1,6 @@
 defmodule Examples.Plugins.ApiConsumer.FacadeStore do
   @moduledoc """
-  Agent-backed stash for the `EvilEngine.EngineFacade` received during `on_load/1`
+  Agent-backed stash for the `BfwEngine.EngineFacade` received during `on_load/1`
   so asynchronous workers can reach the wired `facade.*` closures later on.
   """
 
@@ -13,14 +13,14 @@ defmodule Examples.Plugins.ApiConsumer.FacadeStore do
   end
 
   @doc "Stores the engine facade from plugin load so workers can reuse the wired closures."
-  @spec put(EvilEngine.EngineFacade.t()) :: :ok
+  @spec put(BfwEngine.EngineFacade.t()) :: :ok
   def put(engine_facade) do
     ensure_started()
     Agent.update(__MODULE__, fn _previous -> engine_facade end)
   end
 
   @doc "Returns the stored engine facade after ensuring the Agent has been started."
-  @spec get() :: EvilEngine.EngineFacade.t() | nil
+  @spec get() :: BfwEngine.EngineFacade.t() | nil
   def get do
     ensure_started()
     Agent.get(__MODULE__, & &1)

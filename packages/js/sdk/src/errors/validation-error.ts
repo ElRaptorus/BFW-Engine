@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when the engine rejects the request due to validation failures (HTTP 422). */
-export class ValidationError extends DaemonEngineError {
+export class ValidationError extends BfwEngineError {
   constructor(
     message: string,
     /** Individual field-level validation failures, if provided by the engine. */

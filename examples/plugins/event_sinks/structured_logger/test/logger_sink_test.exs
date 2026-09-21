@@ -1,7 +1,7 @@
 defmodule Examples.EventSinks.StructuredLogger.LoggerSinkTest do
   use ExUnit.Case
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.EventSinks.StructuredLogger.LoggerSink
 
   test "handle_event produces valid JSON with required keys" do
@@ -28,7 +28,7 @@ defmodule Examples.EventSinks.StructuredLogger.LoggerSinkTest do
     assert Map.has_key?(decoded, "timestamp")
     assert Map.has_key?(decoded, "severity")
     assert Map.has_key?(decoded, "event_type")
-    assert decoded["event_type"] == "EvilEngine.Types.Event.ProcessInstanceStateChanged"
+    assert decoded["event_type"] == "BfwEngine.Types.Event.ProcessInstanceStateChanged"
     assert decoded["process_instance_id"] == "process-instance-1"
     assert decoded["new_state"] == "completed"
     assert decoded["occurred_at"] == "2026-05-14T12:00:00Z"
@@ -142,6 +142,6 @@ defmodule Examples.EventSinks.StructuredLogger.LoggerSinkTest do
 
     assert :ok = LoggerSink.handle_shutdown(state)
     assert File.exists?(log_file_path)
-    assert String.contains?(File.read!(log_file_path), "EvilEngine.Types.Event.EngineStarted")
+    assert String.contains?(File.read!(log_file_path), "BfwEngine.Types.Event.EngineStarted")
   end
 end

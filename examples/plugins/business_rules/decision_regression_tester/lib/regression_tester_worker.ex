@@ -8,8 +8,8 @@ defmodule Examples.BusinessRules.DecisionRegressionTester.RegressionTesterWorker
 
   require Logger
 
-  alias EvilEngine.DMN.EvaluationResult
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.DMN.EvaluationResult
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionRegressionTester.{
     RegressionComparator,
     TestInputs

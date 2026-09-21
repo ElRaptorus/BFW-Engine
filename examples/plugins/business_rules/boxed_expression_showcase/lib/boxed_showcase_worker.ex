@@ -9,9 +9,9 @@ defmodule Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcaseWorker do
 
   require Logger
 
-  alias EvilEngine.BPMN.Model.Definitions
-  alias EvilEngine.DMN.EvaluationResult
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.BPMN.Model.Definitions
+  alias BfwEngine.DMN.EvaluationResult
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.BoxedExpressionShowcase.ExpressionTypeReporter
 
   @decision_model_id "expression-showcase"
@@ -50,7 +50,7 @@ defmodule Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcaseWorker do
       Keyword.get(
         options,
         :demo_identity,
-        %EvilEngine.Types.Identity{
+        %BfwEngine.Types.Identity{
           id: "plugin:examples-boxed-expression-showcase",
           roles: ["plugin"],
           groups: []
@@ -130,7 +130,7 @@ defmodule Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcaseWorker do
   defp deploy_bpmn_process(%EngineFacade{processes: processes}) do
     xml = bundled_bpmn_xml()
 
-    case EvilEngine.BPMN.parse_and_validate(xml) do
+    case BfwEngine.BPMN.parse_and_validate(xml) do
       {:ok, %Definitions{} = definitions} ->
         executable_process = pick_executable_process!(definitions)
 
@@ -326,7 +326,7 @@ defmodule Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcaseWorker do
 
   defp pick_executable_process!(%Definitions{processes: processes}) do
     case Enum.find(processes, & &1.is_executable) do
-      %EvilEngine.BPMN.Model.Process{} = process -> process
+      %BfwEngine.BPMN.Model.Process{} = process -> process
       nil -> raise ArgumentError, "boxed_expression_showcase example requires an executable process"
     end
   end

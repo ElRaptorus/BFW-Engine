@@ -30,7 +30,7 @@ defmodule Examples.ServiceTaskHandlers.HttpEnrichment.HttpEnrichmentPlugin do
   implemented in application code instead of the built-in HTTP ServiceTask (async).
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @doc "Stores the facade for async completion and registers the handler."
   @impl true

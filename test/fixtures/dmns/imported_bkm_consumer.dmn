@@ -2,13 +2,13 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="Definitions_bkm_consumer"
              name="Imported BKM Consumer"
-             namespace="https://evilengine.dev/test/bkm-consumer"
+             namespace="https://bifrostforge.world/test/bkm-consumer"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">
 
   <import id="Import_helper"
-          namespace="https://evilengine.dev/test/bkm-helper"
+          namespace="https://bifrostforge.world/test/bkm-helper"
           importType="https://www.omg.org/spec/DMN/20191111/MODEL/"/>
 
   <inputData id="InputData_amount" name="amount">
@@ -21,7 +21,7 @@
       <requiredInput href="#InputData_amount"/>
     </informationRequirement>
     <knowledgeRequirement id="kr_tax_rate">
-      <requiredKnowledge href="https://evilengine.dev/test/bkm-helper#BKM_tax_rate"/>
+      <requiredKnowledge href="https://bifrostforge.world/test/bkm-helper#BKM_tax_rate"/>
     </knowledgeRequirement>
     <literalExpression id="LE_total_tax">
       <text>amount * Tax Rate Calculator</text>

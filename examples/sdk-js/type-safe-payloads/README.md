@@ -7,9 +7,9 @@ Builds representative `StartRequest`, user-task, and deploy-related object shape
 ```bash
 cd packages/js
 pnpm install
-pnpm --filter @elraptorus/daemonengine_sdk run build
-pnpm --filter @daemonengine/example-sdk-type-safe-payloads run start
-pnpm --filter @daemonengine/example-sdk-type-safe-payloads run test
+pnpm --filter @elraptorus/bfw_engine_sdk run build
+pnpm --filter @bfw-engine/example-sdk-type-safe-payloads run start
+pnpm --filter @bfw-engine/example-sdk-type-safe-payloads run test
 ```
 
 ## Expected output

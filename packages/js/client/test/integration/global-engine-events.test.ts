@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { EngineEventEnvelope } from '@elraptorus/daemonengine_sdk';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -24,7 +24,7 @@ function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-let adminClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
 
 beforeAll(async () => {
   await ensureEngineReachable();

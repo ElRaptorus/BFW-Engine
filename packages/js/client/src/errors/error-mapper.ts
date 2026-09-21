@@ -6,8 +6,8 @@ import {
   BkmNotFoundError,
   ConflictError,
   ContractViolationError,
-  type DaemonEngineError,
-  DaemonEngineError as DaemonEngineErrorClass,
+  type BfwEngineError,
+  BfwEngineError as BfwEngineErrorClass,
   DecisionDefinitionDisabledError,
   DecisionDefinitionNotFoundError,
   DecisionServiceNotFoundError,
@@ -58,22 +58,22 @@ import {
   UnauthorizedError,
   ValidationError,
   VersionExistsError,
-} from '@elraptorus/daemonengine_sdk';
-import type { FlowNodeInstanceState, ProcessInstanceState } from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
+import type { FlowNodeInstanceState, ProcessInstanceState } from '@elraptorus/bfw_engine_sdk';
 
 /**
- * Maps an engine error response to the most specific `DaemonEngineError` subclass.
+ * Maps an engine error response to the most specific `BfwEngineError` subclass.
  *
  * Strategy:
  * 1. Match `body.error` against known domain error codes (domain-specific errors).
  * 2. Fall back to HTTP status code (generic HTTP errors: 401, 403, 404, 422, 500).
- * 3. Catch-all: unrecognized errors get the base `DaemonEngineError` with raw body preserved.
+ * 3. Catch-all: unrecognized errors get the base `BfwEngineError` with raw body preserved.
  *
  * @param status - HTTP status code from the engine response.
  * @param body - Parsed JSON response body.
- * @returns A `DaemonEngineError` (or subclass) instance ready to be thrown.
+ * @returns A `BfwEngineError` (or subclass) instance ready to be thrown.
  */
-export function mapResponseError(status: number, body: Record<string, unknown>): DaemonEngineError {
+export function mapResponseError(status: number, body: Record<string, unknown>): BfwEngineError {
   const errorCode = String(body['error'] ?? 'unknown');
   const message = String(body['message'] ?? errorCode);
 
@@ -87,10 +87,10 @@ export function mapResponseError(status: number, body: Record<string, unknown>):
     return statusError;
   }
 
-  return new DaemonEngineErrorClass(status, errorCode, message, body);
+  return new BfwEngineErrorClass(status, errorCode, message, body);
 }
 
-function mapByErrorCode(errorCode: string, message: string, body: Record<string, unknown>): DaemonEngineError | null {
+function mapByErrorCode(errorCode: string, message: string, body: Record<string, unknown>): BfwEngineError | null {
   switch (errorCode) {
     case 'payload_too_large':
       return new PayloadTooLargeError(
@@ -328,7 +328,7 @@ function mapByStatusCode(
   _errorCode: string,
   message: string,
   body: Record<string, unknown>,
-): DaemonEngineError | null {
+): BfwEngineError | null {
   switch (status) {
     case 401:
       return new UnauthorizedError(body['message'] != null ? String(body['message']) : undefined, body);

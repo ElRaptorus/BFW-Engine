@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { BpmnDefinitions, BpmnProcess, EventDefinition, FlowNode, SequenceFlow } from '@elraptorus/daemonengine_sdk';
-import { FlowNodeType, parseBpmn } from '@elraptorus/daemonengine_sdk';
+import type { BpmnDefinitions, BpmnProcess, EventDefinition, FlowNode, SequenceFlow } from '@elraptorus/bfw_engine_sdk';
+import { FlowNodeType, parseBpmn } from '@elraptorus/bfw_engine_sdk';
 
 function formatEventDefinition(eventDefinition: EventDefinition): string {
   switch (eventDefinition.type) {
@@ -64,7 +64,7 @@ function printGlobalDefinitions(model: BpmnDefinitions, indent: string): void {
 function printExtensionTree(extensions: BpmnProcess['extensions'], indent: string): void {
   if (extensions.length === 0) {
     console.log(
-      `${indent}(no nested Extension records; parser lifts evil:version and evil:correlationKey onto the process object)`,
+      `${indent}(no nested Extension records; parser lifts bfw:version and bfw:correlationKey onto the process object)`,
     );
     return;
   }
@@ -91,8 +91,8 @@ function printSequenceFlow(sequenceFlow: SequenceFlow, indent: string): void {
 function printProcessTree(process: BpmnProcess, indent: string): void {
   console.log(`${indent}process id=${process.id} name=${process.name ?? 'null'}`);
   console.log(`${indent}  executable=${process.isExecutable}`);
-  console.log(`${indent}  evil:version → version=${process.version ?? 'null'}`);
-  console.log(`${indent}  evil:correlationKey → correlationKey=${process.correlationKey ?? 'null'}`);
+  console.log(`${indent}  bfw:version → version=${process.version ?? 'null'}`);
+  console.log(`${indent}  bfw:correlationKey → correlationKey=${process.correlationKey ?? 'null'}`);
   console.log(`${indent}  extensionElements tree`);
   printExtensionTree(process.extensions, `${indent}    `);
   console.log(`${indent}  flowNodes (${process.flowNodes.length})`);

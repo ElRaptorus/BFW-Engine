@@ -1,17 +1,17 @@
 defmodule Examples.Plugins.RestApiExtension.EchoPluginTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.Plugins.RestApiExtension.EchoPlug
   alias Examples.Plugins.RestApiExtension.EchoPlugin
 
-  test "implements EvilEngine.Plugin" do
+  test "implements BfwEngine.Plugin" do
     behaviours =
       EchoPlugin.__info__(:attributes)
       |> Keyword.get_values(:behaviour)
       |> List.flatten()
 
-    assert EvilEngine.Plugin in behaviours
+    assert BfwEngine.Plugin in behaviours
   end
 
   test "on_load/1 registers the /echo-ext RestApiExtension on a fake facade" do

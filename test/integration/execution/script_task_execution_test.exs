@@ -1,16 +1,16 @@
-defmodule EvilEngine.Integration.Execution.ScriptTaskExecutionTest do
+defmodule BfwEngine.Integration.Execution.ScriptTaskExecutionTest do
   @moduledoc """
   Integration tests for ScriptTask execution. Each test deploys a real
   BPMN, starts a PI via HTTP, and asserts observable outcomes.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Test.ExamplePlugin
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Test.ExamplePlugin
 
   defp register_test_plugin do
-    Application.put_env(:core_execution, :service_task_dispatch, EvilEngine.Plugins.RegistryDispatch)
-    Application.put_env(:core_execution, :script_dispatch, EvilEngine.Plugins.ScriptRegistryDispatch)
+    Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
+    Application.put_env(:core_execution, :script_dispatch, BfwEngine.Plugins.ScriptRegistryDispatch)
     facade = Loader.facade_for_plugin("evil:test_script_task")
     ExamplePlugin.on_load(facade)
   end

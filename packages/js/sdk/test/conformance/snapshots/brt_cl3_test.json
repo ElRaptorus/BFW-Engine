@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "BRT_cl3_dmn",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Calculate Discount",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "business_rule_task",
           "typeData": {
@@ -68,7 +74,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -89,7 +97,11 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "BRT_cl3_dmn", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "BRT_cl3_dmn",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

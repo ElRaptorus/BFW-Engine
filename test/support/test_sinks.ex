@@ -1,6 +1,6 @@
-defmodule EvilEngine.Test.IntegrationSink do
+defmodule BfwEngine.Test.IntegrationSink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @impl true
   def init(opts) do
@@ -21,15 +21,15 @@ defmodule EvilEngine.Test.IntegrationSink do
   def handle_shutdown(_state), do: :ok
 end
 
-defmodule EvilEngine.Test.IntegrationCrashSink do
+defmodule BfwEngine.Test.IntegrationCrashSink do
   @moduledoc false
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   @impl true
   def init(_opts), do: {:ok, %{}}
 
   @impl true
-  def accepts?(%EvilEngine.Types.Event.SinkFailed{}), do: false
+  def accepts?(%BfwEngine.Types.Event.SinkFailed{}), do: false
   def accepts?(_event), do: true
 
   @impl true
@@ -39,9 +39,9 @@ defmodule EvilEngine.Test.IntegrationCrashSink do
   def handle_shutdown(_state), do: :ok
 end
 
-defmodule EvilEngine.Test.FakePlugin do
+defmodule BfwEngine.Test.FakePlugin do
   @moduledoc false
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @impl true
   def on_load(_facade), do: :ok

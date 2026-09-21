@@ -6,17 +6,17 @@ All REST responses and WebSocket event envelopes use **camelCase** structural ke
 
 **Opaque payload boundary rule:** user-payload subtrees are passed through unchanged. The encoder converts structural field names but does **not** recurse into fields designated as opaque (for example `payload`, `inputToken`, `outputToken`, `startedWithContext`, `startedBy`, `deployer`, `claims`, `typeProperties`, `errorInfo`, `violations`). This means keys inside a process token's `payload` are exactly what the process author set — the engine never rewrites them. Engine-structural error fields like `failures` and `conflicts` are **not** opaque — their nested keys (e.g. `processModelId`, `rulesetFailures`) are camelCased normally.
 
-The boundary is enforced in `EvilEngine.Types.Wire` (`apps/core_types/lib/evil_engine/types/wire.ex`). Jason.Encoder implementations for all event structs live in `apps/core_events/lib/evil_engine/events/json_encoders.ex`.
+The boundary is enforced in `BfwEngine.Types.Wire` (`apps/core_types/lib/bfw_engine/types/wire.ex`). Jason.Encoder implementations for all event structs live in `apps/core_events/lib/bfw_engine/events/json_encoders.ex`.
 
 ### Centralized Error Responses
 
-All REST error responses go through `EvilEngineWeb.Http.ErrorResponse` (`apps/api_web/lib/evil_engine_web/http/error_response.ex`). This guarantees every error body:
+All REST error responses go through `BfwEngineWeb.Http.ErrorResponse` (`apps/api_web/lib/bfw_engine_web/http/error_response.ex`). This guarantees every error body:
 
 1. Contains at least `error` (snake_case code) and `message` fields
 2. Has all structural keys camelCased via `Wire.camelize_keys/1`
 3. Uses field names matching the SDK's `ErrorMapper` expectations
 
-Controllers use `render_error/4` (or `/5` with extras). Plugs that halt the conn before Phoenix.Controller is available use `render_error_halt/4` (or `/5`). The `api_auth` plug (`EvilEngine.Auth.Plug`) is in a separate umbrella app and uses its own `send_resp/3` calls — it cannot depend on `api_web`.
+Controllers use `render_error/4` (or `/5` with extras). Plugs that halt the conn before Phoenix.Controller is available use `render_error_halt/4` (or `/5`). The `api_auth` plug (`BfwEngine.Auth.Plug`) is in a separate umbrella app and uses its own `send_resp/3` calls — it cannot depend on `api_web`.
 
 #### Audit-trail logging
 
@@ -54,8 +54,8 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 | `GET` | `/processes` | List all deployed processes (latest active version per process, no XML). Fully undeployed processes are excluded. Any authenticated user |
 | `GET` | `/processes/{model_id}` | Process metadata (optional `?includeXml=true` for latest version's BPMN XML) |
 | `GET` | `/processes/{model_id}/versions` | Version history (optional `?includeXml=true` per version) |
-| `POST` | `/processes` | Deploy one or more BPMN definitions in a single **atomic batch**. Body: `{ "sources": ["<xml>", ...] }` (JSON array of BPMN XML strings). Each source must carry `<evil:version>`. On deploy, `Process.enabled` is synced to the BPMN `isExecutable` flag. When the linter-score gate is enabled ([configuration.md](./configuration.md) — Linter-score deploy gate), each source is checked; on failure, returns `422` with `error: "linter_gate_failed"` and `failures`. On success, returns `201` with `deployed: [...]` |
-| `POST` | `/processes/{model_id}/start` | Start a new PI from the latest non-deleted version of an enabled process. Body: `{startEventId?, payload?, context?, businessKey?}`. `context` is an optional opaque JSON object stored as `started_with_context` on the PI, accessible as `context.*` in FEEL expressions. When omitted, context is empty. Returns `201` with `{process_instance_id, process_model_id, version, state}`. Errors: `404` (not found / no active version), `403` (disabled), `422` (ambiguous start event / not found), `413` (payload too large), `429` with `Retry-After` when the global start rate limit is exceeded (`TDE_PI_START_RATE_LIMIT` > 0; Layer 2), `503` with `Retry-After` when `TDE_MAX_CONCURRENT_PIS` is exceeded (Layer 1), `401` (unauthenticated / expired JWT) |
+| `POST` | `/processes` | Deploy one or more BPMN definitions in a single **atomic batch**. Body: `{ "sources": ["<xml>", ...] }` (JSON array of BPMN XML strings). Each source must carry `<bfw:version>`. On deploy, `Process.enabled` is synced to the BPMN `isExecutable` flag. When the linter-score gate is enabled ([configuration.md](./configuration.md) — Linter-score deploy gate), each source is checked; on failure, returns `422` with `error: "linter_gate_failed"` and `failures`. On success, returns `201` with `deployed: [...]` |
+| `POST` | `/processes/{model_id}/start` | Start a new PI from the latest non-deleted version of an enabled process. Body: `{startEventId?, payload?, context?, businessKey?}`. `context` is an optional opaque JSON object stored as `started_with_context` on the PI, accessible as `context.*` in FEEL expressions. When omitted, context is empty. Returns `201` with `{process_instance_id, process_model_id, version, state}`. Errors: `404` (not found / no active version), `403` (disabled), `422` (ambiguous start event / not found), `413` (payload too large), `429` with `Retry-After` when the global start rate limit is exceeded (`BFE_PI_START_RATE_LIMIT` > 0; Layer 2), `503` with `Retry-After` when `BFE_MAX_CONCURRENT_PIS` is exceeded (Layer 1), `401` (unauthenticated / expired JWT) |
 | `PUT` | `/processes/{model_id}/enable` | Enable the process (204 No Content) |
 | `PUT` | `/processes/{model_id}/disable` | Disable the process (204 No Content) |
 | `DELETE` | `/processes/{model_id}` | **Undeploy** a process: deletes all versions. Rejects with 409 if non-terminal PIs exist on any version. Requires `delete_bpmn=true`. Returns 404 for unknown or already-undeployed processes |
@@ -63,24 +63,24 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 
 #### 10.1.0.1 Public `/health`, `/metrics`, process-start back-pressure, and deprecation
 
-**`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `TDE_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `evil_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
+**`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `BFE_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `bfw_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
 
-**`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `TDE_METRICS_ENABLED` is `true` (default). Metric definitions live in `EvilEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, returns **404** with JSON `{"error":"metrics_disabled"}`.
+**`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `BFE_METRICS_ENABLED` is `true` (default). Metric definitions live in `BfwEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, returns **404** with JSON `{"error":"metrics_disabled"}`.
 
-**`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `TDE_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `TDE_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
+**`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `BFE_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `BFE_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
 
 **Deprecation headers (RFC 8594)** — Routes mark themselves by setting `conn.private[:deprecated]` to `%{successor: path, sunset: optional_datetime}` (via `plug :put_private` or scope options). `DeprecationPlug` injects `Deprecation`, `Link` (`rel="successor-version"`), and optional `Sunset` on responses. Full rules: [§10.5](#105-deprecation-headers-rfc-8594).
 
-Additional trigger-style paths in the table below remain specified for v1 parity; wire them through REST controllers (and the plugin facade) when not yet present on `EvilEngineWeb.Http.Router`. GraphQL is query-only — it is never a command surface.
+Additional trigger-style paths in the table below remain specified for v1 parity; wire them through REST controllers (and the plugin facade) when not yet present on `BfwEngineWeb.Http.Router`. GraphQL is query-only — it is never a command surface.
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness/readiness; **no auth**; **204 No Content**. Load is `engine.load` on `GET /stats` |
 | `GET` | `/info` | Engine id/name/version/`startedAt`; **no auth** |
-| `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`TDE_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
+| `GET` | `/metrics` | Prometheus text exposition; **no auth** when enabled (`BFE_METRICS_ENABLED`, default `true`). Returns `404` with `{"error":"metrics_disabled"}` when disabled |
 | `GET` | `/stats` | JSON snapshot of current engine state (see [observability.md](./observability.md)) |
 | `POST` | `/processes/{model_id}/start` | Start a new PI (body: startEventId?, payload?, context?, businessKey?). `context` is stored as `started_with_context`; empty when omitted. Always resolves to the latest non-deleted version (`process_versions.deleted=false`) of an enabled process |
-| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `TDE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md)). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
+| `POST` | `/messages/{message_name}/trigger` | **Implemented** — publish a named message. Body: `{payload?, correlation?}` — message name is the path parameter. `correlation` is optional; if absent, the published `correlation_value` defaults to `:none` ([routing.md](./routing.md) §3.5.2). Routing follows [routing.md](./routing.md) §3.5.3: every subscription whose `(message_name, expected_correlation_value)` matches receives a copy (broadcast-within-key). If **any** subscription matches, Message Start Events are suppressed (catch-wins-over-Start); if none match and at least one deployed process has a Message Start Event with matching name, one PI is started per such process. If none match and no Start Event matches, the message is held in `pending_messages` for `BFE_MESSAGE_PENDING_TTL` ([configuration.md](./configuration.md)). Response body: `{messageId, correlationValue, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [...], pending: boolean}`. Auth: `trigger_message` (`"all"`). Returns `503` with `Retry-After` when `MessageSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/messages` was **removed**, not aliased. |
 | `POST` | `/signals/{signal_name}/trigger` | **Implemented** — broadcast a named signal. Body: empty or `{}`; any `payload` key is silently ignored. Signals carry no payload and no correlation — pure broadcast by signal name. Response body: `{signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean}`. Auth: `trigger_signal` (`"all"`). Returns `503` with `Retry-After: 5` when `SignalSubscriptions` is not yet ready (resume gate). The old RPC-style `POST /triggers/signals` was **removed**, not aliased. |
 | `PUT` | `/user-tasks/{fniId}/finish` | Complete with result |
 | `PUT` | `/user-tasks/{fniId}/cancel` | |
@@ -106,7 +106,7 @@ Additional trigger-style paths in the table below remain specified for v1 parity
 | `DELETE` | `/decisions/{model_id}` | Undeploy (soft-delete all versions, 204). Requires `delete_dmn` claim |
 | `DELETE` | `/decisions/{model_id}/versions/{version}` | Soft-delete a specific version (204). Requires `delete_dmn` claim |
 
-**Authorization claims:** `deploy_dmn` for deploy/enable/disable, `delete_dmn` for undeploy/version-delete. Enforced in `EvilEngine.Api` (not in `DecisionController`). Admin override (`zeeky_boogie_doog`) bypasses all claim checks.
+**Authorization claims:** `deploy_dmn` for deploy/enable/disable, `delete_dmn` for undeploy/version-delete. Enforced in `BfwEngine.Api` (not in `DecisionController`). Admin override (`zeeky_boogie_doog`) bypasses all claim checks.
 
 #### 10.1.3 Message triggers (`MessageController` — implemented)
 
@@ -114,7 +114,7 @@ Additional trigger-style paths in the table below remain specified for v1 parity
 |---|---|---|---|
 | `POST` | `/messages/{message_name}/trigger` | Trigger a named message | `trigger_message` (`"all"`) |
 
-Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationValue, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_message` claim), `413` (payload too large), `503` (subscription registry not ready during resume — includes `Retry-After`). Controller: `EvilEngineWeb.Http.MessageController` (`apps/api_web/lib/evil_engine_web/http/controllers/message_controller.ex`). Delegates to `EvilEngine.Api.publish_message/5` (claim check + `MessagePublisher`).
+Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationValue, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_message` claim), `413` (payload too large), `503` (subscription registry not ready during resume — includes `Retry-After`). Controller: `BfwEngineWeb.Http.MessageController` (`apps/api_web/lib/bfw_engine_web/http/controllers/message_controller.ex`). Delegates to `BfwEngine.Api.publish_message/5` (claim check + `MessagePublisher`).
 
 #### 10.1.4 Signal triggers (`SignalController` — implemented)
 
@@ -122,7 +122,7 @@ Body: `{payload?, correlation?}`. Returns `200` with `{messageId, correlationVal
 |---|---|---|---|
 | `POST` | `/signals/{signal_name}/trigger` | Broadcast a named signal | `trigger_signal` (`"all"`) |
 
-Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `{signalId, signalName, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_signal` claim), `503` (subscription registry not ready during resume — includes `Retry-After: 5`). Signals carry no payload and no correlation — they are pure broadcast by signal name. Controller: `EvilEngineWeb.Http.SignalController` (`apps/api_web/lib/evil_engine_web/http/controllers/signal_controller.ex`). Delegates to `EvilEngine.Api.publish_signal/3` (claim check + `SignalPublisher`).
+Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `{signalId, signalName, deliveries, startedProcessInstanceIds, pending}`. Errors: `403` (missing `trigger_signal` claim), `503` (subscription registry not ready during resume — includes `Retry-After: 5`). Signals carry no payload and no correlation — they are pure broadcast by signal name. Controller: `BfwEngineWeb.Http.SignalController` (`apps/api_web/lib/bfw_engine_web/http/controllers/signal_controller.ex`). Delegates to `BfwEngine.Api.publish_signal/3` (claim check + `SignalPublisher`).
 
 #### 10.1.5 Timer event manual trigger (`TimerEventController` — implemented)
 
@@ -130,9 +130,9 @@ Body: empty or `{}`; any `payload` key is silently ignored. Returns `200` with `
 |---|---|---|---|
 | `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | `lane:<name>="write"` for the FNI's lane, or laneless FNI, or `zeeky_boogie_doog`. `"read"` / `observe_all` → **403**; invisible → **404** |
 
-Body: empty or `{}`. Returns `200` with `{triggered: true}`. Errors: `404` (FNI not found or lane-invisible — indistinguishable), `403` (visible but not writable: `"read"` or `observe_all`), `409` (FNI not active/waiting or already terminal), `422` (`not_a_timer_event` — FNI is not an Intermediate Catch or Boundary timer event). Boolean `true` is not a write alias. Controller: `EvilEngineWeb.Http.TimerEventController` (`apps/api_web/lib/evil_engine_web/http/controllers/timer_event_controller.ex`). Delegates to `EvilEngine.Api.trigger_timer_event/3`.
+Body: empty or `{}`. Returns `200` with `{triggered: true}`. Errors: `404` (FNI not found or lane-invisible — indistinguishable), `403` (visible but not writable: `"read"` or `observe_all`), `409` (FNI not active/waiting or already terminal), `422` (`not_a_timer_event` — FNI is not an Intermediate Catch or Boundary timer event). Boolean `true` is not a write alias. Controller: `BfwEngineWeb.Http.TimerEventController` (`apps/api_web/lib/bfw_engine_web/http/controllers/timer_event_controller.ex`). Delegates to `BfwEngine.Api.trigger_timer_event/3`.
 
-TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/daemonengine_client` (`packages/js/client/src/rest/event-client.ts`). SDK type: `TimerTriggerResult` (`packages/js/sdk/src/types/trigger.ts`).
+TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/bfw_engine_client` (`packages/js/client/src/rest/event-client.ts`). SDK type: `TimerTriggerResult` (`packages/js/sdk/src/types/trigger.ts`).
 
 #### 10.1.6 Escalation trigger (`EscalationController` — implemented)
 
@@ -140,9 +140,9 @@ TypeScript client: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptoru
 |---|---|---|---|
 | `POST` | `/escalations/{escalation_code}/trigger` | Inject an escalation into waiting catchers engine-wide | `trigger_escalation` (boolean) |
 
-Body: empty or `{}`; any `payload` key is silently ignored. Escalations carry no payload. Returns `200` with `{escalationCode, deliveries: [{processInstanceId, flowNodeInstanceId}], pending: false}`. Empty `deliveries` is success (no waiter matched). Errors: `403` (missing / false `trigger_escalation`), `422` (`escalation_code_blank` or `escalation_code_too_long`). This is a debugger/operator inject, not a modeled BPMN throw: it delivers to matching waiting Escalation Boundary FNIs and Event Subprocess starts on every running PI. It does not walk the parent chain, does not insert pending rows, and does not mark unmatched PIs `:escalated`. Do not revive `POST /triggers/escalations`. Controller: `EvilEngineWeb.Http.EscalationController`. Delegates to `EvilEngine.Api.trigger_escalation/3`.
+Body: empty or `{}`; any `payload` key is silently ignored. Escalations carry no payload. Returns `200` with `{escalationCode, deliveries: [{processInstanceId, flowNodeInstanceId}], pending: false}`. Empty `deliveries` is success (no waiter matched). Errors: `403` (missing / false `trigger_escalation`), `422` (`escalation_code_blank` or `escalation_code_too_long`). This is a debugger/operator inject, not a modeled BPMN throw: it delivers to matching waiting Escalation Boundary FNIs and Event Subprocess starts on every running PI. It does not walk the parent chain, does not insert pending rows, and does not mark unmatched PIs `:escalated`. Do not revive `POST /triggers/escalations`. Controller: `BfwEngineWeb.Http.EscalationController`. Delegates to `BfwEngine.Api.trigger_escalation/3`.
 
-TypeScript client: `EventClient.triggerEscalation(escalationCode)` in `@elraptorus/daemonengine_client`. SDK type: `EscalationTriggerResult`. Plugin facade: `facade.escalations.publish.(escalation_code)` with `skip_claims: true`.
+TypeScript client: `EventClient.triggerEscalation(escalationCode)` in `@elraptorus/bfw_engine_client`. SDK type: `EscalationTriggerResult`. Plugin facade: `facade.escalations.publish.(escalation_code)` with `skip_claims: true`.
 
 #### 10.1.7 Ad-hoc subprocess control (`AdhocSubprocessController` — implemented)
 
@@ -157,15 +157,15 @@ The `{id}` path parameter is the **child process instance ID** spawned by the ad
 
 **List activities** returns `{data: [{id, name, type, enabled, performedCount, activeCount}]}`. **Activate** returns `{flowNodeInstanceId: "..."}`. **Complete** returns `{completed: true}`. **Status** returns `{activeCount, performedActivities: [id], enabledActivities: [id], completionSignaled: boolean}`.
 
-Errors: `404` (PI not found or activity not found in scope), `422` (`not_adhoc_subprocess` — PI is not an ad-hoc subprocess child), `409` (`adhoc_already_completing` — completion already signaled), `403` (missing claim), `500` (`dispatch_failed`). Controller: `EvilEngineWeb.Http.AdhocSubprocessController` (`apps/api_web/lib/evil_engine_web/http/controllers/adhoc_subprocess_controller.ex`). Delegates to `EvilEngine.Api.{get_adhoc_enabled_activities,activate_adhoc_activity,complete_adhoc_subprocess,get_adhoc_status}/3-4`.
+Errors: `404` (PI not found or activity not found in scope), `422` (`not_adhoc_subprocess` — PI is not an ad-hoc subprocess child), `409` (`adhoc_already_completing` — completion already signaled), `403` (missing claim), `500` (`dispatch_failed`). Controller: `BfwEngineWeb.Http.AdhocSubprocessController` (`apps/api_web/lib/bfw_engine_web/http/controllers/adhoc_subprocess_controller.ex`). Delegates to `BfwEngine.Api.{get_adhoc_enabled_activities,activate_adhoc_activity,complete_adhoc_subprocess,get_adhoc_status}/3-4`.
 
 Plugin facade: `facade.adhoc_subprocesses.{get_enabled_activities,activate_activity,complete,get_status}` — same operations with `skip_claims: true`.
 
-**Async Service Tasks:** completion is **plugin-side** only — call `engine_facade.finish_async_service_task/2` or `fail_async_service_task/3` (or the matching `EvilEngine.Api.*` facade actions). There is **no** first-class `POST /async-flow-nodes/...` REST surface and **no** GraphQL mutation.
+**Async Service Tasks:** completion is **plugin-side** only — call `engine_facade.finish_async_service_task/2` or `fail_async_service_task/3` (or the matching `BfwEngine.Api.*` facade actions). There is **no** first-class `POST /async-flow-nodes/...` REST surface and **no** GraphQL mutation.
 
 ##### 10.1.1 Payload size limits
 
-Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `TDE_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `PUT /user-tasks/{fniId}/finish` checks the `result` field (`PayloadCapPlug` with `field: "result"`, then `EvilEngine.Api.finish_user_task/4`); HTTP 413 leaves the FNI `waiting`. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
+Every endpoint that accepts a user-supplied JSON payload — `payload` on `POST /processes/{model_id}/start`, `/messages/{message_name}/trigger`, `/user-tasks/{fniId}/finish`, and async completion payloads on the **plugin facade** — enforces the engine-wide `BFE_TOKEN_MAX_BYTES` cap (default `65536` = 64 KiB) on the **canonicalized JSON byte size** of the payload field, measured at request parse time before any engine-side work. On `POST /processes/{model_id}/start`, `payload` (= the PI's `started_with_context`) uses the same cap. `PUT /user-tasks/{fniId}/finish` checks the `result` field (`PayloadCapPlug` with `field: "result"`, then `BfwEngine.Api.finish_user_task/4`); HTTP 413 leaves the FNI `waiting`. `/signals/{signal_name}/trigger` and `/escalations/{escalation_code}/trigger` carry no payload — any `payload` key in the body is silently ignored, and PayloadCap is not invoked. There is no `POST /triggers/*` RPC surface (those routes were removed). GraphQL is query-only and does not accept command payloads.
 
 On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structured body:
 
@@ -180,9 +180,9 @@ On overflow the endpoint returns **HTTP 413 Payload Too Large** with a structure
 
 No engine state changes on a 413 — the PI is not started, the message is not published, the User Task is not completed, the async Service Task FNI stays in `waiting`. API-caller retries with a smaller payload are first-class.
 
-The cap is enforced identically whether the payload comes through REST (above) or through the plugin facade (`EvilEngine.Api.*` / `engine_facade`). Overflow on REST returns HTTP 413 as shown; overflow on the facade returns `{:error, :payload_too_large, %{field, size, limit}}` with the same shape. There are no GraphQL mutations, so GraphQL never carries a command payload.
+The cap is enforced identically whether the payload comes through REST (above) or through the plugin facade (`BfwEngine.Api.*` / `engine_facade`). Overflow on REST returns HTTP 413 as shown; overflow on the facade returns `{:error, :payload_too_large, %{field, size, limit}}` with the same shape. There are no GraphQL mutations, so GraphQL never carries a command payload.
 
-Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * TDE_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return the standard Phoenix `413` before the per-field cap check runs.
+Body-level limits (the total HTTP request byte size) are enforced separately by the upstream Phoenix endpoint at `max_body_bytes = 4 * BFE_TOKEN_MAX_BYTES` by default (headroom for JSON envelope + multiple payload-bearing fields on a single request) and return the standard Phoenix `413` before the per-field cap check runs.
 
 ### 10.2 GraphQL surface (query-only)
 
@@ -213,7 +213,7 @@ Filter grammar is AshGraphql's built-in (type-safe, composable expressions inclu
 
 All response field names use **camelCase** (Absinthe `LanguageConventions` adapter default). Query field names accept both camelCase and snake_case.
 
-**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `TDE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md).
+**Pagination vs complexity.** AshGraphql scores a paginated list as `limit × (selected result fields + page metadata)`. The Studio debugger's `dataObjectValues(limit: 500)` snapshot scores 6500; the default `BFE_GRAPHQL_MAX_COMPLEXITY` is **10000** so that query is admitted. Nested `processInstance { dataObjectValues { ... } }` (no `limit` argument) is scored as `child_complexity + 1` and is not the same query. See [configuration.md](./configuration.md).
 
 ##### 10.2.1.1 `ProcessInstance.finalTokens` calculation
 
@@ -227,7 +227,7 @@ Resolver implementation: for `ProcessInstance.finalTokens` on a single-PI query,
 
 #### 10.2.2 Process Model graph
 
-Alongside the persistence resources, the GraphQL layer (`api_web`) projects the parsed `EvilEngine.BPMN.Model.*` AST into GraphQL as a **first-class structured graph** (Phase 6.1) so external consumers can read the deployed process definition without re-parsing XML. These types are **not** Ash-resource-backed; their resolvers read `EvilEngine.BPMN.ModelCache` (warm path: ETS lookup; cold path: DB-backed loader — see the cold-cache pitfall below). Defined in `apps/api_web/lib/evil_engine_web/graphql/model_types.ex`, `model_resolvers.ex`, and `dataloader/model_cache_source.ex`; wired into `schema.ex`.
+Alongside the persistence resources, the GraphQL layer (`api_web`) projects the parsed `BfwEngine.BPMN.Model.*` AST into GraphQL as a **first-class structured graph** so external consumers can read the deployed process definition without re-parsing XML. These types are **not** Ash-resource-backed; their resolvers read `BfwEngine.BPMN.ModelCache` (warm path: ETS lookup; cold path: DB-backed loader — see the cold-cache pitfall below). Defined in `apps/api_web/lib/bfw_engine_web/graphql/model_types.ex`, `model_resolvers.ex`, and `dataloader/model_cache_source.ex`; wired into `schema.ex`.
 
 **As-built shape** (abbreviated — the full struct-aligned field list lives in `model_types.ex` and is enforced at compile time, see below):
 
@@ -388,10 +388,10 @@ extend type FlowNodeInstance {
 
 **Implementation invariants (as built):**
 
-- **Declarative field table, not typespec introspection (D-3 = B).** `EvilEngineWeb.Graphql.ModelSchema.FieldTable` registers every `EvilEngine.BPMN.Model.*` struct field as `exposed` (with the GraphQL field it maps to) or `excluded` (with a reason). `FieldTable.verify!/0` runs at the top of `model_types.ex` and **fails the build** if any struct key is neither mapped nor excluded — this is the enforcement mechanism, not automatic derivation from `@type t`. A field added to an Elixir struct without a matching `FieldTable` entry is a compile error, not a silent gap. `verify!/0` does **not** inspect Absinthe types: a row marked `exposed` that was never declared as a GraphQL field would still compile. `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest` closes that hole by asserting every `exposed` atom exists on the mapped Absinthe type (`FieldTable.graphql_identifier/1`) and that every `Model.*` struct module is registered.
+- **Declarative field table, not typespec introspection (D-3 = B).** `BfwEngineWeb.Graphql.ModelSchema.FieldTable` registers every `BfwEngine.BPMN.Model.*` struct field as `exposed` (with the GraphQL field it maps to) or `excluded` (with a reason). `FieldTable.verify!/0` runs at the top of `model_types.ex` and **fails the build** if any struct key is neither mapped nor excluded — this is the enforcement mechanism, not automatic derivation from `@type t`. A field added to an Elixir struct without a matching `FieldTable` entry is a compile error, not a silent gap. `verify!/0` does **not** inspect Absinthe types: a row marked `exposed` that was never declared as a GraphQL field would still compile. `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest` closes that hole by asserting every `exposed` atom exists on the mapped Absinthe type (`FieldTable.graphql_identifier/1`) and that every `Model.*` struct module is registered.
 - **`:json` scalar is reused, not redefined.** AshGraphql already registers a `:json` scalar on the same schema; `model_types.ex` imports it rather than declaring a second one (Absinthe requires globally unique type identifiers).
-- **Compiled artifacts are never exposed.** `DataContract.compiled_schema`, the four `MultiInstance.compiled_*` fields, `StandardLoop.compiled_loop_condition`, the two `SubProcess.*_compiled` fields, `Process.inclusive_join_analyses`, `Process.complex_region_analyses`, and `Definitions.raw_xml` are all `excluded` entries in the `FieldTable` — enforced by `EvilEngineWeb.Graphql.ModelGraphIntrospectionTest`, which scans the entire introspected schema for any identifier matching `compiled`, `precompiled`, or `raw_xml` and fails if one is reachable.
-- **Dataloader batching.** `EvilEngineWeb.Graphql.Dataloader.ModelCacheSource` batches `ModelCache.fetch/1` calls keyed by `process_version_id` via `Dataloader.KV`, registered in `Schema.context/1` with `get_policy: :tuples` (required — the default `:raise_on_error` would turn the ordinary `{:error, :not_found}` cold-cache-miss outcome into a raised exception). All `FlowNodeInstance.flowNode` resolutions in one request that share a `process_version_id` — e.g. every FNI of one PI, the Studio-debugger access pattern — collapse to exactly one `ModelCache.fetch/1` call, verified in `graphql_model_graph_wp7_test.exs` via `:telemetry` instrumentation on `[:evil_engine, :model_cache, :fetch]`.
+- **Compiled artifacts are never exposed.** `DataContract.compiled_schema`, the four `MultiInstance.compiled_*` fields, `StandardLoop.compiled_loop_condition`, the two `SubProcess.*_compiled` fields, `Process.inclusive_join_analyses`, `Process.complex_region_analyses`, and `Definitions.raw_xml` are all `excluded` entries in the `FieldTable` — enforced by `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest`, which scans the entire introspected schema for any identifier matching `compiled`, `precompiled`, or `raw_xml` and fails if one is reachable.
+- **Dataloader batching.** `BfwEngineWeb.Graphql.Dataloader.ModelCacheSource` batches `ModelCache.fetch/1` calls keyed by `process_version_id` via `Dataloader.KV`, registered in `Schema.context/1` with `get_policy: :tuples` (required — the default `:raise_on_error` would turn the ordinary `{:error, :not_found}` cold-cache-miss outcome into a raised exception). All `FlowNodeInstance.flowNode` resolutions in one request that share a `process_version_id` — e.g. every FNI of one PI, the Studio-debugger access pattern — collapse to exactly one `ModelCache.fetch/1` call, verified in `graphql_model_graph_wp7_test.exs` via `:telemetry` instrumentation on `[:bfw_engine, :model_cache, :fetch]`.
 - **`process_instance_id` / `flow_node_id` reload guard.** AshGraphql only loads attributes the client's query selected. `ModelResolvers.ensure_required_ids_loaded/2` reloads these two `FlowNodeInstance` attributes via `Ash.load/3` whenever the resolver needs them but the client didn't select them as scalar fields — otherwise the resolver would crash on `%Ash.NotLoaded{}`.
 - **Authorization.** No new policy layer — resolvers read the persistence parent (`ProcessVersion` or, via `FlowNodeInstance → ProcessInstance`, the owning PI) through `Ash.get/2` with the request's `actor`, so the same Ash policies that gate `ProcessVersion`/`FlowNodeInstance`/`ProcessInstance` visibility gate the attached Model data. A caller who cannot see the `FlowNodeInstance` at all gets `flowNode`/`processVersion` as unreachable fields on a `null` parent — never a separate authorization error. `ProcessVersion` read policy is `actor_present()`: any authenticated JWT can read `processModel` (the same bar as `bpmnXml`); an unauthenticated caller is rejected at the HTTP plug (401/403) before Absinthe runs.
 - **`ProcessVersion.bpmnXml` is retained.** The raw XML remains the authoritative persistent form and the required input for `bpmn-js` diagram rendering. `processModel` is additive, not a replacement.
@@ -445,7 +445,7 @@ Real-time FNI updates use the WebSocket API (Phoenix Channels), not GraphQL subs
 
 #### Retention (no REST purge)
 
-Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix evil.retention.purge`. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. GraphQL is query-only.
+Manual purge is **not** a live REST or GraphQL field. Process-instance trees are hard-deleted by `mix bfw.retention.purge`. Ordinary `DELETE /process-instances/{id}` remains **soft-delete of one PI + its FNIs** and still omits `cancelled`. GraphQL is query-only.
 
 See [configuration.md](./configuration.md) and [database.md](../guides/operations/database.md).
 
@@ -458,7 +458,7 @@ See [configuration.md](./configuration.md) and [database.md](../guides/operation
 
 ### 10.4 OpenAPI + GraphQL SDL
 
-- OpenAPI 3.x served at `GET /api/openapi`; Swagger UI at `GET /` (path to the spec configured in the plug). All three devtools routes are gated by `TDE_DEVTOOLS_ENABLED` (defaults to `false` in prod). The OpenAPI spec can be individually re-enabled via `TDE_EXPOSE_OPENAPI_SPEC=true`.
+- OpenAPI 3.x served at `GET /api/openapi`; Swagger UI at `GET /` (path to the spec configured in the plug). All three devtools routes are gated by `BFE_DEVTOOLS_ENABLED` (defaults to `false` in prod). The OpenAPI spec can be individually re-enabled via `BFE_EXPOSE_OPENAPI_SPEC=true`.
 - GraphQL Playground at `/admin/graphiql` (devtools-only, pre-loaded with example query tabs). SDL export endpoint is not currently implemented.
 - Client generation is CI-driven ([plugins.md](./plugins.md) — SDK packages).
 
@@ -503,27 +503,27 @@ Authorization and business-rule validation follow a strict three-layer model:
 
 | Layer | Responsibility | Must NOT do |
 |---|---|---|
-| **REST controllers** (`apps/api_web/lib/evil_engine_web/http/controllers/`) | Parse HTTP (path params, body, identity from conn assigns); call `EvilEngine.Api.*`; map error tuples to HTTP status codes via `ErrorResponse` | Claim checks, lane checks, existence/state guards, direct `Ash.*` or publisher calls |
-| **`EvilEngine.Api` facade** (`apps/api_facade/lib/evil_engine/api.ex`) | **Single authoritative enforcement point** for all claim checks, lane access, and business rules (existence, type, state, enabled, active PIs) before delegating to Core or publishers | HTTP-specific concerns |
+| **REST controllers** (`apps/api_web/lib/bfw_engine_web/http/controllers/`) | Parse HTTP (path params, body, identity from conn assigns); call `BfwEngine.Api.*`; map error tuples to HTTP status codes via `ErrorResponse` | Claim checks, lane checks, existence/state guards, direct `Ash.*` or publisher calls |
+| **`BfwEngine.Api` facade** (`apps/api_facade/lib/bfw_engine/api.ex`) | **Single authoritative enforcement point** for all claim checks, lane access, and business rules (existence, type, state, enabled, active PIs) before delegating to Core or publishers | HTTP-specific concerns |
 | **PI `:gen_statem`** (`ProcessInstance`) | Minimal defensive race-condition guards only (e.g. FNI no longer active in in-memory state at call time) | Claim or lane enforcement |
 
-Claim and lane helpers live in `EvilEngine.Api.Validation` (`apps/api_facade/lib/evil_engine/api/validation.ex`). See [authorization.md](./authorization.md) §13 for function signatures and claim-to-facade mapping.
+Claim and lane helpers live in `BfwEngine.Api.Validation` (`apps/api_facade/lib/bfw_engine/api/validation.ex`). See [authorization.md](./authorization.md) §13 for function signatures and claim-to-facade mapping.
 
 #### `skip_claims` opt-out
 
-Every Api function that enforces claims accepts `opts \\ []`. When `skip_claims: true` is passed, **claim checks and lane checks are skipped**; business rule checks always apply. The plugin loader (`apps/peripheral_plugins/lib/evil_engine/plugins/loader.ex`) passes `skip_claims: true` when constructing all plugin facade closures so in-BEAM plugins operate inside the trust boundary without per-plugin JWT claim configuration. REST controllers never pass this flag.
+Every Api function that enforces claims accepts `opts \\ []`. When `skip_claims: true` is passed, **claim checks and lane checks are skipped**; business rule checks always apply. The plugin loader (`apps/peripheral_plugins/lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` when constructing all plugin facade closures so in-BEAM plugins operate inside the trust boundary without per-plugin JWT claim configuration. REST controllers never pass this flag.
 
 ```elixir
 # Plugin closure — claims skipped, business rules still enforced
-EvilEngine.Api.abort_process_instance(id, reason, identity, skip_claims: true)
+BfwEngine.Api.abort_process_instance(id, reason, identity, skip_claims: true)
 
 # REST path — full claim + lane enforcement
-EvilEngine.Api.abort_process_instance(id, reason, identity)
+BfwEngine.Api.abort_process_instance(id, reason, identity)
 ```
 
 ### `PUT /process-instances/:id/retry` (implemented)
 
-Retries a terminal (fatal, aborted, or error) process instance. The Api facade (`EvilEngine.Api.retry_process_instance/3`) validates prerequisites (PI existence, terminal state, not running, version resolution) then delegates tree analysis and execution to Core (`Execution.retry_process_instance/1`).
+Retries a terminal (fatal, aborted, or error) process instance. The Api facade (`BfwEngine.Api.retry_process_instance/3`) validates prerequisites (PI existence, terminal state, not running, version resolution) then delegates tree analysis and execution to Core (`Execution.retry_process_instance/1`).
 
 **Request body** (all fields optional):
 
@@ -550,7 +550,7 @@ Retries a terminal (fatal, aborted, or error) process instance. The Api facade (
 | 422 | `retry_checkpoint_is_ebg_loser` | Checkpoint FNI was interrupted by an Event-Based Gateway race — retry at the gateway or upstream instead |
 | 422 | `retry_checkpoint_is_join_gateway` | Checkpoint FNI is a parallel/inclusive join gateway — retry at the fork or upstream instead |
 | 422 | `retry_checkpoint_is_non_retryable` | Checkpoint FNI was interrupted by a BPMN flow mechanism (boundary cancellation, EBG, Terminate/Error End Event) — retry without a checkpoint or select a different flow node |
-| 503 | `engine_at_capacity` | `TDE_MAX_CONCURRENT_PIS` limit reached |
+| 503 | `engine_at_capacity` | `BFE_MAX_CONCURRENT_PIS` limit reached |
 
 **Version resolution flow:** The Api layer resolves the version using `CalledElementResolver`:
 - No `version` → same version (`pi_data.process_version_id`)
@@ -559,7 +559,7 @@ Retries a terminal (fatal, aborted, or error) process instance. The Api facade (
 
 ## Message, signal, and timer-schedule REST
 
-These routes are implemented on `EvilEngineWeb.Http.Router`, documented in OpenAPI, and covered by integration tests. The TypeScript client methods match these paths. There is no `x-engine-status: planned` marker in the spec.
+These routes are implemented on `BfwEngineWeb.Http.Router`, documented in OpenAPI, and covered by integration tests. The TypeScript client methods match these paths. There is no `x-engine-status: planned` marker in the spec.
 
 ### `POST /messages/{message_name}/trigger` — **implemented**
 
@@ -622,13 +622,13 @@ Response shape for list:
 }
 ```
 
-Controller: `EvilEngineWeb.Http.TimerScheduleController` (`apps/api_web/lib/evil_engine_web/http/controllers/timer_schedule_controller.ex`)
+Controller: `BfwEngineWeb.Http.TimerScheduleController` (`apps/api_web/lib/bfw_engine_web/http/controllers/timer_schedule_controller.ex`)
 
-Delegates to `EvilEngine.Timers.StartEventManager` for all operations.
+Delegates to `BfwEngine.Timers.StartEventManager` for all operations.
 
 ## BPMN Runtime Facade Functions (claim-enforced)
 
-These `EvilEngine.Api` functions centralize claim checks previously scattered across REST controllers. All accept `opts \\ []` with optional `skip_claims: true` (see §10.8).
+These `BfwEngine.Api` functions centralize claim checks previously scattered across REST controllers. All accept `opts \\ []` with optional `skip_claims: true` (see §10.8).
 
 | Function | Signature | Claim / access | Business rules |
 |----------|-----------|----------------|----------------|
@@ -665,7 +665,7 @@ Plugin facade closures (`facade.adhoc_subprocesses.*`) call the same functions w
 
 ## DMN (Decision) Facade Functions
 
-The `EvilEngine.Api` module exposes DMN operations via the same facade convergence pattern as BPMN. DMN deploy/enable/disable/undeploy claim checks (`deploy_dmn`, `delete_dmn`) are enforced in the facade via `EvilEngine.Api.Validation` (not in `DecisionController`).
+The `BfwEngine.Api` module exposes DMN operations via the same facade convergence pattern as BPMN. DMN deploy/enable/disable/undeploy claim checks (`deploy_dmn`, `delete_dmn`) are enforced in the facade via `BfwEngine.Api.Validation` (not in `DecisionController`).
 
 | Function | Signature | Purpose |
 |----------|-----------|---------|
@@ -694,10 +694,10 @@ The `EvilEngine.Api` module exposes DMN operations via the same facade convergen
 
 ### Conditional Flows Only on Split Gateways
 
-`<bpmn:conditionExpression>` is honored only on sequence flows whose source is a Split Gateway (Exclusive Gateway in v1; Inclusive Gateway in Phase 4). Conditions on outgoing flows of any other element type are silently ignored at runtime. This affects BPMN parser behavior and the TypeScript SDK's BPMN model documentation. See [expressions.md](expressions.md).
+`<bpmn:conditionExpression>` is honored only on sequence flows whose source is a Split Gateway. Conditions on outgoing flows of any other element type are silently ignored at runtime. This affects BPMN parser behavior and the TypeScript SDK's BPMN model documentation. See [expressions.md](expressions.md).
 
-### `EvilEngine.Api` Convergence Layer
+### `BfwEngine.Api` Convergence Layer
 
-All external entry points (REST controllers, GraphQL resolvers, WebSocket channel handlers, external plugins) converge through a single `EvilEngine.Api` facade module, located in the `api_facade` umbrella app (`apps/api_facade/lib/evil_engine/api.ex`). This module wraps Ash domain reads/writes (with `authorize?: false` for internal calls), **enforces all claim and lane authorization** via `EvilEngine.Api.Validation`, validates business rules, and delegates runtime operations to `EvilEngine.Execution`. REST controllers are thin HTTP adapters — they call `EvilEngine.Api.*` and map error tuples; they never perform claim checks or call Ash/publishers directly. Plugins call the same facade functions with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/d51_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found.
+All external entry points (REST controllers, GraphQL resolvers, WebSocket channel handlers, external plugins) converge through a single `BfwEngine.Api` facade module, located in the `api_facade` umbrella app (`apps/api_facade/lib/bfw_engine/api.ex`). This module wraps Ash domain reads/writes (with `authorize?: false` for internal calls), **enforces all claim and lane authorization** via `BfwEngine.Api.Validation`, validates business rules, and delegates runtime operations to `BfwEngine.Execution`. REST controllers are thin HTTP adapters — they call `BfwEngine.Api.*` and map error tuples; they never perform claim checks or call Ash/publishers directly. Plugins call the same facade functions with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/d51_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found.
 
-The TypeScript SDK types are designed against the `EvilEngine.Api` facade surface.
+The TypeScript SDK types are designed against the `BfwEngine.Api` facade surface.

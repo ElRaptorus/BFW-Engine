@@ -1,9 +1,9 @@
-defmodule EvilEngine.Test.CompletionCounter do
+defmodule BfwEngine.Test.CompletionCounter do
   @moduledoc """
   Counts PI completions via telemetry for load test synchronization.
 
   Uses `:atomics` for lock-free, concurrent-safe counting. Attaches a
-  telemetry handler on `[:evil_engine, :process_instance, :state_change]` that
+  telemetry handler on `[:bfw_engine, :process_instance, :state_change]` that
   increments when a PI reaches a terminal state (`:finished` or `:fatal`).
   """
 
@@ -29,7 +29,7 @@ defmodule EvilEngine.Test.CompletionCounter do
 
     :telemetry.attach(
       handler_id,
-      [:evil_engine, :process_instance, :state_change],
+      [:bfw_engine, :process_instance, :state_change],
       fn _event, _measurements, metadata, config ->
         if metadata.new_state in @terminal_states and
              counts_as_completion?(metadata, config.roots_only) do

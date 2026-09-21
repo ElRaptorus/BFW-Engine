@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.BrtDmnIntegrationTest do
+defmodule BfwEngine.Integration.Execution.BrtDmnIntegrationTest do
   @moduledoc """
   Integration tests for Business Rule Task in DMN mode.
 
@@ -6,11 +6,11 @@ defmodule EvilEngine.Integration.Execution.BrtDmnIntegrationTest do
   BRT referencing that DMN → start PI → assert completion and
   `type_properties` contain DMN audit data.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: ProcessInstanceResource
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: ProcessInstanceResource
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   require Ash.Query
 

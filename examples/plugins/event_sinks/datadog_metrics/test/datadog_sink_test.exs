@@ -1,7 +1,7 @@
 defmodule Examples.EventSinks.DatadogMetrics.DatadogSinkTest do
   use ExUnit.Case
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.EventSinks.DatadogMetrics.DatadogSink
 
   @api_key "test-api-key"
@@ -99,8 +99,8 @@ defmodule Examples.EventSinks.DatadogMetrics.DatadogSinkTest do
     assert_receive {:flushed, received_api_key, buffer}
     assert received_api_key == @api_key
     assert length(buffer) == 3
-    assert Enum.at(buffer, 0).metric == "evil.process_instance.state_changed"
-    assert Enum.at(buffer, 1).metric == "evil.flow_node.started"
-    assert Enum.at(buffer, 2).metric == "evil.engine.overload"
+    assert Enum.at(buffer, 0).metric == "bfw.process_instance.state_changed"
+    assert Enum.at(buffer, 1).metric == "bfw.flow_node.started"
+    assert Enum.at(buffer, 2).metric == "bfw.engine.overload"
   end
 end

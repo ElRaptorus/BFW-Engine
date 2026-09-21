@@ -21,7 +21,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerPlugin do
   fetch → parse → deploy pipeline once, then stops.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   require Logger
 

@@ -1,4 +1,4 @@
-# ThomasTheDaemonEngine — Examples
+# Bifrost Forge World Engine — Examples
 
 Ready-to-use examples covering plugin development, the TypeScript Client, and the TypeScript SDK.
 
@@ -92,7 +92,7 @@ Plugins that observe Business Rule Task execution via events and analyze results
 
 ### TypeScript Client Examples (`client-js/`)
 
-Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_client` package. Each has `package.json`, `tsconfig.json`, `src/main.ts`, and a `test/` directory. **Requires a live engine** (`docker compose up`).
+Standalone Node.js projects demonstrating the `@elraptorus/bfw_engine_client` package. Each has `package.json`, `tsconfig.json`, `src/main.ts`, and a `test/` directory. **Requires a live engine** (`docker compose up`).
 
 | Example | Description |
 |---------|-------------|
@@ -110,7 +110,7 @@ Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_client` 
 
 ### TypeScript SDK Examples (`sdk-js/`)
 
-Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_sdk` package. **No running engine needed.**
+Standalone Node.js projects demonstrating the `@elraptorus/bfw_engine_sdk` package. **No running engine needed.**
 
 | Example | Description |
 |---------|-------------|
@@ -128,7 +128,7 @@ Standalone Node.js projects demonstrating the `@elraptorus/daemonengine_sdk` pac
 1. Browse the example that matches your use case
 2. Copy the `lib/` files into your own OTP application
 3. Set `:plugin_module` in your app's config
-4. Add your app to `TDE_PLUGINS_INBEAM`
+4. Add your app to `BFE_PLUGINS_INBEAM`
 5. See each example's README for detailed steps
 
 ### Tests
@@ -168,4 +168,4 @@ For client-js examples, set `ENGINE_URL` and `ENGINE_TOKEN` environment variable
 - [API Reference](../docs/architecture/api.md) — REST, GraphQL, and WebSocket contracts
 - [Execution Architecture](../docs/architecture/execution.md) — service task handler lifecycle
 - [DMN Architecture](../docs/architecture/dmn.md) — parser model, deployment, evaluation, and plugin integration
-- [`@elraptorus/daemonengine_sdk`](../packages/js/sdk/) — TypeScript SDK (types, errors, events, BPMN/DMN parsers)
+- [`@elraptorus/bfw_engine_sdk`](../packages/js/sdk/) — TypeScript SDK (types, errors, events, BPMN/DMN parsers)

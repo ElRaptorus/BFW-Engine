@@ -1,12 +1,12 @@
 defmodule Examples.Plugins.Combined.MetricsPipeline.MetricsPipelineTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.BPMN.Model.FlowNode
-  alias EvilEngine.BPMN.Model.FlowNodeData.ServiceTask, as: ServiceTaskData
-  alias EvilEngine.EngineFacade
-  alias EvilEngine.EngineFacade.{Graphql, ProcessInstances, ServiceTasks}
-  alias EvilEngine.Execution.HandlerContext
-  alias EvilEngine.Types.{Event, Token}
+  alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.Model.FlowNodeData.ServiceTask, as: ServiceTaskData
+  alias BfwEngine.EngineFacade
+  alias BfwEngine.EngineFacade.{Graphql, ProcessInstances, ServiceTasks}
+  alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Types.{Event, Token}
 
   alias Examples.Plugins.Combined.MetricsPipeline.{
     FacadeStore,

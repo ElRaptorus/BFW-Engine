@@ -1,13 +1,13 @@
 # DMN Deploy and Evaluate Example
 
-Demonstrates using the `@elraptorus/daemonengine_client` to deploy a DMN decision
+Demonstrates using the `@elraptorus/bfw_engine_client` to deploy a DMN decision
 table to the engine and evaluate it with different inputs.
 
 ## Prerequisites
 
 - Node.js 24.20+
 - pnpm
-- A running ThomasTheDaemonEngine instance with DMN support (Phase 3+)
+- A running Bifrost Forge World Engine instance with DMN support
 
 ## Usage
 

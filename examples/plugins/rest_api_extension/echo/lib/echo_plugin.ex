@@ -4,7 +4,7 @@ defmodule Examples.Plugins.RestApiExtension.EchoPlug do
   """
 
   @behaviour Plug
-  @behaviour EvilEngine.Plugin.RestApiExtension
+  @behaviour BfwEngine.Plugin.RestApiExtension
 
   import Plug.Conn
 
@@ -38,7 +38,7 @@ defmodule Examples.Plugins.RestApiExtension.EchoPlugin do
   Registers the echo RestApiExtension under `/echo-ext`.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   @impl true
   def on_load(engine_facade) do

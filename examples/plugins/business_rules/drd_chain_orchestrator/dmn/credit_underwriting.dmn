@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
   id="credit-underwriting" name="Credit Underwriting"
   namespace="https://example.com/dmn/credit">
 
   <extensionElements>
-    <evil:version>1.0.0</evil:version>
+    <bfw:version>1.0.0</bfw:version>
   </extensionElements>
 
   <inputData id="InputData_applicant_age" name="applicantAge">

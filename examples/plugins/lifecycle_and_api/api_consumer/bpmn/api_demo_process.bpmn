@@ -3,15 +3,15 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_api_consumer_demo">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_api-demo-process" name="API Consumer Demo" processRef="api-demo-process" />
   </bpmn:collaboration>
   <bpmn:process id="api-demo-process" name="API Consumer Demo" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -25,7 +25,7 @@
     </bpmn:startEvent>
     <bpmn:userTask id="UserTask_Review" name="Review">
       <bpmn:extensionElements>
-        <evil:assignees>identity.groups</evil:assignees>
+        <bfw:assignees>identity.groups</bfw:assignees>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_review</bpmn:incoming>
       <bpmn:outgoing>Flow_review_end</bpmn:outgoing>

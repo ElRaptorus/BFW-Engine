@@ -23,21 +23,21 @@ The engine ships with a built-in handler for `implementation="http"` that perfor
 
 | Extension | FEEL? | Purpose |
 |-----------|-------|---------|
-| `evil:httpUrl` | No | Target URL (required) |
-| `evil:httpMethod` | No | HTTP verb (default `GET`) |
-| `evil:httpBody` | Yes | Request body expression |
-| `evil:httpAuthHeader` | Yes | Authorization header expression |
-| `evil:httpResponseHeaders` | Yes | Response header mapping expression |
+| `bfw:httpUrl` | No | Target URL (required) |
+| `bfw:httpMethod` | No | HTTP verb (default `GET`) |
+| `bfw:httpBody` | Yes | Request body expression |
+| `bfw:httpAuthHeader` | Yes | Authorization header expression |
+| `bfw:httpResponseHeaders` | Yes | Response header mapping expression |
 
 FEEL-enabled fields are evaluated against the standard [expression context](expressions.md) before the request is sent.
 
 ```xml
 <bpmn:serviceTask id="call_api" name="Call Payment API" implementation="http">
   <bpmn:extensionElements>
-    <evil:httpUrl>https://api.example.com/payments</evil:httpUrl>
-    <evil:httpMethod>POST</evil:httpMethod>
-    <evil:httpBody>token</evil:httpBody>
-    <evil:httpAuthHeader>identity.api_token</evil:httpAuthHeader>
+    <bfw:httpUrl>https://api.example.com/payments</bfw:httpUrl>
+    <bfw:httpMethod>POST</bfw:httpMethod>
+    <bfw:httpBody>token</bfw:httpBody>
+    <bfw:httpAuthHeader>identity.api_token</bfw:httpAuthHeader>
   </bpmn:extensionElements>
 </bpmn:serviceTask>
 ```
@@ -51,10 +51,10 @@ Optionally reshape data before/after the plugin handler runs. Mappers are FEEL e
 ```xml
 <bpmn:serviceTask id="mapped_task" name="Mapped Service" implementation="echo">
   <bpmn:extensionElements>
-    <evil:inputMapping source="token.order_id" target="id"/>
-    <evil:payloadContract>{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}</evil:payloadContract>
-    <evil:outputMapping source="token.input.id" target="result_id"/>
-    <evil:resultContract>{"type":"object","required":["result_id"],"properties":{"result_id":{"type":"string"}}}</evil:resultContract>
+    <bfw:inputMapping source="token.order_id" target="id"/>
+    <bfw:payloadContract>{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}</bfw:payloadContract>
+    <bfw:outputMapping source="token.input.id" target="result_id"/>
+    <bfw:resultContract>{"type":"object","required":["result_id"],"properties":{"result_id":{"type":"string"}}}</bfw:resultContract>
   </bpmn:extensionElements>
 </bpmn:serviceTask>
 ```
@@ -77,7 +77,7 @@ There is no dedicated REST endpoint for async completion — it is plugin-side o
 
 ## Payload Cap
 
-The output payload from a Service Task handler is checked against `TDE_TOKEN_MAX_BYTES`. If the output exceeds the cap, the FNI transitions to `fatal`. See [Error Handling](error-handling.md) for details.
+The output payload from a Service Task handler is checked against `BFE_TOKEN_MAX_BYTES`. If the output exceeds the cap, the FNI transitions to `fatal`. See [Error Handling](error-handling.md) for details.
 
 ## Custom Handlers
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_1"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -10,7 +10,7 @@
   </bpmn:collaboration>
   <bpmn:process id="ScriptTaskFullPipeline" name="Script Task Full Pipeline" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -23,10 +23,10 @@
     <bpmn:scriptTask id="ScriptTask_1" name="Full Pipeline Script" scriptFormat="feel">
       <bpmn:script>{"computed": token.input_value * 3}</bpmn:script>
       <bpmn:extensionElements>
-        <evil:inputMapping source="token.raw_amount" target="input_value"/>
-        <evil:payloadContract>{"type":"object","required":["input_value"],"properties":{"input_value":{"type":"integer"}}}</evil:payloadContract>
-        <evil:outputMapping source="token.computed" target="tripled"/>
-        <evil:resultContract>{"type":"object","required":["tripled"],"properties":{"tripled":{"type":"integer"}}}</evil:resultContract>
+        <bfw:inputMapping source="token.raw_amount" target="input_value"/>
+        <bfw:payloadContract>{"type":"object","required":["input_value"],"properties":{"input_value":{"type":"integer"}}}</bfw:payloadContract>
+        <bfw:outputMapping source="token.computed" target="tripled"/>
+        <bfw:resultContract>{"type":"object","required":["tripled"],"properties":{"tripled":{"type":"integer"}}}</bfw:resultContract>
       </bpmn:extensionElements>
     </bpmn:scriptTask>
     <bpmn:endEvent id="End_1" name="End"/>

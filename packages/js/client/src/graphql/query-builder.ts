@@ -1,4 +1,4 @@
-import type { PaginationOptions, SelectionField, SortClause } from '@elraptorus/daemonengine_sdk';
+import type { PaginationOptions, SelectionField, SortClause } from '@elraptorus/bfw_engine_sdk';
 
 /**
  * Builds a GraphQL query string and variables object for a list or
@@ -152,7 +152,7 @@ function buildSelectionSet(
 }
 
 /**
- * Renders a single `SelectionField` (see `@elraptorus/daemonengine_sdk`) —
+ * Renders a single `SelectionField` (see `@elraptorus/bfw_engine_sdk`) —
  * either a bare scalar field name, or a nested object/interface/union field
  * with its own sub-selection and optional inline fragments (`... on Type`).
  * Used to render the polymorphic Model graph (`flowNode`, `eventDefinition`,

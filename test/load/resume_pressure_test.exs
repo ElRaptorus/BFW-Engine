@@ -1,4 +1,4 @@
-defmodule EvilEngine.Load.ResumePressureTest do
+defmodule BfwEngine.Load.ResumePressureTest do
   @moduledoc """
   Resume throughput under large seeded waiting-user-task populations.
 
@@ -9,9 +9,9 @@ defmodule EvilEngine.Load.ResumePressureTest do
   shared sandbox.
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Test.LoadHelpers
 
   @user_task_fni %{
     flow_node_id: "UserTask_1",

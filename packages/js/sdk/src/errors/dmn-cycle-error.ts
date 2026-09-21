@@ -1,6 +1,6 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
-export class DmnCycleError extends DaemonEngineError {
+export class DmnCycleError extends BfwEngineError {
   constructor(
     message: string,
     public readonly decisionIds: string[],

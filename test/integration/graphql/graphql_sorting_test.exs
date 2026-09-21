@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlSortingTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlSortingTest do
   @moduledoc """
   GraphQL integration tests for list sorting beyond the default
   `STARTED_AT DESC` ordering on process instances.
@@ -7,7 +7,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlSortingTest do
   sorting on processes, chronological flow node instance ordering, and
   created-at ordering on decision definitions.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

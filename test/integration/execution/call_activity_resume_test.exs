@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
+defmodule BfwEngine.Integration.Execution.CallActivityResumeTest do
   @moduledoc """
   Integration tests for Call Activity resume scenarios.
 
@@ -9,10 +9,10 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
   3. No child_process_instance_id (nil)  → `query_child_state(_, nil)` → fresh lifecycle
   4. Resolution failure    → called element no longer available after restart
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -20,7 +20,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
@@ -421,7 +421,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok
@@ -487,14 +487,14 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
     require Ash.Query
 
     flow_node_instance =
-      EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
-        EvilEngine.Persistence.Resources.FlowNodeInstance
+      BfwEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+        BfwEngine.Persistence.Resources.FlowNodeInstance
         |> Ash.Query.filter(
           process_instance_id == ^parent_process_instance_id and
             flow_node_id == ^flow_node_id and
             state == "waiting"
         )
-        |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+        |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
         |> List.first()
       end)
 
@@ -507,7 +507,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
         |> Map.delete(:child_process_instance_id)
 
       Ash.update!(flow_node_instance, %{type_properties: cleared_props},
-        domain: EvilEngine.Persistence.Api,
+        domain: BfwEngine.Persistence.Api,
         authorize?: false,
         action: :update_waiting
       )
@@ -574,7 +574,7 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
       """
       <bpmn:callActivity id="CA_1"#{attributes}>
         <bpmn:extensionElements>
-          <evil:calledProcessVersion>#{version_string}</evil:calledProcessVersion>
+          <bfw:calledProcessVersion>#{version_string}</bfw:calledProcessVersion>
         </bpmn:extensionElements>
       </bpmn:callActivity>
       """
@@ -584,8 +584,8 @@ defmodule EvilEngine.Integration.Execution.CallActivityResumeTest do
   defp bump_evil_version(xml, from_version, to_version) do
     String.replace(
       xml,
-      "<evil:version>#{from_version}</evil:version>",
-      "<evil:version>#{to_version}</evil:version>"
+      "<bfw:version>#{from_version}</bfw:version>",
+      "<bfw:version>#{to_version}</bfw:version>"
     )
   end
 

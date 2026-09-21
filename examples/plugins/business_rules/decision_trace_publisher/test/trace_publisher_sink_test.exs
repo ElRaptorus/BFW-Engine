@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionTracePublisher.SinkTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.BusinessRules.DecisionTracePublisher.Sink
 
   setup do

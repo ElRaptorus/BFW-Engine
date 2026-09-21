@@ -29,7 +29,7 @@ expression to access process state:
 
 **MI / standard-loop iteration overlay.** Only inside an actively iterating
 Multi-Instance or standard-loop activity, the engine injects one additional
-binding at root level so MI completion conditions and `<evil:loopBreakCondition>`
+binding at root level so MI completion conditions and `<bfw:loopBreakCondition>`
 can introspect iteration state. Outside iterations this binding is absent.
 
 ```
@@ -64,8 +64,6 @@ evaluation is the merge of all branch payloads accumulated so far.
 
 ### Library selection (dsntk + Rustler)
 
-**Status: DECIDED (Phase 0, Item 13).**
-
 Evaluated candidates:
 
 | Candidate | Outcome |
@@ -78,7 +76,7 @@ Evaluated candidates:
 **Architecture:**
 
 - **Rust crate**: `apps/core_expressions/native/feel_nif/` — a `cdylib` built by Rustler at `mix compile` time.
-- **NIF module**: <code>EvilEngine.Expressions.Nif</code> (private) — four NIF functions: `compile/2`, `eval_compiled/2`, `eval_expression/2`, `eval_unary_test/3`. Parse-heavy NIFs (`compile`, `eval_expression`, `eval_unary_test`) run on `DirtyCpu` schedulers; `eval_compiled` runs on normal schedulers for minimal overhead on the hot path (see §8.3.1).
+- **NIF module**: <code>BfwEngine.Expressions.Nif</code> (private) — four NIF functions: `compile/2`, `eval_compiled/2`, `eval_expression/2`, `eval_unary_test/3`. Parse-heavy NIFs (`compile`, `eval_expression`, `eval_unary_test`) run on `DirtyCpu` schedulers; `eval_compiled` runs on normal schedulers for minimal overhead on the hot path (see §8.3.1).
 - **Precompilation**: `compile/2` parses the expression into a `dsntk AstNode`, wraps it in a `ResourceArc<CompiledExpression>` (Mutex-guarded), and returns it to Elixir as an opaque reference. The reference is reusable across evaluations — no parsing on the hot path.
 - **Scope-aware parser**: dsntk's parser requires variable names in scope at parse time. `compile/2` accepts a context-shape map (placeholder values) which is converted to a `FeelScope` for the parser.
 - **Unary tests**: `eval_unary_test/3` wraps the test expression as `__unary_input__ in (<expression>)` because dsntk's `evaluate()` returns raw unary-test nodes. The input value is bound to `__unary_input__` in the context, yielding a boolean result.
@@ -89,7 +87,7 @@ Evaluated candidates:
 ### FEEL built-in function support
 
 Systematic audit of DMN-mandated FEEL built-in functions against the dsntk
-NIF. Test file: `apps/core_dmn/test/evil_engine/dmn/feel_builtin_functions_test.exs`.
+NIF. Test file: `apps/core_dmn/test/bfw_engine/dmn/feel_builtin_functions_test.exs`.
 
 **Summary: 61/63 functions pass (97%)**
 
@@ -193,7 +191,7 @@ in: these are read-only path references evaluated by the FEEL engine.
 #### Context assembly — `Context.from_handler_context/2`
 
 All FEEL context assembly **must** go through
-`EvilEngine.Expressions.Context.from_handler_context/2`. This function is the
+`BfwEngine.Expressions.Context.from_handler_context/2`. This function is the
 canonical entry point that converts the atom-keyed runtime maps from
 `HandlerContext` into properly string-keyed, camelCase maps that the Rust NIF
 can decode. Direct construction of `%Context{}` is prohibited.
@@ -220,11 +218,11 @@ the lifetime of the process instance.
 | Conditional sequence flow (**active**) | `<bpmn:conditionExpression>token.amount > 100</bpmn:conditionExpression>` — used by `ExclusiveGateway` handler |
 | Conditional boundary / intermediate | same |
 | Complex gateway join activation | `<bpmn:activationCondition>activatedCount &gt;= 2</bpmn:activationCondition>` — standard BPMN child of `<bpmn:complexGateway>`; evaluated by `ComplexJoinEvaluator` with the `activatedCount`/`incomingCount` overlay (§8.1) |
-| User Task assignees | `<evil:assignees>identity.groups[_.contains("reviewers")]</evil:assignees>` |
-| Throw event payload mapping | `<evil:inputMapping source="token.orderId" target="orderId"/>` |
+| User Task assignees | `<bfw:assignees>identity.groups[_.contains("reviewers")]</bfw:assignees>` |
+| Throw event payload mapping | `<bfw:inputMapping source="token.orderId" target="orderId"/>` |
 | Data Object association source | inline FEEL in data association |
-| Call Activity input mapping (**active**) | `<evil:inputMapping source="..." target="..."/>` — FEEL expression evaluated against caller's token |
-| Call Activity output mapping (**active**) | `<evil:outputMapping source="..." target="..."/>` — FEEL expression evaluated against child's aggregated result tokens |
+| Call Activity input mapping (**active**) | `<bfw:inputMapping source="..." target="..."/>` — FEEL expression evaluated against caller's token |
+| Call Activity output mapping (**active**) | `<bfw:outputMapping source="..." target="..."/>` — FEEL expression evaluated against child's aggregated result tokens |
 | Loop break / collection / completion | Multi-Instance / Standard Loop FEEL on the loop characteristics |
 
 Every expression is **precompiled** at deploy time and the compiled form is cached keyed by `(process_version_id, flow_node_id, expression_slot)`. Runtime hot path: variable binding + evaluation only — no parsing on the hot path.

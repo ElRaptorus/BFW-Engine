@@ -4,26 +4,26 @@ import Config
 config :logger, level: :debug
 
 # --- Persistence --------------------------------------------------------
-config :peripheral_persistence, EvilEngine.Persistence.Repo,
-  username: "evil_engine",
-  password: "evil_engine",
+config :peripheral_persistence, BfwEngine.Persistence.Repo,
+  username: "bfw_engine",
+  password: "bfw_engine",
   hostname: "localhost",
-  database: "evil_engine_dev",
+  database: "bfw_engine_dev",
   pool_size: 10,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
 
-config :peripheral_persistence, EvilEngine.Persistence.ReadRepo,
-  username: "evil_engine",
-  password: "evil_engine",
+config :peripheral_persistence, BfwEngine.Persistence.ReadRepo,
+  username: "bfw_engine",
+  password: "bfw_engine",
   hostname: "localhost",
-  database: "evil_engine_dev",
+  database: "bfw_engine_dev",
   pool_size: 5,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
 
 # --- Phoenix HTTP -------------------------------------------------------
-config :api_web, EvilEngineWeb.Http.Endpoint,
+config :api_web, BfwEngineWeb.Http.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: 4000],
   url: [host: "localhost"],
   server: true,
@@ -35,4 +35,4 @@ config :api_web, EvilEngineWeb.Http.Endpoint,
 # --- Auth (dev defaults) -------------------------------------------------
 config :api_auth,
   auth_disabled: true,
-  hs256_secret: "BloodForTheBloodGod!_SkullsForTheSkullThrone!"
+  hs256_secret: "AveOmnissiah_FromTheHolyForgesOfMars_NotAProductionSecret_Mechanicus!!"

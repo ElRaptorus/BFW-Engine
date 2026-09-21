@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.Execution.RuntimeValidationTest do
+defmodule BfwEngine.Integration.Execution.RuntimeValidationTest do
   @moduledoc "Integration tests for encounter-time validation (implicit split, dead end)."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   describe "implicit split" do
     test "task with 2 outgoing flows causes fatal PI", %{collector: collector} do

@@ -1,31 +1,30 @@
-# Thomas the Khornate Daemon Engine
+# Bifrost Forge World Engine
 
-<div align="center">
-  <img src="./assets/ThomasTheDaemonEngine.png" alt="" width="400">
-</div>
+> Toll the great Bell once! Pull the lever forward, to engage the Piston and Pump!\
+> Toll the great Bell twice! With the push of the Button, fire the Engine and spark the Turbine into life!\
+> Toll the great Bell Thrice! Sing praise to the God of all Machines!
+>
+> Ave Deus Mechanicus
 
-> **The Heresy Train has no Brakes.**
+## What is this?
 
-## What is this Heresy?
+A BPMN 2.0 workflow engine written in Elixir / OTP and sanctified oils and pistons from the holy Forges of Mars.
 
-A BPMN 2.0 workflow engine written in Elixir / OTP and oceans of sacrificial blood and skulls dedicated to Khorne.
+> **Current Project Status: Beta. Feture complete, but not yet battle-tested.**
 
 Used to run awesome stuff created with the [Forge World Studio](https://github.com/ElRaptorus/BFW-Studio)
 
-- **BPMN & DMN Spec Coverage**: see [Supported Elements](./docs/SupportedElements.md)
 - **User Manual & API Reference**: see [Documentation](#documentation) below.
+- **BPMN & DMN Spec Coverage**: see [Supported Elements](./docs/SupportedElements.md)
+- **Configuration**: see [docs/architecture/configuration.md](./docs/architecture/configuration.md).
 - **Philosophy**: see [docs/Philosophy.md](./docs/Philosophy.md).
 - **Architecture**: see [docs/Architecture.md](./docs/Architecture.md).
-- **Configuration**: see [docs/architecture/configuration.md](./docs/architecture/configuration.md).
 - **Load benchmarks**: see [docs/benchmarks/](./docs/benchmarks/README.md).
-- **Post v1 Ideas**: see [docs/post-v1-ideas](./docs/post-v1-ideas.md).
 
 ---
 
 ## Requirements
 
-- Blood
-- Skulls
 - Elixir 1.20 / OTP 29 (see `.tool-versions`)
 - Erlang 29
 - Rust 1.98+ (Required for FEEL evaluator)
@@ -49,14 +48,14 @@ mix compile
 ## Running locally (docker-compose)
 
 The dev compose stack contains an Engine and a Postgres DB.
-Prometheus scrape is `GET /metrics` (on by default via `TDE_METRICS_ENABLED`).
+Prometheus scrape is `GET /metrics` (on by default via `BFE_METRICS_ENABLED`).
 
 ```bash
 docker compose up --build
 ```
 
 - Engine (HTTP, GraphQL, WebSocket): [http://localhost:4000](http://localhost:4000)
-- Postgres: `localhost:5432` (db: `evil_engine_dev`, user/pw: `evil_engine`)
+- Postgres: `localhost:5432` (db: `bfw_engine_dev`, user/pw: `bfw_engine`)
 
 ## Documentation
 

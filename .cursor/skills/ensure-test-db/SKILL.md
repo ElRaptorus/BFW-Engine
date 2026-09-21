@@ -29,7 +29,7 @@ Use this skill (i.e. execute the steps below) **before** running any of:
 ## Step 1: Check if the container exists and is running
 
 ```bash
-docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null
 ```
 
 - **Output `true`** → Container exists and is running. Skip to Step 3.
@@ -39,7 +39,7 @@ docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/nu
 ## Step 2a: Start an existing stopped container
 
 ```bash
-docker start evil-engine-postgres-test
+docker start bfw-engine-postgres-test
 ```
 
 Then proceed to Step 3.
@@ -53,9 +53,9 @@ bash scripts/create-test-db.sh
 ```
 
 This script:
-1. Creates a `postgres:16-alpine` container named `evil-engine-postgres-test`
+1. Creates a `postgres:16-alpine` container named `bfw-engine-postgres-test`
 2. Exposes port **5543** (maps to container port 5432)
-3. Sets credentials: user `evil_engine`, password `evil_engine`, database `evil_engine_dev`
+3. Sets credentials: user `bfw_engine`, password `bfw_engine`, database `bfw_engine_dev`
 4. Starts Postgres with `max_connections=200` (load-test pools are 50 write + 25 read; production defaults need 170+)
 5. Runs `MIX_ENV=test mix ecto.create && MIX_ENV=test mix ecto.migrate`
 
@@ -64,7 +64,7 @@ Then proceed to Step 3.
 ## Step 3: Verify the database is ready
 
 ```bash
-docker exec evil-engine-postgres-test pg_isready -U evil_engine
+docker exec bfw-engine-postgres-test pg_isready -U bfw_engine
 ```
 
 Expected output contains `accepting connections`. If the container just
@@ -90,10 +90,10 @@ These match `config/test.exs`:
 |-----------|-------|
 | Host | `localhost` |
 | Port | `5543` |
-| User | `evil_engine` |
-| Password | `evil_engine` |
-| Database | `evil_engine_test` (with optional `MIX_TEST_PARTITION` suffix) |
-| Container name | `evil-engine-postgres-test` |
+| User | `bfw_engine` |
+| Password | `bfw_engine` |
+| Database | `bfw_engine_test` (with optional `MIX_TEST_PARTITION` suffix) |
+| Container name | `bfw-engine-postgres-test` |
 | Image | `postgres:16-alpine` |
 
 ## Troubleshooting
@@ -104,7 +104,7 @@ Another process is occupying the port. Find it with `lsof -i :5543` or
 `ss -tlnp | grep 5543` and stop it, or remove the stale container:
 
 ```bash
-docker rm -f evil-engine-postgres-test
+docker rm -f bfw-engine-postgres-test
 bash scripts/create-test-db.sh
 ```
 
@@ -113,12 +113,12 @@ bash scripts/create-test-db.sh
 PostgreSQL may not be ready yet. Wait a few seconds and retry. The
 `pg_isready` check in Step 3 is the authoritative readiness signal.
 
-### "role evil_engine does not exist"
+### "role bfw_engine does not exist"
 
 The container was recreated without the correct environment variables.
 Remove and re-create:
 
 ```bash
-docker rm -f evil-engine-postgres-test
+docker rm -f bfw-engine-postgres-test
 bash scripts/create-test-db.sh
 ```

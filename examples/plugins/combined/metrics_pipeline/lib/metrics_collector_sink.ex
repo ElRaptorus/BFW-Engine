@@ -4,11 +4,11 @@ defmodule Examples.Plugins.Combined.MetricsPipeline.MetricsCollectorSink do
   handlers can expose aggregated views later.
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @doc "Ensures the named ETS table exists and records its name in sink state."
   @impl true

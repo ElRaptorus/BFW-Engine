@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.Execution.ErrorHumanizationExecutionTest do
+defmodule BfwEngine.Integration.Execution.ErrorHumanizationExecutionTest do
   @moduledoc """
   Integration tests for humanized runtime error messages on flow node instances.
 
   Verifies that fatal FNIs persist `error_info` with diagnostic sentences
   instead of raw `inspect/1` output.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   describe "service task with no registered handler" do
     test "fatal FNI error_info names the missing implementation value" do

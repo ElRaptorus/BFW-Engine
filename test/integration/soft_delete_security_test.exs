@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.SoftDeleteSecurityTest do
+defmodule BfwEngine.Integration.SoftDeleteSecurityTest do
   @moduledoc """
   Integration tests for soft-delete security hardening.
 
@@ -7,9 +7,9 @@ defmodule EvilEngine.Integration.SoftDeleteSecurityTest do
   - Version deletion is blocked when non-terminal PIs exist
   - Resume fails gracefully when a version is deleted (data anomaly)
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.Resources
+  alias BfwEngine.Persistence.Resources
 
   # ---------------------------------------------------------------------------
   # Helpers
@@ -171,17 +171,17 @@ defmodule EvilEngine.Integration.SoftDeleteSecurityTest do
 
       poll_fni_state(process_instance_id, "user_task", "waiting")
 
-      {:ok, pid} = EvilEngine.Execution.lookup_process_instance(process_instance_id)
-      DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+      {:ok, pid} = BfwEngine.Execution.lookup_process_instance(process_instance_id)
+      DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       soft_delete_version_directly(version_id)
 
-      EvilEngine.BPMN.ModelCache.reset_state()
+      BfwEngine.BPMN.ModelCache.reset_state()
 
-      assert {:ok, _count} = EvilEngine.Execution.ResumeRunner.resume_all()
+      assert {:ok, _count} = BfwEngine.Execution.ResumeRunner.resume_all()
 
       assert {:error, :not_found} =
-               EvilEngine.Execution.lookup_process_instance(process_instance_id)
+               BfwEngine.Execution.lookup_process_instance(process_instance_id)
     end
   end
 end

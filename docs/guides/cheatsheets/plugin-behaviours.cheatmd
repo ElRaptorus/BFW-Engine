@@ -3,7 +3,7 @@
 ## Plugin Lifecycle
 
 ```elixir
-@behaviour EvilEngine.Plugin
+@behaviour BfwEngine.Plugin
 @callback on_load(facade :: struct()) :: :ok | {:error, term()}
 @callback on_ready(facade :: struct()) :: :ok | {:error, term()}
 ```
@@ -13,7 +13,7 @@
 Unique by `implementation`. Handles Service Task dispatch by `implementation` attribute. Always asynchronous.
 
 ```elixir
-@behaviour EvilEngine.Plugin.ServiceTaskHandler
+@behaviour BfwEngine.Plugin.ServiceTaskHandler
 @callback handle_enter(flow_node, token, handler_context) ::
   {:async, String.t()} | {:error, term()}
 ```
@@ -23,7 +23,7 @@ Unique by `implementation`. Handles Service Task dispatch by `implementation` at
 Many allowed. Receives engine events.
 
 ```elixir
-@behaviour EvilEngine.Plugin.EventSink
+@behaviour BfwEngine.Plugin.EventSink
 @callback init(opts :: keyword()) :: {:ok, state} | {:error, term()}
 @callback accepts?(event :: struct()) :: boolean()
 @callback handle_event(event, state) :: {:ok, state} | :skip
@@ -35,16 +35,16 @@ Many allowed. Receives engine events.
 Mounted under prefix. Reserved prefixes (including `/escalations`) are rejected.
 
 ```elixir
-@behaviour EvilEngine.Plugin.RestApiExtension
+@behaviour BfwEngine.Plugin.RestApiExtension
 @callback router_module() :: module()
 ```
 
 ## NamedScript
 
-Unique by script_key. Handles `evil:scriptRef` dispatch. Always synchronous.
+Unique by script_key. Handles `bfw:scriptRef` dispatch. Always synchronous.
 
 ```elixir
-@behaviour EvilEngine.Plugin.NamedScript
+@behaviour BfwEngine.Plugin.NamedScript
 @callback handle_enter(flow_node :: map(), payload :: map(), context :: map()) ::
   {:ok, map()} | {:error, term()}
 ```
@@ -54,7 +54,7 @@ Unique by script_key. Handles `evil:scriptRef` dispatch. Always synchronous.
 Unique (singleton, first-writer wins). Replaces the built-in JWT verifier.
 
 ```elixir
-@behaviour EvilEngine.Plugin.AuthProvider
+@behaviour BfwEngine.Plugin.AuthProvider
 @callback verify_and_resolve(token :: String.t()) ::
   {:ok, Identity.t()} | {:error, term()}
 ```

@@ -5,7 +5,7 @@ defmodule Examples.EventSinks.WebhookForwarder.WebhookPlugin do
   Copy this module and `WebhookSink` into your own OTP application.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.EventSinks.WebhookForwarder.WebhookSink
 

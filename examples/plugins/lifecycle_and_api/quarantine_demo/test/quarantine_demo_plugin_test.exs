@@ -1,16 +1,16 @@
 defmodule Examples.Plugins.QuarantineDemo.QuarantineDemoPluginTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.Plugins.QuarantineDemo.QuarantineDemoPlugin
 
-  test "implements EvilEngine.Plugin" do
+  test "implements BfwEngine.Plugin" do
     behaviours =
       QuarantineDemoPlugin.__info__(:attributes)
       |> Keyword.get_values(:behaviour)
       |> List.flatten()
 
-    assert EvilEngine.Plugin in behaviours
+    assert BfwEngine.Plugin in behaviours
   end
 
   test "on_load/1 returns {:error, :intentional_quarantine} without registering" do

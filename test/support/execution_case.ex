@@ -1,10 +1,10 @@
-defmodule EvilEngine.ExecutionCase do
+defmodule BfwEngine.ExecutionCase do
   @moduledoc """
   Case template for execution integration tests.
 
   Extends `IntegrationCase` with persistence adapter wiring, event
   collector setup, and either Ecto Sandbox checkout (integration) or
-  table truncate on a real connection pool (`TDE_LOAD_TEST_POOL=1`, P89).
+  table truncate on a real connection pool (`BFE_LOAD_TEST_POOL=1`, P89).
 
   Provides two approaches for starting processes:
 
@@ -25,23 +25,23 @@ defmodule EvilEngine.ExecutionCase do
     quote do
       import Plug.Test
       import Plug.Conn
-      import EvilEngine.ExecutionCase
-      import EvilEngine.Test.DbAssertions
-      import EvilEngine.Test.EventCollector
-      import EvilEngine.Test.BpmnLoader
-      import EvilEngine.Test.ProcessInteractions
+      import BfwEngine.ExecutionCase
+      import BfwEngine.Test.DbAssertions
+      import BfwEngine.Test.EventCollector
+      import BfwEngine.Test.BpmnLoader
+      import BfwEngine.Test.ProcessInteractions
     end
   end
 
   setup do
-    EvilEngine.Events.EngineEventBus.reset_state()
-    EvilEngine.Events.MessageSubscriptions.reset_state()
-    EvilEngine.Events.MessageSubscriptions.mark_ready()
-    EvilEngine.Events.SignalSubscriptions.reset_state()
-    EvilEngine.Events.SignalSubscriptions.mark_ready()
-    EvilEngine.Plugins.Registry.reset_state()
-    EvilEngine.Auth.ProviderRegistry.reset_to_default()
-    EvilEngine.BPMN.ModelCache.reset_state()
+    BfwEngine.Events.EngineEventBus.reset_state()
+    BfwEngine.Events.MessageSubscriptions.reset_state()
+    BfwEngine.Events.MessageSubscriptions.mark_ready()
+    BfwEngine.Events.SignalSubscriptions.reset_state()
+    BfwEngine.Events.SignalSubscriptions.mark_ready()
+    BfwEngine.Plugins.Registry.reset_state()
+    BfwEngine.Auth.ProviderRegistry.reset_to_default()
+    BfwEngine.BPMN.ModelCache.reset_state()
     terminate_all_process_instances()
     await_supervisor_drain()
 
@@ -51,40 +51,40 @@ defmodule EvilEngine.ExecutionCase do
     checkout_persistence()
     terminate_all_process_instances()
     await_supervisor_drain()
-    EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+    BfwEngine.Test.DbAssertions.restore_sandbox_shared_mode()
 
     reset_scheduler_state()
     terminate_all_process_instances()
     await_supervisor_drain()
-    EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+    BfwEngine.Test.DbAssertions.restore_sandbox_shared_mode()
 
     ensure_test_secret()
 
     Application.put_env(
       :core_execution,
       :persistence_adapter,
-      EvilEngine.Persistence.ExecutionAdapter
+      BfwEngine.Persistence.ExecutionAdapter
     )
 
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     Application.put_env(
       :core_execution,
       :decision_resolver,
-      EvilEngine.Persistence.DecisionResolverImpl
+      BfwEngine.Persistence.DecisionResolverImpl
     )
 
     Application.put_env(
       :core_timers,
       :persistence_module,
-      EvilEngine.Persistence.TimerStartScheduleAdapter
+      BfwEngine.Persistence.TimerStartScheduleAdapter
     )
 
-    {:ok, collector_pid} = EvilEngine.Test.EventCollector.start_link(self())
+    {:ok, collector_pid} = BfwEngine.Test.EventCollector.start_link(self())
 
     on_exit(fn ->
       terminate_all_process_instances()
@@ -97,7 +97,7 @@ defmodule EvilEngine.ExecutionCase do
       Application.put_env(
         :core_timers,
         :persistence_module,
-        EvilEngine.Timers.Persistence.NoOp
+        BfwEngine.Timers.Persistence.NoOp
       )
 
       if Process.alive?(collector_pid) do
@@ -113,22 +113,22 @@ defmodule EvilEngine.ExecutionCase do
   end
 
   defp checkout_persistence do
-    if EvilEngine.Test.DbAssertions.sandbox_pool?() do
-      Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.Repo,
+    if BfwEngine.Test.DbAssertions.sandbox_pool?() do
+      Ecto.Adapters.SQL.Sandbox.checkout(BfwEngine.Persistence.Repo,
         ownership_timeout: 300_000
       )
 
-      Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(BfwEngine.Persistence.Repo, {:shared, self()})
 
-      Ecto.Adapters.SQL.Sandbox.checkout(EvilEngine.Persistence.ReadRepo,
+      Ecto.Adapters.SQL.Sandbox.checkout(BfwEngine.Persistence.ReadRepo,
         ownership_timeout: 300_000
       )
 
-      Ecto.Adapters.SQL.Sandbox.mode(EvilEngine.Persistence.ReadRepo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(BfwEngine.Persistence.ReadRepo, {:shared, self()})
     else
-      # Real pool (TDE_LOAD_TEST_POOL=1): previous load tests leave committed
+      # Real pool (BFE_LOAD_TEST_POOL=1): previous load tests leave committed
       # rows. Sandbox rollback does not apply (P89).
-      EvilEngine.Test.DbAssertions.truncate_persistence_tables()
+      BfwEngine.Test.DbAssertions.truncate_persistence_tables()
     end
   end
 
@@ -136,10 +136,10 @@ defmodule EvilEngine.ExecutionCase do
 
   defp reset_scheduler_state do
     Enum.reduce_while(1..@scheduler_reset_attempts, :ok, fn attempt, _acc ->
-      case Process.whereis(EvilEngine.Timers.Scheduler) do
+      case Process.whereis(BfwEngine.Timers.Scheduler) do
         nil ->
           if attempt == @scheduler_reset_attempts do
-            raise "EvilEngine.Timers.Scheduler is not running"
+            raise "BfwEngine.Timers.Scheduler is not running"
           end
 
           Process.sleep(50 * attempt)
@@ -147,7 +147,7 @@ defmodule EvilEngine.ExecutionCase do
 
         _pid ->
           try do
-            EvilEngine.Timers.Scheduler.reset_state()
+            BfwEngine.Timers.Scheduler.reset_state()
             {:halt, :ok}
           catch
             :exit, reason ->
@@ -155,7 +155,7 @@ defmodule EvilEngine.ExecutionCase do
                 exit(reason)
               end
 
-              EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+              BfwEngine.Test.DbAssertions.restore_sandbox_shared_mode()
               Process.sleep(25 * attempt)
               {:cont, :ok}
           end
@@ -164,10 +164,10 @@ defmodule EvilEngine.ExecutionCase do
   end
 
   defp terminate_all_process_instances do
-    children = DynamicSupervisor.which_children(EvilEngine.Execution.Supervisor)
+    children = DynamicSupervisor.which_children(BfwEngine.Execution.Supervisor)
 
     Enum.each(children, fn {_, pid, _, _} ->
-      DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+      DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
     end)
   rescue
     _ -> :ok
@@ -180,7 +180,7 @@ defmodule EvilEngine.ExecutionCase do
     deadline = System.monotonic_time(:millisecond) + @supervisor_drain_timeout_ms
 
     Stream.repeatedly(fn ->
-      case DynamicSupervisor.which_children(EvilEngine.Execution.Supervisor) do
+      case DynamicSupervisor.which_children(BfwEngine.Execution.Supervisor) do
         [] ->
           :drained
 
@@ -221,10 +221,10 @@ defmodule EvilEngine.ExecutionCase do
       payload: opts[:payload] || %{},
       identity:
         opts[:identity] ||
-          %EvilEngine.Types.Identity{id: "test-user", roles: ["admin"], groups: []}
+          %BfwEngine.Types.Identity{id: "test-user", roles: ["admin"], groups: []}
     }
 
-    case EvilEngine.Execution.start_process_instance(process_instance_options) do
+    case BfwEngine.Execution.start_process_instance(process_instance_options) do
       {:ok, pid} -> {:ok, pid, process_instance_id}
       error -> error
     end
@@ -627,7 +627,7 @@ defmodule EvilEngine.ExecutionCase do
   end
 
   defp do_poll_pi_alive(process_instance_id, deadline) do
-    case EvilEngine.Execution.lookup_process_instance(process_instance_id) do
+    case BfwEngine.Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
         {:ok, pid}
 
@@ -654,7 +654,7 @@ defmodule EvilEngine.ExecutionCase do
 
   defp do_poll_fni_state(process_instance_id, flow_node_type, expected_state, deadline) do
     flow_node_instances =
-      EvilEngine.Test.DbAssertions.fetch_flow_node_instances(process_instance_id)
+      BfwEngine.Test.DbAssertions.fetch_flow_node_instances(process_instance_id)
 
     match =
       Enum.find(flow_node_instances, fn flow_node_instance ->
@@ -697,7 +697,7 @@ defmodule EvilEngine.ExecutionCase do
   defp do_poll_pi_state(process_instance_id, expected_state, deadline) do
     result =
       try do
-        EvilEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
+        BfwEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
       rescue
         _ -> :db_error
       end
@@ -717,7 +717,7 @@ defmodule EvilEngine.ExecutionCase do
           # Restore only after a raised DB error — a nil row means "not
           # visible yet" and must not start a fresh empty sandbox transaction.
           if other == :db_error do
-            EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+            BfwEngine.Test.DbAssertions.restore_sandbox_shared_mode()
           end
 
           Process.sleep(50)
@@ -738,7 +738,7 @@ defmodule EvilEngine.ExecutionCase do
   written in the original shared transaction disappears.
   """
   def wait_for_process_instance(process_instance_id, timeout \\ 2_000) do
-    case EvilEngine.Execution.lookup_process_instance(process_instance_id) do
+    case BfwEngine.Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
         ref = Process.monitor(pid)
 
@@ -765,7 +765,7 @@ defmodule EvilEngine.ExecutionCase do
   defp do_await_persisted_process_instance(process_instance_id, deadline) do
     result =
       try do
-        EvilEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
+        BfwEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
       rescue
         _error -> :db_error
       end
@@ -783,7 +783,7 @@ defmodule EvilEngine.ExecutionCase do
         if System.monotonic_time(:millisecond) >= deadline do
           raise "PI #{process_instance_id} stopped but persistence stayed unavailable"
         else
-          EvilEngine.Test.DbAssertions.restore_sandbox_shared_mode()
+          BfwEngine.Test.DbAssertions.restore_sandbox_shared_mode()
           Process.sleep(25)
           do_await_persisted_process_instance(process_instance_id, deadline)
         end
@@ -796,14 +796,14 @@ defmodule EvilEngine.ExecutionCase do
   @doc "Fetch a single DataObject snapshot by PI + data_object_id."
   def fetch_data_object(process_instance_id, data_object_id) do
     require Ash.Query
-    alias EvilEngine.Persistence.Resources.DataObject, as: DataObjectResource
+    alias BfwEngine.Persistence.Resources.DataObject, as: DataObjectResource
 
-    EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+    BfwEngine.Test.DbAssertions.with_sandbox_retry(fn ->
       case DataObjectResource
            |> Ash.Query.filter(
              process_instance_id == ^process_instance_id and data_object_id == ^data_object_id
            )
-           |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
+           |> Ash.read(domain: BfwEngine.Persistence.Api, authorize?: false) do
         {:ok, [record]} -> record
         {:ok, []} -> nil
         {:error, error} -> raise error
@@ -814,12 +814,12 @@ defmodule EvilEngine.ExecutionCase do
   @doc "Fetch all DataObject snapshots for a PI."
   def fetch_data_objects(process_instance_id) do
     require Ash.Query
-    alias EvilEngine.Persistence.Resources.DataObject, as: DataObjectResource
+    alias BfwEngine.Persistence.Resources.DataObject, as: DataObjectResource
 
-    EvilEngine.Test.DbAssertions.with_sandbox_retry(fn ->
+    BfwEngine.Test.DbAssertions.with_sandbox_retry(fn ->
       case DataObjectResource
            |> Ash.Query.filter(process_instance_id == ^process_instance_id)
-           |> Ash.read(domain: EvilEngine.Persistence.Api, authorize?: false) do
+           |> Ash.read(domain: BfwEngine.Persistence.Api, authorize?: false) do
         {:ok, records} -> records
         {:error, error} -> raise error
       end
@@ -829,7 +829,7 @@ defmodule EvilEngine.ExecutionCase do
   @doc "Fetch DataObjectWrite audit rows, optionally filtered by data_object_id."
   def fetch_data_object_writes(process_instance_id, data_object_id \\ nil) do
     require Ash.Query
-    alias EvilEngine.Persistence.Resources.DataObjectWrite, as: WriteResource
+    alias BfwEngine.Persistence.Resources.DataObjectWrite, as: WriteResource
 
     query =
       WriteResource
@@ -843,7 +843,7 @@ defmodule EvilEngine.ExecutionCase do
         query
       end
 
-    case Ash.read(query, domain: EvilEngine.Persistence.Api, authorize?: false) do
+    case Ash.read(query, domain: BfwEngine.Persistence.Api, authorize?: false) do
       {:ok, records} -> records
       _ -> []
     end
@@ -1227,7 +1227,7 @@ defmodule EvilEngine.ExecutionCase do
 
   @doc "Send a conn through the full HTTP Endpoint (includes Plug.Parsers)."
   def route(conn) do
-    EvilEngineWeb.Http.Endpoint.call(conn, EvilEngineWeb.Http.Endpoint.init([]))
+    BfwEngineWeb.Http.Endpoint.call(conn, BfwEngineWeb.Http.Endpoint.init([]))
   end
 
   @doc false

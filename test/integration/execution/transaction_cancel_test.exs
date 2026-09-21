@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
+defmodule BfwEngine.Integration.Execution.TransactionCancelTest do
   @moduledoc """
   Umbrella-level integration tests for Transaction Subprocess + Cancel Events (TX-1–TX-15).
 
@@ -23,10 +23,10 @@ defmodule EvilEngine.Integration.Execution.TransactionCancelTest do
   - TX-14: TX → CA → child fatal. Retry child PI directly → 422 retry_inside_transaction_scope
   - TX-15: TX → SP → CA → grandchild fatal. Retry grandchild → 422, SP child → 422, TX shell → succeeds
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   @default_timeout 20_000
 

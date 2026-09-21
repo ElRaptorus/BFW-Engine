@@ -1,16 +1,16 @@
-defmodule EvilEngine.Load.ResumeCrashLoadTest do
+defmodule BfwEngine.Load.ResumeCrashLoadTest do
   @moduledoc """
   Item 7 — resume-after-crash at scale. Opt-in via `mix test.load.hardening`.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :load
   @moduletag :hardening
 
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Persistence.Repo
-  alias EvilEngine.Test.DbAssertions
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Persistence.Repo
+  alias BfwEngine.Test.DbAssertions
+  alias BfwEngine.Test.LoadHelpers
 
   setup do
     on_exit(fn -> LoadHelpers.terminate_all_process_instances() end)

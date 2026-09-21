@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_1"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -11,8 +11,8 @@
   </bpmn:collaboration>
   <bpmn:process id="MessageCrossProcessCatcher" name="Message Cross Process Catcher" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
-      <evil:correlationKey>token.orderId</evil:correlationKey>
+      <bfw:version>1.0.0</bfw:version>
+      <bfw:correlationKey>token.orderId</bfw:correlationKey>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">

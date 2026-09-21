@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Websocket.GlobalChannelEventDeliveryTest do
+defmodule BfwEngine.Integration.Websocket.GlobalChannelEventDeliveryTest do
   @moduledoc """
   End-to-end WebSocket event delivery tests on the `engine:events` channel.
 
@@ -10,18 +10,18 @@ defmodule EvilEngine.Integration.Websocket.GlobalChannelEventDeliveryTest do
   WebSocketSink into Phoenix PubSub and arrive at the test process
   with correct camelCase envelope shape.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   import Phoenix.ChannelTest
 
-  @endpoint EvilEngineWeb.Http.Endpoint
+  @endpoint BfwEngineWeb.Http.Endpoint
   @moduletag :integration
 
-  alias EvilEngine.Events.EngineEventBus
-  alias EvilEngine.Types.Identity
-  alias EvilEngineWeb.Ws.EngineChannel
-  alias EvilEngineWeb.Ws.Sinks.WebSocket, as: WebSocketSink
-  alias EvilEngineWeb.Ws.UserSocket
+  alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Types.Identity
+  alias BfwEngineWeb.Ws.EngineChannel
+  alias BfwEngineWeb.Ws.Sinks.WebSocket, as: WebSocketSink
+  alias BfwEngineWeb.Ws.UserSocket
 
   setup context do
     :ok = EngineEventBus.register_sink("websocket", WebSocketSink, [])

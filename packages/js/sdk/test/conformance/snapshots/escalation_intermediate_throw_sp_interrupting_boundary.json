@@ -30,7 +30,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,7 +42,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Escalation"],
+          "boundaryEventRefs": [
+            "BE_Escalation"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -74,7 +78,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": ["Sub_Flow_1"],
+                "outgoing": [
+                  "Sub_Flow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -90,11 +96,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_UserTask",
-                "incoming": ["Sub_Flow_1"],
+                "incoming": [
+                  "Sub_Flow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Arm throw",
-                "outgoing": ["Sub_Flow_Arm"],
+                "outgoing": [
+                  "Sub_Flow_Arm"
+                ],
                 "standardLoop": null,
                 "type": "user_task",
                 "typeData": {
@@ -116,11 +126,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_Throw",
-                "incoming": ["Sub_Flow_Arm"],
+                "incoming": [
+                  "Sub_Flow_Arm"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Escalation Throw",
-                "outgoing": ["Sub_Flow_2"],
+                "outgoing": [
+                  "Sub_Flow_2"
+                ],
                 "standardLoop": null,
                 "type": "intermediate_throw_event",
                 "typeData": {
@@ -139,11 +153,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_Park",
-                "incoming": ["Sub_Flow_2"],
+                "incoming": [
+                  "Sub_Flow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Park after throw",
-                "outgoing": ["Sub_Flow_Park"],
+                "outgoing": [
+                  "Sub_Flow_Park"
+                ],
                 "standardLoop": null,
                 "type": "user_task",
                 "typeData": {
@@ -165,7 +183,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End",
-                "incoming": ["Sub_Flow_Park"],
+                "incoming": [
+                  "Sub_Flow_Park"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
@@ -235,7 +255,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": ["Flow_Caught"],
+          "outgoing": [
+            "Flow_Caught"
+          ],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -257,7 +279,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_Normal"],
+          "incoming": [
+            "Flow_Normal"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",
@@ -277,7 +301,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Caught",
-          "incoming": ["Flow_Caught"],
+          "incoming": [
+            "Flow_Caught"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalation Caught",
@@ -298,7 +324,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Escalation", "End_Normal", "End_Caught"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "BE_Escalation",
+            "End_Normal",
+            "End_Caught"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

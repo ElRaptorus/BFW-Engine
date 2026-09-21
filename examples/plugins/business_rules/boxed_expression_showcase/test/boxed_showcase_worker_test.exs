@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcaseWorkerTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.BoxedExpressionShowcase.BoxedShowcaseWorker
 
   @process_version_id "process-version-showcase"

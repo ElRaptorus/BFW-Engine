@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_ErrTwoEsps">
 
   <bpmn:error id="Error_PF" name="Payment Failed" errorCode="PAYMENT_FAILED" />
@@ -16,7 +16,7 @@
 
   <bpmn:process id="EspConflictErrTwoEspsSpecificWins" name="Two Error ESPs: Specific Wins" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -39,8 +39,8 @@
       <bpmn:endEvent id="Thrower_ErrorEnd" name="Payment Failed">
         <bpmn:errorEventDefinition id="Thrower_ErrDef" errorRef="Error_PF">
           <bpmn:extensionElements>
-            <evil:errorCode>PAYMENT_FAILED</evil:errorCode>
-            <evil:errorMessage>Payment processing failed</evil:errorMessage>
+            <bfw:errorCode>PAYMENT_FAILED</bfw:errorCode>
+            <bfw:errorMessage>Payment processing failed</bfw:errorMessage>
           </bpmn:extensionElements>
         </bpmn:errorEventDefinition>
         <bpmn:incoming>Thrower_Flow_1</bpmn:incoming>

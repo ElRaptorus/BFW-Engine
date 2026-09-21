@@ -1,15 +1,15 @@
-defmodule EvilEngine.Integration.Deployment.LinterGateIntegrationTest do
+defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.BPMN.LinterGate
-  alias EvilEngine.BPMN.Model.Definitions
-  alias EvilEngine.BPMN.Model.LinterRulesetScore
+  alias BfwEngine.BPMN.LinterGate
+  alias BfwEngine.BPMN.Model.Definitions
+  alias BfwEngine.BPMN.Model.LinterRulesetScore
 
   # Linter scores are scoped to the definitions (ESP-D17), matching the
-  # Studio-emitted `definitions/extensionElements/evil:Properties` shape.
+  # Studio-emitted `definitions/extensionElements/bfw:Properties` shape.
   defp sample_definitions(opts \\ []) do
     score = Keyword.get(opts, :score, 95)
-    ruleset_id = Keyword.get(opts, :ruleset_id, "evil-default")
+    ruleset_id = Keyword.get(opts, :ruleset_id, "bfw-default")
 
     %Definitions{
       raw_xml: "<bpmn/>",
@@ -29,7 +29,7 @@ defmodule EvilEngine.Integration.Deployment.LinterGateIntegrationTest do
     definitions = sample_definitions()
 
     passing_config = %{
-      "evil-default" => %{
+      "bfw-default" => %{
         "minScorePercent" => 90,
         "maxErrors" => 1
       }
@@ -42,7 +42,7 @@ defmodule EvilEngine.Integration.Deployment.LinterGateIntegrationTest do
     definitions = sample_definitions(score: 70)
 
     strict_config = %{
-      "evil-default" => %{
+      "bfw-default" => %{
         "minScorePercent" => 85
       }
     }

@@ -1,20 +1,20 @@
-defmodule EvilEngine.Integration.Execution.RetryTest do
+defmodule BfwEngine.Integration.Execution.RetryTest do
   @moduledoc """
   Integration tests for `PUT /process-instances/:id/retry` (PI retry/restart).
 
   Exercises terminal-state retry, version migration, authorization, Call Activity
   tree semantics, and concurrent retry rejection — all via authenticated HTTP.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.Resources.FlowNodeInstance, as: FlowNodeInstanceResource
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: ProcessInstanceResource
+  alias BfwEngine.Persistence.Resources.FlowNodeInstance, as: FlowNodeInstanceResource
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: ProcessInstanceResource
 
   @bpmn_fixtures_dir Path.expand("../../fixtures/bpmns", __DIR__)
   @retry_user_task_fixture Path.join(@bpmn_fixtures_dir, "retry_user_task.bpmn")
   @retry_fatal_dead_end_fixture Path.join(@bpmn_fixtures_dir, "retry_fatal_dead_end.bpmn")
   @retry_checkpoint_linear_fixture Path.join(@bpmn_fixtures_dir, "retry_checkpoint_linear.bpmn")
-  @persistence_domain EvilEngine.Persistence.Api
+  @persistence_domain BfwEngine.Persistence.Api
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -22,7 +22,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
@@ -711,7 +711,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
   end
 
   describe "I15d pin: checkpoint before Call Activity re-enters with the current pin" do
-    test "re-enter uses the pinned evil:version even after a newer child deploy" do
+    test "re-enter uses the pinned bfw:version even after a newer child deploy" do
       child_xml = File.read!(Path.join(@bpmn_fixtures_dir, "call_activity_child.bpmn"))
 
       parent_xml =
@@ -1645,15 +1645,15 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
     @retry_user_task_fixture
     |> File.read!()
     |> String.replace(
-      "<evil:version>1.0.0</evil:version>",
-      "<evil:version>#{version_string}</evil:version>"
+      "<bfw:version>1.0.0</bfw:version>",
+      "<bfw:version>#{version_string}</bfw:version>"
     )
   end
 
   defp retry_user_task_incompatible_v2_xml do
     @retry_user_task_fixture
     |> File.read!()
-    |> String.replace("<evil:version>1.0.0</evil:version>", "<evil:version>2.0.0</evil:version>")
+    |> String.replace("<bfw:version>1.0.0</bfw:version>", "<bfw:version>2.0.0</bfw:version>")
     |> String.replace("UserTask_1", "UserTask_2")
     |> String.replace("Shape_UserTask_1", "Shape_UserTask_2")
   end
@@ -1662,8 +1662,8 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
     @retry_fatal_dead_end_fixture
     |> File.read!()
     |> String.replace(
-      "<evil:version>1.0.0</evil:version>",
-      "<evil:version>#{version_string}</evil:version>"
+      "<bfw:version>1.0.0</bfw:version>",
+      "<bfw:version>#{version_string}</bfw:version>"
     )
   end
 
@@ -1671,8 +1671,8 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
     @retry_checkpoint_linear_fixture
     |> File.read!()
     |> String.replace(
-      "<evil:version>1.0.0</evil:version>",
-      "<evil:version>#{version_string}</evil:version>"
+      "<bfw:version>1.0.0</bfw:version>",
+      "<bfw:version>#{version_string}</bfw:version>"
     )
   end
 
@@ -1681,7 +1681,7 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
       """
       <bpmn:callActivity id="CA_1"#{attributes}>
         <bpmn:extensionElements>
-          <evil:calledProcessVersion>#{version_string}</evil:calledProcessVersion>
+          <bfw:calledProcessVersion>#{version_string}</bfw:calledProcessVersion>
         </bpmn:extensionElements>
       </bpmn:callActivity>
       """
@@ -1691,8 +1691,8 @@ defmodule EvilEngine.Integration.Execution.RetryTest do
   defp bump_evil_version(xml, from_version, to_version) do
     String.replace(
       xml,
-      "<evil:version>#{from_version}</evil:version>",
-      "<evil:version>#{to_version}</evil:version>"
+      "<bfw:version>#{from_version}</bfw:version>",
+      "<bfw:version>#{to_version}</bfw:version>"
     )
   end
 

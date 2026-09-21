@@ -12,7 +12,7 @@ Deploys a minimal BPMN process from disk and starts one instance.
 From `packages/js` after install:
 
 ```bash
-pnpm --filter @daemonengine/example-deploy-and-start start
+pnpm --filter @bfw-engine/example-deploy-and-start start
 ```
 
 Or from this directory:

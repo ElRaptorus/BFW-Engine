@@ -26,7 +26,7 @@ defmodule PeripheralPlugins.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {EvilEngine.Plugins.Application, []}
+      mod: {BfwEngine.Plugins.Application, []}
     ]
   end
 

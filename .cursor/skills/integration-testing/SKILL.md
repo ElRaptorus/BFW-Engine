@@ -1,14 +1,14 @@
 # Integration Testing Skill
 
 > **Use when**: writing integration tests, adding test scenarios, extending test fixtures,
-> or debugging test failures in the Daemon Engine project.
+> or debugging test failures in the Engine project.
 
 ## MANDATORY: Start the Test Database First
 
 **Before doing ANYTHING else in this skill, run this one-liner to ensure the DB is up:**
 
 ```bash
-(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate
+(docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate
 ```
 
 **This is not optional. Do not skip this. Do not defer this.**
@@ -17,17 +17,17 @@ If the one-liner fails, run the steps individually:
 
 ```bash
 # Check if container exists and is running
-docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null
 
 # If output is "true" → container is running, skip to migration step
 # If output is "false" → start it:
-docker start evil-engine-postgres-test
+docker start bfw-engine-postgres-test
 
 # If error or empty → create it from scratch:
 bash scripts/create-test-db.sh
 
 # Verify readiness (retry up to 3 times with 2s sleep between attempts)
-docker exec evil-engine-postgres-test pg_isready -U evil_engine
+docker exec bfw-engine-postgres-test pg_isready -U bfw_engine
 
 # Run pending migrations
 MIX_ENV=test mix ecto.migrate
@@ -40,7 +40,7 @@ MIX_ENV=test mix ecto.migrate
 When launching a subagent to run integration tests, you MUST include this instruction in the Task prompt:
 
 > Before running any tests, ensure the PostgreSQL test container is running:
-> `(docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null | grep -q true) || (docker start evil-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec evil-engine-postgres-test pg_isready -U evil_engine && MIX_ENV=test mix ecto.migrate`
+> `(docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate`
 
 Subagents do not inherit workspace rules. The parent agent is responsible for including DB startup instructions in the subagent's prompt.
 
@@ -96,16 +96,16 @@ Quick reference (full procedure in the `ensure-test-db` skill):
 
 ```bash
 # Check container status
-docker inspect --format='{{.State.Running}}' evil-engine-postgres-test 2>/dev/null
+docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null
 
 # First-time setup (creates container + runs migrations)
 bash scripts/create-test-db.sh
 
 # Start an existing stopped container
-docker start evil-engine-postgres-test
+docker start bfw-engine-postgres-test
 
 # Verify readiness
-docker exec evil-engine-postgres-test pg_isready -U evil_engine
+docker exec bfw-engine-postgres-test pg_isready -U bfw_engine
 
 # Run pending migrations after schema changes
 MIX_ENV=test mix ecto.migrate
@@ -126,7 +126,7 @@ mix quality
 
 ### IntegrationCase CaseTemplate
 
-`EvilEngine.IntegrationCase` provides:
+`BfwEngine.IntegrationCase` provides:
 
 - **State reset** between tests via `EngineEventBus.reset_state()` and
   `Registry.reset_state()` — no process restarts, no supervisor budget exhaustion.
@@ -135,8 +135,8 @@ mix quality
 - **Config override**: `with_config/4` temporarily swaps an app env key
 
 ```elixir
-defmodule EvilEngine.Integration.MyTest do
-  use EvilEngine.IntegrationCase, async: false
+defmodule BfwEngine.Integration.MyTest do
+  use BfwEngine.IntegrationCase, async: false
 
   test "authenticated route returns 200" do
     with_config(:api_auth, :auth_disabled, false, fn ->
@@ -150,7 +150,7 @@ end
 ### Adding a new integration test
 
 1. Create `test/integration/<feature>_test.exs`
-2. `use EvilEngine.IntegrationCase, async: false`
+2. `use BfwEngine.IntegrationCase, async: false`
 3. Cover:
    - **Happy path** (valid auth, valid data)
    - **Auth rejection** (expired/wrong-secret/missing token)
@@ -164,9 +164,9 @@ Test support modules in `test/support/test_sinks.ex`:
 
 | Module | Purpose |
 |--------|---------|
-| `EvilEngine.Test.IntegrationSink` | Forwards events to `test_pid` for `assert_receive` |
-| `EvilEngine.Test.IntegrationCrashSink` | Deliberately crashes on every event (for isolation tests) |
-| `EvilEngine.Test.FakePlugin` | Minimal `EvilEngine.Plugin` behaviour implementation |
+| `BfwEngine.Test.IntegrationSink` | Forwards events to `test_pid` for `assert_receive` |
+| `BfwEngine.Test.IntegrationCrashSink` | Deliberately crashes on every event (for isolation tests) |
+| `BfwEngine.Test.FakePlugin` | Minimal `BfwEngine.Plugin` behaviour implementation |
 
 Register sinks with the event bus using the 3-arity API:
 
@@ -184,9 +184,9 @@ Each umbrella app has its own `test/` directory for domain-specific tests.
 
 | Template | Module | Use when… | Sets up |
 |----------|--------|-----------|---------|
-| `DataCase` | `EvilEngine.DataCase` | Ash resources, Ecto queries | Ecto sandbox |
-| `ConnCase` | `EvilEngine.ConnCase` | REST, GraphQL, task completions | Ecto sandbox + Phoenix endpoint |
-| `EngineCase` | `EvilEngine.EngineCase` | Full round-trip: deploy → start → assert | Ecto sandbox + Phoenix + all engine GenServers |
+| `DataCase` | `BfwEngine.DataCase` | Ash resources, Ecto queries | Ecto sandbox |
+| `ConnCase` | `BfwEngine.ConnCase` | REST, GraphQL, task completions | Ecto sandbox + Phoenix endpoint |
+| `EngineCase` | `BfwEngine.EngineCase` | Full round-trip: deploy → start → assert | Ecto sandbox + Phoenix + all engine GenServers |
 
 ### Per-app test directory layout
 
@@ -205,7 +205,7 @@ apps/<app>/test/
 `apps/api_auth/test/support/auth_helper.ex` and `apps/api_web/test/support/auth_helper.ex`
 mint JWTs for per-app tests.
 
-For integration tests, use `EvilEngine.IntegrationCase.sign_jwt/1` instead.
+For integration tests, use `BfwEngine.IntegrationCase.sign_jwt/1` instead.
 
 ---
 
@@ -273,7 +273,7 @@ Every fixture `.bpmn` file MUST:
 
 1. Be **valid BPMN 2.0 XML** — parseable by the engine's `saxy`-based parser
 2. Contain at least one **Start Event** and at least one **End Event** per process
-3. Carry a non-blank `<evil:version>` (deploy requirement)
+3. Carry a non-blank `<bfw:version>` (deploy requirement)
 4. Pass the engine's deploy-time validation (enforced minimum pattern)
 5. NOT use elements beyond what the engine supports at the current phase
 
@@ -282,8 +282,8 @@ Every fixture `.bpmn` file MUST:
 Tests deploy the BPMN on the engine before running assertions:
 
 ```elixir
-defmodule EvilEngine.Integration.CallActivityTest do
-  use EvilEngine.IntegrationCase, async: false
+defmodule BfwEngine.Integration.CallActivityTest do
+  use BfwEngine.IntegrationCase, async: false
 
   @fixture_path Path.expand("test/fixtures/bpmns/call_activity_simple.bpmn")
 
@@ -349,7 +349,7 @@ the CI pipeline and block every other contributor.
 
 ### Why "pre-existing" is not an excuse
 
-ThomasTheDaemonEngine is a highly interconnected umbrella project. A change
+Bifrost Forge World Engine is a highly interconnected umbrella project. A change
 to `core_execution` can break tests in `api_web`. A new handler in
 `handler_dispatch.ex` can cause cascading failures in conformance tests. A
 new PI state can break retry logic in `api_facade`. **It is never safe to
@@ -444,6 +444,6 @@ Is this about throughput or latency under load?
 
 | Variable | Test default | Purpose |
 |----------|-------------|---------|
-| `TDE_TOKEN_MAX_BYTES` | `65536` | Default cap; override for CAP-CONFIGURABLE tests |
-| `TDE_AUTH_DISABLED` | `false` | Use real JWT auth in integration tests |
-| `TDE_MESSAGE_PENDING_TTL` | `PT30S` | For pending-TTL rematch/expiry tests |
+| `BFE_TOKEN_MAX_BYTES` | `65536` | Default cap; override for CAP-CONFIGURABLE tests |
+| `BFE_AUTH_DISABLED` | `false` | Use real JWT auth in integration tests |
+| `BFE_MESSAGE_PENDING_TTL` | `PT30S` | For pending-TTL rematch/expiry tests |

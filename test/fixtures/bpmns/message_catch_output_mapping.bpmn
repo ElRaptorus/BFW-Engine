@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_1"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -11,7 +11,7 @@
   </bpmn:collaboration>
   <bpmn:process id="MessageCatchOutputMapping" name="Message Catch Output Mapping" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -23,7 +23,7 @@
     <bpmn:startEvent id="Start_1" name="Start"/>
     <bpmn:intermediateCatchEvent id="Catch_1" name="Wait for Mapped Message">
       <bpmn:extensionElements>
-        <evil:outputMapping source="result.data" target="mappedData" />
+        <bfw:outputMapping source="result.data" target="mappedData" />
       </bpmn:extensionElements>
       <bpmn:messageEventDefinition messageRef="Msg_mapped" />
     </bpmn:intermediateCatchEvent>

@@ -5,7 +5,7 @@ bus, copy the pluggable `MessageBus.Adapter` pattern from
 [`combined/incident_reporter`](../incident_reporter/) (do not add AMQP as an
 engine dependency).
 
-Copy these modules into an OTP application that already loads `EvilEngine.Plugin`
+Copy these modules into an OTP application that already loads `BfwEngine.Plugin`
 (see the engine plugin loading docs). This example shows **multiple capabilities in
 one plugin**: a queue-driven `GenServer`, catalog access through `EngineFacade`,
 and a co-registered **event sink** that observes both engine events and
@@ -23,7 +23,7 @@ application-defined events published through the bus.
 - **`OrchestratorMetricsSink`** — counts orchestrator dispatches and process
   instance notifications separately.
 - **`OrchestratorCustomEvent`** — plain struct passed to `publish_event/1` so sinks
-  can react without extending `EvilEngine.Types.Event.*`.
+  can react without extending `BfwEngine.Types.Event.*`.
 
 `bpmn/orchestrated_process.bpmn` is a minimal **Start → echo ServiceTask → End**
 diagram you can deploy before firing queue messages whose `process_model_id`

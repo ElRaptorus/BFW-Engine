@@ -4,11 +4,11 @@ defmodule Examples.Plugins.Combined.RabbitmqToEngine.OrchestratorMetricsSink do
   instance lifecycle plus custom `OrchestratorCustomEvent` payloads.
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
   require Logger
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.Plugins.Combined.RabbitmqToEngine.OrchestratorCustomEvent
 
   @doc "Initializes per-event counters for orchestrator custom events and process instance state changes."

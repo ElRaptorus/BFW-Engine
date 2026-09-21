@@ -5,7 +5,7 @@ The engine pushes real-time events via Phoenix Channels over WebSocket.
 ## Connection
 
 WebSocket connections share the same port as the HTTP/GraphQL API
-(`TDE_HTTP_PORT`, default `4000`). There is no separate WebSocket port.
+(`BFE_HTTP_PORT`, default `4000`). There is no separate WebSocket port.
 
 Connect with a JWT token parameter for authentication:
 
@@ -16,7 +16,7 @@ const socket = new Phoenix.Socket("ws://localhost:4000/socket", {
 socket.connect();
 ```
 
-When `TDE_AUTH_DISABLED=true`, the token is not required and a synthetic anonymous identity is used.
+When `BFE_AUTH_DISABLED=true`, the token is not required and a synthetic anonymous identity is used.
 
 ## Channel Topics
 
@@ -151,7 +151,7 @@ Twelve event types carry `rootProcessInstanceId`. For child PIs the WebSocket si
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_EVENT_SINK_WEBSOCKET` | `true` | Toggle WebSocket event push |
+| `BFE_EVENT_SINK_WEBSOCKET` | `true` | Toggle WebSocket event push |
 
 The WebSocket sink is disabled in test environments by default.
 

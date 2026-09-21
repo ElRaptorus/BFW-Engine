@@ -2,15 +2,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DaemonEngineClient } from '@elraptorus/daemonengine_client';
-import type { ProcessModel } from '@elraptorus/daemonengine_sdk';
+import { BfwEngineClient } from '@elraptorus/bfw_engine_client';
+import type { ProcessModel } from '@elraptorus/bfw_engine_sdk';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function main(): Promise<void> {
   const engineUrl = process.env['ENGINE_URL'] ?? 'http://localhost:4000';
   const token = process.env['ENGINE_TOKEN'] ?? 'dev-token';
-  const client = new DaemonEngineClient(engineUrl, token);
+  const client = new BfwEngineClient(engineUrl, token);
 
   const xmlProcessA = readFileSync(resolve(__dirname, '../bpmn/process_a.bpmn'), 'utf8');
   const xmlProcessB = readFileSync(resolve(__dirname, '../bpmn/process_b.bpmn'), 'utf8');

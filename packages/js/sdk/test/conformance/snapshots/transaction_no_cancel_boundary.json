@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Tx_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "My Transaction",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -68,7 +74,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "TX Start",
-                "outgoing": ["TxFlow_1"],
+                "outgoing": [
+                  "TxFlow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -84,11 +92,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_TaskA",
-                "incoming": ["TxFlow_1"],
+                "incoming": [
+                  "TxFlow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Task A",
-                "outgoing": ["TxFlow_2"],
+                "outgoing": [
+                  "TxFlow_2"
+                ],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -100,7 +112,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_CancelEnd",
-                "incoming": ["TxFlow_2"],
+                "incoming": [
+                  "TxFlow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Cancel",
@@ -150,7 +164,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End Normal",
@@ -171,12 +187,20 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Tx_1", "End_Normal"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Tx_1",
+            "End_Normal"
+          ],
           "id": "Lane_default",
           "name": "default"
         },
         {
-          "flowNodeRefs": ["Tx_Start", "Tx_TaskA", "Tx_CancelEnd"],
+          "flowNodeRefs": [
+            "Tx_Start",
+            "Tx_TaskA",
+            "Tx_CancelEnd"
+          ],
           "id": "Lane_Tx",
           "name": "default"
         }

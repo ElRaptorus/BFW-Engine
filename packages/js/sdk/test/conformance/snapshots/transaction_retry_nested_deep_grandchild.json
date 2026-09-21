@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Grandchild Start",
-          "outgoing": ["GcFlow_1"],
+          "outgoing": [
+            "GcFlow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "GcFatalTask_1",
-          "incoming": ["GcFlow_1"],
+          "incoming": [
+            "GcFlow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fatal Task",
-          "outgoing": ["GcFlow_2"],
+          "outgoing": [
+            "GcFlow_2"
+          ],
           "standardLoop": null,
           "type": "service_task",
           "typeData": {
@@ -67,7 +73,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "GcEnd_1",
-          "incoming": ["GcFlow_2"],
+          "incoming": [
+            "GcFlow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Grandchild End",
@@ -88,7 +96,11 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["GcStart_1", "GcFatalTask_1", "GcEnd_1"],
+          "flowNodeRefs": [
+            "GcStart_1",
+            "GcFatalTask_1",
+            "GcEnd_1"
+          ],
           "id": "Lane_gc1",
           "name": "default"
         }

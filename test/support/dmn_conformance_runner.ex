@@ -1,4 +1,4 @@
-defmodule EvilEngine.Test.DmnConformanceRunner do
+defmodule BfwEngine.Test.DmnConformanceRunner do
   @moduledoc """
   YAML-driven DMN conformance test runner.
 
@@ -81,7 +81,7 @@ defmodule EvilEngine.Test.DmnConformanceRunner do
     allowed_statuses = allowed_deploy_statuses(spec)
 
     Enum.reduce(fixture_names, {nil, nil}, fn fixture_name, _acc ->
-      {status, body} = apply(EvilEngine.ExecutionCase, :http_deploy_dmn, [fixture_name])
+      {status, body} = apply(BfwEngine.ExecutionCase, :http_deploy_dmn, [fixture_name])
       assert_deploy_status!(status, body, fixture_name, allowed_statuses)
       {status, body}
     end)
@@ -133,11 +133,11 @@ defmodule EvilEngine.Test.DmnConformanceRunner do
   end
 
   defp ensure_decision_cached(decision_definition_id) do
-    resolver = EvilEngine.Execution.DecisionResolver.adapter()
+    resolver = BfwEngine.Execution.DecisionResolver.adapter()
 
     with {:ok, resolved} <- resolver.resolve_latest_version(decision_definition_id),
-         {:ok, definitions} <- EvilEngine.DMN.parse_and_validate(resolved.dmn_xml) do
-      EvilEngine.DMN.ModelCache.put_new(resolved.decision_version_id, definitions)
+         {:ok, definitions} <- BfwEngine.DMN.parse_and_validate(resolved.dmn_xml) do
+      BfwEngine.DMN.ModelCache.put_new(resolved.decision_version_id, definitions)
       :ok
     else
       error ->
@@ -206,7 +206,7 @@ defmodule EvilEngine.Test.DmnConformanceRunner do
       end
 
     {status, body} =
-      apply(EvilEngine.ExecutionCase, :http_evaluate_decision, [
+      apply(BfwEngine.ExecutionCase, :http_evaluate_decision, [
         decision_definition_id,
         input,
         evaluate_opts
@@ -220,7 +220,7 @@ defmodule EvilEngine.Test.DmnConformanceRunner do
     input = evaluate_config["input"] || %{}
 
     {status, body} =
-      apply(EvilEngine.ExecutionCase, :http_evaluate_decision_service, [
+      apply(BfwEngine.ExecutionCase, :http_evaluate_decision_service, [
         decision_definition_id,
         service_id,
         input

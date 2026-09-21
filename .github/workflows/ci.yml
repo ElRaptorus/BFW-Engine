@@ -33,13 +33,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: evil_engine
-          POSTGRES_PASSWORD: evil_engine
-          POSTGRES_DB: evil_engine_test
+          POSTGRES_USER: bfw_engine
+          POSTGRES_PASSWORD: bfw_engine
+          POSTGRES_DB: bfw_engine_test
         ports:
           - 5543:5432
         options: >-
-          --health-cmd="pg_isready -U evil_engine"
+          --health-cmd="pg_isready -U bfw_engine"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=12
@@ -81,7 +81,7 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Extension manifest up to date
-        run: mix evil.gen.extension_manifest --check
+        run: mix bfw.gen.extension_manifest --check
 
       - name: Format check
         run: mix format --check-formatted
@@ -107,7 +107,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends postgresql-client
           for i in {1..30}; do
-            if pg_isready -h localhost -p 5543 -U evil_engine; then
+            if pg_isready -h localhost -p 5543 -U bfw_engine; then
               exit 0
             fi
             sleep 2
@@ -152,8 +152,8 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           docker build -f docker/Dockerfile \
-            --label org.opencontainers.image.title=daemon_engine \
-            --label org.opencontainers.image.description="ThomasTheDaemonEngine BPMN 2.0 workflow engine" \
+            --label org.opencontainers.image.title=bfw_engine \
+            --label org.opencontainers.image.description="Bifrost Forge World Engine BPMN 2.0 workflow engine" \
             --label "org.opencontainers.image.version=${VERSION}" \
             --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --label "org.opencontainers.image.revision=${{ github.sha }}" \
@@ -168,15 +168,15 @@ jobs:
           docker run -d \
             --name postgres \
             --network ci-net \
-            -e POSTGRES_USER=evil_engine \
-            -e POSTGRES_PASSWORD=evil_engine \
-            -e POSTGRES_DB=evil_engine_ci \
+            -e POSTGRES_USER=bfw_engine \
+            -e POSTGRES_PASSWORD=bfw_engine \
+            -e POSTGRES_DB=bfw_engine_ci \
             postgres:16-alpine \
             postgres -c max_connections=200
 
           ready=0
           for i in $(seq 1 15); do
-            if docker exec postgres pg_isready -U evil_engine > /dev/null 2>&1; then
+            if docker exec postgres pg_isready -U bfw_engine > /dev/null 2>&1; then
               echo "Postgres ready"
               ready=1
               break
@@ -195,16 +195,16 @@ jobs:
             --name engine \
             --network ci-net \
             -p 4000:4000 \
-            -e TDE_DATABASE_HOST=postgres \
-            -e TDE_DATABASE_PORT=5432 \
-            -e TDE_DATABASE_NAME=evil_engine_ci \
-            -e TDE_DATABASE_USER=evil_engine \
-            -e TDE_DATABASE_PASS=evil_engine \
-            -e TDE_HTTP_PORT=4000 \
-            -e TDE_HTTP_SECRET_KEY_BASE=ci-only-secret-key-base-must-be-at-least-64-characters-long-for-phoenix \
-            -e TDE_AUTH_DISABLED=true \
-            -e TDE_ENGINE_ID=evil-engine-ci \
-            -e TDE_ENGINE_NAME="Daemon Engine (CI)" \
+            -e BFE_DATABASE_HOST=postgres \
+            -e BFE_DATABASE_PORT=5432 \
+            -e BFE_DATABASE_NAME=bfw_engine_ci \
+            -e BFE_DATABASE_USER=bfw_engine \
+            -e BFE_DATABASE_PASS=bfw_engine \
+            -e BFE_HTTP_PORT=4000 \
+            -e BFE_HTTP_SECRET_KEY_BASE=ci-only-secret-key-base-must-be-at-least-64-characters-long-for-phoenix \
+            -e BFE_AUTH_DISABLED=true \
+            -e BFE_ENGINE_ID=bfw-engine-ci \
+            -e BFE_ENGINE_NAME="BFW-Engine (CI)" \
             engine:ci
 
       - name: Verify health endpoint
@@ -258,7 +258,7 @@ jobs:
       packages: write
     env:
       REGISTRY: ghcr.io
-      IMAGE_NAME: daemon_engine
+      IMAGE_NAME: bfw_engine
 
     steps:
       - name: Download smoke-tested image

@@ -1,10 +1,10 @@
-defmodule EvilEngine.Integration.Execution.TimerEventTriggerTest do
+defmodule BfwEngine.Integration.Execution.TimerEventTriggerTest do
   @moduledoc """
   Integration tests for POST /timer-events/:flow_node_instance_id/trigger.
 
   All tests are strictly black-box (HTTP round-trips only).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @test_secret "test_only_secret_at_least_32_bytes!"
 

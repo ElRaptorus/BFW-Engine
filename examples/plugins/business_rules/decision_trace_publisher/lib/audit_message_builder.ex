@@ -5,7 +5,7 @@ defmodule Examples.BusinessRules.DecisionTracePublisher.AuditMessageBuilder do
   Pure functions only — no side effects.
   """
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
 
   @doc """
   Builds an audit message map from a finished flow node event.

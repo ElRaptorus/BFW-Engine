@@ -1,10 +1,10 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /**
  * Thrown when the request payload exceeds the engine's configured token size limit.
  * Unified shape per 2026-05-07 decision: `{ field, size, limit }`.
  */
-export class PayloadTooLargeError extends DaemonEngineError {
+export class PayloadTooLargeError extends BfwEngineError {
   constructor(
     /** Which field exceeded the limit (e.g. "payload", "result"). */
     public readonly field: string,

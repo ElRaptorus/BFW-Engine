@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when the authenticated identity lacks permission for the requested action (HTTP 403). */
-export class ForbiddenError extends DaemonEngineError {
+export class ForbiddenError extends BfwEngineError {
   constructor(
     public readonly requiredClaim: string,
     public readonly requiredValue: string,

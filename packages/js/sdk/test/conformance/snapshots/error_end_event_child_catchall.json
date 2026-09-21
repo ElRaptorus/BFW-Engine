@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,7 +42,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Error",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Untyped Error",
@@ -65,7 +69,10 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "End_Error"],
+          "flowNodeRefs": [
+            "Start_1",
+            "End_Error"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

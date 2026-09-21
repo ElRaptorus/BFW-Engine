@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
   id="definitions_load_100"
   name="Load 100 Rules"
-  namespace="https://evilengine.dev/dmn/load/100"
+  namespace="https://bifrostforge.world/dmn/load/100"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">

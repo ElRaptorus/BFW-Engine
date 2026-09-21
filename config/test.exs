@@ -6,14 +6,14 @@ config :logger, level: :warning
 # test, rolled back at the end). Load tests must not: E8 owns that
 # connection longer than ownership_timeout (300s) and then every PI
 # explodes with OwnershipError (P89). `mix test.load` and the GitHub
-# load-bench job set TDE_LOAD_TEST_POOL=1 so Repo uses a real pool.
+# load-bench job set BFE_LOAD_TEST_POOL=1 so Repo uses a real pool.
 # Write pool default 50 (read = half, minimum 4). GitHub Actions Postgres
 # services cannot raise max_connections above 100, so 50+25=75 is the
 # headroom-safe size — not production 100+50 (P89).
-load_test_pool? = System.get_env("TDE_LOAD_TEST_POOL") in ["1", "true"]
+load_test_pool? = System.get_env("BFE_LOAD_TEST_POOL") in ["1", "true"]
 
 load_test_write_pool_size =
-  String.to_integer(System.get_env("TDE_LOAD_TEST_POOL_SIZE") || "50")
+  String.to_integer(System.get_env("BFE_LOAD_TEST_POOL_SIZE") || "50")
 
 load_test_read_pool_size = max(div(load_test_write_pool_size, 2), 4)
 
@@ -52,26 +52,26 @@ read_repo_pool =
   end
 
 config :peripheral_persistence,
-       EvilEngine.Persistence.Repo,
+       BfwEngine.Persistence.Repo,
        [
-         username: "evil_engine",
-         password: "evil_engine",
+         username: "bfw_engine",
+         password: "bfw_engine",
          hostname: "localhost",
          port: 5543,
-         database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
+         database: "bfw_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
        ] ++ repo_pool
 
 config :peripheral_persistence,
-       EvilEngine.Persistence.ReadRepo,
+       BfwEngine.Persistence.ReadRepo,
        [
-         username: "evil_engine",
-         password: "evil_engine",
+         username: "bfw_engine",
+         password: "bfw_engine",
          hostname: "localhost",
          port: 5543,
-         database: "evil_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
+         database: "bfw_engine_test#{System.get_env("MIX_TEST_PARTITION")}"
        ] ++ read_repo_pool
 
-config :api_web, EvilEngineWeb.Http.Endpoint,
+config :api_web, BfwEngineWeb.Http.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   server: false,
   secret_key_base: "test_secret_key_base_64_characters_minimum_for_the_test_env_only!"
@@ -88,9 +88,9 @@ config :peripheral_persistence, partition_interval: :monthly
 
 # --- Persistence adapter (NoOp for unit tests; integration tests wire their own) ---
 config :core_execution,
-  persistence_adapter: EvilEngine.Execution.Persistence.NoOp,
-  called_element_resolver: EvilEngine.Execution.CalledElementResolver.NoOp,
-  decision_resolver: EvilEngine.Execution.DecisionResolver.NoOp,
+  persistence_adapter: BfwEngine.Execution.Persistence.NoOp,
+  called_element_resolver: BfwEngine.Execution.CalledElementResolver.NoOp,
+  decision_resolver: BfwEngine.Execution.DecisionResolver.NoOp,
   dmn_evaluation_timeout_ms: 5_000
 
 # --- Event sinks ----------------------------------------------------------
@@ -107,7 +107,7 @@ config :core_dmn,
 # --- Timers (fast tick for tests) -----------------------------------------
 config :core_timers,
   tick_interval_ms: 50,
-  timer_start_target: EvilEngine.Execution.TimerStartListener,
-  persistence_module: EvilEngine.Timers.Persistence.NoOp
+  timer_start_target: BfwEngine.Execution.TimerStartListener,
+  persistence_module: BfwEngine.Timers.Persistence.NoOp
 
 config :ex_unit, capture_log: true

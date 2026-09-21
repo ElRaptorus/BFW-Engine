@@ -2,14 +2,14 @@
 
 This guide covers how to deploy BPMN process definitions to the engine, manage versions, and configure deploy-time quality gates.
 
-## The `evil:version` Requirement
+## The `bfw:version` Requirement
 
-Every executable BPMN process must include the `<evil:version>` extension element. The engine rejects any process without it:
+Every executable BPMN process must include the `<bfw:version>` extension element. The engine rejects any process without it:
 
 ```xml
 <bpmn:process id="order_process" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>2.1.0</evil:version>
+    <bfw:version>2.1.0</bfw:version>
   </bpmn:extensionElements>
   <!-- flow nodes and flows -->
 </bpmn:process>
@@ -41,7 +41,7 @@ On success, the engine returns `201` with details for each deployed version. All
 | `400` | Missing or invalid `sources` array, or XML parse error |
 | `401` | Missing or invalid JWT |
 | `413` | Request body exceeds size limit |
-| `422` | Validation failed (missing `evil:version`, structural errors, or linter gate rejection) |
+| `422` | Validation failed (missing `bfw:version`, structural errors, or linter gate rejection) |
 
 For the complete endpoint specification, see [REST API Reference](../api/rest-reference.md).
 
@@ -92,19 +92,19 @@ This means an operator can manually override via `PUT /enable` or `PUT /disable`
 
 ## Seeding Directory
 
-For automated deployments at startup, set `TDE_SEEDING_DIRECTORY` to a filesystem path containing `.bpmn` files. The engine deploys them exactly like `POST /processes` calls during boot. Failing files are skipped without halting startup.
+For automated deployments at startup, set `BFE_SEEDING_DIRECTORY` to a filesystem path containing `.bpmn` files. The engine deploys them exactly like `POST /processes` calls during boot. Failing files are skipped without halting startup.
 
 ## Linter Gate
 
-An optional deploy-time quality gate checks linter scores embedded in the BPMN XML by external tools (e.g., Evil Studio's linter extension). Configure via `TDE_LINTER_GATE`:
+An optional deploy-time quality gate checks linter scores embedded in the BPMN XML by external tools (e.g., Evil Studio's linter extension). Configure via `BFE_LINTER_GATE`:
 
 ```bash
-TDE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","minScorePercent":100,"maxErrors":0}]'
+BFE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","minScorePercent":100,"maxErrors":0}]'
 ```
 
 When a BPMN file fails the gate, the deploy returns `422` with structured failure details. See [Deployment](../operations/deployment.md) for full configuration options.
 
-The gate can be disabled for seeding-directory deploys only via `TDE_LINTER_GATE_SKIP_SEEDING=true`.
+The gate can be disabled for seeding-directory deploys only via `BFE_LINTER_GATE_SKIP_SEEDING=true`.
 
 ## Related
 

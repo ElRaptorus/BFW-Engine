@@ -1,15 +1,15 @@
-defmodule EvilEngine.Integration.Execution.DataObjectExecutionTest do
+defmodule BfwEngine.Integration.Execution.DataObjectExecutionTest do
   @moduledoc """
   Integration tests for Data Object execution. Each test deploys a real
   BPMN with DataObjects/DOAs, starts a PI via HTTP, and asserts DB state
   and event ordering.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   # -------------------------------------------------------------------
   # 1. Simple Write (full token, no expression)
@@ -303,7 +303,7 @@ defmodule EvilEngine.Integration.Execution.DataObjectExecutionTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok

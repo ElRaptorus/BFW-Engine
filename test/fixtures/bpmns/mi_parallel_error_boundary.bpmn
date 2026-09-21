@@ -3,8 +3,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:error id="Error_1" name="ProcessingError" errorCode="PROCESSING_FAILED" />
@@ -15,7 +15,7 @@
 
   <bpmn:process id="mi-parallel-error-boundary" name="MI Parallel Error Boundary" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -38,9 +38,9 @@
       <bpmn:script>{ processed: token.item }</bpmn:script>
       <bpmn:multiInstanceLoopCharacteristics isSequential="false">
         <bpmn:extensionElements>
-          <evil:inputCollection>token.items</evil:inputCollection>
-          <evil:outputCollection>results</evil:outputCollection>
-          <evil:elementVariable>item</evil:elementVariable>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:outputCollection>results</bfw:outputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
         </bpmn:extensionElements>
       </bpmn:multiInstanceLoopCharacteristics>
     </bpmn:scriptTask>

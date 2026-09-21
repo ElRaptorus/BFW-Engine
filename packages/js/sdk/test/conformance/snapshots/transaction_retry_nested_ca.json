@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Tx_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Outer Transaction",
-          "outgoing": ["Flow_2"],
+          "outgoing": [
+            "Flow_2"
+          ],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -68,7 +74,9 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "TX Start",
-                "outgoing": ["TxFlow_1"],
+                "outgoing": [
+                  "TxFlow_1"
+                ],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -84,11 +92,15 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_CA",
-                "incoming": ["TxFlow_1"],
+                "incoming": [
+                  "TxFlow_1"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Fatal Child",
-                "outgoing": ["TxFlow_2"],
+                "outgoing": [
+                  "TxFlow_2"
+                ],
                 "standardLoop": null,
                 "type": "call_activity",
                 "typeData": {
@@ -106,7 +118,9 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Tx_End",
-                "incoming": ["TxFlow_2"],
+                "incoming": [
+                  "TxFlow_2"
+                ],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "TX End",
@@ -156,7 +170,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": ["Flow_2"],
+          "incoming": [
+            "Flow_2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -177,12 +193,20 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "Tx_1", "End_1"],
+          "flowNodeRefs": [
+            "Start_1",
+            "Tx_1",
+            "End_1"
+          ],
           "id": "Lane_default",
           "name": "default"
         },
         {
-          "flowNodeRefs": ["Tx_Start", "Tx_CA", "Tx_End"],
+          "flowNodeRefs": [
+            "Tx_Start",
+            "Tx_CA",
+            "Tx_End"
+          ],
           "id": "Lane_Tx",
           "name": "default"
         }

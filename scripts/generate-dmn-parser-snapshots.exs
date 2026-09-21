@@ -2,7 +2,7 @@
 # Usage: mix run scripts/generate-dmn-parser-snapshots.exs
 #
 # Walks DMN fixture directories, parses each file with
-# EvilEngine.DMN.Parser.parse/1, and writes camelCase JSON snapshots
+# BfwEngine.DMN.Parser.parse/1, and writes camelCase JSON snapshots
 # to packages/js/sdk/test/conformance/snapshots/dmn/.
 #
 # Re-run whenever the engine DMN parser changes.
@@ -82,7 +82,7 @@ defmodule DmnSnapshotGenerator do
     basename = Path.basename(path, ".dmn")
     xml = File.read!(path)
 
-    case EvilEngine.DMN.Parser.parse(xml) do
+    case BfwEngine.DMN.Parser.parse(xml) do
       {:ok, definitions} ->
         json =
           definitions

@@ -1,5 +1,5 @@
 {
-  "name": "@daemonengine/example-sdk-parse-dmn",
+  "name": "@bfw-engine/example-sdk-parse-dmn",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@elraptorus/daemonengine_sdk": "workspace:*"
+    "@elraptorus/bfw_engine_sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

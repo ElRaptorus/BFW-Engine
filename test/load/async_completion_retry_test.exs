@@ -1,7 +1,7 @@
-defmodule EvilEngine.Load.AsyncCompletionRetryTest do
+defmodule BfwEngine.Load.AsyncCompletionRetryTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.Test.AsyncCompletionRetry
+  alias BfwEngine.Test.AsyncCompletionRetry
 
   @tag :load
   test "retries retryable errors then returns :ok" do

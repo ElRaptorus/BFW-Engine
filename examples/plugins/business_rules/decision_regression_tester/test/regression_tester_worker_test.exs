@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionRegressionTester.RegressionTesterWorkerTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionRegressionTester.RegressionTesterWorker
 
   @version_one_id "decision-version-v1"

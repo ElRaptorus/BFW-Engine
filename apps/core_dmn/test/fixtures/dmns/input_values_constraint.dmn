@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
              id="Definitions_input_values"
              name="Input Values Constraint Test"
-             namespace="https://evilengine.dev/test/input-values">
+             namespace="https://bifrostforge.world/test/input-values">
 
   <inputData id="InputData_grade" name="grade">
     <variable id="var_grade" name="grade" typeRef="string"/>

@@ -4,7 +4,7 @@ defmodule Examples.ServiceTaskHandlers.NodeScript.NodeScriptHandler do
   on stdin and completes via `finish_async` / `fail_async`.
   """
 
-  @behaviour EvilEngine.Plugin.ServiceTaskHandler
+  @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   alias Examples.Plugins.Shared.ScriptSandbox
   alias Examples.ServiceTaskHandlers.NodeScript.NodeScriptFacadeStore

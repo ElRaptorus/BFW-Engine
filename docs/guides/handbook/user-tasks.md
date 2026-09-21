@@ -6,26 +6,26 @@ User Tasks are wait states that pause execution until a human completes the task
 
 | Extension | Purpose |
 |-----------|---------|
-| `evil:assignees` | FEEL expression evaluated at runtime for task assignment |
-| `evil:formFields` | Formkit-opaque form definition (passed through to clients, not interpreted by the engine) |
-| `evil:inputMapping` | FEEL-based input mapper (`source`/`target` pair). Transforms incoming token before the task is presented. Multiple supported |
-| `evil:outputMapping` | FEEL-based output mapper (`source`/`target` pair). Transforms user submission before result contract validation. Multiple supported |
-| `evil:payloadContract` | JSON Schema validated on incoming data (after input mapping). Violation → fatal |
-| `evil:resultContract` | JSON Schema enforced on completion results (after output mapping). Violation → retryable (422) |
-| `evil:dueDate` | FEEL expression or ISO 8601 timestamp for task deadline metadata |
-| `evil:priority` | Numeric priority value |
+| `bfw:assignees` | FEEL expression evaluated at runtime for task assignment |
+| `bfw:formFields` | Formkit-opaque form definition (passed through to clients, not interpreted by the engine) |
+| `bfw:inputMapping` | FEEL-based input mapper (`source`/`target` pair). Transforms incoming token before the task is presented. Multiple supported |
+| `bfw:outputMapping` | FEEL-based output mapper (`source`/`target` pair). Transforms user submission before result contract validation. Multiple supported |
+| `bfw:payloadContract` | JSON Schema validated on incoming data (after input mapping). Violation → fatal |
+| `bfw:resultContract` | JSON Schema enforced on completion results (after output mapping). Violation → retryable (422) |
+| `bfw:dueDate` | FEEL expression or ISO 8601 timestamp for task deadline metadata |
+| `bfw:priority` | Numeric priority value |
 
 ```xml
 <bpmn:userTask id="review_order" name="Review Order">
   <bpmn:extensionElements>
-    <evil:assignees>["clerk_role", "manager_role"]</evil:assignees>
-    <!-- alternatively: <evil:assignees>identity.groups</evil:assignees> -->
-    <evil:inputMapping source="token.raw_name" target="customer_name"/>
-    <evil:payloadContract>{"type":"object","required":["customer_name"],"properties":{"customer_name":{"type":"string"}}}</evil:payloadContract>
-    <evil:outputMapping source="token.user_approved" target="approved"/>
-    <evil:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</evil:resultContract>
-    <evil:dueDate>2026-12-31T23:59:59Z</evil:dueDate>
-    <evil:priority>5</evil:priority>
+    <bfw:assignees>["clerk_role", "manager_role"]</bfw:assignees>
+    <!-- alternatively: <bfw:assignees>identity.groups</bfw:assignees> -->
+    <bfw:inputMapping source="token.raw_name" target="customer_name"/>
+    <bfw:payloadContract>{"type":"object","required":["customer_name"],"properties":{"customer_name":{"type":"string"}}}</bfw:payloadContract>
+    <bfw:outputMapping source="token.user_approved" target="approved"/>
+    <bfw:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</bfw:resultContract>
+    <bfw:dueDate>2026-12-31T23:59:59Z</bfw:dueDate>
+    <bfw:priority>5</bfw:priority>
   </bpmn:extensionElements>
 </bpmn:userTask>
 ```
@@ -55,7 +55,7 @@ curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/finish \
 | `204`  | Task completed successfully (no body) |
 | `403`  | Caller can see the task (`"read"` or `observe_all`) but lacks `"write"` |
 | `404`  | FNI not found or invisible to caller (no observe of that lane) |
-| `413`  | Result payload exceeds `TDE_TOKEN_MAX_BYTES` |
+| `413`  | Result payload exceeds `BFE_TOKEN_MAX_BYTES` |
 | `422`  | Task not in `waiting` state, or result contract violation |
 
 ### Authorization
@@ -94,7 +94,7 @@ for finishing.
 
 ## Result Contract Validation
 
-When a `evil:resultContract` JSON Schema is defined, the engine validates the
+When a `bfw:resultContract` JSON Schema is defined, the engine validates the
 completion result strictly. If the result does not match the schema, the request
 is rejected with `422 contract_violation` and the FNI remains in `waiting`
 state — the process instance stays running. The user can correct the payload and

@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_credit_underwriting">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_credit-underwriting-process" name="Credit Underwriting Process" processRef="credit-underwriting-process" />
@@ -13,7 +13,7 @@
 
   <bpmn:process id="credit-underwriting-process" name="Credit Underwriting Process" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -33,8 +33,8 @@
 
     <bpmn:businessRuleTask id="BRT_underwrite_application" name="Underwrite Application" implementation="dmn">
       <bpmn:extensionElements>
-        <evil:decisionRef>credit-underwriting</evil:decisionRef>
-        <evil:decisionElementId>Decision_underwriting_decision</evil:decisionElementId>
+        <bfw:decisionRef>credit-underwriting</bfw:decisionRef>
+        <bfw:decisionElementId>Decision_underwriting_decision</bfw:decisionElementId>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_to_brt</bpmn:incoming>
       <bpmn:outgoing>Flow_brt_to_gateway</bpmn:outgoing>
@@ -53,7 +53,7 @@
 
     <bpmn:serviceTask id="ServiceTask_send_rejection" name="Send Rejection" implementation="notification">
       <bpmn:extensionElements>
-        <evil:type>notification</evil:type>
+        <bfw:type>notification</bfw:type>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_rejected</bpmn:incoming>
       <bpmn:outgoing>Flow_rejection_to_end</bpmn:outgoing>

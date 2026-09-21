@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.DMN.DmnImportTraceIntegrationTest do
+defmodule BfwEngine.Integration.DMN.DmnImportTraceIntegrationTest do
   @moduledoc """
   Integration test verifying import trace presence when a BRT evaluates
   a DMN model that uses cross-model imports (7H.2).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

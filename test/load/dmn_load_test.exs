@@ -1,4 +1,4 @@
-defmodule EvilEngine.Load.DmnLoadTest do
+defmodule BfwEngine.Load.DmnLoadTest do
   @moduledoc """
   BRT + DMN load tests that exercise the full Start → BRT → End pipeline.
 
@@ -29,10 +29,10 @@ defmodule EvilEngine.Load.DmnLoadTest do
   | D8    | 500 rules | 1000 | 14,846 ms | 74,230 ms |
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.CompletionCounter
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Test.CompletionCounter
+  alias BfwEngine.Test.LoadHelpers
 
   @warmup_runs 2
   @measured_runs 5
@@ -47,7 +47,7 @@ defmodule EvilEngine.Load.DmnLoadTest do
   @payload %{"age" => 18, "status" => "standard"}
 
   setup do
-    EvilEngine.DMN.ModelCache.reset_state()
+    BfwEngine.DMN.ModelCache.reset_state()
 
     on_exit(fn ->
       LoadHelpers.terminate_all_process_instances()

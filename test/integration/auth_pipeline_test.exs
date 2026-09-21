@@ -1,6 +1,6 @@
-defmodule EvilEngine.Integration.AuthPipelineTest do
+defmodule BfwEngine.Integration.AuthPipelineTest do
   @moduledoc "Full-stack: JWT auth through the real HTTP pipeline."
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
   describe "identity construction" do
     test "identity.id comes from 'sub' claim" do

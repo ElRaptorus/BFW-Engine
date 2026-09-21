@@ -10,7 +10,7 @@ Deploys a process with a single user task, starts with a payload, locates the wa
 ## Run
 
 ```bash
-pnpm --filter @daemonengine/example-user-task-workflow start
+pnpm --filter @bfw-engine/example-user-task-workflow start
 ```
 
 ## Expected output

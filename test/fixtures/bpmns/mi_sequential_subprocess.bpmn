@@ -3,8 +3,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:collaboration id="Collaboration_1">
@@ -13,7 +13,7 @@
 
   <bpmn:process id="mi-sequential-subprocess" name="MI Sequential Subprocess" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -33,9 +33,9 @@
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
       <bpmn:multiInstanceLoopCharacteristics isSequential="true">
         <bpmn:extensionElements>
-          <evil:inputCollection>token.items</evil:inputCollection>
-          <evil:outputCollection>subResults</evil:outputCollection>
-          <evil:elementVariable>item</evil:elementVariable>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:outputCollection>subResults</bfw:outputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
         </bpmn:extensionElements>
       </bpmn:multiInstanceLoopCharacteristics>
 

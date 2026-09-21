@@ -17,11 +17,11 @@ This project is an Elixir umbrella with all domain apps under `apps/`. The depen
 | `core_timers` | Core | `apps/core_timers/` | ISO 8601 scheduler |
 | `core_expressions` | Core | `apps/core_expressions/` | FEEL evaluator |
 | `core_bpmn` | Core | `apps/core_bpmn/` | XML parser, ModelCache, linter gate |
-| `peripheral_persistence` | Peripheral | `apps/peripheral_persistence/` | Ash + AshPostgres, Mix `evil.retention.purge` |
+| `peripheral_persistence` | Peripheral | `apps/peripheral_persistence/` | Ash + AshPostgres, Mix `bfw.retention.purge` |
 | `peripheral_telemetry` | Peripheral | `apps/peripheral_telemetry/` | :telemetry counters, /stats |
 | `peripheral_plugins` | Peripheral | `apps/peripheral_plugins/` | Plugin registry, in-BEAM loader |
 | `api_auth` | API | `apps/api_auth/` | JWT validation |
-| `api_facade` | API | `apps/api_facade/` | `EvilEngine.Api` service-layer facade |
+| `api_facade` | API | `apps/api_facade/` | `BfwEngine.Api` service-layer facade |
 | `api_web` | API | `apps/api_web/` | REST + GraphQL + WebSocket + Admin |
 
 ## Key Rules
@@ -30,6 +30,6 @@ This project is an Elixir umbrella with all domain apps under `apps/`. The depen
 - **Single-app tests**: `mix test apps/core_execution/test`
 - **Single-app compile**: `mix compile` still compiles all apps (umbrella behavior); use the full suite
 - **Dependency direction**: Core apps may depend on `core_types` and each other within Core. Peripheral apps may depend on Core. API apps may depend on Core and Peripheral. No reverse dependencies.
-- **`EvilEngine.Api`** lives in its own module (not an app); it is the Ash Code Interface shared by all API apps and plugins
+- **`BfwEngine.Api`** lives in its own module (not an app); it is the Ash Code Interface shared by all API apps and plugins
 - **Documentation** lives in `docs/` at the project root, not inside individual apps
 - **Configuration** lives in `config/` at the project root (`config.exs`, `runtime.exs`)

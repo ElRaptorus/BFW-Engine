@@ -1,10 +1,10 @@
-defmodule EvilEngine.Integration.DMN.DmnEvaluateEnrichmentTest do
+defmodule BfwEngine.Integration.DMN.DmnEvaluateEnrichmentTest do
   @moduledoc """
   Integration test verifying enrichment fields on the REST evaluate
   response: definitionsId, definitionsNamespace, decisionVersionId,
   and trace.inputCoercions (7H.3).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

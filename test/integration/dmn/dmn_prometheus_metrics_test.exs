@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.DMN.DmnPrometheusMetricsTest do
+defmodule BfwEngine.Integration.DMN.DmnPrometheusMetricsTest do
   @moduledoc """
   Integration test verifying that DMN evaluation produces Prometheus
   metrics visible on GET /metrics (7H.4).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 
@@ -16,14 +16,14 @@ defmodule EvilEngine.Integration.DMN.DmnPrometheusMetricsTest do
 
       metrics = scrape_metrics()
 
-      assert metrics =~ "evil_engine_dmn_evaluations_total",
-             "Expected evil_engine_dmn_evaluations_total in metrics output"
+      assert metrics =~ "bfw_engine_dmn_evaluations_total",
+             "Expected bfw_engine_dmn_evaluations_total in metrics output"
 
-      assert metrics =~ "evil_engine_dmn_evaluate_duration_milliseconds",
-             "Expected evil_engine_dmn_evaluate_duration_milliseconds in metrics output"
+      assert metrics =~ "bfw_engine_dmn_evaluate_duration_milliseconds",
+             "Expected bfw_engine_dmn_evaluate_duration_milliseconds in metrics output"
 
-      assert metrics =~ "evil_engine_dmn_cache_hit_total",
-             "Expected evil_engine_dmn_cache_hit_total in metrics output"
+      assert metrics =~ "bfw_engine_dmn_cache_hit_total",
+             "Expected bfw_engine_dmn_cache_hit_total in metrics output"
     end
   end
 

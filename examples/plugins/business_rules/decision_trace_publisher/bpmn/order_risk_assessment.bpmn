@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_order_risk_assessment">
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_order-risk-assessment" name="Order Risk Assessment" processRef="order-risk-assessment" />
@@ -13,7 +13,7 @@
 
   <bpmn:process id="order-risk-assessment" name="Order Risk Assessment" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -33,8 +33,8 @@
 
     <bpmn:businessRuleTask id="BRT_assess_order_risk" name="Assess Order Risk" implementation="dmn">
       <bpmn:extensionElements>
-        <evil:decisionRef>order-risk-rules</evil:decisionRef>
-        <evil:decisionElementId>Decision_Risk_Level</evil:decisionElementId>
+        <bfw:decisionRef>order-risk-rules</bfw:decisionRef>
+        <bfw:decisionElementId>Decision_Risk_Level</bfw:decisionElementId>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_start_to_brt</bpmn:incoming>
       <bpmn:outgoing>Flow_brt_to_gateway</bpmn:outgoing>

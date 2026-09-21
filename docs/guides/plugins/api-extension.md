@@ -12,7 +12,7 @@ The registered handler is a **Plug** (`call/2`). A Phoenix router qualifies beca
 
 ```elixir
 @behaviour Plug
-@behaviour EvilEngine.Plugin.RestApiExtension
+@behaviour BfwEngine.Plugin.RestApiExtension
 
 @callback call(Plug.Conn.t(), Plug.opts()) :: Plug.Conn.t()
 

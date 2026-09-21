@@ -3,14 +3,14 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
-                  targetNamespace="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_TasksGateways">
 
   <bpmn:extensionElements>
-    <evil:Properties>
-      <evil:LinterRulesetScore
-        rulesetId="evil-default"
+    <bfw:Properties>
+      <bfw:LinterRulesetScore
+        rulesetId="bfw-default"
         scorePercent="92.5"
         complianceStatus="valid"
         computedAtIso="2026-07-03T12:00:00Z"
@@ -19,7 +19,7 @@
         penaltyPoints="7.5"
         rawErrorFindings="0"
         rawWarningFindings="2" />
-    </evil:Properties>
+    </bfw:Properties>
   </bpmn:extensionElements>
 
   <bpmn:message id="Msg_Send" name="outbound-message" />
@@ -31,7 +31,7 @@
 
   <bpmn:process id="Process_TasksGateways" name="Tasks and Gateways" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -54,7 +54,7 @@
     <bpmn:manualTask id="MT_1" name="Manual Task">
       <bpmn:documentation>Some docs</bpmn:documentation>
       <bpmn:extensionElements>
-        <evil:requireConfirmation>true</evil:requireConfirmation>
+        <bfw:requireConfirmation>true</bfw:requireConfirmation>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
@@ -83,8 +83,8 @@
 
     <bpmn:callActivity id="CA_1" name="Call Child" calledElement="child-process">
       <bpmn:extensionElements>
-        <evil:inputMapping source="token.orderId" target="orderId" />
-        <evil:outputMapping source="result.trackingNumber" target="trackingNumber" />
+        <bfw:inputMapping source="token.orderId" target="orderId" />
+        <bfw:outputMapping source="result.trackingNumber" target="trackingNumber" />
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_6</bpmn:incoming>
       <bpmn:outgoing>Flow_7</bpmn:outgoing>

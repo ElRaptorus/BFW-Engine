@@ -131,7 +131,7 @@ REST API.
 
 | Element                  | Notes                                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------- |
-| Decision                 | DRG-aware evaluation; `evil:decisionElementId` selects root in multi-decision models        |
+| Decision                 | DRG-aware evaluation; `bfw:decisionElementId` selects root in multi-decision models        |
 | Input Data               | Typed inputs declared in the model; bound from the BPMN token or REST payload               |
 | Business Knowledge Model | Encapsulated logic with formal parameters; invoked via `knowledgeRequirement` references    |
 | Decision Service         | Evaluate a published subset of decisions; REST `POST /decisions/:id/services/:sid/evaluate` |
@@ -178,11 +178,11 @@ REST API.
 
 | Feature                  | Notes                                                                                                             |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Business Rule Task (DMN) | `implementation="dmn"` + `evil:decisionRef` + optional `evil:decisionElementId`                                   |
+| Business Rule Task (DMN) | `implementation="dmn"` + `bfw:decisionRef` + optional `bfw:decisionElementId`                                   |
 | REST Deploy              | `POST /decisions` — batch deploy DMN XML sources                                                                  |
 | REST Evaluate            | `POST /decisions/:id/evaluate` — ad-hoc evaluation outside of BPMN                                                |
 | REST Decision Services   | `POST /decisions/:id/services/:sid/evaluate`                                                                      |
 | Plugin Observation       | `FlowNodeInstanceFinished` events carry `type_properties` with full DMN trace for event sinks                     |
 | Plugin Facade            | `facade.decisions.*` — deploy, evaluate, list, get, enable/disable, get_xml, evaluate_service                     |
 | Execution Trace          | Structured `EvaluationTrace` with per-decision timing, BKM traces, import traces, coercion log                    |
-| TypeScript SDK/Client    | Full CL3 type definitions in `@elraptorus/daemonengine_sdk`; evaluate/deploy in `@elraptorus/daemonengine_client` |
+| TypeScript SDK/Client    | Full CL3 type definitions in `@elraptorus/bfw_engine_sdk`; evaluate/deploy in `@elraptorus/bfw_engine_client` |

@@ -19,7 +19,7 @@ defmodule MyCompany.CompanyGraphAuthProvider do
   2. It calls the CompanyGraph `/me` endpoint to validate the token and
      retrieve the user profile.
   3. It maps the CompanyGraph user record (employee ID, teams, roles,
-     custom attributes) to an `%EvilEngine.Types.Identity{}`, including
+     custom attributes) to an `%BfwEngine.Types.Identity{}`, including
      engine-specific authorization claims derived from the CG roles.
 
   ## Stub token profiles
@@ -53,9 +53,9 @@ defmodule MyCompany.CompanyGraphAuthProvider do
         service_token: System.get_env("COMPANYGRAPH_SERVICE_TOKEN")
   """
 
-  @behaviour EvilEngine.Plugin.AuthProvider
+  @behaviour BfwEngine.Plugin.AuthProvider
 
-  alias EvilEngine.Types.Identity
+  alias BfwEngine.Types.Identity
 
   @doc "Verifies the bearer token with the stubbed CompanyGraph user fetch and returns a resolved engine identity."
   @impl true

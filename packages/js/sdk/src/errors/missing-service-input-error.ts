@@ -1,7 +1,7 @@
-import { DaemonEngineError } from './daemon-engine-error.js';
+import { BfwEngineError } from './bfw-engine-error.js';
 
 /** Thrown when a required `inputData` entry is not provided for a Decision Service evaluation. */
-export class MissingServiceInputError extends DaemonEngineError {
+export class MissingServiceInputError extends BfwEngineError {
   constructor(
     message: string,
     /** Names of the missing required inputs. */

@@ -1,5 +1,5 @@
 ---
-description: Test conventions, infrastructure, and directory layout for Daemon Engine
+description: Test conventions, infrastructure, and directory layout for the Engine
 globs: "**/test/**/*.exs"
 alwaysApply: false
 ---
@@ -69,7 +69,7 @@ resolution, ModelCache, and execution runtime — not just the runtime
 in isolation.
 
 The `ExecutionCase.start_process()` helper that calls
-`EvilEngine.Execution.start_process_instance/1` directly remains
+`BfwEngine.Execution.start_process_instance/1` directly remains
 available for **per-app unit tests** in `core_execution` that
 intentionally test the runtime without the HTTP layer.
 
@@ -99,8 +99,8 @@ deploy via HTTP, start via HTTP, assert end-to-end.
 
 | Test type | Module name pattern |
 |-----------|-------------------|
-| Unit | `EvilEngine.<Domain>.<Module>Test` |
-| Integration | `EvilEngine.<Domain>.Integration.<Feature>Test` |
+| Unit | `BfwEngine.<Domain>.<Module>Test` |
+| Integration | `BfwEngine.<Domain>.Integration.<Feature>Test` |
 
 ## Test types — when to use which
 

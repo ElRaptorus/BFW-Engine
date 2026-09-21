@@ -3,7 +3,7 @@
  * Requires a running engine with DMN support.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -13,7 +13,7 @@ import {
   DecisionDefinitionNotFoundError,
   DecisionDefinitionDisabledError,
   DecisionServiceNotFoundError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 const discountDefinitionsId = 'definitions_discount';
 const serviceDefinitionsId = 'Definitions_ds_basic';
@@ -25,7 +25,7 @@ const drgLinearChainDefinitionsId = 'definitions_linear_chain';
 const bkmInvocationDefinitionsId = 'definitions_bkm_invoke_le';
 const boxedContextDefinitionsId = 'definitions_context';
 
-let adminClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
 
 beforeAll(async () => {
   await ensureEngineReachable();

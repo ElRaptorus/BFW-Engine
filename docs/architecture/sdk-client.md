@@ -6,13 +6,13 @@ The engine ships two TypeScript npm packages in a pnpm monorepo at `packages/js/
 
 | Package | npm name | Directory | Runtime deps | Purpose |
 |---------|----------|-----------|-------------|---------|
-| SDK | `@elraptorus/daemonengine_sdk` | `packages/js/sdk/` | `fast-xml-parser` | Types, errors, events, BPMN parser, DMN parser |
-| Client | `@elraptorus/daemonengine_client` | `packages/js/client/` | `@elraptorus/daemonengine_sdk`, `phoenix` | HTTP, GraphQL, WebSocket transport |
+| SDK | `@elraptorus/bfw_engine_sdk` | `packages/js/sdk/` | `fast-xml-parser` | Types, errors, events, BPMN parser, DMN parser |
+| Client | `@elraptorus/bfw_engine_client` | `packages/js/client/` | `@elraptorus/bfw_engine_sdk`, `phoenix` | HTTP, GraphQL, WebSocket transport |
 
 ## Dependency Direction
 
 ```
-@elraptorus/daemonengine_client  -->  @elraptorus/daemonengine_sdk
+@elraptorus/bfw_engine_client  -->  @elraptorus/bfw_engine_sdk
 ```
 
 The SDK never imports from the client. All contracts (types, error classes, event interfaces, plugin interfaces, GraphQL query option types) live in the SDK. The client is a pure consumer.
@@ -35,9 +35,9 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 
 | Directory | Contents |
 |-----------|----------|
-| `bpmn/` | `parseBpmn()` -- XML parser producing a typed `BpmnDefinitions` from BPMN 2.0 + `evil:*` extensions. Recursively parses embedded subprocess inner scopes (flow nodes, sequence flows, data objects, mappings, contracts) mirroring the Elixir `SaxHandler` pipeline. `SubProcessTypeData` extends `WithMappings & WithContracts`. |
-| `dmn/` | `parseDmn()` -- XML parser producing a typed `DmnDefinitions` from DMN 1.5 CL3 models. CL1: decision tables, literal expressions, BKMs, DRG elements, ItemDefinitions, Imports. CL3 (Phase 6): all 10 boxed expression types (`DmnBoxedContext`, `DmnBoxedInvocation`, `DmnBoxedList`, `DmnRelation`, `DmnBoxedConditional`, `DmnBoxedFilter`, `DmnBoxedFor`, `DmnBoxedEvery`, `DmnBoxedSome`, `DmnFunctionDefinition`), `DmnDecisionService`, DMNDI (`DmnDI`, `DmnDiagram`, `DmnShape`, `DmnEdge`). `DmnDecision` uses a unified `expression: DmnExpressionBody` field (structural parity with the Elixir parser). DMNDI is parsed exclusively in the SDK (not engine-side) — the engine preserves raw XML for retrieval and the Studio renders DRD diagrams using the SDK parser. |
-| `errors/` | 39 error subclasses extending `DaemonEngineError`. Each carries `statusCode`, `errorCode`, `message`, `rawBody`. Includes 9 DMN-specific errors (8 from Phase 4, plus `DecisionServiceNotFoundError` from Phase 6). |
+| `bpmn/` | `parseBpmn()` -- XML parser producing a typed `BpmnDefinitions` from BPMN 2.0 + `bfw:*` extensions. Recursively parses embedded subprocess inner scopes (flow nodes, sequence flows, data objects, mappings, contracts) mirroring the Elixir `SaxHandler` pipeline. `SubProcessTypeData` extends `WithMappings & WithContracts`. |
+| `dmn/` | `parseDmn()` -- XML parser producing a typed `DmnDefinitions` from DMN 1.5 CL3 models. CL1: decision tables, literal expressions, BKMs, DRG elements, ItemDefinitions, Imports. CL3: all 10 boxed expression types (`DmnBoxedContext`, `DmnBoxedInvocation`, `DmnBoxedList`, `DmnRelation`, `DmnBoxedConditional`, `DmnBoxedFilter`, `DmnBoxedFor`, `DmnBoxedEvery`, `DmnBoxedSome`, `DmnFunctionDefinition`), `DmnDecisionService`, DMNDI (`DmnDI`, `DmnDiagram`, `DmnShape`, `DmnEdge`). `DmnDecision` uses a unified `expression: DmnExpressionBody` field (structural parity with the Elixir parser). DMNDI is parsed exclusively in the SDK (not engine-side) — the engine preserves raw XML for retrieval and the Studio renders DRD diagrams using the SDK parser. |
+| `errors/` | 39 error subclasses extending `BfwEngineError`. Each carries `statusCode`, `errorCode`, `message`, `rawBody`. Includes 9 DMN-specific errors, one of them `DecisionServiceNotFoundError`. |
 | `events/` | `EngineEventEnvelope<T>` and 17 discriminated-union event interfaces for WebSocket delivery (includes `DecisionDefinitionDeployed/Undeployed`) |
 | `graphql/` | Field, filter, include, sort, and pagination types for the typed GraphQL query builder. Covers BPMN and DMN resources. Filter types include `ilike` for substring matching on string fields. `ProcessVersionField`/`ProcessVersionFilter` and `DecisionVersionField`/`DecisionVersionFilter` support version-specific queries. `ProcessModelInclude`/`DecisionDefinitionInclude` enable nested `versions` relationship loading with field selection, filtering, and sorting. `SelectionField` / `buildFlowNodeSelection` / `buildProcessModelSelection` describe the polymorphic Model graph; empty `on` fragments are omitted so Absinthe does not reject `... on TaskNode { }`. |
 | `plugin/` | Behaviour interfaces for plugin development (service task handlers, event sinks, auth providers, etc.) |
@@ -56,10 +56,10 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 
 ## Main Client Class
 
-`DaemonEngineClient` (in `client/src/daemon-engine-client.ts`) wires all sub-clients with a shared `HttpTransport` and `JwtFactory`:
+`BfwEngineClient` (in `client/src/bfw-engine-client.ts`) wires all sub-clients with a shared `HttpTransport` and `JwtFactory`:
 
 ```typescript
-const client = new DaemonEngineClient('http://localhost:4100', jwtFactory);
+const client = new BfwEngineClient('http://localhost:4100', jwtFactory);
 client.processes       // ProcessClient
 client.processInstances // ProcessInstanceClient
 client.userTasks       // UserTaskClient
@@ -85,9 +85,9 @@ The WebSocket URL is derived from the HTTP URL by replacing `http` with `ws` and
 | `complete(processInstanceId)` | `POST /adhoc-subprocesses/{id}/complete` | `AdHocCompleteResult` |
 | `getStatus(processInstanceId)` | `GET /adhoc-subprocesses/{id}/status` | `AdHocStatus` |
 
-`AdHocActivity`, `AdHocActivateResult`, `AdHocCompleteResult`, and `AdHocStatus` are defined in `sdk/src/types/adhoc-subprocess.ts` and re-exported from `@elraptorus/daemonengine_sdk`. The same four types back the `EngineFacade` plugin methods (`getEnabledActivities`, `activateActivity`, `complete`, `getStatus` in `sdk/src/plugin/engine-facade.ts`) — REST and plugin callers share one contract. `activate()` and `complete()` are used for plugin-managed ad-hoc sub-processes (`implementation` set on the `bpmn:AdHocSubProcess`, AH-D-series); engine-managed mode (no `implementation`) drives the same underlying PI-level operations internally without requiring a caller to invoke this client.
+`AdHocActivity`, `AdHocActivateResult`, `AdHocCompleteResult`, and `AdHocStatus` are defined in `sdk/src/types/adhoc-subprocess.ts` and re-exported from `@elraptorus/bfw_engine_sdk`. The same four types back the `EngineFacade` plugin methods (`getEnabledActivities`, `activateActivity`, `complete`, `getStatus` in `sdk/src/plugin/engine-facade.ts`) — REST and plugin callers share one contract. `activate()` and `complete()` are used for plugin-managed ad-hoc sub-processes (`implementation` set on the `bpmn:AdHocSubProcess`, AH-D-series); engine-managed mode (no `implementation`) drives the same underlying PI-level operations internally without requiring a caller to invoke this client.
 
-Real-time ad-hoc events (`AdHocActivityActivated`, `AdHocSubProcessCompleted`) are delivered through `client.notifications` (the existing `NotificationClient` WebSocket channel), not through this REST sub-client — see `EvilEngine.Types.Event.AdHoc*` on the engine side and the "Engine Events" table in `AGENTS.md`.
+Real-time ad-hoc events (`AdHocActivityActivated`, `AdHocSubProcessCompleted`) are delivered through `client.notifications` (the existing `NotificationClient` WebSocket channel), not through this REST sub-client — see `BfwEngine.Types.Event.AdHoc*` on the engine side and the "Engine Events" table in `AGENTS.md`.
 
 ## Error Mapping Pipeline
 
@@ -95,7 +95,7 @@ When the engine returns a non-2xx response, the `HttpTransport` calls `mapRespon
 
 1. **Domain code match** (`body.error`): e.g. `"process_not_found"` -> `ProcessNotFoundError`, `"decision_definition_not_found"` -> `DecisionDefinitionNotFoundError`
 2. **HTTP status fallback**: e.g. `401` -> `UnauthorizedError`, `403` -> `ForbiddenError`
-3. **Catch-all**: base `DaemonEngineError` with raw body preserved
+3. **Catch-all**: base `BfwEngineError` with raw body preserved
 
 DMN-specific error codes mapped: `decision_definition_not_found`, `decision_definition_disabled`, `dmn_evaluation_error`, `decision_version_not_found`, `dmn_parse_error`, `decision_version_exists`, `dmn_cycle_error`, `bkm_not_found`, `service_not_found`.
 
@@ -126,7 +126,7 @@ Integration tests live in `client/test/integration/` and require a live engine (
 - **DMN integration tests**: `decision-lifecycle.test.ts` covers deploy, catalog CRUD, enable/disable, delete, undeploy, auth rejection, parse errors, and version conflicts. `decision-evaluation.test.ts` covers ad-hoc evaluation, unmatched details, error paths, and Decision Service evaluation via `evaluateService()`. Both require a running engine.
 - **Ordered suites**: Lifecycle and claim/security files that share engine state across `it()`s opt out of concurrency with `{ concurrent: false }` (Vitest 5 replacement for `describe.sequential`). Do not add `sequence.shuffle` to those configs.
 
-## DMN evaluation trace types (Phase 7)
+## DMN evaluation trace types
 
 Defined in `packages/js/sdk/src/types/dmn-evaluate.ts` and re-exported from `packages/js/sdk/src/index.ts`. REST evaluate responses run `EvaluationResult.to_json_map/1` through `Wire.camelize_keys/1`, so trace fields arrive as camelCase (for example `bkmTraces`, `importTraces`, `inputCoercions`).
 
@@ -174,14 +174,14 @@ The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/
 
 ## CI/CD
 
-`.github/workflows/packages-ci.yml` publishes `@elraptorus/daemonengine_sdk` and `@elraptorus/daemonengine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry). All jobs pin `actions/setup-node` to Node.js 24.20. First-party packages declare `engines.node` `>=24.20.0`.
+`.github/workflows/packages-ci.yml` publishes `@elraptorus/bfw_engine_sdk` and `@elraptorus/bfw_engine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry). All jobs pin `actions/setup-node` to Node.js 24.20. First-party packages declare `engines.node` `>=24.20.0`.
 
 Jobs, in order:
 
 | Job | What it does |
 |-----|----------------|
-| **lint-build-unit** | `pnpm install --frozen-lockfile`, then lint / build / `test:unit` for the SDK and client packages only (`--filter @elraptorus/daemonengine_sdk --filter @elraptorus/daemonengine_client`) |
-| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.5, Elixir 1.20.3-otp-29, Rust 1.98.0 for the FEEL NIF) with `mix compile --force` so the mix.lock-only `_build` cache cannot serve a stale GraphQL schema, migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/daemonengine_client run test:integration` |
+| **lint-build-unit** | `pnpm install --frozen-lockfile`, then lint / build / `test:unit` for the SDK and client packages only (`--filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client`) |
+| **integration** (needs lint-build-unit) | Compiles a `MIX_ENV=prod` OTP release (Erlang/OTP 29.0.5, Elixir 1.20.3-otp-29, Rust 1.98.0 for the FEEL NIF) with `mix compile --force` so the mix.lock-only `_build` cache cannot serve a stale GraphQL schema, migrates Postgres, daemonizes the release on port 4100, runs `pnpm --filter @elraptorus/bfw_engine_client run test:integration` |
 | **publish** (needs integration) | Resolves version from the release tag or by incrementing the GitHub Packages `pnpm view` result, then `pnpm publish` of SDK then client (`workspace:*` is rewritten to the published SDK version) |
 
 The integration job must install a Rust toolchain. `mix compile` of `core_expressions` builds the Rustler NIF; without `rustc` the release (and therefore publish) fails.

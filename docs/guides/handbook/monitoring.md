@@ -24,20 +24,20 @@ curl http://localhost:4000/info
 curl http://localhost:4000/metrics
 ```
 
-`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`TDE_METRICS_ENABLED=true`). Set to `false` to disable.
+`GET /metrics` is **public Prometheus text** (no authentication). Enabled by default (`BFE_METRICS_ENABLED=true`). Set to `false` to disable.
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `evil_engine_http_request_total` | Counter | HTTP request count by method, route, and status |
-| `evil_engine_http_request_duration_ms` | Histogram | HTTP request latency |
-| `evil_engine_process_instance_state_change_total` | Counter | PI state transitions by old/new state |
-| `evil_engine_flow_node_instance_started_total` | Counter | FNI creations |
-| `evil_engine_flow_node_instance_state_change_total` | Counter | FNI state transitions by type and terminal state |
-| `evil_engine_event_bus_events_total` | Counter | Events dispatched through the EngineEventBus, by type |
-| `evil_engine_process_instance_active_count` | Gauge | Currently in-memory PIs (polled every 10s) |
-| `evil_engine_process_instance_capacity_ratio` | Gauge | Ratio of active PIs to configured cap (0.0–1.0) |
-| `evil_engine_escalation_raised_total` | Counter | Escalations raised, by throw type |
-| `evil_engine_dmn_evaluations_total` | Counter | DMN evaluations |
+| `bfw_engine_http_request_total` | Counter | HTTP request count by method, route, and status |
+| `bfw_engine_http_request_duration_ms` | Histogram | HTTP request latency |
+| `bfw_engine_process_instance_state_change_total` | Counter | PI state transitions by old/new state |
+| `bfw_engine_flow_node_instance_started_total` | Counter | FNI creations |
+| `bfw_engine_flow_node_instance_state_change_total` | Counter | FNI state transitions by type and terminal state |
+| `bfw_engine_event_bus_events_total` | Counter | Events dispatched through the EngineEventBus, by type |
+| `bfw_engine_process_instance_active_count` | Gauge | Currently in-memory PIs (polled every 10s) |
+| `bfw_engine_process_instance_capacity_ratio` | Gauge | Ratio of active PIs to configured cap (0.0–1.0) |
+| `bfw_engine_escalation_raised_total` | Counter | Escalations raised, by throw type |
+| `bfw_engine_dmn_evaluations_total` | Counter | DMN evaluations |
 | BEAM VM gauges | Gauge | Memory usage, run queue lengths, process count |
 
 Full catalog (including DB pool and DMN cache series): [observability.md](../../architecture/observability.md).
@@ -124,11 +124,11 @@ The engine routes all internal events through the `EngineEventBus` to three buil
 
 | Sink | Env Var | Default | Purpose |
 |------|---------|---------|---------|
-| Console | `TDE_EVENT_SINK_CONSOLE` | `on` | Logs events at configurable severity |
-| Telemetry | `TDE_EVENT_SINK_TELEMETRY` | `on` | Increments Prometheus `evil_engine_event_bus_events_total` |
-| WebSocket | `TDE_EVENT_SINK_WEBSOCKET` | `on` | Pushes to Phoenix Channels |
+| Console | `BFE_EVENT_SINK_CONSOLE` | `on` | Logs events at configurable severity |
+| Telemetry | `BFE_EVENT_SINK_TELEMETRY` | `on` | Increments Prometheus `bfw_engine_event_bus_events_total` |
+| WebSocket | `BFE_EVENT_SINK_WEBSOCKET` | `on` | Pushes to Phoenix Channels |
 
-Console severity is `TDE_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var. Disabling the telemetry sink does **not** zero `GET /stats` — that endpoint queries Ash/ETS live.
+Console severity is `BFE_LOG_MIN_SEVERITY`. There is no per-WebSocket min-severity env var. Disabling the telemetry sink does **not** zero `GET /stats` — that endpoint queries Ash/ETS live.
 
 Custom sinks can be built as plugins — see [Implementing Event Sinks](../plugins/event-sink.md).
 

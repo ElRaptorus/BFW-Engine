@@ -132,7 +132,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_regular", "Start_message", "Catch_1", "End_catch_path", "End_message_start"],
+          "flowNodeRefs": [
+            "Start_regular",
+            "Start_message",
+            "Catch_1",
+            "End_catch_path",
+            "End_message_start"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

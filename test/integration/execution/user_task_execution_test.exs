@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.Execution.UserTaskExecutionTest do
+defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
   @moduledoc "Integration tests for User Task execution (waiting, finish, contract violation)."
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   describe "simple user task (no contract)" do
     test "PI pauses at user task, finish call completes the PI", %{collector: collector} do

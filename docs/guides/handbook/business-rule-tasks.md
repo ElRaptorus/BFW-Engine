@@ -9,7 +9,7 @@ Business Rule Tasks evaluate business logic through one of two execution modes s
 3. At runtime, the engine runs the **input pipeline**: input mappers (FEEL) → payload contract (JSON Schema)
 4. The engine dispatches to the selected mode:
    - `"feel"` — evaluates the inline `<bpmn:script>` body as a FEEL expression
-   - `"dmn"` — resolves and evaluates a deployed DMN decision table via `evil:decisionRef`
+   - `"dmn"` — resolves and evaluates a deployed DMN decision table via `bfw:decisionRef`
 5. The **output pipeline** runs: output mappers (FEEL) → result contract (JSON Schema) → PayloadCap
 6. The token advances to the next flow node
 
@@ -20,7 +20,7 @@ The standard BPMN `implementation` attribute serves as an explicit mode discrimi
 | `implementation` value | Mode | Required companion | Description |
 |------------------------|------|--------------------|-------------|
 | `"feel"` | FEEL | `<bpmn:script>` | Evaluate an inline FEEL expression against the token |
-| `"dmn"` | DMN | `evil:decisionRef` | Evaluate a deployed DMN decision table |
+| `"dmn"` | DMN | `bfw:decisionRef` | Evaluate a deployed DMN decision table |
 
 The validator rejects any Business Rule Task with a missing, blank, or unrecognized `implementation` value. This includes `"plugin"`, which was removed — BRTs exclusively evaluate business rules via FEEL or DMN.
 
@@ -45,15 +45,15 @@ This mode is functionally identical to Script Task's inline mode and shares the 
 
 ## DMN Mode
 
-DMN mode resolves a deployed DMN decision table by `evil:decisionRef` and evaluates it against the token:
+DMN mode resolves a deployed DMN decision table by `bfw:decisionRef` and evaluates it against the token:
 
 ```xml
 <bpmn:businessRuleTask id="BRT_1" name="Discount Rules" implementation="dmn">
   <bpmn:extensionElements>
-    <evil:decisionRef>discount-rules</evil:decisionRef>
-    <evil:decisionElementId>Decision_Discount</evil:decisionElementId>
-    <evil:resultVariable>discountResult</evil:resultVariable>
-    <evil:traceUnmatchedRules>true</evil:traceUnmatchedRules>
+    <bfw:decisionRef>discount-rules</bfw:decisionRef>
+    <bfw:decisionElementId>Decision_Discount</bfw:decisionElementId>
+    <bfw:resultVariable>discountResult</bfw:resultVariable>
+    <bfw:traceUnmatchedRules>true</bfw:traceUnmatchedRules>
   </bpmn:extensionElements>
 </bpmn:businessRuleTask>
 ```
@@ -62,10 +62,10 @@ The engine resolves the latest enabled version of the DMN model, loads the parse
 
 | Extension | Purpose |
 |-----------|---------|
-| `evil:decisionRef` | DMN decision model ID to resolve at runtime |
-| `evil:decisionElementId` | Which `<decision>` to evaluate when the DMN model contains more than one. Omit for single-decision models |
-| `evil:resultVariable` | Wrap the DMN result under this key (optional; without it, the raw result map is the output) |
-| `evil:traceUnmatchedRules` | When `true`, include unmatched rule details in the evaluation trace |
+| `bfw:decisionRef` | DMN decision model ID to resolve at runtime |
+| `bfw:decisionElementId` | Which `<decision>` to evaluate when the DMN model contains more than one. Omit for single-decision models |
+| `bfw:resultVariable` | Wrap the DMN result under this key (optional; without it, the raw result map is the output) |
+| `bfw:traceUnmatchedRules` | When `true`, include unmatched rule details in the evaluation trace |
 
 ## Data Pipeline (Mappers + Contracts)
 
@@ -75,10 +75,10 @@ Business Rule Tasks support the same data pipeline as Service Tasks and Script T
 <bpmn:businessRuleTask id="BRT_1" name="Mapped Rule" implementation="feel">
   <bpmn:script>{ computed: token.input_value * 3 }</bpmn:script>
   <bpmn:extensionElements>
-    <evil:inputMapping source="token.raw_amount" target="input_value"/>
-    <evil:payloadContract>{"type":"object","required":["input_value"]}</evil:payloadContract>
-    <evil:outputMapping source="token.computed" target="tripled"/>
-    <evil:resultContract>{"type":"object","required":["tripled"]}</evil:resultContract>
+    <bfw:inputMapping source="token.raw_amount" target="input_value"/>
+    <bfw:payloadContract>{"type":"object","required":["input_value"]}</bfw:payloadContract>
+    <bfw:outputMapping source="token.computed" target="tripled"/>
+    <bfw:resultContract>{"type":"object","required":["tripled"]}</bfw:resultContract>
   </bpmn:extensionElements>
 </bpmn:businessRuleTask>
 ```
@@ -91,10 +91,10 @@ token → in_mappings (FEEL) → payload_contract (JSON Schema) → mode dispatc
 
 | Extension | Purpose |
 |-----------|---------|
-| `evil:inputMapping` | FEEL expression to transform input before rule evaluation |
-| `evil:payloadContract` | JSON Schema to validate the mapped input |
-| `evil:outputMapping` | FEEL expression to transform rule output |
-| `evil:resultContract` | JSON Schema to validate the mapped output |
+| `bfw:inputMapping` | FEEL expression to transform input before rule evaluation |
+| `bfw:payloadContract` | JSON Schema to validate the mapped input |
+| `bfw:outputMapping` | FEEL expression to transform rule output |
+| `bfw:resultContract` | JSON Schema to validate the mapped output |
 
 ## Error Handling
 

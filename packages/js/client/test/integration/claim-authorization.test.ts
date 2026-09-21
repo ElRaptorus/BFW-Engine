@@ -1,7 +1,7 @@
-import { ForbiddenError, NotFoundError } from '@elraptorus/daemonengine_sdk';
+import { ForbiddenError, NotFoundError } from '@elraptorus/bfw_engine_sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   cleanupInstances,
   createAdminBypassOnlyClient,
@@ -19,15 +19,15 @@ import {
   waitForUserTask,
 } from '../support/test-engine.js';
 
-let adminClient: DaemonEngineClient;
-let readOnlyClient: DaemonEngineClient;
-let deployerClient: DaemonEngineClient;
-let deleterClient: DaemonEngineClient;
-let ownProcessInstanceScopeClient: DaemonEngineClient;
-let allProcessInstancesClient: DaemonEngineClient;
-let laneManagersClient: DaemonEngineClient;
-let laneAccountingClient: DaemonEngineClient;
-let adminBypassClient: DaemonEngineClient;
+let adminClient: BfwEngineClient;
+let readOnlyClient: BfwEngineClient;
+let deployerClient: BfwEngineClient;
+let deleterClient: BfwEngineClient;
+let ownProcessInstanceScopeClient: BfwEngineClient;
+let allProcessInstancesClient: BfwEngineClient;
+let laneManagersClient: BfwEngineClient;
+let laneAccountingClient: BfwEngineClient;
+let adminBypassClient: BfwEngineClient;
 
 const PASSTHROUGH_PROCESS_MODEL_ID = 'integration-passthrough';
 const LANE_START_PROCESS_MODEL_ID = 'integration-lane-start';
@@ -120,8 +120,8 @@ describe('Claim Authorization', { concurrent: false }, () => {
 
     it('client with delete_bpmn can delete a version', async () => {
       const secondVersionBpmn = readFixture('integration-passthrough.bpmn').replace(
-        '<evil:version>1.0.0</evil:version>',
-        '<evil:version>9.9.9</evil:version>',
+        '<bfw:version>1.0.0</bfw:version>',
+        '<bfw:version>9.9.9</bfw:version>',
       );
       await deployerClient.processes.deploy(secondVersionBpmn);
       await deleterClient.processes.deleteVersion(PASSTHROUGH_PROCESS_MODEL_ID, '9.9.9');

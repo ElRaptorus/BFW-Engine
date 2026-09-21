@@ -10,7 +10,7 @@ Deploys a pass-through process, observes the first run until it reaches a termin
 ## Run
 
 ```bash
-pnpm --filter @daemonengine/example-process-lifecycle start
+pnpm --filter @bfw-engine/example-process-lifecycle start
 ```
 
 ## Expected output

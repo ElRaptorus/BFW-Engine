@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
   id="definitions_load_10"
   name="Load 10 Rules"
-  namespace="https://evilengine.dev/dmn/load/10"
+  namespace="https://bifrostforge.world/dmn/load/10"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
              xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
              xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/">

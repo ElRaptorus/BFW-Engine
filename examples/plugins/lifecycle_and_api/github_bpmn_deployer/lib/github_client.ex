@@ -21,7 +21,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubClient do
 
   @type file_entry :: %{name: String.t(), download_url: String.t()}
 
-  @user_agent ~c"ThomasTheDaemonEngine-GithubBpmnDeployer/1.0"
+  @user_agent ~c"BFW-Engine-GithubBpmnDeployer/1.0"
 
   @doc """
   Reads GitHub configuration from environment variables.

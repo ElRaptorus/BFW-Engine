@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.AdHocSubprocessTest do
+defmodule BfwEngine.Integration.AdHocSubprocessTest do
   @moduledoc """
   Umbrella-level integration tests for `<bpmn:adHocSubProcess>` execution.
 
@@ -14,10 +14,10 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
   - Authorization (claim enforcement)
   - cancelRemainingInstances behavior
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   @default_timeout 15_000
 
@@ -86,7 +86,7 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
           Process.sleep(2_000)
 
           process_instance =
-            EvilEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
+            BfwEngine.Test.DbAssertions.fetch_process_instance(process_instance_id)
 
           assert process_instance != nil
           assert process_instance.state in ["fatal", "error"]
@@ -845,7 +845,7 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
   end
 
   defp find_child_pi_ids(parent_process_instance_id) do
-    EvilEngine.Test.DbAssertions.list_child_process_instance_ids(parent_process_instance_id)
+    BfwEngine.Test.DbAssertions.list_child_process_instance_ids(parent_process_instance_id)
   end
 
   defp await_child_pi(parent_process_instance_id, timeout \\ @default_timeout) do
@@ -871,7 +871,7 @@ defmodule EvilEngine.Integration.AdHocSubprocessTest do
   defp finish_all_waiting_user_tasks(process_instance_id) do
     poll_until(fn ->
       flow_node_instances =
-        EvilEngine.Test.DbAssertions.fetch_flow_node_instances(process_instance_id)
+        BfwEngine.Test.DbAssertions.fetch_flow_node_instances(process_instance_id)
 
       waiting_user_tasks =
         Enum.filter(flow_node_instances, fn fni ->

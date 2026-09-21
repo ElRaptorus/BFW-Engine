@@ -1,20 +1,20 @@
-defmodule EvilEngine.Test.LoadRunnerReport do
+defmodule BfwEngine.Test.LoadRunnerReport do
   @moduledoc """
   After-run hook for `test/load_runner.exs`.
 
   Writes the pretty JSON report even when ExUnit failed, then applies halt
   codes: 1 for test failures, 2 for a missing/unreadable baseline or a KPI
-  regression when `TDE_LOAD_BASELINE_PATH` is set.
+  regression when `BFE_LOAD_BASELINE_PATH` is set.
   """
 
-  alias EvilEngine.Test.BenchmarkReporter
+  alias BfwEngine.Test.BenchmarkReporter
 
   @failure_exit_status 1
   @regression_exit_status 2
 
   @doc """
   Write `test/load/reports/<utc_compact>.json`, print the path, then halt
-  according to ExUnit failures and `TDE_LOAD_BASELINE_PATH`.
+  according to ExUnit failures and `BFE_LOAD_BASELINE_PATH`.
   """
   def finish!(failures, reports_directory \\ default_reports_directory())
       when is_integer(failures) and is_binary(reports_directory) do
@@ -46,7 +46,7 @@ defmodule EvilEngine.Test.LoadRunnerReport do
   """
   def apply_exit_status(failures, report_path)
       when is_integer(failures) and is_binary(report_path) do
-    baseline_path = System.get_env("TDE_LOAD_BASELINE_PATH")
+    baseline_path = System.get_env("BFE_LOAD_BASELINE_PATH")
 
     cond do
       failures > 0 ->

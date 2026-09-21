@@ -47,9 +47,9 @@ Start → BusinessRuleTask("Underwrite Application") → ExclusiveGateway("Appro
 ```
 
 - Process id: `credit-underwriting-process`
-- Business Rule Task: `implementation="dmn"`, `<evil:decisionRef>credit-underwriting</evil:decisionRef>`
-- Service Task: `implementation="notification"` with `<evil:type>notification</evil:type>`
-- Version: `1.0.0` via `<evil:version>`
+- Business Rule Task: `implementation="dmn"`, `<bfw:decisionRef>credit-underwriting</bfw:decisionRef>`
+- Service Task: `implementation="notification"` with `<bfw:type>notification</bfw:type>`
+- Version: `1.0.0` via `<bfw:version>`
 
 ## Trace format
 
@@ -102,7 +102,7 @@ mix test apps/peripheral_plugins/test/examples/drd_chain_orchestrator_from_examp
 
 | Module | Role |
 |--------|------|
-| `DrdChainOrchestratorPlugin` | `EvilEngine.Plugin` lifecycle (`on_load`, `on_ready`) |
+| `DrdChainOrchestratorPlugin` | `BfwEngine.Plugin` lifecycle (`on_load`, `on_ready`) |
 | `FacadeStore` | Agent-backed facade stash |
 | `DrdChainOrchestratorWorker` | GenServer orchestration and logging |
 | `TraceInspector` | Pure trace formatting |

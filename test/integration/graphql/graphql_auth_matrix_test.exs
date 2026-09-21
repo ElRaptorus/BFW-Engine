@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Graphql.GraphqlAuthMatrixTest do
+defmodule BfwEngine.Integration.Graphql.GraphqlAuthMatrixTest do
   @moduledoc """
   GraphQL authorization matrix integration tests.
 
@@ -11,7 +11,7 @@ defmodule EvilEngine.Integration.Graphql.GraphqlAuthMatrixTest do
     lane-accessible users, or `zeeky_boogie_doog` admin bypass
   - **No JWT**: HTTP 401 for all queries
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

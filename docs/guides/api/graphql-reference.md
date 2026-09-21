@@ -4,7 +4,7 @@ Endpoint: `POST /api/v1/graphql`
 
 GraphQL is **strictly query-only**. All commands are REST (and the plugin facade). Real-time events use Phoenix Channels — see [WebSocket API](websocket.md).
 
-GraphQL Playground: `/admin/graphiql` (devtools-only — disabled in prod unless `TDE_DEVTOOLS_ENABLED=true`; pre-loaded with example query tabs)
+GraphQL Playground: `/admin/graphiql` (devtools-only — disabled in prod unless `BFE_DEVTOOLS_ENABLED=true`; pre-loaded with example query tabs)
 
 Authentication: same JWT as REST — see [Authentication](authentication.md).
 
@@ -235,7 +235,7 @@ query DebuggerView($piId: ID!) {
 
 **Batching:** requesting `flowNode` for many `FlowNodeInstance`s that share one `ProcessVersion` (e.g. every FNI of a single process instance, the debugger's access pattern) issues exactly one lookup for that version, not one per FNI.
 
-**TypeScript client.** `@elraptorus/daemonengine_client`'s `GraphqlClient` exposes dedicated methods that pre-build the field selection for you:
+**TypeScript client.** `@elraptorus/bfw_engine_client`'s `GraphqlClient` exposes dedicated methods that pre-build the field selection for you:
 
 ```typescript
 const version = await client.graphql.getProcessVersionWithModel(versionId, { fields: ['id', 'version'] });
@@ -243,10 +243,10 @@ const fni = await client.graphql.getFlowNodeInstanceWithModel(fniId, { fields: [
 const instance = await client.graphql.getProcessInstanceWithModel(processInstanceId, { fields: ['id', 'state'] });
 ```
 
-Building your own selection set for the `FlowNode` interface (rather than using the methods above) requires the `SelectionField` type from `@elraptorus/daemonengine_sdk`, which supports inline fragments via an `on` key:
+Building your own selection set for the `FlowNode` interface (rather than using the methods above) requires the `SelectionField` type from `@elraptorus/bfw_engine_sdk`, which supports inline fragments via an `on` key:
 
 ```typescript
-import type { SelectionField } from '@elraptorus/daemonengine_sdk';
+import type { SelectionField } from '@elraptorus/bfw_engine_sdk';
 
 const flowNodeSelection: SelectionField = {
   name: 'flowNode',
@@ -262,9 +262,9 @@ const flowNodeSelection: SelectionField = {
 
 | Env var | Default | Meaning |
 |---------|---------|---------|
-| `TDE_GRAPHQL_MAX_DEPTH` | `16` | Max field nesting. Sized for recursive `SubProcessNode.flowNodes`. |
-| `TDE_GRAPHQL_MAX_COMPLEXITY` | `10000` | Max query complexity. Paginated lists score as `limit × child fields`. Sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot (~6500). |
-| `TDE_GRAPHQL_INTROSPECTION_DISABLED` | `false` | When `true`, `__schema` / `__type` are rejected. |
+| `BFE_GRAPHQL_MAX_DEPTH` | `16` | Max field nesting. Sized for recursive `SubProcessNode.flowNodes`. |
+| `BFE_GRAPHQL_MAX_COMPLEXITY` | `10000` | Max query complexity. Paginated lists score as `limit × child fields`. Sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot (~6500). |
+| `BFE_GRAPHQL_INTROSPECTION_DISABLED` | `false` | When `true`, `__schema` / `__type` are rejected. |
 
 Exceeding depth or complexity returns a GraphQL error (`GraphqlDepthLimitError` / `GraphqlComplexityLimitError` in the TypeScript SDK). Limits are read at request time — no recompile required.
 

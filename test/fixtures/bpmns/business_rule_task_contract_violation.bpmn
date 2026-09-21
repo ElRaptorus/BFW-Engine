@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions
   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1"
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -10,7 +10,7 @@
 
   <bpmn:process id="BrtContractViolation" name="BRT Contract Violation" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -27,7 +27,7 @@
     <bpmn:businessRuleTask id="BRT_1" name="Bad Contract" implementation="feel">
       <bpmn:script>{ wrong_field: 42 }</bpmn:script>
       <bpmn:extensionElements>
-        <evil:resultContract>{"type":"object","required":["expected_field"],"properties":{"expected_field":{"type":"string"}}}</evil:resultContract>
+        <bfw:resultContract>{"type":"object","required":["expected_field"],"properties":{"expected_field":{"type":"string"}}}</bfw:resultContract>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>

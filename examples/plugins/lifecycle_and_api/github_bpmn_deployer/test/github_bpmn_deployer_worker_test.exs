@@ -1,7 +1,7 @@
 defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorker
 
   @valid_bpmn """
@@ -11,8 +11,8 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
     xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
     xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
     xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    xmlns:evil="https://evilengine.dev/schema/bpmn"
-    targetNamespace="https://evilengine.dev/schema/bpmn"
+    xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+    targetNamespace="https://bifrostforge.world/schema/bpmn"
     id="Definitions_1">
 
     <bpmn:collaboration id="Collaboration_1">
@@ -21,7 +21,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
 
     <bpmn:process id="test-gh-process" name="Test GitHub Process" isExecutable="true">
       <bpmn:extensionElements>
-        <evil:version>1.0.0</evil:version>
+        <bfw:version>1.0.0</bfw:version>
       </bpmn:extensionElements>
 
       <bpmn:laneSet id="LaneSet_1">
@@ -69,8 +69,8 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
     xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
     xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
     xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    xmlns:evil="https://evilengine.dev/schema/bpmn"
-    targetNamespace="https://evilengine.dev/schema/bpmn"
+    xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+    targetNamespace="https://bifrostforge.world/schema/bpmn"
     id="Definitions_2">
 
     <bpmn:collaboration id="Collaboration_2">
@@ -79,7 +79,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorkerTest do
 
     <bpmn:process id="second-process" name="Second Process" isExecutable="true">
       <bpmn:extensionElements>
-        <evil:version>2.0.0</evil:version>
+        <bfw:version>2.0.0</bfw:version>
       </bpmn:extensionElements>
 
       <bpmn:laneSet id="LaneSet_2">

@@ -3,7 +3,7 @@ defmodule Examples.Plugins.CustomValidators.Scripts.PayloadValidator do
   Ensures string-keyed payload maps include `"name"` and `"amount"`.
   """
 
-  @behaviour EvilEngine.Plugin.NamedScript
+  @behaviour BfwEngine.Plugin.NamedScript
 
   @required_fields ["name", "amount"]
 

@@ -1,6 +1,6 @@
 # Engine Facade Reference
 
-The `%EvilEngine.EngineFacade{}` struct is passed to every plugin's `on_load/1` and `on_ready/1` callbacks. It provides a stable, read-only surface for plugins to interact with the engine without reaching into internal modules.
+The `%BfwEngine.EngineFacade{}` struct is passed to every plugin's `on_load/1` and `on_ready/1` callbacks. It provides a stable, read-only surface for plugins to interact with the engine without reaching into internal modules.
 
 PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them.
 
@@ -10,8 +10,8 @@ PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin ca
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `engine_id` | `String.t()` | Value of `TDE_ENGINE_ID` |
-| `engine_name` | `String.t()` | Value of `TDE_ENGINE_NAME` |
+| `engine_id` | `String.t()` | Value of `BFE_ENGINE_ID` |
+| `engine_name` | `String.t()` | Value of `BFE_ENGINE_NAME` |
 | `version` | `String.t()` | Release version string |
 
 ### Capability Registration
@@ -35,7 +35,7 @@ Each function registers a specific capability type in the Plugin Registry. Regis
 
 ### Resource-Scoped Runtime Namespaces
 
-Runtime operations are grouped by the resource they operate on. Each namespace is a sub-struct with typed closures wired to `EvilEngine.Api` functions (`skip_claims: true`).
+Runtime operations are grouped by the resource they operate on. Each namespace is a sub-struct with typed closures wired to `BfwEngine.Api` functions (`skip_claims: true`).
 
 | Namespace | Type | Description |
 |-----------|------|-------------|
@@ -180,7 +180,7 @@ GraphQL is **query-only**. `facade.graphql.query/2` runs a raw query string thro
 When a capability is registered with an atom handler module (in-BEAM plugins), the Registry validates at registration time that the module:
 
 1. Can be loaded into the BEAM (`Code.ensure_loaded/1`).
-2. Declares `@behaviour` for the expected plugin behaviour (e.g. `EvilEngine.Plugin.ServiceTaskHandler` for service task handlers).
+2. Declares `@behaviour` for the expected plugin behaviour (e.g. `BfwEngine.Plugin.ServiceTaskHandler` for service task handlers).
 
 If validation fails, the registration function returns `{:error, :invalid_handler, message}` or `{:error, :module_not_loaded, message}`, a `PluginQuarantined` event is emitted, and the capability is **not** registered. The Loader also logs a warning for visibility.
 
@@ -239,7 +239,7 @@ facade.service_tasks.fail_async.("fni-uuid-123", "TIMEOUT", "Service did not res
 
 ## Access Rules
 
-- **Do not** call `EvilEngine.Plugins.Registry` directly — it is private to `peripheral_plugins`
+- **Do not** call `BfwEngine.Plugins.Registry` directly — it is private to `peripheral_plugins`
 - **Do not** reach into `core_execution`, `core_events`, or `peripheral_persistence` modules for command operations
 - Use the facade namespace closures for all runtime operations
 - In-BEAM plugins technically *can* reach internal modules; the contract forbids it and CI lints against it. That is a contract, not an isolation boundary.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_RetryParentWithErrorBoundary"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -10,7 +10,7 @@
   </bpmn:collaboration>
   <bpmn:process id="RetryParentWithErrorBoundary" name="Retry Parent With Error Boundary" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -26,7 +26,7 @@
     <bpmn:boundaryEvent id="BE_1" attachedToRef="CA_1">
       <bpmn:errorEventDefinition>
         <bpmn:extensionElements>
-          <evil:errorCode>CHILD_FATAL</evil:errorCode>
+          <bfw:errorCode>CHILD_FATAL</bfw:errorCode>
         </bpmn:extensionElements>
       </bpmn:errorEventDefinition>
     </bpmn:boundaryEvent>

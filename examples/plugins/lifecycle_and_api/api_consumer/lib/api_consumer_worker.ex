@@ -1,19 +1,19 @@
 defmodule Examples.Plugins.ApiConsumer.Worker do
   @moduledoc """
   Illustrates a plugin-initiated orchestration flow that fans out across the
-  `EvilEngine.EngineFacade` namespaces. All network effects happen through the
+  `BfwEngine.EngineFacade` namespaces. All network effects happen through the
   closures installed during engine boot — there is no direct `Ash` access here.
 
   Copy into an OTP application that already depends on `core_bpmn` (for
-  `EvilEngine.BPMN.parse_and_validate/1`) and `core_types` (for
-  `EvilEngine.Types.Identity`).
+  `BfwEngine.BPMN.parse_and_validate/1`) and `core_types` (for
+  `BfwEngine.Types.Identity`).
   """
 
   use GenServer
 
   require Logger
 
-  alias EvilEngine.BPMN.Model.Definitions
+  alias BfwEngine.BPMN.Model.Definitions
 
   @doc "Schedules the bundled orchestration demo using options such as the facade and demo identity."
   @impl true
@@ -31,7 +31,7 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
       Keyword.get(
         options,
         :demo_identity,
-        %EvilEngine.Types.Identity{
+        %BfwEngine.Types.Identity{
           id: "plugin:examples-api-consumer",
           roles: ["plugin"],
           groups: ["reviewers"]
@@ -62,7 +62,7 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
 
     Logger.info("api_consumer step_1_parse_and_validate")
 
-    case EvilEngine.BPMN.parse_and_validate(xml) do
+    case BfwEngine.BPMN.parse_and_validate(xml) do
       {:ok, %Definitions{} = definitions} ->
         executable_process = pick_executable_process!(definitions)
 
@@ -188,7 +188,7 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
 
   defp pick_executable_process!(%Definitions{processes: processes}) do
     case Enum.find(processes, & &1.is_executable) do
-      %EvilEngine.BPMN.Model.Process{} = process -> process
+      %BfwEngine.BPMN.Model.Process{} = process -> process
       nil -> raise ArgumentError, "api_consumer example requires an executable process in bundled BPMN"
     end
   end

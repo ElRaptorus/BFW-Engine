@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionAuditReporter.AuditReporterWorkerTest do
   use ExUnit.Case, async: false
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionAuditReporter.AuditReporterWorker
   alias Examples.BusinessRules.DecisionAuditReporter.EventTracker
 

@@ -1,8 +1,8 @@
-defmodule EvilEngineWeb.Ws.EventDeliveryTest do
+defmodule BfwEngineWeb.Ws.EventDeliveryTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.Types.Wire
-  alias EvilEngineWeb.Ws.EventDelivery
+  alias BfwEngine.Types.Wire
+  alias BfwEngineWeb.Ws.EventDelivery
 
   defp assigns(overrides) do
     Map.merge(
@@ -137,7 +137,7 @@ defmodule EvilEngineWeb.Ws.EventDeliveryTest do
       matching = assigns(%{accessible_lanes: ["Management"]})
 
       for type <- EventDelivery.classified_types().flow_node_originating do
-        module = Module.concat(EvilEngine.Types.Event, type)
+        module = Module.concat(BfwEngine.Types.Event, type)
         event = struct(module, lane_name: "Management")
 
         payload = %{
@@ -200,7 +200,7 @@ defmodule EvilEngineWeb.Ws.EventDeliveryTest do
         |> load_application_modules()
         |> Enum.map(&Module.split/1)
         |> Enum.filter(fn parts ->
-          match?(["EvilEngine", "Types", "Event", _name], parts)
+          match?(["BfwEngine", "Types", "Event", _name], parts)
         end)
         |> Enum.map(&List.last/1)
         |> Enum.reject(&(&1 == "SinkFailed"))

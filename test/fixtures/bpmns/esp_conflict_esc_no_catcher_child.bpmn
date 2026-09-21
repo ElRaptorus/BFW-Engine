@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_NoCatcherChild">
 
   <bpmn:escalation id="Esc_Uncaught" name="uncaught-escalation" escalationCode="ESC_UNCAUGHT" />
@@ -16,7 +16,7 @@
 
   <bpmn:process id="EspConflictEscNoCatcherChild" name="No Catcher Child" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -33,7 +33,7 @@
     <bpmn:endEvent id="End_Escalation" name="Escalation End">
       <bpmn:escalationEventDefinition id="End_EscDef" escalationRef="Esc_Uncaught">
         <bpmn:extensionElements>
-          <evil:errorCode>ESC_UNCAUGHT</evil:errorCode>
+          <bfw:errorCode>ESC_UNCAUGHT</bfw:errorCode>
         </bpmn:extensionElements>
       </bpmn:escalationEventDefinition>
       <bpmn:incoming>Flow_1</bpmn:incoming>

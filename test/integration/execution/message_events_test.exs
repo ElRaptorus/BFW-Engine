@@ -1,15 +1,15 @@
-defmodule EvilEngine.Integration.Execution.MessageEventsTest do
+defmodule BfwEngine.Integration.Execution.MessageEventsTest do
   @moduledoc """
   Integration tests for BPMN Message Events (§12.4.2 S10 scenarios).
 
   Tests the full message pipeline: publish, subscription matching,
   pending/drain, catch-wins-over-Start, and broadcast-within-key.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Api
-  alias EvilEngine.Events.MessagePersistence
-  alias EvilEngine.Events.MessageSubscriptions
+  alias BfwEngine.Api
+  alias BfwEngine.Events.MessagePersistence
+  alias BfwEngine.Events.MessageSubscriptions
 
   # ===================================================================
   # S10 — Cross-PI messaging (single recipient)
@@ -115,7 +115,7 @@ defmodule EvilEngine.Integration.Execution.MessageEventsTest do
 
   describe "S10c: Pending-TTL rematch" do
     test "publish with no sub → pending; late subscribe → drain → catch advances" do
-      identity = %EvilEngine.Types.Identity{
+      identity = %BfwEngine.Types.Identity{
         id: "test-user",
         roles: ["admin"],
         groups: [],
@@ -341,9 +341,9 @@ defmodule EvilEngine.Integration.Execution.MessageEventsTest do
       require Ash.Query
 
       started_pis =
-        EvilEngine.Persistence.Resources.ProcessInstance
+        BfwEngine.Persistence.Resources.ProcessInstance
         |> Ash.Query.filter(triggerer_flow_node_instance_id == ^throw_fni.id)
-        |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+        |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
 
       assert length(started_pis) == 1,
              "Exactly one PI should have been started by the message start event triggered by Throw_1"
@@ -361,7 +361,7 @@ defmodule EvilEngine.Integration.Execution.MessageEventsTest do
 
   describe "S10d: Pending-TTL rematch survives engine restart" do
     test "pending message persisted to DB is drained after subscription reset and late subscribe" do
-      identity = %EvilEngine.Types.Identity{
+      identity = %BfwEngine.Types.Identity{
         id: "test-user",
         roles: ["admin"],
         groups: [],
@@ -480,7 +480,7 @@ defmodule EvilEngine.Integration.Execution.MessageEventsTest do
         Application.put_env(:core_events, :message_pending_ttl, original_ttl)
       end)
 
-      identity = %EvilEngine.Types.Identity{
+      identity = %BfwEngine.Types.Identity{
         id: "test-user",
         roles: ["admin"],
         groups: [],

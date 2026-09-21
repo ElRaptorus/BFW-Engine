@@ -4,7 +4,7 @@ defmodule Examples.BusinessRules.DrdChainOrchestrator.TraceInspector do
   decision chain and a human-readable summary.
   """
 
-  alias EvilEngine.DMN.EvaluationTrace
+  alias BfwEngine.DMN.EvaluationTrace
 
   @doc """
   Formats an evaluation trace into an ordered list of decision steps with BKM

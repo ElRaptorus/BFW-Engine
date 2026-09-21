@@ -1,12 +1,12 @@
-defmodule EvilEngine.Integration.StandardLoopTest do
+defmodule BfwEngine.Integration.StandardLoopTest do
   @moduledoc """
   Umbrella-level integration tests for Standard Loop (while-do and do-while)
   execution via the lightweight iteration scope architecture.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   @default_timeout 15_000
 

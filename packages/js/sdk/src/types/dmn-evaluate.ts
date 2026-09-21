@@ -38,7 +38,7 @@ export interface DecisionTrace {
   /**
    * Per-rule trace detail for unmatched rules. Only present when the
    * evaluation was requested with `includeUnmatchedDetails: true` (REST)
-   * or `evil:traceUnmatchedRules` (BRT). Each entry has `outputValues: {}`
+   * or `bfw:traceUnmatchedRules` (BRT). Each entry has `outputValues: {}`
    * since the rule did not fire.
    */
   unmatchedRules?: RuleTrace[];

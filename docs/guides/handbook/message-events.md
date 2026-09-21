@@ -36,8 +36,8 @@ Every message type requires a global `<bpmn:message>` definition and a `messageR
 
 <bpmn:process id="order-process" isExecutable="true">
   <bpmn:extensionElements>
-    <evil:version>1.0.0</evil:version>
-    <evil:correlationKey>token.orderId</evil:correlationKey>
+    <bfw:version>1.0.0</bfw:version>
+    <bfw:correlationKey>token.orderId</bfw:correlationKey>
   </bpmn:extensionElements>
 
   <!-- Catch: waits for an external payment confirmation -->
@@ -51,7 +51,7 @@ Every message type requires a global `<bpmn:message>` definition and a `messageR
   <bpmn:intermediateThrowEvent id="Throw_request" name="Request Payment">
     <bpmn:messageEventDefinition messageRef="Message_payment">
       <bpmn:extensionElements>
-        <evil:correlationRetrievalExpression>token.orderId</evil:correlationRetrievalExpression>
+        <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
       </bpmn:extensionElements>
     </bpmn:messageEventDefinition>
     <bpmn:incoming>Flow_Before</bpmn:incoming>
@@ -64,26 +64,26 @@ Every message type requires a global `<bpmn:message>` definition and a `messageR
 
 Messages are matched on both name and correlation value. The engine uses two complementary extensions:
 
-### `evil:correlationKey` (process-level, catch-side)
+### `bfw:correlationKey` (process-level, catch-side)
 
 Declared on the process `<bpmn:extensionElements>`. Evaluated when a catch-side element (Intermediate Catch, Boundary, Receive Task) registers its subscription, using the current PI state (token, Data Objects, identity).
 
 ```xml
-<evil:correlationKey>token.orderId</evil:correlationKey>
+<bfw:correlationKey>token.orderId</bfw:correlationKey>
 ```
 
 If omitted, the subscription matches messages with no correlation value (`:none`).
 
-For Message Start Events, `evil:correlationKey` is evaluated against the **incoming message payload** at PI creation time (no PI state exists yet). The result seeds the new PI's correlation context.
+For Message Start Events, `bfw:correlationKey` is evaluated against the **incoming message payload** at PI creation time (no PI state exists yet). The result seeds the new PI's correlation context.
 
-### `evil:correlationRetrievalExpression` (throw-side)
+### `bfw:correlationRetrievalExpression` (throw-side)
 
 Declared inside a `<bpmn:messageEventDefinition>` on throw-side elements (Intermediate Throw, Message End Event, Send Task). Evaluated against the outgoing token before publish; the result is stamped onto the message as `correlation_value`.
 
 ```xml
 <bpmn:messageEventDefinition messageRef="Message_payment">
   <bpmn:extensionElements>
-    <evil:correlationRetrievalExpression>token.orderId</evil:correlationRetrievalExpression>
+    <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
   </bpmn:extensionElements>
 </bpmn:messageEventDefinition>
 ```
@@ -96,7 +96,7 @@ A published message `(name, correlation_value)` delivers to every subscription w
 
 ## Pending Messages
 
-When a message is published but no subscription or Message Start Event matches, the engine inserts a row into `pending_messages` with a configurable TTL (default `PT60S` via `TDE_MESSAGE_PENDING_TTL`).
+When a message is published but no subscription or Message Start Event matches, the engine inserts a row into `pending_messages` with a configurable TTL (default `PT60S` via `BFE_MESSAGE_PENDING_TTL`).
 
 | Event | Behaviour |
 |-------|-----------|
@@ -158,13 +158,13 @@ Message handlers participate in the shared data pipeline extensions:
 
 | Extension | Side | Purpose |
 |-----------|------|---------|
-| `evil:inputMapping` | Throw / Send | Maps token fields into the outgoing message payload before publish. Receive and catch-side `inputMapping` in XML is ignored. |
-| `evil:outputMapping` | Catch / Receive | Maps the received message payload into the process token on delivery. Send and throw-side `outputMapping` in XML is ignored. |
-| `evil:payloadContract` | Throw / Send | JSON Schema validated against the outgoing message payload; violation is fatal to the FNI |
-| `evil:resultContract` | Catch / Receive | JSON Schema validated against the incoming message payload; violation is fatal to the FNI |
-| `evil:correlationRetrievalExpression` | Throw / Send | FEEL expression stamped onto the published message as `correlationValue` (inside `<messageEventDefinition>`) |
+| `bfw:inputMapping` | Throw / Send | Maps token fields into the outgoing message payload before publish. Receive and catch-side `inputMapping` in XML is ignored. |
+| `bfw:outputMapping` | Catch / Receive | Maps the received message payload into the process token on delivery. Send and throw-side `outputMapping` in XML is ignored. |
+| `bfw:payloadContract` | Throw / Send | JSON Schema validated against the outgoing message payload; violation is fatal to the FNI |
+| `bfw:resultContract` | Catch / Receive | JSON Schema validated against the incoming message payload; violation is fatal to the FNI |
+| `bfw:correlationRetrievalExpression` | Throw / Send | FEEL expression stamped onto the published message as `correlationValue` (inside `<messageEventDefinition>`) |
 
-Catch-side correlation uses the **process-level** `evil:correlationKey`, not a catch-event extension.
+Catch-side correlation uses the **process-level** `bfw:correlationKey`, not a catch-event extension.
 
 The live pipeline is one-sided:
 
@@ -173,20 +173,20 @@ The live pipeline is one-sided:
 | Send / throw message | `inputMapping` → `payloadContract` → publish; outgoing token = published body | `outputMapping` |
 | Receive / catch message | wait → `resultContract` → `outputMapping`; outgoing token = mapped message | `inputMapping` |
 
-Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. **Contracts and mappings are placed at the flow-node's `<extensionElements>` level**, never inside `<messageEventDefinition>`. Only `evil:correlationRetrievalExpression` lives on the event definition. Leftover `<evil:payload>` / `<evil:eventMapping>` tags are silently ignored.
+Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. **Contracts and mappings are placed at the flow-node's `<extensionElements>` level**, never inside `<messageEventDefinition>`. Only `bfw:correlationRetrievalExpression` lives on the event definition. Leftover `<bfw:payload>` / `<bfw:eventMapping>` tags are silently ignored.
 
 ### Throw-side input mapping example
 
 ```xml
 <bpmn:intermediateThrowEvent id="Throw_1">
   <bpmn:extensionElements>
-    <evil:payloadContract>{"type":"object","required":["orderId","amount"]}</evil:payloadContract>
+    <bfw:payloadContract>{"type":"object","required":["orderId","amount"]}</bfw:payloadContract>
   </bpmn:extensionElements>
   <bpmn:messageEventDefinition messageRef="Message_payment">
     <bpmn:extensionElements>
-      <evil:correlationRetrievalExpression>token.orderId</evil:correlationRetrievalExpression>
-      <evil:inputMapping source="token.orderId" target="orderId" />
-      <evil:inputMapping source="token.amount" target="amount" />
+      <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
+      <bfw:inputMapping source="token.orderId" target="orderId" />
+      <bfw:inputMapping source="token.amount" target="amount" />
     </bpmn:extensionElements>
   </bpmn:messageEventDefinition>
 </bpmn:intermediateThrowEvent>
@@ -197,11 +197,11 @@ Contracts are direction-aware: throw-side events use `payloadContract`, catch-si
 ```xml
 <bpmn:intermediateCatchEvent id="Catch_1">
   <bpmn:extensionElements>
-    <evil:resultContract>{"type":"object","required":["status"]}</evil:resultContract>
+    <bfw:resultContract>{"type":"object","required":["status"]}</bfw:resultContract>
   </bpmn:extensionElements>
   <bpmn:messageEventDefinition messageRef="Message_payment">
     <bpmn:extensionElements>
-      <evil:outputMapping source="event.status" target="paymentStatus" />
+      <bfw:outputMapping source="event.status" target="paymentStatus" />
     </bpmn:extensionElements>
   </bpmn:messageEventDefinition>
 </bpmn:intermediateCatchEvent>
@@ -209,7 +209,7 @@ Contracts are direction-aware: throw-side events use `payloadContract`, catch-si
 
 ## Best Practices
 
-- **Use correlation for targeted delivery** — stamp throw-side messages with `evil:correlationRetrievalExpression` and declare `evil:correlationKey` on the receiving process so only the intended PI gets the message.
+- **Use correlation for targeted delivery** — stamp throw-side messages with `bfw:correlationRetrievalExpression` and declare `bfw:correlationKey` on the receiving process so only the intended PI gets the message.
 - **Use Data Objects for long-lived state** — messages carry transient event payloads; durable process state belongs in Data Objects accessed via `dataObjects.*` in FEEL expressions.
 - **Catch-wins-over-start** — if an active catch subscription matches, Message Start Events for the same name are **not** triggered. Design your processes knowing that a waiting catch consumes the message.
 - **Declare global message definitions** — every `messageRef` must point to a `<bpmn:message>` at the definitions level with a stable `name` attribute (this is the routing key).

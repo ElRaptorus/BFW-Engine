@@ -16,7 +16,7 @@ Update `docs/architecture/` whenever:
 - You modify code that changes the architecture (new types, renamed modules, changed event wiring, new endpoints, new tables, moved responsibilities)
 - You gain significant new understanding of an engine subsystem through research — even if you did not edit any code
 - You discover that existing documentation is incorrect, incomplete, duplicated, or one-off history
-- Update `AGENTS.md` **only** when you add, rename, or remove: `evil:*` extension elements, supported BPMN element types, validator rules, FEEL context bindings, or umbrella apps. Do not reprint architecture tables there.
+- Update `AGENTS.md` **only** when you add, rename, or remove: `bfw:*` extension elements, supported BPMN element types, validator rules, FEEL context bindings, or umbrella apps. Do not reprint architecture tables there.
 - Update `docs/architecture/api.md` when API endpoints are added, removed, or their request/response contracts change
 
 For a lookup table mapping "what changed" to "which file to update", see the `architecture-docs` skill.

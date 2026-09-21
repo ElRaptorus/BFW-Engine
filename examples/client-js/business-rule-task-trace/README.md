@@ -9,7 +9,7 @@ via the typed GraphQL client.
 
 - Node.js 24.20+
 - pnpm
-- A running ThomasTheDaemonEngine instance with DMN support (Phase 3+)
+- A running Bifrost Forge World Engine instance with DMN support
 
 ## Usage
 
@@ -27,4 +27,4 @@ pnpm start
 3. Starts the process with `customerType` and `orderTotal` on the start payload
 4. Queries flow node instances filtered to `business_rule_task` and prints state and `typeProperties` (where decision trace metadata is exposed)
 
-The DMN file must remain in sync with `evil:decisionRef` on the Business Rule Task.
+The DMN file must remain in sync with `bfw:decisionRef` on the Business Rule Task.

@@ -1,12 +1,12 @@
-defmodule EvilEngine.Integration.Execution.InclusiveJoinResumeTest do
+defmodule BfwEngine.Integration.Execution.InclusiveJoinResumeTest do
   @moduledoc """
   Resume of an Inclusive Join that is already fireable (live branch arrived,
   dead path never taken) must complete after engine restart.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
 
   @tag :integration
   test "resume fires an inclusive join whose remaining incoming is a dead path" do
@@ -50,7 +50,7 @@ defmodule EvilEngine.Integration.Execution.InclusiveJoinResumeTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok

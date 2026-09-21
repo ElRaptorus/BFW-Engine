@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.CompensationEventTest do
+defmodule BfwEngine.Integration.Execution.CompensationEventTest do
   @moduledoc """
   Umbrella-level integration tests for Compensation Events (COMP-1–COMP-10).
 
@@ -19,10 +19,10 @@ defmodule EvilEngine.Integration.Execution.CompensationEventTest do
   - COMP-9: Targeted compensation skips ESP — boundary handler wins
   - COMP-10: Unfinished activity not compensated — only completed activities
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   # ---------------------------------------------------------------------------
   # COMP-1: Basic broadcast compensation throw

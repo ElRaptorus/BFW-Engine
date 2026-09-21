@@ -34,7 +34,9 @@
           }
         },
         {
-          "boundaryEventRefs": ["BE_Timer"],
+          "boundaryEventRefs": [
+            "BE_Timer"
+          ],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
@@ -228,7 +230,13 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": ["Start_1", "SubProcess_1", "BE_Timer", "End_Normal", "End_Timeout"],
+          "flowNodeRefs": [
+            "Start_1",
+            "SubProcess_1",
+            "BE_Timer",
+            "End_Normal",
+            "End_Timeout"
+          ],
           "id": "Lane_default",
           "name": "default"
         }

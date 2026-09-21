@@ -1,4 +1,4 @@
-# ThomasTheDaemonEngine — Architecture
+# Bifrost Forge World Engine — Architecture
 
 This is the engine's architectural overview: the umbrella layout, the
 dependency rules, and where each subsystem lives. Detailed specifications
@@ -9,16 +9,16 @@ are in [`architecture/`](./architecture/index.md). Everyday usage is in the
 
 The engine is an **Elixir umbrella**. Each box below is one `apps/`
 directory. The layout is a **triangle**: wire surfaces at the top, the
-shared service layer `EvilEngine.Api` at the apex, Core and Peripheral
+shared service layer `BfwEngine.Api` at the apex, Core and Peripheral
 side-by-side as the base.
 
 Arrows show the **permitted** direction of runtime dependencies:
 
-- **API wire → `EvilEngine.Api` → Core / Peripheral** for commands.
+- **API wire → `BfwEngine.Api` → Core / Peripheral** for commands.
 - **Core → Peripheral / External** for typed events via `EngineEventBus`.
 - **Core never calls API.** Peripheral never blocks Core.
 - **Plugins are in-BEAM OTP applications** loaded into the release. They
-  call `EvilEngine.Api` **directly** — no HTTP round-trip, no JSON
+  call `BfwEngine.Api` **directly** — no HTTP round-trip, no JSON
   re-encode.
 
 ## 2. Overview
@@ -40,10 +40,10 @@ apps/
 ├── core_dmn/                # DMN 1.5 CL3 decision engine
 ├── core_timers/             # Timer scheduler, ISO 8601 parser, StartEventManager
 ├── core_events/             # EngineEventBus + built-in sinks
-├── api_facade/              # EvilEngine.Api service-layer facade
+├── api_facade/              # BfwEngine.Api service-layer facade
 ├── api_web/                 # REST + GraphQL + WebSocket + Admin
 ├── api_auth/                # JWT validator (HS256 / RS256 / ES256 / JWKS)
-├── peripheral_persistence/  # Ash + AshPostgres (mix evil.retention.purge)
+├── peripheral_persistence/  # Ash + AshPostgres (mix bfw.retention.purge)
 ├── peripheral_telemetry/    # :telemetry counters, GET /metrics, GET /stats
 ├── peripheral_plugins/      # Plugin registry + in-BEAM loader
 └── engine_sdk/              # Public behaviours for plugin authors
@@ -58,24 +58,24 @@ Dependency direction is strictly inward: `API → Peripheral → Core`.
 
 Two `api_*` apps form the wire surface. `api_web` is a thin adapter over
 HTTP / GraphQL / WebSocket: it translates a wire request into a call on
-`EvilEngine.Api`. All authenticated ingress passes through `api_auth`.
+`BfwEngine.Api`. All authenticated ingress passes through `api_auth`.
 REST handles trigger-style commands; GraphQL handles complex queries over
 the Ash read-model plus the Process Model graph. WebSocket is both
 ingress (clients joining PI topics) and egress (the `websocket` EventSink
 pushes typed events to subscribers).
 
-Module namespaces (`EvilEngineWeb.Http.*`, `EvilEngineWeb.Ws.*`,
-`EvilEngineWeb.Graphql.*`) live inside the single `api_web` app.
+Module namespaces (`BfwEngineWeb.Http.*`, `BfwEngineWeb.Ws.*`,
+`BfwEngineWeb.Graphql.*`) live inside the single `api_web` app.
 
-### 3.2 Shared service layer — `EvilEngine.Api`
+### 3.2 Shared service layer — `BfwEngine.Api`
 
-`EvilEngine.Api` is an Ash Code Interface: every engine action
+`BfwEngine.Api` is an Ash Code Interface: every engine action
 (`start_process_instance/2`, `publish_message/3`, `retry_pi/2`, …) is a
 plain Elixir function. Every wire adapter and every plugin converges here:
 
 | Caller | Path |
 |--------|------|
-| REST controller in `api_web` | `EvilEngine.Api.start_process_instance(input, actor)` |
+| REST controller in `api_web` | `BfwEngine.Api.start_process_instance(input, actor)` |
 | GraphQL resolver in `api_web` | same function, after Absinthe decoding |
 | WebSocket handler in `api_web` | same function, after channel decoding |
 | In-BEAM plugin | **same function — no HTTP round-trip, no JSON re-encode, no auth replay** |
@@ -86,14 +86,14 @@ the service layer to reach Core or Persistence for commands. Plugins may
 register EventSinks and handlers on `EngineEventBus` / the plugin
 registry; that is event-level integration, not a command bypass.
 
-Process-instance tree hard-delete is `mix evil.retention.purge` (and the
+Process-instance tree hard-delete is `mix bfw.retention.purge` (and the
 matching release eval). There is no REST purge endpoint.
 
 ### 3.3 Core layer
 
 No Core app imports from API or Peripheral. Runtime services collaborate
 around `core_types` for shared, behaviour-free structs. `core_bpmn` owns
-the canonical in-memory Process Model AST via `EvilEngine.BPMN.ModelCache`
+the canonical in-memory Process Model AST via `BfwEngine.BPMN.ModelCache`
 (per-node, ETS-backed). Handlers and resolvers read the cache; they do
 not re-parse XML at runtime.
 
@@ -102,8 +102,8 @@ not re-parse XML at runtime.
 - In-process `Phoenix.PubSub` topics for intra-engine coordination
   (subscriptions, correlation registries, pending-event TTL sweeper).
 - The public `EngineEventBus`, which fans out every typed
-  `EvilEngine.Types.Event.*` to every registered
-  `@behaviour EvilEngine.Plugin.EventSink`. **This is the only channel
+  `BfwEngine.Types.Event.*` to every registered
+  `@behaviour BfwEngine.Plugin.EventSink`. **This is the only channel
   through which observability, audit logging, and external integrations
   see engine events.**
 
@@ -112,11 +112,11 @@ not re-parse XML at runtime.
 Three concerns, all decoupled from Core:
 
 1. **`peripheral_persistence`** — Ash resources, AshPostgres migrations,
-   `mix evil.partitions.ensure`, and `mix evil.retention.purge` for
+   `mix bfw.partitions.ensure`, and `mix bfw.retention.purge` for
    opt-in hard-delete of aged terminal process-instance trees. Receives
    writes from `core_execution` via Ash actions.
 2. **`peripheral_telemetry`** — Prometheus scrape at `GET /metrics`
-   (`TDE_METRICS_ENABLED`, default on), the telemetry EventSink (event-bus
+   (`BFE_METRICS_ENABLED`, default on), the telemetry EventSink (event-bus
    counters), and `StatsCollector` for JWT `GET /stats` (live Ash/ETS
    snapshot, not those counters).
 3. **`peripheral_plugins`** — plugin registry, in-BEAM loader, quarantine.
@@ -133,7 +133,7 @@ sinks:
 | Sink | Default | Purpose |
 |------|---------|---------|
 | `console` | **ON** | `logger_json` → stdout |
-| `telemetry` | **ON** | Increments Prometheus `evil_engine.event_bus.events.total` |
+| `telemetry` | **ON** | Increments Prometheus `bfw_engine.event_bus.events.total` |
 | `websocket` | **ON** | Phoenix.Channels push to connected clients |
 
 The engine does not persist typed events to Postgres. The
@@ -149,8 +149,8 @@ metrics wire format.
 
 ### 3.6 External surface
 
-- **The Studio** depends on `@elraptorus/daemonengine_client` (which
-  depends on `@elraptorus/daemonengine_sdk`). No SQL, no PubSub, no gRPC
+- **The Studio** depends on `@elraptorus/bfw_engine_client` (which
+  depends on `@elraptorus/bfw_engine_sdk`). No SQL, no PubSub, no gRPC
   coupling.
 - **Other clients** (CLIs, dashboards) use the same REST + GraphQL +
   WebSocket surfaces.
@@ -158,8 +158,8 @@ metrics wire format.
   schema via AshPostgres. Six tables are range-partitioned by timestamp
   (`process_instance_events`, `data_object_writes`, `messages`,
   `pending_messages`, `signals`, `pending_signals`). Boot pre-creates
-  `TDE_PARTITION_AHEAD_MONTHS` future partitions.
-- **The Seeding Directory** (`TDE_SEEDING_DIRECTORY`) is scanned once at
+  `BFE_PARTITION_AHEAD_MONTHS` future partitions.
+- **The Seeding Directory** (`BFE_SEEDING_DIRECTORY`) is scanned once at
   boot; every `*.bpmn` file is deployed through the same path as
   `POST /processes`, including the linter-score gate.
 - **Observability**: structured logs, JWT-gated `GET /stats`, public

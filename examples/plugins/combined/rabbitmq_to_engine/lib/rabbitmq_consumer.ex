@@ -10,7 +10,7 @@ defmodule Examples.Plugins.Combined.RabbitmqToEngine.RabbitmqConsumer do
 
   require Logger
 
-  alias EvilEngine.Types.Identity
+  alias BfwEngine.Types.Identity
   alias Examples.Plugins.Combined.RabbitmqToEngine.{FacadeStore, OrchestratorCustomEvent}
 
   @doc "Prepares consumer state with a placeholder connection until a real AMQP client is wired in."

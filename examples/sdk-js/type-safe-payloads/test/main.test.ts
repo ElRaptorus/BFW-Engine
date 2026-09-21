@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { FlowNodeType, ProcessInstanceState } from '@elraptorus/daemonengine_sdk';
-import type { AbortRequest, DeployResponse, FinishUserTaskRequest, StartRequest } from '@elraptorus/daemonengine_sdk';
+import { FlowNodeType, ProcessInstanceState } from '@elraptorus/bfw_engine_sdk';
+import type { AbortRequest, DeployResponse, FinishUserTaskRequest, StartRequest } from '@elraptorus/bfw_engine_sdk';
 
 describe('type-safe payloads', () => {
   it('constructs StartRequest with the expected optional fields', () => {

@@ -1,6 +1,6 @@
 # Lifecycle-aware plugin (`on_load` / `on_ready`)
 
-This starter highlights the ordering guarantees described in [`docs/guides/plugins/getting-started.md`](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/docs/guides/plugins/getting-started.md).
+This starter highlights the ordering guarantees described in [`docs/guides/plugins/getting-started.md`](https://github.com/ElRaptorus/BFW-Engine/blob/main/docs/guides/plugins/getting-started.md).
 
 ## Phases
 
@@ -24,8 +24,8 @@ This starter highlights the ordering guarantees described in [`docs/guides/plugi
 
 ## Source modules
 
-* [`EvilEngine.Plugin`](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/apps/engine_sdk/lib/evil_engine/plugin.ex)
-* [`EvilEngine.Plugin.EventSink`](https://github.com/ElRaptorus/ThomasTheDaemonEngine/blob/main/apps/engine_sdk/lib/evil_engine/plugin/event_sink.ex)
+* [`BfwEngine.Plugin`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin.ex)
+* [`BfwEngine.Plugin.EventSink`](https://github.com/ElRaptorus/BFW-Engine/blob/main/apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex)
 
 ## Tests
 

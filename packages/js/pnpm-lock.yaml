@@ -223,10 +223,10 @@ importers:
 
   ../../examples/client-js/batch-deploy:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -245,10 +245,10 @@ importers:
 
   ../../examples/client-js/business-rule-task-trace:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -267,10 +267,10 @@ importers:
 
   ../../examples/client-js/deploy-and-start:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -289,10 +289,10 @@ importers:
 
   ../../examples/client-js/dmn-deploy-and-evaluate:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -311,10 +311,10 @@ importers:
 
   ../../examples/client-js/error-handling:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -333,10 +333,10 @@ importers:
 
   ../../examples/client-js/graphql-queries:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -355,10 +355,10 @@ importers:
 
   ../../examples/client-js/process-lifecycle:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -377,10 +377,10 @@ importers:
 
   ../../examples/client-js/realtime-monitoring:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -399,10 +399,10 @@ importers:
 
   ../../examples/client-js/user-task-workflow:
     dependencies:
-      '@elraptorus/daemonengine_client':
+      '@elraptorus/bfw_engine_client':
         specifier: workspace:*
         version: link:../../../packages/js/client
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -421,7 +421,7 @@ importers:
 
   ../../examples/sdk-js/error-hierarchy:
     dependencies:
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -437,7 +437,7 @@ importers:
 
   ../../examples/sdk-js/parse-bpmn:
     dependencies:
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -453,7 +453,7 @@ importers:
 
   ../../examples/sdk-js/parse-dmn:
     dependencies:
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -472,7 +472,7 @@ importers:
 
   ../../examples/sdk-js/type-safe-payloads:
     dependencies:
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../../../packages/js/sdk
     devDependencies:
@@ -488,7 +488,7 @@ importers:
 
   client:
     dependencies:
-      '@elraptorus/daemonengine_sdk':
+      '@elraptorus/bfw_engine_sdk':
         specifier: workspace:*
         version: link:../sdk
       phoenix:

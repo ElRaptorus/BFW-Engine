@@ -32,12 +32,12 @@ Outputs: `taxRate`, `bracket`, `estimatedTax`.
 Start → BusinessRuleTask("Calculate Tax") → End
 ```
 
-The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>tax-rates</evil:decisionRef>`. Deploy this BPMN together with the DMN models when exercising end-to-end process execution; the regression plugin itself evaluates decisions directly through the facade.
+The Business Rule Task uses `implementation="dmn"` and `<bfw:decisionRef>tax-rates</bfw:decisionRef>`. Deploy this BPMN together with the DMN models when exercising end-to-end process execution; the regression plugin itself evaluates decisions directly through the facade.
 
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or add the example path to code paths in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionRegressionTester.RegressionTesterPlugin` and list your app in `TDE_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionRegressionTester.RegressionTesterPlugin` and list your app in `BFE_PLUGINS_INBEAM`.
 3. Start the engine; on plugin ready the worker deploys both DMN versions and runs the comparison.
 4. Inspect engine logs for lines prefixed with `decision_regression_tester:`.
 5. Run unit tests:
@@ -68,12 +68,12 @@ flowchart LR
 - **Worker** — deploy, `get_versions`, per-version `evaluate`, `build_report`, log
 - **Comparator** — pure functions; no GenServer, no facade dependency
 
-Evaluate calls pass `decision_version_id` in options so a future API can pin a specific version. Today `EvilEngine.Api.evaluate_decision/3` resolves the latest enabled version; for full cross-version pinning in production, extend the API or evaluate via `DMN.Evaluator` with an explicit `ModelCache.fetch/1`.
+Evaluate calls pass `decision_version_id` in options so a future API can pin a specific version. Today `BfwEngine.Api.evaluate_decision/3` resolves the latest enabled version; for full cross-version pinning in production, extend the API or evaluate via `DMN.Evaluator` with an explicit `ModelCache.fetch/1`.
 
 ## Further reading
 
-- [`EvilEngine.Plugin`](../../../../apps/engine_sdk/lib/evil_engine/plugin.ex) — lifecycle callbacks
-- [`EvilEngine.EngineFacade.Decisions`](../../../../apps/engine_sdk/lib/evil_engine/engine_facade/decisions.ex) — facade closure surface
+- [`BfwEngine.Plugin`](../../../../apps/engine_sdk/lib/bfw_engine/plugin.ex) — lifecycle callbacks
+- [`BfwEngine.EngineFacade.Decisions`](../../../../apps/engine_sdk/lib/bfw_engine/engine_facade/decisions.ex) — facade closure surface
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and versioning
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md) — plugin loading and facade wiring
 - [`examples/plugins/lifecycle_and_api/api_consumer/README.md`](../../lifecycle_and_api/api_consumer/README.md) — similar facade-store worker pattern

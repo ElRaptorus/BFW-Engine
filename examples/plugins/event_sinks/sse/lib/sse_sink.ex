@@ -3,9 +3,9 @@ defmodule Examples.EventSinks.Sse.SseSink do
   EventSink that Jason-encodes typed engine events and broadcasts them to SSE subscribers.
   """
 
-  @behaviour EvilEngine.Plugin.EventSink
+  @behaviour BfwEngine.Plugin.EventSink
 
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Types.Event
   alias Examples.EventSinks.Sse.ConnectionHub
 
   @doc "Ensures the connection hub is running."

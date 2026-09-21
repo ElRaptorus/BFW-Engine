@@ -1,12 +1,12 @@
-defmodule EvilEngine.Integration.PayloadAndTokensTest do
+defmodule BfwEngine.Integration.PayloadAndTokensTest do
   @moduledoc """
   Integration tests for Item 16 (runtime wiring):
   - PayloadCap enforcement at HTTP boundaries
   - finalTokens Ash calculation
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: PiResource
 
   require Ash.Query
 
@@ -73,7 +73,7 @@ defmodule EvilEngine.Integration.PayloadAndTokensTest do
       Application.put_env(
         :core_execution,
         :called_element_resolver,
-        EvilEngine.Persistence.CalledElementResolverImpl
+        BfwEngine.Persistence.CalledElementResolverImpl
       )
 
       {201, _} = http_deploy("call_activity_child.bpmn")
@@ -100,7 +100,7 @@ defmodule EvilEngine.Integration.PayloadAndTokensTest do
         PiResource
         |> Ash.Query.filter(parent_process_instance_id == ^parent_process_instance_id)
         |> Ash.Query.load(:final_tokens)
-        |> Ash.read!(domain: EvilEngine.Persistence.Api, authorize?: false)
+        |> Ash.read!(domain: BfwEngine.Persistence.Api, authorize?: false)
 
       assert child_pi.state == "finished"
       assert is_list(child_pi.final_tokens)

@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.SubprocessStartIsolationTest do
+defmodule BfwEngine.Integration.Execution.SubprocessStartIsolationTest do
   @moduledoc """
   Integration tests for subprocess start-event isolation.
 
@@ -6,7 +6,7 @@ defmodule EvilEngine.Integration.Execution.SubprocessStartIsolationTest do
   directly through the public REST surface or via a Call Activity. Internal-only
   start parameters that arrive on the public surface are ignored, not honored.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -14,7 +14,7 @@ defmodule EvilEngine.Integration.Execution.SubprocessStartIsolationTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->
@@ -75,7 +75,7 @@ defmodule EvilEngine.Integration.Execution.SubprocessStartIsolationTest do
       assert_pi_state!(parent_process_instance_id, "fatal")
     end
 
-    test "evil:startEventId targeting an inner subprocess start of the child fatals the parent" do
+    test "bfw:startEventId targeting an inner subprocess start of the child fatals the parent" do
       {201, _} = http_deploy("embedded_subprocess_happy_path.bpmn")
       {201, _} = http_deploy("subprocess_isolation_ca_inner_start.bpmn")
 

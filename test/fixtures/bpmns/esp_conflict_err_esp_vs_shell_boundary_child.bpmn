@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_ErrEspVsShellChild">
 
   <bpmn:error id="Error_Inner" name="Inner Error" errorCode="INNER_ERROR" />
@@ -17,7 +17,7 @@
   <!-- Child process: has Error End Event + ESP error start that catches it -->
   <bpmn:process id="EspConflictErrEspVsShellChild" name="Error ESP vs Shell Child" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -44,8 +44,8 @@
       <bpmn:endEvent id="Inner_ErrorEnd" name="Inner Error End">
         <bpmn:errorEventDefinition id="Inner_ErrDef" errorRef="Error_Inner">
           <bpmn:extensionElements>
-            <evil:errorCode>INNER_ERROR</evil:errorCode>
-            <evil:errorMessage>Inner error thrown</evil:errorMessage>
+            <bfw:errorCode>INNER_ERROR</bfw:errorCode>
+            <bfw:errorMessage>Inner error thrown</bfw:errorMessage>
           </bpmn:extensionElements>
         </bpmn:errorEventDefinition>
         <bpmn:incoming>Inner_Flow_Arm</bpmn:incoming>

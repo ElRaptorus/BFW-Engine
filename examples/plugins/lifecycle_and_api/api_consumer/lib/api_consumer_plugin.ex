@@ -3,7 +3,7 @@ defmodule Examples.Plugins.ApiConsumer.ApiConsumerPlugin do
   Stores the `EngineFacade` from `on_load/1` and spins up the demo worker from `on_ready/1`.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.Plugins.ApiConsumer.{FacadeStore, Worker}
 

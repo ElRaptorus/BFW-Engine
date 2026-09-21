@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { DaemonEngineClient } from '../../src/daemon-engine-client.js';
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   ensureEngineReachable,
   createAdminClient,
@@ -12,7 +12,7 @@ const SIGNAL_CATCH_PROCESS_ID = 'IntegrationSignalCatch';
 const MESSAGE_CATCH_PROCESS_ID = 'IntegrationMessageCatch';
 
 describe('Event Trigger Integration', () => {
-  let adminClient: DaemonEngineClient;
+  let adminClient: BfwEngineClient;
 
   beforeAll(async () => {
     await ensureEngineReachable();
@@ -91,7 +91,7 @@ describe('Event Trigger Integration', () => {
  * This replaces WebSocket-based waiting with simple polling.
  */
 async function waitForCatchWaiting(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   processInstanceId: string,
   timeoutMs = 15_000,
 ): Promise<void> {

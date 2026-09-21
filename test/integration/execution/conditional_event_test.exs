@@ -1,13 +1,13 @@
-defmodule EvilEngine.Integration.Execution.ConditionalEventTest do
+defmodule BfwEngine.Integration.Execution.ConditionalEventTest do
   @moduledoc """
   Integration tests for Conditional Intermediate Catch Events and
   Conditional Boundary Events (interrupting and non-interrupting).
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Execution.ResumeRunner
-  alias EvilEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias BfwEngine.Execution
+  alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Persistence.Resources.ProcessInstance, as: PiResource
 
   require Ash.Query
 
@@ -504,7 +504,7 @@ defmodule EvilEngine.Integration.Execution.ConditionalEventTest do
   defp terminate_process_instance(process_instance_id) do
     case Execution.lookup_process_instance(process_instance_id) do
       {:ok, pid} ->
-        DynamicSupervisor.terminate_child(EvilEngine.Execution.Supervisor, pid)
+        DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
 
       {:error, :not_found} ->
         :ok

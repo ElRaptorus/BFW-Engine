@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Multi-stage build for the Daemon Engine release per §14.1 of
-# `docs/ImplementationPlan.md`.
+# Multi-stage build for the Bifrost Forge World Engine release.
 #
 #   * Base: debian:12-slim (D16)
 #   * Build stage: hexpm/elixir:1.19.x-erlang-28.x-debian-bookworm-slim
@@ -110,18 +109,18 @@ ENV LANG="en_US.UTF-8" \
     LANGUAGE="en_US.UTF-8"
 
 # Create a non-root runtime user.
-RUN groupadd --system --gid 1000 evil \
- && useradd --system --uid 1000 --gid evil --home /app --shell /bin/false evil \
+RUN groupadd --system --gid 1000 bfw \
+ && useradd --system --uid 1000 --gid bfw --home /app --shell /bin/false bfw \
  && mkdir -p /app \
- && chown evil:evil /app
+ && chown bfw:bfw /app
 
 WORKDIR /app
 
-COPY --from=builder --chown=evil:evil /app/_build/prod/rel/evil_engine ./
-COPY --chown=evil:evil docker/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder --chown=bfw:bfw /app/_build/prod/rel/bfw_engine ./
+COPY --chown=bfw:bfw docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-USER evil
+USER bfw
 
 EXPOSE 4000
 EXPOSE 4001

@@ -4,7 +4,7 @@ Publishes structured DMN audit payloads when Business Rule Tasks finish in DMN m
 
 ## What this demonstrates
 
-This plugin implements the **Event Sink audit publishing pattern**: it never executes decisions. The engine evaluates DMN via `BusinessRuleTask` → `DecisionResolver` → `ModelCache` → `Evaluator`; this sink listens on `EngineEventBus` for `FlowNodeInstanceFinished` events, builds an audit message from `type_properties` (including the Phase 7 execution trace), and delivers it through a configurable function (stubbed HTTP POST by default).
+This plugin implements the **Event Sink audit publishing pattern**: it never executes decisions. The engine evaluates DMN via `BusinessRuleTask` → `DecisionResolver` → `ModelCache` → `Evaluator`; this sink listens on `EngineEventBus` for `FlowNodeInstanceFinished` events, builds an audit message from `type_properties` (including the execution trace), and delivers it through a configurable function (stubbed HTTP POST by default).
 
 ## DMN model overview
 
@@ -34,12 +34,12 @@ Start → BusinessRuleTask("Assess Order Risk") → ExclusiveGateway("Risk Level
   → [default] → End("Rejected")
 ```
 
-The Business Rule Task uses `implementation="dmn"` and `<evil:decisionRef>order-risk-rules</evil:decisionRef>`. Gateway conditions read `token.action` from the DMN output.
+The Business Rule Task uses `implementation="dmn"` and `<bfw:decisionRef>order-risk-rules</bfw:decisionRef>`. Gateway conditions read `token.action` from the DMN output.
 
 ## Usage steps
 
 1. Copy `lib/*.ex` into your OTP application (or load the example path in development).
-2. Set `:plugin_module` to `Examples.BusinessRules.DecisionTracePublisher.TracePublisherPlugin` and add your app to `TDE_PLUGINS_INBEAM`.
+2. Set `:plugin_module` to `Examples.BusinessRules.DecisionTracePublisher.TracePublisherPlugin` and add your app to `BFE_PLUGINS_INBEAM`.
 3. Deploy `dmn/order_risk_rules.dmn` via `POST /decisions`.
 4. Deploy `bpmn/order_risk_assessment.bpmn` via `POST /processes`.
 5. Start process instances with input such as:
@@ -103,7 +103,7 @@ facade.register_event_sink.(
 
 ## Further reading
 
-- [`EvilEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/evil_engine/plugin/event_sink.ex) — sink callbacks
+- [`BfwEngine.Plugin.EventSink`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/event_sink.ex) — sink callbacks
 - [`docs/architecture/event-system.md`](../../../../docs/architecture/event-system.md) — `EngineEventBus` fan-out
 - [`docs/architecture/dmn.md`](../../../../docs/architecture/dmn.md) — DMN evaluation and BRT `type_properties`
 - [`docs/guides/handbook/business-rule-tasks.md`](../../../../docs/guides/handbook/business-rule-tasks.md) — Business Rule Task configuration

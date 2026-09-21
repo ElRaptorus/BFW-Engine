@@ -6,7 +6,7 @@ import {
   BadRequestError,
   ConflictError,
   ContractViolationError,
-  DaemonEngineError,
+  BfwEngineError,
   DeployValidationFailedError,
   DispatchFailedError,
   EngineAtCapacityError,
@@ -45,30 +45,30 @@ import {
   VersionExistsError,
 } from '../../src/index.js';
 
-describe('DaemonEngineError base class', () => {
+describe('BfwEngineError base class', () => {
   it('preserves statusCode, errorCode, message, and rawBody', () => {
     const rawBody = { error: 'test', extra: 42 };
-    const error = new DaemonEngineError(418, 'test', 'teapot', rawBody);
+    const error = new BfwEngineError(418, 'test', 'teapot', rawBody);
 
     expect(error).toBeInstanceOf(Error);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(418);
     expect(error.errorCode).toBe('test');
     expect(error.message).toBe('teapot');
     expect(error.rawBody).toBe(rawBody);
-    expect(error.name).toBe('DaemonEngineError');
+    expect(error.name).toBe('BfwEngineError');
   });
 
   it('rawBody is optional', () => {
-    const error = new DaemonEngineError(500, 'internal', 'boom');
+    const error = new BfwEngineError(500, 'internal', 'boom');
     expect(error.rawBody).toBeUndefined();
   });
 });
 
 describe('PayloadTooLargeError', () => {
-  it('is instanceof DaemonEngineError and Error', () => {
+  it('is instanceof BfwEngineError and Error', () => {
     const error = new PayloadTooLargeError('payload', 2048, 1024);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error).toBeInstanceOf(Error);
   });
 
@@ -87,7 +87,7 @@ describe('PayloadTooLargeError', () => {
 describe('RateLimitedError', () => {
   it('preserves retryAfterSeconds', () => {
     const error = new RateLimitedError(30, 'slow down');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.retryAfterSeconds).toBe(30);
     expect(error.statusCode).toBe(429);
     expect(error.name).toBe('RateLimitedError');
@@ -97,7 +97,7 @@ describe('RateLimitedError', () => {
 describe('EngineAtCapacityError', () => {
   it('preserves active, limit, and retryAfterSeconds', () => {
     const error = new EngineAtCapacityError(1000, 1000, 60, 'at capacity');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.active).toBe(1000);
     expect(error.limit).toBe(1000);
     expect(error.retryAfterSeconds).toBe(60);
@@ -114,7 +114,7 @@ describe('EngineAtCapacityError', () => {
 describe('NotFoundError', () => {
   it('has correct statusCode and errorCode', () => {
     const error = new NotFoundError('resource not found');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(404);
     expect(error.errorCode).toBe('not_found');
     expect(error.name).toBe('NotFoundError');
@@ -124,7 +124,7 @@ describe('NotFoundError', () => {
 describe('UnauthorizedError', () => {
   it('defaults message to "unauthorized" when omitted', () => {
     const error = new UnauthorizedError();
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.message).toBe('unauthorized');
     expect(error.statusCode).toBe(401);
     expect(error.name).toBe('UnauthorizedError');
@@ -139,7 +139,7 @@ describe('UnauthorizedError', () => {
 describe('ForbiddenError', () => {
   it('preserves claim, value, and resource', () => {
     const error = new ForbiddenError('deploy_bpmn', 'true', 'process', 'not allowed');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.requiredClaim).toBe('deploy_bpmn');
     expect(error.requiredValue).toBe('true');
     expect(error.resource).toBe('process');
@@ -152,7 +152,7 @@ describe('ValidationError', () => {
   it('preserves failures array', () => {
     const failures = [{ field: 'name', message: 'required' }];
     const error = new ValidationError('invalid', failures);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.failures).toBe(failures);
     expect(error.statusCode).toBe(422);
     expect(error.name).toBe('ValidationError');
@@ -162,7 +162,7 @@ describe('ValidationError', () => {
 describe('domain-specific errors', () => {
   it('ProcessNotFoundError', () => {
     const error = new ProcessNotFoundError('not found');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(404);
     expect(error.errorCode).toBe('process_not_found');
     expect(error.name).toBe('ProcessNotFoundError');
@@ -170,7 +170,7 @@ describe('domain-specific errors', () => {
 
   it('NoActiveVersionError', () => {
     const error = new NoActiveVersionError('no active version');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(404);
     expect(error.errorCode).toBe('no_active_version');
     expect(error.name).toBe('NoActiveVersionError');
@@ -178,7 +178,7 @@ describe('domain-specific errors', () => {
 
   it('ProcessDisabledError', () => {
     const error = new ProcessDisabledError('disabled');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('process_disabled');
     expect(error.name).toBe('ProcessDisabledError');
@@ -186,7 +186,7 @@ describe('domain-specific errors', () => {
 
   it('AmbiguousStartEventError', () => {
     const error = new AmbiguousStartEventError('ambiguous');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('ambiguous_start_event');
     expect(error.name).toBe('AmbiguousStartEventError');
@@ -194,7 +194,7 @@ describe('domain-specific errors', () => {
 
   it('StartEventNotFoundError', () => {
     const error = new StartEventNotFoundError('not found');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('start_event_not_found');
     expect(error.name).toBe('StartEventNotFoundError');
@@ -202,7 +202,7 @@ describe('domain-specific errors', () => {
 
   it('NoStartEventError', () => {
     const error = new NoStartEventError('no start event');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('no_start_event');
     expect(error.name).toBe('NoStartEventError');
@@ -210,7 +210,7 @@ describe('domain-specific errors', () => {
 
   it('NoExecutableProcessError', () => {
     const error = new NoExecutableProcessError('no executable');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('no_executable_process');
     expect(error.name).toBe('NoExecutableProcessError');
@@ -219,7 +219,7 @@ describe('domain-specific errors', () => {
   it('ContractViolationError preserves violations', () => {
     const violations = [{ message: 'required field', path: ['payload', 'orderId'] }];
     const error = new ContractViolationError('contract violated', violations);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.violations).toBe(violations);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('contract_violation');
@@ -228,7 +228,7 @@ describe('domain-specific errors', () => {
 
   it('ActiveInstancesExistError', () => {
     const error = new ActiveInstancesExistError('active instances');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(409);
     expect(error.errorCode).toBe('active_instances_exist');
     expect(error.name).toBe('ActiveInstancesExistError');
@@ -236,7 +236,7 @@ describe('domain-specific errors', () => {
 
   it('ProcessInstanceAlreadyTerminalError preserves currentState', () => {
     const error = new ProcessInstanceAlreadyTerminalError('already terminal', ProcessInstanceState.Finished);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.currentState).toBe(ProcessInstanceState.Finished);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('process_already_terminal');
@@ -245,7 +245,7 @@ describe('domain-specific errors', () => {
 
   it('ProcessInstanceNotTerminalError preserves currentState', () => {
     const error = new ProcessInstanceNotTerminalError('not terminal', ProcessInstanceState.Running);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.currentState).toBe(ProcessInstanceState.Running);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('process_instance_not_terminal');
@@ -254,7 +254,7 @@ describe('domain-specific errors', () => {
 
   it('FniNotWaitingError preserves currentState', () => {
     const error = new FniNotWaitingError('not waiting', FlowNodeInstanceState.Active);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.currentState).toBe(FlowNodeInstanceState.Active);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('fni_not_waiting');
@@ -264,7 +264,7 @@ describe('domain-specific errors', () => {
   it('ParseError preserves failures', () => {
     const failures = [{ file: 'process.bpmn', details: ['missing id'] }];
     const error = new ParseError('parse failed', failures);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.failures).toBe(failures);
     expect(error.statusCode).toBe(400);
     expect(error.errorCode).toBe('parse_error');
@@ -273,7 +273,7 @@ describe('domain-specific errors', () => {
 
   it('DeployValidationFailedError', () => {
     const error = new DeployValidationFailedError('validation failed');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('validation_failed');
     expect(error.name).toBe('DeployValidationFailedError');
@@ -281,7 +281,7 @@ describe('domain-specific errors', () => {
 
   it('LinterGateFailedError', () => {
     const error = new LinterGateFailedError('linter gate failed');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('linter_gate_failed');
     expect(error.name).toBe('LinterGateFailedError');
@@ -290,7 +290,7 @@ describe('domain-specific errors', () => {
   it('VersionExistsError preserves conflicts', () => {
     const conflicts = [{ processModelId: 'order-process', version: '1.0.0' }];
     const error = new VersionExistsError('version exists', conflicts);
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.conflicts).toBe(conflicts);
     expect(error.statusCode).toBe(409);
     expect(error.errorCode).toBe('version_exists');
@@ -299,7 +299,7 @@ describe('domain-specific errors', () => {
 
   it('InternalEngineError', () => {
     const error = new InternalEngineError('internal error');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(500);
     expect(error.errorCode).toBe('internal_error');
     expect(error.name).toBe('InternalEngineError');
@@ -307,7 +307,7 @@ describe('domain-specific errors', () => {
 
   it('ProcessInstanceNotRetriableError', () => {
     const error = new ProcessInstanceNotRetriableError('not retriable');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('process_instance_not_retriable');
     expect(error.name).toBe('ProcessInstanceNotRetriableError');
@@ -315,7 +315,7 @@ describe('domain-specific errors', () => {
 
   it('IncompatibleVersionMigrationError', () => {
     const error = new IncompatibleVersionMigrationError('incompatible');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('version_migration_incompatible');
     expect(error.name).toBe('IncompatibleVersionMigrationError');
@@ -323,7 +323,7 @@ describe('domain-specific errors', () => {
 
   it('RetryCheckpointIsNonRetryableError', () => {
     const error = new RetryCheckpointIsNonRetryableError('not retryable');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('retry_checkpoint_is_non_retryable');
     expect(error.name).toBe('RetryCheckpointIsNonRetryableError');
@@ -333,7 +333,7 @@ describe('domain-specific errors', () => {
 describe('GraphQL-specific errors', () => {
   it('GraphqlDepthLimitError', () => {
     const error = new GraphqlDepthLimitError('too deep');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(200);
     expect(error.errorCode).toBe('graphql_depth_limit');
     expect(error.name).toBe('GraphqlDepthLimitError');
@@ -341,7 +341,7 @@ describe('GraphQL-specific errors', () => {
 
   it('GraphqlComplexityLimitError', () => {
     const error = new GraphqlComplexityLimitError('too complex');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(200);
     expect(error.errorCode).toBe('graphql_complexity_limit');
     expect(error.name).toBe('GraphqlComplexityLimitError');
@@ -349,7 +349,7 @@ describe('GraphQL-specific errors', () => {
 
   it('GraphqlIntrospectionDisabledError', () => {
     const error = new GraphqlIntrospectionDisabledError('introspection disabled');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(200);
     expect(error.errorCode).toBe('graphql_introspection_disabled');
     expect(error.name).toBe('GraphqlIntrospectionDisabledError');
@@ -359,7 +359,7 @@ describe('GraphQL-specific errors', () => {
 describe('post-review remediation error classes', () => {
   it('RetryCheckpointInsideAdhocSubprocessError', () => {
     const error = new RetryCheckpointInsideAdhocSubprocessError('checkpoint inside ad-hoc');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('retry_checkpoint_inside_adhoc_subprocess');
     expect(error.name).toBe('RetryCheckpointInsideAdhocSubprocessError');
@@ -367,7 +367,7 @@ describe('post-review remediation error classes', () => {
 
   it('RetryInsideAdhocSubprocessError', () => {
     const error = new RetryInsideAdhocSubprocessError('retry inside ad-hoc');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('retry_inside_adhoc_subprocess');
     expect(error.name).toBe('RetryInsideAdhocSubprocessError');
@@ -375,7 +375,7 @@ describe('post-review remediation error classes', () => {
 
   it('NotATimerEventError', () => {
     const error = new NotATimerEventError('not a timer');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('not_a_timer_event');
     expect(error.name).toBe('NotATimerEventError');
@@ -383,7 +383,7 @@ describe('post-review remediation error classes', () => {
 
   it('DispatchFailedError', () => {
     const error = new DispatchFailedError('dispatch failed');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(500);
     expect(error.errorCode).toBe('dispatch_failed');
     expect(error.name).toBe('DispatchFailedError');
@@ -391,7 +391,7 @@ describe('post-review remediation error classes', () => {
 
   it('ConflictError', () => {
     const error = new ConflictError('conflict');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(409);
     expect(error.errorCode).toBe('conflict');
     expect(error.name).toBe('ConflictError');
@@ -399,7 +399,7 @@ describe('post-review remediation error classes', () => {
 
   it('BadRequestError', () => {
     const error = new BadRequestError('bad request');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(400);
     expect(error.errorCode).toBe('bad_request');
     expect(error.name).toBe('BadRequestError');
@@ -407,7 +407,7 @@ describe('post-review remediation error classes', () => {
 
   it('NoMatchingConditionError', () => {
     const error = new NoMatchingConditionError('no match');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('no_matching_condition');
     expect(error.name).toBe('NoMatchingConditionError');
@@ -415,7 +415,7 @@ describe('post-review remediation error classes', () => {
 
   it('NoDecisionsError', () => {
     const error = new NoDecisionsError('no decisions');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('no_decisions');
     expect(error.name).toBe('NoDecisionsError');
@@ -423,7 +423,7 @@ describe('post-review remediation error classes', () => {
 
   it('ServiceUnavailableError', () => {
     const error = new ServiceUnavailableError('Engine is resuming');
-    expect(error).toBeInstanceOf(DaemonEngineError);
+    expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.statusCode).toBe(503);
     expect(error.errorCode).toBe('service_unavailable');
     expect(error.name).toBe('ServiceUnavailableError');
@@ -431,7 +431,7 @@ describe('post-review remediation error classes', () => {
 });
 
 describe('inheritance chain', () => {
-  it('all subclasses are instanceof DaemonEngineError', () => {
+  it('all subclasses are instanceof BfwEngineError', () => {
     const subclasses = [
       new PayloadTooLargeError('f', 1, 2),
       new RateLimitedError(5, 'msg'),
@@ -466,7 +466,7 @@ describe('inheritance chain', () => {
     ];
 
     for (const error of subclasses) {
-      expect(error).toBeInstanceOf(DaemonEngineError);
+      expect(error).toBeInstanceOf(BfwEngineError);
       expect(error).toBeInstanceOf(Error);
     }
 
@@ -484,7 +484,7 @@ describe('inheritance chain', () => {
 
 describe('try/catch narrowing', () => {
   it('can narrow with instanceof in catch blocks', () => {
-    const error: DaemonEngineError = new ProcessNotFoundError('order-process not found');
+    const error: BfwEngineError = new ProcessNotFoundError('order-process not found');
 
     if (error instanceof ProcessNotFoundError) {
       expect(error.errorCode).toBe('process_not_found');

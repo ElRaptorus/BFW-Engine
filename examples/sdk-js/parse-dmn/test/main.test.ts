@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { DmnDecisionTable, DmnHitPolicy, parseDmn } from '@elraptorus/daemonengine_sdk';
+import { DmnDecisionTable, DmnHitPolicy, parseDmn } from '@elraptorus/bfw_engine_sdk';
 
 describe('parse-dmn example', () => {
   const decisionModelFilePath = resolve(import.meta.dirname, '../dmn/sample.dmn');

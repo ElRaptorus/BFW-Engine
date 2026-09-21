@@ -4,8 +4,8 @@
   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  xmlns:evil="https://evilengine.dev/schema/bpmn"
-  targetNamespace="https://evilengine.dev/schema/bpmn"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
   <bpmn:error id="Error_1" name="Validation Failed" errorCode="VALIDATION_FAILED" />
@@ -16,7 +16,7 @@
 
   <bpmn:process id="EmbeddedSubprocessErrorBoundary" name="Embedded Subprocess Error Boundary" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
 
     <bpmn:laneSet id="LaneSet_1">
@@ -36,8 +36,8 @@
       <bpmn:endEvent id="Sub_ErrorEnd" name="Validation Failed">
         <bpmn:errorEventDefinition errorRef="Error_1">
           <bpmn:extensionElements>
-            <evil:errorCode>VALIDATION_FAILED</evil:errorCode>
-            <evil:errorMessage>Validation failed</evil:errorMessage>
+            <bfw:errorCode>VALIDATION_FAILED</bfw:errorCode>
+            <bfw:errorMessage>Validation failed</bfw:errorMessage>
           </bpmn:extensionElements>
         </bpmn:errorEventDefinition>
       </bpmn:endEvent>
@@ -47,7 +47,7 @@
     <bpmn:boundaryEvent id="BE_1" attachedToRef="SubProcess_1" cancelActivity="true">
       <bpmn:errorEventDefinition errorRef="Error_1">
         <bpmn:extensionElements>
-          <evil:errorCode>VALIDATION_FAILED</evil:errorCode>
+          <bfw:errorCode>VALIDATION_FAILED</bfw:errorCode>
         </bpmn:extensionElements>
       </bpmn:errorEventDefinition>
     </bpmn:boundaryEvent>

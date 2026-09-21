@@ -3,22 +3,22 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  DaemonEngineClient,
+  BfwEngineClient,
   mapResponseError,
-} from '@elraptorus/daemonengine_client';
+} from '@elraptorus/bfw_engine_client';
 import {
-  DaemonEngineError,
+  BfwEngineError,
   NotFoundError,
   PayloadTooLargeError,
   ProcessNotFoundError,
   UnauthorizedError,
   ValidationError,
   VersionExistsError,
-} from '@elraptorus/daemonengine_sdk';
+} from '@elraptorus/bfw_engine_sdk';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-async function demonstrateProcessNotFoundError(client: DaemonEngineClient): Promise<void> {
+async function demonstrateProcessNotFoundError(client: BfwEngineClient): Promise<void> {
   try {
     await client.processes.start('nonexistent-process-model-for-examples');
   } catch (error) {
@@ -34,7 +34,7 @@ async function demonstrateProcessNotFoundError(client: DaemonEngineClient): Prom
   }
 }
 
-async function demonstrateNotFoundError(client: DaemonEngineClient): Promise<void> {
+async function demonstrateNotFoundError(client: BfwEngineClient): Promise<void> {
   try {
     await client.processes.get('nonexistent-process-model-for-examples-404');
   } catch (error) {
@@ -51,7 +51,7 @@ async function demonstrateNotFoundError(client: DaemonEngineClient): Promise<voi
 }
 
 async function demonstrateUnauthorizedError(engineUrl: string): Promise<void> {
-  const clientWithInvalidToken = new DaemonEngineClient(engineUrl, 'not.valid.jwt.structure');
+  const clientWithInvalidToken = new BfwEngineClient(engineUrl, 'not.valid.jwt.structure');
   try {
     await clientWithInvalidToken.engine.stats();
   } catch (error) {
@@ -70,7 +70,7 @@ async function demonstrateUnauthorizedError(engineUrl: string): Promise<void> {
 }
 
 async function demonstratePayloadTooLargeError(
-  client: DaemonEngineClient,
+  client: BfwEngineClient,
   deployableProcessModelId: string,
 ): Promise<void> {
   const hugePayload = { blob: 'x'.repeat(70_000) };
@@ -113,7 +113,7 @@ function demonstrateValidationErrorShape(): void {
   }
 }
 
-async function demonstrateVersionExistsError(client: DaemonEngineClient, bpmnXml: string): Promise<void> {
+async function demonstrateVersionExistsError(client: BfwEngineClient, bpmnXml: string): Promise<void> {
   try {
     await client.processes.deploy(bpmnXml);
   } catch (error) {
@@ -129,12 +129,12 @@ async function demonstrateVersionExistsError(client: DaemonEngineClient, bpmnXml
   }
 }
 
-async function demonstrateDaemonEngineErrorCatchAll(client: DaemonEngineClient, bpmnXml: string): Promise<void> {
+async function demonstrateBfwEngineErrorCatchAll(client: BfwEngineClient, bpmnXml: string): Promise<void> {
   try {
     await client.processes.deploy([bpmnXml, bpmnXml]);
   } catch (error) {
-    if (error instanceof DaemonEngineError) {
-      console.log('[DaemonEngineError catch-all]', {
+    if (error instanceof BfwEngineError) {
+      console.log('[BfwEngineError catch-all]', {
         statusCode: error.statusCode,
         errorCode: error.errorCode,
         message: error.message,
@@ -148,7 +148,7 @@ async function demonstrateDaemonEngineErrorCatchAll(client: DaemonEngineClient, 
 export async function main(): Promise<void> {
   const engineUrl = process.env['ENGINE_URL'] ?? 'http://localhost:4000';
   const token = process.env['ENGINE_TOKEN'] ?? 'dev-token';
-  const client = new DaemonEngineClient(engineUrl, token);
+  const client = new BfwEngineClient(engineUrl, token);
 
   const bpmnPath = resolve(__dirname, '../bpmn/minimal-for-errors.bpmn');
   const bpmnXml = readFileSync(bpmnPath, 'utf8');
@@ -160,7 +160,7 @@ export async function main(): Promise<void> {
   await demonstratePayloadTooLargeError(client, 'example-error-handling-process');
   demonstrateValidationErrorShape();
   await demonstrateVersionExistsError(client, bpmnXml);
-  await demonstrateDaemonEngineErrorCatchAll(client, bpmnXml);
+  await demonstrateBfwEngineErrorCatchAll(client, bpmnXml);
 
   await client.processes.undeploy('example-error-handling-process');
   client.dispose();

@@ -1,11 +1,11 @@
-defmodule EvilEngine.Integration.CookbookReadmeLinksTest do
+defmodule BfwEngine.Integration.CookbookReadmeLinksTest do
   @moduledoc """
   Acceptance (iii): cookbook Markdown files must not point at missing local
   `.md`, `.ex`, or `.bpmn` paths. External `http(s)` URLs are skipped so CI
   does not flake on GitHub.
   """
 
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
   @examples_root Path.expand("../../../examples", __DIR__)
   @markdown_link_pattern ~r/\[[^\]]*\]\(([^)]+)\)/

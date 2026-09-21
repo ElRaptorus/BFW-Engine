@@ -5,7 +5,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorker do
   1. Read the GitHub repository configuration from environment variables
   2. List all `.bpmn` files in the configured directory
   3. Download each file's raw content
-  4. Parse and validate via `EvilEngine.BPMN.parse_and_validate/1`
+  4. Parse and validate via `BfwEngine.BPMN.parse_and_validate/1`
   5. Deploy the valid definitions as a single batch via `facade.processes.deploy`
   6. Log a summary (deployed / skipped / failed) and stop
 
@@ -18,7 +18,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorker do
 
   require Logger
 
-  alias EvilEngine.BPMN.Model.Definitions
+  alias BfwEngine.BPMN.Model.Definitions
   alias Examples.Plugins.GithubBpmnDeployer.GithubClient
 
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -92,7 +92,7 @@ defmodule Examples.Plugins.GithubBpmnDeployer.GithubBpmnDeployerWorker do
 
     parse_results =
       Enum.map(downloaded, fn {:ok, filename, xml} ->
-        case EvilEngine.BPMN.parse_and_validate(xml) do
+        case BfwEngine.BPMN.parse_and_validate(xml) do
           {:ok, %Definitions{} = definitions} ->
             {:ok, filename, xml, definitions}
 

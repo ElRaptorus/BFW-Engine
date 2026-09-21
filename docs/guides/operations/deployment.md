@@ -8,15 +8,15 @@ This guide covers building and deploying the engine for production use.
 MIX_ENV=prod mix release
 ```
 
-The release is output to `_build/prod/rel/evil_engine/`. Start it with:
+The release is output to `_build/prod/rel/bfw_engine/`. Start it with:
 
 ```bash
-_build/prod/rel/evil_engine/bin/evil_engine start
+_build/prod/rel/bfw_engine/bin/bfw_engine start
 ```
 
 To ship **in-BEAM plugins**, add the plugin OTP apps as release
 dependencies, set `config :my_plugin, :plugin_module, MyPlugin`, and list
-the app names in `TDE_PLUGINS_INBEAM`. See
+the app names in `BFE_PLUGINS_INBEAM`. See
 [Plugin Development](../plugins/getting-started.md).
 
 ## Docker
@@ -28,14 +28,14 @@ docker compose up --build
 ```
 
 Published private images live on GitHub Container Registry as
-`ghcr.io/<github-username>/daemon_engine:<version>` (currently `0.1.0`).
+`ghcr.io/<github-username>/bfw_engine:<version>` (currently `0.1.0`).
 The `docker-publish` job in `.github/workflows/ci.yml` pushes the
 smoke-tested image after both CI jobs succeed on `main`. First publish is
 private; do not switch the package to public (that change cannot be undone).
 
 ```bash
 echo "$CR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-docker pull ghcr.io/elraptorus/daemon_engine:0.1.0
+docker pull ghcr.io/elraptorus/bfw_engine:0.1.0
 ```
 
 The PAT must be a **classic** token with `read:packages`. Fine-grained PATs
@@ -48,9 +48,9 @@ are not accepted by GitHub Packages for `docker login`.
 
 | Env Var | Description |
 |---------|-------------|
-| `TDE_DATABASE_URL` | PostgreSQL connection string (or use individual `TDE_DATABASE_*` vars) |
-| `TDE_HTTP_SECRET_KEY_BASE` | Phoenix secret (min 64 chars, generate with `mix phx.gen.secret`) |
-| JWT key | At least one of `TDE_JWT_HS256_SECRET` or `TDE_JWT_JWKS_URL` (unless `TDE_AUTH_DISABLED=true`) |
+| `BFE_DATABASE_URL` | PostgreSQL connection string (or use individual `BFE_DATABASE_*` vars) |
+| `BFE_HTTP_SECRET_KEY_BASE` | Phoenix secret (min 64 chars, generate with `mix phx.gen.secret`) |
+| JWT key | At least one of `BFE_JWT_HS256_SECRET` or `BFE_JWT_JWKS_URL` (unless `BFE_AUTH_DISABLED=true`) |
 
 Copy-paste block for every variable: [Environment variables](../cheatsheets/env-vars.cheatmd).
 Payload cap, JSONB compression, and retention:
@@ -70,22 +70,22 @@ Payload cap, JSONB compression, and retention:
 
 ```bash
 # Apply migrations
-bin/evil_engine eval "EvilEngine.Persistence.Release.migrate()"
+bin/bfw_engine eval "BfwEngine.Persistence.Release.migrate()"
 
 # Create partitions
-bin/evil_engine eval "EvilEngine.Persistence.Release.ensure_partitions()"
+bin/bfw_engine eval "BfwEngine.Persistence.Release.ensure_partitions()"
 
 # Start the engine
-bin/evil_engine start
+bin/bfw_engine start
 ```
 
-Schedule `bin/evil_engine eval "EvilEngine.Persistence.Release.purge_retention()"`
-from cron if you set any `TDE_RETENTION_*_DAYS` knobs. See
+Schedule `bin/bfw_engine eval "BfwEngine.Persistence.Release.purge_retention()"`
+from cron if you set any `BFE_RETENTION_*_DAYS` knobs. See
 [Database administration](database.md).
 
 ## Health Probes
 
-`GET /health` requires no authentication and returns **204 No Content**. It is suitable for Kubernetes liveness/readiness probes (status code only). For load and pool stats, use authenticated `GET /stats`. Prometheus scrape is public `GET /metrics` (`TDE_METRICS_ENABLED`, default on).
+`GET /health` requires no authentication and returns **204 No Content**. It is suitable for Kubernetes liveness/readiness probes (status code only). For load and pool stats, use authenticated `GET /stats`. Prometheus scrape is public `GET /metrics` (`BFE_METRICS_ENABLED`, default on).
 
 ```yaml
 livenessProbe:
@@ -100,13 +100,13 @@ readinessProbe:
 
 ## Seeding Directory
 
-Set `TDE_SEEDING_DIRECTORY` to auto-deploy `.bpmn` files at startup. Failing files are skipped without halting boot. See [Deploying Processes](../handbook/deploying-processes.md).
+Set `BFE_SEEDING_DIRECTORY` to auto-deploy `.bpmn` files at startup. Failing files are skipped without halting boot. See [Deploying Processes](../handbook/deploying-processes.md).
 
 ## Ports
 
 | Env Var | Default | Purpose |
 |---------|---------|---------|
-| `TDE_HTTP_PORT` | `4000` | HTTP, GraphQL, and WebSocket |
+| `BFE_HTTP_PORT` | `4000` | HTTP, GraphQL, and WebSocket |
 
 ## FEEL NIF Scheduler Tuning
 

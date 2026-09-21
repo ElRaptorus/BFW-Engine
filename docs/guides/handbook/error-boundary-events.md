@@ -13,7 +13,7 @@ Error Boundary Events catch errors thrown by an activity (such as a Call Activit
 
 Catch-side Error Boundary matching **resolves** the boundary's error code the same way as throw-side Error End Events:
 
-1. Inline `evil:errorCode` on the boundary's `<errorEventDefinition>` if present
+1. Inline `bfw:errorCode` on the boundary's `<errorEventDefinition>` if present
 2. Else the global `<bpmn:error errorCode="...">` referenced by `errorRef`
 3. Else `nil` (catch-all)
 
@@ -116,7 +116,7 @@ The most common error source for boundary events is the [Error End Event](error-
 <bpmn:endEvent id="End_Error" name="Payment Failed">
   <bpmn:errorEventDefinition>
     <bpmn:extensionElements>
-      <evil:errorCode>PAYMENT_DECLINED</evil:errorCode>
+      <bfw:errorCode>PAYMENT_DECLINED</bfw:errorCode>
     </bpmn:extensionElements>
   </bpmn:errorEventDefinition>
 </bpmn:endEvent>
@@ -125,7 +125,7 @@ The most common error source for boundary events is the [Error End Event](error-
 <bpmn:boundaryEvent id="Boundary_1" attachedToRef="CA_1">
   <bpmn:errorEventDefinition>
     <bpmn:extensionElements>
-      <evil:errorCode>PAYMENT_DECLINED</evil:errorCode>
+      <bfw:errorCode>PAYMENT_DECLINED</bfw:errorCode>
     </bpmn:extensionElements>
   </bpmn:errorEventDefinition>
   <bpmn:outgoing>Flow_ToFallback</bpmn:outgoing>

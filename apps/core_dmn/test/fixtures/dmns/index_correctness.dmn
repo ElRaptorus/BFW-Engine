@@ -2,7 +2,7 @@
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
   id="definitions_index_correctness"
   name="Index Correctness"
-  namespace="https://evilengine.dev/dmn/test/index-correctness">
+  namespace="https://bifrostforge.world/dmn/test/index-correctness">
 
   <inputData id="InputData_tier" name="tier" />
   <inputData id="InputData_region" name="region" />

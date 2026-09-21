@@ -162,7 +162,7 @@ export interface LinterRulesetScore {
 /**
  * `<bpmn:loopCardinality>` is parsed (as `loopCardinality`) and rejected at
  * deploy time (`:loop_cardinality_not_supported`). Iteration count comes
- * exclusively from the input collection, capped by `evil:maxIterations`.
+ * exclusively from the input collection, capped by `bfw:maxIterations`.
  */
 export interface MultiInstance {
   isSequential: boolean;
@@ -271,15 +271,15 @@ export interface UserTaskTypeData extends WithMappings, WithContracts {
 export interface ServiceTaskTypeData extends WithMappings, WithContracts {
   type: 'service_task';
   implementation: string | null;
-  /** `evil:httpUrl` — target URL. Static text, not FEEL. */
+  /** `bfw:httpUrl` — target URL. Static text, not FEEL. */
   httpUrl: string | null;
-  /** `evil:httpMethod` — HTTP verb. Static text, not FEEL. */
+  /** `bfw:httpMethod` — HTTP verb. Static text, not FEEL. */
   httpMethod: string | null;
-  /** `evil:httpBody` — FEEL expression for the request body. */
+  /** `bfw:httpBody` — FEEL expression for the request body. */
   httpBody: string | null;
-  /** `evil:httpAuthHeader` — FEEL expression for the Authorization header. */
+  /** `bfw:httpAuthHeader` — FEEL expression for the Authorization header. */
   httpAuthHeader: string | null;
-  /** `evil:httpResponseHeaders` — FEEL expression mapping response headers into the output. */
+  /** `bfw:httpResponseHeaders` — FEEL expression mapping response headers into the output. */
   httpResponseHeaders: string | null;
 }
 
@@ -304,15 +304,15 @@ export interface BusinessRuleTaskTypeData extends WithMappings, WithContracts {
   implementation: string | null;
   /** Inline FEEL expression from `<bpmn:script>`. Used when `implementation` is `"feel"`. */
   script: string | null;
-  /** Legacy `evil:ruleRef`. Retained for XML fidelity; plugin delegation was removed. */
+  /** Legacy `bfw:ruleRef`. Retained for XML fidelity; plugin delegation was removed. */
   ruleRef: string | null;
-  /** `evil:decisionRef` — DMN model reference. Used when `implementation` is `"dmn"`. */
+  /** `bfw:decisionRef` — DMN model reference. Used when `implementation` is `"dmn"`. */
   decisionRef: string | null;
-  /** `evil:decisionElementId` — which `<decision>` to evaluate in a multi-decision model. */
+  /** `bfw:decisionElementId` — which `<decision>` to evaluate in a multi-decision model. */
   decisionElementId: string | null;
-  /** `evil:resultVariable` — output variable name for the decision result. */
+  /** `bfw:resultVariable` — output variable name for the decision result. */
   resultVariable: string | null;
-  /** `evil:traceUnmatchedRules` — include unmatched rule detail in the DMN trace. */
+  /** `bfw:traceUnmatchedRules` — include unmatched rule detail in the DMN trace. */
   traceUnmatchedRules: boolean;
 }
 
@@ -332,7 +332,7 @@ export interface CallActivityTypeData extends WithMappings {
   type: 'call_activity';
   calledElement: string | null;
   startEventId: string | null;
-  /** Child `<evil:version>` pin. `null` means latest enabled at enter time. The word `latest` is a literal version name, not a keyword. */
+  /** Child `<bfw:version>` pin. `null` means latest enabled at enter time. The word `latest` is a literal version name, not a keyword. */
   calledProcessVersion: string | null;
 }
 
@@ -362,7 +362,7 @@ export interface SubProcessTypeData extends WithMappings, WithContracts {
   adhocCompletionCondition: string | null;
   /** Plugin dispatch key for plugin-managed ad-hoc execution. Only set when `isAdHoc` is true. */
   implementation: string | null;
-  /** FEEL expression from `evil:activeElements`. Returns list of element IDs to auto-activate. */
+  /** FEEL expression from `bfw:activeElements`. Returns list of element IDs to auto-activate. */
   activeElementsExpression: string | null;
   flowNodes: FlowNode[];
   sequenceFlows: SequenceFlow[];

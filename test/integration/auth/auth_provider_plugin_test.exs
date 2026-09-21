@@ -1,9 +1,9 @@
-defmodule EvilEngine.Integration.AuthProviderPluginTest do
+defmodule BfwEngine.Integration.AuthProviderPluginTest do
   @moduledoc "Integration tests for pluggable auth provider."
-  use EvilEngine.IntegrationCase, async: false
+  use BfwEngine.IntegrationCase, async: false
 
-  alias EvilEngine.Auth.ProviderRegistry
-  alias EvilEngine.Types.Identity
+  alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Types.Identity
 
   setup do
     ProviderRegistry.reset_to_default()
@@ -12,8 +12,8 @@ defmodule EvilEngine.Integration.AuthProviderPluginTest do
   end
 
   defmodule FakeAuthProvider do
-    @behaviour EvilEngine.Plugin.AuthProvider
-    alias EvilEngine.Types.Identity
+    @behaviour BfwEngine.Plugin.AuthProvider
+    alias BfwEngine.Types.Identity
 
     @impl true
     def verify_and_resolve("valid-custom-" <> user_id) do
@@ -33,8 +33,8 @@ defmodule EvilEngine.Integration.AuthProviderPluginTest do
   end
 
   defmodule SecondFakeProvider do
-    @behaviour EvilEngine.Plugin.AuthProvider
-    alias EvilEngine.Types.Identity
+    @behaviour BfwEngine.Plugin.AuthProvider
+    alias BfwEngine.Types.Identity
 
     @impl true
     def verify_and_resolve(_token),
@@ -90,7 +90,7 @@ defmodule EvilEngine.Integration.AuthProviderPluginTest do
 
   describe "provider registry integration with Plugin Registry" do
     test "auth_provider capability registers via Plugin Registry" do
-      alias EvilEngine.Plugins.Registry
+      alias BfwEngine.Plugins.Registry
 
       result =
         Registry.register_capability(
@@ -107,7 +107,7 @@ defmodule EvilEngine.Integration.AuthProviderPluginTest do
     end
 
     test "second auth_provider capability is rejected as conflict" do
-      alias EvilEngine.Plugins.Registry
+      alias BfwEngine.Plugins.Registry
 
       Registry.register_plugin("plugin-a", __MODULE__, %{})
       Registry.register_plugin("plugin-b", __MODULE__, %{})

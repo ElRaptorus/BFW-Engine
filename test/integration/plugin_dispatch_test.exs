@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.PluginDispatchTest do
+defmodule BfwEngine.Integration.PluginDispatchTest do
   @moduledoc """
   Full-stack integration tests that verify the plugin dispatch
   mechanism end-to-end:
@@ -11,20 +11,20 @@ defmodule EvilEngine.Integration.PluginDispatchTest do
   - Error paths: unknown implementation → FNI fatal
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Plugins.Loader
-  alias EvilEngine.Plugins.Registry
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Test.ExamplePlugin
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Execution
+  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.Registry
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Types.Event
 
   setup %{collector: _} = context do
     Application.put_env(
       :core_execution,
       :service_task_dispatch,
-      EvilEngine.Plugins.RegistryDispatch
+      BfwEngine.Plugins.RegistryDispatch
     )
 
     load_example_plugin_via_facade()
@@ -43,7 +43,7 @@ defmodule EvilEngine.Integration.PluginDispatchTest do
       Application.put_env(
         :core_execution,
         :service_task_dispatch,
-        EvilEngine.Execution.ServiceTaskDispatch.NoOp
+        BfwEngine.Execution.ServiceTaskDispatch.NoOp
       )
     end)
 
@@ -161,7 +161,7 @@ defmodule EvilEngine.Integration.PluginDispatchTest do
       assert is_binary(facade.engine_name)
       assert is_binary(facade.version)
 
-      result = facade.register_service_task_handler.("test_cap", EvilEngine.Test.ExamplePlugin.EchoHandler)
+      result = facade.register_service_task_handler.("test_cap", BfwEngine.Test.ExamplePlugin.EchoHandler)
 
       assert result == :ok
 

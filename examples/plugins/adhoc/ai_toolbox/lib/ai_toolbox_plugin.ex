@@ -7,7 +7,7 @@ defmodule Examples.Plugins.Adhoc.AiToolbox.AiToolboxPlugin do
   `README.md` for the full scenario and the bundled BPMN fixture.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.Plugins.Adhoc.AiToolbox.AiToolboxSink
 

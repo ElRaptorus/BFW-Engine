@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Security.ClaimScopedVisibilityTest do
+defmodule BfwEngine.Integration.Security.ClaimScopedVisibilityTest do
   @moduledoc """
   Security-focused tests verifying claim-scoped read visibility across
   GraphQL and REST surfaces.
@@ -11,7 +11,7 @@ defmodule EvilEngine.Integration.Security.ClaimScopedVisibilityTest do
   - `zeeky_boogie_doog` admin override
   - Anti-enumeration (null not 403)
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
   @moduletag :integration
 

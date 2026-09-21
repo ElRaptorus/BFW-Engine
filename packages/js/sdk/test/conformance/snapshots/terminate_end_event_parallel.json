@@ -24,7 +24,9 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": ["Flow_1"],
+          "outgoing": [
+            "Flow_1"
+          ],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -40,11 +42,16 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Fork_1",
-          "incoming": ["Flow_1"],
+          "incoming": [
+            "Flow_1"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
-          "outgoing": ["Flow_B", "Flow_A"],
+          "outgoing": [
+            "Flow_B",
+            "Flow_A"
+          ],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -56,11 +63,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": ["Flow_A"],
+          "incoming": [
+            "Flow_A"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Quick Path",
-          "outgoing": ["Flow_A2"],
+          "outgoing": [
+            "Flow_A2"
+          ],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -72,7 +83,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Terminate",
-          "incoming": ["Flow_A2"],
+          "incoming": [
+            "Flow_A2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Terminate",
@@ -92,11 +105,15 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_Wait",
-          "incoming": ["Flow_B"],
+          "incoming": [
+            "Flow_B"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Waiting User Task",
-          "outgoing": ["Flow_B2"],
+          "outgoing": [
+            "Flow_B2"
+          ],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -118,7 +135,9 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": ["Flow_B2"],
+          "incoming": [
+            "Flow_B2"
+          ],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",

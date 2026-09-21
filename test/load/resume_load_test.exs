@@ -1,4 +1,4 @@
-defmodule EvilEngine.Load.ResumeLoadTest do
+defmodule BfwEngine.Load.ResumeLoadTest do
   @moduledoc """
   Load / benchmark tests for resume-on-startup.
 
@@ -31,10 +31,10 @@ defmodule EvilEngine.Load.ResumeLoadTest do
   | L8   | ~2.1ms/PI | 11ms/PI |
   """
 
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Execution
-  alias EvilEngine.Test.LoadHelpers
+  alias BfwEngine.Execution
+  alias BfwEngine.Test.LoadHelpers
 
   @user_task_fni %{
     flow_node_id: "UserTask_1",

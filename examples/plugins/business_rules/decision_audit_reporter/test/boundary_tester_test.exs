@@ -1,7 +1,7 @@
 defmodule Examples.BusinessRules.DecisionAuditReporter.BoundaryTesterTest do
   use ExUnit.Case, async: true
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.BusinessRules.DecisionAuditReporter.BoundaryTester
 
   test "evaluates decision with inputs via facade and records success results" do

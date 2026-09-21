@@ -8,7 +8,7 @@ export interface DeployRequest {
 export interface DeployResult {
   /** BPMN process ID. */
   processModelId: string;
-  /** The version string from `evil:version`. */
+  /** The version string from `bfw:version`. */
   version: string;
 }
 

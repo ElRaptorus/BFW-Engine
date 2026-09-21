@@ -1,4 +1,4 @@
-import type { CancelUserTaskRequest, FinishUserTaskRequest } from '@elraptorus/daemonengine_sdk';
+import type { CancelUserTaskRequest, FinishUserTaskRequest } from '@elraptorus/bfw_engine_sdk';
 
 import type { HttpTransport } from '../http/transport.js';
 

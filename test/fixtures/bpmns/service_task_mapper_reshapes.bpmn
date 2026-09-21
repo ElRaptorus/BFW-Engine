@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:evil="https://evilengine.dev/schema/bpmn"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
                   id="Definitions_ST_Reshape"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
@@ -10,7 +10,7 @@
   </bpmn:collaboration>
   <bpmn:process id="ServiceTaskMapperReshapes" name="Service Task Mapper Reshapes" isExecutable="true">
     <bpmn:extensionElements>
-      <evil:version>1.0.0</evil:version>
+      <bfw:version>1.0.0</bfw:version>
     </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
@@ -22,8 +22,8 @@
     <bpmn:startEvent id="Start_1" name="Start"/>
     <bpmn:serviceTask id="ServiceTask_1" name="Reshape Before Contract" implementation="echo">
       <bpmn:extensionElements>
-        <evil:inputMapping source="token.raw_id" target="id"/>
-        <evil:payloadContract>{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}</evil:payloadContract>
+        <bfw:inputMapping source="token.raw_id" target="id"/>
+        <bfw:payloadContract>{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}}</bfw:payloadContract>
       </bpmn:extensionElements>
     </bpmn:serviceTask>
     <bpmn:endEvent id="End_1" name="Done"/>

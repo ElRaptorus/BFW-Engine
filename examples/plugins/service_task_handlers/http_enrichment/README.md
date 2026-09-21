@@ -23,10 +23,10 @@ FNI through the engine facade.
 ## Usage
 
 Copy `lib/` into your OTP app, register the plugin module under `:plugin_module`,
-and list the app in `TDE_PLUGINS_INBEAM`. Populate earlier nodes so the token
+and list the app in `BFE_PLUGINS_INBEAM`. Populate earlier nodes so the token
 carries `"enrichment_url"` before this task runs.
 
 ## Further reading
 
-- [`EvilEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/evil_engine/plugin/service_task_handler.ex)
+- [`BfwEngine.Plugin.ServiceTaskHandler`](../../../../apps/engine_sdk/lib/bfw_engine/plugin/service_task_handler.ex)
 - [`docs/architecture/plugins.md`](../../../../docs/architecture/plugins.md)

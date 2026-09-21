@@ -81,7 +81,7 @@ services:
   engine:
     image: your-engine-image
     environment:
-      TDE_PLUGINS_INBEAM: "incident_reporter"
+      BFE_PLUGINS_INBEAM: "incident_reporter"
     depends_on:
       - rabbitmq
       - postgres
@@ -95,7 +95,7 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: evil_engine
+      POSTGRES_DB: bfw_engine
       POSTGRES_PASSWORD: postgres
 ```
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/DMN/20191111/MODEL"
-             xmlns:evil="https://evilengine.dev/schema/bpmn"
-             namespace="https://evilengine.dev/test/invocation"
+             xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+             namespace="https://bifrostforge.world/test/invocation"
              name="InvocationTest"
              id="Definitions_invocation"
              xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"

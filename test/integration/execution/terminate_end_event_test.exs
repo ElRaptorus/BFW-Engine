@@ -1,4 +1,4 @@
-defmodule EvilEngine.Integration.Execution.TerminateEndEventTest do
+defmodule BfwEngine.Integration.Execution.TerminateEndEventTest do
   @moduledoc """
   Umbrella-level integration tests for Terminate End Event.
 
@@ -6,10 +6,10 @@ defmodule EvilEngine.Integration.Execution.TerminateEndEventTest do
   PI state, FNI states, final tokens, child PI cascade, and event
   emission against a real database.
   """
-  use EvilEngine.ExecutionCase, async: false
+  use BfwEngine.ExecutionCase, async: false
 
-  alias EvilEngine.Test.EventCollector
-  alias EvilEngine.Types.Event
+  alias BfwEngine.Test.EventCollector
+  alias BfwEngine.Types.Event
 
   setup do
     original_resolver = Application.get_env(:core_execution, :called_element_resolver)
@@ -17,7 +17,7 @@ defmodule EvilEngine.Integration.Execution.TerminateEndEventTest do
     Application.put_env(
       :core_execution,
       :called_element_resolver,
-      EvilEngine.Persistence.CalledElementResolverImpl
+      BfwEngine.Persistence.CalledElementResolverImpl
     )
 
     on_exit(fn ->

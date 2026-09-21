@@ -1,4 +1,4 @@
-import type { TimerSchedule } from '@elraptorus/daemonengine_sdk';
+import type { TimerSchedule } from '@elraptorus/bfw_engine_sdk';
 
 import type { HttpTransport } from '../http/transport.js';
 

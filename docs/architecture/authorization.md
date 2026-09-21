@@ -4,7 +4,7 @@
 WebSocket channel requires the caller to present a valid JWT bearer token
 **unless** the endpoint is listed in the explicit exception list below.
 
-Auth is **pluggable** via `@behaviour EvilEngine.Plugin.AuthProvider`.
+Auth is **pluggable** via `@behaviour BfwEngine.Plugin.AuthProvider`.
 The built-in JWT verifier (`JwtAuthProvider`) accepts HS256 (shared secret)
 and RS256 / ES256 (asymmetric, via JWKS) and is the default. Plugins can
 register a replacement provider during `on_load/1` via
@@ -13,7 +13,7 @@ a time (first-writer wins).
 
 ## Dev / test override
 
-Setting `TDE_AUTH_DISABLED=true` turns off JWT verification entirely. All
+Setting `BFE_AUTH_DISABLED=true` turns off JWT verification entirely. All
 incoming requests are assigned a synthetic Identity with `id: "anonymous"`,
 empty roles/groups, and all admin claims set to their **least-privileged**
 defaults (`deploy_bpmn=false`, `abort_process_instance=none`, etc.).
@@ -21,7 +21,7 @@ defaults (`deploy_bpmn=false`, `abort_process_instance=none`, etc.).
 The engine emits a `warn`-severity log line every 60 seconds while auth is
 disabled, so a production deployment cannot run this way silently.
 
-Integration tests use `TDE_AUTH_DISABLED=false` (the default) and mint JWTs
+Integration tests use `BFE_AUTH_DISABLED=false` (the default) and mint JWTs
 through the `engine_sdk`-shipped `MintTestToken` helper (§10).
 
 ---
@@ -32,14 +32,14 @@ through the `engine_sdk`-shipped `MintTestToken` helper (§10).
 |---|---|
 | `GET /health` | Liveness / readiness probes must work without credentials |
 | `GET /info` | Returns Engine name and version |
-| `GET /api/openapi` | Machine-readable OpenAPI 3.x spec for code generation (devtools-only; opt-in via `TDE_EXPOSE_OPENAPI_SPEC`) |
+| `GET /api/openapi` | Machine-readable OpenAPI 3.x spec for code generation (devtools-only; opt-in via `BFE_EXPOSE_OPENAPI_SPEC`) |
 | `GET /` | Swagger UI (devtools-only) |
 | `GET /admin/graphiql` | GraphQL Playground with example queries (devtools-only) |
 
 **Devtools gating**: `GET /`, `GET /api/openapi`, and `GET /admin/graphiql` are
-disabled in production by default (`TDE_DEVTOOLS_ENABLED` defaults to `false`
+disabled in production by default (`BFE_DEVTOOLS_ENABLED` defaults to `false`
 in prod, `true` in dev/test). The OpenAPI spec can be individually re-enabled
-with `TDE_EXPOSE_OPENAPI_SPEC=true` for production CI pipelines that generate
+with `BFE_EXPOSE_OPENAPI_SPEC=true` for production CI pipelines that generate
 client code.
 
 Everything else — including `GET /stats` — requires a valid JWT.
@@ -56,8 +56,8 @@ mapping is fixed (not configurable in v1):
 | `id` | `sub` | **YES** — engine refuses tokens without `sub` | Unique caller identifier. Recorded on every auditable action, including `process_instances.started_by` |
 | `name` | `name` | No | Display name; informational only |
 | `email` | `email` | No | Informational only |
-| `roles` | `roles` | No | Array of strings; matched against `<evil:assignees>` |
-| `groups` | `groups` | No | Array of strings; matched against `<evil:assignees>` |
+| `roles` | `roles` | No | Array of strings; matched against `<bfw:assignees>` |
+| `groups` | `groups` | No | Array of strings; matched against `<bfw:assignees>` |
 | `claims` | *(entire validated claim set)* | — | The full decoded JWT payload as a map. Available to plugins via `Identity.claims` for custom claim inspection on RestApiExtension endpoints |
 
 ### 3.1 Lane-claim mapping
@@ -156,7 +156,7 @@ with `deploy_bpmn=true` only. This identity is recorded in
 
 ## 5. Visibility rules — Process Instances, Flow Node Instances, Data Objects
 
-### 5.1 PI visibility (Option B — extended)
+### 5.1 PI visibility
 
 A caller can see a Process Instance if **any** of the following is true:
 
@@ -249,7 +249,7 @@ authenticated list request runs it).
 
 ## 6. Per-action authorization rules
 
-**Enforcement location:** All claim checks and lane access gates for REST-triggered operations are enforced in **`EvilEngine.Api`** via `EvilEngine.Api.Validation` — not in REST controllers. The tables below describe the *required* claims; the facade function that enforces each claim is listed in §13. PI visibility filters (§5) remain Ash Policy scopes on read actions.
+**Enforcement location:** All claim checks and lane access gates for REST-triggered operations are enforced in **`BfwEngine.Api`** via `BfwEngine.Api.Validation` — not in REST controllers. The tables below describe the *required* claims; the facade function that enforces each claim is listed in §13. PI visibility filters (§5) remain Ash Policy scopes on read actions.
 
 ### 6.1 Catalog operations (deployed BPMNs)
 
@@ -265,15 +265,15 @@ authenticated list request runs it).
 
 | Action | Rule | Notes |
 |---|---|---|
-| **Start PI** (`POST /processes/{model_id}/start`) | **Lane check against the chosen Start Event.** If the process has lanes and the Start Event resides on a lane, the caller must have `lane:<lane_name>="write"`. `"read"` or `observe_all` on a visible start event returns **403**. Absent / leftover `true` / garbage / wrong lane returns **404**. If the process has no lanes, or the Start Event is not in any lane, any authenticated caller may start | Enforced in `EvilEngine.Api.start_process_instance/3` via `Validation.check_lane_access`. The starting user's identity is recorded as `started_by` and never re-checked during execution |
+| **Start PI** (`POST /processes/{model_id}/start`) | **Lane check against the chosen Start Event.** If the process has lanes and the Start Event resides on a lane, the caller must have `lane:<lane_name>="write"`. `"read"` or `observe_all` on a visible start event returns **403**. Absent / leftover `true` / garbage / wrong lane returns **404**. If the process has no lanes, or the Start Event is not in any lane, any authenticated caller may start | Enforced in `BfwEngine.Api.start_process_instance/3` via `Validation.check_lane_access`. The starting user's identity is recorded as `started_by` and never re-checked during execution |
 | **Resume** | *(engine-internal, always automatic )* | No user-initiated Resume in v1. The engine's resume path runs with the PI's original `started_by` context — no JWT involved |
 | **Abort** (`PUT /process-instances/{id}/abort`) | `abort_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `abort_process_instance=all` (any PI) | `abort_process_instance=none` or absent → `403` |
-| **Retry** (`PUT /process-instances/{id}/retry`) | `retry_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `retry_process_instance=all` (any PI) | `retry_process_instance=none` or absent → `403`. Enforced in `EvilEngine.Api.retry_process_instance/4` via `Validation.check_scoped_claim/4` — not in the controller. Ownership is checked on the *targeted* PI even in tree-retry scenarios (ancestors are reset implicitly) |
+| **Retry** (`PUT /process-instances/{id}/retry`) | `retry_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `retry_process_instance=all` (any PI) | `retry_process_instance=none` or absent → `403`. Enforced in `BfwEngine.Api.retry_process_instance/4` via `Validation.check_scoped_claim/4` — not in the controller. Ownership is checked on the *targeted* PI even in tree-retry scenarios (ancestors are reset implicitly) |
 | Soft-**Delete** (`DELETE /process-instances/{id}`) | `delete_process_instance=own` (PI where `started_by.id == caller.sub`) **or** `delete_process_instance=all` (any PI) | `delete_process_instance=none` or absent → `403` |
 | **Purge** (deferred REST; Mix task is the v1 path) | `purge_audit_data` unused | Admin-only Mix/eval; not a GraphQL field |
 
 **Start contract excludes internal execution options.** The public start surface
-(`POST /processes/{model_id}/start` and `EvilEngine.Api.start_process_instance/3`)
+(`POST /processes/{model_id}/start` and `BfwEngine.Api.start_process_instance/3`)
 accepts only Model/Version + Start Event + payload/context/businessKey. Internal
 execution options such as `subprocess_node_id`, `parent_process_instance_id`, and
 `triggerer_flow_node_instance_id` are **not** public parameters — extraneous
@@ -287,10 +287,10 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 | Action | Rule | Notes |
 |---|---|---|
-| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<evil:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` — both checks must pass | Lane check + assignee check are AND-combined |
+| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<bfw:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` — both checks must pass | Lane check + assignee check are AND-combined |
 | **Cancel User Task** (`PUT /user-tasks/{fniId}/cancel`) | Same as Finish | |
-| **Complete async Service Task** (`engine_facade.finish_async_service_task` / `EvilEngine.Api.finish_async_service_task/2`) | Plugins complete via the facade with the privileged plugin identity (§7), bypassing lane checks. There is **no** `PUT /async-flow-nodes/{fniId}/complete` REST route | REST was never shipped for this callback |
-| **Fail async Service Task** (`engine_facade.fail_async_service_task` / `EvilEngine.Api.fail_async_service_task/3`) | Same as Complete. There is **no** `PUT /async-flow-nodes/{fniId}/fail` REST route | |
+| **Complete async Service Task** (`engine_facade.finish_async_service_task` / `BfwEngine.Api.finish_async_service_task/2`) | Plugins complete via the facade with the privileged plugin identity (§7), bypassing lane checks. There is **no** `PUT /async-flow-nodes/{fniId}/complete` REST route | REST was never shipped for this callback |
+| **Fail async Service Task** (`engine_facade.fail_async_service_task` / `BfwEngine.Api.fail_async_service_task/3`) | Same as Complete. There is **no** `PUT /async-flow-nodes/{fniId}/fail` REST route | |
 
 ### 6.4 Trigger endpoints (messages, signals, escalations)
 
@@ -299,7 +299,7 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 | `POST /messages/{message_name}/trigger` | `trigger_message` | `trigger_message` not `"all"` or absent → 403 |
 | `POST /signals/{signal_name}/trigger` | `trigger_signal` | `trigger_signal` not `"all"` or absent → 403 |
 | `POST /escalations/{escalation_code}/trigger` | `trigger_escalation` (boolean) | Enforced via `Validation.check_claim/3`. Absent / false → 403. Empty `deliveries` is still 200. No payload. Do not revive `POST /triggers/escalations` |
-| `POST /timer-events/{flow_node_instance_id}/trigger` | Lane access (`lane:<lane_name>="write"` for the FNI's lane, or FNI is laneless, or `zeeky_boogie_doog=true`) | No dedicated trigger claim. Enforced in `EvilEngine.Api.trigger_timer_event/3` via `Validation.check_lane_access/3`. Visible but not writable (`"read"` / `observe_all`) → `403`. Invisible lane → `404` |
+| `POST /timer-events/{flow_node_instance_id}/trigger` | Lane access (`lane:<lane_name>="write"` for the FNI's lane, or FNI is laneless, or `zeeky_boogie_doog=true`) | No dedicated trigger claim. Enforced in `BfwEngine.Api.trigger_timer_event/3` via `Validation.check_lane_access/3`. Visible but not writable (`"read"` / `observe_all`) → `403`. Invisible lane → `404` |
 
 ### 6.5 Observability / admin endpoints
 
@@ -327,9 +327,9 @@ auto-injected by the `engine_facade`:
 }
 ```
 
-This identity **does not carry user JWT claims**, but plugin facade closures call `EvilEngine.Api.*` with **`skip_claims: true`** (see §13). Claim and lane checks are therefore skipped for plugin-initiated facade calls; business rule validation still applies. This replaces the earlier pattern of a blanket identity-level bypass — enforcement is explicit at the Api layer via the opt-out flag, not implicit from the plugin identity shape.
+This identity **does not carry user JWT claims**, but plugin facade closures call `BfwEngine.Api.*` with **`skip_claims: true`** (see §13). Claim and lane checks are therefore skipped for plugin-initiated facade calls; business rule validation still applies. This replaces the earlier pattern of a blanket identity-level bypass — enforcement is explicit at the Api layer via the opt-out flag, not implicit from the plugin identity shape.
 
-**Audit is preserved:** every `EvilEngine.Api.*` invocation records the plugin
+**Audit is preserved:** every `BfwEngine.Api.*` invocation records the plugin
 identity just as it would a user identity. "Plugin X started PI Y" is as
 queryable as "User A started PI B".
 
@@ -399,7 +399,7 @@ Implemented channel topics:
 
 ### 9.2 Dispatch-time lane filtering
 
-**Path:** `apps/api_web/lib/evil_engine_web/ws/event_delivery.ex`
+**Path:** `apps/api_web/lib/bfw_engine_web/ws/event_delivery.ex`
 
 Filtering runs in the channel process after PubSub broadcast so each subscriber applies its own join-cached identity (`accessible_lanes`, `admin_override`, `identity_id`). Classification uses the envelope `type` string (explicit allow-lists), not field presence — JSON `null` and a missing `laneName` are indistinguishable via `get_in/2`.
 
@@ -450,7 +450,7 @@ probing.
 `engine_sdk` ships a `MintTestToken` module alongside `TestSink`:
 
 ```elixir
-EvilEngine.SDK.Test.MintTestToken.mint(%{
+BfwEngine.SDK.Test.MintTestToken.mint(%{
   sub: "test-user-1",
   "lane:Management" => "write",
   deploy_bpmn: true,
@@ -459,7 +459,7 @@ EvilEngine.SDK.Test.MintTestToken.mint(%{
 # => "eyJhbGciOiJIUzI1NiIs..."
 ```
 
-Uses the test-config JWT secret (`TDE_JWT_HS256_SECRET` in test env).
+Uses the test-config JWT secret (`BFE_JWT_HS256_SECRET` in test env).
 Integration tests use this exclusively — no hard-coded tokens, no
 auth-disabled shortcuts.
 
@@ -469,17 +469,17 @@ auth-disabled shortcuts.
 
 | Condition | Behavior |
 |---|---|
-| No `TDE_JWT_JWKS_URL` and no `TDE_JWT_HS256_SECRET` and `TDE_AUTH_DISABLED != true` | **Refuse to start.** Log `error`: "No JWT configuration found. Set TDE_JWT_JWKS_URL or TDE_JWT_HS256_SECRET, or set TDE_AUTH_DISABLED=true for development" |
-| `TDE_AUTH_DISABLED=true` | Start with auth disabled. Log `warn` every 60s: "JWT authentication is DISABLED — not suitable for production" |
+| No `BFE_JWT_JWKS_URL` and no `BFE_JWT_HS256_SECRET` and `BFE_AUTH_DISABLED != true` | **Refuse to start.** Log `error`: "No JWT configuration found. Set BFE_JWT_JWKS_URL or BFE_JWT_HS256_SECRET, or set BFE_AUTH_DISABLED=true for development" |
+| `BFE_AUTH_DISABLED=true` | Start with auth disabled. Log `warn` every 60s: "JWT authentication is DISABLED — not suitable for production" |
 | JWKS URL unreachable at boot | Start, but log `warn`. JWKS refresh retries on the cached-refresh schedule. Tokens requiring JWKS validation are rejected until the first successful fetch |
 
 ---
 
-## 13. Api facade validation module (`EvilEngine.Api.Validation`)
+## 13. Api facade validation module (`BfwEngine.Api.Validation`)
 
-**Path:** `apps/api_facade/lib/evil_engine/api/validation.ex`
+**Path:** `apps/api_facade/lib/bfw_engine/api/validation.ex`
 
-All JWT claim checks, lane access checks, and admin override logic are centralized here. **REST controllers do not call this module directly** — they delegate to `EvilEngine.Api` functions that invoke Validation internally. GraphQL and WebSocket adapters follow the same pattern where claim-gated operations exist on the facade.
+All JWT claim checks, lane access checks, and admin override logic are centralized here. **REST controllers do not call this module directly** — they delegate to `BfwEngine.Api` functions that invoke Validation internally. GraphQL and WebSocket adapters follow the same pattern where claim-gated operations exist on the facade.
 
 ### Functions
 
@@ -513,7 +513,7 @@ Admin override (`zeeky_boogie_doog`) bypasses all claim checks in every helper a
 
 ### Plugin `skip_claims` opt-out
 
-The plugin loader (`apps/peripheral_plugins/lib/evil_engine/plugins/loader.ex`) passes `skip_claims: true` on every claim-gated facade closure it constructs (deploy, enable/disable, delete, abort, retry, delete PI, finish/cancel user task, publish message/signal, etc.). Plugins remain inside the operator trust boundary; audit still records the `plugin:<name>` identity on each Api invocation.
+The plugin loader (`apps/peripheral_plugins/lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` on every claim-gated facade closure it constructs (deploy, enable/disable, delete, abort, retry, delete PI, finish/cancel user task, publish message/signal, etc.). Plugins remain inside the operator trust boundary; audit still records the `plugin:<name>` identity on each Api invocation.
 
 ---
 

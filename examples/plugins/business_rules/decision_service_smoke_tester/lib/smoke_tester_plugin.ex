@@ -3,7 +3,7 @@ defmodule Examples.BusinessRules.DecisionServiceSmokeTester.SmokeTesterPlugin do
   Lifecycle plugin that smoke-tests every deployed DMN Decision Service on engine ready.
   """
 
-  @behaviour EvilEngine.Plugin
+  @behaviour BfwEngine.Plugin
 
   alias Examples.BusinessRules.DecisionServiceSmokeTester.{FacadeStore, SmokeTesterWorker}
 

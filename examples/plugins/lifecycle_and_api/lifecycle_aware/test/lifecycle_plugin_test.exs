@@ -1,7 +1,7 @@
 defmodule Examples.Plugins.LifecycleAware.LifecyclePluginTest do
   use ExUnit.Case
 
-  alias EvilEngine.EngineFacade
+  alias BfwEngine.EngineFacade
   alias Examples.Plugins.LifecycleAware.LifecyclePlugin
 
   describe "lifecycle callbacks" do
