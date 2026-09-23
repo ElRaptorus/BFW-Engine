@@ -96,7 +96,7 @@ For automated deployments at startup, set `BFE_SEEDING_DIRECTORY` to a filesyste
 
 ## Linter Gate
 
-An optional deploy-time quality gate checks linter scores embedded in the BPMN XML by external tools (e.g., Evil Studio's linter extension). Configure via `BFE_LINTER_GATE`:
+An optional deploy-time quality gate checks linter scores embedded in the BPMN XML by external tools (e.g., the Bifrost Forge World Studio linter). Configure via `BFE_LINTER_GATE`:
 
 ```bash
 BFE_LINTER_GATE='[{"rulesetId":"bpmn-production-ready","minScorePercent":100,"maxErrors":0}]'

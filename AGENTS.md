@@ -273,9 +273,10 @@ BPMN `implementation` attribute**:
 | `"feel"` | FEEL | `<bpmn:script>` child element | Evaluate an inline FEEL expression |
 | `"dmn"` | DMN | `bfw:decisionRef` | Evaluate a deployed DMN decision table via `DecisionResolver` → `ModelCache` → `Evaluator` |
 
-**Standard BPMN properties:** `implementation` (XML attribute) and `<bpmn:script>`
-(child element) are standard BPMN 2.0 properties. The `<script>` child element
-reuses the same pattern as `<bpmn:scriptTask>`.
+**BPMN properties:** `implementation` (XML attribute) is the standard BPMN 2.0
+attribute. `<bpmn:script>` on a Business Rule Task is an Engine convention that
+reuses the `<bpmn:scriptTask>` child element; it is not part of `tBusinessRuleTask`
+in the BPMN 2.0 XSD.
 
 > Business Rule Tasks exclusively evaluate business rules via FEEL or DMN.
 > Plugins observe BRT execution via engine events and analyze results through

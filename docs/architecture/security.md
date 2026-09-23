@@ -194,7 +194,7 @@ Per-plugin claim sets / per-action allow-deny are not an engine feature. Plugins
 
 **Delegated to the reverse proxy.** The engine itself does not set CORS headers.
 
-Browser-based clients (e.g. Evil Studio) that call the engine's REST / GraphQL /
+Browser-based clients (e.g. Bifrost Forge World Studio) that call the engine's REST / GraphQL /
 WebSocket APIs from a different origin require permissive CORS headers on
 responses. Because the engine already assumes a reverse proxy for TLS
 termination (see Transport Security below), CORS header injection is handled at

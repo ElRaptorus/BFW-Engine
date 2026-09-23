@@ -323,7 +323,7 @@ every other subprocess variant:
   [Retry](retry.md).
 - **Sequential engine-managed without `bfw:activeElements` is rejected at
   deploy time** and flagged by the Studio linter's
-  `adhoc-subprocess-config` rule even before deployment.
+  `adhoc-subprocess-ordering` rule even before deployment.
 - **`completionCondition`'s FEEL bindings are not the standard ones.** Only
   `performedActivities`, `activeCount`, and `totalActivities` are available —
   `token`, `this`, and `context` are **not** bound during this evaluation
