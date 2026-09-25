@@ -97,7 +97,10 @@
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_deep">
-    <bpmndi:BPMNPlane id="BPMNPlane_deep" bpmnElement="transaction_retry_nested_deep">
+    <bpmndi:BPMNPlane id="BPMNPlane_deep" bpmnElement="Collaboration_deep">
+      <bpmndi:BPMNShape id="Shape_Participant_deep" bpmnElement="Participant_deep" isHorizontal="true">
+        <dc:Bounds x="102" y="30" width="966" height="340" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>

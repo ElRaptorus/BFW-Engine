@@ -17,7 +17,7 @@ import os
 import re
 import sys
 import xml.etree.ElementTree as ET
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 
 # ── Element dimensions (px, matching bpmn-js defaults) ──────────
@@ -26,6 +26,7 @@ EVENT_W, EVENT_H = 36, 36
 TASK_W, TASK_H = 100, 80
 GATEWAY_W, GATEWAY_H = 50, 50
 DATA_OBJ_W, DATA_OBJ_H = 36, 50
+DATA_STORE_W, DATA_STORE_H = 50, 50
 
 # ── Layout tuning ───────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ X_SPACING = 160
 Y_SPACING = 100
 BASE_X = 180
 LANE_Y_PAD = 30
+POOL_HEADER_WIDTH = 30
 
 # ── BPMN element type sets ──────────────────────────────────────
 
@@ -95,10 +97,10 @@ class Edge:
 class DataObjRef:
     __slots__ = ("id", "name", "x", "y", "w", "h")
 
-    def __init__(self, nid, name=None):
+    def __init__(self, nid, name=None, size=(DATA_OBJ_W, DATA_OBJ_H)):
         self.id = nid
         self.name = name
-        self.w, self.h = DATA_OBJ_W, DATA_OBJ_H
+        self.w, self.h = size
         self.x = 0
         self.y = 0
 
@@ -145,6 +147,9 @@ class Process:
 
             elif tag == "dataObjectReference" and eid:
                 self.data_refs.append(DataObjRef(eid, child.get("name")))
+
+            elif tag == "dataStoreReference" and eid:
+                self.data_refs.append(DataObjRef(eid, child.get("name"), (DATA_STORE_W, DATA_STORE_H)))
 
             elif tag == "laneSet":
                 for lane_element in child:
@@ -271,12 +276,12 @@ class Process:
 
         # Size lanes to wrap their elements
         if self.lanes:
-            all_nodes_list = list(self.nodes.values())
-            if all_nodes_list:
-                min_left = min(node.cx - node.w / 2 for node in all_nodes_list) - 50
-                max_right = max(node.cx + node.w / 2 for node in all_nodes_list) + 50
-                min_top = min(node.cy - node.h / 2 for node in all_nodes_list) - LANE_Y_PAD
-                max_bottom = max(node.cy + node.h / 2 for node in all_nodes_list) + LANE_Y_PAD
+            boxes = self.content_boxes()
+            if boxes:
+                min_left = min(box[0] for box in boxes) - 50
+                max_right = max(box[2] for box in boxes) + 50
+                min_top = min(box[1] for box in boxes) - LANE_Y_PAD
+                max_bottom = max(box[3] for box in boxes) + LANE_Y_PAD
 
                 if len(self.lanes) == 1:
                     lane = self.lanes[0]
@@ -292,13 +297,39 @@ class Process:
                         lane.w = int(max_right - min_left)
                         lane.h = lane_height
 
-    def generate_di(self, diagram_index=1):
+    def content_boxes(self):
+        boxes = [(node.cx - node.w / 2, node.cy - node.h / 2, node.cx + node.w / 2, node.cy + node.h / 2) for node in self.nodes.values()]
+        return boxes + [(data_ref.x, data_ref.y, data_ref.x + data_ref.w, data_ref.y + data_ref.h) for data_ref in self.data_refs]
+
+    def pool_bounds(self):
+        if self.lanes:
+            left = min(lane.x for lane in self.lanes) - POOL_HEADER_WIDTH
+            top = min(lane.y for lane in self.lanes)
+            right = max(lane.x + lane.w for lane in self.lanes)
+            bottom = max(lane.y + lane.h for lane in self.lanes)
+        else:
+            boxes = self.content_boxes()
+            left = int(min(box[0] for box in boxes)) - 50 - POOL_HEADER_WIDTH
+            top = int(min(box[1] for box in boxes)) - LANE_Y_PAD
+            right = int(max(box[2] for box in boxes)) + 50
+            bottom = int(max(box[3] for box in boxes)) + LANE_Y_PAD
+        return left, top, right - left, bottom - top
+
+    def generate_di(self, diagram_index=1, participant=None):
         lines = []
         diagram_id = f"BPMNDiagram_{diagram_index}"
         plane_id = f"BPMNPlane_{diagram_index}"
+        plane_element = participant[0] if participant else self.id
 
         lines.append(f'  <bpmndi:BPMNDiagram id="{diagram_id}">')
-        lines.append(f'    <bpmndi:BPMNPlane id="{plane_id}" bpmnElement="{self.id}">')
+        lines.append(f'    <bpmndi:BPMNPlane id="{plane_id}" bpmnElement="{plane_element}">')
+
+        if participant:
+            participant_id = participant[1]
+            pool_x, pool_y, pool_width, pool_height = self.pool_bounds()
+            lines.append(f'      <bpmndi:BPMNShape id="Shape_{participant_id}" bpmnElement="{participant_id}" isHorizontal="true">')
+            lines.append(f'        <dc:Bounds x="{pool_x}" y="{pool_y}" width="{pool_width}" height="{pool_height}" />')
+            lines.append(f"      </bpmndi:BPMNShape>")
 
         for lane in self.lanes:
             shape_id = f"Shape_{lane.id}"
@@ -407,6 +438,21 @@ def process_file(filepath):
     except ET.ParseError as error:
         return False, f"XML parse error: {error}"
 
+    participants_by_process = {}
+    for child in root:
+        if local_name(child) == "collaboration":
+            for participant_element in child:
+                process_reference = participant_element.get("processRef")
+                if local_name(participant_element) == "participant" and process_reference:
+                    participants_by_process[process_reference] = (child.get("id"), participant_element.get("id"))
+    # ponytail: multi-participant collaborations keep one plane per process without pools; a shared collaboration plane needs a joint layout.
+    collaboration_counts = Counter(collaboration_id for collaboration_id, _ in participants_by_process.values())
+    participants_by_process = {
+        process_reference: participant
+        for process_reference, participant in participants_by_process.items()
+        if collaboration_counts[participant[0]] == 1
+    }
+
     processes = []
     for child in root:
         if local_name(child) == "process":
@@ -424,7 +470,7 @@ def process_file(filepath):
     for index, process_object in enumerate(processes):
         process_base_y = 200 + vertical_offset
         process_object.layout(process_base_y)
-        diagram_parts.append(process_object.generate_di(index + 1))
+        diagram_parts.append(process_object.generate_di(index + 1, participants_by_process.get(process_object.id)))
 
         all_bottoms = [node.cy + node.h / 2 for node in process_object.nodes.values()]
         if process_object.data_refs:

@@ -85,12 +85,15 @@
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="transaction_happy_path">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="102" y="50" width="776" height="430" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_1" bpmnElement="Tx_1" isExpanded="true">
-        <dc:Bounds x="260" y="80" width="480" height="240" />
+        <dc:Bounds x="260" y="80" width="480" height="330" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_Start" bpmnElement="Tx_Start">
         <dc:Bounds x="292" y="182" width="36" height="36" />
@@ -108,7 +111,7 @@
         <dc:Bounds x="562" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Boundary_Cancel" bpmnElement="Boundary_Cancel">
-        <dc:Bounds x="442" y="302" width="36" height="36" />
+        <dc:Bounds x="660" y="392" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
         <dc:Bounds x="812" y="182" width="36" height="36" />
@@ -133,10 +136,10 @@
         <di:waypoint x="812" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_Cancel" bpmnElement="Flow_Cancel">
-        <di:waypoint x="460" y="338" />
-        <di:waypoint x="460" y="370" />
-        <di:waypoint x="812" y="370" />
-        <di:waypoint x="812" y="318" />
+        <di:waypoint x="678" y="428" />
+        <di:waypoint x="678" y="450" />
+        <di:waypoint x="830" y="450" />
+        <di:waypoint x="830" y="318" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_CompA" bpmnElement="Assoc_CompA">
         <di:waypoint x="440" y="258" />

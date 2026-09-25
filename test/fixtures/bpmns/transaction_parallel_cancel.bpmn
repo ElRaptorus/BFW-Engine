@@ -124,12 +124,15 @@
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="transaction_parallel_cancel">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="102" y="30" width="996" height="450" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_1" bpmnElement="Tx_1" isExpanded="true">
-        <dc:Bounds x="260" y="60" width="700" height="320" />
+        <dc:Bounds x="260" y="60" width="700" height="350" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_Start" bpmnElement="Tx_Start">
         <dc:Bounds x="292" y="192" width="36" height="36" />
@@ -159,7 +162,7 @@
         <dc:Bounds x="802" y="122" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Boundary_Cancel" bpmnElement="Boundary_Cancel">
-        <dc:Bounds x="442" y="362" width="36" height="36" />
+        <dc:Bounds x="880" y="392" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_Cancelled" bpmnElement="End_Cancelled">
         <dc:Bounds x="1032" y="302" width="36" height="36" />
@@ -202,9 +205,9 @@
         <di:waypoint x="1032" y="200" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_Cancel" bpmnElement="Flow_Cancel">
-        <di:waypoint x="460" y="398" />
-        <di:waypoint x="460" y="440" />
-        <di:waypoint x="1050" y="440" />
+        <di:waypoint x="898" y="428" />
+        <di:waypoint x="898" y="450" />
+        <di:waypoint x="1050" y="450" />
         <di:waypoint x="1050" y="338" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>

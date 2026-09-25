@@ -86,7 +86,10 @@
     <bpmn:sequenceFlow id="Flow_OuterJoin" sourceRef="OuterJoin" targetRef="End_1" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ComplexGatewayNestedRegions">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_ComplexGatewayNestedRegions" bpmnElement="Participant_ComplexGatewayNestedRegions" isHorizontal="true">
+        <dc:Bounds x="82" y="80" width="1126" height="290" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
         <dc:Bounds x="112" y="80" width="1096" height="290" />
       </bpmndi:BPMNShape>

@@ -43,7 +43,10 @@
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_child_retry_ca">
-    <bpmndi:BPMNPlane id="BPMNPlane_child_retry_ca" bpmnElement="tx_retry_ca_child">
+    <bpmndi:BPMNPlane id="BPMNPlane_child_retry_ca" bpmnElement="Collaboration_child_retry_ca">
+      <bpmndi:BPMNShape id="Shape_Participant_child_retry_ca" bpmnElement="Participant_child_retry_ca" isHorizontal="true">
+        <dc:Bounds x="102" y="130" width="386" height="140" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_CStart_1" bpmnElement="CStart_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>

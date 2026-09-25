@@ -131,7 +131,10 @@
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="transaction_with_embedded_subprocess">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="102" y="30" width="896" height="430" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="182" width="36" height="36" />
       </bpmndi:BPMNShape>
@@ -151,10 +154,10 @@
         <dc:Bounds x="520" y="152" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_SP_UserTask" bpmnElement="SP_UserTask">
-        <dc:Bounds x="610" y="130" width="100" height="80" />
+        <dc:Bounds x="580" y="130" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_SP_End" bpmnElement="SP_End">
-        <dc:Bounds x="686" y="152" width="36" height="36" />
+        <dc:Bounds x="696" y="152" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Tx_CancelGate" bpmnElement="Tx_CancelGate">
         <dc:Bounds x="470" y="280" width="100" height="80" />
@@ -202,11 +205,11 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SpFlow_1" bpmnElement="SpFlow_1">
         <di:waypoint x="556" y="170" />
-        <di:waypoint x="610" y="170" />
+        <di:waypoint x="580" y="170" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SpFlow_2" bpmnElement="SpFlow_2">
-        <di:waypoint x="710" y="170" />
-        <di:waypoint x="686" y="170" />
+        <di:waypoint x="680" y="170" />
+        <di:waypoint x="696" y="170" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
         <di:waypoint x="860" y="200" />

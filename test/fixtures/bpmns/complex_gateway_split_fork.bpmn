@@ -70,7 +70,10 @@
     <bpmn:sequenceFlow id="Flow_C2" sourceRef="Task_C" targetRef="End_C" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ComplexGatewaySplitFork">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_ComplexGatewaySplitFork" bpmnElement="Participant_ComplexGatewaySplitFork" isHorizontal="true">
+        <dc:Bounds x="82" y="30" width="646" height="340" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
         <dc:Bounds x="112" y="30" width="616" height="340" />
       </bpmndi:BPMNShape>
