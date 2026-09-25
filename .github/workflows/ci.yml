@@ -7,14 +7,14 @@ on:
         description: "Publish Docker image?"
         type: boolean
         default: false
-  # push:
-  #   branches:
-  #     - main
-  #     - develop
-  # pull_request:
-  #   branches:
-  #     - main
-  #     - develop
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -250,7 +250,6 @@ jobs:
     name: Publish Docker image
     needs: [build_and_test, docker]
     if: github.event_name == 'workflow_dispatch' && inputs.publish
-    # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
