@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_1">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="DataStoreAssociation" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="DataStoreAssociation" name="Data Store Association" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Outer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Verify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:dataObject id="DO_Outer" name="Outer Data" />
+    <bpmn:dataObjectReference id="DOR_Outer" dataObjectRef="DO_Outer" />
+    <bpmn:dataStoreReference id="DSR_Outer" name="OuterStoreRef" dataStoreRef="Store_Outer" />
+
+    <bpmn:startEvent id="Start_1" name="Start" />
+
+    <bpmn:scriptTask id="ScriptTask_Outer" name="Read and Write Store" scriptFormat="feel">
+      <bpmn:script>{ outer_value: token.amount }</bpmn:script>
+      <bpmn:dataInputAssociation id="DIA_Outer">
+        <bpmn:sourceRef>DSR_Outer</bpmn:sourceRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="DOA_Outer_Store">
+        <bpmn:targetRef>DSR_Outer</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+      <bpmn:dataOutputAssociation id="DOA_Outer_Object">
+        <bpmn:targetRef>DOR_Outer</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <bpmn:subProcess id="SubProcess_1" name="Sub Process">
+      <bpmn:dataObject id="DO_Inner" name="Inner Data" />
+      <bpmn:dataObjectReference id="DOR_Inner" dataObjectRef="DO_Inner" />
+      <bpmn:dataStoreReference id="DSR_Inner" name="InnerStoreRef" dataStoreRef="Store_Inner" />
+
+      <bpmn:startEvent id="Sub_Start" name="Sub Start" />
+      <bpmn:scriptTask id="Sub_ScriptTask" name="Sub Read and Write Store" scriptFormat="feel">
+        <bpmn:script>{ inner_value: token.outer_value + 1 }</bpmn:script>
+        <bpmn:dataInputAssociation id="Sub_DIA">
+          <bpmn:sourceRef>DSR_Inner</bpmn:sourceRef>
+        </bpmn:dataInputAssociation>
+        <bpmn:dataOutputAssociation id="Sub_DOA_Store">
+          <bpmn:targetRef>DSR_Inner</bpmn:targetRef>
+        </bpmn:dataOutputAssociation>
+        <bpmn:dataOutputAssociation id="Sub_DOA_Object">
+          <bpmn:targetRef>DOR_Inner</bpmn:targetRef>
+        </bpmn:dataOutputAssociation>
+      </bpmn:scriptTask>
+      <bpmn:endEvent id="Sub_End" name="Sub End" />
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_ScriptTask" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Sub_ScriptTask" targetRef="Sub_End" />
+    </bpmn:subProcess>
+
+    <bpmn:scriptTask id="ScriptTask_Verify" name="Verify dataObjects Binding" scriptFormat="feel">
+      <bpmn:script>{ outer_value: dataObjects.DO_Outer.outer_value, verified: true }</bpmn:script>
+      <bpmn:dataOutputAssociation id="DOA_Verify">
+        <bpmn:targetRef>DOR_Outer</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="End" />
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ScriptTask_Outer" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_Outer" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="SubProcess_1" targetRef="ScriptTask_Verify" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="ScriptTask_Verify" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="110" width="1126" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="110" width="1096" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Outer" bpmnElement="ScriptTask_Outer">
+        <dc:Bounds x="250" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_Outer" bpmnElement="DOR_Outer">
+        <dc:Bounds x="262" y="330" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DSR_Outer" bpmnElement="DSR_Outer">
+        <dc:Bounds x="330" y="330" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="420" y="130" width="480" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
+        <dc:Bounds x="440" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_ScriptTask" bpmnElement="Sub_ScriptTask">
+        <dc:Bounds x="520" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DOR_Inner" bpmnElement="DOR_Inner">
+        <dc:Bounds x="532" y="270" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DSR_Inner" bpmnElement="DSR_Inner">
+        <dc:Bounds x="600" y="270" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End" bpmnElement="Sub_End">
+        <dc:Bounds x="660" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Verify" bpmnElement="ScriptTask_Verify">
+        <dc:Bounds x="940" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="1130" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="250" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="350" y="200" />
+        <di:waypoint x="420" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="900" y="200" />
+        <di:waypoint x="940" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="1040" y="200" />
+        <di:waypoint x="1130" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="476" y="220" />
+        <di:waypoint x="520" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_2" bpmnElement="Sub_Flow_2">
+        <di:waypoint x="620" y="220" />
+        <di:waypoint x="660" y="220" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

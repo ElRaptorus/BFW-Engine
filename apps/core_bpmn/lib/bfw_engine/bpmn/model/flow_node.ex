@@ -347,10 +347,14 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.SubProcess do
   declared inside the subprocess scope. These are isolated from the
   parent process — the child PI sees only its own data objects, and
   the parent PI never sees them.
+
+  `data_store_references` carries Data Store references declared inside
+  the subprocess scope, following the same isolation rule.
   """
 
   alias BfwEngine.BPMN.Model.DataObject
   alias BfwEngine.BPMN.Model.DataObjectReference
+  alias BfwEngine.BPMN.Model.DataStoreReference
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.Mapping
   alias BfwEngine.BPMN.Model.SequenceFlow
@@ -374,7 +378,8 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.SubProcess do
           payload_contract: map() | nil,
           result_contract: map() | nil,
           data_objects: [DataObject.t()],
-          data_object_references: [DataObjectReference.t()]
+          data_object_references: [DataObjectReference.t()],
+          data_store_references: [DataStoreReference.t()]
         }
 
   defstruct triggered_by_event: false,
@@ -395,7 +400,8 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.SubProcess do
             payload_contract: nil,
             result_contract: nil,
             data_objects: [],
-            data_object_references: []
+            data_object_references: [],
+            data_store_references: []
 end
 
 # ---------------------------------------------------------------------------

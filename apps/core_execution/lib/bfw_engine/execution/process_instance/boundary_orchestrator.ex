@@ -17,6 +17,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
   alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
@@ -190,7 +191,10 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
           flow_node,
           Map.get(entry, :type_properties, %{}),
           Helpers.resolve_lane_name(accumulator.process_model, flow_node),
-          accumulator.root_process_instance_id
+          accumulator.root_process_instance_id,
+          multi_instance_id: Map.get(entry, :multi_instance_id),
+          iteration_index: Map.get(entry, :iteration_index),
+          was_waiting: entry.state == :waiting
         )
 
       accumulator =
@@ -230,7 +234,10 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
           flow_node,
           Map.get(entry, :type_properties, %{}),
           Helpers.resolve_lane_name(accumulator.process_model, flow_node),
-          accumulator.root_process_instance_id
+          accumulator.root_process_instance_id,
+          multi_instance_id: Map.get(entry, :multi_instance_id),
+          iteration_index: Map.get(entry, :iteration_index),
+          was_waiting: entry.state == :waiting
         )
 
       accumulator =
@@ -264,32 +271,11 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
         flow_node = Helpers.find_flow_node(data, entry.flow_node_id)
-        persist_boundary_fni_finished(boundary_fni_id, triggerer_fni_id)
+        persist_result = persist_boundary_fni_finished(boundary_fni_id, triggerer_fni_id)
 
-        EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
-          flow_node_instance_id: boundary_fni_id,
-          process_instance_id: data.process_instance_id,
-          root_process_instance_id: data.root_process_instance_id,
-          flow_node_id: flow_node.id,
-          flow_node_type: flow_node.type,
-          event_type: Helpers.extract_event_type(flow_node),
-          lane_name: Helpers.resolve_lane_name(data.process_model, flow_node),
-          terminal_state: :finished,
-          triggerer_flow_node_instance_id: triggerer_fni_id,
-          type_properties: %{},
-          occurred_at: DateTime.utc_now()
-        })
-
-        :telemetry.execute(
-          [:bfw_engine, :flow_node_instance, :state_change],
-          %{system_time: System.system_time()},
-          %{
-            flow_node_instance_id: boundary_fni_id,
-            process_instance_id: data.process_instance_id,
-            flow_node_type: flow_node.type,
-            terminal_state: :finished
-          }
-        )
+        if persist_result != {:error, :already_terminal} do
+          publish_finished_boundary(data, boundary_fni_id, triggerer_fni_id, entry, flow_node)
+        end
 
         put_in(data.flow_node_instance_states[boundary_fni_id], %{
           entry
@@ -297,6 +283,38 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
             pid: nil
         })
     end
+  end
+
+  defp publish_finished_boundary(data, boundary_fni_id, triggerer_fni_id, entry, flow_node) do
+    TaskInboxEvents.publish_flow_node_instance_finished(
+      %Event.FlowNodeInstanceFinished{
+        flow_node_instance_id: boundary_fni_id,
+        process_instance_id: data.process_instance_id,
+        root_process_instance_id: data.root_process_instance_id,
+        flow_node_id: flow_node.id,
+        flow_node_type: flow_node.type,
+        event_type: Helpers.extract_event_type(flow_node),
+        lane_name: Helpers.resolve_lane_name(data.process_model, flow_node),
+        terminal_state: :finished,
+        triggerer_flow_node_instance_id: triggerer_fni_id,
+        type_properties: %{},
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        occurred_at: DateTime.utc_now()
+      },
+      flow_node
+    )
+
+    :telemetry.execute(
+      [:bfw_engine, :flow_node_instance, :state_change],
+      %{system_time: System.system_time()},
+      %{
+        flow_node_instance_id: boundary_fni_id,
+        process_instance_id: data.process_instance_id,
+        flow_node_type: flow_node.type,
+        terminal_state: :finished
+      }
+    )
   end
 
   defp create_and_finish_error_boundary_fni(data, boundary_node_id, host_fni_id, payload) do
@@ -339,19 +357,26 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       }
     )
 
-    EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
-      flow_node_instance_id: boundary_fni_id,
-      process_instance_id: data.process_instance_id,
-      root_process_instance_id: data.root_process_instance_id,
-      flow_node_id: boundary_node.id,
-      flow_node_type: boundary_node.type,
-      event_type: event_type,
-      lane_name: lane_name,
-      terminal_state: :finished,
-      triggerer_flow_node_instance_id: nil,
-      type_properties: type_properties,
-      occurred_at: now
-    })
+    host_entry = Map.get(data.flow_node_instance_states, host_fni_id)
+
+    TaskInboxEvents.publish_flow_node_instance_finished(
+      %Event.FlowNodeInstanceFinished{
+        flow_node_instance_id: boundary_fni_id,
+        process_instance_id: data.process_instance_id,
+        root_process_instance_id: data.root_process_instance_id,
+        flow_node_id: boundary_node.id,
+        flow_node_type: boundary_node.type,
+        event_type: event_type,
+        lane_name: lane_name,
+        terminal_state: :finished,
+        triggerer_flow_node_instance_id: nil,
+        type_properties: type_properties,
+        multi_instance_id: host_entry && Map.get(host_entry, :multi_instance_id),
+        iteration_index: host_entry && Map.get(host_entry, :iteration_index),
+        occurred_at: now
+      },
+      boundary_node
+    )
 
     :telemetry.execute(
       [:bfw_engine, :flow_node_instance, :state_change],
@@ -433,16 +458,16 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         changes
       end
 
-    log_fni_persist_error(
+    persist_result =
       PersistenceRetry.with_retry(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, changes)
         end,
         "Boundary FNI finished #{flow_node_instance_id}"
-      ),
-      "Boundary FNI finished",
-      flow_node_instance_id
-    )
+      )
+
+    log_fni_persist_error(persist_result, "Boundary FNI finished", flow_node_instance_id)
+    persist_result
   end
 
   defp build_boundary_token(data, flow_node_instance_id, payload) do
@@ -489,6 +514,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   defp log_fni_persist_error(:ok, _what, _id), do: :ok
   defp log_fni_persist_error({:ok, _}, _what, _id), do: :ok
+  defp log_fni_persist_error({:error, :already_terminal}, _what, _id), do: :ok
 
   defp log_fni_persist_error({:error, reason}, what, flow_node_instance_id) do
     Logger.error("Failed to persist #{what} for FNI #{flow_node_instance_id}: #{inspect(reason)}")

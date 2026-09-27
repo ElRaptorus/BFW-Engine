@@ -4,6 +4,7 @@ defmodule BfwEngine.Execution.DataObjectWriterTest do
   alias BfwEngine.BPMN.Model.DataAssociation
   alias BfwEngine.BPMN.Model.DataObject
   alias BfwEngine.BPMN.Model.DataObjectReference
+  alias BfwEngine.BPMN.Model.DataStoreReference
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
@@ -50,6 +51,7 @@ defmodule BfwEngine.Execution.DataObjectWriterTest do
         %DataObjectReference{id: "DOR_1", data_object_ref: "DO_1"}
       ])
 
+    data_store_references = Keyword.get(opts, :data_store_references, [])
     cache = Keyword.get(opts, :cache, %{})
 
     %State{
@@ -60,6 +62,7 @@ defmodule BfwEngine.Execution.DataObjectWriterTest do
         version: "1.0",
         data_objects: data_objects,
         data_object_references: data_object_references,
+        data_store_references: data_store_references,
         flow_nodes: [],
         sequence_flows: []
       },
@@ -285,6 +288,50 @@ defmodule BfwEngine.Execution.DataObjectWriterTest do
 
       assert {:error, {:unknown_data_object, "DO_MISSING"}} =
                call_prepare(flow_node, "fni-1", %{}, state, handler_context)
+    end
+
+    test "DOA targeting a DataStoreReference produces no intent and evaluates no FEEL" do
+      state =
+        build_state(
+          data_store_references: [
+            %DataStoreReference{id: "DSR_1", data_store_ref: "Store_1"}
+          ]
+        )
+
+      doa = %DataAssociation{
+        id: "DOA_1",
+        target_ref: "DSR_1",
+        value_expression: "###INVALID###"
+      }
+
+      flow_node = build_flow_node([doa])
+      handler_context = build_handler_context(flow_node, state)
+
+      assert {:ok, %{}, []} =
+               call_prepare(flow_node, "fni-1", %{"x" => 1}, state, handler_context)
+    end
+
+    test "mixed object and store DOAs: only the object DOA is written" do
+      state =
+        build_state(
+          data_store_references: [
+            %DataStoreReference{id: "DSR_1", data_store_ref: "Store_1"}
+          ]
+        )
+
+      doas = [
+        %DataAssociation{id: "DOA_object", target_ref: "DOR_1", value_expression: nil},
+        %DataAssociation{id: "DOA_store", target_ref: "DSR_1", value_expression: nil}
+      ]
+
+      flow_node = build_flow_node(doas)
+      handler_context = build_handler_context(flow_node, state)
+
+      assert {:ok, cache, [intent]} =
+               call_prepare(flow_node, "fni-1", %{"x" => 1}, state, handler_context)
+
+      assert cache["DO_1"] == %{"x" => 1}
+      assert intent.data_object_id == "DO_1"
     end
   end
 end

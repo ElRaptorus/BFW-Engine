@@ -13,11 +13,11 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
   import BfwEngine.Execution.ProcessInstance.Helpers
 
-  alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.BoundaryAwareHandler
   alias BfwEngine.Execution.HandlerDispatch
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
+  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
@@ -454,7 +454,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
     adapter = PersistenceAdapter.adapter()
 
-    _retry_result =
+    persist_result =
       PersistenceRetry.with_retry(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
@@ -467,29 +467,33 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
       )
 
     if entry do
-      emit_throw_finished(data, flow_node_instance_id, entry)
+      emit_throw_finished(data, flow_node_instance_id, entry, persist_result)
     end
   end
 
-  defp emit_throw_finished(data, flow_node_instance_id, entry) do
+  defp emit_throw_finished(data, flow_node_instance_id, entry, persist_result) do
     flow_node =
       Enum.find(data.process_model.flow_nodes, fn node -> node.id == entry.flow_node_id end)
 
-    EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
-      flow_node_instance_id: flow_node_instance_id,
-      process_instance_id: data.process_instance_id,
-      root_process_instance_id: data.root_process_instance_id,
-      flow_node_id: entry.flow_node_id,
-      flow_node_type: entry.flow_node_type,
-      event_type: if(flow_node, do: extract_event_type(flow_node)),
-      lane_name: resolve_lane_name(data.process_model, flow_node),
-      terminal_state: :finished,
-      triggerer_flow_node_instance_id: nil,
-      type_properties: entry.type_properties || %{},
-      error_info: nil,
-      multi_instance_id: Map.get(entry, :multi_instance_id),
-      iteration_index: Map.get(entry, :iteration_index),
-      occurred_at: DateTime.utc_now()
-    })
+    TaskInboxEvents.publish_committed_finish(
+      persist_result,
+      %Event.FlowNodeInstanceFinished{
+        flow_node_instance_id: flow_node_instance_id,
+        process_instance_id: data.process_instance_id,
+        root_process_instance_id: data.root_process_instance_id,
+        flow_node_id: entry.flow_node_id,
+        flow_node_type: entry.flow_node_type,
+        event_type: if(flow_node, do: extract_event_type(flow_node)),
+        lane_name: resolve_lane_name(data.process_model, flow_node),
+        terminal_state: :finished,
+        triggerer_flow_node_instance_id: nil,
+        type_properties: entry.type_properties || %{},
+        error_info: nil,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        occurred_at: DateTime.utc_now()
+      },
+      flow_node
+    )
   end
 end

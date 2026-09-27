@@ -61,6 +61,14 @@ defmodule BfwEngine.Execution.Persistence do
   @callback update_process_instance(String.t(), map()) :: :ok | {:error, term()}
   @callback create_flow_node_instance(flow_node_instance_attributes()) ::
               {:ok, map()} | {:error, term()}
+  @doc """
+  Update a flow node instance through the named adapter action.
+
+  `:update_finished` succeeds only while the row is still `active` or
+  `waiting`. A later terminal write returns `{:error, :already_terminal}`
+  and does not change the row. `:update_waiting`, `:retry_reset`, and
+  `:soft_delete` are not guarded.
+  """
   @callback update_flow_node_instance(String.t(), atom(), map()) :: :ok | {:error, term()}
   @doc """
   Returns one page of root-level running process instances (those without a
@@ -127,6 +135,8 @@ defmodule BfwEngine.Execution.Persistence do
   When `write_intents` is `[]`, only the FNI update is performed.
 
   Returns `{:ok, %{writes: [%{write_id, created_at}, ...]}}` on success.
+  When the row is already terminal, returns `{:error, :already_terminal}`
+  and writes neither the flow node instance nor any data objects.
   """
   @callback finish_fni_with_data_objects(
               fni_id :: String.t(),
@@ -288,6 +298,14 @@ defmodule BfwEngine.Execution.Persistence.NoOp do
   def create_flow_node_instance(attributes), do: {:ok, attributes}
 
   @impl true
+  def update_flow_node_instance(_id, :update_finished, _changes) do
+    case Process.get(:bfw_persistence_terminal_write_result) do
+      nil -> :ok
+      result -> result
+    end
+  end
+
+  @impl true
   def update_flow_node_instance(_id, _action, _changes), do: :ok
 
   @impl true
@@ -298,9 +316,15 @@ defmodule BfwEngine.Execution.Persistence.NoOp do
 
   @impl true
   def finish_fni_with_data_objects(_fni_id, _fni_changes, intents) do
-    now = DateTime.utc_now()
-    writes = Enum.map(intents, fn _intent -> %{write_id: "noop", created_at: now} end)
-    {:ok, %{writes: writes}}
+    case Process.get(:bfw_persistence_terminal_write_result) do
+      nil ->
+        now = DateTime.utc_now()
+        writes = Enum.map(intents, fn _intent -> %{write_id: "noop", created_at: now} end)
+        {:ok, %{writes: writes}}
+
+      result ->
+        result
+    end
   end
 
   @impl true
@@ -325,7 +349,12 @@ defmodule BfwEngine.Execution.Persistence.NoOp do
   def count_all_flow_node_instances(_process_instance_id), do: {:ok, 0}
 
   @impl true
-  def get_flow_node_instance_by_id(_fni_id), do: {:error, :not_found}
+  def get_flow_node_instance_by_id(flow_node_instance_id) do
+    case Process.get(:bfw_persisted_flow_node_instances) do
+      %{^flow_node_instance_id => record} -> {:ok, record}
+      _ -> {:error, :not_found}
+    end
+  end
 
   @impl true
   def list_child_process_instances(_parent_process_instance_id), do: {:ok, []}

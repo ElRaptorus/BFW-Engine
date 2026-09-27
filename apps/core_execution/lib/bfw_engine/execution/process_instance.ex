@@ -91,6 +91,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   alias BfwEngine.Execution.ProcessInstance.Resumption
   alias BfwEngine.Execution.ProcessInstance.StandardMode
   alias BfwEngine.Execution.ProcessInstance.State
+  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.FinalToken
@@ -1706,6 +1707,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
          previous_flow_node_instance_ids,
          error_details
        ) do
+    existing_entry = Map.get(data.flow_node_instance_states, flow_node_instance_id)
+
     _persist_result =
       FniLifecycle.transition_to_fatal(
         flow_node_instance_id,
@@ -1714,7 +1717,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
         flow_node,
         %{},
         resolve_lane_name(data.process_model, flow_node),
-        data.root_process_instance_id
+        data.root_process_instance_id,
+        was_waiting: false,
+        multi_instance_id: if(existing_entry, do: Map.get(existing_entry, :multi_instance_id)),
+        iteration_index: if(existing_entry, do: Map.get(existing_entry, :iteration_index))
       )
 
     entry = %{
@@ -2224,7 +2230,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
             flow_node,
             Map.get(entry, :type_properties, %{}),
             lane_name,
-            data.root_process_instance_id
+            data.root_process_instance_id,
+            multi_instance_id: Map.get(entry, :multi_instance_id),
+            iteration_index: Map.get(entry, :iteration_index),
+            was_waiting: entry.state == :waiting
           )
 
         data =
@@ -2256,7 +2265,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
         flow_node,
         Map.get(entry, :type_properties, %{}),
         resolve_lane_name(data.process_model, flow_node),
-        data.root_process_instance_id
+        data.root_process_instance_id,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        was_waiting: entry.state == :waiting
       )
 
     data =
@@ -2283,7 +2295,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
         flow_node,
         Map.get(entry, :type_properties, %{}),
         resolve_lane_name(data.process_model, flow_node),
-        data.root_process_instance_id
+        data.root_process_instance_id,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        was_waiting: entry.state == :waiting
       )
 
     invoke_optional_callback(flow_node, :handle_aborted, [entry])
@@ -2645,7 +2660,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     adapter = PersistenceAdapter.adapter()
 
-    _retry_result =
+    persist_result =
       PersistenceRetry.with_retry(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
@@ -2660,22 +2675,26 @@ defmodule BfwEngine.Execution.ProcessInstance do
     if entry do
       flow_node = find_flow_node(data, entry.flow_node_id)
 
-      EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
-        flow_node_instance_id: flow_node_instance_id,
-        process_instance_id: data.process_instance_id,
-        root_process_instance_id: data.root_process_instance_id,
-        flow_node_id: entry.flow_node_id,
-        flow_node_type: entry.flow_node_type,
-        event_type: if(flow_node, do: extract_event_type(flow_node)),
-        lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
-        terminal_state: :finished,
-        triggerer_flow_node_instance_id: nil,
-        type_properties: Map.get(entry, :type_properties) || %{},
-        error_info: nil,
-        multi_instance_id: Map.get(entry, :multi_instance_id),
-        iteration_index: Map.get(entry, :iteration_index),
-        occurred_at: DateTime.utc_now()
-      })
+      TaskInboxEvents.publish_committed_finish(
+        persist_result,
+        %Event.FlowNodeInstanceFinished{
+          flow_node_instance_id: flow_node_instance_id,
+          process_instance_id: data.process_instance_id,
+          root_process_instance_id: data.root_process_instance_id,
+          flow_node_id: entry.flow_node_id,
+          flow_node_type: entry.flow_node_type,
+          event_type: if(flow_node, do: extract_event_type(flow_node)),
+          lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
+          terminal_state: :finished,
+          triggerer_flow_node_instance_id: nil,
+          type_properties: Map.get(entry, :type_properties) || %{},
+          error_info: nil,
+          multi_instance_id: Map.get(entry, :multi_instance_id),
+          iteration_index: Map.get(entry, :iteration_index),
+          occurred_at: DateTime.utc_now()
+        },
+        flow_node
+      )
     end
   end
 
@@ -2741,7 +2760,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
             flow_node,
             Map.get(entry, :type_properties, %{}),
             resolve_lane_name(accumulator.process_model, flow_node),
-            accumulator.root_process_instance_id
+            accumulator.root_process_instance_id,
+            multi_instance_id: Map.get(entry, :multi_instance_id),
+            iteration_index: Map.get(entry, :iteration_index),
+            was_waiting: entry.state == :waiting
           )
 
         accumulator = unregister_conditional_waiter(accumulator, flow_node_instance_id)
@@ -2790,7 +2812,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
         flow_node,
         Map.get(entry, :type_properties, %{}),
         resolve_lane_name(accumulator.process_model, flow_node),
-        accumulator.root_process_instance_id
+        accumulator.root_process_instance_id,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        was_waiting: entry.state == :waiting
       )
 
     accumulator = unregister_conditional_waiter(accumulator, flow_node_instance_id)
@@ -3480,7 +3505,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
           flow_node,
           Map.get(entry, :type_properties, %{}),
           resolve_lane_name(data.process_model, flow_node),
-          data.root_process_instance_id
+          data.root_process_instance_id,
+          multi_instance_id: Map.get(entry, :multi_instance_id),
+          iteration_index: Map.get(entry, :iteration_index),
+          was_waiting: entry.state == :waiting
         )
 
       invoke_optional_callback(flow_node, :handle_fatal, [entry])
@@ -3506,7 +3534,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
           flow_node,
           Map.get(entry, :type_properties, %{}),
           resolve_lane_name(data.process_model, flow_node),
-          data.root_process_instance_id
+          data.root_process_instance_id,
+          multi_instance_id: Map.get(entry, :multi_instance_id),
+          iteration_index: Map.get(entry, :iteration_index),
+          was_waiting: entry.state == :waiting
         )
 
       invoke_optional_callback(flow_node, :handle_aborted, [entry])
@@ -3541,7 +3572,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
             flow_node,
             Map.get(entry, :type_properties, %{}),
             resolve_lane_name(accumulator.process_model, flow_node),
-            accumulator.root_process_instance_id
+            accumulator.root_process_instance_id,
+            multi_instance_id: Map.get(entry, :multi_instance_id),
+            iteration_index: Map.get(entry, :iteration_index),
+            was_waiting: entry.state == :waiting
           )
 
         accumulator = unregister_conditional_waiter(accumulator, flow_node_instance_id)
@@ -3868,6 +3902,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
     }
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
+           previous_trap_exit = Process.flag(:trap_exit, true)
+
            result =
              BoundaryAwareHandler.wrap_enter(
                handler_module,
@@ -3877,6 +3913,14 @@ defmodule BfwEngine.Execution.ProcessInstance do
              )
 
            dispatch_handler_result(process_instance_pid, context.iteration_fni_id, result)
+
+           receive do
+             {:EXIT, _from, :shutdown} -> :ok
+           after
+             0 -> :ok
+           end
+
+           Process.flag(:trap_exit, previous_trap_exit)
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -3930,7 +3974,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
         context.flow_node,
         %{},
         context.lane_name,
-        data.root_process_instance_id
+        data.root_process_instance_id,
+        multi_instance_id: context.shell_fni_id,
+        iteration_index: context.index,
+        was_waiting: false
       )
 
     entry =
@@ -3971,22 +4018,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     data =
       if entry do
-        flow_node = find_flow_node(data, entry.flow_node_id)
         output_payload = result.output_payload || entry.token.payload
-        type_properties = stringify_keys(result.type_properties || %{})
-
-        _persist_result =
-          persist_mi_iteration_finished(data, iteration_fni_id, output_payload, type_properties)
-
-        emit_mi_iteration_finished(
-          data,
-          iteration_fni_id,
-          entry,
-          flow_node,
-          :finished,
-          type_properties,
-          nil
-        )
 
         put_in(data.flow_node_instance_states[iteration_fni_id], %{
           entry
@@ -4018,7 +4050,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
             flow_node,
             Map.get(entry, :type_properties, %{}),
             resolve_lane_name(data.process_model, flow_node),
-            data.root_process_instance_id
+            data.root_process_instance_id,
+            multi_instance_id: Map.get(entry, :multi_instance_id),
+            iteration_index: Map.get(entry, :iteration_index),
+            was_waiting: entry.state == :waiting
           )
 
         put_in(data.flow_node_instance_states[iteration_fni_id], %{
@@ -4032,54 +4067,6 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:error, reason}})
     %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
-  end
-
-  defp persist_mi_iteration_finished(
-         _data,
-         flow_node_instance_id,
-         output_payload,
-         type_properties
-       ) do
-    adapter = PersistenceAdapter.adapter()
-
-    PersistenceRetry.with_retry(
-      fn ->
-        adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
-          state: "finished",
-          finished_at: DateTime.utc_now(),
-          output_token: to_json_safe(output_payload),
-          type_properties: type_properties
-        })
-      end,
-      "MI iteration FNI finished #{flow_node_instance_id}"
-    )
-  end
-
-  defp emit_mi_iteration_finished(
-         data,
-         flow_node_instance_id,
-         entry,
-         flow_node,
-         terminal_state,
-         type_properties,
-         error_info
-       ) do
-    EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
-      flow_node_instance_id: flow_node_instance_id,
-      process_instance_id: data.process_instance_id,
-      root_process_instance_id: data.root_process_instance_id,
-      flow_node_id: entry.flow_node_id,
-      flow_node_type: entry.flow_node_type,
-      event_type: if(flow_node, do: extract_event_type(flow_node)),
-      lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
-      terminal_state: terminal_state,
-      triggerer_flow_node_instance_id: nil,
-      type_properties: type_properties,
-      error_info: error_info,
-      multi_instance_id: Map.get(entry, :multi_instance_id),
-      iteration_index: Map.get(entry, :iteration_index),
-      occurred_at: DateTime.utc_now()
-    })
   end
 
   defp reattach_iteration_shell(data, shell_fni_id, shell_task_pid) do
@@ -4129,31 +4116,141 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp interrupt_single_iteration(data, iteration_fni_id) do
     entry = Map.get(data.flow_node_instance_states, iteration_fni_id)
-    data = %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
 
-    if entry && entry.state in [:active, :waiting] do
-      if entry.pid, do: Process.exit(entry.pid, :kill)
+    cond do
+      is_nil(entry) or entry.state not in [:active, :waiting] ->
+        data
 
-      flow_node = find_flow_node(data, entry.flow_node_id)
+      entry.pid && Process.alive?(entry.pid) ->
+        shutdown_live_iteration(data, iteration_fni_id, entry)
 
-      _persist_result =
-        FniLifecycle.transition_to_interrupted(
-          iteration_fni_id,
-          data.process_instance_id,
-          :cancelled_by_mi_shell,
-          flow_node,
-          entry.type_properties,
-          resolve_lane_name(data.process_model, flow_node),
-          data.root_process_instance_id
+      entry.state == :active ->
+        # The pid is already dead but the entry is still :active: the
+        # completion result or the crash DOWN is already queued in our
+        # mailbox. Let that message drive the outcome; leave mi_shell_tasks
+        # alone so it is still there when that message is processed.
+        data
+
+      true ->
+        # entry.state == :waiting with a nil/dead pid: a parked iteration with
+        # no in-flight write to protect. Cancel it now.
+        finish_interrupted_iteration(data, iteration_fni_id, entry)
+    end
+  end
+
+  # `:normal`, `:shutdown`, and `:noproc` all mean the iteration task has
+  # left. A queued `{:ok, %FlowNodeResult{}}` means that task already
+  # committed a finish; leave the entry for that message. Any other exit,
+  # including the `:kill` sent after the five-second wait, still attempts
+  # the interrupt write, which loses if the row is already terminal.
+  defp shutdown_live_iteration(data, iteration_fni_id, entry) do
+    case shutdown_and_await_iteration_task(entry.pid) do
+      reason when reason in [:normal, :shutdown, :noproc] ->
+        if queued_ok_iteration_result?(iteration_fni_id) do
+          data
+        else
+          finish_interrupted_iteration(data, iteration_fni_id, entry)
+        end
+
+      _other_reason ->
+        finish_interrupted_iteration(data, iteration_fni_id, entry)
+    end
+  end
+
+  defp queued_ok_iteration_result?(iteration_fni_id) do
+    {:messages, messages} = Process.info(self(), :messages)
+
+    Enum.any?(messages, fn
+      {:fni_result, ^iteration_fni_id, {:ok, %FlowNodeResult{}}} -> true
+      _ -> false
+    end)
+  end
+
+  defp shutdown_and_await_iteration_task(pid) do
+    reference = Process.monitor(pid)
+    Process.exit(pid, :shutdown)
+
+    reason =
+      receive do
+        {:DOWN, ^reference, :process, ^pid, exit_reason} -> exit_reason
+      after
+        5_000 ->
+          Process.exit(pid, :kill)
+
+          receive do
+            {:DOWN, ^reference, :process, ^pid, exit_reason} -> exit_reason
+          after
+            1_000 -> :killed
+          end
+      end
+
+    Process.demonitor(reference, [:flush])
+    reason
+  end
+
+  defp finish_interrupted_iteration(data, iteration_fni_id, entry) do
+    shell_task = Map.get(data.mi_shell_tasks, iteration_fni_id)
+    flow_node = find_flow_node(data, entry.flow_node_id)
+
+    persist_result =
+      FniLifecycle.transition_to_interrupted(
+        iteration_fni_id,
+        data.process_instance_id,
+        :cancelled_by_mi_shell,
+        flow_node,
+        entry.type_properties,
+        resolve_lane_name(data.process_model, flow_node),
+        data.root_process_instance_id,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        was_waiting: entry.state == :waiting
+      )
+
+    case persist_result do
+      {:ok, :already_terminal} ->
+        if queued_ok_iteration_result?(iteration_fni_id) do
+          data
+        else
+          notify_shell_of_persisted_iteration_finish(shell_task, iteration_fni_id)
+
+          %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+        end
+
+      _other ->
+        data = %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+
+        put_in(data.flow_node_instance_states[iteration_fni_id], %{
+          entry
+          | state: :interrupted,
+            pid: nil
+        })
+    end
+  end
+
+  defp notify_shell_of_persisted_iteration_finish(nil, _iteration_fni_id), do: :ok
+
+  defp notify_shell_of_persisted_iteration_finish(
+         {_shell_fni_id, shell_task_pid},
+         iteration_fni_id
+       ) do
+    adapter = PersistenceAdapter.adapter()
+
+    case adapter.get_flow_node_instance_by_id(iteration_fni_id) do
+      {:ok, %{state: state, output_token: output_token}}
+      when state in [:finished, "finished"] ->
+        send(
+          shell_task_pid,
+          {:mi_iteration_completed, iteration_fni_id,
+           {:ok,
+            %FlowNodeResult{
+              output_payload: output_token || %{},
+              next_flow_node_ids: [],
+              metadata: %{persisted: true}
+            }}}
         )
 
-      put_in(data.flow_node_instance_states[iteration_fni_id], %{
-        entry
-        | state: :interrupted,
-          pid: nil
-      })
-    else
-      data
+      _other ->
+        :ok
     end
   end
 

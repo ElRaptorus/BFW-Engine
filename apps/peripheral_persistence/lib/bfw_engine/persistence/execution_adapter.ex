@@ -66,6 +66,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   @impl true
   def update_flow_node_instance(id, action, changes) do
     with {:ok, record} <- Ash.get(FlowNodeInstance, id, domain: @domain, authorize?: false),
+         :ok <- guard_first_terminal_write(record, action),
          {:ok, _updated} <-
            Ash.update(record, changes, domain: @domain, action: action, authorize?: false) do
       :ok
@@ -158,6 +159,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     Repo.transaction(fn ->
       with {:ok, record} <-
              Ash.get(FlowNodeInstance, flow_node_instance_id, domain: @domain, authorize?: false),
+           :ok <- guard_first_terminal_write(record, :update_finished),
            {:ok, _updated, notifications} <-
              Ash.update(record, fni_changes,
                domain: @domain,
@@ -180,6 +182,23 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
         error
     end
   end
+
+  # The first terminal write wins. `active` and `waiting` may move to a
+  # terminal state; a row that is already terminal is left unchanged.
+  defp guard_first_terminal_write(record, :update_finished) do
+    if open_flow_node_state?(record.state) do
+      :ok
+    else
+      {:error, :already_terminal}
+    end
+  end
+
+  defp guard_first_terminal_write(_record, _action), do: :ok
+
+  defp open_flow_node_state?(state) when state in ["active", "waiting", :active, :waiting],
+    do: true
+
+  defp open_flow_node_state?(_state), do: false
 
   defp persist_single_do_write(intent) do
     now = DateTime.utc_now()

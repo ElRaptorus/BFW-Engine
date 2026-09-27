@@ -78,6 +78,28 @@ defmodule BfwEngine.BPMN.Model.DataObjectReference do
   defstruct [:id, :name, :data_object_ref, :data_state]
 end
 
+defmodule BfwEngine.BPMN.Model.DataStoreReference do
+  @moduledoc """
+  A `<bpmn:dataStoreReference>` — the visual diagram element pointing at
+  a `<bpmn:dataStore>`.
+
+  Data Stores are recognised, not modelled: the Engine never touches the
+  store, so `data_store_ref` is not resolved or validated (bpmn-js often
+  omits it), and `<bpmn:dataStore>` itself is ignored by the parser.
+  Associations may target a `DataStoreReference` the same way they target
+  a `DataObjectReference`; the runtime treats such associations as a no-op.
+  """
+
+  @type t :: %__MODULE__{
+          id: String.t(),
+          name: String.t() | nil,
+          data_store_ref: String.t() | nil
+        }
+
+  @enforce_keys [:id]
+  defstruct [:id, :name, :data_store_ref]
+end
+
 defmodule BfwEngine.BPMN.Model.Association do
   @moduledoc """
   A `<bpmn:association>` linking two BPMN elements.

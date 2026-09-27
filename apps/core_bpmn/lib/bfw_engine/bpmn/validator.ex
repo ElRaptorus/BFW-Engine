@@ -381,19 +381,23 @@ defmodule BfwEngine.BPMN.Validator do
   # ---------------------------------------------------------------------------
 
   defp check_data_association_refs(%BpmnProcess{} = process) do
-    do_ref_ids = MapSet.new(process.data_object_references, fn ref -> ref.id end)
+    data_reference_ids =
+      MapSet.new(
+        process.data_object_references ++ process.data_store_references,
+        fn ref -> ref.id end
+      )
 
     Enum.flat_map(process.flow_nodes, fn %FlowNode{id: node_id, type: type} = node ->
       label = type_label(type)
 
       doa_errors =
         Enum.flat_map(node.data_output_associations, fn assoc ->
-          validate_doa_ref(assoc, do_ref_ids, label, node_id)
+          validate_doa_ref(assoc, data_reference_ids, label, node_id)
         end)
 
       dia_errors =
         Enum.flat_map(node.data_input_associations, fn assoc ->
-          validate_dia_ref(assoc, do_ref_ids, label, node_id)
+          validate_dia_ref(assoc, data_reference_ids, label, node_id)
         end)
 
       doa_errors ++ dia_errors
@@ -409,14 +413,15 @@ defmodule BfwEngine.BPMN.Validator do
     ]
   end
 
-  defp validate_doa_ref(%{target_ref: ref} = assoc, do_ref_ids, label, node_id) do
-    if MapSet.member?(do_ref_ids, ref) do
+  defp validate_doa_ref(%{target_ref: ref} = assoc, data_reference_ids, label, node_id) do
+    if MapSet.member?(data_reference_ids, ref) do
       []
     else
       [
         {:dangling_doa_target_ref,
          "#{label} '#{node_id}' has a DataOutputAssociation '#{assoc.id}' " <>
-           "with targetRef='#{ref}' which does not match any DataObjectReference"}
+           "with targetRef='#{ref}' which does not match any DataObjectReference " <>
+           "or DataStoreReference"}
       ]
     end
   end
@@ -426,14 +431,15 @@ defmodule BfwEngine.BPMN.Validator do
     []
   end
 
-  defp validate_dia_ref(%{source_ref: ref} = assoc, do_ref_ids, label, node_id) do
-    if MapSet.member?(do_ref_ids, ref) do
+  defp validate_dia_ref(%{source_ref: ref} = assoc, data_reference_ids, label, node_id) do
+    if MapSet.member?(data_reference_ids, ref) do
       []
     else
       [
         {:dangling_dia_source_ref,
          "#{label} '#{node_id}' has a DataInputAssociation '#{assoc.id}' " <>
-           "with sourceRef='#{ref}' which does not match any DataObjectReference"}
+           "with sourceRef='#{ref}' which does not match any DataObjectReference " <>
+           "or DataStoreReference"}
       ]
     end
   end
@@ -730,8 +736,15 @@ defmodule BfwEngine.BPMN.Validator do
     inner_scope_as_process = %BpmnProcess{
       id: subprocess_id,
       flow_nodes: data.flow_nodes,
-      sequence_flows: data.sequence_flows
+      sequence_flows: data.sequence_flows,
+      data_object_references: data.data_object_references,
+      data_store_references: data.data_store_references
     }
+
+    association_errors =
+      inner_scope_as_process
+      |> check_data_association_refs()
+      |> Enum.map(fn {code, message} -> {code, scope_label <> message} end)
 
     orphan_check =
       if Keyword.get(opts, :skip_orphan_check, false),
@@ -742,6 +755,7 @@ defmodule BfwEngine.BPMN.Validator do
       check_subprocess_essential_properties(scope_label, data),
       check_subprocess_sequence_flow_refs(scope_label, data.sequence_flows, inner_node_ids),
       orphan_check,
+      association_errors,
       check_event_based_gateways(inner_scope_as_process),
       Enum.flat_map(data.flow_nodes, fn %FlowNode{id: id, type: type, type_data: type_data} ->
         validate_type_data(id, type, type_data, inner_node_ids, definitions, scope_label)

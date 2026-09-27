@@ -201,6 +201,64 @@ defmodule BfwEngine.Events.JsonEncodersTest do
       refute Map.has_key?(decoded, "duration_microseconds")
     end
 
+    test "UserTaskCreated encodes flowNodeType for a Manual Task" do
+      event = %Event.UserTaskCreated{
+        flow_node_instance_id: "fni-1",
+        process_instance_id: "pi-1",
+        flow_node_id: "ManualTask_1",
+        flow_node_type: :manual_task,
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["flowNodeType"] == "manual_task"
+    end
+
+    test "UserTaskCreated encodes flowNodeType for a User Task" do
+      event = %Event.UserTaskCreated{
+        flow_node_instance_id: "fni-1",
+        process_instance_id: "pi-1",
+        flow_node_id: "UserTask_1",
+        flow_node_type: :user_task,
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["flowNodeType"] == "user_task"
+    end
+
+    test "UserTaskFinished encodes flowNodeType for a Manual Task" do
+      event = %Event.UserTaskFinished{
+        flow_node_instance_id: "fni-1",
+        process_instance_id: "pi-1",
+        flow_node_id: "ManualTask_1",
+        flow_node_type: :manual_task,
+        outcome: :completed,
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["flowNodeType"] == "manual_task"
+    end
+
+    test "UserTaskFinished encodes flowNodeType for a User Task" do
+      event = %Event.UserTaskFinished{
+        flow_node_instance_id: "fni-1",
+        process_instance_id: "pi-1",
+        flow_node_id: "UserTask_1",
+        flow_node_type: :user_task,
+        outcome: :aborted,
+        occurred_at: @now
+      }
+
+      decoded = encode_and_decode(event)
+
+      assert decoded["flowNodeType"] == "user_task"
+    end
+
     test "UserTaskValidationFailed preserves opaque violations" do
       event = %Event.UserTaskValidationFailed{
         process_instance_id: "pi-1",

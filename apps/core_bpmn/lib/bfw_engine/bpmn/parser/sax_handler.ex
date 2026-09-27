@@ -13,6 +13,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   alias BfwEngine.BPMN.Model.DataContract
   alias BfwEngine.BPMN.Model.DataObject
   alias BfwEngine.BPMN.Model.DataObjectReference
+  alias BfwEngine.BPMN.Model.DataStoreReference
   alias BfwEngine.BPMN.Model.Definitions
   alias BfwEngine.BPMN.Model.ErrorDefinition
   alias BfwEngine.BPMN.Model.EscalationDefinition
@@ -125,6 +126,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
             lanes: reversed_lanes,
             data_objects: Enum.reverse(process.data_objects),
             data_object_references: Enum.reverse(process.data_object_references),
+            data_store_references: Enum.reverse(process.data_store_references),
             associations: Enum.reverse(process.associations),
             extensions: Enum.reverse(process.extensions)
         }
@@ -269,6 +271,25 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     process = %BpmnProcess{
       process
       | data_object_references: [ref | process.data_object_references]
+    }
+
+    {:ok, %{state | current_process: process}}
+  end
+
+  defp handle_start(
+         "dataStoreReference",
+         attributes,
+         %{current_process: %BpmnProcess{} = process} = state
+       ) do
+    ref = %DataStoreReference{
+      id: attributes["id"],
+      name: attributes["name"],
+      data_store_ref: attributes["dataStoreRef"]
+    }
+
+    process = %BpmnProcess{
+      process
+      | data_store_references: [ref | process.data_store_references]
     }
 
     {:ok, %{state | current_process: process}}
@@ -2152,6 +2173,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
       saved_sequence_flows: process.sequence_flows,
       saved_data_objects: process.data_objects,
       saved_data_object_references: process.data_object_references,
+      saved_data_store_references: process.data_store_references,
       saved_default_flows: state.default_flows,
       element_name: element_name
     }
@@ -2161,7 +2183,8 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
       | flow_nodes: [],
         sequence_flows: [],
         data_objects: [],
-        data_object_references: []
+        data_object_references: [],
+        data_store_references: []
     }
 
     {:ok,
@@ -2187,6 +2210,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     child_sequence_flows = Enum.reverse(process.sequence_flows)
     child_data_objects = Enum.reverse(process.data_objects)
     child_data_object_references = Enum.reverse(process.data_object_references)
+    child_data_store_references = Enum.reverse(process.data_store_references)
 
     inner_scope = %BpmnProcess{
       process
@@ -2203,7 +2227,8 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
       | flow_nodes: inner_scope.flow_nodes,
         sequence_flows: inner_scope.sequence_flows,
         data_objects: child_data_objects,
-        data_object_references: child_data_object_references
+        data_object_references: child_data_object_references,
+        data_store_references: child_data_store_references
     }
 
     node = %{saved.subprocess_node | type_data: subprocess_data}
@@ -2213,7 +2238,8 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
       | flow_nodes: [node | saved.saved_flow_nodes],
         sequence_flows: saved.saved_sequence_flows,
         data_objects: saved.saved_data_objects,
-        data_object_references: saved.saved_data_object_references
+        data_object_references: saved.saved_data_object_references,
+        data_store_references: saved.saved_data_store_references
     }
 
     {:ok,

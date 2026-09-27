@@ -28,6 +28,7 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Execution.ProcessInstance.Helpers
   alias BfwEngine.Execution.SequenceFlowResolver
+  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Types.Event
@@ -54,15 +55,7 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
 
       case FniLifecycle.transition_to_waiting(context, type_properties) do
         :ok ->
-          EngineEventBus.publish(%Event.UserTaskCreated{
-            flow_node_instance_id: context.flow_node_instance_id,
-            process_instance_id: context.process_instance_id,
-            root_process_instance_id: context.root_process_instance_id,
-            flow_node_id: flow_node.id,
-            assignees: assignees,
-            lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
-            occurred_at: DateTime.utc_now()
-          })
+          TaskInboxEvents.publish_created(context, flow_node, assignees)
 
           {:wait,
            %FlowNodeResult{
@@ -89,8 +82,6 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
          :ok <- validate_result_contract(type_data.result_contract, mapped_output),
          :ok <- PayloadCap.check(mapped_output, field: :user_task_result),
          {:ok, targets} <- resolve_outgoing(flow_node, context) do
-      emit_user_task_finished(context, flow_node, :completed)
-
       case FniLifecycle.finish(context, flow_node, mapped_output, %{}) do
         {:ok, lifecycle_result} ->
           {:ok,
@@ -118,10 +109,7 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
 
   @spec handle_cancel(FlowNode.t(), map(), term(), HandlerContext.t()) :: :ok
   @impl true
-  def handle_cancel(flow_node, _entry, _reason, context) do
-    emit_user_task_finished(context, flow_node, :aborted)
-    :ok
-  end
+  def handle_cancel(_flow_node, _entry, _reason, _context), do: :ok
 
   # -- Input pipeline: in_mappings -> payload_contract -----------------------
 
@@ -151,18 +139,6 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
     do: MappingHelper.validate_contract(contract, payload)
 
   # -- Events ----------------------------------------------------------------
-
-  defp emit_user_task_finished(context, flow_node, outcome) do
-    EngineEventBus.publish(%Event.UserTaskFinished{
-      flow_node_instance_id: context.flow_node_instance_id,
-      process_instance_id: context.process_instance_id,
-      root_process_instance_id: context.root_process_instance_id,
-      flow_node_id: flow_node.id,
-      outcome: outcome,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
-      occurred_at: DateTime.utc_now()
-    })
-  end
 
   defp emit_user_task_validation_failed(context, flow_node, violations) do
     EngineEventBus.publish(%Event.UserTaskValidationFailed{

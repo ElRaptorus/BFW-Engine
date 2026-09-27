@@ -458,24 +458,35 @@ defmodule BfwEngine.Types.Event.MultiInstanceCompleted do
 end
 
 defmodule BfwEngine.Types.Event.UserTaskCreated do
-  @moduledoc "Emitted when a User Task FNI enters `waiting` state."
+  @moduledoc """
+  Emitted when a User Task or confirming Manual Task FNI enters `waiting`
+  state.
+  """
 
   @type t :: %__MODULE__{
           flow_node_instance_id: String.t(),
           process_instance_id: String.t(),
           root_process_instance_id: String.t() | nil,
           flow_node_id: String.t(),
+          flow_node_type: :user_task | :manual_task,
           assignees: [String.t()],
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
         }
 
-  @enforce_keys [:flow_node_instance_id, :process_instance_id, :flow_node_id, :occurred_at]
+  @enforce_keys [
+    :flow_node_instance_id,
+    :process_instance_id,
+    :flow_node_id,
+    :flow_node_type,
+    :occurred_at
+  ]
   defstruct [
     :flow_node_instance_id,
     :process_instance_id,
     :root_process_instance_id,
     :flow_node_id,
+    :flow_node_type,
     :lane_name,
     :occurred_at,
     assignees: []
@@ -483,13 +494,17 @@ defmodule BfwEngine.Types.Event.UserTaskCreated do
 end
 
 defmodule BfwEngine.Types.Event.UserTaskFinished do
-  @moduledoc "Emitted when a User Task is completed or aborted."
+  @moduledoc """
+  Emitted when a User Task or confirming Manual Task is completed or
+  aborted.
+  """
 
   @type t :: %__MODULE__{
           flow_node_instance_id: String.t(),
           process_instance_id: String.t(),
           root_process_instance_id: String.t() | nil,
           flow_node_id: String.t(),
+          flow_node_type: :user_task | :manual_task,
           outcome: :completed | :aborted,
           lane_name: String.t() | nil,
           occurred_at: DateTime.t()
@@ -499,6 +514,7 @@ defmodule BfwEngine.Types.Event.UserTaskFinished do
     :flow_node_instance_id,
     :process_instance_id,
     :flow_node_id,
+    :flow_node_type,
     :outcome,
     :occurred_at
   ]
@@ -507,6 +523,7 @@ defmodule BfwEngine.Types.Event.UserTaskFinished do
     :process_instance_id,
     :root_process_instance_id,
     :flow_node_id,
+    :flow_node_type,
     :outcome,
     :lane_name,
     :occurred_at

@@ -80,6 +80,8 @@
       </bpmn:extensionElements>
     </bpmn:dataObject>
     <bpmn:dataObjectReference id="DOR_1" name="Order" dataObjectRef="DO_1"/>
+    <bpmn:dataStoreReference id="DSR_1" name="OrderArchive" dataStoreRef="DataStore_1"/>
+    <bpmn:dataStoreReference id="DSR_2" name="UnresolvedStore"/>
   </bpmn:process>
 
   <bpmn:process id="Process_Helper" name="Helper" isExecutable="false">
@@ -130,6 +132,12 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_DOR_1" bpmnElement="DOR_1">
         <dc:Bounds x="162" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DSR_1" bpmnElement="DSR_1">
+        <dc:Bounds x="250" y="300" width="36" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DSR_2" bpmnElement="DSR_2">
+        <dc:Bounds x="338" y="300" width="36" height="50" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
         <di:waypoint x="198" y="200" />

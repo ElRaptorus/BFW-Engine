@@ -239,6 +239,20 @@ defmodule BfwEngine.BPMN.ParserTest do
       assert dor.data_object_ref == "DO_1"
     end
 
+    test "extracts data store references, with and without dataStoreRef", %{
+      definitions: definitions
+    } do
+      [main | _] = definitions.processes
+      assert [dsr_1, dsr_2] = main.data_store_references
+
+      assert dsr_1.id == "DSR_1"
+      assert dsr_1.name == "OrderArchive"
+      assert dsr_1.data_store_ref == "DataStore_1"
+
+      assert dsr_2.id == "DSR_2"
+      assert dsr_2.data_store_ref == nil
+    end
+
     test "DOA with FEEL value_expression parses correctly", %{definitions: definitions} do
       [main | _] = definitions.processes
 
@@ -1246,6 +1260,36 @@ defmodule BfwEngine.BPMN.ParserTest do
 
       assert [inner_dor] = subprocess.type_data.data_object_references
       assert inner_dor.id == "DOR_Inner"
+    end
+
+    test "data store references inside subprocess are scoped to subprocess, not parent" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                        id="Definitions_1">
+        <bpmn:process id="Process_1" isExecutable="true">
+          <bpmn:extensionElements>
+            <bfw:version>1.0.0</bfw:version>
+          </bpmn:extensionElements>
+          <bpmn:dataStoreReference id="DSR_Parent" name="ParentStoreRef" dataStoreRef="DataStore_Parent" />
+          <bpmn:subProcess id="SubProcess_1">
+            <bpmn:dataStoreReference id="DSR_Inner" name="InnerStoreRef" dataStoreRef="DataStore_Inner" />
+            <bpmn:startEvent id="Sub_Start_1" />
+          </bpmn:subProcess>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+
+      assert [parent_dsr] = process.data_store_references
+      assert parent_dsr.id == "DSR_Parent"
+
+      subprocess = Enum.find(process.flow_nodes, &(&1.id == "SubProcess_1"))
+      assert [inner_dsr] = subprocess.type_data.data_store_references
+      assert inner_dsr.id == "DSR_Inner"
     end
 
     test "nested subprocess data objects are isolated per scope level" do

@@ -1747,6 +1747,151 @@ defmodule BfwEngine.BPMN.ValidatorTest do
 
       assert {:ok, _} = Validator.validate(definitions)
     end
+
+    test "DOA and DIA targeting a DataStoreReference pass validation" do
+      definitions =
+        minimal_valid_definitions(
+          process: [
+            data_store_references: [
+              %BfwEngine.BPMN.Model.DataStoreReference{id: "DSR_1", data_store_ref: "Store_1"}
+            ]
+          ],
+          extra_nodes: [
+            %FlowNode{
+              id: "ST1",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script: "1+1"},
+              data_output_associations: [
+                %BfwEngine.BPMN.Model.DataAssociation{id: "DOA_1", target_ref: "DSR_1"}
+              ],
+              data_input_associations: [
+                %BfwEngine.BPMN.Model.DataAssociation{id: "DIA_1", source_ref: "DSR_1"}
+              ]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "ST1"},
+            %SequenceFlow{id: "F3", source_ref: "ST1", target_ref: "E1"}
+          ]
+        )
+
+      assert {:ok, _} = Validator.validate(definitions)
+    end
+
+    test "ref matching neither a DataObjectReference nor a DataStoreReference still dangles" do
+      definitions =
+        minimal_valid_definitions(
+          process: [
+            data_store_references: [
+              %BfwEngine.BPMN.Model.DataStoreReference{id: "DSR_1", data_store_ref: "Store_1"}
+            ]
+          ],
+          extra_nodes: [
+            %FlowNode{
+              id: "ST1",
+              type: :script_task,
+              type_data: %FlowNodeData.ScriptTask{script: "1+1"},
+              data_output_associations: [
+                %BfwEngine.BPMN.Model.DataAssociation{id: "DOA_bad", target_ref: "NONEXISTENT"}
+              ]
+            }
+          ],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "ST1"},
+            %SequenceFlow{id: "F3", source_ref: "ST1", target_ref: "E1"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+      {_, message} = Enum.find(violations, fn {code, _} -> code == :dangling_doa_target_ref end)
+      assert message =~ "does not match any DataObjectReference or DataStoreReference"
+    end
+
+    test "a dangling DOA inside an embedded subprocess names the scope" do
+      inner_task = %FlowNode{
+        id: "Sub_Task_1",
+        type: :script_task,
+        type_data: %FlowNodeData.ScriptTask{script: "1"},
+        data_output_associations: [
+          %BfwEngine.BPMN.Model.DataAssociation{id: "DOA_inner", target_ref: "MissingRef"}
+        ]
+      }
+
+      inner_nodes = [
+        %FlowNode{id: "Sub_Start_1", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        inner_task,
+        %FlowNode{id: "Sub_End_1", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      inner_flows = [
+        %SequenceFlow{id: "Sub_F1", source_ref: "Sub_Start_1", target_ref: "Sub_Task_1"},
+        %SequenceFlow{id: "Sub_F2", source_ref: "Sub_Task_1", target_ref: "Sub_End_1"}
+      ]
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [subprocess_node("SubProcess_1", inner_nodes, inner_flows)],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_1"},
+            %SequenceFlow{id: "F3", source_ref: "SubProcess_1", target_ref: "E1"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {code, _} -> code == :dangling_doa_target_ref end)
+
+      assert message =~ "[in SubProcess 'SubProcess_1']"
+      assert message =~ "does not match any DataObjectReference or DataStoreReference"
+    end
+
+    test "a subprocess DOA targeting that scope's DataStoreReference is accepted" do
+      inner_task = %FlowNode{
+        id: "Sub_Task_1",
+        type: :script_task,
+        type_data: %FlowNodeData.ScriptTask{script: "1"},
+        data_output_associations: [
+          %BfwEngine.BPMN.Model.DataAssociation{id: "DOA_store", target_ref: "DSR_inner"}
+        ]
+      }
+
+      inner_nodes = [
+        %FlowNode{id: "Sub_Start_1", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        inner_task,
+        %FlowNode{id: "Sub_End_1", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      inner_flows = [
+        %SequenceFlow{id: "Sub_F1", source_ref: "Sub_Start_1", target_ref: "Sub_Task_1"},
+        %SequenceFlow{id: "Sub_F2", source_ref: "Sub_Task_1", target_ref: "Sub_End_1"}
+      ]
+
+      subprocess = %FlowNode{
+        id: "SubProcess_1",
+        type: :sub_process,
+        type_data: %FlowNodeData.SubProcess{
+          triggered_by_event: false,
+          flow_nodes: inner_nodes,
+          sequence_flows: inner_flows,
+          data_store_references: [
+            %BfwEngine.BPMN.Model.DataStoreReference{id: "DSR_inner", data_store_ref: "Store_1"}
+          ]
+        }
+      }
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [subprocess],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_1"},
+            %SequenceFlow{id: "F3", source_ref: "SubProcess_1", target_ref: "E1"}
+          ]
+        )
+
+      refute_violation_code(definitions, :dangling_doa_target_ref)
+      refute_violation_code(definitions, :dangling_dia_source_ref)
+    end
   end
 
   # -------------------------------------------------------------------------

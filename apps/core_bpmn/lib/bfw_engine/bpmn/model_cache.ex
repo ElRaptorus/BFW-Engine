@@ -459,6 +459,7 @@ defmodule BfwEngine.BPMN.ModelCache do
       sequence_flows: subprocess_node.type_data.sequence_flows,
       data_objects: subprocess_node.type_data.data_objects,
       data_object_references: subprocess_node.type_data.data_object_references,
+      data_store_references: subprocess_node.type_data.data_store_references,
       lanes: inherited_lanes
     }
   end

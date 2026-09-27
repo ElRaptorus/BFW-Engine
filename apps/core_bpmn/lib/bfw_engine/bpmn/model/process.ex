@@ -10,6 +10,7 @@ defmodule BfwEngine.BPMN.Model.Process do
   alias BfwEngine.BPMN.Model.Association
   alias BfwEngine.BPMN.Model.DataObject
   alias BfwEngine.BPMN.Model.DataObjectReference
+  alias BfwEngine.BPMN.Model.DataStoreReference
   alias BfwEngine.BPMN.Model.Extension
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.Lane
@@ -27,6 +28,7 @@ defmodule BfwEngine.BPMN.Model.Process do
           lanes: [Lane.t()],
           data_objects: [DataObject.t()],
           data_object_references: [DataObjectReference.t()],
+          data_store_references: [DataStoreReference.t()],
           associations: [Association.t()],
           extensions: [Extension.t()],
           correlation_key: String.t() | nil,
@@ -48,6 +50,7 @@ defmodule BfwEngine.BPMN.Model.Process do
     lanes: [],
     data_objects: [],
     data_object_references: [],
+    data_store_references: [],
     associations: [],
     extensions: [],
     inclusive_join_analyses: %{},

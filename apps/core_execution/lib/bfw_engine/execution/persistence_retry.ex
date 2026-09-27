@@ -64,6 +64,9 @@ defmodule BfwEngine.Execution.PersistenceRetry do
       {:ok, _} = success ->
         success
 
+      {:error, :already_terminal} = error ->
+        error
+
       {:error, reason} = error ->
         cond do
           non_retryable?(reason) ->

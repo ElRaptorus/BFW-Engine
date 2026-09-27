@@ -470,5 +470,122 @@ defmodule BfwEngine.Persistence.ExecutionAdapterTest do
       assert count_data_objects(pi_id) == 0
       assert count_data_object_writes(pi_id) == 0
     end
+
+    test "a second finish of an already finished row returns already_terminal",
+         %{fni_id: fni_id, now: now} do
+      finished_changes = %{
+        state: "finished",
+        finished_at: now,
+        output_token: %{"kept" => true},
+        type_properties: %{}
+      }
+
+      assert {:ok, %{writes: []}} =
+               ExecutionAdapter.finish_fni_with_data_objects(fni_id, finished_changes, [])
+
+      later_changes = %{
+        state: "interrupted",
+        finished_at: DateTime.utc_now(),
+        output_token: %{"overwritten" => true},
+        type_properties: %{"interrupted" => true}
+      }
+
+      assert {:error, :already_terminal} =
+               ExecutionAdapter.finish_fni_with_data_objects(fni_id, later_changes, [])
+
+      {:ok, flow_node_instance} = Ash.get(FlowNodeInstance, fni_id, authorize?: false)
+      assert flow_node_instance.state == "finished"
+      assert flow_node_instance.output_token == %{"kept" => true}
+    end
+  end
+
+  describe "update_flow_node_instance/3 terminal guard" do
+    setup do
+      now = DateTime.utc_now()
+      process_instance_id = Ash.UUIDv7.generate()
+
+      ProcessInstance
+      |> Ash.Changeset.for_create(:create, %{
+        id: process_instance_id,
+        process_version_id: Ash.UUIDv7.generate(),
+        state: "running",
+        started_at: now
+      })
+      |> Ash.create!()
+
+      %{process_instance_id: process_instance_id, now: now}
+    end
+
+    test "update_finished on an interrupted row returns already_terminal",
+         %{process_instance_id: process_instance_id, now: now} do
+      flow_node_instance_id = Ash.UUIDv7.generate()
+
+      FlowNodeInstance
+      |> Ash.Changeset.for_create(:create, %{
+        id: flow_node_instance_id,
+        process_instance_id: process_instance_id,
+        flow_node_id: "Task_interrupted",
+        flow_node_type: "user_task",
+        state: "active",
+        started_at: now
+      })
+      |> Ash.create!()
+
+      assert :ok =
+               ExecutionAdapter.update_flow_node_instance(
+                 flow_node_instance_id,
+                 :update_finished,
+                 %{
+                   state: "interrupted",
+                   finished_at: now,
+                   output_token: %{"original" => 1}
+                 }
+               )
+
+      assert {:error, :already_terminal} =
+               ExecutionAdapter.update_flow_node_instance(
+                 flow_node_instance_id,
+                 :update_finished,
+                 %{
+                   state: "fatal",
+                   finished_at: DateTime.utc_now(),
+                   output_token: %{"replaced" => true}
+                 }
+               )
+
+      {:ok, flow_node_instance} =
+        Ash.get(FlowNodeInstance, flow_node_instance_id, authorize?: false)
+
+      assert flow_node_instance.state == "interrupted"
+      assert flow_node_instance.output_token == %{"original" => 1}
+    end
+
+    test "update_waiting on an active row still succeeds",
+         %{process_instance_id: process_instance_id, now: now} do
+      flow_node_instance_id = Ash.UUIDv7.generate()
+
+      FlowNodeInstance
+      |> Ash.Changeset.for_create(:create, %{
+        id: flow_node_instance_id,
+        process_instance_id: process_instance_id,
+        flow_node_id: "Task_waiting",
+        flow_node_type: "user_task",
+        state: "active",
+        started_at: now
+      })
+      |> Ash.create!()
+
+      assert :ok =
+               ExecutionAdapter.update_flow_node_instance(
+                 flow_node_instance_id,
+                 :update_waiting,
+                 %{state: "waiting", type_properties: %{"form" => true}}
+               )
+
+      {:ok, flow_node_instance} =
+        Ash.get(FlowNodeInstance, flow_node_instance_id, authorize?: false)
+
+      assert flow_node_instance.state == "waiting"
+    end
   end
 end

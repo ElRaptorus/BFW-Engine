@@ -58,11 +58,51 @@ defmodule BfwEngine.Execution.DataObjectWriter do
         process_model,
         handler_context
       ) do
+    data_store_reference_ids = build_data_store_reference_index(process_model)
+
+    object_associations =
+      Enum.reject(flow_node.data_output_associations, fn association ->
+        MapSet.member?(data_store_reference_ids, association.target_ref)
+      end)
+
+    evaluate_object_associations(
+      object_associations,
+      flow_node_instance_id,
+      output_payload,
+      data_object_cache,
+      process_model,
+      handler_context
+    )
+  rescue
+    exception ->
+      Logger.error("DataObjectWriter crashed: #{Exception.message(exception)}")
+      {:error, {:data_object_writer_crash, Exception.message(exception)}}
+  end
+
+  defp evaluate_object_associations(
+         [],
+         _flow_node_instance_id,
+         _output_payload,
+         data_object_cache,
+         _process_model,
+         _handler_context
+       ) do
+    {:ok, data_object_cache, []}
+  end
+
+  defp evaluate_object_associations(
+         object_associations,
+         flow_node_instance_id,
+         output_payload,
+         data_object_cache,
+         process_model,
+         handler_context
+       ) do
     do_ref_index = build_data_object_ref_index(process_model)
     data_object_index = build_data_object_index(process_model)
 
     Enum.reduce_while(
-      flow_node.data_output_associations,
+      object_associations,
       {:ok, data_object_cache, []},
       fn association, {:ok, cache, intents} ->
         case evaluate_single_doa(
@@ -83,10 +123,6 @@ defmodule BfwEngine.Execution.DataObjectWriter do
         end
       end
     )
-  rescue
-    exception ->
-      Logger.error("DataObjectWriter crashed: #{Exception.message(exception)}")
-      {:error, {:data_object_writer_crash, Exception.message(exception)}}
   end
 
   defp evaluate_single_doa(
@@ -166,6 +202,10 @@ defmodule BfwEngine.Execution.DataObjectWriter do
       :ok -> :ok
       {:error, :payload_too_large, details} -> {:error, {:payload_too_large, details}}
     end
+  end
+
+  defp build_data_store_reference_index(process_model) do
+    MapSet.new(process_model.data_store_references, fn ref -> ref.id end)
   end
 
   defp build_data_object_ref_index(process_model) do

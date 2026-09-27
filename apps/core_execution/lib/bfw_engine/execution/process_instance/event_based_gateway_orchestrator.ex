@@ -163,7 +163,10 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
         flow_node,
         Map.get(entry, :type_properties, %{}),
         Helpers.resolve_lane_name(data.process_model, flow_node),
-        data.root_process_instance_id
+        data.root_process_instance_id,
+        multi_instance_id: Map.get(entry, :multi_instance_id),
+        iteration_index: Map.get(entry, :iteration_index),
+        was_waiting: entry.state == :waiting
       )
 
     data = %{

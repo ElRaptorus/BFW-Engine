@@ -3,23 +3,32 @@ defmodule BfwEngine.Execution.FniLifecycle do
   FNI state transition functions for handler-owned lifecycle.
 
   Handlers call `finish/4`, `transition_to_waiting/2`, and `park_async/2`
-  during their execution. The PI calls `transition_to_fatal/7`,
-  `transition_to_aborted/7`, `transition_to_error/7`,
-  `transition_to_interrupted/7` for exceptional paths (crash fallback,
-  cascade, error cascade, boundary interrupt).
+  during their execution. The PI calls `transition_to_fatal/8`,
+  `transition_to_aborted/8`, `transition_to_error/8`,
+  `transition_to_interrupted/8` for exceptional paths (crash fallback,
+  cascade, error cascade, boundary interrupt). All four accept a trailing
+  `iteration_context` keyword list (`multi_instance_id:`, `iteration_index:`)
+  so a PI-side termination of a Multi-Instance / Standard Loop iteration FNI
+  carries the same loop identity as a handler-side finish — without it,
+  `TaskInboxEvents` cannot tell an iteration from its shell and drops
+  `UserTaskFinished` for withdrawn iterations.
 
   ## Persistence resilience
 
   All adapter calls are wrapped with `PersistenceRetry.with_retry/3`
-  (bounded exponential backoff, default 5 attempts). On retry exhaustion:
+  (bounded exponential backoff, default 5 attempts), itself wrapped by
+  `with_retry_protected_from_shutdown/2` so a `:shutdown` exit signal
+  arriving mid-write (e.g. an MI iteration Task being interrupted) is
+  deferred until the write completes rather than killing the process with a
+  half-committed state. On retry exhaustion:
 
   - `finish/4` — returns `{:error, {:persist_failed, reason}}`, which
     fatals the FNI at the PI level.
   - `transition_to_waiting/2`, `park_async/2` — return
     `{:error, :persistence_failed}`. Handlers propagate this back to
     the PI, which fatals the FNI and then itself.
-  - `transition_to_fatal/4`, `transition_to_aborted/4`,
-    `transition_to_interrupted/4` — return `{:error, :persistence_failed}`.
+  - `transition_to_fatal/8`, `transition_to_aborted/8`,
+    `transition_to_interrupted/8` — return `{:error, :persistence_failed}`.
     The PI is typically already stopping when these are called; the return
     is available for escalation if needed.
   """
@@ -36,6 +45,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
   alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Event
 
   @fni_state_finished "finished"
@@ -57,7 +67,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
   or `{:error, reason}` on payload cap or DOA evaluation failure.
   """
   @spec finish(HandlerContext.t(), FlowNode.t(), term(), map(), keyword()) ::
-          {:ok, LifecycleResult.t()} | {:error, term()}
+          {:ok, LifecycleResult.t()} | {:ok, :already_terminal} | {:error, term()}
   def finish(context, flow_node, output_payload, type_properties, opts \\ []) do
     case PayloadCap.check(output_payload, field: :fni_output) do
       :ok ->
@@ -80,7 +90,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
   `FlowNodeInstanceFinished` event carries `terminal_state: :error`.
   """
   @spec finish_as_error(HandlerContext.t(), FlowNode.t(), term(), map()) ::
-          {:ok, LifecycleResult.t()} | {:error, term()}
+          {:ok, LifecycleResult.t()} | {:ok, :already_terminal} | {:error, term()}
   def finish_as_error(context, flow_node, output_payload, type_properties) do
     case PayloadCap.check(output_payload, field: :fni_output) do
       :ok ->
@@ -149,9 +159,10 @@ defmodule BfwEngine.Execution.FniLifecycle do
           FlowNode.t() | nil,
           map(),
           String.t() | nil,
-          String.t() | nil
+          String.t() | nil,
+          keyword()
         ) ::
-          :ok | {:error, :persistence_failed}
+          :ok | {:ok, :already_terminal} | {:error, :persistence_failed}
   def transition_to_fatal(
         flow_node_instance_id,
         process_instance_id,
@@ -159,7 +170,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
         flow_node \\ nil,
         existing_type_properties \\ %{},
         lane_name \\ nil,
-        root_process_instance_id \\ nil
+        root_process_instance_id \\ nil,
+        iteration_context \\ []
       ) do
     error_info = Helpers.to_json_safe(normalize_error_info(reason))
     adapter = PersistenceAdapter.adapter()
@@ -170,7 +182,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
       |> Map.merge(%{"error" => true})
 
     result =
-      PersistenceRetry.with_retry(
+      with_retry_protected_from_shutdown(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
             state: @fni_state_fatal,
@@ -182,24 +194,17 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI fatal #{flow_node_instance_id}"
       )
 
-    case result do
-      :ok ->
-        emit_fni_finished(
-          process_instance_id,
-          flow_node_instance_id,
-          flow_node,
-          :fatal,
-          merged_type_properties,
-          error_info,
-          lane_name: lane_name,
-          root_process_instance_id: root_process_instance_id
-        )
-
-        :ok
-
-      {:error, _} ->
-        {:error, :persistence_failed}
-    end
+    complete_terminal_transition(result, fn ->
+      emit_fni_finished(
+        process_instance_id,
+        flow_node_instance_id,
+        flow_node,
+        :fatal,
+        merged_type_properties,
+        error_info,
+        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+      )
+    end)
   end
 
   @doc """
@@ -220,9 +225,10 @@ defmodule BfwEngine.Execution.FniLifecycle do
           FlowNode.t() | nil,
           map(),
           String.t() | nil,
-          String.t() | nil
+          String.t() | nil,
+          keyword()
         ) ::
-          :ok | {:error, :persistence_failed}
+          :ok | {:ok, :already_terminal} | {:error, :persistence_failed}
   def transition_to_aborted(
         flow_node_instance_id,
         process_instance_id,
@@ -230,7 +236,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
         flow_node \\ nil,
         existing_type_properties \\ %{},
         lane_name \\ nil,
-        root_process_instance_id \\ nil
+        root_process_instance_id \\ nil,
+        iteration_context \\ []
       ) do
     adapter = PersistenceAdapter.adapter()
 
@@ -240,7 +247,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
       |> Map.merge(Helpers.stringify_keys(%{aborted: true, reason: reason}))
 
     result =
-      PersistenceRetry.with_retry(
+      with_retry_protected_from_shutdown(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
             state: @fni_state_aborted,
@@ -252,24 +259,17 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI aborted #{flow_node_instance_id}"
       )
 
-    case result do
-      :ok ->
-        emit_fni_finished(
-          process_instance_id,
-          flow_node_instance_id,
-          flow_node,
-          :aborted,
-          %{},
-          nil,
-          lane_name: lane_name,
-          root_process_instance_id: root_process_instance_id
-        )
-
-        :ok
-
-      {:error, _} ->
-        {:error, :persistence_failed}
-    end
+    complete_terminal_transition(result, fn ->
+      emit_fni_finished(
+        process_instance_id,
+        flow_node_instance_id,
+        flow_node,
+        :aborted,
+        %{},
+        nil,
+        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+      )
+    end)
   end
 
   @doc """
@@ -290,9 +290,10 @@ defmodule BfwEngine.Execution.FniLifecycle do
           FlowNode.t() | nil,
           map(),
           String.t() | nil,
-          String.t() | nil
+          String.t() | nil,
+          keyword()
         ) ::
-          :ok | {:error, :persistence_failed}
+          :ok | {:ok, :already_terminal} | {:error, :persistence_failed}
   def transition_to_error(
         flow_node_instance_id,
         process_instance_id,
@@ -300,7 +301,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
         flow_node \\ nil,
         existing_type_properties \\ %{},
         lane_name \\ nil,
-        root_process_instance_id \\ nil
+        root_process_instance_id \\ nil,
+        iteration_context \\ []
       ) do
     error_info = Helpers.to_json_safe(normalize_error_info(reason))
     adapter = PersistenceAdapter.adapter()
@@ -311,7 +313,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
       |> Map.merge(%{"error" => true})
 
     result =
-      PersistenceRetry.with_retry(
+      with_retry_protected_from_shutdown(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
             state: @fni_state_error,
@@ -323,24 +325,17 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI error #{flow_node_instance_id}"
       )
 
-    case result do
-      :ok ->
-        emit_fni_finished(
-          process_instance_id,
-          flow_node_instance_id,
-          flow_node,
-          :error,
-          merged_type_properties,
-          error_info,
-          lane_name: lane_name,
-          root_process_instance_id: root_process_instance_id
-        )
-
-        :ok
-
-      {:error, _} ->
-        {:error, :persistence_failed}
-    end
+    complete_terminal_transition(result, fn ->
+      emit_fni_finished(
+        process_instance_id,
+        flow_node_instance_id,
+        flow_node,
+        :error,
+        merged_type_properties,
+        error_info,
+        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+      )
+    end)
   end
 
   @doc """
@@ -361,9 +356,10 @@ defmodule BfwEngine.Execution.FniLifecycle do
           FlowNode.t() | nil,
           map(),
           String.t() | nil,
-          String.t() | nil
+          String.t() | nil,
+          keyword()
         ) ::
-          :ok | {:error, :persistence_failed}
+          :ok | {:ok, :already_terminal} | {:error, :persistence_failed}
   def transition_to_interrupted(
         flow_node_instance_id,
         process_instance_id,
@@ -371,7 +367,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
         flow_node \\ nil,
         existing_type_properties \\ %{},
         lane_name \\ nil,
-        root_process_instance_id \\ nil
+        root_process_instance_id \\ nil,
+        iteration_context \\ []
       ) do
     adapter = PersistenceAdapter.adapter()
 
@@ -381,7 +378,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
       |> Map.merge(Helpers.stringify_keys(%{interrupted: true, reason: reason}))
 
     result =
-      PersistenceRetry.with_retry(
+      with_retry_protected_from_shutdown(
         fn ->
           adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
             state: @fni_state_interrupted,
@@ -393,24 +390,17 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI interrupted #{flow_node_instance_id}"
       )
 
-    case result do
-      :ok ->
-        emit_fni_finished(
-          process_instance_id,
-          flow_node_instance_id,
-          flow_node,
-          :interrupted,
-          %{},
-          nil,
-          lane_name: lane_name,
-          root_process_instance_id: root_process_instance_id
-        )
-
-        :ok
-
-      {:error, _} ->
-        {:error, :persistence_failed}
-    end
+    complete_terminal_transition(result, fn ->
+      emit_fni_finished(
+        process_instance_id,
+        flow_node_instance_id,
+        flow_node,
+        :interrupted,
+        %{},
+        nil,
+        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+      )
+    end)
   end
 
   # -------------------------------------------------------------------
@@ -505,7 +495,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
     adapter = PersistenceAdapter.adapter()
 
-    case PersistenceRetry.with_retry(
+    case with_retry_protected_from_shutdown(
            fn ->
              adapter.finish_fni_with_data_objects(
                context.flow_node_instance_id,
@@ -515,6 +505,9 @@ defmodule BfwEngine.Execution.FniLifecycle do
            end,
            "FNI finish_as_error+DO atomic #{context.flow_node_instance_id}"
          ) do
+      {:error, :already_terminal} ->
+        {:ok, :already_terminal}
+
       {:ok, %{writes: write_results}} ->
         lane_name = resolve_lane_name(context.process_model, flow_node)
 
@@ -536,7 +529,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
           lane_name: lane_name,
           root_process_instance_id: context.root_process_instance_id,
           multi_instance_id: context.multi_instance_id,
-          iteration_index: context.iteration_index
+          iteration_index: context.iteration_index,
+          was_waiting: false
         )
 
         cache_updates = Map.new(intents, fn intent -> {intent.data_object_id, intent.value} end)
@@ -586,7 +580,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
     adapter = PersistenceAdapter.adapter()
 
-    case PersistenceRetry.with_retry(
+    case with_retry_protected_from_shutdown(
            fn ->
              adapter.finish_fni_with_data_objects(
                context.flow_node_instance_id,
@@ -596,6 +590,9 @@ defmodule BfwEngine.Execution.FniLifecycle do
            end,
            "FNI finish+DO atomic #{context.flow_node_instance_id}"
          ) do
+      {:error, :already_terminal} ->
+        {:ok, :already_terminal}
+
       {:ok, %{writes: write_results}} ->
         lane_name = resolve_lane_name(context.process_model, flow_node)
 
@@ -644,7 +641,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
   defp persist_fni_waiting(flow_node_instance_id, type_properties) do
     adapter = PersistenceAdapter.adapter()
 
-    case PersistenceRetry.with_retry(
+    case with_retry_protected_from_shutdown(
            fn ->
              adapter.update_flow_node_instance(flow_node_instance_id, :update_waiting, %{
                state: @fni_state_waiting,
@@ -656,6 +653,54 @@ defmodule BfwEngine.Execution.FniLifecycle do
       :ok -> :ok
       {:error, _} -> {:error, :persistence_failed}
     end
+  end
+
+  # Shields a terminal/waiting-state database write from a `:shutdown` exit
+  # signal sent to the calling process while the write is in flight (e.g. an
+  # MI iteration Task being interrupted mid-write). Trapping exits only for
+  # the duration of the retry means `:shutdown` is queued as a harmless
+  # message instead of killing the process before the write commits; `:kill`
+  # is unaffected and still terminates immediately. The previous trap_exit
+  # flag is restored, and at most one queued `{:EXIT, _, :shutdown}` is
+  # drained so it does not linger in the caller's mailbox.
+  defp with_retry_protected_from_shutdown(retry_function, description) do
+    previous_trap_exit = Process.flag(:trap_exit, true)
+
+    try do
+      PersistenceRetry.with_retry(retry_function, description)
+    after
+      Process.flag(:trap_exit, previous_trap_exit)
+
+      receive do
+        {:EXIT, _pid, :shutdown} -> :ok
+      after
+        0 -> :ok
+      end
+    end
+  end
+
+  defp complete_terminal_transition(result, emit) when is_function(emit, 0) do
+    case result do
+      :ok ->
+        emit.()
+        :ok
+
+      {:error, :already_terminal} ->
+        {:ok, :already_terminal}
+
+      {:error, _reason} ->
+        {:error, :persistence_failed}
+    end
+  end
+
+  defp terminal_emit_opts(iteration_context, lane_name, root_process_instance_id) do
+    [
+      lane_name: lane_name,
+      root_process_instance_id: root_process_instance_id,
+      multi_instance_id: Keyword.get(iteration_context, :multi_instance_id),
+      iteration_index: Keyword.get(iteration_context, :iteration_index),
+      was_waiting: Keyword.get(iteration_context, :was_waiting, false)
+    ]
   end
 
   defp emit_fni_finished(
@@ -679,22 +724,28 @@ defmodule BfwEngine.Execution.FniLifecycle do
         Helpers.extract_event_type(flow_node)
       end
 
-    EngineEventBus.publish(%Event.FlowNodeInstanceFinished{
-      flow_node_instance_id: flow_node_instance_id,
-      process_instance_id: process_instance_id,
-      root_process_instance_id: root_process_instance_id,
-      flow_node_id: flow_node_id,
-      flow_node_type: flow_node_type,
-      event_type: event_type,
-      lane_name: lane_name,
-      terminal_state: terminal_state,
-      triggerer_flow_node_instance_id: triggerer_fni_id,
-      type_properties: type_properties,
-      error_info: Helpers.sanitize_error_info(error_info),
-      multi_instance_id: Keyword.get(emit_opts, :multi_instance_id),
-      iteration_index: Keyword.get(emit_opts, :iteration_index),
-      occurred_at: DateTime.utc_now()
-    })
+    was_waiting = Keyword.get(emit_opts, :was_waiting, terminal_state == :finished)
+
+    TaskInboxEvents.publish_flow_node_instance_finished(
+      %Event.FlowNodeInstanceFinished{
+        flow_node_instance_id: flow_node_instance_id,
+        process_instance_id: process_instance_id,
+        root_process_instance_id: root_process_instance_id,
+        flow_node_id: flow_node_id,
+        flow_node_type: flow_node_type,
+        event_type: event_type,
+        lane_name: lane_name,
+        terminal_state: terminal_state,
+        triggerer_flow_node_instance_id: triggerer_fni_id,
+        type_properties: type_properties,
+        error_info: Helpers.sanitize_error_info(error_info),
+        multi_instance_id: Keyword.get(emit_opts, :multi_instance_id),
+        iteration_index: Keyword.get(emit_opts, :iteration_index),
+        occurred_at: DateTime.utc_now()
+      },
+      flow_node,
+      was_waiting: was_waiting
+    )
 
     :telemetry.execute(
       [:bfw_engine, :flow_node_instance, :state_change],
