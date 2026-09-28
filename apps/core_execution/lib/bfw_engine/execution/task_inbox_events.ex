@@ -115,23 +115,21 @@ defmodule BfwEngine.Execution.TaskInboxEvents do
   Publishes `event` when the terminal write committed.
 
   `{:error, :already_terminal}` means a later `:update_finished` lost: the
-  row was left unchanged, so nothing is published.
+  row was left unchanged, so nothing is published. Any other error means the
+  write did not commit, so nothing is published either.
   """
   @spec publish_committed_finish(
           :ok | {:ok, term()} | {:error, term()},
           Event.FlowNodeInstanceFinished.t(),
           FlowNode.t() | nil
         ) :: :ok
-  def publish_committed_finish({:error, :already_terminal}, _event, _flow_node), do: :ok
-
   def publish_committed_finish(:ok, event, flow_node),
     do: publish_written_finish(event, flow_node)
 
   def publish_committed_finish({:ok, _value}, event, flow_node),
     do: publish_written_finish(event, flow_node)
 
-  def publish_committed_finish({:error, _reason}, event, flow_node),
-    do: publish_written_finish(event, flow_node)
+  def publish_committed_finish({:error, _reason}, _event, _flow_node), do: :ok
 
   defp publish_written_finish(event, flow_node) do
     publish_flow_node_instance_finished(event, flow_node)

@@ -172,6 +172,65 @@ BRT DMN `typeProperties` fields (see `docs/architecture/dmn.md` §`type_properti
 
 The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/conformance/dmn-parser-conformance.test.ts`. Snapshot JSON files are generated from the Elixir `core_dmn` parser via `scripts/generate-dmn-parser-snapshots.exs`. This ensures the TypeScript and Elixir parsers produce structurally equivalent output for all DMN fixtures.
 
+## Elixir Client
+
+`packages/elixir/bfw_engine_client/` (app `:bfw_engine_client`, module namespace `BfwEngine.Client`) is a standalone Elixir client for host applications — such as a Fabricator-generated Phoenix app — that embed the Engine as an external service. It is not part of the umbrella and not published to Hex in v1; the umbrella root depends on it only as a `:test`-only path dependency (`packages/elixir/bfw_engine_client`) so its integration tests can run against a live endpoint inside the existing test suite.
+
+### Package layout
+
+| Path | Contents |
+|------|----------|
+| `mix.exs`, `mix.lock`, `.formatter.exs`, `.credo.exs`, `.gitignore` | Standalone project config. Dependencies: `req`, `jason`, `slipstream`; `igniter` optional (used only by the installer). |
+| `lib/bfw_engine/client.ex` | `BfwEngine.Client.new/1` builds an immutable `%BfwEngine.Client{base_url, token, req_options}` around `Req`; `token` is a string or a zero-arity function resolved fresh on every request. No process, no supervision tree, no global state — the struct is passed explicitly to every resource module. |
+| `lib/bfw_engine/client/{processes,process_instances,user_tasks,events,adhoc_subprocesses,graphql}.ex` | Resource modules, one per operation group (see table below). |
+| `lib/bfw_engine/client/wire.ex` | `put_if_present/3` for building request bodies; `decode_type_properties/1` / `normalize_flow_node_instance/1` for the GraphQL `typeProperties` string (see below). |
+| `lib/bfw_engine/client/error.ex` | `BfwEngine.Client.Error` exception. |
+| `lib/bfw_engine/client/notifications.ex` | Slipstream WebSocket client. |
+| `lib/mix/tasks/bfw_engine_client.install.ex` | Igniter installer task. |
+| `README.md` | Installation, configuration, token model, operation table, error reasons, event message shapes — the how-to; not duplicated here. |
+
+### Operations
+
+| Client module | Operation | Wire |
+|---|---|---|
+| `Processes` | `list/1` | `GET /processes` |
+| `Processes` | `start/3` — body is `startEventId`, `payload`, `context`, `businessKey` only; there is **no** version field, the Engine starts the latest enabled version | `POST /processes/:model_id/start` |
+| `ProcessInstances` | `get/2` | GraphQL `getProcessInstance` |
+| `ProcessInstances` | `abort/3` | `PUT /process-instances/:id/abort` |
+| `ProcessInstances` | `waiting_catches/2` | GraphQL `flowNodeInstances` filtered by `processInstanceId`, `state`, `flowNodeType` |
+| `UserTasks` | `list_waiting/1` | GraphQL `flowNodeInstances` filtered by `state = "waiting"`, `flowNodeType in [...]` |
+| `UserTasks` | `finish/3` (also confirms Manual Tasks), `cancel/3` | `PUT /user-tasks/:id/finish`, `PUT /user-tasks/:id/cancel` |
+| `Events` | `trigger_message/3`, `trigger_signal/2`, `trigger_escalation/2`, `trigger_timer/2` | `POST /messages/:name/trigger`, `/signals/:name/trigger`, `/escalations/:code/trigger`, `/timer-events/:id/trigger` |
+| `AdhocSubprocesses` | `activities/2`, `activate/3`, `complete/2`, `status/2` | the four `/adhoc-subprocesses/:id/…` routes (child PI ID, not the shell FNI ID) |
+| `Graphql` | `query/3` | `POST /api/v1/graphql` |
+| `Notifications` | `subscribe/2` for `user_tasks:pending`, `process_instance:<id>` | `/socket/websocket`, event `engine_event` |
+
+GraphQL filters are **strings** (`"waiting"`, `"user_task"`, `"intermediate_catch_event"`, `"boundary_event"`, `"receive_task"`), not enums; the flow-node-type `in` filter takes `[String!]`, the process instance id filter takes `ID`. Message and signal **start** events and event-subprocess starts have no flow node instance; event-based-gateway branches appear as ordinary waiting catch FNIs. Waiting catch `typeProperties` (snake_case, opaque) carry message `message_name` / `expected_correlation_value`, signal `signal_name`, timer `timer_ref` / `fire_at`; waiting user/manual tasks carry `form_schema`, `form_actions`, and the other handler fields already stored on the FNI.
+
+### `typeProperties` on GraphQL
+
+AshGraphql serializes the `:map`-typed `typeProperties` attribute as a JSON-encoded **string** on the GraphQL wire (REST already returns a native map). `BfwEngine.Client.Wire.normalize_flow_node_instance/1` decodes that string into a map for every `flowNodeInstances` result so callers see the same shape regardless of transport; it does not rewrite the (snake_case) inner keys.
+
+### Error mapping
+
+`BfwEngine.Client.Error` is the one exception raised across the client. `reason` is resolved from a compile-time table copied from the TypeScript client's `packages/js/client/src/errors/error-mapper.ts` (domain code in `body.error` first), then an HTTP status fallback, else `:engine_error`. GraphQL `errors[]` in a 200 response go through the same table via `extensions.code`. There is no `String.to_atom/1` on server-provided data — every other response stays a string-keyed map, unmodified from the wire.
+
+### `Notifications`
+
+One `BfwEngine.Client.Notifications` Slipstream process per identity — the inbox topic (`user_tasks:pending`) is lane-filtered per token, so one process per token keeps that filtering correct. It joins `user_tasks:pending` and `process_instance:<id>` topics, resolving the client (and therefore the token) again on every connect. `subscribe/2` returns `:ok` only after that join succeeds, or after a rejection has already been delivered as `{:bfw_engine_subscription_error, topic, reason}`. A second subscriber that arrives while the join is still in flight waits for the same result; a subscribe of a topic that is already joined returns immediately. Events arrive at subscribers as `{:bfw_engine_event, topic, envelope}`; a rejected join arrives as `{:bfw_engine_subscription_error, topic, reason}`.
+
+### Installer
+
+`mix bfw_engine_client.install` (an `Igniter.Mix.Task`) wires the host app's config and supervision tree. Environment variables: `BFE_ENGINE_URL` (default `http://localhost:4100`), `BFE_ENGINE_TOKEN`; overridable via `--base-url-env` / `--token-env`. Idempotent — re-running changes nothing.
+
+### Quality wiring
+
+The package has its own `quality` alias (compile with warnings as errors, format check, `credo --strict`, `dialyzer`, `docs --warnings-as-errors`, `test --cover` at a 90 % threshold). The Engine root `mix.exs` declares `{:bfw_engine_client, path: "packages/elixir/bfw_engine_client", only: :test}`; its `setup` alias runs `mix deps.get` inside the package, and its `quality` alias runs the package's `mix quality` through `run_client_quality/1` — a nested `System.cmd("mix", ["quality"], cd: …)` following the same pattern as `run_load_suite/2` — positioned after `docs --warnings-as-errors` and before `test.coverdata`. `.github/workflows/ci.yml` adds explicit steps for the package's dependencies, `mix deps.audit`, and `mix quality`, plus its own Dialyzer PLT cache.
+
+### Testing
+
+Package unit tests use `Req.Test`, `Slipstream.SocketTest`, and `Igniter.Test` — see `docs/architecture/testing.md` for the Bandit-listener harness used by the client's integration tests.
+
 ## CI/CD
 
 `.github/workflows/packages-ci.yml` publishes `@elraptorus/bfw_engine_sdk` and `@elraptorus/bfw_engine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry). All jobs pin `actions/setup-node` to Node.js 24.20. First-party packages declare `engines.node` `>=24.20.0`.

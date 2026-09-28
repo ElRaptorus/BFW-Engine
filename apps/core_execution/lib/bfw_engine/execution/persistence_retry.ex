@@ -2,10 +2,11 @@ defmodule BfwEngine.Execution.PersistenceRetry do
   @moduledoc """
   Bounded retry with exponential backoff for persistence adapter calls.
 
-  Wraps any `() -> :ok | {:ok, term()} | {:error, term()}` function and
-  retries on `{:error, _}` return values with exponential backoff plus
-  jitter. Successful returns (`:ok`, `{:ok, _}`) are passed through
-  immediately.
+  Wraps any `() -> :ok | {:ok, term()} | {:ok, term(), term()} | {:error, term()}`
+  function and retries on `{:error, _}` return values with exponential
+  backoff plus jitter. Successful returns (`:ok`, `{:ok, _}`, `{:ok, _, _}`)
+  are passed through immediately. The three-element form is the terminal
+  flow-node write (`finish_flow_node_instance/2`).
 
   ## Configuration
 
@@ -38,10 +39,10 @@ defmodule BfwEngine.Execution.PersistenceRetry do
   require Logger
 
   @spec with_retry(
-          (-> :ok | {:ok, term()} | {:error, term()}),
+          (-> :ok | {:ok, term()} | {:ok, term(), term()} | {:error, term()}),
           String.t(),
           keyword()
-        ) :: :ok | {:ok, term()} | {:error, term()}
+        ) :: :ok | {:ok, term()} | {:ok, term(), term()} | {:error, term()}
   def with_retry(fun, label, opts \\ []) do
     max_attempts =
       Keyword.get_lazy(opts, :max_attempts, fn ->
@@ -60,6 +61,9 @@ defmodule BfwEngine.Execution.PersistenceRetry do
     case fun.() do
       :ok ->
         :ok
+
+      {:ok, _, _} = success ->
+        success
 
       {:ok, _} = success ->
         success

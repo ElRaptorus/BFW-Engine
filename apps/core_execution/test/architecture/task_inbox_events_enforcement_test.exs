@@ -8,6 +8,9 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
   Every other call site must route through it so `UserTaskFinished` is
   derived consistently for every path that ends an inbox task.
 
+  `UserTaskCreated` and `UserTaskFinished` are published only by
+  `TaskInboxEvents`; that is checked across every umbrella app's `lib/`.
+
   This is a file-scan test, not a runtime check. A string scan catches the
   fully qualified call, and an AST walk catches the same call through an alias.
   """
@@ -15,6 +18,7 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
   use ExUnit.Case, async: true
 
   @core_execution_lib Path.expand("../../lib", __DIR__)
+  @umbrella_apps Path.expand("../../..", __DIR__)
 
   @forbidden_pattern ~r/EngineEventBus\.publish\(%Event\.FlowNodeInstanceFinished\{/
 
@@ -60,6 +64,20 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
     end
   end
 
+  test "no app publishes UserTaskCreated or UserTaskFinished outside TaskInboxEvents" do
+    violations =
+      @umbrella_apps
+      |> Path.join("*/lib/**/*.ex")
+      |> Path.wildcard()
+      |> Enum.reject(&allowed_file?/1)
+      |> Enum.filter(&direct_publish?(File.read!(&1), [:UserTaskCreated, :UserTaskFinished]))
+      |> Enum.map(&Path.relative_to(&1, @umbrella_apps))
+
+    assert violations == [],
+           "UserTaskCreated / UserTaskFinished must be published only by TaskInboxEvents:\n" <>
+             Enum.join(violations, "\n")
+  end
+
   test "the walker fails on an aliased publish and passes on TaskInboxEvents" do
     aliased = """
     defmodule Example do
@@ -83,6 +101,9 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
 
     assert direct_finished_publish?(aliased)
     refute direct_finished_publish?(allowed)
+
+    inbox_event = String.replace(aliased, "FlowNodeInstanceFinished", "UserTaskFinished")
+    assert direct_publish?(inbox_event, [:UserTaskCreated, :UserTaskFinished])
   end
 
   defp ast_violations(path) do
@@ -93,7 +114,10 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
     end
   end
 
-  defp direct_finished_publish?(source) do
+  defp direct_finished_publish?(source),
+    do: direct_publish?(source, [:FlowNodeInstanceFinished])
+
+  defp direct_publish?(source, struct_names) do
     quoted = Code.string_to_quoted!(source)
     aliases = collect_aliases(quoted)
 
@@ -102,7 +126,8 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
         {{:., _, [{:__aliases__, _, name_parts}, :publish]}, _, [first_argument | _]}, found ->
           resolved = resolve_alias(name_parts, aliases)
 
-          if List.last(resolved) == :EngineEventBus and finished_struct?(first_argument) do
+          if List.last(resolved) == :EngineEventBus and
+               event_struct?(first_argument, struct_names) do
             {first_argument, true}
           else
             {first_argument, found}
@@ -141,11 +166,11 @@ defmodule BfwEngine.Execution.Architecture.TaskInboxEventsEnforcementTest do
     end
   end
 
-  defp finished_struct?({:%, _, [{:__aliases__, _, parts}, _fields]}) do
-    List.last(parts) == :FlowNodeInstanceFinished
+  defp event_struct?({:%, _, [{:__aliases__, _, parts}, _fields]}, struct_names) do
+    List.last(parts) in struct_names
   end
 
-  defp finished_struct?(_other), do: false
+  defp event_struct?(_other, _struct_names), do: false
 
   defp list_ex_files(dir) do
     dir

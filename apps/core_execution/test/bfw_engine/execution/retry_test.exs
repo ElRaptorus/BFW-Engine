@@ -105,6 +105,14 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
         @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
+        @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
@@ -223,6 +231,14 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
         @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
+        @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
@@ -337,6 +353,14 @@ defmodule BfwEngine.Execution.RetryTest do
         def create_flow_node_instance(attributes), do: {:ok, attributes}
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
+        @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
         @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
@@ -457,6 +481,14 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
         @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
+        @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
@@ -562,6 +594,14 @@ defmodule BfwEngine.Execution.RetryTest do
         def create_flow_node_instance(attributes), do: {:ok, attributes}
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
+        @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
         @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
@@ -691,6 +731,14 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
         @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
+        @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
@@ -809,6 +857,14 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
         @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
+        @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
@@ -914,6 +970,15 @@ defmodule BfwEngine.Execution.RetryTest do
         def create_flow_node_instance(attributes), do: {:ok, attributes}
         @impl true
         def update_flow_node_instance(_, _, _), do: :ok
+
+        @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
         @impl true
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true

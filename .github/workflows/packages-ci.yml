@@ -44,6 +44,9 @@ jobs:
       - name: Unit tests
         run: pnpm --filter @elraptorus/bfw_engine_sdk --filter @elraptorus/bfw_engine_client run test:unit
 
+      - name: Parser conformance
+        run: pnpm --filter @elraptorus/bfw_engine_sdk run test:conformance
+
   integration:
     name: Integration Tests
     needs: lint-build-unit
@@ -59,6 +62,19 @@ jobs:
           POSTGRES_DB: bfw_engine_dev
         ports:
           - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U bfw_engine"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+      postgres-test:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bfw_engine
+          POSTGRES_PASSWORD: bfw_engine
+          POSTGRES_DB: bfw_engine_test
+        ports:
+          - 5543:5432
         options: >-
           --health-cmd="pg_isready -U bfw_engine"
           --health-interval=5s
@@ -182,6 +198,16 @@ jobs:
       - name: Stop engine
         if: always()
         run: _build/prod/rel/bfw_engine/bin/bfw_engine stop 2>/dev/null || true
+
+      - name: Release inclusion test
+        env:
+          MIX_ENV: test
+        timeout-minutes: 40
+        run: |
+          mix deps.get
+          mix ecto.create
+          mix ecto.migrate
+          mix test.release
 
   publish:
     name: Publish to GitHub Packages

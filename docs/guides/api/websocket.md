@@ -24,7 +24,7 @@ When `BFE_AUTH_DISABLED=true`, the token is not required and a synthetic anonymo
 |-------|---------|---------------|
 | `engine:events` | Engine-level events plus PI-scoped events filtered at dispatch | Any authenticated user may join. PI-level events require §5.1 visibility (starter match, laneless FNI, or a matching lane). FNI-originating events require `laneName` to be `null` or in the subscriber's lanes. |
 | `process_instance:<id>` | Events for one process instance | Join requires §5.1 PI visibility. PI-level events always deliver after a successful join. FNI events are lane-filtered. |
-| `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` inbox | Any authenticated user may join. Dispatch applies the same FNI lane rule. |
+| `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` inbox — carries both User Tasks and confirming Manual Tasks, distinguished by `flowNodeType` (`user_task` \| `manual_task`) | Any authenticated user may join. Dispatch applies the same FNI lane rule. |
 
 `process:<model_id>` is not implemented.
 

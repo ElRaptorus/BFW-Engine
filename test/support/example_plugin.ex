@@ -124,8 +124,40 @@ defmodule BfwEngine.Test.ExamplePlugin.AsyncParkHandler do
   @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
   @impl true
-  def handle_enter(_flow_node, _token, context) do
+  def handle_enter(_flow_node, token, context) do
+    BfwEngine.Test.ExamplePlugin.AsyncParkPayloads.record(token.payload)
     {:async, context.flow_node_instance_id}
+  end
+end
+
+defmodule BfwEngine.Test.ExamplePlugin.AsyncParkPayloads do
+  @moduledoc false
+  use Agent
+
+  def start_link(_options \\ []) do
+    Agent.start_link(fn -> [] end, name: __MODULE__)
+  end
+
+  def reset do
+    ensure_started()
+    Agent.update(__MODULE__, fn _payloads -> [] end)
+  end
+
+  def record(payload) do
+    ensure_started()
+    Agent.update(__MODULE__, fn payloads -> payloads ++ [payload] end)
+  end
+
+  def list do
+    ensure_started()
+    Agent.get(__MODULE__, & &1)
+  end
+
+  defp ensure_started do
+    case Process.whereis(__MODULE__) do
+      nil -> start_link()
+      _pid -> :ok
+    end
   end
 end
 

@@ -22,6 +22,16 @@ defmodule BfwEngine.Execution.PersistenceRetryTest do
       assert :counters.get(counter, 1) == 1
     end
 
+    test "returns a three-element ok tuple on first attempt without retrying" do
+      result =
+        PersistenceRetry.with_retry(
+          fn -> {:ok, %{}, "waiting"} end,
+          "test_ok_triple"
+        )
+
+      assert result == {:ok, %{}, "waiting"}
+    end
+
     test "returns {:ok, value} on first attempt without retrying" do
       result =
         PersistenceRetry.with_retry(

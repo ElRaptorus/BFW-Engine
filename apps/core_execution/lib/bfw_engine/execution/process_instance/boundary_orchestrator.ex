@@ -273,7 +273,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         flow_node = Helpers.find_flow_node(data, entry.flow_node_id)
         persist_result = persist_boundary_fni_finished(boundary_fni_id, triggerer_fni_id)
 
-        if persist_result != {:error, :already_terminal} do
+        if not match?({:error, _reason}, persist_result) do
           publish_finished_boundary(data, boundary_fni_id, triggerer_fni_id, entry, flow_node)
         end
 

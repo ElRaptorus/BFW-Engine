@@ -104,8 +104,16 @@ defmodule BfwEngine.EngineFacadeTest do
       assert f.service_tasks.finish_async.("fni-1", %{}) == {:error, :not_wired}
     end
 
-    test "namespace noop: service_tasks.fail_async returns {:error, :not_wired}", %{facade: f} do
-      assert f.service_tasks.fail_async.("fni-1", "ERR", "msg") == {:error, :not_wired}
+    test "namespace noop: service_tasks.fail_async returns {:error, :not_wired}", %{
+      facade: facade
+    } do
+      assert facade.service_tasks.fail_async.("fni-1", "ERR", "msg") == {:error, :not_wired}
+    end
+
+    test "namespace noop: service_tasks.list_waiting returns {:error, :not_wired}", %{
+      facade: facade
+    } do
+      assert facade.service_tasks.list_waiting.(["some_key"]) == {:error, :not_wired}
     end
 
     test "namespace noop: processes.get returns {:error, :not_wired}", %{facade: f} do

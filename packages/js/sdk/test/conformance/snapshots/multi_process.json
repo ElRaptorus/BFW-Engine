@@ -47,6 +47,20 @@
           }
         }
       ],
+      "dataStoreReferences": [
+        {
+          "dataState": null,
+          "dataStoreRef": "DataStore_1",
+          "id": "DSR_1",
+          "name": "OrderArchive"
+        },
+        {
+          "dataState": null,
+          "dataStoreRef": null,
+          "id": "DSR_2",
+          "name": "UnresolvedStore"
+        }
+      ],
       "extensions": [],
       "flowNodes": [
         {
@@ -292,6 +306,7 @@
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_InboxEscalationEnd">
+  <bpmn:escalation id="Esc_Review" name="Review" escalationCode="ESC_REVIEW" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Inbox Escalation End" processRef="InboxEscalationEndInterrupt" />
+  </bpmn:collaboration>
+  <bpmn:process id="InboxEscalationEndInterrupt" name="Inbox Escalation End Interrupt" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_Wait</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_Delay</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Escalation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Fork_1" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Task</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Esc</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="UserTask_Wait" name="Wait">
+      <bpmn:incoming>Flow_Task</bpmn:incoming>
+      <bpmn:outgoing>Flow_Done</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Normal" name="Normal">
+      <bpmn:incoming>Flow_Done</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="Catch_Delay" name="Delay">
+      <bpmn:incoming>Flow_Esc</bpmn:incoming>
+      <bpmn:outgoing>Flow_After_Delay</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="End_Escalation" name="Escalate">
+      <bpmn:incoming>Flow_After_Delay</bpmn:incoming>
+      <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_After_Delay" sourceRef="Catch_Delay" targetRef="End_Escalation" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork_1" />
+    <bpmn:sequenceFlow id="Flow_Task" sourceRef="Fork_1" targetRef="UserTask_Wait" />
+    <bpmn:sequenceFlow id="Flow_Done" sourceRef="UserTask_Wait" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Esc" sourceRef="Fork_1" targetRef="Catch_Delay" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="80" y="80" width="720" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="110" y="80" width="690" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="160" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork_1" bpmnElement="Fork_1">
+        <dc:Bounds x="250" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_Wait" bpmnElement="UserTask_Wait">
+        <dc:Bounds x="380" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="560" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_Delay" bpmnElement="Catch_Delay">
+        <dc:Bounds x="332" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Escalation" bpmnElement="End_Escalation">
+        <dc:Bounds x="480" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="196" y="200" />
+        <di:waypoint x="250" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Task" bpmnElement="Flow_Task">
+        <di:waypoint x="275" y="175" />
+        <di:waypoint x="275" y="120" />
+        <di:waypoint x="380" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Done" bpmnElement="Flow_Done">
+        <di:waypoint x="480" y="120" />
+        <di:waypoint x="560" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Esc" bpmnElement="Flow_Esc">
+        <di:waypoint x="275" y="225" />
+        <di:waypoint x="275" y="280" />
+        <di:waypoint x="332" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_After_Delay" bpmnElement="Flow_After_Delay">
+        <di:waypoint x="368" y="280" />
+        <di:waypoint x="480" y="280" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

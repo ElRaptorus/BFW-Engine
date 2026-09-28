@@ -135,8 +135,8 @@ const ELIXIR_ONLY_FIELDS = new Set([
  * 1. `rawXml` — TS includes it, the Elixir generator strips it
  * 2. `type` discriminants on `typeData` / `eventDefinition` — TS adds them for
  *    TypeScript discriminated unions; Elixir uses struct names instead
- * 3. `dataStores` / `dataStoreReferences` — TS model includes these; the Elixir
- *    model does not yet expose them
+ * 3. `dataStores` — TS model includes the ignored `<bpmn:dataStore>` element;
+ *    the Elixir model does not. Empty `dataStoreReferences` arrays are compared.
  * 4. `linterScores` — Elixir places these at definitions level, TS at process
  *    level. Both are stripped.
  *
@@ -165,9 +165,6 @@ function normalizeForConformance(value: unknown, isSnapshot = false): unknown {
         continue;
       }
       if (key === 'dataStores' && Array.isArray(val) && val.length === 0) {
-        continue;
-      }
-      if (key === 'dataStoreReferences' && Array.isArray(val) && val.length === 0) {
         continue;
       }
       if (key === 'typeData' && typeof val === 'object' && val !== null) {

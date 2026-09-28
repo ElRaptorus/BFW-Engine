@@ -131,6 +131,16 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ---
 
+## `input_token` is the entering token, not the mapped payload
+
+**Mistake:** Writing a Service Task's mapped payload into `input_token` when the flow node parks.
+
+**Why:** Retry resets the flow node instance to `active` and keeps `input_token`. Resume runs `handle_enter/3` again, which applies the input mapping a second time. The facade still returns that payload as `input_token`.
+
+**Correct approach:** Leave `input_token` as the token that entered the node. Store the mapped payload in `type_properties["mapped_input"]`. `list_waiting` reads `mapped_input` and falls back to `input_token` only when that key is absent. See [execution.md](execution.md) and [plugins.md](plugins.md).
+
+---
+
 ## Create partitions before INSERT
 
 **Mistake:** Inserting into a `PARTITION BY RANGE` parent when the target period's child table does not exist.

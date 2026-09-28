@@ -190,6 +190,89 @@ defmodule BfwEngine.Api do
     |> Ash.read(domain: @domain, authorize?: false)
   end
 
+  @type waiting_service_task :: %{
+          flow_node_instance_id: String.t(),
+          process_instance_id: String.t(),
+          flow_node_id: String.t(),
+          implementation: String.t(),
+          input_token: map() | nil
+        }
+
+  @doc """
+  List Service Task flow node instances that are still waiting for a plugin.
+
+  `implementations` is the list of BPMN `implementation` strings to match.
+  A row is included only when the flow node type is `service_task`, the
+  state is `waiting`, the owning process instance is `running`, and
+  `type_properties["implementation"]` is one of the given strings.
+  The returned `input_token` is `type_properties["mapped_input"]`, or the
+  stored `input_token` when that field is absent.
+  Order is `started_at` ascending, then `id` ascending.
+  """
+  @spec list_waiting_service_tasks([String.t()]) ::
+          {:ok, [waiting_service_task()]} | {:error, :invalid_implementations | term()}
+  def list_waiting_service_tasks(implementations) when is_list(implementations) do
+    if Enum.all?(implementations, &is_binary/1) do
+      read_waiting_service_tasks(implementations)
+    else
+      {:error, :invalid_implementations}
+    end
+  end
+
+  def list_waiting_service_tasks(_implementations), do: {:error, :invalid_implementations}
+
+  defp read_waiting_service_tasks([]), do: {:ok, []}
+
+  defp read_waiting_service_tasks(implementations) do
+    Resources.FlowNodeInstance
+    |> Ash.Query.filter(flow_node_type == "service_task" and state == "waiting")
+    |> Ash.Query.sort(started_at: :asc, id: :asc)
+    |> Ash.Query.load(:process_instance)
+    |> Ash.read(domain: @domain, authorize?: false)
+    |> case do
+      {:ok, rows} -> {:ok, waiting_service_task_rows(rows, MapSet.new(implementations))}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp waiting_service_task_rows(rows, allowed_implementations) do
+    Enum.flat_map(rows, fn row ->
+      implementation = implementation_from_type_properties(row.type_properties)
+
+      if match?(%{state: "running"}, row.process_instance) and is_binary(implementation) and
+           MapSet.member?(allowed_implementations, implementation) do
+        [
+          %{
+            flow_node_instance_id: row.id,
+            process_instance_id: row.process_instance_id,
+            flow_node_id: row.flow_node_id,
+            implementation: implementation,
+            input_token: waiting_service_task_input_token(row)
+          }
+        ]
+      else
+        []
+      end
+    end)
+  end
+
+  defp implementation_from_type_properties(type_properties) when is_map(type_properties) do
+    Map.get(type_properties, "implementation") || Map.get(type_properties, :implementation)
+  end
+
+  defp implementation_from_type_properties(_type_properties), do: nil
+
+  # Rows parked before mapped_input existed keep the mapped payload in input_token.
+  defp waiting_service_task_input_token(row) do
+    type_properties = if is_map(row.type_properties), do: row.type_properties, else: %{}
+
+    cond do
+      Map.has_key?(type_properties, "mapped_input") -> type_properties["mapped_input"]
+      Map.has_key?(type_properties, :mapped_input) -> Map.get(type_properties, :mapped_input)
+      true -> row.input_token
+    end
+  end
+
   @doc """
   Check lane-based access: returns `true` if the process instance has at
   least one FNI with a nil lane or a lane in `lane_names`.

@@ -19,7 +19,14 @@ for file <- Path.wildcard(Path.join(support_dir, "*.ex")) do
   Code.require_file(file)
 end
 
-ExUnit.start(autorun: false, trace: true)
+ex_unit_options =
+  if System.get_env("BFE_TEST_RELEASE") == "1" do
+    [autorun: false, trace: true]
+  else
+    [autorun: false, trace: true, exclude: [release: true]]
+  end
+
+ExUnit.start(ex_unit_options)
 
 relative_test_trees =
   case System.argv() |> Enum.reject(&(&1 == "--")) do

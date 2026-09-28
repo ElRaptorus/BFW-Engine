@@ -2,7 +2,7 @@
 
 Beyond Service Task handlers, Event Sinks, and REST API extensions, the engine ships two more live capability types: **NamedScript** and **AuthProvider**.
 
-PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`). BPMN DataStores are a parser no-op.
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`). BPMN `<bpmn:dataStoreReference>` elements are parsed and data associations may target one, but the Engine never reads or writes the store, and there is no `DataStoreAdapter` to plug in.
 
 ## NamedScript
 

@@ -112,6 +112,8 @@ defmodule BfwEngine.Plugins.LoaderTest do
     assert %EngineFacade.ServiceTasks{} = facade.service_tasks
     assert is_function(facade.service_tasks.finish_async, 2)
     assert is_function(facade.service_tasks.fail_async, 3)
+    assert is_function(facade.service_tasks.list_waiting, 1)
+    refute facade.service_tasks.list_waiting == (&EngineFacade.ServiceTasks.noop_1/1)
 
     assert %EngineFacade.FlowNodeInstances{} = facade.flow_node_instances
     assert is_function(facade.flow_node_instances.get, 1)

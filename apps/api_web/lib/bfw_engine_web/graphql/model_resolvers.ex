@@ -89,6 +89,10 @@ defmodule BfwEngineWeb.Graphql.ModelResolvers do
       :data_object_references,
       Enum.map(process.data_object_references, &Map.from_struct/1)
     )
+    |> Map.put(
+      :data_store_references,
+      Enum.map(process.data_store_references, &Map.from_struct/1)
+    )
     |> Map.put(:associations, Enum.map(process.associations, &Map.from_struct/1))
     |> Map.put(:lanes, Enum.map(process.lanes, &Map.from_struct/1))
     |> Map.put(:extensions, Enum.map(process.extensions, &extension_to_map/1))

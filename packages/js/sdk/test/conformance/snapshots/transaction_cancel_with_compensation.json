@@ -24,6 +24,7 @@
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {
@@ -77,6 +78,7 @@
             "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
+            "dataStoreReferences": [],
             "flowNodes": [
               {
                 "boundaryEventRefs": [],
@@ -380,10 +382,10 @@
             "Tx_Start",
             "Tx_TaskA",
             "Tx_CompBoundaryA",
-            "Tx_CompHandlerA",
+            "Tx_CompA",
             "Tx_TaskB",
             "Tx_CompBoundaryB",
-            "Tx_CompHandlerB",
+            "Tx_CompB",
             "Tx_CancelEnd"
           ],
           "id": "Lane_Tx",

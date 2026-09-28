@@ -51,11 +51,17 @@ end
 
 Highest performance. The plugin is an OTP application bundled into the engine release:
 
-1. Add your plugin as a dependency of the engine release
-2. Set the plugin module in application env: `config :my_plugin, :plugin_module, MyPlugin`
-3. Add the OTP app name to `BFE_PLUGINS_INBEAM`: `BFE_PLUGINS_INBEAM=my_plugin`
+From the Engine repository root:
 
-The plugin's `Application.start/2` should be a no-op stub. Registration happens exclusively through `on_load`.
+```bash
+mix bfw.gen.plugin sample_plugin
+```
+
+That writes `plugins/sample_plugin` and runs `mix bfw.plugin.add`, which edits `host/mix.exs` and `config/config.exs`. The task prints `BFE_PLUGINS_INBEAM=sample_plugin`. Set that variable before starting the release. The plugin is not started until the variable is set.
+
+`mix bfw.plugin.add --path plugins/sample_plugin` wires an existing plugin the same way. Both tasks require `igniter`.
+
+The generated `Application.start/2` only stores `:plugin_module` and starts an empty supervisor. Registration happens exclusively through `on_load`. After a restart, `handle_enter/3` is not called again for a parked Service Task. Call `facade.service_tasks.list_waiting.(["your_implementation"])` from `on_ready` and finish or fail each row yourself.
 
 ### Other languages
 

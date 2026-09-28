@@ -91,6 +91,10 @@ at the edge.
   nested scopes (see [Assertion framework](#assertion-framework)).
 - Every test runs under its own PI nonce so suites can run in parallel.
 
+### Elixir client integration tests
+
+`test/integration/client/` exercises the `bfw_engine_client` package (see [sdk-client.md](./sdk-client.md) §Elixir Client) against a real running endpoint, not Docker. `test/support/client_endpoint.ex` starts a `Bandit` listener (`plug: BfwEngineWeb.Http.Endpoint`, `ip: :loopback`, `port: 0`) under the test supervisor in front of the umbrella's already-running endpoint and reads back the assigned port; the client then makes real REST calls and opens a real WebSocket join through that listener. Package unit tests (inside `packages/elixir/bfw_engine_client/test/`) instead use `Req.Test` for every REST operation, `Slipstream.SocketTest` for `Notifications`, and `Igniter.Test` for the installer task.
+
 ### Execution integration tests
 
 The first tier of execution integration tests verifies the core PI/FNI runtime
@@ -143,7 +147,8 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 |-------|----------------|
 | `mix test.unit` | Per-app unit tests (`--exclude integration`) |
 | `mix test.examples` | Cookbook unit wrappers in `apps/peripheral_plugins/test/examples/` (acceptance i). Does not boot the engine. |
-| `mix test.integration` | Full `test/integration/**` suite against the started umbrella, including cookbook boot + README link-check |
+| `mix test.integration` | Full `test/integration/**` suite against the started umbrella, including cookbook boot + README link-check. Excludes `@tag :release`. |
+| `mix test.release` | The prod-release inclusion test (`plugin_release_test.exs`) only. `preferred_envs` selects `MIX_ENV=test`. Sets `BFE_TEST_RELEASE=1` so the integration runner includes `:release`. Not part of `mix quality`. Packages CI runs it after the production release; that step runs `mix deps.get` first because the job fetched dependencies with `--only prod`. The test deletes `_build/prod/rel/bfw_engine` on exit. |
 | `mix test.cookbook` | Same integration runner, glob only `test/integration/plugins/**` (acceptance ii + iii). Do **not** also invoke this from `mix quality` / CI (would double-run). |
 | `mix test.conformance` | YAML-driven conformance specs |
 | `mix test.coverdata` / `mix quality` | Full integration glob via `coverage_runner.exs` (unfiltered) |

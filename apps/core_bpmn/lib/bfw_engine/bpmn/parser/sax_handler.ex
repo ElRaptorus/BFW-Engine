@@ -284,7 +284,8 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     ref = %DataStoreReference{
       id: attributes["id"],
       name: attributes["name"],
-      data_store_ref: attributes["dataStoreRef"]
+      data_store_ref: attributes["dataStoreRef"],
+      data_state: attributes["dataState"]
     }
 
     process = %BpmnProcess{

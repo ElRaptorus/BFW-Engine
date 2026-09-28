@@ -328,6 +328,7 @@ type SubProcessNode implements FlowNode {
   sequenceFlows: [SequenceFlow!]!
   dataObjects: [DataObjectModel!]!
   dataObjectReferences: [DataObjectReferenceModel!]!
+  dataStoreReferences: [DataStoreReferenceModel!]!
 }
 
 type StartEventNode implements FlowNode {
@@ -362,6 +363,7 @@ type ProcessModel {
   lanes: [Lane!]!
   dataObjects: [DataObjectModel!]!
   dataObjectReferences: [DataObjectReferenceModel!]!
+  dataStoreReferences: [DataStoreReferenceModel!]!
   associations: [Association!]!
   extensions: [BpmnExtension!]!
 
@@ -372,6 +374,13 @@ type ProcessModel {
   errors: [ErrorDefinition!]!
   escalations: [EscalationDefinition!]!
   linterScores: [LinterRulesetScore!]!
+}
+
+type DataStoreReferenceModel {
+  id: ID!
+  name: String
+  dataStoreRef: String
+  dataState: String
 }
 
 # --- Existing Ash-backed types gain Model hooks ---

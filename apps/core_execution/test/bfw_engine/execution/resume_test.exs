@@ -548,6 +548,14 @@ defmodule BfwEngine.Execution.ResumeTest do
     @impl true
     def update_flow_node_instance(_id, _action, _changes), do: :ok
     @impl true
+    def finish_flow_node_instance(flow_node_instance_id, changes) do
+      case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+        :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+        other -> other
+      end
+    end
+
+    @impl true
     def finish_fni_with_data_objects(_id, _changes, _intents), do: {:ok, %{writes: []}}
     @impl true
     def write_data_object(_params), do: {:ok, %{write_id: "mock", created_at: DateTime.utc_now()}}
@@ -626,6 +634,15 @@ defmodule BfwEngine.Execution.ResumeTest do
         def create_flow_node_instance(attributes), do: {:ok, attributes}
         @impl true
         def update_flow_node_instance(_id, _action, _changes), do: :ok
+
+        @impl true
+        def finish_flow_node_instance(flow_node_instance_id, changes) do
+          case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+            :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+            other -> other
+          end
+        end
+
         @impl true
         def list_flow_node_instances(_id), do: {:ok, []}
         @impl true

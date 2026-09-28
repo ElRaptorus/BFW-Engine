@@ -1,0 +1,238 @@
+{
+  "definitionsId": "Definitions_InboxEscalationEnd",
+  "errors": [],
+  "escalations": [
+    {
+      "escalationCode": "ESC_REVIEW",
+      "id": "Esc_Review",
+      "name": "Review"
+    }
+  ],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [
+            "Flow_1"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": [
+            "Flow_1"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": [
+            "Flow_Esc",
+            "Flow_Task"
+          ],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_Wait",
+          "incoming": [
+            "Flow_Task"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait",
+          "outgoing": [
+            "Flow_Done"
+          ],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formSchema": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": [
+            "Flow_Done"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Normal",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_Delay",
+          "incoming": [
+            "Flow_Esc"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Delay",
+          "outgoing": [
+            "Flow_After_Delay"
+          ],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT1S"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Escalation",
+          "incoming": [
+            "Flow_After_Delay"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Escalate",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "escalationCode": null,
+              "escalationRef": "Esc_Review"
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "InboxEscalationEndInterrupt",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Fork_1",
+            "UserTask_Wait",
+            "Catch_Delay",
+            "End_Escalation",
+            "End_Normal"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Inbox Escalation End Interrupt",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_After_Delay",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_Delay",
+          "targetRef": "End_Escalation"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Task",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "UserTask_Wait"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Done",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_Wait",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Esc",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "Catch_Delay"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

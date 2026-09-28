@@ -2,7 +2,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
   @moduledoc """
   FNI state transition functions for handler-owned lifecycle.
 
-  Handlers call `finish/4`, `transition_to_waiting/2`, and `park_async/2`
+  Handlers call `finish/4`, `transition_to_waiting/2`, and `park_async/3`
   during their execution. The PI calls `transition_to_fatal/8`,
   `transition_to_aborted/8`, `transition_to_error/8`,
   `transition_to_interrupted/8` for exceptional paths (crash fallback,
@@ -184,7 +184,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
     result =
       with_retry_protected_from_shutdown(
         fn ->
-          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+          adapter.finish_flow_node_instance(flow_node_instance_id, %{
             state: @fni_state_fatal,
             finished_at: DateTime.utc_now(),
             error_info: error_info,
@@ -194,7 +194,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI fatal #{flow_node_instance_id}"
       )
 
-    complete_terminal_transition(result, fn ->
+    complete_terminal_transition(result, fn previous_state ->
       emit_fni_finished(
         process_instance_id,
         flow_node_instance_id,
@@ -202,7 +202,12 @@ defmodule BfwEngine.Execution.FniLifecycle do
         :fatal,
         merged_type_properties,
         error_info,
-        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+        terminal_emit_opts(
+          iteration_context,
+          lane_name,
+          root_process_instance_id,
+          previous_state
+        )
       )
     end)
   end
@@ -249,7 +254,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
     result =
       with_retry_protected_from_shutdown(
         fn ->
-          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+          adapter.finish_flow_node_instance(flow_node_instance_id, %{
             state: @fni_state_aborted,
             finished_at: DateTime.utc_now(),
             output_token: nil,
@@ -259,7 +264,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI aborted #{flow_node_instance_id}"
       )
 
-    complete_terminal_transition(result, fn ->
+    complete_terminal_transition(result, fn previous_state ->
       emit_fni_finished(
         process_instance_id,
         flow_node_instance_id,
@@ -267,7 +272,12 @@ defmodule BfwEngine.Execution.FniLifecycle do
         :aborted,
         %{},
         nil,
-        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+        terminal_emit_opts(
+          iteration_context,
+          lane_name,
+          root_process_instance_id,
+          previous_state
+        )
       )
     end)
   end
@@ -315,7 +325,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
     result =
       with_retry_protected_from_shutdown(
         fn ->
-          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+          adapter.finish_flow_node_instance(flow_node_instance_id, %{
             state: @fni_state_error,
             finished_at: DateTime.utc_now(),
             error_info: error_info,
@@ -325,7 +335,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI error #{flow_node_instance_id}"
       )
 
-    complete_terminal_transition(result, fn ->
+    complete_terminal_transition(result, fn previous_state ->
       emit_fni_finished(
         process_instance_id,
         flow_node_instance_id,
@@ -333,7 +343,12 @@ defmodule BfwEngine.Execution.FniLifecycle do
         :error,
         merged_type_properties,
         error_info,
-        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+        terminal_emit_opts(
+          iteration_context,
+          lane_name,
+          root_process_instance_id,
+          previous_state
+        )
       )
     end)
   end
@@ -380,7 +395,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
     result =
       with_retry_protected_from_shutdown(
         fn ->
-          adapter.update_flow_node_instance(flow_node_instance_id, :update_finished, %{
+          adapter.finish_flow_node_instance(flow_node_instance_id, %{
             state: @fni_state_interrupted,
             finished_at: DateTime.utc_now(),
             output_token: nil,
@@ -390,7 +405,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
         "FNI interrupted #{flow_node_instance_id}"
       )
 
-    complete_terminal_transition(result, fn ->
+    complete_terminal_transition(result, fn previous_state ->
       emit_fni_finished(
         process_instance_id,
         flow_node_instance_id,
@@ -398,7 +413,12 @@ defmodule BfwEngine.Execution.FniLifecycle do
         :interrupted,
         %{},
         nil,
-        terminal_emit_opts(iteration_context, lane_name, root_process_instance_id)
+        terminal_emit_opts(
+          iteration_context,
+          lane_name,
+          root_process_instance_id,
+          previous_state
+        )
       )
     end)
   end
@@ -641,12 +661,14 @@ defmodule BfwEngine.Execution.FniLifecycle do
   defp persist_fni_waiting(flow_node_instance_id, type_properties) do
     adapter = PersistenceAdapter.adapter()
 
+    changes = %{
+      state: @fni_state_waiting,
+      type_properties: Helpers.stringify_keys(type_properties)
+    }
+
     case with_retry_protected_from_shutdown(
            fn ->
-             adapter.update_flow_node_instance(flow_node_instance_id, :update_waiting, %{
-               state: @fni_state_waiting,
-               type_properties: Helpers.stringify_keys(type_properties)
-             })
+             adapter.update_flow_node_instance(flow_node_instance_id, :update_waiting, changes)
            end,
            "FNI waiting #{flow_node_instance_id}"
          ) do
@@ -679,10 +701,10 @@ defmodule BfwEngine.Execution.FniLifecycle do
     end
   end
 
-  defp complete_terminal_transition(result, emit) when is_function(emit, 0) do
+  defp complete_terminal_transition(result, emit) when is_function(emit, 1) do
     case result do
-      :ok ->
-        emit.()
+      {:ok, _record, previous_state} ->
+        emit.(previous_state)
         :ok
 
       {:error, :already_terminal} ->
@@ -693,13 +715,13 @@ defmodule BfwEngine.Execution.FniLifecycle do
     end
   end
 
-  defp terminal_emit_opts(iteration_context, lane_name, root_process_instance_id) do
+  defp terminal_emit_opts(iteration_context, lane_name, root_process_instance_id, previous_state) do
     [
       lane_name: lane_name,
       root_process_instance_id: root_process_instance_id,
       multi_instance_id: Keyword.get(iteration_context, :multi_instance_id),
       iteration_index: Keyword.get(iteration_context, :iteration_index),
-      was_waiting: Keyword.get(iteration_context, :was_waiting, false)
+      was_waiting: previous_state in ["waiting", :waiting]
     ]
   end
 

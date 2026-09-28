@@ -251,6 +251,23 @@ defmodule BfwEngine.BPMN.ParserTest do
 
       assert dsr_2.id == "DSR_2"
       assert dsr_2.data_store_ref == nil
+      assert dsr_1.data_state == nil
+    end
+
+    test "reads dataState on a data store reference" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1">
+        <bpmn:process id="Process_1" isExecutable="false">
+          <bpmn:dataStoreReference id="DSR_1" name="Archive" dataStoreRef="Store_1" dataState="archived" />
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      [reference] = process.data_store_references
+      assert reference.data_state == "archived"
     end
 
     test "DOA with FEEL value_expression parses correctly", %{definitions: definitions} do

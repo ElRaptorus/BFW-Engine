@@ -1,0 +1,371 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DO_Outer",
+          "dataState": null,
+          "id": "DOR_Outer",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DO_Outer",
+          "itemSubjectRef": null,
+          "name": "Outer Data",
+          "valueContract": null
+        }
+      ],
+      "dataStoreReferences": [
+        {
+          "dataState": null,
+          "dataStoreRef": "Store_Outer",
+          "id": "DSR_Outer",
+          "name": "OuterStoreRef"
+        }
+      ],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [
+            {
+              "id": "DIA_Outer",
+              "sourceRef": "DSR_Outer",
+              "targetRef": null,
+              "valueExpression": null
+            }
+          ],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_Outer_Object",
+              "sourceRef": null,
+              "targetRef": "DOR_Outer",
+              "valueExpression": null
+            },
+            {
+              "id": "DOA_Outer_Store",
+              "sourceRef": null,
+              "targetRef": "DSR_Outer",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_Outer",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Read and Write Store",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ outer_value: token.amount }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Sub Process",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [
+              {
+                "dataObjectRef": "DO_Inner",
+                "dataState": null,
+                "id": "DOR_Inner",
+                "name": null
+              }
+            ],
+            "dataObjects": [
+              {
+                "id": "DO_Inner",
+                "itemSubjectRef": null,
+                "name": "Inner Data",
+                "valueContract": null
+              }
+            ],
+            "dataStoreReferences": [
+              {
+                "dataState": null,
+                "dataStoreRef": "Store_Inner",
+                "id": "DSR_Inner",
+                "name": "InnerStoreRef"
+              }
+            ],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub Start",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [
+                  {
+                    "id": "Sub_DIA",
+                    "sourceRef": "DSR_Inner",
+                    "targetRef": null,
+                    "valueExpression": null
+                  }
+                ],
+                "dataOutputAssociations": [
+                  {
+                    "id": "Sub_DOA_Object",
+                    "sourceRef": null,
+                    "targetRef": "DOR_Inner",
+                    "valueExpression": null
+                  },
+                  {
+                    "id": "Sub_DOA_Store",
+                    "sourceRef": null,
+                    "targetRef": "DSR_Inner",
+                    "valueExpression": null
+                  }
+                ],
+                "documentation": null,
+                "id": "Sub_ScriptTask",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub Read and Write Store",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "script_task",
+                "typeData": {
+                  "inMappings": [],
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "script": "{ inner_value: token.outer_value + 1 }",
+                  "scriptFormat": "feel",
+                  "scriptRef": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataContracts": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_End",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub End",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Start",
+                "targetRef": "Sub_ScriptTask"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_ScriptTask",
+                "targetRef": "Sub_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_Verify",
+              "sourceRef": null,
+              "targetRef": "DOR_Outer",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ScriptTask_Verify",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Verify dataObjects Binding",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ outer_value: dataObjects.DO_Outer.outer_value, verified: true }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "DataStoreAssociation",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "ScriptTask_Outer",
+            "SubProcess_1",
+            "ScriptTask_Verify",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Data Store Association",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ScriptTask_Outer"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_Outer",
+          "targetRef": "SubProcess_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_1",
+          "targetRef": "ScriptTask_Verify"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ScriptTask_Verify",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

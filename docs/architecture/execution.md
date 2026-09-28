@@ -48,7 +48,7 @@ The PI module is decomposed into focused submodules:
 |--------|------|----------------|
 | `ProcessInstance` | `process_instance.ex` | `:gen_statem` shell: state machine, client API, message routing, FNI dispatch, cascade operations |
 | `ProcessInstance.Helpers` | `process_instance/helpers.ex` | Pure utilities: ID generation, flow node lookup, key stringification, JSON safety, event type extraction |
-| `FniLifecycle` | `fni_lifecycle.ex` | FNI state transitions: `finish/4` (happy-path), `transition_to_waiting/2`, `park_async/2`, `transition_to_fatal/4`, `transition_to_aborted/4`, `transition_to_interrupted/4`. Handlers own their own lifecycle persistence. |
+| `FniLifecycle` | `fni_lifecycle.ex` | FNI state transitions: `finish/4` (happy-path), `transition_to_waiting/2`, `park_async/3`, `transition_to_fatal/4`, `transition_to_aborted/4`, `transition_to_interrupted/4`. Handlers own their own lifecycle persistence. |
 | `FniLifecycle.LifecycleResult` | `fni_lifecycle/lifecycle_result.ex` | Return struct from `FniLifecycle.finish/4` carrying data object cache updates |
 | `ProcessInstance.BoundaryOrchestrator` | `process_instance/boundary_orchestrator.ex` | Boundary event orchestration: catch handling, cycle fires, subscription dispatch, cancel/abort |
 | `ProcessInstance.Resumption` | `process_instance/resumption.ex` | Resume-after-restart: identity rebuild, FNI state reconstruction, handler reactivation |
@@ -808,7 +808,7 @@ The child PI does not reference a separately deployed process definition. At sta
 2. Locates the `%FlowNode{type: :sub_process}` with the given `subprocess_node_id` (recursive search through nested subprocesses)
 3. Builds a synthetic `%Process{}` via `build_synthetic_process/2` with composite ID `"#{parent_process_id}__subprocess__#{subprocess_node_id}"`
 
-The synthetic process carries the inner `flow_nodes`, `sequence_flows`, `data_objects`, and `data_object_references` from `FlowNodeData.SubProcess`. **Lane inheritance:** if the parent process has a lane whose `flow_node_refs` includes the subprocess shell node, the synthetic process receives a single inherited lane covering all inner flow nodes; otherwise it has no lanes.
+The synthetic process carries the inner `flow_nodes`, `sequence_flows`, `data_objects`, `data_object_references`, and `data_store_references` from `FlowNodeData.SubProcess`. **Lane inheritance:** if the parent process has a lane whose `flow_node_refs` includes the subprocess shell node, the synthetic process receives a single inherited lane covering all inner flow nodes; otherwise it has no lanes.
 
 **Data object isolation:** inner data objects belong to the synthetic process scope only. Parent-scope data objects are not visible inside the subprocess (and vice versa) — each PI maintains its own `data_object_cache`.
 
@@ -1035,6 +1035,7 @@ The runtime calls persistence through `BfwEngine.Execution.Persistence.adapter()
 | `update_process_instance/2` | Update state, finished_at |
 | `create_flow_node_instance/1` | Insert FNI row |
 | `update_flow_node_instance/3` | Update FNI state, output, type_properties |
+| `finish_flow_node_instance/2` | Guarded `:update_finished` write. Returns `{:ok, record, previous_state}` so inbox withdrawal uses the row state, not the PI's in-memory flag |
 | `finish_fni_with_data_objects/3` | Atomically transition an FNI to `:finished` and persist all Data Object write intents in a single `Repo.transaction`. Called for every FNI completion (including those with zero DOAs). Returns `{:ok, %{writes: [...]}}`. |
 | `write_data_object/1` | Standalone UPSERT snapshot + INSERT audit for a single Data Object. Retained for future use; not called during FNI completion. |
 | `list_data_objects/1` | List current Data Object snapshots for a PI (used for resume rehydration of `data_object_cache`). |
@@ -1247,7 +1248,7 @@ On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the 
 | FNI state | Resume behaviour |
 |-----------|-----------------|
 | `:active` | Re-dispatched — handler runs from scratch with persisted `input_token`. Boundary events attached to the flow node are automatically re-spawned if they don't already have an active/waiting FNI (see `Resumption.spawn_missing_boundary_fnis/5`). |
-| `:waiting` (service task) | All Service Task FNIs are async. Registry entry `{:fni, flow_node_instance_id}` re-registered, `PluginAsyncFlowNodeRehydrated` event emitted. `handle_enter/3` is NOT re-dispatched (A7 contract) |
+| `:waiting` (service task) | All Service Task FNIs are async. Registry entry `{:fni, flow_node_instance_id}` re-registered, `PluginAsyncFlowNodeRehydrated` event emitted. `handle_enter/3` is NOT re-dispatched (A7 contract). Park stores `type_properties["implementation"]` and the mapped payload in `type_properties["mapped_input"]`. `input_token` stays the token that entered the node, so a retry maps it once. Recovery is the plugin calling `facade.service_tasks.list_waiting` from `on_ready`, which returns `mapped_input` (falling back to `input_token` for rows parked before that field existed) |
 | `:waiting` (call activity) | Handler-owned resume via `CallActivity.handle_resume/4`: checks child PI state in Registry, re-monitors running children, or re-executes full lifecycle if no child exists |
 | `:waiting` (sub process) | Handler-owned resume via `SubProcess.handle_resume/4`: checks child PI state in Registry, re-monitors running children, or re-executes full lifecycle if no child exists |
 | `:waiting` (timer catch event) | Handler-owned resume via `TimerCatchEvent.handle_resume/3`: re-schedules timer if `fire_at` is in the future, or immediately completes if in the past |
@@ -1821,7 +1822,7 @@ An ad-hoc subprocess (`<bpmn:adHocSubProcess>`) contains activities that are not
 
 ### `cancelRemainingInstances` Enforcement
 
-When the completion condition is met and `cancelRemainingInstances=true` (default), `maybe_cancel_remaining_for_adhoc` interrupts all remaining `:active`/`:waiting` FNIs with reason `:adhoc_completion_cancelled`.
+When the completion condition is met and `cancelRemainingInstances=true` (default), `maybe_cancel_remaining_for_adhoc` interrupts all remaining `:active`/`:waiting` FNIs with reason `:adhoc_completion_cancelled`. The condition is evaluated after an asynchronous handler result and after a synchronous waiting-task completion (user task, manual task, or parked service task). Both paths also run sequential auto-chaining.
 
 ### Retry Restrictions
 
@@ -1847,8 +1848,8 @@ When an FNI completes successfully, the engine evaluates the writes with no data
 
 `DataObjectWriter.prepare_associations/4` evaluates all DOAs and builds a list of `DataObjectWriteIntent` structs:
 
-1. Short-circuit on `flow_node.data_output_associations == []` → `{:ok, cache, []}`
-2. For each DOA (sequentially via `Enum.reduce_while`):
+1. Short-circuit on `flow_node.data_output_associations == []` → `{:ok, cache, []}`. DOAs whose target is a `DataStoreReference` are dropped here, before any FEEL, contract, or cap work.
+2. For each remaining DOA (sequentially via `Enum.reduce_while`):
    - Resolve target chain: `DOA.target_ref` → `DataObjectReference.data_object_ref` → `DataObject.id`
    - Evaluate `value_expression` (FEEL) if present; otherwise use full output payload
    - Validate against `bfw:valueContract` (if set on target DataObject)

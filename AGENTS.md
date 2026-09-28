@@ -795,8 +795,13 @@ written to this Data Object via DOA. Violation is fatal to the causing FNI.
 #### `<bpmn:dataOutputAssociation>` (standard BPMN)
 
 Declares that a flow node writes to a Data Object on completion.
-`<bpmn:targetRef>` points to a `DataObjectReference` ID.
+`<bpmn:targetRef>` points to a `DataObjectReference` **or** a
+`DataStoreReference` ID.
 Optional `<bpmn:transformation>` contains a FEEL expression for value projection.
+A DOA targeting a `DataStoreReference` is accepted by the validator but
+dropped by `DataObjectWriter` before evaluation — no FEEL is run, no write
+intent is created, and no `DataObjectWritten` event fires. See
+`bfw:dataStoreReference` below.
 
 ```xml
 <bpmn:serviceTask id="Task_1">
@@ -809,13 +814,27 @@ Optional `<bpmn:transformation>` contains a FEEL expression for value projection
 
 #### `<bpmn:dataInputAssociation>` (standard BPMN)
 
-Declares that a flow node reads from a Data Object. Parsed for BPMN fidelity
-and diagram rendering; at runtime, reads happen via FEEL `dataObjects.*`.
+Declares that a flow node reads from a Data Object or Data Store. Parsed for
+BPMN fidelity and diagram rendering; at runtime, reads happen via FEEL
+`dataObjects.*` (Data Stores are never read at runtime).
 
 ```xml
 <bpmn:dataInputAssociation id="DIA_1">
   <bpmn:sourceRef>OrderDataRef</bpmn:sourceRef>
 </bpmn:dataInputAssociation>
+```
+
+#### `<bpmn:dataStoreReference>` (standard BPMN)
+
+The parser records each `<bpmn:dataStoreReference>` (`id`, `name`,
+`dataStoreRef`) on the owning process and on every subprocess scope, the
+same way it records `DataObjectReference`. `<bpmn:dataStore>` itself stays
+ignored and `dataStoreRef` is never resolved — the Engine recognizes that a
+Data Store exists so associations can target it, but never reads or writes
+the store. There is no `DataStoreAdapter` plugin capability.
+
+```xml
+<bpmn:dataStoreReference id="DataStoreRef_Orders" name="Orders" dataStoreRef="DataStore_Orders" />
 ```
 
 ### Multi-Instance Extensions
@@ -1122,8 +1141,8 @@ pass. It never short-circuits on the first problem.
 - StartEvents must not have incoming SequenceFlows
 - EndEvents must not have outgoing SequenceFlows
 - DataObjectReference `dataObjectRef` must point to an existing DataObject ID
-- DataOutputAssociation `targetRef` must point to an existing DataObjectReference ID
-- DataInputAssociation `sourceRef` (when present) must point to an existing DataObjectReference ID
+- DataOutputAssociation `targetRef` must point to an existing DataObjectReference in the same scope, or a DataStoreReference declared in any scope of the file. A DataStoreReference target is accepted by the validator but ignored at runtime (see §Data Object Extensions)
+- DataInputAssociation `sourceRef` (when present) must point to an existing DataObjectReference in the same scope, or a DataStoreReference declared in any scope of the file
 - `bfw:valueContract` JSON Schema must be parseable by `ExJsonSchema`
 - Event definition `messageRef` / `signalRef` / `errorRef` / `escalationRef` must match a global definition
 - SendTask / ReceiveTask `messageRef` must match a global MessageDefinition
@@ -1382,8 +1401,8 @@ Selected `BfwEngine.Types.Event.*` structs fan out through `EngineEventBus`. Ful
 | `FlowNodeInstanceStateChanged` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `eventType`, `laneName`, `oldState`, `newState`, `multiInstanceId`, `iterationIndex` | Emitted on non-terminal state transitions (currently `active` → `waiting`). Enables the Studio Debugger to track FNI state without polling. |
 | `MultiInstanceStarted` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `loopType`, `totalIterations`, `laneName`, `occurredAt` | Emitted when an MI or Standard Loop shell FNI begins execution. `loopType`: `"parallel_mi"`, `"sequential_mi"`, or `"standard_loop"`. `totalIterations` is the collection length for MI, `null` for Standard Loop. `laneName` is `null` for laneless shells (always delivered on WebSocket). |
 | `MultiInstanceCompleted` | Same + `completedIterations`, `earlyBreak` | Emitted when an MI or Standard Loop shell FNI finishes. `earlyBreak` is `true` when the loop terminated before exhausting all iterations (e.g. `bfw:loopBreakCondition` or `completionCondition`) |
-| `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `laneName` | Also broadcast to `user_tasks:pending`. `laneName` is `null` for laneless user tasks. |
-| `UserTaskFinished` | Same + `outcome` | `outcome`: `completed` or `aborted`. Also broadcast to `user_tasks:pending` |
+| `UserTaskCreated` | `flowNodeInstanceId`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeId`, `flowNodeType`, `laneName` | `flowNodeType` is `user_task` or `manual_task` — confirming Manual Tasks (`bfw:requireConfirmation="true"`) are inbox items too; non-confirming Manual Tasks publish neither event. Also broadcast to `user_tasks:pending`. `laneName` is `null` for laneless user tasks. |
+| `UserTaskFinished` | Same + `outcome` | `outcome`: `completed` for terminal state `:finished`, `aborted` for every other terminal state — withdrawal fires on every path a waiting inbox task can end by (explicit cancel, boundary interrupt, Terminate/Error/Cancel End, Complex-Join region cancel, PI abort, fatal, error cascade), not only explicit cancel. Also broadcast to `user_tasks:pending`. |
 | `UserTaskValidationFailed` | Same + `violations` | `violations`: array of `{message, path}` |
 | `PluginAsyncFlowNodeRehydrated` | `flowNodeInstanceId`, `processInstanceId`, `pluginName`, `laneName` | `pluginName` may be `null` |
 | `CallActivityChildStarted` | `callActivityFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `childProcessModelId`, `childVersion`, `rootProcessInstanceId`, `laneName` | `childProcessModelId` is the child's BPMN process ID string; `childVersion` is the child's `bfw:version` string. `laneName` is the Call Activity shell's lane. `rootProcessInstanceId` is the emitting parent PI's root. |

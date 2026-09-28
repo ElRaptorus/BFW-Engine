@@ -226,6 +226,8 @@ export interface UserTaskCreated {
   processInstanceId: string;
   rootProcessInstanceId: string | null;
   flowNodeId: string;
+  /** The BPMN element type of the task: a `<bpmn:userTask>`, or a `<bpmn:manualTask>` with `bfw:requireConfirmation` set to `true`. */
+  flowNodeType: 'user_task' | 'manual_task';
   assignees: string[];
   laneName: string | null;
   occurredAt: string;
@@ -237,6 +239,8 @@ export interface UserTaskFinished {
   processInstanceId: string;
   rootProcessInstanceId: string | null;
   flowNodeId: string;
+  /** The BPMN element type of the task: a `<bpmn:userTask>`, or a `<bpmn:manualTask>` with `bfw:requireConfirmation` set to `true`. */
+  flowNodeType: 'user_task' | 'manual_task';
   outcome: 'completed' | 'aborted';
   laneName: string | null;
   occurredAt: string;

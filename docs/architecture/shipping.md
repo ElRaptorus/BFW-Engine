@@ -7,7 +7,7 @@ Docker image layout and local compose. Operator how-to: [deployment.md](../guide
 The production image is `docker/Dockerfile`.
 
 - **Base / run stage**: `debian:bookworm-slim` plus the OTP release, openssl, ncurses.
-- **Build stage**: `hexpm/elixir` (currently Elixir 1.19.5 / OTP 28.5 on bookworm) → `mix release`. Local development uses `.tool-versions` (Elixir 1.20.3 / OTP 29.0.5).
+- **Build stage**: `hexpm/elixir` (Elixir 1.20.3 / OTP 29.0.5 on bookworm, matching `.tool-versions`) → `mix release`.
 - Healthcheck: `curl -f http://localhost:4000/health` expects **HTTP 204**, empty body.
 - Size target: ≤ 120 MB compressed.
 

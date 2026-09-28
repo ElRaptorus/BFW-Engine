@@ -68,11 +68,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
 
+      - name: Restore client package Dialyzer PLT
+        id: client_plt_cache
+        uses: actions/cache/restore@v5
+        with:
+          path: packages/elixir/bfw_engine_client/priv/plts
+          key: ${{ runner.os }}-client-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('packages/elixir/bfw_engine_client/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-client-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
+
       - name: Install Dependencies
         run: mix deps.get
 
       - name: Dependency security audit
         run: mix deps.audit
+
+      - name: "Client package: dependencies"
+        run: mix deps.get
+        working-directory: packages/elixir/bfw_engine_client
+
+      - name: "Client package: audit"
+        run: mix deps.audit
+        working-directory: packages/elixir/bfw_engine_client
 
       - name: Compile Dependencies
         run: mix deps.compile
@@ -101,6 +118,17 @@ jobs:
 
       - name: Sobelow (web security scan)
         run: mix sobelow
+
+      - name: "Client package: quality"
+        run: mix quality
+        working-directory: packages/elixir/bfw_engine_client
+
+      - name: Save client package Dialyzer PLT
+        if: always() && steps.client_plt_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: packages/elixir/bfw_engine_client/priv/plts
+          key: ${{ runner.os }}-client-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('packages/elixir/bfw_engine_client/mix.lock') }}
 
       - name: Wait for Postgres
         run: |

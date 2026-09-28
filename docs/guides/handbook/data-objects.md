@@ -70,6 +70,10 @@ On engine restart, the cache is rehydrated from the `data_objects` snapshot tabl
 
 Both tables share the same unified column set: `id`, `process_instance_id`, `data_object_id`, `flow_node_instance_id`, `value`, `created_at`. Both tables are always populated (the audit trail is not optional).
 
+## Data Stores
+
+A data association may instead target a `<bpmn:dataStoreReference>`. Such a diagram deploys and runs normally, but the Engine never reads or writes the actual store: an output association to a Data Store is silently dropped before its FEEL transformation runs, so it produces no value, no `data_object_writes` row, and no `DataObjectWritten` event, and an input association to a Data Store has no effect at runtime (the `dataObjects` FEEL binding only ever contains Data Objects). Model a Data Store when the diagram needs to document an external system of record; the actual read/write integration is the responsibility of a plugin or an external system, not the Engine.
+
 ## GraphQL Queries
 
 ```graphql

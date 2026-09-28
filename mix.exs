@@ -8,8 +8,10 @@ defmodule BfwEngine.Umbrella.MixProject do
   This root project only carries:
     * cross-app tooling (credo, dialyxir, ex_doc, sobelow, mix_audit,
       excoveralls)
-    * release configuration (`mix release`)
     * aliases that fan the usual commands out to every app
+
+  The OTP release is built by `host/mix.exs`. `mix release` from this
+  root delegates there.
 
   External runtime deps are declared per-app so each application remains
   independently buildable and the domain boundaries stay honest.
@@ -29,7 +31,6 @@ defmodule BfwEngine.Umbrella.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      releases: releases(),
       test_coverage: [tool: ExCoveralls, threshold: 0],
       dialyzer: [
         plt_core_path: "priv/plts",
@@ -185,6 +186,7 @@ defmodule BfwEngine.Umbrella.MixProject do
         "test.unit": :test,
         "test.examples": :test,
         "test.integration": :test,
+        "test.release": :test,
         "test.cookbook": :test,
         "test.conformance": :test,
         "test.coverdata": :test,
@@ -206,13 +208,16 @@ defmodule BfwEngine.Umbrella.MixProject do
       {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:igniter, "~> 0.8", runtime: false},
+      {:bfw_engine_client, path: "packages/elixir/bfw_engine_client", only: :test}
     ]
   end
 
   defp aliases do
     [
-      setup: ["deps.get", "deps.patch", "deps.compile.sat"],
+      setup: ["deps.get", "deps.patch", "deps.compile.sat", &run_client_deps_get/1],
+      release: &run_host_release/1,
       "deps.patch": &apply_dep_patches/1,
       "deps.compile.sat": ["deps.compile simple_sat", "deps.compile crux --force"],
       "ecto.setup": ["do --app peripheral_persistence ecto.setup"],
@@ -222,6 +227,7 @@ defmodule BfwEngine.Umbrella.MixProject do
       "test.unit": ["test --exclude integration"],
       "test.examples": ["test apps/peripheral_plugins/test/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
+      "test.release": &run_release_test/1,
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],
       # Sets BFE_LOAD_TEST_POOL=1 (real ConnectionPool). See P89.
       "test.load": &run_load_tests/1,
@@ -254,6 +260,7 @@ defmodule BfwEngine.Umbrella.MixProject do
         "dialyzer",
         "sobelow",
         "docs --warnings-as-errors",
+        &run_client_quality/1,
         "test.coverdata",
         "coveralls.html --umbrella --import-cover cover"
       ],
@@ -326,6 +333,34 @@ defmodule BfwEngine.Umbrella.MixProject do
     end
   end
 
+  # The client package is a standalone Mix project (not an umbrella app), so
+  # its own deps.get / _build must be driven with a nested `mix` invocation
+  # rather than `Mix.Task.run/2` (which would resolve deps into the umbrella
+  # root's own `_build`/`deps` trees).
+  @client_package_path "packages/elixir/bfw_engine_client"
+
+  defp run_client_deps_get(_args) do
+    {_output, exit_code} =
+      System.cmd("mix", ["deps.get"], cd: @client_package_path, into: IO.stream(:stdio, :line))
+
+    if exit_code != 0 do
+      Mix.raise("mix deps.get (client package) failed with exit code #{exit_code}")
+    end
+  end
+
+  defp run_client_quality(_args) do
+    {_output, exit_code} =
+      System.cmd("mix", ["quality"],
+        cd: @client_package_path,
+        env: [{"MIX_ENV", "test"}],
+        into: IO.stream(:stdio, :line)
+      )
+
+    if exit_code != 0 do
+      Mix.raise("mix quality (client package) failed with exit code #{exit_code}")
+    end
+  end
+
   defp apply_dep_patches(_args) do
     target = "deps/ex_doc/lib/mix/tasks/docs.ex"
 
@@ -347,37 +382,24 @@ defmodule BfwEngine.Umbrella.MixProject do
     end
   end
 
-  defp releases do
-    [
-      bfw_engine: [
-        version: @version,
-        applications: [
-          # Logging (root dep, must be explicit for umbrella releases)
-          logger_json: :permanent,
-          # Core
-          core_types: :permanent,
-          core_expressions: :permanent,
-          core_timers: :permanent,
-          core_events: :permanent,
-          core_bpmn: :permanent,
-          core_dmn: :permanent,
-          core_execution: :permanent,
-          # Peripheral
-          peripheral_persistence: :permanent,
-          peripheral_telemetry: :permanent,
-          peripheral_plugins: :permanent,
-          # Public SDK (no supervision tree of its own, but consumed by
-          # peripheral_plugins, so it must start with the rest of the
-          # release).
-          engine_sdk: :permanent,
-          # API (started last so the engine is fully hot before opening ports)
-          api_auth: :permanent,
-          api_facade: :permanent,
-          api_web: :permanent
-        ],
-        include_executables_for: [:unix],
-        steps: [:assemble, :tar]
-      ]
-    ]
+  defp run_release_test(_arguments) do
+    System.put_env("BFE_TEST_RELEASE", "1")
+
+    try do
+      Mix.Task.rerun("run", [
+        "test/integration_runner.exs",
+        "--",
+        "integration/plugins/plugin_release_test.exs"
+      ])
+    after
+      System.delete_env("BFE_TEST_RELEASE")
+    end
+  end
+
+  defp run_host_release(arguments) do
+    case System.cmd("mix", ["release" | arguments], cd: Path.expand("host"), into: IO.stream()) do
+      {_, 0} -> :ok
+      {_, exit_code} -> Mix.raise("Release failed with exit code #{exit_code}")
+    end
   end
 end

@@ -73,6 +73,21 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     end
   end
 
+  @doc "Guarded terminal write that also returns the state the row had before the write."
+  @impl true
+  def finish_flow_node_instance(id, changes) do
+    with {:ok, record} <- Ash.get(FlowNodeInstance, id, domain: @domain, authorize?: false),
+         :ok <- guard_first_terminal_write(record, :update_finished),
+         {:ok, updated} <-
+           Ash.update(record, changes,
+             domain: @domain,
+             action: :update_finished,
+             authorize?: false
+           ) do
+      {:ok, updated, record.state}
+    end
+  end
+
   @doc "Paginated list of running root PIs for resume-on-startup."
   @impl true
   def list_running_process_instances(opts) do

@@ -40,7 +40,8 @@ defmodule EngineSdk.MixProject do
   defp deps do
     [
       {:core_types, in_umbrella: true},
-      {:core_bpmn, in_umbrella: true}
+      {:core_bpmn, in_umbrella: true},
+      {:igniter, "~> 0.8", runtime: false}
     ]
   end
 

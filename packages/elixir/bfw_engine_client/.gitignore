@@ -1,0 +1,21 @@
+# Build artifacts
+/_build/
+/deps/
+/cover/
+/doc/
+/.fetch
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+erl_crash.dump
+*.ez
+
+# Secrets & per-machine overrides
+*.secret.exs
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/

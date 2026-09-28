@@ -49,6 +49,7 @@ defmodule Examples.EventSinks.WebhookForwarder.WebhookSinkTest do
              flow_node_instance_id: "flow-node-instance-1",
              process_instance_id: "process-instance-1",
              flow_node_id: "Task_1",
+             flow_node_type: :user_task,
              outcome: :completed,
              occurred_at: ~U[2026-05-14T12:00:00Z]
            })

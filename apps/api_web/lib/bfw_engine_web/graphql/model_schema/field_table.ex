@@ -50,6 +50,7 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
        :lanes,
        :data_objects,
        :data_object_references,
+       :data_store_references,
        :associations,
        :extensions,
        :correlation_key
@@ -171,7 +172,8 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
        :payload_contract,
        :result_contract,
        :data_objects,
-       :data_object_references
+       :data_object_references,
+       :data_store_references
      ],
      excluded: [
        {:adhoc_completion_condition_compiled,
@@ -241,6 +243,7 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
      exposed: [:id, :source_ref, :target_ref, :value_expression], excluded: []},
     {Model.DataObjectReference,
      exposed: [:id, :name, :data_object_ref, :data_state], excluded: []},
+    {Model.DataStoreReference, exposed: [:id, :name, :data_store_ref, :data_state], excluded: []},
     {Model.Association,
      exposed: [:id, :source_ref, :target_ref, :association_direction], excluded: []},
     {Model.Mapping, exposed: [:source, :target], excluded: []},
@@ -304,6 +307,7 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
     Model.DataObject => :data_object_model,
     Model.DataAssociation => :data_association,
     Model.DataObjectReference => :data_object_reference_model,
+    Model.DataStoreReference => :data_store_reference_model,
     Model.Association => :association,
     Model.Mapping => :mapping,
     Model.Extension => :bpmn_extension,

@@ -93,11 +93,12 @@ defmodule BfwEngine.BPMN.Model.DataStoreReference do
   @type t :: %__MODULE__{
           id: String.t(),
           name: String.t() | nil,
-          data_store_ref: String.t() | nil
+          data_store_ref: String.t() | nil,
+          data_state: String.t() | nil
         }
 
   @enforce_keys [:id]
-  defstruct [:id, :name, :data_store_ref]
+  defstruct [:id, :name, :data_store_ref, :data_state]
 end
 
 defmodule BfwEngine.BPMN.Model.Association do

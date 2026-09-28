@@ -164,6 +164,19 @@ defmodule BfwEngine.Execution.TaskInboxEventsTest do
       refute_receive {:captured, _}
     end
 
+    test "a failed terminal write publishes nothing" do
+      event = finished_event(@service_task, :finished)
+
+      assert :ok =
+               TaskInboxEvents.publish_committed_finish(
+                 {:error, :persistence_failed},
+                 event,
+                 @service_task
+               )
+
+      refute_receive {:captured, _}
+    end
+
     test "a committed terminal write still publishes FlowNodeInstanceFinished" do
       event = finished_event(@service_task, :finished)
 

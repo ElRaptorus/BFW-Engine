@@ -42,6 +42,14 @@ defmodule BfwEngine.Execution.EventTypeExtractionTest do
     def update_flow_node_instance(_id, _action, _changes), do: :ok
 
     @impl true
+    def finish_flow_node_instance(flow_node_instance_id, changes) do
+      case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+        :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+        other -> other
+      end
+    end
+
+    @impl true
     def list_running_process_instances(_opts), do: {:ok, %{records: [], next_cursor: nil}}
 
     @impl true

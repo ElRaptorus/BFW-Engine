@@ -199,6 +199,10 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
       name: 'dataObjectReferences',
       fields: ['id', 'name', 'dataObjectRef', 'dataState'],
     },
+    {
+      name: 'dataStoreReferences',
+      fields: ['id', 'name', 'dataStoreRef', 'dataState'],
+    },
     { name: 'sequenceFlows', fields: SEQUENCE_FLOW_FIELDS },
     // `flowNodes` (recursive) is intentionally omitted here — see
     // `buildFlowNodeSelection(depth)` below, which adds it up to `depth`.
@@ -294,6 +298,7 @@ export function buildProcessModelSelection(depth = 4): NestedSelectionField {
       { name: 'lanes', fields: ['id', 'name', 'flowNodeRefs'] },
       { name: 'dataObjects', fields: ['id', 'name', 'itemSubjectRef', 'valueContract'] },
       { name: 'dataObjectReferences', fields: ['id', 'name', 'dataObjectRef', 'dataState'] },
+      { name: 'dataStoreReferences', fields: ['id', 'name', 'dataStoreRef', 'dataState'] },
       { name: 'associations', fields: ['id', 'sourceRef', 'targetRef', 'associationDirection'] },
       {
         name: 'extensions',

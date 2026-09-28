@@ -65,7 +65,7 @@ IO.puts("\e[36m  #{length(ebin_dirs)} project ebin directories instrumented.\e[0
 
 # --- Integration tests --------------------------------------------------------
 IO.puts("\e[36m▶ Running integration tests …\e[0m\n")
-ExUnit.start(autorun: false, trace: true)
+ExUnit.start(autorun: false, trace: true, exclude: [release: true])
 
 integration_dir = Path.expand("integration", __DIR__)
 
@@ -113,7 +113,9 @@ for app <- project_apps do
   File.cp!(coverdata_path, Path.join(app_cover, "umbrella.coverdata"))
 end
 
-IO.puts("\e[36m  Done — coverdata distributed to #{length(project_apps)} sub-app cover/ directories.\e[0m\n")
+IO.puts(
+  "\e[36m  Done — coverdata distributed to #{length(project_apps)} sub-app cover/ directories.\e[0m\n"
+)
 
 # Restore logger level so subsequent mix alias steps (coveralls.html / coveralls) see correct level
 Logger.configure(level: original_logger_level)

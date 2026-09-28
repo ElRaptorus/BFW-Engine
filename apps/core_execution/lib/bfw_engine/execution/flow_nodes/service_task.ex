@@ -57,7 +57,7 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
          {:ok, handler_module} <- lookup_handler(implementation),
          {:ok, mapped_input} <- apply_input_pipeline(type_data, token.payload, context) do
       mapped_token = %{token | payload: mapped_input}
-      dispatch_and_park(handler_module, flow_node, mapped_token, context)
+      dispatch_and_park(handler_module, flow_node, mapped_token, context, implementation)
     end
   end
 
@@ -93,8 +93,11 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
     end
   end
 
-  defp dispatch_and_park(handler_module, flow_node, mapped_token, context) do
-    case FniLifecycle.park_async(context, %{}) do
+  defp dispatch_and_park(handler_module, flow_node, mapped_token, context, implementation) do
+    case FniLifecycle.park_async(context, %{
+           implementation: implementation,
+           mapped_input: mapped_token.payload
+         }) do
       :ok ->
         case dispatch_to_handler(handler_module, flow_node, mapped_token, context) do
           {:async, flow_node_instance_id} ->

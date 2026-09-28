@@ -515,12 +515,13 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
     // its lists are in reverse document order. Match that exactly: outgoing
     // order determines gateway evaluation order, and a consumer that disagreed
     // with the engine here would reason about the wrong branch first.
+    // Data input and output associations are prepended the same way.
     incoming: incoming.reverse(),
     outgoing: outgoing.reverse(),
     boundaryEventRefs: [],
     dataContracts,
-    dataInputAssociations,
-    dataOutputAssociations,
+    dataInputAssociations: dataInputAssociations.reverse(),
+    dataOutputAssociations: dataOutputAssociations.reverse(),
     multiInstance,
     standardLoop,
     isForCompensation: attr(node, 'isForCompensation') === 'true',
@@ -767,6 +768,7 @@ function buildSubProcessTypeData(
   const innerSequenceFlows: SequenceFlow[] = [];
   const innerDataObjects: DataObject[] = [];
   const innerDataObjectRefs: DataObjectReference[] = [];
+  const innerDataStoreRefs: DataStoreReference[] = [];
   const innerDefaults = new Map<string, string>();
 
   for (const child of kids) {
@@ -800,6 +802,14 @@ function buildSubProcessTypeData(
           dataState: attr(child, 'dataState'),
         });
         break;
+      case 'dataStoreReference':
+        innerDataStoreRefs.push({
+          id: attr(child, 'id') ?? '',
+          name: attr(child, 'name'),
+          dataStoreRef: attr(child, 'dataStoreRef'),
+          dataState: attr(child, 'dataState'),
+        });
+        break;
     }
   }
 
@@ -817,7 +827,7 @@ function buildSubProcessTypeData(
     dataObjects: innerDataObjects,
     dataObjectReferences: innerDataObjectRefs,
     dataStores: [],
-    dataStoreReferences: [],
+    dataStoreReferences: innerDataStoreRefs,
     associations: [],
     extensions: [],
     linterScores: [],
@@ -865,6 +875,7 @@ function buildSubProcessTypeData(
     sequenceFlows: syntheticProcess.sequenceFlows,
     dataObjects: syntheticProcess.dataObjects,
     dataObjectReferences: syntheticProcess.dataObjectReferences,
+    dataStoreReferences: syntheticProcess.dataStoreReferences,
     payloadContract: parseJsonText(childText(extKids, 'payloadContract')),
     resultContract: parseJsonText(childText(extKids, 'resultContract')),
     inMappings,

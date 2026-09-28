@@ -25,6 +25,7 @@
           "valueContract": null
         }
       ],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {
@@ -159,6 +160,7 @@
             "cancelRemainingInstances": true,
             "dataObjectReferences": [],
             "dataObjects": [],
+            "dataStoreReferences": [],
             "flowNodes": [
               {
                 "boundaryEventRefs": [],

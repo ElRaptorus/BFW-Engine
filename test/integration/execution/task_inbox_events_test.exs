@@ -144,6 +144,7 @@ defmodule BfwEngine.Integration.TaskInboxEventsTest do
         http_abort_process_instance(process_instance_id, "user_abort", %{
           "abort_process_instance" => "all"
         })
+
       wait_for_process_instance(process_instance_id, @default_timeout)
       assert_pi_state!(process_instance_id, "aborted", verify_execution_chain: false)
 
@@ -356,14 +357,208 @@ defmodule BfwEngine.Integration.TaskInboxEventsTest do
     end
   end
 
-  defp await_multiple_waiting_flow_node_instances(process_instance_id, flow_node_type, expected_count, opts) do
+  describe "remaining withdrawal paths" do
+    test "Escalation End interrupts the waiting user task", %{collector: collector} do
+      {201, _} = http_deploy("inbox_escalation_end_interrupt.bpmn")
+      {201, body} = http_start("InboxEscalationEndInterrupt")
+      process_instance_id = body["processInstanceId"]
+
+      {:ok, _user_task} =
+        await_waiting_fni_by_node_id(process_instance_id, "UserTask_Wait",
+          timeout: @default_timeout
+        )
+
+      wait_for_process_instance(process_instance_id, @default_timeout)
+      assert_pi_state!(process_instance_id, "escalated", verify_execution_chain: false)
+
+      finished_events = user_task_finished_events(collector, "UserTask_Wait")
+      assert length(finished_events) == 1
+      assert hd(finished_events).outcome == :aborted
+    end
+
+    test "an interrupting Event Subprocess withdraws the waiting user task", %{
+      collector: collector
+    } do
+      {201, _} = http_deploy("event_subprocess_timer_interrupting.bpmn")
+      {201, body} = http_start("EventSubprocessTimerInterrupting")
+      process_instance_id = body["processInstanceId"]
+
+      wait_for_process_instance(process_instance_id, @default_timeout)
+      assert_pi_state!(process_instance_id, "finished")
+
+      finished_events = user_task_finished_events(collector, "Main_UserTask")
+      assert length(finished_events) == 1
+      assert hd(finished_events).outcome == :aborted
+    end
+
+    test "ad-hoc cancelRemainingInstances withdraws the other user task", %{collector: collector} do
+      {201, _} = http_deploy("inbox_adhoc_cancel_remaining.bpmn")
+      {201, body} = http_start("InboxAdhocCancelRemaining")
+      process_instance_id = body["processInstanceId"]
+
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+
+      {:ok, review} =
+        await_waiting_fni_by_node_id(child_process_instance_id, "UserTask_Review",
+          timeout: @default_timeout
+        )
+
+      {:ok, _approve} =
+        await_waiting_fni_by_node_id(child_process_instance_id, "UserTask_Approve",
+          timeout: @default_timeout
+        )
+
+      {204, _} = http_finish_user_task(review.id, %{"done" => true})
+      wait_for_process_instance(process_instance_id, @default_timeout)
+      assert_pi_state!(process_instance_id, "finished")
+
+      approve_events = user_task_finished_events(collector, "UserTask_Approve")
+      assert length(approve_events) == 1
+      assert hd(approve_events).outcome == :aborted
+    end
+
+    test "an error cascade inside a child process instance withdraws its user task",
+         %{collector: collector} do
+      {201, _} = http_deploy("error_end_event_concurrent.bpmn")
+      {201, _} = http_deploy("inbox_error_cascade_parent.bpmn")
+      {201, body} = http_start("InboxErrorCascadeParent")
+      process_instance_id = body["processInstanceId"]
+
+      wait_for_process_instance(process_instance_id, @default_timeout)
+
+      finished_events = user_task_finished_events(collector, "UserTask_1")
+      assert length(finished_events) == 1
+      assert hd(finished_events).outcome == :aborted
+    end
+
+    test "aborting the parent withdraws the child user task", %{collector: collector} do
+      {201, _} = http_deploy("ca_cascade_waiting_child.bpmn")
+      {201, _} = http_deploy("ca_cascade_simple_parent.bpmn")
+      {201, body} = http_start("CaCascadeSimpleParent")
+      process_instance_id = body["processInstanceId"]
+
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+
+      {:ok, _user_task} =
+        await_waiting_fni_by_node_id(child_process_instance_id, "UserTask_1",
+          timeout: @default_timeout
+        )
+
+      {204, _} =
+        http_abort_process_instance(process_instance_id, "user_abort", %{
+          "abort_process_instance" => "all"
+        })
+
+      wait_for_process_instance(process_instance_id, @default_timeout)
+      wait_for_process_instance(child_process_instance_id, @default_timeout)
+
+      finished_events = user_task_finished_events(collector, "UserTask_1")
+      assert length(finished_events) == 1
+      assert hd(finished_events).outcome == :aborted
+    end
+
+    test "sequential multi-instance break finishes after one iteration", %{collector: collector} do
+      {201, _} = http_deploy("inbox_sequential_mi_break.bpmn")
+
+      {201, body} =
+        http_start("InboxSequentialMiBreak", %{
+          "payload" => %{"items" => [%{"name" => "A"}, %{"name" => "B"}]}
+        })
+
+      process_instance_id = body["processInstanceId"]
+
+      {:ok, first_iteration} =
+        await_waiting_flow_node_instance(process_instance_id, "user_task",
+          timeout: @default_timeout
+        )
+
+      {204, _} = http_finish_user_task(first_iteration.id, %{"decision" => "stop"})
+      wait_for_process_instance(process_instance_id, @default_timeout)
+      assert_pi_state!(process_instance_id, "finished")
+
+      finished_events = user_task_finished_events(collector, "Task_1")
+      assert length(finished_events) == 1
+      assert hd(finished_events).outcome == :completed
+    end
+
+    test "an interrupting timer boundary withdraws a confirming manual task",
+         %{collector: collector} do
+      {201, _} = http_deploy("inbox_manual_task_timer_boundary.bpmn")
+      {201, body} = http_start("InboxManualTaskTimerBoundary")
+      process_instance_id = body["processInstanceId"]
+
+      wait_for_process_instance(process_instance_id, @default_timeout)
+      assert_pi_state!(process_instance_id, "finished")
+
+      finished_events = user_task_finished_events(collector, "ManualTask_1")
+      assert length(finished_events) == 1
+      assert hd(finished_events).flow_node_type == :manual_task
+      assert hd(finished_events).outcome == :aborted
+    end
+  end
+
+  describe "resume" do
+    test "does not publish UserTaskCreated again for a task that is already waiting",
+         %{collector: collector} do
+      {201, _} = http_deploy("user_task_simple.bpmn")
+      {201, body} = http_start("UserTaskSimple")
+      process_instance_id = body["processInstanceId"]
+
+      {:ok, user_task} =
+        await_waiting_fni_by_node_id(process_instance_id, "UserTask_1", timeout: @default_timeout)
+
+      assert length(user_task_created_events(collector, "UserTask_1")) == 1
+
+      {:ok, pid} = BfwEngine.Execution.lookup_process_instance(process_instance_id)
+      :ok = DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, pid)
+      await_process_exit(pid)
+
+      assert {:ok, _resumed_count} = BfwEngine.Execution.ResumeRunner.resume_all()
+      {:ok, _resumed_pid} = poll_pi_alive(process_instance_id)
+
+      assert length(user_task_created_events(collector, "UserTask_1")) == 1
+
+      {204, _} = http_finish_user_task(user_task.id, %{"approved" => true})
+      wait_for_process_instance(process_instance_id, @default_timeout)
+    end
+  end
+
+  defp await_process_exit(pid) do
+    reference = Process.monitor(pid)
+
+    receive do
+      {:DOWN, ^reference, :process, ^pid, _reason} -> :ok
+    after
+      2_000 -> :ok
+    end
+  end
+
+  defp await_multiple_waiting_flow_node_instances(
+         process_instance_id,
+         flow_node_type,
+         expected_count,
+         opts
+       ) do
     timeout = Keyword.get(opts, :timeout, 5_000)
     interval = Keyword.get(opts, :poll_interval, 50)
     deadline = System.monotonic_time(:millisecond) + timeout
-    do_poll_multiple_waiting(process_instance_id, flow_node_type, expected_count, interval, deadline)
+
+    do_poll_multiple_waiting(
+      process_instance_id,
+      flow_node_type,
+      expected_count,
+      interval,
+      deadline
+    )
   end
 
-  defp do_poll_multiple_waiting(process_instance_id, flow_node_type, expected_count, interval, deadline) do
+  defp do_poll_multiple_waiting(
+         process_instance_id,
+         flow_node_type,
+         expected_count,
+         interval,
+         deadline
+       ) do
     waiting_flow_node_instances =
       process_instance_id
       |> fetch_flow_node_instances()
@@ -381,7 +576,14 @@ defmodule BfwEngine.Integration.TaskInboxEventsTest do
 
       true ->
         Process.sleep(interval)
-        do_poll_multiple_waiting(process_instance_id, flow_node_type, expected_count, interval, deadline)
+
+        do_poll_multiple_waiting(
+          process_instance_id,
+          flow_node_type,
+          expected_count,
+          interval,
+          deadline
+        )
     end
   end
 end

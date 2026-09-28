@@ -100,6 +100,14 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
     def update_flow_node_instance(id, action, changes) do
       NoOp.update_flow_node_instance(id, action, changes)
     end
+
+    @impl true
+    def finish_flow_node_instance(flow_node_instance_id, changes) do
+      case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+        :ok -> {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+        other -> other
+      end
+    end
   end
 
   defmodule TrackingServiceTaskHandler do

@@ -25,6 +25,7 @@
           "valueContract": null
         }
       ],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {
@@ -84,6 +85,7 @@
                 "valueContract": null
               }
             ],
+            "dataStoreReferences": [],
             "flowNodes": [
               {
                 "boundaryEventRefs": [],

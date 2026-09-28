@@ -28,6 +28,12 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
   @pi_id "pi-c1-regression-00000001"
   @shell_fni_id "fni-c1-regression-shell"
 
+  @user_task %FlowNode{
+    id: "UserTask_1",
+    type: :user_task,
+    type_data: %FlowNodeData.UserTask{}
+  }
+
   @multi_instance_user_task %FlowNode{
     id: "UserTask_MI",
     type: :user_task,
@@ -64,6 +70,18 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
 
     @impl true
     def update_flow_node_instance(_id, _action, _changes), do: :ok
+
+    @impl true
+    def finish_flow_node_instance(flow_node_instance_id, changes) do
+      case update_flow_node_instance(flow_node_instance_id, :update_finished, changes) do
+        :ok ->
+          {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+
+        other ->
+          other
+      end
+    end
+
     @impl true
     def list_running_process_instances(_opts), do: {:ok, %{records: [], next_cursor: nil}}
     @impl true
@@ -125,6 +143,9 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
   end
 
   setup do
+    Process.delete(:bfw_persistence_previous_flow_node_state)
+    Process.delete(:reject_terminal_after)
+    Process.delete(:terminal_write_count)
     Application.put_env(:core_execution, :persistence_adapter, NoOpAdapter)
     Application.put_env(:core_execution, :persistence_retry_max_attempts, 1)
 
@@ -141,6 +162,8 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
 
   describe "MI iteration termination publishes UserTaskFinished(:aborted)" do
     test "transition_to_interrupted (completionCondition early break / boundary interrupt)" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
+
       :ok =
         FniLifecycle.transition_to_interrupted(
           @fni_id,
@@ -162,6 +185,8 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
     end
 
     test "transition_to_aborted (PI abort cascade)" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
+
       :ok =
         FniLifecycle.transition_to_aborted(
           @fni_id,
@@ -183,6 +208,8 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
     end
 
     test "transition_to_fatal (crash cascade)" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
+
       :ok =
         FniLifecycle.transition_to_fatal(
           @fni_id,
@@ -204,6 +231,8 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
     end
 
     test "transition_to_error (Error End Event cascade)" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
+
       :ok =
         FniLifecycle.transition_to_error(
           @fni_id,
@@ -242,6 +271,24 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
   end
 
   describe "inbox eligibility" do
+    test "a waiting row publishes UserTaskFinished even when the caller says it was active" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
+
+      :ok =
+        FniLifecycle.transition_to_aborted(
+          @fni_id,
+          @pi_id,
+          "process_aborted",
+          @user_task,
+          %{},
+          nil,
+          nil,
+          was_waiting: false
+        )
+
+      assert_receive {:captured, %Event.UserTaskFinished{outcome: :aborted}}
+    end
+
     test "transition_to_fatal with was_waiting false publishes no UserTaskFinished" do
       :ok =
         FniLifecycle.transition_to_fatal(
@@ -262,6 +309,8 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
     end
 
     test "transition_to_fatal with was_waiting true publishes one aborted UserTaskFinished" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
+
       :ok =
         FniLifecycle.transition_to_fatal(
           @fni_id,
@@ -282,6 +331,7 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
     end
 
     test "a second transition_to_interrupted publishes no second UserTaskFinished" do
+      Process.put(:bfw_persistence_previous_flow_node_state, "waiting")
       Process.put(:reject_terminal_after, 1)
 
       :ok =

@@ -23,7 +23,7 @@ and [Engine Facade](../guides/plugins/engine-facade.md).
 | Named script (for `<bfw:scriptRef>`) | `@behaviour BfwEngine.Plugin.NamedScript` | Unique by script-key. Callback: `handle_enter(flow_node, payload, context) :: {:ok, map()} \| {:error, term()}` |
 | Auth provider | `@behaviour BfwEngine.Plugin.AuthProvider` | Unique (singleton, first-writer wins). Callback: `verify_and_resolve(token) :: {:ok, Identity.t()} \| {:error, reason}` |
 
-PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`), not a plugin behaviour. BPMN DataStores remain a parser no-op.
+PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin capabilities **do not exist** — do not register them. Execution persistence is `BfwEngine.Execution.Persistence` (config `:core_execution, :persistence_adapter`), not a plugin behaviour. BPMN `<bpmn:dataStoreReference>` elements are parsed and the validator accepts data associations that target one, but the Engine never reads or writes the store — `DataObjectWriter` drops store-targeted output associations before evaluation. There is no `DataStoreAdapter` to plug in.
 
 **`EventSink` behaviour shape**:
 
@@ -170,7 +170,7 @@ tables with signatures: [Engine Facade](../guides/plugins/engine-facade.md).
 | `facade.processes` | `list`, `get`, `get_latest_version`, `deploy`, `enable`, `disable`, `delete_version`, `undeploy`, `start` | Catalog reads + writes for Process Models / Versions |
 | `facade.process_instances` | `get`, `abort`, `retry`, `delete` | Runtime commands on Process Instances |
 | `facade.user_tasks` | `finish`, `cancel` | User Task control — Elixir arity is `(flow_node_instance_id, result\|reason, identity)` |
-| `facade.service_tasks` | `finish_async`, `fail_async` | Async Service Task completion |
+| `facade.service_tasks` | `finish_async`, `fail_async`, `list_waiting` | Async Service Task completion. `list_waiting.(implementations)` returns waiting Service Task rows for those implementation keys whose process instance is still running |
 | `facade.flow_node_instances` | `get`, `list_for_process_instance` | FNI reads + per-PI listing |
 | `facade.data_objects` | `get`, `list_for_instance`, `history_for_instance` | Data Object reads + audit trail |
 | `facade.decisions` | `list`, `get`, `get_latest_version`, `validate`, `deploy`, `evaluate`, `evaluate_by_version`, `evaluate_service`, `get_versions`, `get_xml`, `enable`, `disable`, `delete_version`, `undeploy` | DMN catalog + evaluation |
@@ -224,6 +224,18 @@ The Loader's facade closure also logs a warning when any registration error is r
 
 See `examples/plugins/lifecycle_and_api/quarantine_demo/` for the author-facing demonstration.
 
+## In-BEAM plugin tooling
+
+`mix bfw.gen.plugin` and `mix bfw.plugin.add` are Igniter tasks in `apps/engine_sdk`. Run them from the repository root (`supports_umbrella?` is true). `bfw.gen.plugin <name>` writes `plugins/<name>` (`mix.exs`, `application.ex`, `plugin.ex`, `capabilities.ex`) and then runs `bfw.plugin.add`. The plugin module is `Macro.camelize(name)` with no `BfwEngine` prefix. A second generate, when `mix.exs` already exists, creates no files and still runs add.
+
+`bfw.plugin.add --path <path>` reads `app:` from the plugin `mix.exs` and `:plugin_module` from `Application.put_env` in `application.ex`. It appends a path dependency and a `:permanent` release entry to `host/mix.exs` (paths relative to `host/`), and appends `config :<app>, :plugin_module, <Module>` to `config/config.exs`. The Loader reads `Application.get_env(<app>, :plugin_module)`, so either the config entry or the generated `Application.put_env` is enough; the generator writes both so a plugin started outside the release still resolves. It prints `BFE_PLUGINS_INBEAM=<app>` and writes that line once as a comment. It does not set the variable and does not edit `runtime.exs`. The same application and path is a no-op; a different existing path fails.
+
+The OTP release is defined only by `host/mix.exs`. `mix release` at the repository root delegates there. The host is not an umbrella, so a plugin path dependency and the umbrella apps' `in_umbrella` dependencies of `engine_sdk` both resolve as `env: :prod`.
+
+## Async Service Task recovery
+
+Parking a Service Task stores `type_properties["implementation"]` and the mapped payload in `type_properties["mapped_input"]`. `input_token` stays the token that entered the node. Resume re-registers the flow node instance and does not call `handle_enter/3`. The plugin lists its own waiting rows with `facade.service_tasks.list_waiting.(implementations)` from `on_ready` and finishes or fails them. Each returned `input_token` is `mapped_input`, or the stored `input_token` when `mapped_input` is absent. The query includes a row only when `flow_node_type` is `service_task`, `state` is `waiting`, the process instance `state` is `running`, and the implementation is in the argument. Soft-deleted rows stay invisible. There is no REST route for this query.
+
 ## Default built-in plugins
 
 - `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `peripheral_plugins` (HTTP client stays out of Core); registered before user plugins so operators can override the `http` implementation key.
@@ -241,7 +253,7 @@ ready-to-copy starting points.
 
 | Audience | Package | Contents |
 |---|---|---|
-| Elixir plugin authors | `bfw_engine_sdk` (Hex, app `apps/engine_sdk`) | All `@behaviour` modules (including `EventSink` — with a `TestSink` Mox fixture), test helpers, and copy-paste reference plugins under `examples/plugins/`. `BfwEngine.SDK.BPMN` re-exports `BfwEngine.BPMN.Model.*`, `ModelCache.{fetch/1, get/1, fetch_subprocess_model/2, find_message_start_events/1, find_signal_start_events/1}`, and `BfwEngine.BPMN.Parser.parse/1`. The SDK also re-exports `BfwEngine.Types.Event.*` + `EngineEventBus.publish/1` (test-only synthetic emission). `mix bfw.gen.plugin` is not shipped. |
+| Elixir plugin authors | `bfw_engine_sdk` (Hex, app `apps/engine_sdk`) | All `@behaviour` modules (including `EventSink` — with a `TestSink` Mox fixture), test helpers, and copy-paste reference plugins under `examples/plugins/`. `BfwEngine.SDK.BPMN` re-exports `BfwEngine.BPMN.Model.*`, `ModelCache.{fetch/1, get/1, fetch_subprocess_model/2, find_message_start_events/1, find_signal_start_events/1}`, and `BfwEngine.BPMN.Parser.parse/1`. The SDK also re-exports `BfwEngine.Types.Event.*` + `EngineEventBus.publish/1` (test-only synthetic emission). `mix bfw.gen.plugin` and `mix bfw.plugin.add` live in this app. |
 | Non-Elixir work | Not a plugin SDK | Use the built-in HTTP Service Task, the public REST / GraphQL / WebSocket API, or an in-BEAM plugin that execs a local interpreter (`python_script` / `node_script` examples). |
 | Engine API consumers (Studio, dashboards, CLIs) | `@elraptorus/bfw_engine_sdk` (contract: types, errors, events, BPMN XML parser, extension vocabulary manifest) + `@elraptorus/bfw_engine_client` (transport: REST, GraphQL, WebSocket) in `packages/js/` | Typed client for REST triggers + GraphQL queries including the Process Model graph. The SDK ships `extension-manifest.json` (typed export `extensionManifest`) — the vocabulary of every `bfw:*` element the parser reads, **not** a `bpmn-moddle` descriptor |
 

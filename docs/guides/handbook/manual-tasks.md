@@ -32,6 +32,8 @@ Or via REST — see [User Tasks](user-tasks.md) for the finish request body.
 
 Manual Tasks do not support form fields or result contracts. The result payload (if any) becomes the output token.
 
+A confirming Manual Task appears in the same task inbox as User Tasks (`GET`/subscribe on `user_tasks:pending`, or the equivalent GraphQL query), marked with `flowNodeType: "manual_task"` so a client can tell it apart from a User Task. It disappears from the inbox — via one `UserTaskFinished` event — as soon as it stops waiting for any reason: an explicit finish or cancel, a boundary event interrupting the task, a Terminate/Error/Cancel End Event elsewhere in the process, or the process instance aborting or fataling. A non-confirming Manual Task never appears in the inbox at all.
+
 ## Use Cases
 
 - **Approval gates** -- require a manager to confirm before proceeding

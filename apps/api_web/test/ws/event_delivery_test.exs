@@ -320,6 +320,31 @@ defmodule BfwEngineWeb.Ws.EventDeliveryTest do
              )
     end
 
+    test "delivers a Manual Task UserTaskCreated when the lane is accessible" do
+      subscriber =
+        assigns(%{topic: "user_tasks:pending", accessible_lanes: ["Management"]})
+
+      assert EventDelivery.should_deliver?(
+               envelope("UserTaskCreated", %{
+                 "laneName" => "Management",
+                 "flowNodeType" => "manual_task"
+               }),
+               subscriber
+             )
+    end
+
+    test "drops a Manual Task UserTaskCreated when the lane is inaccessible" do
+      subscriber = assigns(%{topic: "user_tasks:pending", accessible_lanes: []})
+
+      refute EventDelivery.should_deliver?(
+               envelope("UserTaskCreated", %{
+                 "laneName" => "Management",
+                 "flowNodeType" => "manual_task"
+               }),
+               subscriber
+             )
+    end
+
     test "drops event types that are not pending-task envelopes" do
       subscriber = assigns(%{topic: "user_tasks:pending", accessible_lanes: ["Management"]})
 

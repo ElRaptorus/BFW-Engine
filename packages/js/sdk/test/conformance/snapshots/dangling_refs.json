@@ -30,6 +30,7 @@
           "valueContract": null
         }
       ],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {

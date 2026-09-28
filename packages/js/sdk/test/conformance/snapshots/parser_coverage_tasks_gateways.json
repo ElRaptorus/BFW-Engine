@@ -32,6 +32,7 @@
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {

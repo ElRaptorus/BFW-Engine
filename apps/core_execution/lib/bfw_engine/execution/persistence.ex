@@ -70,6 +70,16 @@ defmodule BfwEngine.Execution.Persistence do
   `:soft_delete` are not guarded.
   """
   @callback update_flow_node_instance(String.t(), atom(), map()) :: :ok | {:error, term()}
+
+  @doc """
+  Guarded `:update_finished` write.
+
+  Returns `{:ok, record, previous_state}` where `previous_state` is the row
+  state read before the write (`"active"` or `"waiting"`). A row that is
+  already terminal returns `{:error, :already_terminal}` and is not changed.
+  """
+  @callback finish_flow_node_instance(String.t(), map()) ::
+              {:ok, term(), String.t() | atom()} | {:error, term()}
   @doc """
   Returns one page of root-level running process instances (those without a
   parent), used by `ResumeRunner` for paginated resume at boot. Child PIs
@@ -307,6 +317,17 @@ defmodule BfwEngine.Execution.Persistence.NoOp do
 
   @impl true
   def update_flow_node_instance(_id, _action, _changes), do: :ok
+
+  @impl true
+  def finish_flow_node_instance(id, changes) do
+    case update_flow_node_instance(id, :update_finished, changes) do
+      :ok ->
+        {:ok, %{}, Process.get(:bfw_persistence_previous_flow_node_state, "active")}
+
+      other ->
+        other
+    end
+  end
 
   @impl true
   def list_running_process_instances(_opts), do: {:ok, %{records: [], next_cursor: nil}}

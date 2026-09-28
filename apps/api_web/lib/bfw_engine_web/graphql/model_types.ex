@@ -251,6 +251,14 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     field(:data_state, :string)
   end
 
+  @desc "A `<bpmn:dataStoreReference>`. Data Stores are recognised, not modelled: `dataStoreRef` is preserved verbatim and never resolved or validated by the Engine."
+  object :data_store_reference_model do
+    field(:id, non_null(:id))
+    field(:name, :string)
+    field(:data_store_ref, :string)
+    field(:data_state, :string)
+  end
+
   object :association do
     field(:id, non_null(:id))
     field(:source_ref, :string)
@@ -452,6 +460,7 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     field(:result_contract, :json)
     field(:data_objects, non_null(list_of(non_null(:data_object_model))))
     field(:data_object_references, non_null(list_of(non_null(:data_object_reference_model))))
+    field(:data_store_references, non_null(list_of(non_null(:data_store_reference_model))))
     field(:flow_nodes, non_null(list_of(non_null(:flow_node))))
     field(:sequence_flows, non_null(list_of(non_null(:sequence_flow))))
   end
@@ -558,6 +567,7 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     field(:lanes, non_null(list_of(non_null(:lane))))
     field(:data_objects, non_null(list_of(non_null(:data_object_model))))
     field(:data_object_references, non_null(list_of(non_null(:data_object_reference_model))))
+    field(:data_store_references, non_null(list_of(non_null(:data_store_reference_model))))
     field(:associations, non_null(list_of(non_null(:association))))
     field(:extensions, non_null(list_of(non_null(:bpmn_extension))))
 

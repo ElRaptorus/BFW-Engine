@@ -11,6 +11,7 @@
       "correlationKey": null,
       "dataObjectReferences": [],
       "dataObjects": [],
+      "dataStoreReferences": [],
       "extensions": [],
       "flowNodes": [
         {
@@ -76,6 +77,7 @@
                 "valueContract": null
               }
             ],
+            "dataStoreReferences": [],
             "flowNodes": [
               {
                 "boundaryEventRefs": [],

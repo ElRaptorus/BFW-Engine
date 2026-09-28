@@ -1846,6 +1846,50 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert message =~ "does not match any DataObjectReference or DataStoreReference"
     end
 
+    test "a subprocess DOA targeting a process-level DataStoreReference is accepted" do
+      inner_task = %FlowNode{
+        id: "Sub_Task_1",
+        type: :script_task,
+        type_data: %FlowNodeData.ScriptTask{script: "1"},
+        data_output_associations: [
+          %BfwEngine.BPMN.Model.DataAssociation{id: "DOA_store", target_ref: "DSR_parent"}
+        ],
+        data_input_associations: [
+          %BfwEngine.BPMN.Model.DataAssociation{id: "DIA_store", source_ref: "DSR_parent"}
+        ]
+      }
+
+      inner_nodes = [
+        %FlowNode{id: "Sub_Start_1", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        inner_task,
+        %FlowNode{id: "Sub_End_1", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      inner_flows = [
+        %SequenceFlow{id: "Sub_F1", source_ref: "Sub_Start_1", target_ref: "Sub_Task_1"},
+        %SequenceFlow{id: "Sub_F2", source_ref: "Sub_Task_1", target_ref: "Sub_End_1"}
+      ]
+
+      definitions =
+        minimal_valid_definitions(
+          process: [
+            data_store_references: [
+              %BfwEngine.BPMN.Model.DataStoreReference{
+                id: "DSR_parent",
+                data_store_ref: "Store_1"
+              }
+            ]
+          ],
+          extra_nodes: [subprocess_node("SubProcess_1", inner_nodes, inner_flows)],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_1"},
+            %SequenceFlow{id: "F3", source_ref: "SubProcess_1", target_ref: "E1"}
+          ]
+        )
+
+      assert {:ok, _} = Validator.validate(definitions)
+    end
+
     test "a subprocess DOA targeting that scope's DataStoreReference is accepted" do
       inner_task = %FlowNode{
         id: "Sub_Task_1",

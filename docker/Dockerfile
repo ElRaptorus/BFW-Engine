@@ -3,7 +3,7 @@
 # Multi-stage build for the Bifrost Forge World Engine release.
 #
 #   * Base: debian:12-slim (D16)
-#   * Build stage: hexpm/elixir:1.19.x-erlang-28.x-debian-bookworm-slim
+#   * Build stage: hexpm/elixir:1.20.x-erlang-29.x-debian-bookworm-slim
 #   * Run stage: debian:12-slim + OTP release + openssl/ncurses runtime deps
 #   * Healthcheck: curl -f http://localhost:4000/health
 #   * Target size: <= 120 MB compressed
@@ -17,9 +17,9 @@
 #
 #   Source-only rebuilds skip layers 1–4 and take ~1-2 min instead of ~10 min.
 
-ARG ELIXIR_VERSION=1.19.5
-ARG OTP_VERSION=28.5
-ARG DEBIAN_VERSION=bookworm-20260421-slim
+ARG ELIXIR_VERSION=1.20.3
+ARG OTP_VERSION=29.0.5
+ARG DEBIAN_VERSION=bookworm-20260824-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
@@ -84,6 +84,7 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
 COPY apps/ apps/
 COPY config/ config/
 COPY rel/ rel/
+COPY host/ host/
 
 RUN mix compile && mix release
 

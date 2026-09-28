@@ -341,9 +341,9 @@ export interface CallActivityTypeData extends WithMappings {
  * normal embedded sub-processes (`false`).
  *
  * Inner `flowNodes` and `sequenceFlows` form the subprocess's embedded
- * scope graph. `dataObjects` / `dataObjectReferences` are scoped to this
- * subprocess. Mappings and contracts follow the same pattern as
- * Call Activities.
+ * scope graph. `dataObjects` / `dataObjectReferences` /
+ * `dataStoreReferences` are scoped to this subprocess. Mappings and
+ * contracts follow the same pattern as Call Activities.
  */
 export interface SubProcessTypeData extends WithMappings, WithContracts {
   type: 'sub_process';
@@ -368,6 +368,7 @@ export interface SubProcessTypeData extends WithMappings, WithContracts {
   sequenceFlows: SequenceFlow[];
   dataObjects: DataObject[];
   dataObjectReferences: DataObjectReference[];
+  dataStoreReferences: DataStoreReference[];
 }
 
 export interface ExclusiveGatewayTypeData {

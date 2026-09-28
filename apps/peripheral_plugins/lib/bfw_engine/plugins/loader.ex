@@ -532,7 +532,8 @@ defmodule BfwEngine.Plugins.Loader do
       end,
       fail_async: fn fni_id, error_code, error_message ->
         BfwEngine.Api.fail_async_service_task(fni_id, error_code, error_message)
-      end
+      end,
+      list_waiting: &BfwEngine.Api.list_waiting_service_tasks/1
     }
   end
 

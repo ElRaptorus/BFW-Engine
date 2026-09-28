@@ -3042,6 +3042,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
         case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
           nil ->
             data = handle_fni_ok(data, flow_node_instance_id, result)
+            data = maybe_evaluate_adhoc_completion_condition(data)
+            data = maybe_cancel_remaining_for_adhoc(data)
+            data = maybe_auto_chain_sequential_adhoc(data)
             maybe_finish_or_continue_with_reply(data, from)
 
           {_shell_fni_id, shell_task_pid} ->

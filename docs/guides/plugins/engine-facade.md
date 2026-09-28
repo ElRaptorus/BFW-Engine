@@ -93,6 +93,7 @@ The TypeScript `EngineFacade.userTasks` methods still take `processInstanceId` a
 |----------|-----------|-------------|
 | `finish_async` | `(fni_id, result) -> :ok \| {:error, term()}` | Complete a parked async Service Task FNI |
 | `fail_async` | `(fni_id, error_code, error_message) -> :ok \| {:error, term()}` | Fail a parked async Service Task FNI |
+| `list_waiting` | `([String.t()]) -> {:ok, [map()]} \| {:error, term()}` | Waiting Service Tasks whose `implementation` is in the list and whose process instance is `running`. Each map has `flow_node_instance_id`, `process_instance_id`, `flow_node_id`, `implementation`, and `input_token` (the mapped payload). `[]` returns `{:ok, []}`. The unwired default returns `{:error, :not_wired}` |
 
 #### `facade.flow_node_instances`
 

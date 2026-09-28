@@ -97,7 +97,7 @@ defmodule BfwEngine.BPMN.Validator do
       check_orphan_nodes(process),
       check_start_end_flow_direction(process),
       check_data_object_refs(process),
-      check_data_association_refs(process),
+      check_data_association_refs(process, all_data_store_reference_ids(definitions)),
       check_value_contract_schemas(process),
       check_global_refs(process, definitions),
       check_event_definition_positions(process),
@@ -380,12 +380,38 @@ defmodule BfwEngine.BPMN.Validator do
   # Data association reference checks (DOA target_ref, DIA source_ref)
   # ---------------------------------------------------------------------------
 
-  defp check_data_association_refs(%BpmnProcess{} = process) do
+  # Data Store references are diagram decorations. A reference declared on any
+  # scope of the file is a valid association target everywhere in that file.
+  # Data Object references stay in the scope that declares them.
+  defp all_data_store_reference_ids(%Definitions{} = definitions) do
+    definitions.processes
+    |> Enum.flat_map(&data_store_references_in_scope/1)
+    |> MapSet.new(fn reference -> reference.id end)
+  end
+
+  defp data_store_references_in_scope(%BpmnProcess{} = process) do
+    process.data_store_references ++ nested_data_store_references(process.flow_nodes)
+  end
+
+  defp data_store_references_in_scope(%FlowNodeData.SubProcess{} = data) do
+    data.data_store_references ++ nested_data_store_references(data.flow_nodes)
+  end
+
+  defp nested_data_store_references(flow_nodes) do
+    Enum.flat_map(flow_nodes, fn
+      %FlowNode{type_data: %FlowNodeData.SubProcess{} = data} ->
+        data_store_references_in_scope(data)
+
+      _flow_node ->
+        []
+    end)
+  end
+
+  defp check_data_association_refs(%BpmnProcess{} = process, store_reference_ids) do
     data_reference_ids =
-      MapSet.new(
-        process.data_object_references ++ process.data_store_references,
-        fn ref -> ref.id end
-      )
+      process.data_object_references
+      |> MapSet.new(fn ref -> ref.id end)
+      |> MapSet.union(store_reference_ids)
 
     Enum.flat_map(process.flow_nodes, fn %FlowNode{id: node_id, type: type} = node ->
       label = type_label(type)
@@ -743,7 +769,7 @@ defmodule BfwEngine.BPMN.Validator do
 
     association_errors =
       inner_scope_as_process
-      |> check_data_association_refs()
+      |> check_data_association_refs(all_data_store_reference_ids(definitions))
       |> Enum.map(fn {code, message} -> {code, scope_label <> message} end)
 
     orphan_check =
