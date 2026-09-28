@@ -1,7 +1,16 @@
 defmodule BfwEngine.Execution.ScriptDispatchTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias BfwEngine.Execution.ScriptDispatch
+
+  defmodule ConfiguredAdapter do
+    @moduledoc false
+    @behaviour ScriptDispatch
+
+    @impl true
+    def lookup_script("resolved"), do: {:ok, __MODULE__}
+    def lookup_script(_script_ref), do: {:error, :not_found}
+  end
 
   describe "ScriptDispatch.NoOp" do
     test "lookup_script always returns {:error, :not_found}" do
@@ -10,28 +19,30 @@ defmodule BfwEngine.Execution.ScriptDispatchTest do
   end
 
   describe "adapter/0" do
-    test "returns configured adapter module" do
+    setup do
       previous = Application.get_env(:core_execution, :script_dispatch)
-      Application.put_env(:core_execution, :script_dispatch, SomeFakeModule)
 
-      assert ScriptDispatch.adapter() == SomeFakeModule
+      on_exit(fn ->
+        if previous == nil do
+          Application.delete_env(:core_execution, :script_dispatch)
+        else
+          Application.put_env(:core_execution, :script_dispatch, previous)
+        end
+      end)
 
-      if previous do
-        Application.put_env(:core_execution, :script_dispatch, previous)
-      else
-        Application.delete_env(:core_execution, :script_dispatch)
-      end
+      :ok
+    end
+
+    test "returns configured adapter module" do
+      Application.put_env(:core_execution, :script_dispatch, ConfiguredAdapter)
+
+      assert ScriptDispatch.adapter() == ConfiguredAdapter
     end
 
     test "defaults to NoOp when not configured" do
-      previous = Application.get_env(:core_execution, :script_dispatch)
       Application.delete_env(:core_execution, :script_dispatch)
 
       assert ScriptDispatch.adapter() == ScriptDispatch.NoOp
-
-      if previous do
-        Application.put_env(:core_execution, :script_dispatch, previous)
-      end
     end
   end
 end
