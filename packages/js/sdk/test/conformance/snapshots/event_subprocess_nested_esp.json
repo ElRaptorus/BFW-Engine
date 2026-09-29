@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Main_Flow_1"
-          ],
+          "outgoing": ["Main_Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -48,15 +46,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Main_UserTask",
-          "incoming": [
-            "Main_Flow_1"
-          ],
+          "incoming": ["Main_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Work",
-          "outgoing": [
-            "Main_Flow_2"
-          ],
+          "outgoing": ["Main_Flow_2"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -78,9 +72,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Main_Flow_2"
-          ],
+          "incoming": ["Main_Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -129,9 +121,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Message Received",
-                "outgoing": [
-                  "ESP_Outer_Flow_1"
-                ],
+                "outgoing": ["ESP_Outer_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -150,15 +140,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Outer_UserTask",
-                "incoming": [
-                  "ESP_Outer_Flow_1"
-                ],
+                "incoming": ["ESP_Outer_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Outer ESP Work",
-                "outgoing": [
-                  "ESP_Outer_Flow_2"
-                ],
+                "outgoing": ["ESP_Outer_Flow_2"],
                 "standardLoop": null,
                 "type": "user_task",
                 "typeData": {
@@ -180,9 +166,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Outer_End",
-                "incoming": [
-                  "ESP_Outer_Flow_2"
-                ],
+                "incoming": ["ESP_Outer_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Outer ESP Done",
@@ -231,9 +215,7 @@
                       "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Timer Elapsed",
-                      "outgoing": [
-                        "ESP_Inner_Flow_1"
-                      ],
+                      "outgoing": ["ESP_Inner_Flow_1"],
                       "standardLoop": null,
                       "type": "start_event",
                       "typeData": {
@@ -253,15 +235,11 @@
                       "dataOutputAssociations": [],
                       "documentation": null,
                       "id": "ESP_Inner_Task",
-                      "incoming": [
-                        "ESP_Inner_Flow_1"
-                      ],
+                      "incoming": ["ESP_Inner_Flow_1"],
                       "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Inner ESP Work",
-                      "outgoing": [
-                        "ESP_Inner_Flow_2"
-                      ],
+                      "outgoing": ["ESP_Inner_Flow_2"],
                       "standardLoop": null,
                       "type": "task",
                       "typeData": {}
@@ -273,9 +251,7 @@
                       "dataOutputAssociations": [],
                       "documentation": null,
                       "id": "ESP_Inner_End",
-                      "incoming": [
-                        "ESP_Inner_Flow_2"
-                      ],
+                      "incoming": ["ESP_Inner_Flow_2"],
                       "isForCompensation": false,
                       "multiInstance": null,
                       "name": "Inner ESP Done",
@@ -356,12 +332,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Main_UserTask",
-            "End_1",
-            "ESP_Outer"
-          ],
+          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Outer"],
           "id": "Lane_default",
           "name": "default"
         }

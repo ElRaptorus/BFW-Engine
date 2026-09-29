@@ -25,9 +25,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -72,9 +70,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "Sub_Flow_1"
-                ],
+                "outgoing": ["Sub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -90,15 +86,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "CA2",
-                "incoming": [
-                  "Sub_Flow_1"
-                ],
+                "incoming": ["Sub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Call Leaf",
-                "outgoing": [
-                  "Sub_Flow_2"
-                ],
+                "outgoing": ["Sub_Flow_2"],
                 "standardLoop": null,
                 "type": "call_activity",
                 "typeData": {
@@ -116,9 +108,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Sub_End",
-                "incoming": [
-                  "Sub_Flow_2"
-                ],
+                "incoming": ["Sub_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub End",
@@ -168,9 +158,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -191,11 +179,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "SubProcess_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

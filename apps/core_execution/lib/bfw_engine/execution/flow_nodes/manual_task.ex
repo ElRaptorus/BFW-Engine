@@ -3,10 +3,11 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
   Handler for `<bpmn:manualTask>`.
 
   Pass-through by default — publishes no inbox events. When
-  `bfw:requireConfirmation` is `true`, enters `waiting` state — behaves
-  like a minimal User Task requiring a `FinishUserTask` call to advance,
-  and publishes the same task inbox events (`UserTaskCreated`,
+  `bfw:requireConfirmation` is `true`, enters `waiting` state until a
+  `confirm_manual_task` call (`PUT /manual-tasks/{id}/confirm`) advances
+  it, and publishes the same task inbox events (`UserTaskCreated`,
   `UserTaskFinished`) as a User Task, with `flow_node_type: :manual_task`.
+  In both modes the token the task entered with continues unchanged.
   """
 
   @behaviour BfwEngine.Execution.FlowNodeHandler
@@ -15,7 +16,6 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
-  alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Token
@@ -75,30 +75,20 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
     end
   end
 
-  @spec handle_complete(FlowNode.t(), map(), map(), HandlerContext.t()) ::
-          {:ok, FlowNodeResult.t()} | {:error, :payload_too_large, map()} | {:error, term()}
+  @spec handle_complete(FlowNode.t(), map(), term(), HandlerContext.t()) ::
+          {:ok, FlowNodeResult.t()} | {:error, term()}
   @impl true
-  def handle_complete(flow_node, _entry, payload, context) do
-    with :ok <- PayloadCap.check(payload, field: :user_task_result),
-         {:ok, next_flow_node_ids} <- resolve_outgoing(flow_node, context) do
-      case FniLifecycle.finish(context, flow_node, payload, %{}) do
-        {:ok, lifecycle_result} ->
-          {:ok,
-           %FlowNodeResult{
-             output_payload: payload,
-             next_flow_node_ids: next_flow_node_ids,
-             metadata: %{persisted: true, lifecycle: lifecycle_result}
-           }}
+  def handle_complete(flow_node, entry, _payload, context) do
+    entered_payload = entry.token.payload
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:error, :payload_too_large, details} ->
-        {:error, :payload_too_large, details}
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, next_flow_node_ids} <- resolve_outgoing(flow_node, context),
+         {:ok, lifecycle_result} <- FniLifecycle.finish(context, flow_node, entered_payload, %{}) do
+      {:ok,
+       %FlowNodeResult{
+         output_payload: entered_payload,
+         next_flow_node_ids: next_flow_node_ids,
+         metadata: %{persisted: true, lifecycle: lifecycle_result}
+       }}
     end
   end
 

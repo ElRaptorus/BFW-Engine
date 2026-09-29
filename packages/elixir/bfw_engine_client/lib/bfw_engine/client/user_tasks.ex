@@ -1,7 +1,8 @@
 defmodule BfwEngine.Client.UserTasks do
   @moduledoc """
-  User Task and Manual Task lifecycle: listing the pending inbox, and
-  finishing or cancelling a task.
+  User Task lifecycle: listing the pending inbox, and finishing or
+  cancelling a User Task. Manual Tasks are confirmed or cancelled through
+  `BfwEngine.Client.ManualTasks`.
   """
 
   alias BfwEngine.Client
@@ -68,20 +69,24 @@ defmodule BfwEngine.Client.UserTasks do
   defp maybe_put_page(variables, key, value), do: Map.put(variables, key, value)
 
   @doc """
-  Finishes a waiting User Task or Manual Task (with `bfw:requireConfirmation`
-  set), completing it with the given result.
+  Finishes a waiting User Task.
 
-  The Engine responds `204 No Content`, so the success value is the empty
-  body `""` — there is no JSON to decode.
+  The Engine writes `{ "actionId", "values" }` as the task token, replacing
+  the input token. The Engine responds `204 No Content`, so the success
+  value is the empty body `""`.
 
   ## Options
 
-    * `:result` - the outcome payload. Defaults to `%{}` on the wire.
+    * `:values` - field values keyed by form field id. Sent as `values`.
+    * `:action_id` - pressed action id. Sent as `actionId`.
   """
   @spec finish(Client.t(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, Error.t() | Exception.t()}
   def finish(%Client{} = client, flow_node_instance_id, options \\ []) do
-    body = Wire.put_if_present(%{}, "result", Keyword.get(options, :result))
+    body =
+      %{}
+      |> Wire.put_if_present("values", Keyword.get(options, :values))
+      |> Wire.put_if_present("actionId", Keyword.get(options, :action_id))
 
     Client.request(
       client,
@@ -92,7 +97,7 @@ defmodule BfwEngine.Client.UserTasks do
   end
 
   @doc """
-  Cancels a waiting User Task or Manual Task.
+  Cancels a waiting User Task, which aborts the whole process instance tree.
 
   The Engine responds `204 No Content`, so the success value is the empty
   body `""` — there is no JSON to decode.

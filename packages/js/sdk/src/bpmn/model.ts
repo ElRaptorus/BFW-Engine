@@ -212,7 +212,6 @@ export interface WithContracts {
   resultContract: Record<string, unknown> | null;
 }
 
-
 export interface StartEventTypeData {
   type: 'start_event';
   eventDefinition: EventDefinition;

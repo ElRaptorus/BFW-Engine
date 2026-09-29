@@ -46,11 +46,17 @@ defmodule Examples.Plugins.ApiConsumer.WorkerTest do
         end
       },
       user_tasks: %EngineFacade.UserTasks{
-        finish: fn flow_node_instance_id, result_map, identity_argument ->
+        finish: fn flow_node_instance_id, values, action_id, identity_argument ->
           append_event.(
-            {:user_tasks_finish, flow_node_instance_id, result_map, identity_argument}
+            {:user_tasks_finish, flow_node_instance_id, values, action_id, identity_argument}
           )
 
+          :ok
+        end
+      },
+      manual_tasks: %EngineFacade.ManualTasks{
+        confirm: fn flow_node_instance_id, identity_argument ->
+          append_event.({:manual_tasks_confirm, flow_node_instance_id, identity_argument})
           :ok
         end
       }
@@ -60,6 +66,7 @@ defmodule Examples.Plugins.ApiConsumer.WorkerTest do
       Worker.start_link(
         facade: facade,
         demo_user_task_flow_node_instance_id: "FlowNodeInstance_UserTask_demo",
+        demo_manual_task_flow_node_instance_id: "FlowNodeInstance_ManualTask_demo",
         demo_identity: identity
       )
 
@@ -74,7 +81,10 @@ defmodule Examples.Plugins.ApiConsumer.WorkerTest do
     assert {:processes_start, started_process_instance_id} in events
     assert {:process_instances_get, started_process_instance_id} in events
 
-    assert {:user_tasks_finish, "FlowNodeInstance_UserTask_demo", %{"approved" => true}, identity} in events
+    assert {:user_tasks_finish, "FlowNodeInstance_UserTask_demo", %{"approved" => true}, nil,
+            identity} in events
+
+    assert {:manual_tasks_confirm, "FlowNodeInstance_ManualTask_demo", identity} in events
 
     assert List.last(events) ==
              {:process_instances_get, started_process_instance_id}

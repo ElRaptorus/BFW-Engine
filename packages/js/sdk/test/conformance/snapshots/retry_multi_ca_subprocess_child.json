@@ -25,9 +25,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_ToDoAStuff"
-          ],
+          "outgoing": ["Flow_ToDoAStuff"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -43,15 +41,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "DoAStuff",
-          "incoming": [
-            "Flow_ToDoAStuff"
-          ],
+          "incoming": ["Flow_ToDoAStuff"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Do A Stuff",
-          "outgoing": [
-            "Flow_ToSp"
-          ],
+          "outgoing": ["Flow_ToSp"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -63,15 +57,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "SP_Inner",
-          "incoming": [
-            "Flow_ToSp"
-          ],
+          "incoming": ["Flow_ToSp"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Inner Subprocess",
-          "outgoing": [
-            "Flow_SpToEnd"
-          ],
+          "outgoing": ["Flow_SpToEnd"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -96,9 +86,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "SP Start",
-                "outgoing": [
-                  "Flow_SpToTask"
-                ],
+                "outgoing": ["Flow_SpToTask"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -114,15 +102,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "SP_UserTask",
-                "incoming": [
-                  "Flow_SpToTask"
-                ],
+                "incoming": ["Flow_SpToTask"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Inner User Task",
-                "outgoing": [
-                  "Flow_TaskToSpEnd"
-                ],
+                "outgoing": ["Flow_TaskToSpEnd"],
                 "standardLoop": null,
                 "type": "user_task",
                 "typeData": {
@@ -144,9 +128,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "SP_End",
-                "incoming": [
-                  "Flow_TaskToSpEnd"
-                ],
+                "incoming": ["Flow_TaskToSpEnd"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "SP End",
@@ -196,9 +178,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_SpToEnd"
-          ],
+          "incoming": ["Flow_SpToEnd"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Done",
@@ -219,12 +199,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "DoAStuff",
-            "SP_Inner",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "DoAStuff", "SP_Inner", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

@@ -49,7 +49,9 @@ tags:
   - name: Process Instances
     description: Process instance administrative operations (abort, delete)
   - name: User Tasks
-    description: User Task and Manual Task interaction (finish, cancel)
+    description: User Task interaction (finish, cancel) — User Tasks only
+  - name: Manual Tasks
+    description: Manual Task interaction (confirm, cancel) — Manual Tasks only
   - name: Timer Schedules
     description: >-
       Timer Start Event schedule management — list, inspect, enable, and
@@ -737,11 +739,13 @@ paths:
       summary: Cancel a user task
       operationId: cancelUserTask
       description: >-
-        Cancels a waiting User Task or Manual Task and aborts the entire
-        process instance (same effect as PUT /process-instances/{id}/abort).
-        All parallel branches are stopped. Authorization: same as finish —
-        `"write"` on the task lane. `"read"` / `observe_all` → **403**.
-        Invisible → **404**.
+        Cancels a waiting User Task and aborts the entire process instance
+        (same effect as PUT /process-instances/{id}/abort). All parallel
+        branches are stopped. Authorization: same as finish — `"write"` on
+        the task lane. `"read"` / `observe_all` → **403**. Invisible → **404**.
+        User Tasks only — a Manual Task id returns **404**, the same as an
+        unknown id. Use PUT /manual-tasks/{flowNodeInstanceId}/cancel for
+        Manual Tasks.
       parameters:
         - $ref: "#/components/parameters/FlowNodeInstanceId"
       requestBody:
@@ -786,11 +790,15 @@ paths:
       summary: Finish a user task
       operationId: finishUserTask
       description: >-
-        Completes a waiting User Task or Manual Task with the given result
-        payload. Authorization: caller must hold `lane:<lane_name>="write"`
-        for the task's lane. `"read"` or `observe_all` (visible, not
-        writable) returns **403**. Invisible tasks return **404**.
-        Boolean `true` is not a write alias.
+        Completes a waiting User Task. The body is written as the task
+        token `{ actionId, values }`, replacing the input token. Output
+        mappings see that object as FEEL `token`. Authorization: caller
+        must hold `lane:<lane_name>="write"` for the task's lane.
+        `"read"` or `observe_all` (visible, not writable) returns **403**.
+        Invisible tasks return **404**. Boolean `true` is not a write
+        alias. User Tasks only — a Manual Task id returns **404**, the
+        same as an unknown id. Use
+        PUT /manual-tasks/{flowNodeInstanceId}/confirm for Manual Tasks.
       parameters:
         - $ref: "#/components/parameters/FlowNodeInstanceId"
       requestBody:
@@ -800,9 +808,18 @@ paths:
             schema:
               type: object
               properties:
-                result:
+                actionId:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: >-
+                    Pressed action id. Omitted or null is stored as null.
+                    Blank or longer than 255 characters is 422 invalid_action_id.
+                values:
                   type: object
-                  description: Result payload to pass to the task's finish handler.
+                  description: >-
+                    Field values keyed by form field id. Omitted or null
+                    is stored as {}. A non-object is 422 invalid_values.
                   additionalProperties: true
       responses:
         "204":
@@ -824,15 +841,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "413":
-          description: Result payload exceeds BFE_TOKEN_MAX_BYTES
+          description: >-
+            values exceeds BFE_TOKEN_MAX_BYTES (field values), or the
+            token written after the envelope and output mappings does
+            (field user_task_result). A values object exactly at the cap
+            can still be rejected, because the stored token is
+            { actionId, values }. The task stays waiting.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PayloadTooLargeError"
         "422":
           description: >-
-            Task is not in waiting state, or contract violation (PI stays
-            running, FNI stays waiting — caller may retry with valid data)
+            Task is not in waiting state, values is not a JSON object,
+            actionId is not a non-blank string of at most 255 characters,
+            or contract violation (PI stays running, FNI stays waiting —
+            caller may retry with valid data)
           content:
             application/json:
               schema:
@@ -840,6 +864,100 @@ paths:
                   - $ref: "#/components/schemas/FniNotWaitingError"
                   - $ref: "#/components/schemas/ContractViolationError"
                   - $ref: "#/components/schemas/Error"
+
+  # ---------------------------------------------------------------------------
+  # Manual Tasks (authenticated)
+  # ---------------------------------------------------------------------------
+  /manual-tasks/{flowNodeInstanceId}/cancel:
+    put:
+      tags: [Manual Tasks]
+      summary: Cancel a manual task
+      operationId: cancelManualTask
+      description: >-
+        Cancels a waiting Manual Task and aborts the entire process
+        instance (same effect as PUT /process-instances/{id}/abort). All
+        parallel branches are stopped. Authorization: same as confirm —
+        `"write"` on the task lane. `"read"` / `observe_all` → **403**.
+        Invisible → **404**. Manual Tasks only — a User Task id returns
+        **404**, the same as an unknown id.
+      parameters:
+        - $ref: "#/components/parameters/FlowNodeInstanceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional cancellation reason.
+      responses:
+        "204":
+          description: Task cancelled and process instance aborted (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >-
+            Caller can observe the task (`"read"` or `observe_all`) but
+            lacks `lane:<name>="write"`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
+        "404":
+          description: FNI not found or invisible to caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Task is not in waiting state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FniNotWaitingError"
+
+  /manual-tasks/{flowNodeInstanceId}/confirm:
+    put:
+      tags: [Manual Tasks]
+      summary: Confirm a manual task
+      operationId: confirmManualTask
+      description: >-
+        Confirms a waiting Manual Task (`bfw:requireConfirmation="true"`).
+        The token the task entered with continues unchanged — this
+        endpoint does not accept or return a result payload. Authorization:
+        caller must hold `lane:<lane_name>="write"` for the task's lane.
+        `"read"` or `observe_all` (visible, not writable) returns **403**.
+        Invisible tasks return **404**. Manual Tasks only — a User Task id
+        returns **404**, the same as an unknown id.
+      parameters:
+        - $ref: "#/components/parameters/FlowNodeInstanceId"
+      responses:
+        "204":
+          description: Task confirmed (no body)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >-
+            Caller can observe the task (`"read"` or `observe_all`) but
+            lacks `lane:<name>="write"`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenError"
+        "404":
+          description: FNI not found or invisible to caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Task is not in waiting state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FniNotWaitingError"
 
   # ---------------------------------------------------------------------------
   # Timer Schedules (authenticated)

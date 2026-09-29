@@ -27,6 +27,13 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
         System.get_env("API_CONSUMER_DEMO_USER_TASK_FNI_ID", "")
       )
 
+    manual_task_flow_node_instance_id =
+      Keyword.get(
+        options,
+        :demo_manual_task_flow_node_instance_id,
+        System.get_env("API_CONSUMER_DEMO_MANUAL_TASK_FNI_ID", "")
+      )
+
     identity =
       Keyword.get(
         options,
@@ -38,14 +45,30 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
         }
       )
 
-    send(self(), {:run_demo, engine_facade, user_task_flow_node_instance_id, identity})
+    send(
+      self(),
+      {:run_demo, engine_facade, user_task_flow_node_instance_id,
+       manual_task_flow_node_instance_id, identity}
+    )
+
     {:ok, %{}}
   end
 
   @doc "Runs the demo once on {:run_demo, ...} or ignores unrelated messages without crashing."
   @impl true
-  def handle_info({:run_demo, engine_facade, user_task_flow_node_instance_id, identity}, state) do
-    _result = run_orchestration_demo(engine_facade, user_task_flow_node_instance_id, identity)
+  def handle_info(
+        {:run_demo, engine_facade, user_task_flow_node_instance_id,
+         manual_task_flow_node_instance_id, identity},
+        state
+      ) do
+    _result =
+      run_orchestration_demo(
+        engine_facade,
+        user_task_flow_node_instance_id,
+        manual_task_flow_node_instance_id,
+        identity
+      )
+
     {:noreply, state}
   end
 
@@ -57,7 +80,12 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
     GenServer.start_link(__MODULE__, options)
   end
 
-  defp run_orchestration_demo(engine_facade, user_task_flow_node_instance_id, identity) do
+  defp run_orchestration_demo(
+         engine_facade,
+         user_task_flow_node_instance_id,
+         manual_task_flow_node_instance_id,
+         identity
+       ) do
     xml = bundled_bpmn_xml()
 
     Logger.info("api_consumer step_1_parse_and_validate")
@@ -115,6 +143,12 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
                           identity
                         )
 
+                        confirm_manual_task_if_configured(
+                          engine_facade,
+                          manual_task_flow_node_instance_id,
+                          identity
+                        )
+
                         Logger.info("api_consumer step_5_process_instances_get final snapshot")
 
                         case engine_facade.process_instances.get.(process_instance_id) do
@@ -132,7 +166,10 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
                         :ok
 
                       {:error, reason} ->
-                        Logger.error("api_consumer step_4_process_instances_get failed: #{inspect(reason)}")
+                        Logger.error(
+                          "api_consumer step_4_process_instances_get failed: #{inspect(reason)}"
+                        )
+
                         {:error, {:get_process_instance_failed, reason}}
                     end
 
@@ -142,7 +179,10 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
                 end
 
               {:error, reason} ->
-                Logger.error("api_consumer step_2_processes_get_latest_version failed: #{inspect(reason)}")
+                Logger.error(
+                  "api_consumer step_2_processes_get_latest_version failed: #{inspect(reason)}"
+                )
+
                 {:error, {:get_latest_version_failed, reason}}
             end
 
@@ -157,6 +197,30 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
     end
   end
 
+  defp confirm_manual_task_if_configured(
+         engine_facade,
+         manual_task_flow_node_instance_id,
+         identity
+       ) do
+    trimmed_flow_node_instance_id = String.trim(manual_task_flow_node_instance_id)
+
+    if trimmed_flow_node_instance_id == "" do
+      Logger.info(
+        "api_consumer step_4_manual_tasks_confirm skipped (export API_CONSUMER_DEMO_MANUAL_TASK_FNI_ID to exercise confirm/2)"
+      )
+    else
+      Logger.info("api_consumer step_4_manual_tasks_confirm")
+
+      case engine_facade.manual_tasks.confirm.(trimmed_flow_node_instance_id, identity) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          Logger.error("api_consumer step_4_manual_tasks_confirm failed: #{inspect(reason)}")
+      end
+    end
+  end
+
   defp finish_user_task_if_configured(
          engine_facade,
          _process_instance_id,
@@ -167,7 +231,7 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
 
     if trimmed_flow_node_instance_id == "" do
       Logger.info(
-        "api_consumer step_4_user_tasks_finish skipped (export API_CONSUMER_DEMO_USER_TASK_FNI_ID to exercise finish/3)"
+        "api_consumer step_4_user_tasks_finish skipped (export API_CONSUMER_DEMO_USER_TASK_FNI_ID to exercise finish/4)"
       )
     else
       Logger.info("api_consumer step_4_user_tasks_finish")
@@ -175,6 +239,7 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
       case engine_facade.user_tasks.finish.(
              trimmed_flow_node_instance_id,
              %{"approved" => true},
+             nil,
              identity
            ) do
         :ok ->
@@ -188,8 +253,11 @@ defmodule Examples.Plugins.ApiConsumer.Worker do
 
   defp pick_executable_process!(%Definitions{processes: processes}) do
     case Enum.find(processes, & &1.is_executable) do
-      %BfwEngine.BPMN.Model.Process{} = process -> process
-      nil -> raise ArgumentError, "api_consumer example requires an executable process in bundled BPMN"
+      %BfwEngine.BPMN.Model.Process{} = process ->
+        process
+
+      nil ->
+        raise ArgumentError, "api_consumer example requires an executable process in bundled BPMN"
     end
   end
 

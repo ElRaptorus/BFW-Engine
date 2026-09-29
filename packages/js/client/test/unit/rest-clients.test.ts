@@ -3,6 +3,7 @@ import { HttpTransport } from '../../src/http/transport.js';
 import { ProcessClient } from '../../src/rest/process-client.js';
 import { ProcessInstanceClient } from '../../src/rest/process-instance-client.js';
 import { UserTaskClient } from '../../src/rest/user-task-client.js';
+import { ManualTaskClient } from '../../src/rest/manual-task-client.js';
 import { EngineClient } from '../../src/rest/engine-client.js';
 import { EventClient } from '../../src/rest/event-client.js';
 import { DecisionClient } from '../../src/rest/decision-client.js';
@@ -136,13 +137,43 @@ describe('UserTaskClient', () => {
   });
 
   it('finish sends PUT /user-tasks/{fniId}/finish', async () => {
-    await client.finish('fni-uuid-1', { result: { approved: true } });
-    expect(transport.put).toHaveBeenCalledWith('/user-tasks/fni-uuid-1/finish', { result: { approved: true } });
+    await client.finish('fni-uuid-1', { values: { approved: true } });
+    expect(transport.put).toHaveBeenCalledWith('/user-tasks/fni-uuid-1/finish', { values: { approved: true } });
   });
 
   it('cancel sends PUT /user-tasks/{fniId}/cancel', async () => {
     await client.cancel('fni-uuid-1');
     expect(transport.put).toHaveBeenCalledWith('/user-tasks/fni-uuid-1/cancel', undefined);
+  });
+});
+
+describe('ManualTaskClient', () => {
+  let transport: ReturnType<typeof createMockTransport>;
+  let client: ManualTaskClient;
+
+  beforeEach(() => {
+    transport = createMockTransport();
+    client = new ManualTaskClient(transport);
+  });
+
+  it('confirm sends PUT /manual-tasks/{fniId}/confirm without a body', async () => {
+    await client.confirm('fni-uuid-1');
+    expect(transport.put).toHaveBeenCalledWith('/manual-tasks/fni-uuid-1/confirm');
+  });
+
+  it('confirm encodes the flow node instance id', async () => {
+    await client.confirm('fni/with space');
+    expect(transport.put).toHaveBeenCalledWith('/manual-tasks/fni%2Fwith%20space/confirm');
+  });
+
+  it('cancel sends PUT /manual-tasks/{fniId}/cancel with the reason', async () => {
+    await client.cancel('fni-uuid-1', { reason: 'not needed' });
+    expect(transport.put).toHaveBeenCalledWith('/manual-tasks/fni-uuid-1/cancel', { reason: 'not needed' });
+  });
+
+  it('cancel without options sends no body', async () => {
+    await client.cancel('fni-uuid-1');
+    expect(transport.put).toHaveBeenCalledWith('/manual-tasks/fni-uuid-1/cancel', undefined);
   });
 });
 

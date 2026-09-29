@@ -42,6 +42,7 @@ defmodule BfwEngine.EngineFacadeTest do
       assert %EngineFacade.Processes{} = facade.processes
       assert %EngineFacade.ProcessInstances{} = facade.process_instances
       assert %EngineFacade.UserTasks{} = facade.user_tasks
+      assert %EngineFacade.ManualTasks{} = facade.manual_tasks
       assert %EngineFacade.ServiceTasks{} = facade.service_tasks
       assert %EngineFacade.FlowNodeInstances{} = facade.flow_node_instances
       assert %EngineFacade.DataObjects{} = facade.data_objects
@@ -93,11 +94,19 @@ defmodule BfwEngine.EngineFacadeTest do
     end
 
     test "namespace noop: user_tasks.finish returns {:error, :not_wired}", %{facade: f} do
-      assert f.user_tasks.finish.("fni-1", %{}, %{}) == {:error, :not_wired}
+      assert f.user_tasks.finish.("fni-1", %{}, nil, %{}) == {:error, :not_wired}
     end
 
     test "namespace noop: user_tasks.cancel returns {:error, :not_wired}", %{facade: f} do
       assert f.user_tasks.cancel.("fni-1", "reason", %{}) == {:error, :not_wired}
+    end
+
+    test "namespace noop: manual_tasks.confirm returns {:error, :not_wired}", %{facade: f} do
+      assert f.manual_tasks.confirm.("fni-1", %{}) == {:error, :not_wired}
+    end
+
+    test "namespace noop: manual_tasks.cancel returns {:error, :not_wired}", %{facade: f} do
+      assert f.manual_tasks.cancel.("fni-1", "reason", %{}) == {:error, :not_wired}
     end
 
     test "namespace noop: service_tasks.finish_async returns {:error, :not_wired}", %{facade: f} do
@@ -231,12 +240,20 @@ defmodule BfwEngine.EngineFacadeTest do
       assert is_function(f.get_config, 1)
     end
 
-    test "user_tasks.finish is a function of arity 3", %{facade: f} do
-      assert is_function(f.user_tasks.finish, 3)
+    test "user_tasks.finish is a function of arity 4", %{facade: f} do
+      assert is_function(f.user_tasks.finish, 4)
     end
 
     test "user_tasks.cancel is a function of arity 3", %{facade: f} do
       assert is_function(f.user_tasks.cancel, 3)
+    end
+
+    test "manual_tasks.confirm is a function of arity 2", %{facade: f} do
+      assert is_function(f.manual_tasks.confirm, 2)
+    end
+
+    test "manual_tasks.cancel is a function of arity 3", %{facade: f} do
+      assert is_function(f.manual_tasks.cancel, 3)
     end
 
     test "service_tasks.finish_async is a function of arity 2", %{facade: f} do

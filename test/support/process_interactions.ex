@@ -19,8 +19,13 @@ defmodule BfwEngine.Test.ProcessInteractions do
   Finish a waiting UserTask via the REST endpoint.
   """
   @spec finish_user_task(String.t(), String.t(), term(), keyword()) :: :ok | {:error, term()}
-  def finish_user_task(_process_instance_id, flow_node_instance_id, result, _identity_or_opts \\ []) do
-    json_body = Jason.encode!(%{"result" => result})
+  def finish_user_task(
+        _process_instance_id,
+        flow_node_instance_id,
+        values,
+        _identity_or_opts \\ []
+      ) do
+    json_body = Jason.encode!(%{"values" => values})
 
     conn =
       Plug.Test.conn(:put, "/user-tasks/#{flow_node_instance_id}/finish", json_body)
@@ -38,7 +43,12 @@ defmodule BfwEngine.Test.ProcessInteractions do
   Cancel a waiting UserTask via the REST endpoint.
   """
   @spec cancel_user_task(String.t(), String.t(), String.t(), keyword()) :: :ok | {:error, term()}
-  def cancel_user_task(_process_instance_id, flow_node_instance_id, reason, _identity_or_opts \\ []) do
+  def cancel_user_task(
+        _process_instance_id,
+        flow_node_instance_id,
+        reason,
+        _identity_or_opts \\ []
+      ) do
     body = if reason, do: %{"reason" => reason}, else: %{}
     json_body = Jason.encode!(body)
 
@@ -55,16 +65,36 @@ defmodule BfwEngine.Test.ProcessInteractions do
   end
 
   @doc """
-  Finish a waiting ManualTask (requireConfirmation=true).
-  Uses the same `finish_user_task` call with empty result.
+  Confirm a waiting ManualTask (requireConfirmation=true) via
+  `PUT /manual-tasks/{fniId}/confirm`. The entered token passes through.
   """
   @spec finish_manual_task(String.t(), String.t()) :: :ok | {:error, term()}
-  def finish_manual_task(process_instance_id, flow_node_instance_id) do
-    finish_user_task(process_instance_id, flow_node_instance_id, %{})
+  def finish_manual_task(_process_instance_id, flow_node_instance_id) do
+    conn =
+      Plug.Test.conn(:put, "/manual-tasks/#{flow_node_instance_id}/confirm")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_test_jwt()}")
+      |> send_through_endpoint()
+
+    case conn.status do
+      204 -> :ok
+      status -> {:error, {status, Jason.decode!(conn.resp_body)}}
+    end
   end
 
+  defp complete_waiting_task(
+         process_instance_id,
+         %{flow_node_type: "manual_task"} = flow_node_instance,
+         _result
+       ),
+       do: finish_manual_task(process_instance_id, flow_node_instance.id)
+
+  defp complete_waiting_task(process_instance_id, flow_node_instance, result),
+    do: finish_user_task(process_instance_id, flow_node_instance.id, result)
+
   defp sign_test_jwt do
-    secret = Application.get_env(:api_auth, :hs256_secret) || "test_only_secret_at_least_32_bytes!"
+    secret =
+      Application.get_env(:api_auth, :hs256_secret) || "test_only_secret_at_least_32_bytes!"
+
     jwk = JOSE.JWK.from_oct(secret)
 
     claims = %{
@@ -105,7 +135,8 @@ defmodule BfwEngine.Test.ProcessInteractions do
     - `:timeout` — max wait in ms (default 5_000)
     - `:poll_interval` — polling interval in ms (default 50)
   """
-  @spec await_process_instance_state(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, :timeout}
+  @spec await_process_instance_state(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, :timeout}
   def await_process_instance_state(process_instance_id, expected_state, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 5_000)
     interval = Keyword.get(opts, :poll_interval, 50)
@@ -441,8 +472,8 @@ defmodule BfwEngine.Test.ProcessInteractions do
       case await_waiting_fni_by_node_id(process_instance_id, flow_node_id,
              timeout: min(remaining, 2_000)
            ) do
-        {:ok, user_task_flow_node_instance} ->
-          case finish_user_task(process_instance_id, user_task_flow_node_instance.id, result) do
+        {:ok, waiting_flow_node_instance} ->
+          case complete_waiting_task(process_instance_id, waiting_flow_node_instance, result) do
             :ok ->
               :ok
 
@@ -497,8 +528,8 @@ defmodule BfwEngine.Test.ProcessInteractions do
       case await_waiting_flow_node_instance(process_instance_id, "user_task",
              timeout: min(remaining, 2_000)
            ) do
-        {:ok, user_task_flow_node_instance} ->
-          case finish_user_task(process_instance_id, user_task_flow_node_instance.id, result) do
+        {:ok, waiting_flow_node_instance} ->
+          case complete_waiting_task(process_instance_id, waiting_flow_node_instance, result) do
             :ok ->
               :ok
 
@@ -520,7 +551,8 @@ defmodule BfwEngine.Test.ProcessInteractions do
   @doc """
   Poll the DB until a waiting FNI of the given type appears, or timeout.
   """
-  @spec await_waiting_flow_node_instance(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, :timeout}
+  @spec await_waiting_flow_node_instance(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, :timeout}
   def await_waiting_flow_node_instance(process_instance_id, flow_node_type, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 5_000)
     interval = Keyword.get(opts, :poll_interval, 50)
@@ -539,7 +571,13 @@ defmodule BfwEngine.Test.ProcessInteractions do
           {:error, :timeout}
         else
           Process.sleep(interval)
-          do_poll_waiting_flow_node_instance(process_instance_id, flow_node_type, interval, deadline)
+
+          do_poll_waiting_flow_node_instance(
+            process_instance_id,
+            flow_node_type,
+            interval,
+            deadline
+          )
         end
     end
   end

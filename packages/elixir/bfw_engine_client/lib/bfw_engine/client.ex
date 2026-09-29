@@ -7,9 +7,10 @@ defmodule BfwEngine.Client do
   URL and the bearer token used to authenticate every request. The struct is
   passed explicitly to every resource module (`BfwEngine.Client.Processes`,
   `BfwEngine.Client.ProcessInstances`, `BfwEngine.Client.UserTasks`,
-  `BfwEngine.Client.Events`, `BfwEngine.Client.AdhocSubprocesses`, and
-  `BfwEngine.Client.Graphql`) — there is no process, no application
-  supervision tree, and no hidden global state.
+  `BfwEngine.Client.ManualTasks`, `BfwEngine.Client.Events`,
+  `BfwEngine.Client.AdhocSubprocesses`, and `BfwEngine.Client.Graphql`) —
+  there is no process, no application supervision tree, and no hidden
+  global state.
 
   ## Example
 

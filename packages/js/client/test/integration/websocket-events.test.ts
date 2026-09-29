@@ -71,7 +71,7 @@ describe('WebSocket Events', { concurrent: false }, () => {
         },
       );
       subscription.dispose();
-      await adminClient!.userTasks.finish(flowNodeInstanceId, { result: { approved: true } });
+      await adminClient!.userTasks.finish(flowNodeInstanceId, { values: { approved: true } });
       await waitForState(adminClient!, processInstanceId, 'finished');
       await sleep(500);
       expect(handlerInvocationCount).toBe(0);
@@ -97,7 +97,7 @@ describe('WebSocket Events', { concurrent: false }, () => {
       const secondProcessInstanceId = secondStartResult.processInstanceId;
       const secondFlowNodeInstanceId = await waitForUserTask(adminClient!, secondProcessInstanceId);
 
-      await adminClient!.userTasks.finish(secondFlowNodeInstanceId, { result: {} });
+      await adminClient!.userTasks.finish(secondFlowNodeInstanceId, { values: {} });
       await waitForState(adminClient!, secondProcessInstanceId, 'finished');
       await sleep(1000);
 
@@ -110,7 +110,7 @@ describe('WebSocket Events', { concurrent: false }, () => {
         }
       }
 
-      await adminClient!.userTasks.finish(firstFlowNodeInstanceId, { result: {} });
+      await adminClient!.userTasks.finish(firstFlowNodeInstanceId, { values: {} });
       await waitForState(adminClient!, firstProcessInstanceId, 'finished');
       await adminClient!.processInstances.delete(firstProcessInstanceId);
       await adminClient!.processInstances.delete(secondProcessInstanceId);

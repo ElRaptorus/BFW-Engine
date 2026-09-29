@@ -45,6 +45,7 @@ defmodule BfwEngine.EngineFacade do
   | `processes` | `EngineFacade.Processes.t()` | Catalog reads + writes for Process Models / Versions |
   | `process_instances` | `EngineFacade.ProcessInstances.t()` | Runtime commands on Process Instances |
   | `user_tasks` | `EngineFacade.UserTasks.t()` | User Task finish / cancel |
+  | `manual_tasks` | `EngineFacade.ManualTasks.t()` | Manual Task confirm / cancel |
   | `service_tasks` | `EngineFacade.ServiceTasks.t()` | Async Service Task complete / fail |
   | `flow_node_instances` | `EngineFacade.FlowNodeInstances.t()` | FNI reads |
   | `data_objects` | `EngineFacade.DataObjects.t()` | Data Object reads + history |
@@ -64,6 +65,7 @@ defmodule BfwEngine.EngineFacade do
     Escalations,
     FlowNodeInstances,
     Graphql,
+    ManualTasks,
     Messages,
     ProcessInstances,
     Processes,
@@ -100,6 +102,7 @@ defmodule BfwEngine.EngineFacade do
           processes: Processes.t(),
           process_instances: ProcessInstances.t(),
           user_tasks: UserTasks.t(),
+          manual_tasks: ManualTasks.t(),
           service_tasks: ServiceTasks.t(),
           flow_node_instances: FlowNodeInstances.t(),
           data_objects: DataObjects.t(),
@@ -127,6 +130,7 @@ defmodule BfwEngine.EngineFacade do
     processes: %Processes{},
     process_instances: %ProcessInstances{},
     user_tasks: %UserTasks{},
+    manual_tasks: %ManualTasks{},
     service_tasks: %ServiceTasks{},
     flow_node_instances: %FlowNodeInstances{},
     data_objects: %DataObjects{},

@@ -31,7 +31,8 @@ const { processInstanceId } = await client.processes.start('my-process', {
 
 // Finish a user task
 await client.userTasks.finish(flowNodeInstanceId, {
-  result: { approved: true },
+  actionId: 'confirm',
+  values: { approved: true },
 });
 
 // Clean up
@@ -74,7 +75,7 @@ await client.processInstances.abort(processInstanceId);
 await client.processInstances.delete(processInstanceId);
 
 // User tasks
-await client.userTasks.finish(flowNodeInstanceId, { result: { approved: true } });
+await client.userTasks.finish(flowNodeInstanceId, { actionId: 'confirm', values: { approved: true } });
 await client.userTasks.cancel(flowNodeInstanceId);
 
 // Engine introspection

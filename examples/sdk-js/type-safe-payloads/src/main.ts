@@ -20,7 +20,8 @@ export async function main(): Promise<void> {
   };
 
   const finishUserTaskRequest: FinishUserTaskRequest = {
-    result: { decision: 'confirmed', actorId: 'user-7' },
+    actionId: 'confirm',
+    values: { decision: 'confirmed', actorId: 'user-7' },
   };
 
   const abortRequest: AbortRequest = {
@@ -68,7 +69,7 @@ export async function main(): Promise<void> {
 
   const brokenStartRequest: StartRequest = { startEventId: 42 };
   const brokenPayloadKey: StartRequest = { payload: 'not-a-record' };
-  const brokenFinishShape: FinishUserTaskRequest = { result: 'string' };
+  const brokenFinishShape: FinishUserTaskRequest = { values: 'string' };
   const brokenAbort: AbortRequest = { reason: 404 };
   const brokenStartResult: StartResult = { ...startResult, state: 'finished' };
   const brokenEnumAssign: ProcessInstanceState = 'RUNNING';

@@ -11,6 +11,10 @@ defmodule BfwEngineWeb.Http.Plugs.PayloadCapPlug do
   PI Facade (core domain). Inbound requests that pass this plug will be
   checked again by the Facade before any engine state changes.
 
+  `PUT /manual-tasks/...` is not capped. Confirm carries no payload, and a
+  body that happens to contain `payload` or `values` is ignored by the
+  controller. Cancel reads only `reason`.
+
   ## Usage
 
       plug PayloadCapPlug, field: "payload"
@@ -35,6 +39,8 @@ defmodule BfwEngineWeb.Http.Plugs.PayloadCapPlug do
   end
 
   @impl true
+  def call(%Plug.Conn{request_path: "/manual-tasks/" <> _} = conn, _opts), do: conn
+
   def call(%Plug.Conn{body_params: body} = conn, %{field_string: field_string} = opts)
       when is_map(body) do
     case Map.fetch(body, field_string) do

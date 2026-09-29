@@ -46,7 +46,7 @@ defmodule BfwEngine.Integration.TaskInboxEventsTest do
       assert length(created_events) == 1
       assert hd(created_events).flow_node_type == :manual_task
 
-      {204, _} = http_finish_user_task(manual_task_fni.id, %{"confirmed" => true})
+      {204, _} = http_confirm_manual_task(manual_task_fni.id)
       wait_for_process_instance(process_instance_id, @default_timeout)
       assert_pi_state!(process_instance_id, "finished")
 

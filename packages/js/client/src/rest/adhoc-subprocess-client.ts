@@ -1,9 +1,4 @@
-import type {
-  AdHocActivateResult,
-  AdHocActivity,
-  AdHocCompleteResult,
-  AdHocStatus,
-} from '@elraptorus/bfw_engine_sdk';
+import type { AdHocActivateResult, AdHocActivity, AdHocCompleteResult, AdHocStatus } from '@elraptorus/bfw_engine_sdk';
 
 import type { HttpTransport } from '../http/transport.js';
 

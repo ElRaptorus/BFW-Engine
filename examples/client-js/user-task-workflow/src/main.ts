@@ -45,7 +45,8 @@ export async function main(): Promise<void> {
 
   console.log('Finishing user task FNI:', userTaskFlowNodeInstanceId);
   await client.userTasks.finish(userTaskFlowNodeInstanceId, {
-    result: { approved: true },
+    actionId: 'confirm',
+    values: { approved: true },
   });
 
   while (true) {

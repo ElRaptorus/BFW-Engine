@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AmbiguousDecisionError,
-  BkmNotFoundError,
   BfwEngineError,
+  BkmNotFoundError,
   DecisionDefinitionDisabledError,
   DecisionDefinitionNotFoundError,
   DecisionServiceNotFoundError,

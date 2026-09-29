@@ -45,7 +45,7 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 
 ### Form fields (`types/form.ts`)
 
-`bfw:formFields` and the waiting user-task `typeProperties.form_schema` are a `FormFieldDefinition[]`. The engine stores the JSON opaquely. Each field has `id`, `type`, `label`, and `required`, plus optional `placeholder`, `defaultValue`, `options`, `validationRules`, and `hint` (help text shown with the field). `type` is `text`, `number`, `date`, `checkbox`, `dropdown`, `radio`, `textarea`, `file`, `toggle`, or `section_header`. `options` (`{label, value}`) apply to dropdown, radio, and checkbox group fields. A known validation rule is `pattern`: `value` is a regular expression the whole input must match, and `message` is shown on failure. `form_actions` is a `FormActionDefinition[]` with preset `confirm`, `cancel`, `ok`, `yes`, `no`, or `custom`.
+`bfw:formFields` and the waiting user-task `typeProperties.form_schema` are a `FormFieldDefinition[]`. The engine stores the JSON opaquely. Each field has `id`, `type`, `label`, and `required`, plus optional `placeholder`, `defaultValue`, `options`, `validationRules`, and `hint` (help text shown with the field). `type` is `text`, `number`, `date`, `checkbox`, `dropdown`, `radio`, `textarea`, `file`, `toggle`, or `section_header`. `options` (`{label, value}`) apply to dropdown, radio, and checkbox group fields. A known validation rule is `pattern`: `value` is a regular expression the whole input must match, and `message` is shown on failure. `form_actions` is a `FormAction[]`. The Studio's `FormModel.ts` is the authority for the form contract; this SDK mirrors it. Each action has `id`, `label`, `preset`, and `effect` (`submit`, `dismiss`, or `abort`), plus optional `skipsValidation`, `isDefault`, and `isDanger`. Presets are `confirm`, `cancel`, `ok`, `yes`, `no`, `abort`, or `custom`. `submit` finishes the User Task with `FinishUserTaskRequest` `{ actionId?, values? }`. The Engine writes that body as `UserTaskResultToken` `{ actionId, values }`, replacing the input token. Output mappings see that token as FEEL `token`. The result contract checks the mapped output. `abort` cancels the User Task, which aborts the process instance tree. `dismiss` makes no Engine call.
 
 ## Client Structure (`packages/js/client/src/`)
 
@@ -54,7 +54,7 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 | `http/` | `HttpTransport` -- shared fetch-based transport with JWT injection and error delegation |
 | `errors/` | `mapResponseError()` -- maps engine JSON responses to SDK error subclasses (domain code first, then HTTP status fallback) |
 | `identity/` | `JwtFactory` type and `resolveToken()` -- resolves static or async token factories |
-| `rest/` | Sub-clients: `ProcessClient`, `ProcessInstanceClient`, `UserTaskClient`, `EngineClient`, `EventClient`, `DecisionClient` (includes `evaluateService()` for Decision Service endpoints), `AdHocSubprocessClient` (ad-hoc activity control) |
+| `rest/` | Sub-clients: `ProcessClient`, `ProcessInstanceClient`, `UserTaskClient` (User Tasks only), `ManualTaskClient` (`confirm()` sends no body, `cancel()`), `EngineClient`, `EventClient`, `DecisionClient` (includes `evaluateService()` for Decision Service endpoints), `AdHocSubprocessClient` (ad-hoc activity control) |
 | `graphql/` | `GraphqlClient` -- typed query builder methods for all resources (`queryProcessModels`, `queryProcessVersions`, `queryProcessInstances`, `queryFlowNodeInstances`, `queryDecisionDefinitions`, `queryDecisionVersions`) plus Model-graph helpers (`getProcessInstanceWithModel`, `getProcessVersionWithModel`, `getFlowNodeInstanceWithModel`); `QueryBuilder` -- generates GraphQL strings from typed options with offset pagination fields (`limit`, `offset`, `hasNextPage`, `hasPreviousPage`, `pageNumber`, `lastPage`), `ilike` filter support, nested include arguments, and inline fragments. Empty `on` fragments are omitted (`... on TaskNode { }` is invalid GraphQL). |
 | `ws/` | `NotificationClient` -- Phoenix Channel WebSocket client for real-time events |
 
@@ -66,7 +66,8 @@ Runtime package versions (not catalogued): SDK `fast-xml-parser` `^5.11.1`; clie
 const client = new BfwEngineClient('http://localhost:4100', jwtFactory);
 client.processes       // ProcessClient
 client.processInstances // ProcessInstanceClient
-client.userTasks       // UserTaskClient
+client.userTasks       // UserTaskClient (User Tasks only)
+client.manualTasks     // ManualTaskClient (confirm / cancel Manual Tasks)
 client.engine          // EngineClient
 client.events          // EventClient
 client.decisions       // DecisionClient (DMN)
@@ -203,7 +204,8 @@ The SDK DMN parser (`parseDmn`) has its own conformance test suite in `sdk/test/
 | `ProcessInstances` | `abort/3` | `PUT /process-instances/:id/abort` |
 | `ProcessInstances` | `waiting_catches/2` | GraphQL `flowNodeInstances` filtered by `processInstanceId`, `state`, `flowNodeType` |
 | `UserTasks` | `list_waiting/1` | GraphQL `flowNodeInstances` filtered by `state = "waiting"`, `flowNodeType in [...]` |
-| `UserTasks` | `finish/3` (also confirms Manual Tasks), `cancel/3` | `PUT /user-tasks/:id/finish`, `PUT /user-tasks/:id/cancel` |
+| `UserTasks` | `finish/3`, `cancel/3` — User Tasks only; a Manual Task FNI answers `:not_found`. `finish/3` options are `:values` and `:action_id` (JSON `values` / `actionId`) | `PUT /user-tasks/:id/finish`, `PUT /user-tasks/:id/cancel` |
+| `ManualTasks` | `confirm/2` (no body; the entered token passes through), `cancel/3` (`reason:` option) — Manual Tasks only | `PUT /manual-tasks/:id/confirm`, `PUT /manual-tasks/:id/cancel` |
 | `Events` | `trigger_message/3`, `trigger_signal/2`, `trigger_escalation/2`, `trigger_timer/2` | `POST /messages/:name/trigger`, `/signals/:name/trigger`, `/escalations/:code/trigger`, `/timer-events/:id/trigger` |
 | `AdhocSubprocesses` | `activities/2`, `activate/3`, `complete/2`, `status/2` | the four `/adhoc-subprocesses/:id/…` routes (child PI ID, not the shell FNI ID) |
 | `Graphql` | `query/3` | `POST /api/v1/graphql` |

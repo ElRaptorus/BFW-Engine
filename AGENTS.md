@@ -400,7 +400,7 @@ Integer priority value.
 
 #### `bfw:requireConfirmation`
 
-When `true`, the ManualTask waits for an explicit `FinishUserTask` call
+When `true`, the ManualTask waits for an explicit `PUT /manual-tasks/{id}/confirm` call
 instead of passing through immediately.
 
 ```xml

@@ -49,7 +49,8 @@ defmodule BfwEngine.Execution.FlowNodeHandler do
 
   Handlers that accept external completion (User Task, Manual Task,
   async Service Task) implement `handle_complete/4`. The PI's
-  `finish_user_task` / `finish_async_service_task` call handlers
+  `finish_user_task` / `confirm_manual_task` / `finish_async_service_task`
+  call handlers
   validate the FNI is `:waiting`, then delegate to the handler.
 
   The handler owns: payload validation, domain event emission,

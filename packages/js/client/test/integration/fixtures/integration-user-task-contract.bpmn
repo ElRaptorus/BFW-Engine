@@ -29,7 +29,7 @@
 
     <bpmn:userTask id="UserTask_1" name="Task With Contract">
       <bpmn:extensionElements>
-        <bfw:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</bfw:resultContract>
+        <bfw:resultContract>{"type":"object","required":["values"],"properties":{"values":{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}}}</bfw:resultContract>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>

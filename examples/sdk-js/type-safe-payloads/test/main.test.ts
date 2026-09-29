@@ -15,12 +15,13 @@ describe('type-safe payloads', () => {
     expect(startRequest.businessKey).toBe('corr-1');
   });
 
-  it('constructs FinishUserTaskRequest with a result payload', () => {
+  it('constructs FinishUserTaskRequest with actionId and values', () => {
     const finishUserTaskRequest: FinishUserTaskRequest = {
-      result: { decision: 'confirmed', actorId: 'user-7' },
+      actionId: 'confirm',
+      values: { decision: 'confirmed', actorId: 'user-7' },
     };
-    expect(finishUserTaskRequest.result).toBeDefined();
-    expect(finishUserTaskRequest.result).toEqual({ decision: 'confirmed', actorId: 'user-7' });
+    expect(finishUserTaskRequest.actionId).toBe('confirm');
+    expect(finishUserTaskRequest.values).toEqual({ decision: 'confirmed', actorId: 'user-7' });
   });
 
   it('constructs AbortRequest with a reason', () => {

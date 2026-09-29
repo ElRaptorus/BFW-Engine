@@ -23,7 +23,12 @@ export type { Identity, IdentityClaims } from './types/index.js';
 // --- REST request/response types ---
 export type { DeployRequest, DeployResult, DeployResponse } from './types/index.js';
 export type { StartRequest, StartResult } from './types/index.js';
-export type { FinishUserTaskRequest, CancelUserTaskRequest } from './types/index.js';
+export type {
+  FinishUserTaskRequest,
+  UserTaskResultToken,
+  CancelUserTaskRequest,
+  CancelManualTaskRequest,
+} from './types/index.js';
 export type { AbortRequest } from './types/index.js';
 export type { EngineInfoResponse } from './types/index.js';
 export type { LoadLevel, PluginStatsEntry, StatsResponse } from './types/index.js';
@@ -43,7 +48,8 @@ export type {
   FormFieldType,
   FormFieldOption,
   FormFieldValidationRule,
-  FormActionDefinition,
+  FormAction,
+  FormActionEffect,
   FormActionPreset,
   UserTaskTypeProperties,
 } from './types/index.js';
@@ -197,6 +203,7 @@ export type {
   FacadeProcesses,
   FacadeProcessInstances,
   FacadeUserTasks,
+  FacadeManualTasks,
   FacadeServiceTasks,
   FacadeFlowNodeInstances,
   FacadeDataObjects,

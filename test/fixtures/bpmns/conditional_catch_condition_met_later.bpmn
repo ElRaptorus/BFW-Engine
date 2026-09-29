@@ -50,7 +50,7 @@
       <bpmn:outgoing>Flow_A2</bpmn:outgoing>
       <bpmn:dataOutputAssociation id="DOA_SetAmount">
         <bpmn:targetRef>OrderDataRef</bpmn:targetRef>
-        <bpmn:transformation>token</bpmn:transformation>
+        <bpmn:transformation>token.values</bpmn:transformation>
       </bpmn:dataOutputAssociation>
     </bpmn:userTask>
 

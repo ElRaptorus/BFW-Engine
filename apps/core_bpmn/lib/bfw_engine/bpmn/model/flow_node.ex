@@ -146,7 +146,7 @@ end
 defmodule BfwEngine.BPMN.Model.FlowNodeData.ManualTask do
   @moduledoc """
   `<bpmn:manualTask>`. Pass-through unless `require_confirmation`
-  is true, in which case it waits for a `FinishUserTask` call.
+  is true, in which case it waits for `PUT /manual-tasks/{id}/confirm`.
   """
 
   @type t :: %__MODULE__{require_confirmation: boolean()}

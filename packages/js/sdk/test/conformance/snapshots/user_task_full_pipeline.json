@@ -53,26 +53,26 @@
             "dueDate": null,
             "formActions": [
               {
+                "effect": "submit",
                 "id": "action_confirm_1780760572357_1",
                 "isDefault": true,
                 "label": "Confirm",
-                "preset": "confirm",
-                "submitsForm": true
+                "preset": "confirm"
               },
               {
+                "effect": "dismiss",
                 "id": "action_cancel_1780760572617_2",
                 "isDefault": false,
                 "label": "Cancel",
-                "preset": "cancel",
-                "submitsForm": false
+                "preset": "cancel"
               },
               {
+                "effect": "submit",
                 "id": "action_custom_1780761002981_3",
                 "isDanger": true,
                 "isDefault": false,
                 "label": "DIE!",
-                "preset": "custom",
-                "submitsForm": true
+                "preset": "custom"
               }
             ],
             "formSchema": [
@@ -154,7 +154,7 @@
             ],
             "outMappings": [
               {
-                "source": "token.user_approved",
+                "source": "token.values.user_approved",
                 "target": "approved"
               }
             ],
@@ -164,9 +164,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "type": "object"
             },
             "priority": null,
@@ -176,9 +174,7 @@
                   "type": "boolean"
                 }
               },
-              "required": [
-                "approved"
-              ],
+              "required": ["approved"],
               "type": "object"
             }
           }
@@ -211,11 +207,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "UserTask_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

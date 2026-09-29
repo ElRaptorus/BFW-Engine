@@ -52,6 +52,7 @@ import type {
   SignalTriggerResult,
   TimerTriggerResult,
 } from '../types/trigger.js';
+import type { FinishUserTaskRequest } from '../types/user-task.js';
 import type { AuthProviderHandler } from './auth-provider.js';
 import type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
 import type { NamedScriptHandler } from './named-script-handler.js';
@@ -68,7 +69,7 @@ import type { ServiceTaskHandler } from './service-task-handler.js';
  * TypeScript enforces the handler contract at compile time.
  *
  * Runtime operations are grouped into resource-scoped namespaces
- * (processes, processInstances, userTasks, serviceTasks, decisions, timers, etc.).
+ * (processes, processInstances, userTasks, manualTasks, serviceTasks, decisions, timers, etc.).
  */
 export interface EngineFacade {
   engineId: string;
@@ -87,6 +88,7 @@ export interface EngineFacade {
   processes: FacadeProcesses;
   processInstances: FacadeProcessInstances;
   userTasks: FacadeUserTasks;
+  manualTasks: FacadeManualTasks;
   serviceTasks: FacadeServiceTasks;
   flowNodeInstances: FacadeFlowNodeInstances;
   dataObjects: FacadeDataObjects;
@@ -131,9 +133,15 @@ export interface FacadeUserTasks {
   finish(
     processInstanceId: string,
     flowNodeInstanceId: string,
-    result: Record<string, unknown>,
+    request: FinishUserTaskRequest,
     identity?: Identity,
   ): Promise<void>;
+  cancel(processInstanceId: string, flowNodeInstanceId: string, reason?: string, identity?: Identity): Promise<void>;
+}
+
+/** Confirming Manual Tasks (`bfw:requireConfirmation`). `confirm` takes no payload: the entered token passes through. */
+export interface FacadeManualTasks {
+  confirm(processInstanceId: string, flowNodeInstanceId: string, identity?: Identity): Promise<void>;
   cancel(processInstanceId: string, flowNodeInstanceId: string, reason?: string, identity?: Identity): Promise<void>;
 }
 

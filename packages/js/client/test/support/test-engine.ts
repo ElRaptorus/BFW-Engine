@@ -274,6 +274,7 @@ export async function waitForUserTask(
   client: BfwEngineClient,
   processInstanceId: string,
   timeoutMs = 15_000,
+  flowNodeType: 'user_task' | 'manual_task' = 'user_task',
 ): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   let resolved = false;
@@ -316,7 +317,7 @@ export async function waitForUserTask(
             fields: ['id', 'state', 'flowNodeType'],
             filter: {
               processInstanceId: { eq: processInstanceId },
-              flowNodeType: { eq: 'user_task' },
+              flowNodeType: { eq: flowNodeType },
               state: { in: ['active', 'waiting'] },
             },
             pagination: { mode: 'offset', limit: 1, offset: 0 },

@@ -185,11 +185,11 @@ describe('Error Mapping', { concurrent: false }, () => {
     it('maps fni terminal state error codes with 422', async () => {
       const { processInstanceId } = await adminClient.processes.start(userTaskProcessModelId);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
-      await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
       await waitForState(adminClient, processInstanceId, 'finished');
 
       try {
-        await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+        await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(FniNotWaitingError);
@@ -205,7 +205,7 @@ describe('Error Mapping', { concurrent: false }, () => {
     it('maps 404 for nonexistent user task', async () => {
       try {
         await adminClient.userTasks.finish('00000000-0000-0000-0000-000000000000', {
-          result: {},
+          values: {},
         });
         expect.fail('Should have thrown');
       } catch (error) {

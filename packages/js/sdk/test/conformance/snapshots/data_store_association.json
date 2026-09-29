@@ -318,13 +318,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "ScriptTask_Outer",
-            "SubProcess_1",
-            "ScriptTask_Verify",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "ScriptTask_Outer", "SubProcess_1", "ScriptTask_Verify", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

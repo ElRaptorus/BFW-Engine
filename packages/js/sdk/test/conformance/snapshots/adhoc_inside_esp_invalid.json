@@ -30,9 +30,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -48,15 +46,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Main Task",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -68,9 +62,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -119,9 +111,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Message Trigger",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -140,15 +130,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_AdHoc",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Ad-hoc Inside ESP (Invalid)",
-                "outgoing": [
-                  "ESP_Flow_2"
-                ],
+                "outgoing": ["ESP_Flow_2"],
                 "standardLoop": null,
                 "type": "sub_process",
                 "typeData": {
@@ -206,9 +192,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_2"
-                ],
+                "incoming": ["ESP_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP End",
@@ -259,12 +243,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Task_1",
-            "End_1",
-            "ESP_1"
-          ],
+          "flowNodeRefs": ["Start_1", "Task_1", "End_1", "ESP_1"],
           "id": "Lane_default",
           "name": "default"
         }

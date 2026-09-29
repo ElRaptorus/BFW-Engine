@@ -168,9 +168,22 @@ defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
       {201, user_body} = http_start("UserTaskSimple")
       user_process_instance_id = user_body["processInstanceId"]
       user_task_fni = poll_fni_state(user_process_instance_id, "user_task", "waiting")
-      {204, _} = http_finish_user_task(user_task_fni.id, at_limit)
+
+      # The stored token is the envelope, so the values that finish at the
+      # cap are smaller than 65536 by the {"actionId":null,"values":…} wrapper.
+      user_task_values = values_whose_user_task_envelope_is(65_536)
+      {204, _} = http_finish_user_task(user_task_fni.id, user_task_values)
       wait_for_process_instance(user_process_instance_id, 10_000)
       assert_pi_state!(user_process_instance_id, "finished")
+
+      {201, overflow_body} = http_start("UserTaskSimple")
+      overflow_process_instance_id = overflow_body["processInstanceId"]
+      overflow_fni = poll_fni_state(overflow_process_instance_id, "user_task", "waiting")
+      {413, overflow_response} = http_finish_user_task(overflow_fni.id, at_limit)
+      assert overflow_response["error"] == "payload_too_large"
+      assert overflow_response["field"] == "user_task_result"
+      still_waiting = poll_fni_state(overflow_process_instance_id, "user_task", "waiting")
+      assert still_waiting.id == overflow_fni.id
 
       {413, _} = http_start("LinearStartEnd", %{"payload" => oversize})
     end
@@ -204,6 +217,24 @@ defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
 
       assert body["error"] == "payload_too_large"
     end
+  end
+
+  defp values_whose_user_task_envelope_is(target_bytes) do
+    probe = PayloadCapFixtures.mint_payload(64)
+
+    overhead =
+      PayloadCapFixtures.json_byte_size(%{"actionId" => nil, "values" => probe}) - 64
+
+    values = PayloadCapFixtures.mint_payload(target_bytes - overhead)
+
+    envelope_size =
+      PayloadCapFixtures.json_byte_size(%{"actionId" => nil, "values" => values})
+
+    if envelope_size != target_bytes do
+      raise "user task envelope is #{envelope_size} bytes, expected #{target_bytes}"
+    end
+
+    values
   end
 
   defp has_payload_too_large_event?(collector) do

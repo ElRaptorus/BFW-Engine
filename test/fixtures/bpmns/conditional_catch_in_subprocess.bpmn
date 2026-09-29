@@ -55,7 +55,7 @@
         <bpmn:outgoing>Sub_Flow_A2</bpmn:outgoing>
         <bpmn:dataOutputAssociation id="DOA_InSub">
           <bpmn:targetRef>SubDataRef</bpmn:targetRef>
-          <bpmn:transformation>token</bpmn:transformation>
+          <bpmn:transformation>token.values</bpmn:transformation>
         </bpmn:dataOutputAssociation>
       </bpmn:userTask>
 

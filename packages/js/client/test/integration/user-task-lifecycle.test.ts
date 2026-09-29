@@ -56,7 +56,7 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
       expect(flowNodeInstanceId).toBeDefined();
       expect(typeof flowNodeInstanceId).toBe('string');
 
-      await adminClient.userTasks.finish(flowNodeInstanceId, { result: { approved: true } });
+      await adminClient.userTasks.finish(flowNodeInstanceId, { values: { approved: true } });
 
       await waitForState(adminClient, processInstanceId, 'finished');
     });
@@ -74,7 +74,7 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
   describe('bad paths - finish and cancel', () => {
     it('rejects finish of nonexistent flow node instance', async () => {
       try {
-        await adminClient.userTasks.finish('nonexistent-fni-id', { result: {} });
+        await adminClient.userTasks.finish('nonexistent-fni-id', { values: {} });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(NotFoundError);
@@ -84,11 +84,11 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
     it('rejects finish of already-completed flow node instance', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
-      await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
       await waitForState(adminClient, processInstanceId, 'finished');
 
       try {
-        await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+        await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(FniNotWaitingError);
@@ -101,7 +101,7 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
     it('rejects cancel of already-completed flow node instance', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
-      await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
       await waitForState(adminClient, processInstanceId, 'finished');
 
       try {
@@ -119,12 +119,12 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
 
       try {
-        await readOnlyClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+        await readOnlyClient.userTasks.finish(flowNodeInstanceId, { values: {} });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(NotFoundError);
       } finally {
-        await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+        await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
         await waitForState(adminClient, processInstanceId, 'finished');
       }
     });
@@ -133,7 +133,7 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_LANE_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
 
-      await laneAccountingClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await laneAccountingClient.userTasks.finish(flowNodeInstanceId, { values: {} });
       await waitForState(adminClient, processInstanceId, 'finished');
     });
 
@@ -141,7 +141,7 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_LANE_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
 
-      await adminBypassClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await adminBypassClient.userTasks.finish(flowNodeInstanceId, { values: {} });
       await waitForState(adminClient, processInstanceId, 'finished');
     });
   });
@@ -149,7 +149,7 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
   describe('bad paths - authentication', () => {
     it('rejects finish without authentication', async () => {
       try {
-        await unauthenticatedClient.userTasks.finish('any-id', { result: {} });
+        await unauthenticatedClient.userTasks.finish('any-id', { values: {} });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(UnauthorizedError);

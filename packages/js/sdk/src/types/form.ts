@@ -41,24 +41,39 @@ export interface FormFieldValidationRule {
 }
 
 /**
+ * What a form action does when pressed.
+ *
+ * Mirrors the Studio's `FormModel.ts`, which is the authority for this shape.
+ * The Engine stores the JSON and does not interpret it.
+ *
+ * - `submit` — the client calls `userTasks.finish` with `{ actionId, values }`.
+ * - `abort` — the client calls `userTasks.cancel`, which aborts the process instance tree.
+ * - `dismiss` — the client makes no Engine call.
+ */
+export type FormActionEffect = 'submit' | 'dismiss' | 'abort';
+
+/**
  * A form action button definition as stored in the BPMN model and served
  * via `typeProperties.form_actions` on waiting user task FNIs.
  *
+ * Mirrors the Studio's `FormModel.ts`, which is the authority for this shape.
  * Keys use the exact casing authored in the Studio — they are inside
  * the opaque `typeProperties` envelope and are NOT camelCased by the engine.
  */
-export interface FormActionDefinition {
+export interface FormAction {
   id: string;
   label: string;
   preset: FormActionPreset;
-  submitsForm: boolean;
-  isDefault: boolean;
+  effect: FormActionEffect;
+  /** Only meaningful for `submit`: collect field values without required or pattern validation. */
+  skipsValidation?: boolean;
+  isDefault?: boolean;
+  /** Styling only. Independent of `effect`. */
   isDanger?: boolean;
-  actionId?: string;
 }
 
 /** Known action presets. */
-export type FormActionPreset = 'confirm' | 'cancel' | 'ok' | 'yes' | 'no' | 'custom';
+export type FormActionPreset = 'confirm' | 'cancel' | 'ok' | 'yes' | 'no' | 'abort' | 'custom';
 
 /**
  * The shape of `typeProperties` for a user task FNI in the `waiting` state.
@@ -68,7 +83,7 @@ export type FormActionPreset = 'confirm' | 'cancel' | 'ok' | 'yes' | 'no' | 'cus
  */
 export interface UserTaskTypeProperties {
   form_schema: FormFieldDefinition[] | null;
-  form_actions: FormActionDefinition[] | null;
+  form_actions: FormAction[] | null;
   assignees: string[] | null;
   result_contract: Record<string, unknown> | null;
   due_date: string | null;

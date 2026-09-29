@@ -262,6 +262,19 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
 
       wait_for_process_instance(process_instance_id, @default_timeout)
       assert_pi_state!(process_instance_id, "finished")
+
+      shell =
+        Enum.find(fetch_flow_node_instances(process_instance_id), fn flow_node_instance ->
+          is_map(flow_node_instance.output_token) and
+            Map.has_key?(flow_node_instance.output_token, "reviewResults")
+        end)
+
+      assert shell != nil
+
+      assert shell.output_token["reviewResults"] == [
+               %{"actionId" => nil, "values" => %{"approved" => true}},
+               %{"actionId" => nil, "values" => %{"approved" => true}}
+             ]
     end
 
     test "2.5 sequential MI service task — async completion one at a time" do
@@ -384,9 +397,7 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
       process_instance_id = body["processInstanceId"]
 
       {:ok, _} =
-        await_process_instance_state(process_instance_id, "fatal",
-          timeout: @default_timeout
-        )
+        await_process_instance_state(process_instance_id, "fatal", timeout: @default_timeout)
 
       assert_pi_state!(process_instance_id, "fatal")
     end
@@ -402,9 +413,7 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
       process_instance_id = body["processInstanceId"]
 
       {:ok, _} =
-        await_process_instance_state(process_instance_id, "fatal",
-          timeout: @default_timeout
-        )
+        await_process_instance_state(process_instance_id, "fatal", timeout: @default_timeout)
 
       assert_pi_state!(process_instance_id, "fatal")
     end
@@ -628,9 +637,7 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
       process_instance_id = body["processInstanceId"]
 
       {:ok, _} =
-        await_process_instance_state(process_instance_id, "fatal",
-          timeout: @default_timeout
-        )
+        await_process_instance_state(process_instance_id, "fatal", timeout: @default_timeout)
 
       assert_pi_state!(process_instance_id, "fatal")
 
@@ -640,9 +647,7 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
       poll_pi_alive(process_instance_id, @default_timeout)
 
       {:ok, _} =
-        await_process_instance_state(process_instance_id, "fatal",
-          timeout: @default_timeout
-        )
+        await_process_instance_state(process_instance_id, "fatal", timeout: @default_timeout)
     end
   end
 
@@ -660,7 +665,13 @@ defmodule BfwEngine.Integration.MultiInstanceTest do
     interval = Keyword.get(opts, :poll_interval, 50)
     deadline = System.monotonic_time(:millisecond) + timeout
 
-    do_poll_multiple_waiting(process_instance_id, flow_node_type, expected_count, interval, deadline)
+    do_poll_multiple_waiting(
+      process_instance_id,
+      flow_node_type,
+      expected_count,
+      interval,
+      deadline
+    )
   end
 
   defp do_poll_multiple_waiting(

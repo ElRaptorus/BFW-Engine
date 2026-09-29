@@ -89,6 +89,15 @@ defmodule BfwEngineWeb.Http.Plugs.PayloadCapPlugTest do
       :ok
     end
 
+    test "skips an oversized result on a manual task confirm path" do
+      oversized = %{"result" => String.duplicate("x", @test_limit + 500)}
+      base = conn(:put, "/manual-tasks/flow-node-instance-1/confirm")
+      conn = %{base | body_params: oversized} |> call_plug(field: "result")
+
+      refute conn.halted
+      assert is_nil(conn.status)
+    end
+
     test "checks the configured field name" do
       oversized = %{"result" => String.duplicate("x", @test_limit + 500)}
       conn = build_conn(oversized) |> call_plug(field: "result")

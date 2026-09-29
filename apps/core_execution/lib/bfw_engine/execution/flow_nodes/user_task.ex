@@ -3,11 +3,12 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   Handler for `<bpmn:userTask>`.
 
   Always enters `waiting` state. The PI holds until an external
-  `FinishUserTask` or `CancelUserTask` call completes the FNI.
+  `finish_user_task` or `cancel_inbox_task` call completes the FNI.
 
   ## Data pipeline
 
-      token -> in_mappings -> payload_contract -> wait for user -> out_mappings -> result_contract -> PayloadCap -> downstream
+      token -> in_mappings -> payload_contract -> wait for user ->
+      %{"actionId", "values"} -> out_mappings -> result_contract -> PayloadCap -> downstream
 
   Error semantics differ from ServiceTask:
   - `payload_contract` violation on input -> FNI `:fatal` (upstream data broken, user cannot fix)
@@ -76,9 +77,11 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   @impl true
   def handle_complete(flow_node, _entry, payload, context) do
     type_data = flow_node.type_data
+    values = if is_map(payload), do: payload, else: %{}
+    envelope = %{"actionId" => context.user_task_action_id, "values" => values}
 
     with {:ok, mapped_output} <-
-           MappingHelper.apply_out_mappings(type_data.out_mappings, payload, context),
+           MappingHelper.apply_out_mappings(type_data.out_mappings, envelope, context),
          :ok <- validate_result_contract(type_data.result_contract, mapped_output),
          :ok <- PayloadCap.check(mapped_output, field: :user_task_result),
          {:ok, targets} <- resolve_outgoing(flow_node, context) do

@@ -32,9 +32,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -44,23 +42,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Comp_A"
-          ],
+          "boundaryEventRefs": ["BE_Comp_A"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -114,15 +106,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Compensation",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw Compensation",
-          "outgoing": [
-            "Flow_3"
-          ],
+          "outgoing": ["Flow_3"],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -141,9 +129,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_3"
-          ],
+          "incoming": ["Flow_3"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -192,9 +178,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Compensation Start",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -213,15 +197,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Undo Handler",
-                "outgoing": [
-                  "ESP_Flow_2"
-                ],
+                "outgoing": ["ESP_Flow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -233,9 +213,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_2"
-                ],
+                "incoming": ["ESP_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",

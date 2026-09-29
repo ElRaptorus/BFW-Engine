@@ -60,7 +60,7 @@ describe('Auth Enforcement', () => {
       { name: 'processInstances.delete(id)', call: (client) => client.processInstances.delete(existingPiId) },
       {
         name: 'userTasks.finish(id, result)',
-        call: (client) => client.userTasks.finish(existingFniId, { result: {} }),
+        call: (client) => client.userTasks.finish(existingFniId, { values: {} }),
       },
       { name: 'userTasks.cancel(id)', call: (client) => client.userTasks.cancel(existingFniId) },
       { name: 'engine.stats()', call: (client) => client.engine.stats() },
@@ -115,7 +115,7 @@ describe('Auth Enforcement', () => {
       { name: 'processInstances.delete(id)', call: (client) => client.processInstances.delete(existingPiId) },
       {
         name: 'userTasks.finish(id, result)',
-        call: (client) => client.userTasks.finish(existingFniId, { result: {} }),
+        call: (client) => client.userTasks.finish(existingFniId, { values: {} }),
       },
       { name: 'userTasks.cancel(id)', call: (client) => client.userTasks.cancel(existingFniId) },
       { name: 'engine.stats()', call: (client) => client.engine.stats() },

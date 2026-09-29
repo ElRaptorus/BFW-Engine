@@ -5,6 +5,7 @@ import { AdHocSubprocessClient } from './rest/adhoc-subprocess-client.js';
 import { DecisionClient } from './rest/decision-client.js';
 import { EngineClient } from './rest/engine-client.js';
 import { EventClient } from './rest/event-client.js';
+import { ManualTaskClient } from './rest/manual-task-client.js';
 import { ProcessClient } from './rest/process-client.js';
 import { ProcessInstanceClient } from './rest/process-instance-client.js';
 import { TimerScheduleClient } from './rest/timer-schedule-client.js';
@@ -35,6 +36,7 @@ export class BfwEngineClient {
   public readonly processes: ProcessClient;
   public readonly processInstances: ProcessInstanceClient;
   public readonly userTasks: UserTaskClient;
+  public readonly manualTasks: ManualTaskClient;
   public readonly engine: EngineClient;
   public readonly events: EventClient;
   public readonly decisions: DecisionClient;
@@ -51,6 +53,7 @@ export class BfwEngineClient {
     this.processes = new ProcessClient(this.transport);
     this.processInstances = new ProcessInstanceClient(this.transport);
     this.userTasks = new UserTaskClient(this.transport);
+    this.manualTasks = new ManualTaskClient(this.transport);
     this.engine = new EngineClient(this.transport);
     this.events = new EventClient(this.transport);
     this.decisions = new DecisionClient(this.transport);

@@ -16,7 +16,12 @@ export type { DataObjectValue } from './data-object-value.js';
 export type { Identity, IdentityClaims } from './identity.js';
 export type { DeployRequest, DeployResult, DeployResponse } from './deploy.js';
 export type { StartRequest, StartResult } from './start.js';
-export type { FinishUserTaskRequest, CancelUserTaskRequest } from './user-task.js';
+export type {
+  FinishUserTaskRequest,
+  UserTaskResultToken,
+  CancelUserTaskRequest,
+  CancelManualTaskRequest,
+} from './user-task.js';
 export type { AbortRequest } from './abort.js';
 export type { EngineInfoResponse } from './info.js';
 export type { LoadLevel, PluginStatsEntry, StatsResponse } from './stats.js';
@@ -34,7 +39,8 @@ export type {
   FormFieldType,
   FormFieldOption,
   FormFieldValidationRule,
-  FormActionDefinition,
+  FormAction,
+  FormActionEffect,
   FormActionPreset,
   UserTaskTypeProperties,
 } from './form.js';

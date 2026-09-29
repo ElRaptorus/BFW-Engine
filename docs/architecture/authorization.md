@@ -287,8 +287,10 @@ See [security.md](security.md) §Subprocess Start-Event Isolation.
 
 | Action | Rule | Notes |
 |---|---|---|
-| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<bfw:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` — both checks must pass | Lane check + assignee check are AND-combined |
+| **Finish User Task** (`PUT /user-tasks/{fniId}/finish`) | Caller must have `lane:<lane_name>="write"` for the User Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the User Task is not on any lane, any authenticated caller may finish it. `<bfw:assignees>` is evaluated **additionally** against `Identity.id`, `Identity.roles`, `Identity.groups` — both checks must pass | Lane access is checked immediately after the FNI is loaded, before the task-type check and the waiting-state check. An invisible caller receives **404** and does not receive **422** or a wrong-type error. Lane check + assignee check are AND-combined |
 | **Cancel User Task** (`PUT /user-tasks/{fniId}/cancel`) | Same as Finish | |
+| **Confirm Manual Task** (`PUT /manual-tasks/{fniId}/confirm`) | Caller must have `lane:<lane_name>="write"` for the Manual Task's lane. `"read"` or `observe_all` (visible, not writable) → **403**. No observe of that lane → **404**. If the Manual Task is not on any lane, any authenticated caller may confirm it. Manual Tasks have no `<bfw:assignees>` extension, so there is no additional assignee check | Same lane order as Finish User Task |
+| **Cancel Manual Task** (`PUT /manual-tasks/{fniId}/cancel`) | Same as Confirm | |
 | **Complete async Service Task** (`engine_facade.finish_async_service_task` / `BfwEngine.Api.finish_async_service_task/2`) | Plugins complete via the facade with the privileged plugin identity (§7), bypassing lane checks. There is **no** `PUT /async-flow-nodes/{fniId}/complete` REST route | REST was never shipped for this callback |
 | **Fail async Service Task** (`engine_facade.fail_async_service_task` / `BfwEngine.Api.fail_async_service_task/3`) | Same as Complete. There is **no** `PUT /async-flow-nodes/{fniId}/fail` REST route | |
 
@@ -507,7 +509,7 @@ Private `skip_claims?/1` reads `Keyword.get(opts, :skip_claims, false)`. When tr
 | `delete_process_instance` | `delete_process_instance/3` |
 | `trigger_message` | `publish_message/5` |
 | `trigger_signal` | `publish_signal/3` |
-| `lane:<name>` | `finish_user_task/4`, `cancel_user_task/4`, `trigger_timer_event/3` |
+| `lane:<name>` | `finish_user_task/4`, `cancel_user_task/4`, `confirm_manual_task/3`, `cancel_manual_task/4`, `trigger_timer_event/3` |
 
 Admin override (`zeeky_boogie_doog`) bypasses all claim checks in every helper above.
 

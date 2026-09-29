@@ -32,9 +32,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -44,23 +42,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Comp_A"
-          ],
+          "boundaryEventRefs": ["BE_Comp_A"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -114,15 +106,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Compensation",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw Compensation",
-          "outgoing": [
-            "Flow_3"
-          ],
+          "outgoing": ["Flow_3"],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -141,9 +129,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Flow_3"
-          ],
+          "incoming": ["Flow_3"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -164,14 +150,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Task_A",
-            "BE_Comp_A",
-            "Task_CompHandler_A",
-            "Throw_Compensation",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "Task_A", "BE_Comp_A", "Task_CompHandler_A", "Throw_Compensation", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

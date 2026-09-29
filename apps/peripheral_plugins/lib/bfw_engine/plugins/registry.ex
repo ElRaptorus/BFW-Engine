@@ -216,6 +216,7 @@ defmodule BfwEngine.Plugins.Registry do
                              "/decisions",
                              "/process-instances",
                              "/user-tasks",
+                             "/manual-tasks",
                              "/timer-schedules",
                              "/timer-events",
                              "/messages",

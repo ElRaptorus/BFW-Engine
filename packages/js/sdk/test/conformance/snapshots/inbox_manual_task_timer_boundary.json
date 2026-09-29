@@ -25,9 +25,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -37,23 +35,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "TimerBE_1"
-          ],
+          "boundaryEventRefs": ["TimerBE_1"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ManualTask_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Confirm",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "manual_task",
           "typeData": {
@@ -71,9 +63,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_BE"
-          ],
+          "outgoing": ["Flow_BE"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -96,9 +86,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal",
@@ -118,9 +106,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Timeout",
-          "incoming": [
-            "Flow_BE"
-          ],
+          "incoming": ["Flow_BE"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Timeout",
@@ -141,13 +127,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "ManualTask_1",
-            "TimerBE_1",
-            "End_Normal",
-            "End_Timeout"
-          ],
+          "flowNodeRefs": ["Start_1", "ManualTask_1", "TimerBE_1", "End_Normal", "End_Timeout"],
           "id": "Lane_default",
           "name": "default"
         }

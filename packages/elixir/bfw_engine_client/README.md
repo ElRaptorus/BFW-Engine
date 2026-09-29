@@ -71,6 +71,8 @@ The Engine distinguishes two kinds of tokens:
 | `BfwEngine.Client.UserTasks` | `list_waiting/2` | GraphQL `flowNodeInstances` (user/manual task filter; `:limit` and `:offset`) |
 | | `finish/3` | `PUT /user-tasks/:id/finish` |
 | | `cancel/3` | `PUT /user-tasks/:id/cancel` |
+| `BfwEngine.Client.ManualTasks` | `confirm/2` | `PUT /manual-tasks/:id/confirm` |
+| | `cancel/3` | `PUT /manual-tasks/:id/cancel` |
 | `BfwEngine.Client.Events` | `trigger_message/3` | `POST /messages/:name/trigger` |
 | | `trigger_signal/2` | `POST /signals/:name/trigger` |
 | | `trigger_escalation/2` | `POST /escalations/:code/trigger` |

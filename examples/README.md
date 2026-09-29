@@ -61,7 +61,7 @@ All Service Task handlers follow the async-only contract: `handle_enter/3` retur
 | Example | Description |
 |---------|-------------|
 | [`lifecycle_and_api/lifecycle_aware`](plugins/lifecycle_and_api/lifecycle_aware/) | Demonstrates `on_load`/`on_ready`, config reading, engine identity |
-| [`lifecycle_and_api/api_consumer`](plugins/lifecycle_and_api/api_consumer/) | Uses the `EngineFacade` to deploy, start, query, and finish user tasks |
+| [`lifecycle_and_api/api_consumer`](plugins/lifecycle_and_api/api_consumer/) | Uses the `EngineFacade` to deploy, start, query, finish User Tasks, and confirm Manual Tasks |
 | [`lifecycle_and_api/github_bpmn_deployer`](plugins/lifecycle_and_api/github_bpmn_deployer/) | Fetches `.bpmn` files from a GitHub repo and auto-deploys them at engine startup |
 | [`lifecycle_and_api/quarantine_demo`](plugins/lifecycle_and_api/quarantine_demo/) | `on_load` returns `{:error, :intentional_quarantine}`; engine boot continues |
 

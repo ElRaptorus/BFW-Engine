@@ -23,7 +23,7 @@
     <bpmn:userTask id="UserTask_1" name="Review With Contract">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</bfw:resultContract>
+        <bfw:resultContract>{"type":"object","required":["values"],"properties":{"values":{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}}}</bfw:resultContract>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:endEvent id="End_1" name="End"/>

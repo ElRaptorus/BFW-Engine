@@ -106,7 +106,7 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
       {:ok, _} = ResumeRunner.resume_all()
 
       {:ok, _process_instance_pid} = poll_pi_alive(process_instance_id)
-      {204, _} = http_finish_user_task(mt_fni.id, %{})
+      {204, _} = http_confirm_manual_task(mt_fni.id)
 
       wait_for_process_instance(process_instance_id)
       assert_pi_state!(process_instance_id, "finished")

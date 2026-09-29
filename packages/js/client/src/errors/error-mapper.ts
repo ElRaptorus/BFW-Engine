@@ -3,11 +3,11 @@ import {
   AmbiguousDecisionError,
   AmbiguousStartEventError,
   BadRequestError,
+  type BfwEngineError,
+  BfwEngineError as BfwEngineErrorClass,
   BkmNotFoundError,
   ConflictError,
   ContractViolationError,
-  type BfwEngineError,
-  BfwEngineError as BfwEngineErrorClass,
   DecisionDefinitionDisabledError,
   DecisionDefinitionNotFoundError,
   DecisionServiceNotFoundError,
@@ -149,6 +149,9 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
       return new NoStartEventError(message, body);
     case 'no_executable_process':
       return new NoExecutableProcessError(message, body);
+    case 'invalid_values':
+    case 'invalid_action_id':
+      return new ValidationError(message, [], body, errorCode);
     case 'contract_violation':
       return new ContractViolationError(
         message,

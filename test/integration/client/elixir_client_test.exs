@@ -21,6 +21,7 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
   alias BfwEngine.Client.Error
   alias BfwEngine.Client.Events
   alias BfwEngine.Client.Graphql
+  alias BfwEngine.Client.ManualTasks
   alias BfwEngine.Client.Notifications
   alias BfwEngine.Client.ProcessInstances
   alias BfwEngine.Client.Processes
@@ -61,27 +62,62 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
       assert task["flowNodeType"] == "user_task"
       assert get_in(task, ["typeProperties", "form_schema"]) != nil
 
-      assert {:ok, ""} = UserTasks.finish(client, task["id"], result: %{"approved" => true})
+      assert {:ok, ""} = UserTasks.finish(client, task["id"], values: %{"approved" => true})
 
       wait_for_process_instance(process_instance_id)
       assert {:ok, %{"state" => "finished"}} = ProcessInstances.get(client, process_instance_id)
     end
 
-    test "starts a process, lists the waiting Manual Task requiring confirmation, and finishes it",
+    test "starts a process, lists the waiting Manual Task requiring confirmation, and confirms it",
          %{http_base_url: http_base_url} do
       {201, _} = http_deploy("manual_task_confirm.bpmn")
       client = admin_client(http_base_url)
 
       {:ok, %{"processInstanceId" => process_instance_id}} =
-        Processes.start(client, "ManualTaskConfirm", payload: %{})
+        Processes.start(client, "ManualTaskConfirm", payload: %{"step" => "pack"})
 
       task = poll_client_waiting_task(client, "ManualTask_1")
       assert task["flowNodeType"] == "manual_task"
 
-      assert {:ok, ""} = UserTasks.finish(client, task["id"])
+      assert {:ok, ""} = ManualTasks.confirm(client, task["id"])
 
       wait_for_process_instance(process_instance_id)
       assert {:ok, %{"state" => "finished"}} = ProcessInstances.get(client, process_instance_id)
+
+      confirmed_task =
+        process_instance_id
+        |> fetch_flow_node_instances()
+        |> Enum.find(&(&1.id == task["id"]))
+
+      assert confirmed_task.output_token == %{"step" => "pack"}
+    end
+
+    test "UserTasks.finish answers :not_found for a waiting Manual Task", %{
+      http_base_url: http_base_url
+    } do
+      {201, _} = http_deploy("manual_task_confirm.bpmn")
+      client = admin_client(http_base_url)
+
+      {:ok, %{"processInstanceId" => _process_instance_id}} =
+        Processes.start(client, "ManualTaskConfirm", payload: %{})
+
+      task = poll_client_waiting_task(client, "ManualTask_1")
+
+      assert {:error, %Error{reason: :not_found}} = UserTasks.finish(client, task["id"])
+    end
+
+    test "ManualTasks.confirm answers :not_found for a waiting User Task", %{
+      http_base_url: http_base_url
+    } do
+      {201, _} = http_deploy("user_task_simple.bpmn")
+      client = admin_client(http_base_url)
+
+      {:ok, %{"processInstanceId" => _process_instance_id}} =
+        Processes.start(client, "UserTaskSimple", payload: %{})
+
+      task = poll_client_waiting_task(client, "UserTask_1")
+
+      assert {:error, %Error{reason: :not_found}} = ManualTasks.confirm(client, task["id"])
     end
   end
 
@@ -277,6 +313,20 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
       wait_for_process_instance(process_instance_id)
       assert {:ok, %{"state" => "aborted"}} = ProcessInstances.get(client, process_instance_id)
     end
+
+    test "ManualTasks.cancel aborts the process instance", %{http_base_url: http_base_url} do
+      {201, _} = http_deploy("manual_task_confirm.bpmn")
+      client = admin_client(http_base_url)
+
+      {:ok, %{"processInstanceId" => process_instance_id}} =
+        Processes.start(client, "ManualTaskConfirm", payload: %{})
+
+      task = poll_client_waiting_task(client, "ManualTask_1")
+      assert {:ok, ""} = ManualTasks.cancel(client, task["id"], reason: "client cancel")
+
+      wait_for_process_instance(process_instance_id)
+      assert {:ok, %{"state" => "aborted"}} = ProcessInstances.get(client, process_instance_id)
+    end
   end
 
   describe "process catalog" do
@@ -330,7 +380,7 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
                      5_000
 
       task = poll_client_waiting_task(client, "ManualTask_1")
-      assert {:ok, ""} = UserTasks.finish(client, task["id"])
+      assert {:ok, ""} = ManualTasks.confirm(client, task["id"])
 
       assert_receive {:bfw_engine_event, "user_tasks:pending",
                       %{

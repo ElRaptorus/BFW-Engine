@@ -156,6 +156,22 @@ describe('mapResponseError — domain error code mapping', () => {
     expect(error).toBeInstanceOf(NoActiveVersionError);
   });
 
+  it('keeps invalid_values and invalid_action_id on ValidationError', () => {
+    const invalidValues = mapResponseError(422, {
+      error: 'invalid_values',
+      message: "The finish request's values must be a JSON object keyed by form field ID.",
+    });
+    expect(invalidValues).toBeInstanceOf(ValidationError);
+    expect(invalidValues.errorCode).toBe('invalid_values');
+
+    const invalidActionId = mapResponseError(422, {
+      error: 'invalid_action_id',
+      message: "The finish request's actionId must be a non-blank string of at most 255 characters.",
+    });
+    expect(invalidActionId).toBeInstanceOf(ValidationError);
+    expect(invalidActionId.errorCode).toBe('invalid_action_id');
+  });
+
   it('maps process_disabled to ProcessDisabledError', () => {
     const error = mapResponseError(422, {
       error: 'process_disabled',

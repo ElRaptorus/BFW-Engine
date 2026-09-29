@@ -77,7 +77,7 @@ defmodule BfwEngine.Client.UserTasksTest do
   end
 
   describe "finish/3" do
-    test "PUTs the finish endpoint with an optional result", %{
+    test "PUTs the finish endpoint with values and an action id", %{
       stub_name: stub_name,
       client: client
     } do
@@ -85,14 +85,23 @@ defmodule BfwEngine.Client.UserTasksTest do
         assert conn.method == "PUT"
         assert conn.request_path == "/user-tasks/fni-1/finish"
         {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
-        assert Jason.decode!(raw_body) == %{"result" => %{"approved" => true}}
+
+        assert Jason.decode!(raw_body) == %{
+                 "values" => %{"approved" => true},
+                 "actionId" => "confirm"
+               }
+
         Plug.Conn.send_resp(conn, 204, "")
       end)
 
-      assert {:ok, ""} = UserTasks.finish(client, "fni-1", result: %{"approved" => true})
+      assert {:ok, ""} =
+               UserTasks.finish(client, "fni-1",
+                 values: %{"approved" => true},
+                 action_id: "confirm"
+               )
     end
 
-    test "omits the result when absent", %{stub_name: stub_name, client: client} do
+    test "omits values and actionId when absent", %{stub_name: stub_name, client: client} do
       Req.Test.stub(stub_name, fn conn ->
         {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
         assert Jason.decode!(raw_body) == %{}

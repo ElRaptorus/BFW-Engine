@@ -160,7 +160,7 @@ defmodule BfwEngine.Execution.ResumeTest do
   # -------------------------------------------------------------------
 
   describe "U3: Resume PI with waiting manual task" do
-    test "FNI stays in :waiting, finish call completes PI" do
+    test "FNI stays in :waiting, confirm call completes PI" do
       definitions = BpmnFactory.manual_task_process(true)
       ModelCache.put_new(@version_id, definitions)
 
@@ -190,10 +190,9 @@ defmodule BfwEngine.Execution.ResumeTest do
       identity = %Identity{id: "user"}
 
       assert :ok =
-               ProcessInstance.finish_user_task(
+               ProcessInstance.confirm_manual_task(
                  process_instance_pid,
                  flow_node_instance_id,
-                 %{},
                  identity
                )
 

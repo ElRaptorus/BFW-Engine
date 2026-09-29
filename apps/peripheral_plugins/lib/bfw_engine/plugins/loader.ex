@@ -312,6 +312,7 @@ defmodule BfwEngine.Plugins.Loader do
       processes: build_processes_namespace(identity),
       process_instances: build_process_instances_namespace(identity),
       user_tasks: build_user_tasks_namespace(),
+      manual_tasks: build_manual_tasks_namespace(),
       service_tasks: build_service_tasks_namespace(),
       flow_node_instances: build_flow_node_instances_namespace(),
       data_objects: build_data_objects_namespace(),
@@ -516,11 +517,33 @@ defmodule BfwEngine.Plugins.Loader do
 
   defp build_user_tasks_namespace do
     %EngineFacade.UserTasks{
-      finish: fn fni_id, result, user_identity ->
-        BfwEngine.Api.finish_user_task(fni_id, result, user_identity, skip_claims: true)
+      finish: fn flow_node_instance_id, values, action_id, user_identity ->
+        BfwEngine.Api.finish_user_task(
+          flow_node_instance_id,
+          values,
+          user_identity,
+          action_id: action_id,
+          skip_claims: true
+        )
       end,
       cancel: fn fni_id, reason, user_identity ->
         BfwEngine.Api.cancel_user_task(fni_id, reason, user_identity, skip_claims: true)
+      end
+    }
+  end
+
+  defp build_manual_tasks_namespace do
+    %EngineFacade.ManualTasks{
+      confirm: fn flow_node_instance_id, user_identity ->
+        BfwEngine.Api.confirm_manual_task(flow_node_instance_id, user_identity, skip_claims: true)
+      end,
+      cancel: fn flow_node_instance_id, reason, user_identity ->
+        BfwEngine.Api.cancel_manual_task(
+          flow_node_instance_id,
+          reason,
+          user_identity,
+          skip_claims: true
+        )
       end
     }
   end

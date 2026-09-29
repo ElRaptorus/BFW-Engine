@@ -242,26 +242,26 @@ describe('Claim Authorization', { concurrent: false }, () => {
     it('client with lane accounting can finish lane-gated user task', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_LANE_PROCESS_MODEL_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
-      await laneAccountingClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await laneAccountingClient.userTasks.finish(flowNodeInstanceId, { values: {} });
     });
 
     it('client without lane accounting gets not found for lane hiding', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_LANE_PROCESS_MODEL_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
       try {
-        await readOnlyClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+        await readOnlyClient.userTasks.finish(flowNodeInstanceId, { values: {} });
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(NotFoundError);
       } finally {
-        await adminClient.userTasks.finish(flowNodeInstanceId, { result: {} }).catch(() => {});
+        await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} }).catch(() => {});
       }
     });
 
     it('global bypass finishes lane-gated user task', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_LANE_PROCESS_MODEL_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
-      await adminBypassClient.userTasks.finish(flowNodeInstanceId, { result: {} });
+      await adminBypassClient.userTasks.finish(flowNodeInstanceId, { values: {} });
     });
   });
 

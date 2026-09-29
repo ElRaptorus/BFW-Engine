@@ -41,7 +41,8 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 |-----------|------|-------------|
 | `processes` | `EngineFacade.Processes.t()` | Catalog reads + writes for Process Models / Versions |
 | `process_instances` | `EngineFacade.ProcessInstances.t()` | Runtime commands on Process Instances |
-| `user_tasks` | `EngineFacade.UserTasks.t()` | User Task finish / cancel |
+| `user_tasks` | `EngineFacade.UserTasks.t()` | User Task finish / cancel. A Manual Task id is `{:error, :not_a_user_task}` |
+| `manual_tasks` | `EngineFacade.ManualTasks.t()` | Manual Task confirm / cancel. Confirm takes no payload. A User Task id is `{:error, :not_a_manual_task}` |
 | `service_tasks` | `EngineFacade.ServiceTasks.t()` | Async Service Task complete / fail |
 | `flow_node_instances` | `EngineFacade.FlowNodeInstances.t()` | Flow Node Instance reads |
 | `data_objects` | `EngineFacade.DataObjects.t()` | Data Object reads + history |
@@ -78,14 +79,23 @@ Runtime operations are grouped by the resource they operate on. Each namespace i
 
 #### `facade.user_tasks`
 
-Elixir arity is `(flow_node_instance_id, result | reason, identity)` — there is no process-instance ID argument.
+Elixir `finish` arity is `(flow_node_instance_id, values, action_id, identity)`. `cancel` stays `(flow_node_instance_id, reason, identity)`. There is no process-instance ID argument.
 
 The TypeScript `EngineFacade.userTasks` methods still take `processInstanceId` as the first argument. That extra argument is a TypeScript client/SDK convention; the Elixir facade does not use it.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `finish` | `(flow_node_instance_id, result, identity) -> :ok \| {:error, term()}` | Finish a waiting User Task with a result payload |
-| `cancel` | `(flow_node_instance_id, reason, identity) -> :ok \| {:error, term()}` | Cancel a waiting User Task |
+| `finish` | `(flow_node_instance_id, values, action_id, identity) -> :ok \| {:error, term()}` | Finish a waiting User Task. `values` is the field-value map and `action_id` is `nil` or a string. The Engine writes `{ "actionId", "values" }` as the token. A Manual Task id is `{:error, :not_a_user_task}` |
+| `cancel` | `(flow_node_instance_id, reason, identity) -> :ok \| {:error, term()}` | Cancel a waiting User Task. A Manual Task id is `{:error, :not_a_user_task}` |
+
+#### `facade.manual_tasks`
+
+Confirm takes no payload: the token the Manual Task entered with passes through. Cancel aborts the process instance tree. Both are wired to `BfwEngine.Api` with `skip_claims: true`.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `confirm` | `(flow_node_instance_id, identity) -> :ok \| {:error, term()}` | Confirm a waiting Manual Task. A User Task id is `{:error, :not_a_manual_task}` |
+| `cancel` | `(flow_node_instance_id, reason, identity) -> :ok \| {:error, term()}` | Cancel a waiting Manual Task and abort the process instance tree |
 
 #### `facade.service_tasks`
 
@@ -216,9 +226,17 @@ end
 ### User Task Control
 
 ```elixir
-facade.user_tasks.finish.("fni-uuid-456", %{"approved" => true}, identity)
+facade.user_tasks.finish.("fni-uuid-456", %{"approved" => true}, "confirm", identity)
 
 facade.user_tasks.cancel.("fni-uuid-456", "User withdrew request", identity)
+```
+
+### Manual Task Control
+
+```elixir
+facade.manual_tasks.confirm.("fni-uuid-789", identity)
+
+facade.manual_tasks.cancel.("fni-uuid-789", "No longer needed", identity)
 ```
 
 ### Async Service Task Completion

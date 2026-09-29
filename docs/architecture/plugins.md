@@ -169,7 +169,8 @@ tables with signatures: [Engine Facade](../guides/plugins/engine-facade.md).
 |---|---|---|
 | `facade.processes` | `list`, `get`, `get_latest_version`, `deploy`, `enable`, `disable`, `delete_version`, `undeploy`, `start` | Catalog reads + writes for Process Models / Versions |
 | `facade.process_instances` | `get`, `abort`, `retry`, `delete` | Runtime commands on Process Instances |
-| `facade.user_tasks` | `finish`, `cancel` | User Task control — Elixir arity is `(flow_node_instance_id, result\|reason, identity)` |
+| `facade.user_tasks` | `finish`, `cancel` | User Task control (User Tasks only; a Manual Task FNI is `{:error, :not_a_user_task}`). Elixir `finish` arity is `(flow_node_instance_id, values, action_id, identity)`; `cancel` is `(flow_node_instance_id, reason, identity)` |
+| `facade.manual_tasks` | `confirm`, `cancel` | Confirming Manual Task control via `BfwEngine.Api.confirm_manual_task/3` / `cancel_manual_task/4` (`skip_claims: true`). `confirm.(flow_node_instance_id, identity)` takes no payload: the entered token passes through. `cancel.(flow_node_instance_id, reason, identity)` aborts the PI tree. A non-Manual-Task FNI is `{:error, :not_a_manual_task}` |
 | `facade.service_tasks` | `finish_async`, `fail_async`, `list_waiting` | Async Service Task completion. `list_waiting.(implementations)` returns waiting Service Task rows for those implementation keys whose process instance is still running |
 | `facade.flow_node_instances` | `get`, `list_for_process_instance` | FNI reads + per-PI listing |
 | `facade.data_objects` | `get`, `list_for_instance`, `history_for_instance` | Data Object reads + audit trail |

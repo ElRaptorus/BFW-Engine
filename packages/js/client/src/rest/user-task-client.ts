@@ -2,14 +2,18 @@ import type { CancelUserTaskRequest, FinishUserTaskRequest } from '@elraptorus/b
 
 import type { HttpTransport } from '../http/transport.js';
 
-/** REST sub-client for `PUT /user-tasks/*` — completing and cancelling user tasks. */
+/**
+ * REST sub-client for `PUT /user-tasks/*` — completing and cancelling User Tasks.
+ * These routes accept User Tasks only; use {@link ManualTaskClient} for Manual Tasks.
+ */
 export class UserTaskClient {
   constructor(private readonly transport: HttpTransport) {}
 
   /**
-   * Complete a user task with a result payload.
-   * @param flowNodeInstanceId - The FNI UUID of the user task.
-   * @param options - Optional result payload.
+   * Complete a User Task. The Engine writes `{ actionId, values }` as the task token,
+   * replacing the input token. There is no merge.
+   * @param flowNodeInstanceId - The FNI UUID of the User Task.
+   * @param options - Optional action id and field values.
    */
   async finish(flowNodeInstanceId: string, options?: FinishUserTaskRequest): Promise<void> {
     const encodedId = encodeURIComponent(flowNodeInstanceId);
@@ -17,9 +21,9 @@ export class UserTaskClient {
   }
 
   /**
-   * Cancel a user task and abort the entire process instance.
+   * Cancel a User Task and abort the entire process instance.
    * Has the same effect as aborting the PI directly.
-   * @param flowNodeInstanceId - The FNI UUID of the user task.
+   * @param flowNodeInstanceId - The FNI UUID of the User Task.
    * @param options - Optional cancellation reason.
    */
   async cancel(flowNodeInstanceId: string, options?: CancelUserTaskRequest): Promise<void> {

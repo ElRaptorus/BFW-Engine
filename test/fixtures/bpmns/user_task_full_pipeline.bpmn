@@ -19,10 +19,10 @@
       <bpmn:extensionElements>
         <bfw:inputMapping source="token.raw_name" target="name" />
         <bfw:payloadContract>{"type":"object","required":["name"],"properties":{"name":{"type":"string"}}}</bfw:payloadContract>
-        <bfw:outputMapping source="token.user_approved" target="approved" />
+        <bfw:outputMapping source="token.values.user_approved" target="approved" />
         <bfw:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</bfw:resultContract>
         <bfw:formFields>[{"id":"field_text_1780760567547_1","type":"text","label":"Hamlo","required":false,"placeholder":"asdfasdfsda","defaultValue":"asdfasfdfsdf","hint":"fuck you"},{"id":"field_number_1780760990626_2","type":"number","label":"Number","required":false},{"id":"field_date_1780760990997_3","type":"date","label":"Date","required":false},{"id":"field_header_1780760992806_4","type":"section_header","label":"Section Header","required":false},{"id":"field_boolean_1780760993101_5","type":"toggle","label":"Toggle","required":false},{"id":"field_file_1780760993417_6","type":"file","label":"File Upload","required":false},{"id":"field_textarea_1780760993686_7","type":"textarea","label":"Multi-line","required":false},{"id":"field_textarea_1780760993959_8","type":"textarea","label":"Multi-line","required":false},{"id":"field_radio_1780760994283_9","type":"radio","label":"Radio Group","required":false},{"id":"field_select_1780760994561_10","type":"dropdown","label":"Dropdown","required":false},{"id":"field_checkbox_1780760994805_11","type":"checkbox","label":"Checkbox","required":false}]</bfw:formFields>
-        <bfw:formActions>[{"id":"action_confirm_1780760572357_1","label":"Confirm","preset":"confirm","submitsForm":true,"isDefault":true},{"id":"action_cancel_1780760572617_2","label":"Cancel","preset":"cancel","submitsForm":false,"isDefault":false},{"id":"action_custom_1780761002981_3","label":"DIE!","preset":"custom","submitsForm":true,"isDefault":false,"isDanger":true}]</bfw:formActions>
+        <bfw:formActions>[{"id":"action_confirm_1780760572357_1","label":"Confirm","preset":"confirm","effect":"submit","isDefault":true},{"id":"action_cancel_1780760572617_2","label":"Cancel","preset":"cancel","effect":"dismiss","isDefault":false},{"id":"action_custom_1780761002981_3","label":"DIE!","preset":"custom","effect":"submit","isDefault":false,"isDanger":true}]</bfw:formActions>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:endEvent id="End_1" name="Done" />

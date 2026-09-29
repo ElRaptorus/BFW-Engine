@@ -309,8 +309,10 @@ defmodule BfwEngine.ExecutionCase do
 
   Returns `{status, body}`.
   """
-  def http_finish_user_task(flow_node_instance_id, result \\ %{}, claims \\ %{}) do
-    json_body = Jason.encode!(%{"result" => result})
+  def http_finish_user_task(flow_node_instance_id, values \\ %{}, claims \\ %{}, action_id \\ nil) do
+    body = %{"values" => values}
+    body = if action_id, do: Map.put(body, "actionId", action_id), else: body
+    json_body = Jason.encode!(body)
 
     conn =
       Plug.Test.conn(:put, "/user-tasks/#{flow_node_instance_id}/finish", json_body)
@@ -332,6 +334,38 @@ defmodule BfwEngine.ExecutionCase do
 
     conn =
       Plug.Test.conn(:put, "/user-tasks/#{flow_node_instance_id}/cancel", json_body)
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(claims)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
+  @doc """
+  Confirm a waiting Manual Task via `PUT /manual-tasks/{fniId}/confirm` (authenticated HTTP).
+
+  Sends no body. Returns `{status, body}`.
+  """
+  def http_confirm_manual_task(flow_node_instance_id, claims \\ %{}) do
+    conn =
+      Plug.Test.conn(:put, "/manual-tasks/#{flow_node_instance_id}/confirm")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(claims)}")
+      |> route()
+
+    decode_response(conn)
+  end
+
+  @doc """
+  Cancel a waiting Manual Task via `PUT /manual-tasks/{fniId}/cancel` (authenticated HTTP).
+
+  Returns `{status, body}`.
+  """
+  def http_cancel_manual_task(flow_node_instance_id, reason \\ nil, claims \\ %{}) do
+    body = if reason, do: %{"reason" => reason}, else: %{}
+    json_body = Jason.encode!(body)
+
+    conn =
+      Plug.Test.conn(:put, "/manual-tasks/#{flow_node_instance_id}/cancel", json_body)
       |> Plug.Conn.put_req_header("content-type", "application/json")
       |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt(claims)}")
       |> route()

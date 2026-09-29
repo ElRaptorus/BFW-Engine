@@ -10,6 +10,7 @@ export type {
   FacadeProcesses,
   FacadeProcessInstances,
   FacadeUserTasks,
+  FacadeManualTasks,
   FacadeServiceTasks,
   FacadeFlowNodeInstances,
   FacadeDataObjects,

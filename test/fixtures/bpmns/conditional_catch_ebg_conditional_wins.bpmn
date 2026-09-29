@@ -59,7 +59,7 @@
       <bpmn:outgoing>Flow_User_Join</bpmn:outgoing>
       <bpmn:dataOutputAssociation id="DOA_WriteReady">
         <bpmn:targetRef>ResultRef</bpmn:targetRef>
-        <bpmn:transformation>token</bpmn:transformation>
+        <bpmn:transformation>token.values</bpmn:transformation>
       </bpmn:dataOutputAssociation>
     </bpmn:userTask>
 

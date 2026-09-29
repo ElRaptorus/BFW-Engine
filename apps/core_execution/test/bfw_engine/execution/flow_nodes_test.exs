@@ -218,6 +218,34 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       assert result.type_properties.require_confirmation == true
       assert result.next_flow_node_ids == ["next-node"]
     end
+
+    test "confirm finishes with the entered token and ignores any completion payload" do
+      base_node = %FlowNode{
+        id: "mt3",
+        type: :manual_task,
+        type_data: %FlowNodeData.ManualTask{require_confirmation: true}
+      }
+
+      {node, context} = make_complete_context(base_node)
+      entered_token = make_token(%{"step" => "pack"})
+      entry = %{token: entered_token, next_flow_node_ids: ["end1"]}
+
+      assert {:ok, %FlowNodeResult{} = confirmed_without_payload} =
+               FlowNodes.ManualTask.handle_complete(node, entry, nil, context)
+
+      assert confirmed_without_payload.output_payload == %{"step" => "pack"}
+      assert confirmed_without_payload.next_flow_node_ids == ["end1"]
+
+      assert {:ok, %FlowNodeResult{} = confirmed_with_payload} =
+               FlowNodes.ManualTask.handle_complete(
+                 node,
+                 entry,
+                 %{"step" => "overwritten"},
+                 context
+               )
+
+      assert confirmed_with_payload.output_payload == %{"step" => "pack"}
+    end
   end
 
   describe "UserTask" do
@@ -340,7 +368,24 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       assert {:ok, %FlowNodeResult{output_payload: payload}} =
                FlowNodes.UserTask.handle_complete(node, entry, user_result, context)
 
-      assert payload == %{"approved" => true}
+      assert payload == %{"actionId" => nil, "values" => %{"approved" => true}}
+    end
+
+    test "finish writes the action id from the handler context" do
+      base_node = %FlowNode{
+        id: "ut1",
+        type: :user_task,
+        type_data: %FlowNodeData.UserTask{result_contract: nil}
+      }
+
+      {node, context} = make_complete_context(base_node)
+      context = %{context | user_task_action_id: "confirm"}
+      entry = %{next_flow_node_ids: ["end1"]}
+
+      assert {:ok, %FlowNodeResult{output_payload: payload}} =
+               FlowNodes.UserTask.handle_complete(node, entry, %{"approved" => true}, context)
+
+      assert payload == %{"actionId" => "confirm", "values" => %{"approved" => true}}
     end
 
     test "finish with no contract accepts any result" do
@@ -360,9 +405,13 @@ defmodule BfwEngine.Execution.FlowNodesTest do
     test "finish with valid contract and matching result succeeds" do
       contract = %{
         "type" => "object",
-        "required" => ["approved"],
+        "required" => ["values"],
         "properties" => %{
-          "approved" => %{"type" => "boolean"}
+          "values" => %{
+            "type" => "object",
+            "required" => ["approved"],
+            "properties" => %{"approved" => %{"type" => "boolean"}}
+          }
         }
       }
 
@@ -600,7 +649,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
         id: "ut1",
         type: :user_task,
         type_data: %FlowNodeData.UserTask{
-          out_mappings: [%Mapping{source: "token.is_approved", target: "approved"}],
+          out_mappings: [%Mapping{source: "token.values.is_approved", target: "approved"}],
           result_contract: %{
             "type" => "object",
             "required" => ["approved"],
@@ -645,7 +694,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
         id: "ut1",
         type: :user_task,
         type_data: %FlowNodeData.UserTask{
-          out_mappings: [%Mapping{source: "token.user_result", target: "final"}]
+          out_mappings: [%Mapping{source: "token.values.user_result", target: "final"}]
         }
       }
 

@@ -7,8 +7,9 @@ export class ValidationError extends BfwEngineError {
     /** Individual field-level validation failures, if provided by the engine. */
     public readonly failures: unknown[],
     rawBody?: Record<string, unknown>,
+    errorCode = 'validation_error',
   ) {
-    super(422, 'validation_error', message, rawBody);
+    super(422, errorCode, message, rawBody);
     this.name = 'ValidationError';
   }
 }

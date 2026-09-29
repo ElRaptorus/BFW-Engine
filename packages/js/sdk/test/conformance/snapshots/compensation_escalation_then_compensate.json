@@ -38,9 +38,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -50,23 +48,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BE_Comp_A"
-          ],
+          "boundaryEventRefs": ["BE_Comp_A"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Task_A",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Task A",
-          "outgoing": [
-            "Flow_2"
-          ],
+          "outgoing": ["Flow_2"],
           "standardLoop": null,
           "type": "task",
           "typeData": {}
@@ -114,23 +106,17 @@
           "typeData": {}
         },
         {
-          "boundaryEventRefs": [
-            "BE_Escalation"
-          ],
+          "boundaryEventRefs": ["BE_Escalation"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "SubProcess_1",
-          "incoming": [
-            "Flow_2"
-          ],
+          "incoming": ["Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalating Sub Process",
-          "outgoing": [
-            "Flow_Normal"
-          ],
+          "outgoing": ["Flow_Normal"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -155,9 +141,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "SP Start",
-                "outgoing": [
-                  "Sub_Flow_1"
-                ],
+                "outgoing": ["Sub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -173,15 +157,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Task_Inner",
-                "incoming": [
-                  "Sub_Flow_1"
-                ],
+                "incoming": ["Sub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Inner Task",
-                "outgoing": [
-                  "Sub_Flow_2"
-                ],
+                "outgoing": ["Sub_Flow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -193,9 +173,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "Escalation_End",
-                "incoming": [
-                  "Sub_Flow_2"
-                ],
+                "incoming": ["Sub_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Escalation End",
@@ -252,9 +230,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": null,
-          "outgoing": [
-            "Flow_BE"
-          ],
+          "outgoing": ["Flow_BE"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -276,15 +252,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Throw_Compensation",
-          "incoming": [
-            "Flow_BE"
-          ],
+          "incoming": ["Flow_BE"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Throw Compensation",
-          "outgoing": [
-            "Flow_3"
-          ],
+          "outgoing": ["Flow_3"],
           "standardLoop": null,
           "type": "intermediate_throw_event",
           "typeData": {
@@ -303,9 +275,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Compensated",
-          "incoming": [
-            "Flow_3"
-          ],
+          "incoming": ["Flow_3"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Compensated End",
@@ -325,9 +295,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_Normal"
-          ],
+          "incoming": ["Flow_Normal"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal End",

@@ -3,6 +3,7 @@ import { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import { ProcessClient } from '../../src/rest/process-client.js';
 import { ProcessInstanceClient } from '../../src/rest/process-instance-client.js';
 import { UserTaskClient } from '../../src/rest/user-task-client.js';
+import { ManualTaskClient } from '../../src/rest/manual-task-client.js';
 import { EngineClient } from '../../src/rest/engine-client.js';
 import { EventClient } from '../../src/rest/event-client.js';
 import { DecisionClient } from '../../src/rest/decision-client.js';
@@ -31,6 +32,7 @@ describe('BfwEngineClient', () => {
     expect(client.processes).toBeInstanceOf(ProcessClient);
     expect(client.processInstances).toBeInstanceOf(ProcessInstanceClient);
     expect(client.userTasks).toBeInstanceOf(UserTaskClient);
+    expect(client.manualTasks).toBeInstanceOf(ManualTaskClient);
     expect(client.engine).toBeInstanceOf(EngineClient);
     expect(client.events).toBeInstanceOf(EventClient);
     expect(client.decisions).toBeInstanceOf(DecisionClient);

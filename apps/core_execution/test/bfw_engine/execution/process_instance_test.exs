@@ -140,6 +140,13 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
 
       identity = %Identity{id: "finisher"}
 
+      assert {:error, :not_a_manual_task} =
+               ProcessInstance.confirm_manual_task(
+                 process_instance_pid,
+                 flow_node_instance_id,
+                 identity
+               )
+
       ref = attach_pi_telemetry("user-task-finish")
 
       assert :ok =
@@ -225,6 +232,84 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       {:running, state} = :sys.get_state(process_instance_pid)
       assert %{state: :waiting} = Map.get(state.flow_node_instance_states, flow_node_instance_id)
     end
+
+    test "a contract written against flat field values keeps the task waiting" do
+      contract = %{
+        "type" => "object",
+        "required" => ["approved"],
+        "properties" => %{"approved" => %{"type" => "boolean"}}
+      }
+
+      definitions = BpmnFactory.user_task_process(result_contract: contract)
+      ModelCache.put_new(@version_id, definitions)
+
+      process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@version_id, process_instance_id: process_instance_id)
+
+      Process.sleep(100)
+
+      {:running, state} = :sys.get_state(process_instance_pid)
+
+      [{flow_node_instance_id, _}] =
+        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
+          entry.state == :waiting
+        end)
+
+      identity = %Identity{id: "finisher"}
+
+      assert {:error, {:contract_violation, _violations}} =
+               ProcessInstance.finish_user_task(
+                 process_instance_pid,
+                 flow_node_instance_id,
+                 %{"approved" => true},
+                 identity,
+                 action_id: "confirm"
+               )
+
+      {:running, still_waiting} = :sys.get_state(process_instance_pid)
+
+      assert %{state: :waiting} =
+               Map.get(still_waiting.flow_node_instance_states, flow_node_instance_id)
+    end
+
+    test "finish with an action id completes when the contract checks the envelope" do
+      contract = %{
+        "type" => "object",
+        "required" => ["actionId", "values"],
+        "properties" => %{
+          "actionId" => %{"enum" => ["confirm"]},
+          "values" => %{"type" => "object"}
+        }
+      }
+
+      definitions = BpmnFactory.user_task_process(result_contract: contract)
+      ModelCache.put_new(@version_id, definitions)
+
+      process_instance_id = random_id()
+
+      assert {:ok, process_instance_pid} =
+               start_process_instance(@version_id, process_instance_id: process_instance_id)
+
+      Process.sleep(100)
+
+      {:running, state} = :sys.get_state(process_instance_pid)
+
+      [{flow_node_instance_id, _}] =
+        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
+          entry.state == :waiting
+        end)
+
+      assert :ok =
+               ProcessInstance.finish_user_task(
+                 process_instance_pid,
+                 flow_node_instance_id,
+                 %{"approved" => true},
+                 %Identity{id: "finisher"},
+                 action_id: "confirm"
+               )
+    end
   end
 
   # -------------------------------------------------------------------
@@ -232,7 +317,7 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
   # -------------------------------------------------------------------
 
   describe "ManualTask with requireConfirmation" do
-    test "PI pauses at ManualTask, completes after finish call" do
+    test "PI pauses at ManualTask, completes after confirm call" do
       definitions = BpmnFactory.manual_task_process(true)
       ModelCache.put_new(@version_id, definitions)
 
@@ -246,22 +331,56 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
 
       {:running, state} = :sys.get_state(process_instance_pid)
 
-      [{flow_node_instance_id, _}] =
+      [{flow_node_instance_id, waiting_entry}] =
         Enum.filter(state.flow_node_instance_states, fn {_id, e} -> e.state == :waiting end)
+
+      assert waiting_entry.token.payload == %{"input" => "data"}
 
       identity = %Identity{id: "user"}
 
-      ref = attach_pi_telemetry("manual-task-finish")
+      assert {:error, :not_a_user_task} =
+               Execution.finish_user_task(
+                 process_instance_id,
+                 flow_node_instance_id,
+                 %{"confirmed" => true},
+                 identity
+               )
+
+      {:running, still_waiting} = :sys.get_state(process_instance_pid)
+
+      assert %{state: :waiting} =
+               Map.get(still_waiting.flow_node_instance_states, flow_node_instance_id)
+
+      ref = attach_pi_telemetry("manual-task-confirm")
 
       assert :ok =
-               ProcessInstance.finish_user_task(
-                 process_instance_pid,
+               Execution.confirm_manual_task(
+                 process_instance_id,
                  flow_node_instance_id,
-                 %{},
                  identity
                )
 
       assert_receive {:pi_state_change, ^ref, :finished, _meta}, 2_000
+    end
+
+    test "confirm on an unknown flow node instance replies :fni_not_found" do
+      definitions = BpmnFactory.manual_task_process(true)
+      ModelCache.put_new(@version_id, definitions)
+
+      assert {:ok, process_instance_pid} = start_process_instance()
+      Process.sleep(100)
+
+      assert {:error, :fni_not_found} =
+               ProcessInstance.confirm_manual_task(
+                 process_instance_pid,
+                 "unknown-flow-node-instance",
+                 %Identity{id: "user"}
+               )
+    end
+
+    test "confirm on an unknown process instance returns :not_found" do
+      assert {:error, :not_found} =
+               Execution.confirm_manual_task(random_id(), random_id(), %Identity{id: "user"})
     end
 
     test "ManualTask without confirmation passes through immediately" do

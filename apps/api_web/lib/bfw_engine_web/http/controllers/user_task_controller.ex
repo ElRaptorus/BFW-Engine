@@ -1,17 +1,18 @@
 defmodule BfwEngineWeb.Http.UserTaskController do
   @moduledoc """
-  REST controller for User Task and Manual Task interactions.
+  REST controller for User Task interactions. Manual Tasks use
+  `BfwEngineWeb.Http.ManualTaskController`.
 
   ## Routes
 
-  - `PUT /user-tasks/:flow_node_instance_id/finish` — complete a waiting task with a result payload
-  - `PUT /user-tasks/:flow_node_instance_id/cancel` — cancel a waiting task
+  - `PUT /user-tasks/:flow_node_instance_id/finish` — complete a waiting User Task with `{actionId?, values?}`
+  - `PUT /user-tasks/:flow_node_instance_id/cancel` — cancel a waiting User Task
 
   ## Authorization
 
   Both actions enforce lane-based visibility via `BfwEngine.Api`.
-  Invisible tasks return 404. Visible but not writable (`\"read\"` or
-  `observe_all`) return 403.
+  Invisible tasks and flow node instances that are not User Tasks return
+  404. Visible but not writable (`\"read\"` or `observe_all`) return 403.
   """
 
   use Phoenix.Controller, formats: [:json]
@@ -32,10 +33,11 @@ defmodule BfwEngineWeb.Http.UserTaskController do
   # ---------------------------------------------------------------------------
 
   def finish(conn, %{"flow_node_instance_id" => flow_node_instance_id}) do
-    result = get_in(conn.body_params, ["result"]) || %{}
+    values = Map.get(conn.body_params, "values")
+    action_id = Map.get(conn.body_params, "actionId")
     identity = caller_identity(conn)
 
-    case Api.finish_user_task(flow_node_instance_id, result, identity) do
+    case Api.finish_user_task(flow_node_instance_id, values, identity, action_id: action_id) do
       :ok ->
         send_resp(conn, 204, "")
 
@@ -92,9 +94,27 @@ defmodule BfwEngineWeb.Http.UserTaskController do
     )
   end
 
+  defp render_finish_error(conn, :invalid_values) do
+    render_error(
+      conn,
+      422,
+      "invalid_values",
+      "The finish request's values must be a JSON object keyed by form field ID."
+    )
+  end
+
+  defp render_finish_error(conn, :invalid_action_id) do
+    render_error(
+      conn,
+      422,
+      "invalid_action_id",
+      "The finish request's actionId must be a non-blank string of at most 255 characters."
+    )
+  end
+
   defp render_finish_error(conn, {:payload_too_large, details}) do
-    render_error(conn, 413, "payload_too_large", "Result payload exceeds size limit",
-      field: to_string(details[:field] || "result"),
+    render_error(conn, 413, "payload_too_large", "Values payload exceeds size limit",
+      field: to_string(details[:field] || "values"),
       size: details[:size],
       limit: details[:limit]
     )

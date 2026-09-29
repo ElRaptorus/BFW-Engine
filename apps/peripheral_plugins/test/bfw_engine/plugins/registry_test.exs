@@ -120,6 +120,13 @@ defmodule BfwEngine.Plugins.RegistryTest do
                })
     end
 
+    test "rejects /manual-tasks" do
+      assert {:error, :reserved_prefix} =
+               Registry.register_capability("ext-plugin", :rest_api_extension, %{
+                 prefix: "/manual-tasks"
+               })
+    end
+
     test "rejects a nested reserved prefix" do
       assert {:error, :reserved_prefix} =
                Registry.register_capability("ext-plugin", :rest_api_extension, %{

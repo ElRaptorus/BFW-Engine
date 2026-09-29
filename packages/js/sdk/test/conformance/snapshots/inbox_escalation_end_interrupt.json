@@ -31,9 +31,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -49,16 +47,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Fork_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Fork",
-          "outgoing": [
-            "Flow_Esc",
-            "Flow_Task"
-          ],
+          "outgoing": ["Flow_Esc", "Flow_Task"],
           "standardLoop": null,
           "type": "parallel_gateway",
           "typeData": {}
@@ -70,15 +63,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "UserTask_Wait",
-          "incoming": [
-            "Flow_Task"
-          ],
+          "incoming": ["Flow_Task"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Wait",
-          "outgoing": [
-            "Flow_Done"
-          ],
+          "outgoing": ["Flow_Done"],
           "standardLoop": null,
           "type": "user_task",
           "typeData": {
@@ -100,9 +89,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Normal",
-          "incoming": [
-            "Flow_Done"
-          ],
+          "incoming": ["Flow_Done"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Normal",
@@ -122,15 +109,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "Catch_Delay",
-          "incoming": [
-            "Flow_Esc"
-          ],
+          "incoming": ["Flow_Esc"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Delay",
-          "outgoing": [
-            "Flow_After_Delay"
-          ],
+          "outgoing": ["Flow_After_Delay"],
           "standardLoop": null,
           "type": "intermediate_catch_event",
           "typeData": {
@@ -150,9 +133,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Escalation",
-          "incoming": [
-            "Flow_After_Delay"
-          ],
+          "incoming": ["Flow_After_Delay"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Escalate",
@@ -176,14 +157,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "Fork_1",
-            "UserTask_Wait",
-            "Catch_Delay",
-            "End_Escalation",
-            "End_Normal"
-          ],
+          "flowNodeRefs": ["Start_1", "Fork_1", "UserTask_Wait", "Catch_Delay", "End_Escalation", "End_Normal"],
           "id": "Lane_default",
           "name": "default"
         }

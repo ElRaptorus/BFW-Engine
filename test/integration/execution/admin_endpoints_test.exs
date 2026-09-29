@@ -171,6 +171,27 @@ defmodule BfwEngine.Integration.Execution.AdminEndpointsTest do
       assert body["error"] == "not_found"
     end
 
+    test "404 when a caller who cannot observe the lane finishes or cancels an already-finished user task" do
+      process_instance_id = deploy_and_start_laned_user_task()
+      Process.sleep(200)
+
+      flow_node_instance = waiting_user_task_fni!(process_instance_id)
+      lane_name = flow_node_instance.lane_name
+      claims_with_lane = %{"sub" => "lane-user", "lane:#{lane_name}" => "write"}
+      claims_without_lane = %{"sub" => "no-lane-user"}
+
+      {204, nil} = http_finish_user_task(flow_node_instance.id, %{}, claims_with_lane)
+      wait_for_process_instance(process_instance_id)
+
+      {404, finish_body} = http_finish_user_task(flow_node_instance.id, %{}, claims_without_lane)
+      assert finish_body["error"] == "not_found"
+
+      {404, cancel_body} =
+        http_cancel_user_task(flow_node_instance.id, "reason", claims_without_lane)
+
+      assert cancel_body["error"] == "not_found"
+    end
+
     test "204 when caller has the correct lane claim" do
       process_instance_id = deploy_and_start_laned_user_task()
       Process.sleep(200)

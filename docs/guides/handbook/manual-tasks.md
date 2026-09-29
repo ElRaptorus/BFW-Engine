@@ -19,20 +19,27 @@ Manual Tasks represent work performed outside the engine that optionally require
 
 ## Confirming a Manual Task
 
-When confirmation is required, complete the task using the same endpoints as User Tasks:
+When confirmation is required, confirm the task with its own endpoint. The request has no body:
 
 ```bash
-curl -X PUT http://localhost:4000/user-tasks/$FNI_ID/finish \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"result": {}}'
+curl -X PUT http://localhost:4000/manual-tasks/$FNI_ID/confirm \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-Or via REST — see [User Tasks](user-tasks.md) for the finish request body.
+To cancel the task instead (this aborts the whole process instance tree):
 
-Manual Tasks do not support form fields or result contracts. The result payload (if any) becomes the output token.
+```bash
+curl -X PUT http://localhost:4000/manual-tasks/$FNI_ID/cancel \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "not needed"}'
+```
 
-A confirming Manual Task appears in the same task inbox as User Tasks (`GET`/subscribe on `user_tasks:pending`, or the equivalent GraphQL query), marked with `flowNodeType: "manual_task"` so a client can tell it apart from a User Task. It disappears from the inbox — via one `UserTaskFinished` event — as soon as it stops waiting for any reason: an explicit finish or cancel, a boundary event interrupting the task, a Terminate/Error/Cancel End Event elsewhere in the process, or the process instance aborting or fataling. A non-confirming Manual Task never appears in the inbox at all.
+The `/user-tasks/{id}/finish` and `/user-tasks/{id}/cancel` endpoints accept User Tasks only and answer `404` for a Manual Task.
+
+Manual Tasks do not support form fields or result contracts. The token passes through unchanged: the output token is the token the task entered with, and any body sent to `confirm` is ignored.
+
+A confirming Manual Task appears in the same task inbox as User Tasks (`GET`/subscribe on `user_tasks:pending`, or the equivalent GraphQL query), marked with `flowNodeType: "manual_task"` so a client can tell it apart from a User Task. It disappears from the inbox — via one `UserTaskFinished` event — as soon as it stops waiting for any reason: an explicit confirm or cancel, a boundary event interrupting the task, a Terminate/Error/Cancel End Event elsewhere in the process, or the process instance aborting or fataling. A non-confirming Manual Task never appears in the inbox at all.
 
 ## Use Cases
 

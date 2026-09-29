@@ -31,9 +31,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Main_Flow_1"
-          ],
+          "outgoing": ["Main_Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -49,15 +47,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "EmbSub_1",
-          "incoming": [
-            "Main_Flow_1"
-          ],
+          "incoming": ["Main_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Failing Subprocess",
-          "outgoing": [
-            "Main_Flow_2"
-          ],
+          "outgoing": ["Main_Flow_2"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -82,9 +76,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Sub Start",
-                "outgoing": [
-                  "EmbSub_Flow_1"
-                ],
+                "outgoing": ["EmbSub_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -100,15 +92,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "EmbSub_Task",
-                "incoming": [
-                  "EmbSub_Flow_1"
-                ],
+                "incoming": ["EmbSub_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Do Work",
-                "outgoing": [
-                  "EmbSub_Flow_2"
-                ],
+                "outgoing": ["EmbSub_Flow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -120,9 +108,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "EmbSub_ErrorEnd",
-                "incoming": [
-                  "EmbSub_Flow_2"
-                ],
+                "incoming": ["EmbSub_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Raise Error",
@@ -176,9 +162,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_1",
-          "incoming": [
-            "Main_Flow_2"
-          ],
+          "incoming": ["Main_Flow_2"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "End",
@@ -227,9 +211,7 @@
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Error Caught",
-                "outgoing": [
-                  "ESP_Flow_1"
-                ],
+                "outgoing": ["ESP_Flow_1"],
                 "standardLoop": null,
                 "type": "start_event",
                 "typeData": {
@@ -249,15 +231,11 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_Task",
-                "incoming": [
-                  "ESP_Flow_1"
-                ],
+                "incoming": ["ESP_Flow_1"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "Handle Error",
-                "outgoing": [
-                  "ESP_Flow_2"
-                ],
+                "outgoing": ["ESP_Flow_2"],
                 "standardLoop": null,
                 "type": "task",
                 "typeData": {}
@@ -269,9 +247,7 @@
                 "dataOutputAssociations": [],
                 "documentation": null,
                 "id": "ESP_End",
-                "incoming": [
-                  "ESP_Flow_2"
-                ],
+                "incoming": ["ESP_Flow_2"],
                 "isForCompensation": false,
                 "multiInstance": null,
                 "name": "ESP Done",
@@ -322,12 +298,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "EmbSub_1",
-            "End_1",
-            "ESP_Error"
-          ],
+          "flowNodeRefs": ["Start_1", "EmbSub_1", "End_1", "ESP_Error"],
           "id": "Lane_default",
           "name": "default"
         }

@@ -59,13 +59,17 @@
             "priority": null,
             "resultContract": {
               "properties": {
-                "approved": {
-                  "type": "boolean"
+                "values": {
+                  "properties": {
+                    "approved": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["approved"],
+                  "type": "object"
                 }
               },
-              "required": [
-                "approved"
-              ],
+              "required": ["values"],
               "type": "object"
             }
           }
@@ -98,11 +102,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "UserTask_1",
-            "End_1"
-          ],
+          "flowNodeRefs": ["Start_1", "UserTask_1", "End_1"],
           "id": "Lane_default",
           "name": "default"
         }

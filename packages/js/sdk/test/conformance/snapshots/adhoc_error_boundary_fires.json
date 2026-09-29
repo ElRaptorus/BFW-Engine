@@ -25,9 +25,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Start",
-          "outgoing": [
-            "Flow_1"
-          ],
+          "outgoing": ["Flow_1"],
           "standardLoop": null,
           "type": "start_event",
           "typeData": {
@@ -37,23 +35,17 @@
           }
         },
         {
-          "boundaryEventRefs": [
-            "BoundaryError_1"
-          ],
+          "boundaryEventRefs": ["BoundaryError_1"],
           "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "AdHoc_1",
-          "incoming": [
-            "Flow_1"
-          ],
+          "incoming": ["Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Ad-hoc with Failing Task",
-          "outgoing": [
-            "Flow_Happy"
-          ],
+          "outgoing": ["Flow_Happy"],
           "standardLoop": null,
           "type": "sub_process",
           "typeData": {
@@ -120,9 +112,7 @@
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Catch Error",
-          "outgoing": [
-            "Flow_Error"
-          ],
+          "outgoing": ["Flow_Error"],
           "standardLoop": null,
           "type": "boundary_event",
           "typeData": {
@@ -145,9 +135,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Happy",
-          "incoming": [
-            "Flow_Happy"
-          ],
+          "incoming": ["Flow_Happy"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Happy End",
@@ -167,15 +155,11 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "ScriptTask_AfterError",
-          "incoming": [
-            "Flow_Error"
-          ],
+          "incoming": ["Flow_Error"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "After Error",
-          "outgoing": [
-            "Flow_AfterError"
-          ],
+          "outgoing": ["Flow_AfterError"],
           "standardLoop": null,
           "type": "script_task",
           "typeData": {
@@ -195,9 +179,7 @@
           "dataOutputAssociations": [],
           "documentation": null,
           "id": "End_Error",
-          "incoming": [
-            "Flow_AfterError"
-          ],
+          "incoming": ["Flow_AfterError"],
           "isForCompensation": false,
           "multiInstance": null,
           "name": "Error End",
@@ -218,14 +200,7 @@
       "isTransactionScope": false,
       "lanes": [
         {
-          "flowNodeRefs": [
-            "Start_1",
-            "AdHoc_1",
-            "BoundaryError_1",
-            "End_Happy",
-            "ScriptTask_AfterError",
-            "End_Error"
-          ],
+          "flowNodeRefs": ["Start_1", "AdHoc_1", "BoundaryError_1", "End_Happy", "ScriptTask_AfterError", "End_Error"],
           "id": "Lane_default",
           "name": "default"
         }

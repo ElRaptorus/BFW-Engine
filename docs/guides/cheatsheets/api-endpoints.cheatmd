@@ -34,9 +34,20 @@ DELETE /processes/{model_id}/versions/{ver}    Delete version (204)
 
 ### User Tasks
 
+User Tasks only. A Manual Task id is 404.
+
 ```
-PUT    /user-tasks/{fniId}/finish         Complete with result (204)
+PUT    /user-tasks/{fniId}/finish         Complete with {actionId?, values?} (204)
 PUT    /user-tasks/{fniId}/cancel         Cancel + abort PI (204)
+```
+
+### Manual Tasks
+
+Manual Tasks only. A User Task id is 404. Confirm has no body; the entered token passes through.
+
+```
+PUT    /manual-tasks/{fniId}/confirm      Confirm waiting Manual Task (204)
+PUT    /manual-tasks/{fniId}/cancel       Cancel + abort PI (204, body {reason?})
 ```
 
 ### Process Instances

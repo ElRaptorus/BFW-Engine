@@ -130,20 +130,24 @@ defmodule BfwEngine.Execution do
   end
 
   @doc """
-  Complete a waiting User Task / Manual Task.
+  Complete a waiting User Task.
+
+  `values` becomes the `"values"` object of the task token. `opts` may
+  include `action_id:` (`nil` or a string), written as `"actionId"`.
 
   The caller must provide the `process_instance_id` to locate the PI
   process. The API layer resolves this from the FNI's DB row.
   """
-  @spec finish_user_task(String.t(), String.t(), term(), BfwEngine.Types.Identity.t()) ::
+  @spec finish_user_task(String.t(), String.t(), term(), BfwEngine.Types.Identity.t(), keyword()) ::
           :ok | {:error, term()} | {:error, :payload_too_large, map()}
-  def finish_user_task(process_instance_id, flow_node_instance_id, result, identity) do
+  def finish_user_task(process_instance_id, flow_node_instance_id, values, identity, opts \\ []) do
     with {:ok, process_instance_pid} <- lookup_process_instance(process_instance_id) do
       ProcessInstance.finish_user_task(
         process_instance_pid,
         flow_node_instance_id,
-        result,
-        identity
+        values,
+        identity,
+        opts
       )
     end
   catch
@@ -151,16 +155,35 @@ defmodule BfwEngine.Execution do
   end
 
   @doc """
-  Cancel a waiting User Task.
+  Confirm a waiting Manual Task (`bfw:requireConfirmation`).
+
+  The token the Manual Task entered with continues unchanged. The caller
+  must provide the `process_instance_id` to locate the PI process. The
+  API layer resolves this from the FNI's DB row.
+  """
+  @spec confirm_manual_task(String.t(), String.t(), BfwEngine.Types.Identity.t()) ::
+          :ok | {:error, term()}
+  def confirm_manual_task(process_instance_id, flow_node_instance_id, identity) do
+    with {:ok, process_instance_pid} <- lookup_process_instance(process_instance_id) do
+      ProcessInstance.confirm_manual_task(process_instance_pid, flow_node_instance_id, identity)
+    end
+  catch
+    :exit, _ -> {:error, :not_found}
+  end
+
+  @doc """
+  Cancel a waiting inbox task (User Task or confirming Manual Task) and
+  abort the whole process instance tree.
 
   The caller must provide the `process_instance_id` to locate the PI
-  process. The API layer resolves this from the FNI's DB row.
+  process. The API layer resolves this from the FNI's DB row and checks
+  the task type.
   """
-  @spec cancel_user_task(String.t(), String.t(), String.t() | nil, BfwEngine.Types.Identity.t()) ::
+  @spec cancel_inbox_task(String.t(), String.t(), String.t() | nil, BfwEngine.Types.Identity.t()) ::
           :ok | {:error, term()}
-  def cancel_user_task(process_instance_id, flow_node_instance_id, reason, identity) do
+  def cancel_inbox_task(process_instance_id, flow_node_instance_id, reason, identity) do
     with {:ok, process_instance_pid} <- lookup_process_instance(process_instance_id) do
-      ProcessInstance.cancel_user_task(
+      ProcessInstance.cancel_inbox_task(
         process_instance_pid,
         flow_node_instance_id,
         reason,

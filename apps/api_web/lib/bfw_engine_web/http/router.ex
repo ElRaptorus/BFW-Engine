@@ -20,7 +20,7 @@ defmodule BfwEngineWeb.Http.Router do
     plug BfwEngine.Auth.Plug
     plug BfwEngineWeb.Http.Plugs.AshActorPlug
     plug BfwEngineWeb.Http.Plugs.PayloadCapPlug, field: "payload"
-    plug BfwEngineWeb.Http.Plugs.PayloadCapPlug, field: "result"
+    plug BfwEngineWeb.Http.Plugs.PayloadCapPlug, field: "values"
     plug BfwEngineWeb.Http.Plugs.RateLimitPlug
     plug BfwEngineWeb.Http.Plugs.DeprecationPlug
   end
@@ -92,6 +92,8 @@ defmodule BfwEngineWeb.Http.Router do
 
     put "/user-tasks/:flow_node_instance_id/finish", UserTaskController, :finish
     put "/user-tasks/:flow_node_instance_id/cancel", UserTaskController, :cancel
+    put "/manual-tasks/:flow_node_instance_id/confirm", ManualTaskController, :confirm
+    put "/manual-tasks/:flow_node_instance_id/cancel", ManualTaskController, :cancel
     put "/process-instances/:id/abort", ProcessInstanceController, :abort
     put "/process-instances/:id/retry", ProcessInstanceController, :retry
     delete "/process-instances/:id", ProcessInstanceController, :soft_delete

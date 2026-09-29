@@ -40,7 +40,7 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
 
       finished_ut = Enum.find(flow_node_instances, &(&1.flow_node_type == "user_task"))
       assert finished_ut.state == "finished"
-      assert finished_ut.output_token == %{"approved" => true}
+      assert finished_ut.output_token == %{"actionId" => nil, "values" => %{"approved" => true}}
 
       events = EventCollector.await_events(collector, 10, 2_000)
 
@@ -100,5 +100,116 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
       wait_for_process_instance(process_instance_id)
       assert_pi_state!(process_instance_id, "finished")
     end
+  end
+
+  describe "finish body" do
+    test "writes the action id and an empty values object when values are omitted" do
+      {201, _} = http_deploy("user_task_simple.bpmn")
+      {201, body} = http_start("UserTaskSimple")
+      process_instance_id = body["processInstanceId"]
+      Process.sleep(200)
+
+      user_task_fni =
+        Enum.find(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.flow_node_type == "user_task")
+        )
+
+      {204, _} = http_finish_user_task(user_task_fni.id, %{}, %{}, "confirm")
+
+      wait_for_process_instance(process_instance_id)
+
+      finished =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.id == user_task_fni.id))
+
+      assert finished.output_token == %{"actionId" => "confirm", "values" => %{}}
+    end
+
+    test "rejects a non-object values field and a bad action id" do
+      {201, _} = http_deploy("user_task_simple.bpmn")
+      {201, body} = http_start("UserTaskSimple")
+      process_instance_id = body["processInstanceId"]
+      Process.sleep(200)
+
+      user_task_fni =
+        Enum.find(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.flow_node_type == "user_task")
+        )
+
+      assert {422, %{"error" => "invalid_values"}} =
+               raw_finish(user_task_fni.id, %{"values" => "nope", "actionId" => "confirm"})
+
+      assert {422, %{"error" => "invalid_values"}} =
+               raw_finish(user_task_fni.id, %{"values" => [1], "actionId" => "confirm"})
+
+      assert {422, %{"error" => "invalid_values"}} =
+               raw_finish(user_task_fni.id, %{"values" => 1})
+
+      assert {422, %{"error" => "invalid_action_id"}} =
+               raw_finish(user_task_fni.id, %{"values" => %{}, "actionId" => 1})
+
+      assert {422, %{"error" => "invalid_action_id"}} =
+               raw_finish(user_task_fni.id, %{"values" => %{}, "actionId" => "   "})
+
+      assert {422, %{"error" => "invalid_action_id"}} =
+               raw_finish(user_task_fni.id, %{
+                 "values" => %{},
+                 "actionId" => String.duplicate("a", 256)
+               })
+
+      still_waiting =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.id == user_task_fni.id))
+
+      assert still_waiting.state == "waiting"
+    end
+
+    test "rejects an oversized values object" do
+      {201, _} = http_deploy("user_task_simple.bpmn")
+      {201, body} = http_start("UserTaskSimple")
+      process_instance_id = body["processInstanceId"]
+      Process.sleep(200)
+
+      user_task_fni =
+        Enum.find(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.flow_node_type == "user_task")
+        )
+
+      {status, error_body} =
+        raw_finish(user_task_fni.id, %{"values" => %{"note" => String.duplicate("x", 70_000)}})
+
+      assert status == 413
+      assert error_body["error"] == "payload_too_large"
+      assert error_body["field"] == "values"
+
+      still_waiting =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.id == user_task_fni.id))
+
+      assert still_waiting.state == "waiting"
+    end
+
+    test "rejects an unauthenticated finish" do
+      conn =
+        Plug.Test.conn(:put, "/user-tasks/any-id/finish", Jason.encode!(%{"values" => %{}}))
+        |> Plug.Conn.put_req_header("content-type", "application/json")
+        |> route()
+
+      assert conn.status == 401
+    end
+  end
+
+  defp raw_finish(flow_node_instance_id, body) do
+    conn =
+      Plug.Test.conn(
+        :put,
+        "/user-tasks/#{flow_node_instance_id}/finish",
+        Jason.encode!(body)
+      )
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> Plug.Conn.put_req_header("authorization", "Bearer #{sign_jwt()}")
+      |> route()
+
+    {conn.status, Jason.decode!(conn.resp_body)}
   end
 end

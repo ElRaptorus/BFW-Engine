@@ -106,8 +106,13 @@ defmodule BfwEngine.Plugins.LoaderTest do
     assert is_function(facade.process_instances.abort, 2)
 
     assert %EngineFacade.UserTasks{} = facade.user_tasks
-    assert is_function(facade.user_tasks.finish, 3)
+    assert is_function(facade.user_tasks.finish, 4)
     assert is_function(facade.user_tasks.cancel, 3)
+
+    assert %EngineFacade.ManualTasks{} = facade.manual_tasks
+    assert is_function(facade.manual_tasks.confirm, 2)
+    assert is_function(facade.manual_tasks.cancel, 3)
+    refute facade.manual_tasks.confirm == (&EngineFacade.ManualTasks.noop_2/2)
 
     assert %EngineFacade.ServiceTasks{} = facade.service_tasks
     assert is_function(facade.service_tasks.finish_async, 2)

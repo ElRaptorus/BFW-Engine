@@ -156,23 +156,37 @@ defmodule BfwEngine.Execution.ProcessInstance do
     )
   end
 
-  @doc "Finish a waiting User Task / Manual Task."
-  @spec finish_user_task(pid(), String.t(), term(), BfwEngine.Types.Identity.t()) ::
+  @doc """
+  Finish a waiting User Task.
+
+  `values` is the field-value map. `opts` accepts `action_id:` (`nil` or a string).
+  """
+  @spec finish_user_task(pid(), String.t(), term(), BfwEngine.Types.Identity.t(), keyword()) ::
           :ok | {:error, term()} | {:error, :payload_too_large, map()}
-  def finish_user_task(process_instance_pid, flow_node_instance_id, result, identity) do
+  def finish_user_task(process_instance_pid, flow_node_instance_id, values, identity, opts \\ []) do
     :gen_statem.call(
       process_instance_pid,
-      {:finish_user_task, flow_node_instance_id, result, identity}
+      {:finish_user_task, flow_node_instance_id, values, Keyword.get(opts, :action_id), identity}
     )
   end
 
-  @doc "Cancel a waiting User Task."
-  @spec cancel_user_task(pid(), String.t(), String.t() | nil, BfwEngine.Types.Identity.t()) ::
+  @doc "Confirm a waiting Manual Task; the token it entered with continues unchanged."
+  @spec confirm_manual_task(pid(), String.t(), BfwEngine.Types.Identity.t()) ::
           :ok | {:error, term()}
-  def cancel_user_task(process_instance_pid, flow_node_instance_id, reason, identity) do
+  def confirm_manual_task(process_instance_pid, flow_node_instance_id, identity) do
     :gen_statem.call(
       process_instance_pid,
-      {:cancel_user_task, flow_node_instance_id, reason, identity}
+      {:confirm_manual_task, flow_node_instance_id, identity}
+    )
+  end
+
+  @doc "Cancel a waiting User Task or confirming Manual Task and abort the process instance tree."
+  @spec cancel_inbox_task(pid(), String.t(), String.t() | nil, BfwEngine.Types.Identity.t()) ::
+          :ok | {:error, term()}
+  def cancel_inbox_task(process_instance_pid, flow_node_instance_id, reason, identity) do
+    :gen_statem.call(
+      process_instance_pid,
+      {:cancel_inbox_task, flow_node_instance_id, reason, identity}
     )
   end
 
@@ -960,20 +974,30 @@ defmodule BfwEngine.Execution.ProcessInstance do
     {:keep_state, data}
   end
 
-  def running({:call, from}, {:finish_user_task, flow_node_instance_id, result, _identity}, data) do
-    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
-      %{state: :waiting} = entry ->
-        complete_waiting_fni(data, from, flow_node_instance_id, entry, result)
-
-      %{state: state} ->
-        {:keep_state, data, [{:reply, from, {:error, normalize_terminal_state_error(state)}}]}
-
-      nil ->
-        {:keep_state, data, [{:reply, from, {:error, :fni_not_found}}]}
-    end
+  def running(
+        {:call, from},
+        {:finish_user_task, flow_node_instance_id, values, action_id, _identity},
+        data
+      ) do
+    reply_inbox_completion(data, from, flow_node_instance_id, :user_task, :not_a_user_task, fn ->
+      complete_waiting_inbox_task(data, from, flow_node_instance_id, values, action_id)
+    end)
   end
 
-  def running({:call, from}, {:cancel_user_task, flow_node_instance_id, reason, _identity}, data) do
+  def running({:call, from}, {:confirm_manual_task, flow_node_instance_id, _identity}, data) do
+    reply_inbox_completion(
+      data,
+      from,
+      flow_node_instance_id,
+      :manual_task,
+      :not_a_manual_task,
+      fn ->
+        complete_waiting_inbox_task(data, from, flow_node_instance_id, nil)
+      end
+    )
+  end
+
+  def running({:call, from}, {:cancel_inbox_task, flow_node_instance_id, reason, _identity}, data) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: :waiting} = entry ->
         cancel_waiting_fni(data, flow_node_instance_id, entry, reason)
@@ -2979,7 +3003,74 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # Internal: Generic handler completion dispatch
   # -------------------------------------------------------------------
 
-  defp complete_waiting_fni(data, from, flow_node_instance_id, entry, payload) do
+  defp reply_inbox_completion(
+         data,
+         from,
+         flow_node_instance_id,
+         expected_type,
+         mismatch_error,
+         continue
+       ) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      nil ->
+        {:keep_state, data, [{:reply, from, {:error, :fni_not_found}}]}
+
+      _entry ->
+        if flow_node_type(data, flow_node_instance_id) == expected_type do
+          continue.()
+        else
+          {:keep_state, data, [{:reply, from, {:error, mismatch_error}}]}
+        end
+    end
+  end
+
+  defp flow_node_type(data, flow_node_instance_id) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{flow_node_id: flow_node_id} ->
+        case find_flow_node(data, flow_node_id) do
+          %{type: type} -> type
+          _other -> nil
+        end
+
+      _missing ->
+        nil
+    end
+  end
+
+  defp complete_waiting_inbox_task(
+         data,
+         from,
+         flow_node_instance_id,
+         payload,
+         user_task_action_id \\ nil
+       ) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{state: :waiting} = entry ->
+        complete_waiting_fni(
+          data,
+          from,
+          flow_node_instance_id,
+          entry,
+          payload,
+          user_task_action_id
+        )
+
+      %{state: state} ->
+        {:keep_state, data, [{:reply, from, {:error, normalize_terminal_state_error(state)}}]}
+
+      nil ->
+        {:keep_state, data, [{:reply, from, {:error, :fni_not_found}}]}
+    end
+  end
+
+  defp complete_waiting_fni(
+         data,
+         from,
+         flow_node_instance_id,
+         entry,
+         payload,
+         user_task_action_id \\ nil
+       ) do
     flow_node = find_flow_node(data, entry.flow_node_id)
 
     handler_lookup =
@@ -2991,7 +3082,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     case handler_lookup do
       {:ok, handler_module} ->
-        context = build_handler_context(data, flow_node_instance_id, flow_node, self())
+        context =
+          %{
+            build_handler_context(data, flow_node_instance_id, flow_node, self())
+            | user_task_action_id: user_task_action_id
+          }
 
         dispatch_handle_complete(
           data,
@@ -3054,6 +3149,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
       {:error, {:contract_violation, _violations} = reason} ->
         {:keep_state, data, [{:reply, from, {:error, reason}}]}
+
+      {:error, :payload_too_large, details} ->
+        {:keep_state, data, [{:reply, from, {:error, :payload_too_large, details}}]}
 
       {:error, reason} ->
         apply_error_boundary_or_fatal(

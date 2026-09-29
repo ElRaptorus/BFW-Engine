@@ -187,23 +187,26 @@ See [Deploying Processes](../handbook/deploying-processes.md).
 
 ### `PUT /user-tasks/{fniId}/finish`
 
-Complete a User Task with result. Body:
+Complete a User Task. Body:
 
 ```json
-{ "result": { "approved": true } }
+{ "actionId": "confirm", "values": { "approved": true } }
 ```
+
+`actionId` may be omitted. `values` may be omitted or `null`; the Engine stores `{}`. A present `values` that is not a JSON object is `422 invalid_values`. A present `actionId` that is not a non-blank string of at most 255 characters is `422 invalid_action_id`. The Engine writes `{ actionId, values }` as the task token, replacing the input token.
 
 | Status | Meaning |
 |--------|---------|
 | `204`  | Task completed (no body) |
 | `403`  | Visible but not writable (`"read"` / `observe_all`) |
 | `404`  | FNI not found or invisible (no observe of that lane) |
-| `413`  | Result payload exceeds cap |
-| `422`  | Not in `waiting` state or contract violation |
+| `413`  | `values` exceeds the cap (`field` `values`), or the stored `{ actionId, values }` token does (`field` `user_task_result`). A `values` object exactly at the cap can still be rejected |
+| `422`  | Not in `waiting` state, invalid body, or contract violation |
 
 Authorization: caller needs `lane:<lane_name>="write"` for the task's lane.
 `"read"` / `observe_all` → **403**. Invisible tasks return **404**.
-See [User Tasks](../handbook/user-tasks.md).
+User Tasks only — a Manual Task id returns **404**, the same as an unknown
+id. See [User Tasks](../handbook/user-tasks.md).
 
 ### `PUT /user-tasks/{fniId}/cancel`
 
@@ -222,7 +225,46 @@ are stopped and the PI transitions to `aborted`. Body (optional):
 | `404`  | FNI not found or invisible (no observe of that lane) |
 | `422`  | Not in `waiting` state |
 
-Same lane-based authorization as finish.
+Same lane-based authorization as finish. User Tasks only — a Manual Task
+id returns **404**, the same as an unknown id.
+
+### `PUT /manual-tasks/{fniId}/confirm`
+
+Confirm a waiting Manual Task (`bfw:requireConfirmation="true"`). No
+request body; the token the task entered with continues unchanged — this
+endpoint does not accept or return a result payload.
+
+| Status | Meaning |
+|--------|---------|
+| `204`  | Task confirmed (no body) |
+| `403`  | Visible but not writable (`"read"` / `observe_all`) |
+| `404`  | FNI not found or invisible (no observe of that lane) |
+| `422`  | Not in `waiting` state |
+
+Authorization: caller needs `lane:<lane_name>="write"` for the task's lane.
+`"read"` / `observe_all` → **403**. Invisible tasks return **404**.
+Manual Tasks only — a User Task id returns **404**, the same as an unknown
+id. See [Manual Tasks](../handbook/manual-tasks.md).
+
+### `PUT /manual-tasks/{fniId}/cancel`
+
+Cancel a Manual Task and abort the entire process instance. This has the
+same effect as `PUT /process-instances/{id}/abort` — all parallel branches
+are stopped and the PI transitions to `aborted`. Body (optional):
+
+```json
+{ "reason": "No longer needed" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `204`  | Task cancelled, PI aborted (no body) |
+| `403`  | Visible but not writable (`"read"` / `observe_all`) |
+| `404`  | FNI not found or invisible (no observe of that lane) |
+| `422`  | Not in `waiting` state |
+
+Same lane-based authorization as confirm. Manual Tasks only — a User Task
+id returns **404**, the same as an unknown id.
 
 ### `PUT /process-instances/{id}/abort`
 

@@ -102,7 +102,7 @@ The engine extends BPMN with custom elements under `xmlns:bfw="https://bifrostfo
 | `bfw:formFields` | User Task | JSON array of form fields, passed through unchanged |
 | `bfw:dueDate` | User Task | FEEL **or** ISO 8601 |
 | `bfw:priority` | User Task | Integer |
-| `bfw:requireConfirmation` | Manual Task | When `true`, waits for `FinishUserTask` |
+| `bfw:requireConfirmation` | Manual Task | When `true`, waits for `PUT /manual-tasks/{id}/confirm` |
 
 ### Message events
 

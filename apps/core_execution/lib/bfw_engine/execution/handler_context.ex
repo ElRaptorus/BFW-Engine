@@ -32,6 +32,10 @@ defmodule BfwEngine.Execution.HandlerContext do
   boundary event is attached to, enabling the handler to track its
   relationship to the host for cleanup and the PI to manage
   host-boundary lifecycle (interruption, sibling cancellation).
+
+  `user_task_action_id` is set only while a User Task finish is dispatched.
+  It is `nil` for every other handler, including Manual Task confirm and
+  async Service Task completion.
   """
 
   @type t :: %__MODULE__{
@@ -52,7 +56,8 @@ defmodule BfwEngine.Execution.HandlerContext do
           multi_instance_id: String.t() | nil,
           iteration_index: non_neg_integer() | nil,
           host_flow_node_instance_id: String.t() | nil,
-          join_metadata: map() | nil
+          join_metadata: map() | nil,
+          user_task_action_id: String.t() | nil
         }
 
   defstruct flow_node_instance_id: nil,
@@ -72,5 +77,6 @@ defmodule BfwEngine.Execution.HandlerContext do
             multi_instance_id: nil,
             iteration_index: nil,
             host_flow_node_instance_id: nil,
-            join_metadata: nil
+            join_metadata: nil,
+            user_task_action_id: nil
 end
