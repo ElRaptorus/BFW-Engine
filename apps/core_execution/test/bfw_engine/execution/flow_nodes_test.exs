@@ -226,7 +226,9 @@ defmodule BfwEngine.Execution.FlowNodesTest do
         id: "ut1",
         type: :user_task,
         type_data: %FlowNodeData.UserTask{
-          form_schema: %{"fields" => [%{"name" => "approved", "type" => "boolean"}]},
+          form_schema: [
+            %{"id" => "approved", "type" => "toggle", "label" => "approved", "required" => false}
+          ],
           assignees_expression: "identity.groups",
           result_contract: %{"type" => "object"},
           due_date: "2025-12-01T10:00:00Z",

@@ -31,7 +31,7 @@
     <bpmn:userTask id="Task_1" name="Confirm Action">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[{"name":"confirmed","type":"boolean"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"confirmed","type":"toggle","label":"confirmed","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>

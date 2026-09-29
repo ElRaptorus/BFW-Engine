@@ -26,7 +26,6 @@
     <bpmn:userTask id="UserTask_1" name="Do Work">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[]}</bfw:formFields>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:boundaryEvent id="Boundary_1" attachedToRef="UserTask_1" cancelActivity="true">

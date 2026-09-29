@@ -33,7 +33,7 @@ The first iteration always runs. The condition is checked **after** each iterati
 <bpmn:userTask id="Review_1" name="Review Document">
   <bpmn:extensionElements>
     <bfw:assignees>identity.groups</bfw:assignees>
-    <bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
+    <bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>
   </bpmn:extensionElements>
   <bpmn:standardLoopCharacteristics testBefore="false" loopMaximum="5">
     <bpmn:loopCondition>token.approved != true</bpmn:loopCondition>

@@ -56,7 +56,7 @@
     <bpmn:userTask id="UserTask_1" name="Do Work">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[{"name":"done","type":"boolean"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"done","type":"toggle","label":"done","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_Boundary_1</bpmn:incoming>
       <bpmn:outgoing>Flow_Boundary_2</bpmn:outgoing>

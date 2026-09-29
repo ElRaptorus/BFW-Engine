@@ -23,7 +23,7 @@
     <bpmn:userTask id="UserTask_1" name="Review">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:endEvent id="End_1" name="End"/>

@@ -64,14 +64,14 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "confirmed",
-                  "type": "boolean"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "confirmed",
+                "type": "toggle",
+                "label": "confirmed",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

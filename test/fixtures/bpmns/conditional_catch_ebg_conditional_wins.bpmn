@@ -53,7 +53,7 @@
 
     <bpmn:userTask id="UserTask_WriteReady" name="Write Ready">
       <bpmn:extensionElements>
-        <bfw:formFields>{"fields":[{"name":"status","type":"text"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"status","type":"text","label":"status","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_User</bpmn:incoming>
       <bpmn:outgoing>Flow_User_Join</bpmn:outgoing>

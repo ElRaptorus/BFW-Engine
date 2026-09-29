@@ -2234,7 +2234,7 @@ defmodule BfwEngine.BPMN.ParserTest do
           <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
           <bpmn:userTask id="Task_1" name="Review">
             <bpmn:extensionElements>
-              <bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
+              <bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>
             </bpmn:extensionElements>
             <bpmn:incoming>F1</bpmn:incoming>
             <bpmn:outgoing>F2</bpmn:outgoing>
@@ -2251,9 +2251,14 @@ defmodule BfwEngine.BPMN.ParserTest do
       user_task = find_node(process, "Task_1")
 
       assert %FlowNodeData.UserTask{
-               form_schema: %{
-                 "fields" => [%{"name" => "approved", "type" => "boolean"}]
-               }
+               form_schema: [
+                 %{
+                   "id" => "approved",
+                   "type" => "toggle",
+                   "label" => "approved",
+                   "required" => false
+                 }
+               ]
              } = user_task.type_data
     end
 

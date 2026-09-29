@@ -227,16 +227,30 @@ defmodule BfwEngine.Types.WireTest do
     test ":form_fields value is not recursed into" do
       input = %{
         flow_node_id: "task-1",
-        form_fields: %{"fields" => [%{"field_name" => "approved", "field_type" => "boolean"}]}
+        form_fields: [
+          %{
+            "id" => "approved",
+            "type" => "toggle",
+            "label" => "approved",
+            "required" => false,
+            "defaultValue" => %{"inner_key" => "kept"}
+          }
+        ]
       }
 
       result = Wire.camelize_keys(input)
 
       assert result["flowNodeId"] == "task-1"
 
-      assert result["formFields"] == %{
-               "fields" => [%{"field_name" => "approved", "field_type" => "boolean"}]
-             }
+      assert result["formFields"] == [
+               %{
+                 "id" => "approved",
+                 "type" => "toggle",
+                 "label" => "approved",
+                 "required" => false,
+                 "defaultValue" => %{"inner_key" => "kept"}
+               }
+             ]
     end
 
     test "string opaque keys also skip recursion" do

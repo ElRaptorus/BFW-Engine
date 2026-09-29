@@ -101,13 +101,13 @@
                 "id": "field_header_1780760992806_4",
                 "label": "Section Header",
                 "required": false,
-                "type": "header"
+                "type": "section_header"
               },
               {
                 "id": "field_boolean_1780760993101_5",
                 "label": "Toggle",
                 "required": false,
-                "type": "boolean"
+                "type": "toggle"
               },
               {
                 "id": "field_file_1780760993417_6",
@@ -137,7 +137,7 @@
                 "id": "field_select_1780760994561_10",
                 "label": "Dropdown",
                 "required": false,
-                "type": "select"
+                "type": "dropdown"
               },
               {
                 "id": "field_checkbox_1780760994805_11",

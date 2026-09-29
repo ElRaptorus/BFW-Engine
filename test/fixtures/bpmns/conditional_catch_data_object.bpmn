@@ -44,7 +44,7 @@
     <bpmn:userTask id="UserTask_WriteData" name="Write Order Data">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[{"name":"status","type":"text"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"status","type":"text","label":"status","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_A</bpmn:incoming>
       <bpmn:outgoing>Flow_A2</bpmn:outgoing>

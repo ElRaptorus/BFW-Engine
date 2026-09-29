@@ -100,14 +100,14 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "amount",
-                  "type": "number"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "amount",
+                "type": "number",
+                "label": "amount",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

@@ -99,7 +99,7 @@ The engine extends BPMN with custom elements under `xmlns:bfw="https://bifrostfo
 |-----------|---------|-------|
 | `bfw:scriptRef` | Script Task | Named script plugin key |
 | `bfw:assignees` | User Task | FEEL list of assignees |
-| `bfw:formFields` | User Task | Formkit-opaque JSON |
+| `bfw:formFields` | User Task | JSON array of form fields, passed through unchanged |
 | `bfw:dueDate` | User Task | FEEL **or** ISO 8601 |
 | `bfw:priority` | User Task | Integer |
 | `bfw:requireConfirmation` | Manual Task | When `true`, waits for `FinishUserTask` |

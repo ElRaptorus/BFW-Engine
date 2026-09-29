@@ -73,14 +73,14 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "decision",
-                  "type": "string"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "decision",
+                "type": "text",
+                "label": "decision",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

@@ -52,14 +52,14 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "result",
-                  "type": "string"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "result",
+                "type": "text",
+                "label": "result",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

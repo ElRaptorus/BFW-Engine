@@ -37,7 +37,16 @@ defmodule BfwEngine.Client.UserTasksTest do
                 %{
                   "id" => "fni-1",
                   "flowNodeType" => "user_task",
-                  "typeProperties" => %{"form_schema" => %{"fields" => []}}
+                  "typeProperties" => %{
+                    "form_schema" => [
+                      %{
+                        "id" => "approved",
+                        "type" => "toggle",
+                        "label" => "approved",
+                        "required" => false
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -47,7 +56,15 @@ defmodule BfwEngine.Client.UserTasksTest do
 
       assert {:ok, [result]} = UserTasks.list_waiting(client, limit: 10, offset: 20)
       assert result["flowNodeType"] == "user_task"
-      assert result["typeProperties"]["form_schema"] == %{"fields" => []}
+
+      assert result["typeProperties"]["form_schema"] == [
+               %{
+                 "id" => "approved",
+                 "type" => "toggle",
+                 "label" => "approved",
+                 "required" => false
+               }
+             ]
     end
 
     test "maps an unauthorized error", %{stub_name: stub_name, client: client} do

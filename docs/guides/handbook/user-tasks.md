@@ -7,13 +7,15 @@ User Tasks are wait states that pause execution until a human completes the task
 | Extension | Purpose |
 |-----------|---------|
 | `bfw:assignees` | FEEL expression evaluated at runtime for task assignment |
-| `bfw:formFields` | Formkit-opaque form definition (passed through to clients, not interpreted by the engine) |
+| `bfw:formFields` | JSON array of form fields, passed through to clients and not interpreted by the engine |
 | `bfw:inputMapping` | FEEL-based input mapper (`source`/`target` pair). Transforms incoming token before the task is presented. Multiple supported |
 | `bfw:outputMapping` | FEEL-based output mapper (`source`/`target` pair). Transforms user submission before result contract validation. Multiple supported |
 | `bfw:payloadContract` | JSON Schema validated on incoming data (after input mapping). Violation → fatal |
 | `bfw:resultContract` | JSON Schema enforced on completion results (after output mapping). Violation → retryable (422) |
 | `bfw:dueDate` | FEEL expression or ISO 8601 timestamp for task deadline metadata |
 | `bfw:priority` | Numeric priority value |
+
+`bfw:formFields` is a JSON array. Each field has `id`, `type`, `label`, and `required`, plus optional `placeholder`, `defaultValue`, `options`, `validationRules`, and `hint` (help text shown with the field). `type` is one of `text`, `number`, `date`, `checkbox`, `dropdown`, `radio`, `textarea`, `file`, `toggle`, `section_header`. `options` (`label` and `value`) apply to dropdown, radio, and checkbox group fields. A known validation rule is `pattern`: `value` is a regular expression the whole input must match, and `message` is shown on failure.
 
 ```xml
 <bpmn:userTask id="review_order" name="Review Order">

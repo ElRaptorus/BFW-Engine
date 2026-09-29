@@ -38,9 +38,6 @@
       <bpmn:outgoing>Flow_B</bpmn:outgoing>
     </bpmn:parallelGateway>
     <bpmn:userTask id="UserTask_A" name="User Task A">
-      <bpmn:extensionElements>
-        <bfw:formFields>{"fields":[]}</bfw:formFields>
-      </bpmn:extensionElements>
       <bpmn:incoming>Flow_A</bpmn:incoming>
       <bpmn:outgoing>Flow_A2</bpmn:outgoing>
     </bpmn:userTask>

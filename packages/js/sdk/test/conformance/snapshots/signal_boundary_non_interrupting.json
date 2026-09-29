@@ -54,9 +54,7 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": []
-            },
+            "formSchema": null,
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

@@ -81,9 +81,7 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": []
-            },
+            "formSchema": null,
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,
@@ -113,9 +111,7 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": []
-            },
+            "formSchema": null,
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

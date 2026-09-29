@@ -374,10 +374,10 @@ catch the abort.
 
 #### `bfw:formFields`
 
-JSON string defining the form schema (Formkit-opaque).
+JSON array of form fields (`id`, `type`, `label`, `required`), passed through to clients and not interpreted by the engine.
 
 ```xml
-<bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
+<bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>
 ```
 
 #### `bfw:dueDate`
@@ -2315,7 +2315,7 @@ A valid, minimal BPMN file exercising multiple `bfw:*` extensions:
     <bpmn:userTask id="UserTask_1" name="Review Order">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[{"name":"approved","type":"boolean"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>

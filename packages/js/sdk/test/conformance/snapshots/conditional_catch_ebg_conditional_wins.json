@@ -100,14 +100,14 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "status",
-                  "type": "text"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "status",
+                "type": "text",
+                "label": "status",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

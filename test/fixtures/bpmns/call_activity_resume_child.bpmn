@@ -22,7 +22,7 @@
     <bpmn:startEvent id="Start_1" name="Start"/>
     <bpmn:userTask id="UserTask_1" name="Child Work">
       <bpmn:extensionElements>
-        <bfw:formFields>{"fields":[{"name":"result","type":"string"}]}</bfw:formFields>
+        <bfw:formFields>[{"id":"result","type":"text","label":"result","required":false}]</bfw:formFields>
       </bpmn:extensionElements>
     </bpmn:userTask>
     <bpmn:endEvent id="End_1" name="Done"/>

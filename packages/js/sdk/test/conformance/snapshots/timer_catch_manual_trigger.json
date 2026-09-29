@@ -179,14 +179,14 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "done",
-                  "type": "boolean"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "done",
+                "type": "toggle",
+                "label": "done",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

@@ -715,7 +715,7 @@ describe('parseBpmn', () => {
         <bpmn:userTask id="UT1" name="Review">
           <bpmn:extensionElements>
             <bfw:assignees>identity.groups</bfw:assignees>
-            <bfw:formFields>{"fields":[{"name":"ok","type":"boolean"}]}</bfw:formFields>
+            <bfw:formFields>[{"id":"ok","type":"toggle","label":"ok","required":false}]</bfw:formFields>
             <bfw:dueDate>2026-12-31T23:59:59Z</bfw:dueDate>
             <bfw:priority>5</bfw:priority>
           </bpmn:extensionElements>
@@ -726,9 +726,7 @@ describe('parseBpmn', () => {
       const result = parseBpmn(xml);
       const typeData = result.processes[0]!.flowNodes[0]!.typeData as UserTaskTypeData;
       expect(typeData.assigneesExpression).toBe('identity.groups');
-      expect(typeData.formSchema).toEqual({
-        fields: [{ name: 'ok', type: 'boolean' }],
-      });
+      expect(typeData.formSchema).toEqual([{ id: 'ok', type: 'toggle', label: 'ok', required: false }]);
       expect(typeData.dueDate).toBe('2026-12-31T23:59:59Z');
       expect(typeData.priority).toBe(5);
     });

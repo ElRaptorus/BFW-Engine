@@ -46,7 +46,6 @@
     <bpmn:userTask id="UserTask_LongRunning" name="Long Running Task">
       <bpmn:extensionElements>
         <bfw:assignees>identity.groups</bfw:assignees>
-        <bfw:formFields>{"fields":[]}</bfw:formFields>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_A</bpmn:incoming>
       <bpmn:outgoing>Flow_A2</bpmn:outgoing>

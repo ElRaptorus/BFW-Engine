@@ -73,14 +73,14 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": {
-              "fields": [
-                {
-                  "name": "approved",
-                  "type": "boolean"
-                }
-              ]
-            },
+            "formSchema": [
+              {
+                "id": "approved",
+                "type": "toggle",
+                "label": "approved",
+                "required": false
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,
