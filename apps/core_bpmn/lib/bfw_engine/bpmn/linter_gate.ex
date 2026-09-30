@@ -3,8 +3,8 @@ defmodule BfwEngine.BPMN.LinterGate do
   Deploy-time quality gate based on linter ruleset scores.
 
   Reads gate configuration from `:core_bpmn, :linter_gate` and checks the
-  **definitions-level** `LinterRulesetScore` entries (written by the Studio
-  under `definitions/extensionElements/bfw:Properties`, ESP-D17) against the
+  **definitions-level** `bfw:linterRulesetScore` entries (written by the Studio
+  under `definitions/extensionElements/bfw:properties`, ESP-D17) against the
   configured thresholds. Six check types are supported, each mapped to a field
   on the Studio-emitted score entry:
 

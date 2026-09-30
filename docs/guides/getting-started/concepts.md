@@ -65,7 +65,7 @@ The engine extends BPMN with custom elements under `xmlns:bfw="https://bifrostfo
 |-----------|-------|---------|
 | `bfw:version` | Process (required) | Deployment version string |
 | `bfw:correlationKey` | Process | Catch-side FEEL correlation for messages |
-| `bfw:LinterRulesetScore` | Definitions → `bfw:Properties` | Studio linter-gate scores (`rulesetId`, `scorePercent`, …) |
+| `bfw:linterRulesetScore` | Definitions → `bfw:properties` | Studio linter-gate scores (`rulesetId`, `scorePercent`, …) |
 
 ### Shared data pipeline
 

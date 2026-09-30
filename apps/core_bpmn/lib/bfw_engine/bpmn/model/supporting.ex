@@ -181,8 +181,8 @@ end
 
 defmodule BfwEngine.BPMN.Model.LinterRulesetScore do
   @moduledoc """
-  An `<bfw:LinterRulesetScore>` entry carried on the **definitions**
-  (`definitions/extensionElements/bfw:Properties/bfw:LinterRulesetScore`).
+  A `<bfw:linterRulesetScore>` entry carried on the **definitions**
+  (`definitions/extensionElements/bfw:properties/bfw:linterRulesetScore`).
 
   This matches the authoritative Studio contract emitted by
   `UpdateBfwLinterRulesetScoreHandler.ts` (ESP-D17). Every field is a

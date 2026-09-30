@@ -142,13 +142,14 @@ Message Start Event creates a new PI (there is no PI state yet).
 <bfw:correlationKey>token.orderId</bfw:correlationKey>
 ```
 
-#### `bfw:LinterRulesetScore` (definitions-level)
+#### `bfw:linterRulesetScore` (definitions-level)
 
 Carries linter gate scores attached to the **definitions** at design time by
 the Studio. Read by the deploy-time linter gate. Unlike other `bfw:*`
 extensions, these live at the **definitions level** — inside
-`<bpmn:definitions>/<bpmn:extensionElements>/<bfw:Properties>`, **not** on a
-process. The element name is capitalised (`bfw:LinterRulesetScore`, upper-L).
+`<bpmn:definitions>/<bpmn:extensionElements>/<bfw:properties>`, **not** on a
+process. Like every other `bfw:*` element, the name is lower camelCase, as the
+Studio writes it; the parser matches it case-sensitively.
 
 Every field is a string attribute; numeric values are bare (no `%` suffix):
 
@@ -167,8 +168,8 @@ Every field is a string attribute; numeric values are bare (no `%` suffix):
 ```xml
 <bpmn:definitions ...>
  <bpmn:extensionElements>
- <bfw:Properties>
- <bfw:LinterRulesetScore
+ <bfw:properties>
+ <bfw:linterRulesetScore
  rulesetId="bfw-default"
  scorePercent="92.5"
  complianceStatus="compliant"
@@ -178,7 +179,7 @@ Every field is a string attribute; numeric values are bare (no `%` suffix):
  penaltyPoints="7.5"
  rawErrorFindings="0"
  rawWarningFindings="2" />
- </bfw:Properties>
+ </bfw:properties>
  </bpmn:extensionElements>
  <bpmn:process id="order-process" ...>...</bpmn:process>
 </bpmn:definitions>

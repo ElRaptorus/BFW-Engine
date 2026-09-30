@@ -8,8 +8,8 @@
                   id="Definitions_TasksGateways">
 
   <bpmn:extensionElements>
-    <bfw:Properties>
-      <bfw:LinterRulesetScore
+    <bfw:properties>
+      <bfw:linterRulesetScore
         rulesetId="bfw-default"
         scorePercent="92.5"
         complianceStatus="valid"
@@ -19,7 +19,7 @@
         penaltyPoints="7.5"
         rawErrorFindings="0"
         rawWarningFindings="2" />
-    </bfw:Properties>
+    </bfw:properties>
   </bpmn:extensionElements>
 
   <bpmn:message id="Msg_Send" name="outbound-message" />

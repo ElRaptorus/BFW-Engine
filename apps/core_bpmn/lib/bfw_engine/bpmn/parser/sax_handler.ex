@@ -499,12 +499,12 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   end
 
   # Definitions-level linter score written by the Studio
-  # (`definitions/extensionElements/bfw:Properties/bfw:LinterRulesetScore`).
-  # `local_name/1` strips the `bfw:` prefix but preserves case, so the element
-  # name is `LinterRulesetScore` (upper-L). Every field is an XML attribute
-  # (ESP-D17). Gated on `current_process == nil` so a same-named element inside
-  # a process is ignored.
-  defp handle_start("LinterRulesetScore", attributes, %{current_process: nil} = state) do
+  # (`definitions/extensionElements/bfw:properties/bfw:linterRulesetScore`).
+  # The Studio's moddle descriptor (`xml.tagAlias: "lowerCase"`) writes the
+  # element in lower camelCase and `local_name/1` preserves case, so the name
+  # must match exactly. Every field is an XML attribute (ESP-D17). Gated on
+  # `current_process == nil` so a same-named element inside a process is ignored.
+  defp handle_start("linterRulesetScore", attributes, %{current_process: nil} = state) do
     ruleset_id = attributes["rulesetId"]
 
     if is_binary(ruleset_id) and ruleset_id != "" do

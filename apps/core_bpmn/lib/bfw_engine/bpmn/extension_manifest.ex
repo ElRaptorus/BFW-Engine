@@ -73,7 +73,7 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
       model_field: "Process.correlation_key"
     },
     %{
-      element: "LinterRulesetScore",
+      element: "linterRulesetScore",
       value_kind: :static_string,
       carrier: :attributes,
       attributes: [
@@ -464,7 +464,7 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
     }
   ]
 
-  @extensible ["Properties", "Property"]
+  @extensible ["properties", "property"]
 
   @doc "Every `bfw:*` extension element the parser reads, as a list of entries (see moduledoc)."
   @spec build() :: [entry()]

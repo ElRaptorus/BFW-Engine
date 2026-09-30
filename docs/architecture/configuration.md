@@ -259,10 +259,10 @@ against the local engine out of the box.
 ## Linter-score deploy gate
 
 An external component (the Studio's `bpmn-linter` extension) attaches one or
-more `<bfw:LinterRulesetScore>` entries to the BPMN XML at the **definitions
-level**, under `<bpmn:definitions>/<bpmn:extensionElements>/<bfw:Properties>`,
+more `<bfw:linterRulesetScore>` entries to the BPMN XML at the **definitions
+level**, under `<bpmn:definitions>/<bpmn:extensionElements>/<bfw:properties>`,
 each summarizing the result of one linter ruleset evaluation. The element name
-is capitalised (`bfw:LinterRulesetScore`, upper-L) and every field is a string
+is lower camelCase like every other `bfw:*` element and every field is a string
 attribute (numeric values are bare, no `%`). This is the authoritative shape
 written by the Studio's `UpdateBfwLinterRulesetScoreHandler`; the
 engine parser matches it exactly:
@@ -270,8 +270,8 @@ engine parser matches it exactly:
 ```xml
 <bpmn:definitions ...>
   <bpmn:extensionElements>
-    <bfw:Properties>
-      <bfw:LinterRulesetScore
+    <bfw:properties>
+      <bfw:linterRulesetScore
         rulesetId="bpmn-production-ready"
         scorePercent="100"
         complianceStatus="valid"
@@ -281,7 +281,7 @@ engine parser matches it exactly:
         penaltyPoints="0"
         rawErrorFindings="0"
         rawWarningFindings="0" />
-    </bfw:Properties>
+    </bfw:properties>
   </bpmn:extensionElements>
   <!-- processes ... -->
 </bpmn:definitions>

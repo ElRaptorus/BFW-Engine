@@ -30,7 +30,7 @@ describe('extensionManifest', () => {
   });
 
   it('exposes the extensible container list', () => {
-    expect(extensionManifest.extensible).toEqual(expect.arrayContaining(['Properties', 'Property']));
+    expect(extensionManifest.extensible).toEqual(expect.arrayContaining(['properties', 'property']));
   });
 
   it('includes elements known to be exercised by the fixture corpus', () => {

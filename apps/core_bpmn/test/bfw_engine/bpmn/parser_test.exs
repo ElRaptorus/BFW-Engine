@@ -1654,7 +1654,7 @@ defmodule BfwEngine.BPMN.ParserTest do
              } = gateway.type_data
     end
 
-    test "definitions-level bfw:LinterRulesetScore maps all Studio attributes", %{
+    test "definitions-level bfw:linterRulesetScore maps all Studio attributes", %{
       definitions: definitions
     } do
       assert [%LinterRulesetScore{} = score] = definitions.linter_scores

@@ -6,7 +6,7 @@ defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
   alias BfwEngine.BPMN.Model.LinterRulesetScore
 
   # Linter scores are scoped to the definitions (ESP-D17), matching the
-  # Studio-emitted `definitions/extensionElements/bfw:Properties` shape.
+  # Studio-emitted `definitions/extensionElements/bfw:properties` shape.
   defp sample_definitions(opts \\ []) do
     score = Keyword.get(opts, :score, 95)
     ruleset_id = Keyword.get(opts, :ruleset_id, "bfw-default")
