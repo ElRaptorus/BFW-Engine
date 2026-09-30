@@ -1,8 +1,8 @@
 import { GraphqlDepthLimitError } from '@elraptorus/bfw_engine_sdk';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { GraphqlClient } from '../../src/graphql/graphql-client.js';
-import { HttpTransport } from '../../src/http/transport.js';
+import type { HttpTransport } from '../../src/http/transport.js';
 
 function createMockTransport(responseData: unknown = {}): HttpTransport {
   return {

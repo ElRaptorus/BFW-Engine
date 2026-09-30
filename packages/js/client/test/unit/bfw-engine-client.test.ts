@@ -1,16 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
 import { BfwEngineClient } from '../../src/bfw-engine-client.js';
-import { ProcessClient } from '../../src/rest/process-client.js';
-import { ProcessInstanceClient } from '../../src/rest/process-instance-client.js';
-import { UserTaskClient } from '../../src/rest/user-task-client.js';
-import { ManualTaskClient } from '../../src/rest/manual-task-client.js';
+import { GraphqlClient } from '../../src/graphql/graphql-client.js';
+import { AdHocSubprocessClient } from '../../src/rest/adhoc-subprocess-client.js';
+import { DecisionClient } from '../../src/rest/decision-client.js';
 import { EngineClient } from '../../src/rest/engine-client.js';
 import { EventClient } from '../../src/rest/event-client.js';
-import { DecisionClient } from '../../src/rest/decision-client.js';
-import { GraphqlClient } from '../../src/graphql/graphql-client.js';
-import { NotificationClient } from '../../src/ws/notification-client.js';
-import { AdHocSubprocessClient } from '../../src/rest/adhoc-subprocess-client.js';
+import { ManualTaskClient } from '../../src/rest/manual-task-client.js';
+import { ProcessClient } from '../../src/rest/process-client.js';
+import { ProcessInstanceClient } from '../../src/rest/process-instance-client.js';
 import { TimerScheduleClient } from '../../src/rest/timer-schedule-client.js';
+import { UserTaskClient } from '../../src/rest/user-task-client.js';
+import { NotificationClient } from '../../src/ws/notification-client.js';
 
 vi.mock('phoenix', () => ({
   Socket: vi.fn().mockImplementation(() => ({

@@ -6,16 +6,16 @@
  *
  * Requires a running engine (docker-compose.dev.yml).
  */
-
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
-  createAdminClient,
-  deployFixture,
-  deployDmnFixture,
   cleanupInstances,
+  createAdminClient,
+  deployDmnFixture,
+  deployFixture,
+  ensureEngineReachable,
   waitForState,
   waitForUserTask,
 } from '../support/test-engine.js';
@@ -45,25 +45,19 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
   describe('subscribe before PI start', () => {
     it('receives ProcessInstanceStateChanged and FlowNodeInstance events', async () => {
       const receivedEvents: EngineEventEnvelope[] = [];
-      const subscription = await adminClient.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          receivedEvents.push(envelope);
-        },
-      );
+      const subscription = await adminClient.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        receivedEvents.push(envelope);
+      });
 
       try {
-        const { processInstanceId } = await adminClient.processes.start(
-          'integration-user-task',
-        );
+        const { processInstanceId } = await adminClient.processes.start('integration-user-task');
 
         const fniId = await waitForUserTask(adminClient, processInstanceId);
 
         const eventsForPi = (type: string) =>
           receivedEvents.filter(
             (event) =>
-              event.type === type &&
-              (event.data as Record<string, unknown>).processInstanceId ===
-                processInstanceId,
+              event.type === type && (event.data as Record<string, unknown>).processInstanceId === processInstanceId,
           );
 
         const waitForEvents = async (predicate: () => boolean, ms = 5000) => {
@@ -85,9 +79,7 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
         await adminClient.userTasks.finish(fniId);
         await waitForState(adminClient, processInstanceId, 'finished');
 
-        await waitForEvents(
-          () => eventsForPi('FlowNodeInstanceFinished').length >= 1,
-        );
+        await waitForEvents(() => eventsForPi('FlowNodeInstanceFinished').length >= 1);
 
         expect(eventsForPi('FlowNodeInstanceFinished').length).toBeGreaterThanOrEqual(1);
         expect(eventsForPi('ProcessInstanceStateChanged').length).toBeGreaterThanOrEqual(2);
@@ -103,11 +95,9 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
   describe('multiple concurrent PIs', () => {
     it('receives events from both PIs on the global channel', async () => {
       const receivedEvents: EngineEventEnvelope[] = [];
-      const subscription = await adminClient.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          receivedEvents.push(envelope);
-        },
-      );
+      const subscription = await adminClient.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        receivedEvents.push(envelope);
+      });
 
       try {
         const start1 = await adminClient.processes.start('integration-passthrough');
@@ -120,11 +110,7 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
         const piIds = new Set(
           receivedEvents
             .filter((event) => event.type === 'ProcessInstanceStateChanged')
-            .map(
-              (event) =>
-                (event.data as Record<string, unknown>)
-                  .processInstanceId as string,
-            ),
+            .map((event) => (event.data as Record<string, unknown>).processInstanceId as string),
         );
 
         expect(piIds.has(start1.processInstanceId)).toBe(true);
@@ -144,13 +130,11 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
       await deployDmnFixture(adminClient, 'simple_unique.dmn');
 
       const receivedEvents: EngineEventEnvelope[] = [];
-      const subscription = await adminClient.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          if (envelope.type === 'DecisionEvaluated') {
-            receivedEvents.push(envelope);
-          }
-        },
-      );
+      const subscription = await adminClient.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        if (envelope.type === 'DecisionEvaluated') {
+          receivedEvents.push(envelope);
+        }
+      });
 
       try {
         receivedEvents.length = 0;
@@ -162,9 +146,7 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
         expect(receivedEvents.length).toBeGreaterThanOrEqual(1);
         const event = receivedEvents[0]!;
         expect(event.type).toBe('DecisionEvaluated');
-        expect(
-          (event.data as Record<string, unknown>).decisionDefinitionId,
-        ).toBeDefined();
+        expect((event.data as Record<string, unknown>).decisionDefinitionId).toBeDefined();
       } finally {
         subscription.dispose();
       }
@@ -175,16 +157,12 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
   describe('envelope shape', () => {
     it('every event has type (string), data (object), occurredAt (ISO 8601)', async () => {
       const receivedEvents: EngineEventEnvelope[] = [];
-      const subscription = await adminClient.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          receivedEvents.push(envelope);
-        },
-      );
+      const subscription = await adminClient.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        receivedEvents.push(envelope);
+      });
 
       try {
-        const { processInstanceId } = await adminClient.processes.start(
-          'integration-passthrough',
-        );
+        const { processInstanceId } = await adminClient.processes.start('integration-passthrough');
         await waitForState(adminClient, processInstanceId, 'finished');
         await sleep(1500);
 
@@ -196,8 +174,7 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
           expect(typeof event.data).toBe('object');
           expect(event.data).not.toBeNull();
 
-          const occurredAt = (event as Record<string, unknown>)
-            .occurredAt as string;
+          const occurredAt = (event as Record<string, unknown>).occurredAt as string;
           if (occurredAt != null) {
             expect(typeof occurredAt).toBe('string');
             expect(new Date(occurredAt).toISOString()).toBeTruthy();
@@ -215,18 +192,14 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
   describe('dispose stops delivery', () => {
     it('no new events after dispose', async () => {
       let eventCount = 0;
-      const subscription = await adminClient.notifications.onEngineEvent(
-        () => {
-          eventCount += 1;
-        },
-      );
+      const subscription = await adminClient.notifications.onEngineEvent(() => {
+        eventCount += 1;
+      });
 
       subscription.dispose();
       const countAtDispose = eventCount;
 
-      const { processInstanceId } = await adminClient.processes.start(
-        'integration-passthrough',
-      );
+      const { processInstanceId } = await adminClient.processes.start('integration-passthrough');
       await waitForState(adminClient, processInstanceId, 'finished');
       await sleep(1500);
 
@@ -243,16 +216,12 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
       await adminClient.notifications.connect();
 
       const receivedEvents: EngineEventEnvelope[] = [];
-      const subscription = await adminClient.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          receivedEvents.push(envelope);
-        },
-      );
+      const subscription = await adminClient.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        receivedEvents.push(envelope);
+      });
 
       try {
-        const { processInstanceId } = await adminClient.processes.start(
-          'integration-passthrough',
-        );
+        const { processInstanceId } = await adminClient.processes.start('integration-passthrough');
         await waitForState(adminClient, processInstanceId, 'finished');
         await sleep(1500);
 

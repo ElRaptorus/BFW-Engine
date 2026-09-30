@@ -228,7 +228,7 @@ describe('buildListQuery', () => {
       fields: ['id'],
       sort: [{ field: 'startedAt', direction: 'desc' }],
     });
-    const sort = variables['sort'] as Array<{ field: string; order: string }>;
+    const sort = variables['sort'] as { field: string; order: string }[];
     expect(sort[0]!.field).toBe('STARTED_AT');
     expect(sort[0]!.order).toBe('DESC');
   });

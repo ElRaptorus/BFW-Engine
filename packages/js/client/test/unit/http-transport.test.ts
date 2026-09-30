@@ -1,12 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HttpTransport } from '../../src/http/transport.js';
-import { UnauthorizedError, NotFoundError, BfwEngineError } from '@elraptorus/bfw_engine_sdk';
+import { BfwEngineError, UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-function mockFetch(
-  status: number,
-  body: unknown = {},
-  options?: { headers?: Headers; text?: string },
-): void {
+import { HttpTransport } from '../../src/http/transport.js';
+
+function mockFetch(status: number, body: unknown = {}, options?: { headers?: Headers; text?: string }): void {
   const response = {
     ok: status >= 200 && status < 300,
     status,
@@ -153,16 +150,12 @@ describe('HttpTransport', () => {
   describe('head', () => {
     it('sends a HEAD request and resolves on expected status', async () => {
       mockFetch(204);
-      await expect(
-        transport.head('/health', { skipAuth: true, expect: 204 }),
-      ).resolves.toBeUndefined();
+      await expect(transport.head('/health', { skipAuth: true, expect: 204 })).resolves.toBeUndefined();
     });
 
     it('throws when actual status does not match expected', async () => {
       mockFetch(503);
-      await expect(
-        transport.head('/health', { skipAuth: true, expect: 204 }),
-      ).rejects.toThrow(BfwEngineError);
+      await expect(transport.head('/health', { skipAuth: true, expect: 204 })).rejects.toThrow(BfwEngineError);
     });
   });
 

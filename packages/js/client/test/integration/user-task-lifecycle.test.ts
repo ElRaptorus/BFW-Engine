@@ -1,22 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { FniNotWaitingError, NotFoundError, UnauthorizedError, ValidationError } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
-  createAdminClient,
-  createReadOnlyClient,
-  createLaneClient,
+  cleanupInstances,
   createAdminBypassOnlyClient,
+  createAdminClient,
+  createLaneClient,
+  createReadOnlyClient,
   createUnauthenticatedClient,
   deployFixture,
-  cleanupInstances,
-  waitForUserTask,
+  ensureEngineReachable,
   waitForState,
+  waitForUserTask,
 } from '../support/test-engine.js';
-import {
-  FniNotWaitingError,
-  NotFoundError,
-  UnauthorizedError,
-} from '@elraptorus/bfw_engine_sdk';
 
 let adminClient: BfwEngineClient;
 let readOnlyClient: BfwEngineClient;
@@ -61,6 +58,36 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
       await waitForState(adminClient, processInstanceId, 'finished');
     });
 
+    it('writes the action id and values as the task token', async () => {
+      const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);
+      const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
+
+      await adminClient.userTasks.finish(flowNodeInstanceId, { actionId: 'approve', values: { approved: true } });
+      await waitForState(adminClient, processInstanceId, 'finished');
+
+      const result = await adminClient.graphql.queryFlowNodeInstances({
+        fields: ['id', 'outputToken'],
+        filter: { id: { eq: flowNodeInstanceId } },
+        pagination: { mode: 'offset', limit: 1, offset: 0 },
+      });
+      expect(result.data[0].outputToken).toEqual({ actionId: 'approve', values: { approved: true } });
+    });
+
+    it('writes a null action id and empty values when finished without a body', async () => {
+      const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);
+      const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
+
+      await adminClient.userTasks.finish(flowNodeInstanceId);
+      await waitForState(adminClient, processInstanceId, 'finished');
+
+      const result = await adminClient.graphql.queryFlowNodeInstances({
+        fields: ['id', 'outputToken'],
+        filter: { id: { eq: flowNodeInstanceId } },
+        pagination: { mode: 'offset', limit: 1, offset: 0 },
+      });
+      expect(result.data[0].outputToken).toEqual({ actionId: null, values: {} });
+    });
+
     it('cancels a user task and process instance aborts', async () => {
       const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
@@ -78,6 +105,21 @@ describe('User Task Lifecycle', { concurrent: false }, () => {
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(NotFoundError);
+      }
+    });
+
+    it('rejects a blank action id with a validation error', async () => {
+      const { processInstanceId } = await adminClient.processes.start(USER_TASK_ID);
+      const flowNodeInstanceId = await waitForUserTask(adminClient, processInstanceId);
+
+      try {
+        await adminClient.userTasks.finish(flowNodeInstanceId, { actionId: '   ', values: {} });
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ValidationError);
+      } finally {
+        await adminClient.userTasks.finish(flowNodeInstanceId, { values: {} });
+        await waitForState(adminClient, processInstanceId, 'finished');
       }
     });
 

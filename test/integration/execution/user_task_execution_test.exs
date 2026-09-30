@@ -2,8 +2,10 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
   @moduledoc "Integration tests for User Task execution (waiting, finish, contract violation)."
   use BfwEngine.ExecutionCase, async: false
 
+  alias BfwEngine.Plugins.Loader
   alias BfwEngine.Test.EventCollector
   alias BfwEngine.Types.Event
+  alias BfwEngine.Types.Identity
 
   describe "simple user task (no contract)" do
     test "PI pauses at user task, finish call completes the PI", %{collector: collector} do
@@ -197,6 +199,76 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
 
       assert conn.status == 401
     end
+  end
+
+  describe "plugin facade user_tasks namespace" do
+    test "finish forwards the action id into the task token" do
+      {process_instance_id, user_task_flow_node_instance} = start_waiting_user_task()
+      facade = Loader.facade_for_plugin("test:user_tasks")
+
+      assert :ok =
+               facade.user_tasks.finish.(
+                 user_task_flow_node_instance.id,
+                 %{"approved" => true},
+                 "approve",
+                 %Identity{id: "plugin-user"}
+               )
+
+      wait_for_process_instance(process_instance_id)
+
+      finished =
+        Enum.find(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.id == user_task_flow_node_instance.id)
+        )
+
+      assert finished.output_token == %{"actionId" => "approve", "values" => %{"approved" => true}}
+    end
+
+    test "finish without an action id writes a nil actionId" do
+      {process_instance_id, user_task_flow_node_instance} = start_waiting_user_task()
+      facade = Loader.facade_for_plugin("test:user_tasks")
+
+      assert :ok =
+               facade.user_tasks.finish.(
+                 user_task_flow_node_instance.id,
+                 nil,
+                 nil,
+                 %Identity{id: "plugin-user"}
+               )
+
+      wait_for_process_instance(process_instance_id)
+
+      finished =
+        Enum.find(
+          fetch_flow_node_instances(process_instance_id),
+          &(&1.id == user_task_flow_node_instance.id)
+        )
+
+      assert finished.output_token == %{"actionId" => nil, "values" => %{}}
+    end
+
+    test "finish rejects an invalid action id" do
+      {_process_instance_id, user_task_flow_node_instance} = start_waiting_user_task()
+      facade = Loader.facade_for_plugin("test:user_tasks")
+
+      assert {:error, :invalid_action_id} =
+               facade.user_tasks.finish.(
+                 user_task_flow_node_instance.id,
+                 %{},
+                 "   ",
+                 %Identity{id: "plugin-user"}
+               )
+    end
+  end
+
+  defp start_waiting_user_task do
+    process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
+
+    {:ok, user_task_flow_node_instance} =
+      await_waiting_flow_node_instance(process_instance_id, "user_task")
+
+    {process_instance_id, user_task_flow_node_instance}
   end
 
   defp raw_finish(flow_node_instance_id, body) do

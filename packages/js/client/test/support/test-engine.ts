@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { SignJWT } from 'jose';
 import type { EngineEventEnvelope, UserTaskCreated } from '@elraptorus/bfw_engine_sdk';
 import { BfwEngineError } from '@elraptorus/bfw_engine_sdk';
+import { SignJWT } from 'jose';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { BfwEngineClient } from '../../src/bfw-engine-client.js';
 
@@ -47,7 +46,7 @@ export async function mintTestToken(claims?: Record<string, unknown>): Promise<s
     trigger_signal: 'all',
     trigger_message: 'all',
     trigger_escalation: true,
-    'lane:default': "write",
+    'lane:default': 'write',
     zeeky_boogie_doog: true,
     ...claims,
   })
@@ -214,8 +213,7 @@ export async function ensureEngineReachable(): Promise<void> {
   const response = await fetch(`${url}/health`).catch(() => null);
   if (!response || !response.ok) {
     throw new Error(
-      `Engine not reachable at ${url}/health. ` +
-        `Start it with: docker compose -f docker-compose.dev.yml up -d`,
+      `Engine not reachable at ${url}/health. ` + `Start it with: docker compose -f docker-compose.dev.yml up -d`,
     );
   }
 }
@@ -229,10 +227,7 @@ export function readFixture(fixtureName: string): string {
   return readFileSync(filePath, 'utf-8');
 }
 
-export async function deployFixture(
-  client: BfwEngineClient,
-  fixtureName: string | string[],
-): Promise<void> {
+export async function deployFixture(client: BfwEngineClient, fixtureName: string | string[]): Promise<void> {
   const names = Array.isArray(fixtureName) ? fixtureName : [fixtureName];
   for (const name of names) {
     const source = readFixture(name);
@@ -288,7 +283,7 @@ export async function waitForUserTask(
     let subscription: { dispose(): void } | undefined;
 
     const finish = (fniId: string) => {
-      if (resolved) return;
+      if (resolved) {return;}
       resolved = true;
       clearTimeout(timer);
       subscription?.dispose();
@@ -397,10 +392,7 @@ export function readDmnFixture(fixtureName: string): string {
   return readFileSync(filePath, 'utf-8');
 }
 
-export async function deployDmnFixture(
-  client: BfwEngineClient,
-  fixtureName: string | string[],
-): Promise<void> {
+export async function deployDmnFixture(client: BfwEngineClient, fixtureName: string | string[]): Promise<void> {
   const names = Array.isArray(fixtureName) ? fixtureName : [fixtureName];
   for (const name of names) {
     const source = readDmnFixture(name);

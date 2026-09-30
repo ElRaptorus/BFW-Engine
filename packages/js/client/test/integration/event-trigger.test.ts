@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
+  cleanupInstances,
   createAdminClient,
   deployFixture,
+  ensureEngineReachable,
   waitForState,
-  cleanupInstances,
 } from '../support/test-engine.js';
 
 const SIGNAL_CATCH_PROCESS_ID = 'IntegrationSignalCatch';
@@ -17,10 +18,7 @@ describe('Event Trigger Integration', () => {
   beforeAll(async () => {
     await ensureEngineReachable();
     adminClient = await createAdminClient();
-    await deployFixture(adminClient, [
-      'integration-signal-catch.bpmn',
-      'integration-message-catch.bpmn',
-    ]);
+    await deployFixture(adminClient, ['integration-signal-catch.bpmn', 'integration-message-catch.bpmn']);
   });
 
   afterAll(async () => {
@@ -60,10 +58,9 @@ describe('Event Trigger Integration', () => {
 
       await waitForCatchWaiting(adminClient, processInstanceId);
 
-      const triggerResult = await adminClient.events.triggerMessage(
-        'integration-test-message',
-        { data: 'integration-payload' },
-      );
+      const triggerResult = await adminClient.events.triggerMessage('integration-test-message', {
+        data: 'integration-payload',
+      });
 
       expect(triggerResult.messageName).toBe('integration-test-message');
       expect(triggerResult.messageId).toBeTruthy();
@@ -74,10 +71,7 @@ describe('Event Trigger Integration', () => {
     });
 
     it('returns pending when no subscriber is active', async () => {
-      const triggerResult = await adminClient.events.triggerMessage(
-        'no-subscriber-message',
-        { data: 'will-pend' },
-      );
+      const triggerResult = await adminClient.events.triggerMessage('no-subscriber-message', { data: 'will-pend' });
 
       expect(triggerResult.messageName).toBe('no-subscriber-message');
       expect(triggerResult.deliveries).toEqual([]);
@@ -110,7 +104,5 @@ async function waitForCatchWaiting(
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  throw new Error(
-    `No waiting flow node instance found for PI ${processInstanceId} within ${timeoutMs}ms`,
-  );
+  throw new Error(`No waiting flow node instance found for PI ${processInstanceId} within ${timeoutMs}ms`);
 }

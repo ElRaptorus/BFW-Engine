@@ -4,15 +4,11 @@
  * These events are broadcast on the `engine:events` channel (not PI-scoped),
  * so there is no subscribe-before-start race condition.
  */
-
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
-import {
-  ensureEngineReachable,
-  createAdminClient,
-  readFixture,
-} from '../support/test-engine.js';
+import { createAdminClient, ensureEngineReachable, readFixture } from '../support/test-engine.js';
 
 function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -42,13 +38,11 @@ describe('Process Definition Lifecycle Events', { concurrent: false }, () => {
       subscription.dispose();
 
       const receivedEvents: EngineEventEnvelope[] = [];
-      const eventSubscription = await adminClient!.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          if (envelope.type === 'ProcessDefinitionDeployed') {
-            receivedEvents.push(envelope);
-          }
-        },
-      );
+      const eventSubscription = await adminClient!.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        if (envelope.type === 'ProcessDefinitionDeployed') {
+          receivedEvents.push(envelope);
+        }
+      });
 
       try {
         const source = readFixture(FIXTURE_NAME);
@@ -90,25 +84,18 @@ describe('Process Definition Lifecycle Events', { concurrent: false }, () => {
       }
 
       const receivedEvents: EngineEventEnvelope[] = [];
-      const eventSubscription = await adminClient!.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          if (
-            envelope.type === 'ProcessDefinitionEnabled' ||
-            envelope.type === 'ProcessDefinitionDisabled'
-          ) {
-            receivedEvents.push(envelope);
-          }
-        },
-      );
+      const eventSubscription = await adminClient!.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        if (envelope.type === 'ProcessDefinitionEnabled' || envelope.type === 'ProcessDefinitionDisabled') {
+          receivedEvents.push(envelope);
+        }
+      });
 
       try {
         await adminClient!.processes.disable(PROCESS_MODEL_ID);
         await sleep(500);
 
         expect(receivedEvents.length).toBeGreaterThanOrEqual(1);
-        const disableEvent = receivedEvents.find(
-          (event) => event.type === 'ProcessDefinitionDisabled',
-        );
+        const disableEvent = receivedEvents.find((event) => event.type === 'ProcessDefinitionDisabled');
         expect(disableEvent).toBeDefined();
 
         const disableData = disableEvent!.data as Record<string, unknown>;
@@ -121,9 +108,7 @@ describe('Process Definition Lifecycle Events', { concurrent: false }, () => {
         await sleep(500);
 
         expect(receivedEvents.length).toBeGreaterThanOrEqual(1);
-        const enableEvent = receivedEvents.find(
-          (event) => event.type === 'ProcessDefinitionEnabled',
-        );
+        const enableEvent = receivedEvents.find((event) => event.type === 'ProcessDefinitionEnabled');
         expect(enableEvent).toBeDefined();
 
         const enableData = enableEvent!.data as Record<string, unknown>;
@@ -145,13 +130,11 @@ describe('Process Definition Lifecycle Events', { concurrent: false }, () => {
       }
 
       const receivedEvents: EngineEventEnvelope[] = [];
-      const eventSubscription = await adminClient!.notifications.onEngineEvent(
-        (envelope: EngineEventEnvelope) => {
-          if (envelope.type === 'ProcessDefinitionUndeployed') {
-            receivedEvents.push(envelope);
-          }
-        },
-      );
+      const eventSubscription = await adminClient!.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {
+        if (envelope.type === 'ProcessDefinitionUndeployed') {
+          receivedEvents.push(envelope);
+        }
+      });
 
       try {
         await adminClient!.processes.undeploy(PROCESS_MODEL_ID);

@@ -11,17 +11,17 @@
  * The connection lifecycle and PI-scoped channel isolation tests are
  * stable and remain active.
  */
-
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import type { EngineEventEnvelope } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
+  cleanupInstances,
   createAdminClient,
   deployFixture,
-  cleanupInstances,
-  waitForUserTask,
+  ensureEngineReachable,
   waitForState,
+  waitForUserTask,
 } from '../support/test-engine.js';
 
 function sleep(milliseconds: number): Promise<void> {
@@ -64,12 +64,9 @@ describe('WebSocket Events', { concurrent: false }, () => {
       const { processInstanceId } = await adminClient!.processes.start(USER_TASK_ID);
       const flowNodeInstanceId = await waitForUserTask(adminClient!, processInstanceId);
       let handlerInvocationCount = 0;
-      const subscription = await adminClient!.notifications.subscribeProcessInstance(
-        processInstanceId,
-        () => {
-          handlerInvocationCount += 1;
-        },
-      );
+      const subscription = await adminClient!.notifications.subscribeProcessInstance(processInstanceId, () => {
+        handlerInvocationCount += 1;
+      });
       subscription.dispose();
       await adminClient!.userTasks.finish(flowNodeInstanceId, { values: { approved: true } });
       await waitForState(adminClient!, processInstanceId, 'finished');

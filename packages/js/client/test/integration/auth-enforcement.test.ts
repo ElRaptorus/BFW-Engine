@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
-  createAdminClient,
-  createUnauthenticatedClient,
-  createExpiredTokenClient,
-  deployFixture,
   cleanupInstances,
-  waitForUserTask,
+  createAdminClient,
+  createExpiredTokenClient,
+  createUnauthenticatedClient,
+  deployFixture,
+  ensureEngineReachable,
   readFixture,
+  waitForUserTask,
 } from '../support/test-engine.js';
-import { UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
 
 let adminClient: BfwEngineClient;
 let unauthenticatedClient: BfwEngineClient;
@@ -59,7 +60,7 @@ describe('Auth Enforcement', () => {
       { name: 'processInstances.abort(id)', call: (client) => client.processInstances.abort(existingPiId) },
       { name: 'processInstances.delete(id)', call: (client) => client.processInstances.delete(existingPiId) },
       {
-        name: 'userTasks.finish(id, result)',
+        name: 'userTasks.finish(id, { values })',
         call: (client) => client.userTasks.finish(existingFniId, { values: {} }),
       },
       { name: 'userTasks.cancel(id)', call: (client) => client.userTasks.cancel(existingFniId) },
@@ -114,7 +115,7 @@ describe('Auth Enforcement', () => {
       { name: 'processInstances.abort(id)', call: (client) => client.processInstances.abort(existingPiId) },
       { name: 'processInstances.delete(id)', call: (client) => client.processInstances.delete(existingPiId) },
       {
-        name: 'userTasks.finish(id, result)',
+        name: 'userTasks.finish(id, { values })',
         call: (client) => client.userTasks.finish(existingFniId, { values: {} }),
       },
       { name: 'userTasks.cancel(id)', call: (client) => client.userTasks.cancel(existingFniId) },

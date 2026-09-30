@@ -526,8 +526,10 @@ defmodule BfwEngine.Plugins.Loader do
           skip_claims: true
         )
       end,
-      cancel: fn fni_id, reason, user_identity ->
-        BfwEngine.Api.cancel_user_task(fni_id, reason, user_identity, skip_claims: true)
+      cancel: fn flow_node_instance_id, reason, user_identity ->
+        BfwEngine.Api.cancel_user_task(flow_node_instance_id, reason, user_identity,
+          skip_claims: true
+        )
       end
     }
   end

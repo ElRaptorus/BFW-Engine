@@ -2,18 +2,15 @@
  * Integration tests for DMN decision evaluation.
  * Requires a running engine with DMN support.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
-  createAdminClient,
-  deployDmnFixture,
-} from '../support/test-engine.js';
-import {
-  DecisionDefinitionNotFoundError,
   DecisionDefinitionDisabledError,
+  DecisionDefinitionNotFoundError,
   DecisionServiceNotFoundError,
 } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
+import { createAdminClient, deployDmnFixture, ensureEngineReachable } from '../support/test-engine.js';
 
 const discountDefinitionsId = 'definitions_discount';
 const serviceDefinitionsId = 'Definitions_ds_basic';
@@ -87,25 +84,24 @@ describe('Decision evaluation (integration)', { concurrent: false }, () => {
   });
 
   it('evaluate non-existent model → DecisionDefinitionNotFoundError', async () => {
-    await expect(
-      adminClient.decisions.evaluate('nonexistent_model_xyz', { age: 25 }),
-    ).rejects.toThrow(DecisionDefinitionNotFoundError);
+    await expect(adminClient.decisions.evaluate('nonexistent_model_xyz', { age: 25 })).rejects.toThrow(
+      DecisionDefinitionNotFoundError,
+    );
   });
 
   it('evaluate disabled model → DecisionDefinitionDisabledError', async () => {
     await adminClient.decisions.disable(discountDefinitionsId);
-    await expect(
-      adminClient.decisions.evaluate(discountDefinitionsId, { age: 25 }),
-    ).rejects.toThrow(DecisionDefinitionDisabledError);
+    await expect(adminClient.decisions.evaluate(discountDefinitionsId, { age: 25 })).rejects.toThrow(
+      DecisionDefinitionDisabledError,
+    );
     await adminClient.decisions.enable(discountDefinitionsId);
   });
 
   it('evaluates a Decision Service', async () => {
-    const result = await adminClient.decisions.evaluateService(
-      serviceDefinitionsId,
-      serviceId,
-      { Age: 30, Income: 50000 },
-    );
+    const result = await adminClient.decisions.evaluateService(serviceDefinitionsId, serviceId, {
+      Age: 30,
+      Income: 50000,
+    });
     expect(result.serviceId).toBe(serviceId);
     expect(result.outputs['Eligibility']).toBe('approved');
   });
@@ -117,9 +113,9 @@ describe('Decision evaluation (integration)', { concurrent: false }, () => {
   });
 
   it('evaluateService with non-existent model → DecisionDefinitionNotFoundError', async () => {
-    await expect(
-      adminClient.decisions.evaluateService('nonexistent_model_xyz', serviceId, {}),
-    ).rejects.toThrow(DecisionDefinitionNotFoundError);
+    await expect(adminClient.decisions.evaluateService('nonexistent_model_xyz', serviceId, {})).rejects.toThrow(
+      DecisionDefinitionNotFoundError,
+    );
   });
 
   it('COLLECT SUM aggregation over the wire', async () => {
@@ -144,8 +140,8 @@ describe('Decision evaluation (integration)', { concurrent: false }, () => {
     );
     expect(result.hitPolicy).toBe('output_order');
     expect(Array.isArray(result.result)).toBe(true);
-    const grades = (result.result as Array<Record<string, unknown>>).map(
-      (r) => r['grade'],
+    const grades = (result.result as Record<string, unknown>[]).map(
+      (gradeItem: Record<string, unknown>) => gradeItem['grade'],
     );
     expect(grades).toEqual(['A', 'B']);
   });

@@ -8,18 +8,18 @@
  *
  * Requires a running engine (docker-compose.dev.yml).
  */
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
-  createAdminClient,
-  createOwnPiClient,
-  createLaneClient,
-  deployFixture,
-  deployDmnFixture,
-  readFixture,
   cleanupInstances,
+  createAdminClient,
+  createLaneClient,
+  createOwnPiClient,
+  deployDmnFixture,
+  deployFixture,
+  ensureEngineReachable,
+  readFixture,
   waitForState,
   waitForUserTask,
 } from '../support/test-engine.js';
@@ -49,23 +49,19 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
   // 5.1
   describe('soft-deleted PI invisible via GraphQL', () => {
     it('admin cannot see soft-deleted PI via get or list', async () => {
-      const { processInstanceId } = await adminClient.processes.start(
-        'integration-passthrough',
-      );
+      const { processInstanceId } = await adminClient.processes.start('integration-passthrough');
       await waitForState(adminClient, processInstanceId, 'finished');
 
-      const instanceBefore = await adminClient.graphql.getProcessInstance(
-        processInstanceId,
-        { fields: ['id', 'state'] },
-      );
+      const instanceBefore = await adminClient.graphql.getProcessInstance(processInstanceId, {
+        fields: ['id', 'state'],
+      });
       expect(instanceBefore).not.toBeNull();
 
       await adminClient.processInstances.delete(processInstanceId);
 
-      const instanceAfter = await adminClient.graphql.getProcessInstance(
-        processInstanceId,
-        { fields: ['id', 'state'] },
-      );
+      const instanceAfter = await adminClient.graphql.getProcessInstance(processInstanceId, {
+        fields: ['id', 'state'],
+      });
       expect(instanceAfter).toBeNull();
 
       const listResult = await adminClient.graphql.queryProcessInstances({
@@ -80,33 +76,21 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
   // 5.2
   describe('soft-deleted ProcessVersion invisible', () => {
     it('admin cannot see deleted process version via REST', async () => {
-      const secondVersionBpmn = readFixture('integration-passthrough.bpmn')
-        .replace(
-          '<bfw:version>1.0.0</bfw:version>',
-          '<bfw:version>99.99.99</bfw:version>',
-        );
+      const secondVersionBpmn = readFixture('integration-passthrough.bpmn').replace(
+        '<bfw:version>1.0.0</bfw:version>',
+        '<bfw:version>99.99.99</bfw:version>',
+      );
 
       await adminClient.processes.deploy(secondVersionBpmn);
 
-      const versionsBefore = await adminClient.processes.getVersions(
-        'integration-passthrough',
-      );
-      const hasVersion = versionsBefore.some(
-        (version) => version.version === '99.99.99',
-      );
+      const versionsBefore = await adminClient.processes.getVersions('integration-passthrough');
+      const hasVersion = versionsBefore.some((version) => version.version === '99.99.99');
       expect(hasVersion).toBe(true);
 
-      await adminClient.processes.deleteVersion(
-        'integration-passthrough',
-        '99.99.99',
-      );
+      await adminClient.processes.deleteVersion('integration-passthrough', '99.99.99');
 
-      const versionsAfter = await adminClient.processes.getVersions(
-        'integration-passthrough',
-      );
-      const stillHas = versionsAfter.some(
-        (version) => version.version === '99.99.99',
-      );
+      const versionsAfter = await adminClient.processes.getVersions('integration-passthrough');
+      const stillHas = versionsAfter.some((version) => version.version === '99.99.99');
       expect(stillHas).toBe(false);
     });
   });
@@ -114,25 +98,16 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
   // 5.3
   describe('soft-deleted DecisionVersion invisible', () => {
     it('admin cannot see deleted decision version via REST', async () => {
-      const versionsBefore = await adminClient.decisions.getVersions(
-        'definitions_discount',
-      );
+      const versionsBefore = await adminClient.decisions.getVersions('definitions_discount');
       expect(versionsBefore.length).toBeGreaterThanOrEqual(1);
 
       const targetVersion = versionsBefore[versionsBefore.length - 1]!;
       const versionString = targetVersion.version!;
 
-      await adminClient.decisions.deleteVersion(
-        'definitions_discount',
-        versionString,
-      );
+      await adminClient.decisions.deleteVersion('definitions_discount', versionString);
 
-      const versionsAfter = await adminClient.decisions.getVersions(
-        'definitions_discount',
-      );
-      const stillHas = versionsAfter.some(
-        (version) => version.version === versionString,
-      );
+      const versionsAfter = await adminClient.decisions.getVersions('definitions_discount');
+      const stillHas = versionsAfter.some((version) => version.version === versionString);
       expect(stillHas).toBe(false);
 
       // Re-deploy so other tests still have a valid decision
@@ -143,17 +118,12 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
   // 5.4
   describe('admin + soft-delete', () => {
     it('zeeky_boogie_doog admin gets null for soft-deleted PI', async () => {
-      const { processInstanceId } = await adminClient.processes.start(
-        'integration-passthrough',
-      );
+      const { processInstanceId } = await adminClient.processes.start('integration-passthrough');
       await waitForState(adminClient, processInstanceId, 'finished');
 
       await adminClient.processInstances.delete(processInstanceId);
 
-      const result = await adminClient.graphql.getProcessInstance(
-        processInstanceId,
-        { fields: ['id', 'state'] },
-      );
+      const result = await adminClient.graphql.getProcessInstance(processInstanceId, { fields: ['id', 'state'] });
 
       expect(result).toBeNull();
     });
@@ -173,22 +143,18 @@ describe('Claim-Scoped Visibility', { concurrent: false }, () => {
         'lane:default': false,
       });
 
-      const { processInstanceId } = await adminClient.processes.start(
-        'integration-user-task-lane',
-      );
+      const { processInstanceId } = await adminClient.processes.start('integration-user-task-lane');
       await waitForUserTask(adminClient, processInstanceId);
 
-      const actorBResult = await actorBClient.graphql.getProcessInstance(
-        processInstanceId,
-        { fields: ['id', 'state'] },
-      );
+      const actorBResult = await actorBClient.graphql.getProcessInstance(processInstanceId, {
+        fields: ['id', 'state'],
+      });
       expect(actorBResult).toBeNull();
 
       const accountingClient = await createLaneClient(['accounting']);
-      const accountingResult =
-        await accountingClient.graphql.getProcessInstance(processInstanceId, {
-          fields: ['id', 'state'],
-        });
+      const accountingResult = await accountingClient.graphql.getProcessInstance(processInstanceId, {
+        fields: ['id', 'state'],
+      });
       expect(accountingResult).not.toBeNull();
 
       await adminClient.processInstances.abort(processInstanceId);
@@ -201,23 +167,18 @@ describe('Claim-Scoped Visibility', { concurrent: false }, () => {
     it('only actors with matching lane claim see the PI', async () => {
       const accountingClient = await createLaneClient(['accounting']);
 
-      const { processInstanceId } = await adminClient.processes.start(
-        'integration-user-task-lane',
-      );
+      const { processInstanceId } = await adminClient.processes.start('integration-user-task-lane');
       await waitForUserTask(adminClient, processInstanceId);
 
-      const accountingResult =
-        await accountingClient.graphql.getProcessInstance(processInstanceId, {
-          fields: ['id', 'state'],
-        });
+      const accountingResult = await accountingClient.graphql.getProcessInstance(processInstanceId, {
+        fields: ['id', 'state'],
+      });
       expect(accountingResult).not.toBeNull();
 
       const engineeringClient = await createLaneClient(['engineering']);
-      const engineeringResult =
-        await engineeringClient.graphql.getProcessInstance(
-          processInstanceId,
-          { fields: ['id', 'state'] },
-        );
+      const engineeringResult = await engineeringClient.graphql.getProcessInstance(processInstanceId, {
+        fields: ['id', 'state'],
+      });
       expect(engineeringResult).toBeNull();
 
       await adminClient.processInstances.abort(processInstanceId);
@@ -231,15 +192,10 @@ describe('Claim-Scoped Visibility', { concurrent: false }, () => {
       const restrictedClient = await createOwnPiClient({
         sub: 'restricted-starter',
       });
-      const { processInstanceId } = await restrictedClient.processes.start(
-        'integration-passthrough',
-      );
+      const { processInstanceId } = await restrictedClient.processes.start('integration-passthrough');
       await waitForState(adminClient, processInstanceId, 'finished');
 
-      const adminResult = await adminClient.graphql.getProcessInstance(
-        processInstanceId,
-        { fields: ['id', 'state'] },
-      );
+      const adminResult = await adminClient.graphql.getProcessInstance(processInstanceId, { fields: ['id', 'state'] });
       expect(adminResult).not.toBeNull();
       expect(adminResult!.id).toBe(processInstanceId);
 
@@ -253,14 +209,10 @@ describe('Claim-Scoped Visibility', { concurrent: false }, () => {
       const actorAClient = await createLaneClient(['accounting']);
       const actorBClient = await createLaneClient(['engineering']);
 
-      const startA = await adminClient.processes.start(
-        'integration-user-task-lane',
-      );
+      const startA = await adminClient.processes.start('integration-user-task-lane');
       await waitForUserTask(adminClient, startA.processInstanceId);
 
-      const startB = await adminClient.processes.start(
-        'integration-user-task-lane',
-      );
+      const startB = await adminClient.processes.start('integration-user-task-lane');
       await waitForUserTask(adminClient, startB.processInstanceId);
 
       const aList = await actorAClient.graphql.queryProcessInstances({

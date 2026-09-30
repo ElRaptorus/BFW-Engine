@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-
 import { UnauthorizedError } from '@elraptorus/bfw_engine_sdk';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {

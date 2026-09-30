@@ -2,21 +2,22 @@
  * Integration tests for DMN decision definition lifecycle.
  * Requires a running engine with DMN support.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
-import {
-  ensureEngineReachable,
-  createAdminClient,
-  createReadOnlyClient,
-  deployDmnFixture,
-  readDmnFixture,
-} from '../support/test-engine.js';
 import {
   DecisionDefinitionNotFoundError,
   DecisionVersionExistsError,
   DmnParseError,
   ForbiddenError,
 } from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
+import {
+  createAdminClient,
+  createReadOnlyClient,
+  deployDmnFixture,
+  ensureEngineReachable,
+  readDmnFixture,
+} from '../support/test-engine.js';
 
 const definitionsId = 'definitions_discount';
 let adminClient: BfwEngineClient;
@@ -72,9 +73,7 @@ describe('Decision lifecycle (integration)', { concurrent: false }, () => {
   it('undeploy', async () => {
     await deployDmnFixture(adminClient, 'simple_unique.dmn');
     await adminClient.decisions.undeploy(definitionsId);
-    await expect(adminClient.decisions.get(definitionsId)).rejects.toThrow(
-      DecisionDefinitionNotFoundError,
-    );
+    await expect(adminClient.decisions.get(definitionsId)).rejects.toThrow(DecisionDefinitionNotFoundError);
   });
 
   it('deploy forbidden (wrong claims)', async () => {

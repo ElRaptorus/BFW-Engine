@@ -38,9 +38,9 @@
     "test": "vitest run test/unit/",
     "test:unit": "vitest run test/unit/",
     "test:integration": "vitest run test/integration/",
-    "lint": "eslint src/",
-    "lint:fix": "eslint --fix src/",
-    "format": "prettier --write --config ../.prettierrc.json src/"
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint --fix src/ test/",
+    "format": "prettier --write --config ../.prettierrc.json src/ test/"
   },
   "dependencies": {
     "@elraptorus/bfw_engine_sdk": "workspace:*",

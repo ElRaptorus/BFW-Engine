@@ -1,13 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HttpTransport } from '../../src/http/transport.js';
-import { ProcessClient } from '../../src/rest/process-client.js';
-import { ProcessInstanceClient } from '../../src/rest/process-instance-client.js';
-import { UserTaskClient } from '../../src/rest/user-task-client.js';
-import { ManualTaskClient } from '../../src/rest/manual-task-client.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { HttpTransport } from '../../src/http/transport.js';
+import { DecisionClient } from '../../src/rest/decision-client.js';
 import { EngineClient } from '../../src/rest/engine-client.js';
 import { EventClient } from '../../src/rest/event-client.js';
-import { DecisionClient } from '../../src/rest/decision-client.js';
+import { ManualTaskClient } from '../../src/rest/manual-task-client.js';
+import { ProcessClient } from '../../src/rest/process-client.js';
+import { ProcessInstanceClient } from '../../src/rest/process-instance-client.js';
 import { TimerScheduleClient } from '../../src/rest/timer-schedule-client.js';
+import { UserTaskClient } from '../../src/rest/user-task-client.js';
 
 function createMockTransport(): HttpTransport {
   return {
@@ -139,6 +140,19 @@ describe('UserTaskClient', () => {
   it('finish sends PUT /user-tasks/{fniId}/finish', async () => {
     await client.finish('fni-uuid-1', { values: { approved: true } });
     expect(transport.put).toHaveBeenCalledWith('/user-tasks/fni-uuid-1/finish', { values: { approved: true } });
+  });
+
+  it('finish sends the action id with the values', async () => {
+    await client.finish('fni-uuid-1', { actionId: 'approve', values: { approved: true } });
+    expect(transport.put).toHaveBeenCalledWith('/user-tasks/fni-uuid-1/finish', {
+      actionId: 'approve',
+      values: { approved: true },
+    });
+  });
+
+  it('finish without options sends no body', async () => {
+    await client.finish('fni-uuid-1');
+    expect(transport.put).toHaveBeenCalledWith('/user-tasks/fni-uuid-1/finish', undefined);
   });
 
   it('cancel sends PUT /user-tasks/{fniId}/cancel', async () => {
@@ -358,10 +372,9 @@ describe('DecisionClient', () => {
     await client.evaluateService(decisionDefinitionId, serviceId, input);
     const encodedId = encodeURIComponent(decisionDefinitionId);
     const encodedServiceId = encodeURIComponent(serviceId);
-    expect(transport.post).toHaveBeenCalledWith(
-      `/decisions/${encodedId}/services/${encodedServiceId}/evaluate`,
-      { input },
-    );
+    expect(transport.post).toHaveBeenCalledWith(`/decisions/${encodedId}/services/${encodedServiceId}/evaluate`, {
+      input,
+    });
   });
 
   it('evaluateService passes input in body', async () => {
@@ -411,10 +424,9 @@ describe('DecisionClient', () => {
     await client.evaluateByVersion(decisionDefinitionId, version, input);
     const encodedId = encodeURIComponent(decisionDefinitionId);
     const encodedVersion = encodeURIComponent(version);
-    expect(transport.post).toHaveBeenCalledWith(
-      `/decisions/${encodedId}/versions/${encodedVersion}/evaluate`,
-      { input },
-    );
+    expect(transport.post).toHaveBeenCalledWith(`/decisions/${encodedId}/versions/${encodedVersion}/evaluate`, {
+      input,
+    });
   });
 
   it('encodes special characters in decision definition id and version', async () => {

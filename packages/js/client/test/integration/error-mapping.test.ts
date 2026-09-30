@@ -1,29 +1,30 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import {
+  ActiveInstancesExistError,
+  BfwEngineError,
+  FniNotWaitingError,
+  ForbiddenError,
+  NotFoundError,
+  ParseError,
+  ProcessDisabledError,
+  ProcessInstanceNotTerminalError,
+  ProcessNotFoundError,
+  UnauthorizedError,
+  VersionExistsError,
+} from '@elraptorus/bfw_engine_sdk';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
-  ensureEngineReachable,
+  cleanupInstances,
   createAdminClient,
   createReadOnlyClient,
   createUnauthenticatedClient,
   deployFixture,
-  cleanupInstances,
+  ensureEngineReachable,
   readFixture,
   waitForState,
   waitForUserTask,
 } from '../support/test-engine.js';
-import {
-  BfwEngineError,
-  ParseError,
-  VersionExistsError,
-  NotFoundError,
-  ProcessNotFoundError,
-  ProcessDisabledError,
-  ActiveInstancesExistError,
-  ProcessInstanceNotTerminalError,
-  FniNotWaitingError,
-  UnauthorizedError,
-  ForbiddenError,
-} from '@elraptorus/bfw_engine_sdk';
 
 let adminClient: BfwEngineClient;
 let readOnlyClient: BfwEngineClient;
@@ -195,7 +196,13 @@ describe('Error Mapping', { concurrent: false }, () => {
         expect(error).toBeInstanceOf(FniNotWaitingError);
         if (error instanceof FniNotWaitingError) {
           expect(error.statusCode).toBe(422);
-          expect(['fni_not_waiting', 'fni_already_finished', 'fni_already_aborted', 'fni_already_interrupted', 'fni_already_fatal']).toContain(error.errorCode);
+          expect([
+            'fni_not_waiting',
+            'fni_already_finished',
+            'fni_already_aborted',
+            'fni_already_interrupted',
+            'fni_already_fatal',
+          ]).toContain(error.errorCode);
         }
       }
     });
