@@ -46,7 +46,7 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
       assignees = resolve_assignees(type_data.assignees_expression, token.payload, context)
 
       type_properties = %{
-        form_schema: type_data.form_schema,
+        form_fields: type_data.form_fields,
         form_actions: type_data.form_actions,
         assignees: assignees,
         result_contract: type_data.result_contract,

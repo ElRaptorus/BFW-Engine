@@ -437,7 +437,7 @@ query OpenDebugger($piId: ID!) {
         id
         type
         name
-        ... on UserTaskNode      { formSchema resultContract }
+        ... on UserTaskNode      { formFields resultContract }
         ... on ServiceTaskNode   { implementation httpUrl httpMethod }
         ... on CallActivityNode  { calledElement startEventId calledProcessVersion inMappings { source target } outMappings { source target } }
         ... on SendTaskNode      { messageRef inMappings { source target } outMappings { source target } }

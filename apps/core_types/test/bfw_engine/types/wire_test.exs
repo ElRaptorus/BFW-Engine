@@ -224,33 +224,34 @@ defmodule BfwEngine.Types.WireTest do
              }
     end
 
-    test ":form_fields value is not recursed into" do
-      input = %{
-        flow_node_id: "task-1",
-        form_fields: [
+    test "type_properties form_fields and form_actions pass through unchanged" do
+      type_properties = %{
+        "form_fields" => [
           %{
             "id" => "approved",
             "type" => "toggle",
-            "label" => "approved",
+            "label" => "Approved",
             "required" => false,
-            "defaultValue" => %{"inner_key" => "kept"}
+            "defaultValue" => "true"
+          }
+        ],
+        "form_actions" => [
+          %{
+            "id" => "confirm",
+            "label" => "Confirm",
+            "preset" => "confirm",
+            "effect" => "submit",
+            "isDefault" => true
           }
         ]
       }
 
+      input = %{flow_node_id: "task-1", type_properties: type_properties}
+
       result = Wire.camelize_keys(input)
 
       assert result["flowNodeId"] == "task-1"
-
-      assert result["formFields"] == [
-               %{
-                 "id" => "approved",
-                 "type" => "toggle",
-                 "label" => "approved",
-                 "required" => false,
-                 "defaultValue" => %{"inner_key" => "kept"}
-               }
-             ]
+      assert result["typeProperties"] == type_properties
     end
 
     test "string opaque keys also skip recursion" do

@@ -97,7 +97,7 @@
                   "assigneesExpression": "[\"default\"]",
                   "dueDate": null,
                   "formActions": null,
-                  "formSchema": null,
+                  "formFields": null,
                   "inMappings": [],
                   "outMappings": [],
                   "payloadContract": null,

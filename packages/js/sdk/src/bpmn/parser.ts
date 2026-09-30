@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 
 import { FlowNodeType } from '../types/enums.js';
+import type { FormAction, FormFieldDefinition } from '../types/form.js';
 import type {
   Association,
   BoundaryEventTypeData,
@@ -662,12 +663,14 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
 function buildUserTaskTypeData(extKids: OrderedNode[]): FlowNodeTypeData {
   const { inMappings, outMappings } = parseMappings(extKids);
 
+  const rawFields = parseJsonText(childText(extKids, 'formFields'));
+  const formFields = Array.isArray(rawFields) ? (rawFields as FormFieldDefinition[]) : null;
   const rawActions = parseJsonText(childText(extKids, 'formActions'));
-  const formActions = Array.isArray(rawActions) ? (rawActions as Record<string, unknown>[]) : null;
+  const formActions = Array.isArray(rawActions) ? (rawActions as FormAction[]) : null;
 
   return {
     type: 'user_task',
-    formSchema: parseJsonText(childText(extKids, 'formFields')),
+    formFields,
     formActions,
     assigneesExpression: childText(extKids, 'assignees') || null,
     payloadContract: parseJsonText(childText(extKids, 'payloadContract')),

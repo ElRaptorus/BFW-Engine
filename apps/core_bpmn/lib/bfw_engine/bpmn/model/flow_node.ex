@@ -72,7 +72,7 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.UserTask do
   alias BfwEngine.BPMN.Model.Mapping
 
   @type t :: %__MODULE__{
-          form_schema: list(map()) | nil,
+          form_fields: list(map()) | nil,
           form_actions: list(map()) | nil,
           assignees_expression: String.t() | nil,
           payload_contract: map() | nil,
@@ -84,7 +84,7 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.UserTask do
         }
 
   defstruct [
-    :form_schema,
+    :form_fields,
     :form_actions,
     :assignees_expression,
     :payload_contract,

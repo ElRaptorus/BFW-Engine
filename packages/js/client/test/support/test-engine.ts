@@ -283,7 +283,9 @@ export async function waitForUserTask(
     let subscription: { dispose(): void } | undefined;
 
     const finish = (fniId: string) => {
-      if (resolved) {return;}
+      if (resolved) {
+        return;
+      }
       resolved = true;
       clearTimeout(timer);
       subscription?.dispose();

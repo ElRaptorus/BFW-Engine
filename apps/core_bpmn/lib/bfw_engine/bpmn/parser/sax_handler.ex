@@ -531,11 +531,11 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   end
 
   defp handle_start("formFields", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_form_fields | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_form_fields | state.stack]}}
   end
 
   defp handle_start("formActions", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_form_actions | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_form_actions | state.stack]}}
   end
 
   defp handle_start("resultContract", _attributes, state) do
@@ -1164,33 +1164,31 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("formFields", %{stack: [:evil_form_fields | rest]} = state) do
-    text = String.trim(state.text_buffer)
-    schema = parse_json_text(text)
+  defp handle_end("formFields", %{stack: [:bfw_form_fields | rest]} = state) do
+    fields = parse_json_list(String.trim(state.text_buffer))
 
     data =
       case state.current_node_data do
-        %FlowNodeData.UserTask{} = d -> %FlowNodeData.UserTask{d | form_schema: schema}
-        other -> other
+        %FlowNodeData.UserTask{} = user_task_data ->
+          %FlowNodeData.UserTask{user_task_data | form_fields: fields}
+
+        other ->
+          other
       end
 
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("formActions", %{stack: [:evil_form_actions | rest]} = state) do
-    text = String.trim(state.text_buffer)
-    parsed = parse_json_text(text)
-
-    actions =
-      case parsed do
-        list when is_list(list) -> list
-        _ -> nil
-      end
+  defp handle_end("formActions", %{stack: [:bfw_form_actions | rest]} = state) do
+    actions = parse_json_list(String.trim(state.text_buffer))
 
     data =
       case state.current_node_data do
-        %FlowNodeData.UserTask{} = d -> %FlowNodeData.UserTask{d | form_actions: actions}
-        other -> other
+        %FlowNodeData.UserTask{} = user_task_data ->
+          %FlowNodeData.UserTask{user_task_data | form_actions: actions}
+
+        other ->
+          other
       end
 
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
@@ -2115,6 +2113,13 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   defp parse_json_text(text) do
     case Jason.decode(text) do
       {:ok, result} -> result
+      _ -> nil
+    end
+  end
+
+  defp parse_json_list(text) do
+    case parse_json_text(text) do
+      list when is_list(list) -> list
       _ -> nil
     end
   end

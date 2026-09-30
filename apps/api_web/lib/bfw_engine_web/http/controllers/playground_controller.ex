@@ -145,7 +145,7 @@ defmodule BfwEngineWeb.Http.PlaygroundController do
                     name
                     type
                     ... on UserTaskNode {
-                      formSchema
+                      formFields
                       resultContract
                     }
                     ... on ServiceTaskNode {

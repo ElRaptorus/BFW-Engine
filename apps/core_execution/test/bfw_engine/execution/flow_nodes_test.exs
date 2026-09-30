@@ -254,7 +254,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
         id: "ut1",
         type: :user_task,
         type_data: %FlowNodeData.UserTask{
-          form_schema: [
+          form_fields: [
             %{"id" => "approved", "type" => "toggle", "label" => "approved", "required" => false}
           ],
           assignees_expression: "identity.groups",
@@ -272,7 +272,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
 
       assert result.output_payload == token.payload
       assert result.next_flow_node_ids == ["next-node"]
-      assert result.type_properties.form_schema == node.type_data.form_schema
+      assert result.type_properties.form_fields == node.type_data.form_fields
       assert result.type_properties.result_contract == %{"type" => "object"}
       assert result.type_properties.due_date == "2025-12-01T10:00:00Z"
       assert result.type_properties.priority == 5

@@ -40,7 +40,8 @@
     "test:conformance": "vitest run test/conformance/",
     "lint": "eslint src/ test/",
     "lint:fix": "eslint --fix src/ test/",
-    "format": "prettier --write --config ../.prettierrc.json src/ test/"
+    "format": "prettier --write --config ../.prettierrc.json src/ test/",
+    "format:check": "prettier --check --config ../.prettierrc.json src/ test/"
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.1"

@@ -534,8 +534,6 @@ const OPAQUE_KEYS = new Set([
   'started_by',
   'deployer',
   'claims',
-  'form_fields',
-  'form_actions',
   'type_properties',
   'error_info',
   'payload_contract',

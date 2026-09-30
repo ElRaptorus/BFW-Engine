@@ -50,7 +50,7 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
   # ---------------------------------------------------------------------------
 
   describe "start, list_waiting, and finish" do
-    test "starts a process, lists the waiting User Task with its form schema, finishes it, and reaches finished",
+    test "starts a process, lists the waiting User Task with its form fields, finishes it, and reaches finished",
          %{http_base_url: http_base_url} do
       {201, _} = http_deploy("user_task_simple.bpmn")
       client = admin_client(http_base_url)
@@ -60,7 +60,7 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
 
       task = poll_client_waiting_task(client, "UserTask_1")
       assert task["flowNodeType"] == "user_task"
-      assert get_in(task, ["typeProperties", "form_schema"]) != nil
+      assert get_in(task, ["typeProperties", "form_fields"]) != nil
 
       assert {:ok, ""} = UserTasks.finish(client, task["id"], values: %{"approved" => true})
 

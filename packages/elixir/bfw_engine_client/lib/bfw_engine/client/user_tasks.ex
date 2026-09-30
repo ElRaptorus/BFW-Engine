@@ -34,8 +34,8 @@ defmodule BfwEngine.Client.UserTasks do
   Lists waiting User Tasks and Manual Tasks.
 
   Each result carries `typeProperties`, passed through exactly as the Engine
-  stored it. For User Tasks, `typeProperties["form_schema"]` holds the
-  `bfw:formFields` schema and `typeProperties["form_actions"]` the available
+  stored it. For User Tasks, `typeProperties["form_fields"]` holds the
+  `bfw:formFields` list and `typeProperties["form_actions"]` the available
   actions.
 
   ## Options

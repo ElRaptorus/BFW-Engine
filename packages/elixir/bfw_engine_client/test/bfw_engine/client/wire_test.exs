@@ -24,7 +24,25 @@ defmodule BfwEngine.Client.WireTest do
     end
 
     test "returns an already-decoded map unchanged" do
-      assert Wire.decode_type_properties(%{"form_schema" => %{}}) == %{"form_schema" => %{}}
+      assert Wire.decode_type_properties(%{
+               "form_fields" => [
+                 %{
+                   "id" => "approved",
+                   "type" => "toggle",
+                   "label" => "Approved",
+                   "required" => false
+                 }
+               ]
+             }) == %{
+               "form_fields" => [
+                 %{
+                   "id" => "approved",
+                   "type" => "toggle",
+                   "label" => "Approved",
+                   "required" => false
+                 }
+               ]
+             }
     end
 
     test "decodes a JSON-encoded string (AshGraphql's :map scalar encoding)" do

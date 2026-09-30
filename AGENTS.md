@@ -101,7 +101,7 @@ treated identically.
 
 REST and WebSocket JSON surfaces use **camelCase structural keys**. GraphQL was already camelCase via AshGraphql. The three wire surfaces now agree.
 
-**Boundary rule:** Structural fields defined in engine structs are camelCased by per-struct `Jason.Encoder` implementations in `BfwEngine.Types.Wire`. Opaque user-payload subtrees (`payload`, `result`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `formFields`, `typeProperties`, `errorInfo`, etc.) pass through unchanged — their nested keys are NOT transformed.
+**Boundary rule:** Structural fields defined in engine structs are camelCased by per-struct `Jason.Encoder` implementations in `BfwEngine.Types.Wire`. Opaque user-payload subtrees (`payload`, `result`, `inputToken`, `outputToken`, `startedWithContext`, `claims`, `typeProperties`, `errorInfo`, etc.) pass through unchanged — their nested keys are NOT transformed.
 
 **Implementation:** `apps/core_types/lib/bfw_engine/types/wire.ex` (conversion logic), `apps/core_events/lib/bfw_engine/events/json_encoders.ex` (Jason.Encoder implementations).
 
@@ -374,7 +374,7 @@ catch the abort.
 
 #### `bfw:formFields`
 
-JSON array of form fields (`id`, `type`, `label`, `required`), passed through to clients and not interpreted by the engine.
+JSON array of form fields (`id`, `type`, `label`, `required`), passed through to clients and not interpreted by the engine. A value that is not a JSON array is dropped (`form_fields: nil`); `bfw:formActions` follows the same rule.
 
 ```xml
 <bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>

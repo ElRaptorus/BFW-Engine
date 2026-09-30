@@ -9,7 +9,7 @@ defmodule BfwEngine.Execution.FlowNodeResult do
     routing: non-gateway handlers delegate to `SequenceFlowResolver`,
     gateway handlers implement element-specific routing logic.
   - `type_properties` — per-element runtime state snapshot, written to
-    `flow_node_instances.type_properties` (e.g. form schema for User
+    `flow_node_instances.type_properties` (e.g. form fields for User
     Tasks, End Event ID for FinalToken decoration).
   - `metadata` — transient info not persisted (e.g. handler timing).
   """

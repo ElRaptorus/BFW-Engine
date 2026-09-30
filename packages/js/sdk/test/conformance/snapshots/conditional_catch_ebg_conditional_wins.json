@@ -89,7 +89,7 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": [
+            "formFields": [
               {
                 "id": "status",
                 "type": "text",

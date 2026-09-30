@@ -118,7 +118,7 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
   UserTaskNode: [
     ...mappingFieldsAsNested('inMappings'),
     ...mappingFieldsAsNested('outMappings'),
-    'formSchema',
+    'formFields',
     'formActions',
     'assigneesExpression',
     'payloadContract',

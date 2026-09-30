@@ -15,7 +15,7 @@ User Tasks are wait states that pause execution until a human completes the task
 | `bfw:dueDate` | FEEL expression or ISO 8601 timestamp for task deadline metadata |
 | `bfw:priority` | Numeric priority value |
 
-`bfw:formFields` is a JSON array. Each field has `id`, `type`, `label`, and `required`, plus optional `placeholder`, `defaultValue`, `options`, `validationRules`, and `hint` (help text shown with the field). `type` is one of `text`, `number`, `date`, `checkbox`, `dropdown`, `radio`, `textarea`, `file`, `toggle`, `section_header`. `options` (`label` and `value`) apply to dropdown, radio, and checkbox group fields. A known validation rule is `pattern`: `value` is a regular expression the whole input must match, and `message` is shown on failure.
+`bfw:formFields` is a JSON array. Each field has `id`, `type`, `label`, and `required`, plus optional `placeholder`, `defaultValue` (a string; checkbox and toggle use `"true"` / `"false"`), `options`, `validationRules`, and `hint` (help text shown with the field). `type` is one of `text`, `number`, `date`, `checkbox`, `dropdown`, `radio`, `textarea`, `file`, `toggle`, `section_header`. `options` (`label` and `value`) apply to dropdown, radio, and checkbox group fields. A known validation rule is `pattern`: `value` is a regular expression the whole input must match, and `message` is shown on failure. A `bfw:formFields` value that is not a JSON array is ignored, and the task has no form.
 
 ```xml
 <bpmn:userTask id="review_order" name="Review Order">

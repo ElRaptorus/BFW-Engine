@@ -270,7 +270,7 @@ defmodule BfwEngine.Execution.ErrorBoundaryGeneralizationTest do
       name: "Failing User Task",
       type: :user_task,
       type_data: %FlowNodeData.UserTask{
-        form_schema: nil,
+        form_fields: nil,
         payload_contract: %{"type" => "object", "required" => ["mandatory_field"]}
       },
       incoming: ["Flow_1"],

@@ -222,7 +222,7 @@ query DebuggerView($piId: ID!) {
         id
         name
         type
-        ... on UserTaskNode    { formSchema resultContract }
+        ... on UserTaskNode    { formFields resultContract }
         ... on ServiceTaskNode { implementation httpUrl httpMethod }
         ... on CallActivityNode { calledElement startEventId calledProcessVersion }
       }
@@ -252,7 +252,7 @@ const flowNodeSelection: SelectionField = {
   name: 'flowNode',
   fields: ['id', 'name', 'type'],
   on: {
-    UserTaskNode: ['formSchema', 'resultContract'],
+    UserTaskNode: ['formFields', 'resultContract'],
     ServiceTaskNode: ['implementation', 'httpUrl', 'httpMethod'],
   },
 };

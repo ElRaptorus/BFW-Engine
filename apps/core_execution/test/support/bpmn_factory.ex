@@ -88,7 +88,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       name: "Review",
       type: :user_task,
       type_data: %FlowNodeData.UserTask{
-        form_schema: nil,
+        form_fields: nil,
         result_contract: result_contract
       },
       incoming: ["Flow_1"],
@@ -249,7 +249,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_Wait",
       name: "Waiting User Task",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_B"],
       outgoing: ["Flow_C"]
     }
@@ -1017,7 +1017,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_1",
       name: "Do Work",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_1"],
       outgoing: ["Flow_2"],
       boundary_event_refs: ["TimerBE_1"]
@@ -1088,7 +1088,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_1",
       name: "Do Work",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_1"],
       outgoing: ["Flow_2"],
       boundary_event_refs: ["MessageBE_1"]
@@ -1401,7 +1401,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_1",
       name: "Do Work",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_1"],
       outgoing: ["Flow_2"],
       boundary_event_refs: ["TimerBE_A", "TimerBE_B"]
@@ -1496,7 +1496,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_1",
       name: "Do Work",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_1"],
       outgoing: ["Flow_2"],
       boundary_event_refs: ["TimerBE_NonInt", "TimerBE_Int"]
@@ -1637,7 +1637,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_Wait",
       name: "Waiting User Task",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_B"],
       outgoing: ["Flow_B2"]
     }
@@ -2740,7 +2740,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_MI_1",
       name: "Multi-Instance User Task",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       multi_instance: multi_instance,
       incoming: connection_attributes[:incoming],
       outgoing: connection_attributes[:outgoing]
@@ -3675,7 +3675,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_A",
       name: "User Task A",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_A"],
       outgoing: ["Flow_A2"]
     }
@@ -3684,7 +3684,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_B",
       name: "User Task B",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_B"],
       outgoing: ["Flow_B2"]
     }
@@ -3756,7 +3756,7 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "UserTask_B",
       name: "User Task B",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_B"],
       outgoing: ["Flow_B2"]
     }
@@ -3884,21 +3884,21 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       id: "Task_A",
       name: "Task A",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil}
+      type_data: %FlowNodeData.UserTask{form_fields: nil}
     }
 
     task_b = %FlowNode{
       id: "Task_B",
       name: "Task B",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil}
+      type_data: %FlowNodeData.UserTask{form_fields: nil}
     }
 
     task_c = %FlowNode{
       id: "Task_C",
       name: "Task C",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil}
+      type_data: %FlowNodeData.UserTask{form_fields: nil}
     }
 
     start = %FlowNode{

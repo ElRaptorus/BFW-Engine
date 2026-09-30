@@ -45,7 +45,7 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
   #
   # `:json` is not defined here — AshGraphql already registers a `:json`
   # scalar (`deps/ash_graphql/lib/types/json.ex`) on the same schema, and
-  # Absinthe requires globally unique type identifiers. Form schemas, JSON
+  # Absinthe requires globally unique type identifiers. Form field lists, JSON
   # Schema contracts, and extension attribute maps below reuse that scalar.
   # ---------------------------------------------------------------------
   # FlowNodeType enum (D-1 = A — struct-aligned, 21 values)
@@ -360,7 +360,7 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     interface(:flow_node)
     common_flow_node_fields()
     mapping_fields()
-    field(:form_schema, :json)
+    field(:form_fields, :json)
     field(:form_actions, :json)
     field(:assignees_expression, :string)
     field(:payload_contract, :json)

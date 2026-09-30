@@ -552,11 +552,11 @@ defmodule BfwEngine.Plugins.Loader do
 
   defp build_service_tasks_namespace do
     %EngineFacade.ServiceTasks{
-      finish_async: fn fni_id, result ->
-        BfwEngine.Api.finish_async_service_task(fni_id, result)
+      finish_async: fn flow_node_instance_id, result ->
+        BfwEngine.Api.finish_async_service_task(flow_node_instance_id, result)
       end,
-      fail_async: fn fni_id, error_code, error_message ->
-        BfwEngine.Api.fail_async_service_task(fni_id, error_code, error_message)
+      fail_async: fn flow_node_instance_id, error_code, error_message ->
+        BfwEngine.Api.fail_async_service_task(flow_node_instance_id, error_code, error_message)
       end,
       list_waiting: &BfwEngine.Api.list_waiting_service_tasks/1
     }

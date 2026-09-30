@@ -52,7 +52,7 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": [
+            "formFields": [
               {
                 "id": "approved",
                 "type": "toggle",

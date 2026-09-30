@@ -1,6 +1,6 @@
 /**
  * A single form field definition as stored in the BPMN model and served
- * via `typeProperties.form_schema` on waiting user task FNIs.
+ * via `typeProperties.form_fields` on waiting user task FNIs.
  *
  * Field keys use the exact casing authored in the Studio — they are inside
  * the opaque `typeProperties` envelope and are NOT camelCased by the engine.
@@ -11,7 +11,8 @@ export interface FormFieldDefinition {
   label: string;
   required: boolean;
   placeholder?: string;
-  defaultValue?: unknown;
+  /** The string the Studio form builder writes; checkbox and toggle use `"true"` / `"false"`. */
+  defaultValue?: string;
   options?: FormFieldOption[];
   validationRules?: FormFieldValidationRule[];
   /** Help text shown with the field. */
@@ -82,7 +83,7 @@ export type FormActionPreset = 'confirm' | 'cancel' | 'ok' | 'yes' | 'no' | 'abo
  * `typeProperties` is an opaque payload envelope.
  */
 export interface UserTaskTypeProperties {
-  form_schema: FormFieldDefinition[] | null;
+  form_fields: FormFieldDefinition[] | null;
   form_actions: FormAction[] | null;
   assignees: string[] | null;
   result_contract: Record<string, unknown> | null;

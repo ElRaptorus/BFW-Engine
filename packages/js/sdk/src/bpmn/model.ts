@@ -1,4 +1,5 @@
 import type { FlowNodeType } from '../types/enums.js';
+import type { FormAction, FormFieldDefinition } from '../types/form.js';
 
 /** Root container for a parsed BPMN XML document. */
 export interface BpmnDefinitions {
@@ -260,8 +261,8 @@ export interface TaskTypeData {
 
 export interface UserTaskTypeData extends WithMappings, WithContracts {
   type: 'user_task';
-  formSchema: Record<string, unknown> | null;
-  formActions: Record<string, unknown>[] | null;
+  formFields: FormFieldDefinition[] | null;
+  formActions: FormAction[] | null;
   assigneesExpression: string | null;
   dueDate: string | null;
   priority: number | null;

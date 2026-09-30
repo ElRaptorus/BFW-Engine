@@ -113,7 +113,7 @@
                   "assigneesExpression": null,
                   "dueDate": null,
                   "formActions": null,
-                  "formSchema": null,
+                  "formFields": null,
                   "inMappings": [],
                   "outMappings": [],
                   "payloadContract": null,

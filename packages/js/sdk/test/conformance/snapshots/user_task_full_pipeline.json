@@ -75,7 +75,7 @@
                 "preset": "custom"
               }
             ],
-            "formSchema": [
+            "formFields": [
               {
                 "defaultValue": "asdfasfdfsdf",
                 "hint": "fuck you",

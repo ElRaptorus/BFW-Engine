@@ -89,7 +89,7 @@
             "assigneesExpression": "identity.groups",
             "dueDate": null,
             "formActions": null,
-            "formSchema": [
+            "formFields": [
               {
                 "id": "amount",
                 "type": "number",

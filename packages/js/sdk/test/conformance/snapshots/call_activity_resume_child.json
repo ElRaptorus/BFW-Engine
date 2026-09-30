@@ -52,7 +52,7 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": [
+            "formFields": [
               {
                 "id": "result",
                 "type": "text",

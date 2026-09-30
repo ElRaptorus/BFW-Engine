@@ -38,7 +38,7 @@ defmodule BfwEngine.Client.UserTasksTest do
                   "id" => "fni-1",
                   "flowNodeType" => "user_task",
                   "typeProperties" => %{
-                    "form_schema" => [
+                    "form_fields" => [
                       %{
                         "id" => "approved",
                         "type" => "toggle",
@@ -57,7 +57,7 @@ defmodule BfwEngine.Client.UserTasksTest do
       assert {:ok, [result]} = UserTasks.list_waiting(client, limit: 10, offset: 20)
       assert result["flowNodeType"] == "user_task"
 
-      assert result["typeProperties"]["form_schema"] == [
+      assert result["typeProperties"]["form_fields"] == [
                %{
                  "id" => "approved",
                  "type" => "toggle",

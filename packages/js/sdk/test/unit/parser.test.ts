@@ -726,9 +726,26 @@ describe('parseBpmn', () => {
       const result = parseBpmn(xml);
       const typeData = result.processes[0]!.flowNodes[0]!.typeData as UserTaskTypeData;
       expect(typeData.assigneesExpression).toBe('identity.groups');
-      expect(typeData.formSchema).toEqual([{ id: 'ok', type: 'toggle', label: 'ok', required: false }]);
+      expect(typeData.formFields).toEqual([{ id: 'ok', type: 'toggle', label: 'ok', required: false }]);
       expect(typeData.dueDate).toBe('2026-12-31T23:59:59Z');
       expect(typeData.priority).toBe(5);
+    });
+
+    it('drops a non-array bfw:formFields value', () => {
+      const xml = processWrap(
+        'P',
+        `
+        <bpmn:userTask id="UT1" name="Review">
+          <bpmn:extensionElements>
+            <bfw:formFields>{"id":"ok","type":"toggle"}</bfw:formFields>
+          </bpmn:extensionElements>
+        </bpmn:userTask>
+      `,
+      );
+
+      const result = parseBpmn(xml);
+      const typeData = result.processes[0]!.flowNodes[0]!.typeData as UserTaskTypeData;
+      expect(typeData.formFields).toBeNull();
     });
 
     it('parses payloadContract and resultContract', () => {

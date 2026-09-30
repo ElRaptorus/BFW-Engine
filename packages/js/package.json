@@ -12,7 +12,8 @@
     "test:examples": "pnpm --filter '@bfw-engine/example-*' run test",
     "lint": "pnpm -r run lint",
     "lint:fix": "pnpm -r run lint:fix",
-    "format": "pnpm -r run format"
+    "format": "pnpm -r run format",
+    "format:check": "pnpm -r run format:check"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

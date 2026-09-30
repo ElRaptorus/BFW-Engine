@@ -300,7 +300,7 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
       carrier: :body,
       attributes: [],
       applicable_to: ["UserTask"],
-      model_field: "FlowNodeData.UserTask.form_schema"
+      model_field: "FlowNodeData.UserTask.form_fields"
     },
     %{
       element: "formActions",

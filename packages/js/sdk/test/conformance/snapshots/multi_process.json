@@ -102,7 +102,7 @@
             "assigneesExpression": "clerk_role",
             "dueDate": "2026-12-31T23:59:59Z",
             "formActions": null,
-            "formSchema": null,
+            "formFields": null,
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,

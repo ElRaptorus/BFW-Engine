@@ -120,7 +120,7 @@ defmodule BfwEngine.Execution.BoundaryAwareHandlerTest do
     %FlowNode{
       id: "UserTask_1",
       type: :user_task,
-      type_data: %FlowNodeData.UserTask{form_schema: nil},
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
       incoming: ["Flow_1"],
       outgoing: ["Flow_2"],
       boundary_event_refs: boundary_refs

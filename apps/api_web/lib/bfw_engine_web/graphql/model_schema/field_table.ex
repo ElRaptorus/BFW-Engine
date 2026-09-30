@@ -89,7 +89,7 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
     {Model.FlowNodeData.Task, exposed: [], excluded: []},
     {Model.FlowNodeData.UserTask,
      exposed: [
-       :form_schema,
+       :form_fields,
        :form_actions,
        :assignees_expression,
        :payload_contract,

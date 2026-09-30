@@ -2223,7 +2223,7 @@ defmodule BfwEngine.BPMN.ParserTest do
   end
 
   describe "parse/1 — extension elements (inline XML)" do
-    test "bfw:formFields on user task maps JSON to form_schema" do
+    test "bfw:formFields on user task maps JSON to form_fields" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -2251,7 +2251,7 @@ defmodule BfwEngine.BPMN.ParserTest do
       user_task = find_node(process, "Task_1")
 
       assert %FlowNodeData.UserTask{
-               form_schema: [
+               form_fields: [
                  %{
                    "id" => "approved",
                    "type" => "toggle",
@@ -2260,6 +2260,36 @@ defmodule BfwEngine.BPMN.ParserTest do
                  }
                ]
              } = user_task.type_data
+    end
+
+    test "bfw:formFields that decodes to a JSON object yields form_fields nil" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                        id="Defs_1">
+        <bpmn:process id="P1" name="Test" isExecutable="true">
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
+          <bpmn:startEvent id="Start_1"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+          <bpmn:userTask id="Task_1" name="Review">
+            <bpmn:extensionElements>
+              <bfw:formFields>{"id":"approved","type":"toggle"}</bfw:formFields>
+            </bpmn:extensionElements>
+            <bpmn:incoming>F1</bpmn:incoming>
+            <bpmn:outgoing>F2</bpmn:outgoing>
+          </bpmn:userTask>
+          <bpmn:endEvent id="End_1"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+          <bpmn:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Task_1"/>
+          <bpmn:sequenceFlow id="F2" sourceRef="Task_1" targetRef="End_1"/>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      user_task = find_node(process, "Task_1")
+
+      assert %FlowNodeData.UserTask{form_fields: nil} = user_task.type_data
     end
 
     test "bfw:httpUrl and bfw:httpMethod on service task map to HTTP extension fields" do

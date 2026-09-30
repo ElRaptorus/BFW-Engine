@@ -52,7 +52,7 @@
             "assigneesExpression": null,
             "dueDate": null,
             "formActions": null,
-            "formSchema": null,
+            "formFields": null,
             "inMappings": [
               {
                 "source": "for x in [1] return if x then",
