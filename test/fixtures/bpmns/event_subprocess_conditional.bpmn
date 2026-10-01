@@ -8,6 +8,12 @@
   targetNamespace="https://bifrostforge.world/schema/bpmn"
   id="Definitions_1">
 
+  <!--
+    C180: A parallel user task writes the Data Object only after Main_UserTask
+    is idle-waiting, so the interrupting conditional Event Subprocess never
+    kills a flow node that is still persisting (shared-sandbox race, P45/P82).
+  -->
+
   <bpmn:collaboration id="Collaboration_1">
     <bpmn:participant id="Participant_1" name="Default" processRef="EventSubprocessConditional" />
   </bpmn:collaboration>
@@ -20,7 +26,9 @@
     <bpmn:laneSet id="LaneSet_1">
       <bpmn:lane id="Lane_default" name="default">
         <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>Script_WriteDO</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_WriteTrigger</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Writer</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Main_UserTask</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>ESP_Conditional</bpmn:flowNodeRef>
@@ -34,14 +42,25 @@
     <bpmn:startEvent id="Start_1" name="Start">
       <bpmn:outgoing>Main_Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:scriptTask id="Script_WriteDO" name="Write Data Object" scriptFormat="feel">
-      <bpmn:script>{ activated: true }</bpmn:script>
+    <bpmn:parallelGateway id="Fork_1" name="Fork">
       <bpmn:incoming>Main_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Writer</bpmn:outgoing>
       <bpmn:outgoing>Main_Flow_2</bpmn:outgoing>
-      <bpmn:dataOutputAssociation id="DOA_Script">
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="UserTask_WriteTrigger" name="Write Trigger">
+      <bpmn:extensionElements>
+        <bfw:formFields>[{"id":"status","type":"text","label":"status","required":false}]</bfw:formFields>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Writer</bpmn:incoming>
+      <bpmn:outgoing>Flow_Writer_End</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DOA_WriteTrigger">
         <bpmn:targetRef>DataObjRef_Trigger</bpmn:targetRef>
+        <bpmn:transformation>token.values</bpmn:transformation>
       </bpmn:dataOutputAssociation>
-    </bpmn:scriptTask>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Writer" name="Writer End">
+      <bpmn:incoming>Flow_Writer_End</bpmn:incoming>
+    </bpmn:endEvent>
     <bpmn:userTask id="Main_UserTask" name="Main Work">
       <bpmn:incoming>Main_Flow_2</bpmn:incoming>
       <bpmn:outgoing>Main_Flow_3</bpmn:outgoing>
@@ -49,8 +68,10 @@
     <bpmn:endEvent id="End_1" name="End">
       <bpmn:incoming>Main_Flow_3</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:sequenceFlow id="Main_Flow_1" sourceRef="Start_1" targetRef="Script_WriteDO" />
-    <bpmn:sequenceFlow id="Main_Flow_2" sourceRef="Script_WriteDO" targetRef="Main_UserTask" />
+    <bpmn:sequenceFlow id="Main_Flow_1" sourceRef="Start_1" targetRef="Fork_1" />
+    <bpmn:sequenceFlow id="Flow_Writer" sourceRef="Fork_1" targetRef="UserTask_WriteTrigger" />
+    <bpmn:sequenceFlow id="Flow_Writer_End" sourceRef="UserTask_WriteTrigger" targetRef="End_Writer" />
+    <bpmn:sequenceFlow id="Main_Flow_2" sourceRef="Fork_1" targetRef="Main_UserTask" />
     <bpmn:sequenceFlow id="Main_Flow_3" sourceRef="Main_UserTask" targetRef="End_1" />
 
     <bpmn:subProcess id="ESP_Conditional" name="Conditional Event Subprocess" triggeredByEvent="true">
@@ -75,25 +96,31 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
       <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
-        <dc:Bounds x="82" y="60" width="726" height="420" />
+        <dc:Bounds x="82" y="40" width="806" height="440" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
-        <dc:Bounds x="112" y="60" width="696" height="420" />
+        <dc:Bounds x="112" y="40" width="776" height="440" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="142" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Script_WriteDO" bpmnElement="Script_WriteDO">
-        <dc:Bounds x="260" y="120" width="100" height="80" />
+      <bpmndi:BPMNShape id="Shape_Fork_1" bpmnElement="Fork_1">
+        <dc:Bounds x="255" y="135" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_WriteTrigger" bpmnElement="UserTask_WriteTrigger">
+        <dc:Bounds x="380" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Writer" bpmnElement="End_Writer">
+        <dc:Bounds x="542" y="82" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Main_UserTask" bpmnElement="Main_UserTask">
-        <dc:Bounds x="420" y="120" width="100" height="80" />
+        <dc:Bounds x="380" y="170" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
-        <dc:Bounds x="582" y="142" width="36" height="36" />
+        <dc:Bounds x="542" y="192" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_DataObjRef_Trigger" bpmnElement="DataObjRef_Trigger">
-        <dc:Bounds x="292" y="240" width="36" height="50" />
+        <dc:Bounds x="412" y="262" width="36" height="50" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_ESP_Conditional" bpmnElement="ESP_Conditional" isExpanded="true">
         <dc:Bounds x="200" y="320" width="380" height="140" />
@@ -109,15 +136,25 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_Main_Flow_1" bpmnElement="Main_Flow_1">
         <di:waypoint x="198" y="160" />
-        <di:waypoint x="260" y="160" />
+        <di:waypoint x="255" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Writer" bpmnElement="Flow_Writer">
+        <di:waypoint x="280" y="135" />
+        <di:waypoint x="280" y="100" />
+        <di:waypoint x="380" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Writer_End" bpmnElement="Flow_Writer_End">
+        <di:waypoint x="480" y="100" />
+        <di:waypoint x="542" y="100" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Main_Flow_2" bpmnElement="Main_Flow_2">
-        <di:waypoint x="360" y="160" />
-        <di:waypoint x="420" y="160" />
+        <di:waypoint x="280" y="185" />
+        <di:waypoint x="280" y="210" />
+        <di:waypoint x="380" y="210" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Main_Flow_3" bpmnElement="Main_Flow_3">
-        <di:waypoint x="520" y="160" />
-        <di:waypoint x="582" y="160" />
+        <di:waypoint x="480" y="210" />
+        <di:waypoint x="542" y="210" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_ESP_Flow_1" bpmnElement="ESP_Flow_1">
         <di:waypoint x="256" y="390" />

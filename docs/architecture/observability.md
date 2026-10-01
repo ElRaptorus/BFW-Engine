@@ -21,7 +21,7 @@ Mix retention purge does **not** emit bus events.
 |---------|------|------------|
 | Console EventSink + Logger | n/a | One structured line per accepted bus event (and other Logger output). In `MIX_ENV=prod`, `logger_json` formats stdout as JSON. |
 | `GET /stats` | JWT | On-demand snapshot assembled by `StatsCollector` from live Ash counts, Scheduler ETS, the plugin registry, and registered sinks. Not a time-series store. |
-| `GET /metrics` | none | Prometheus text exposition from `TelemetryMetricsPrometheus.Core`. Disabled with `BFE_METRICS_ENABLED=false` → HTTP 404 `metrics_disabled`. |
+| `GET /metrics` | none | Prometheus text exposition from `TelemetryMetricsPrometheus.Core`. Disabled with `BFE_METRICS_ENABLED=false` → plain-text HTTP 404 `Not Found` from `MetricsGatePlug`. |
 | `GET /health` | none | Liveness probe: **204 No Content**, empty body. |
 | `GET /info` | none | Engine id, name, version, `startedAt`. |
 | WebSocket EventSink | JWT (channel join) | Live `BfwEngine.Types.Event.*` push to Phoenix Channels. |

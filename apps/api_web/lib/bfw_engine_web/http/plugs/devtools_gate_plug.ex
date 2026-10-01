@@ -24,10 +24,16 @@ defmodule BfwEngineWeb.Http.Plugs.DevtoolsGatePlug do
     if devtools? or override? do
       conn
     else
-      conn
-      |> put_resp_content_type("text/plain")
-      |> send_resp(404, "Not Found")
-      |> halt()
+      reject(conn)
     end
+  end
+
+  @doc "Halts the connection with the plain `404 Not Found` shared by all disabled-feature gates."
+  @spec reject(Plug.Conn.t()) :: Plug.Conn.t()
+  def reject(conn) do
+    conn
+    |> put_resp_content_type("text/plain")
+    |> send_resp(404, "Not Found")
+    |> halt()
   end
 end

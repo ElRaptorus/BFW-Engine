@@ -46,6 +46,10 @@ defmodule BfwEngineWeb.Http.Router do
     plug BfwEngineWeb.Http.Plugs.DevtoolsGatePlug
   end
 
+  pipeline :metrics_gate do
+    plug BfwEngineWeb.Http.Plugs.MetricsGatePlug
+  end
+
   pipeline :openapi_gate do
     plug BfwEngineWeb.Http.Plugs.DevtoolsGatePlug, allow_if: :expose_openapi_spec
   end
@@ -55,6 +59,11 @@ defmodule BfwEngineWeb.Http.Router do
 
     get "/health", HealthController, :index
     get "/info", InfoController, :index
+  end
+
+  scope "/", BfwEngineWeb.Http do
+    pipe_through [:api, :metrics_gate]
+
     get "/metrics", MetricsController, :index
   end
 

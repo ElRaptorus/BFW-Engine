@@ -1535,6 +1535,18 @@ defmodule BfwEngine.Conformance.ConformanceTest do
     spec = Runner.load_spec("C180_event_subprocess_conditional.yaml")
     process_instance_id = Runner.deploy_and_start(spec)
 
+    {:ok, _main_task} =
+      await_waiting_fni_by_node_id(process_instance_id, "Main_UserTask", timeout: 10_000)
+
+    {:ok, _writer_task} =
+      await_waiting_fni_by_node_id(process_instance_id, "UserTask_WriteTrigger", timeout: 10_000)
+
+    :ok =
+      finish_waiting_user_task_by_node_id(process_instance_id, "UserTask_WriteTrigger",
+        result: %{"status" => "ready"},
+        timeout: 10_000
+      )
+
     wait_for_process_instance(process_instance_id, 15_000)
     Runner.assert_expectations(process_instance_id, spec)
   end

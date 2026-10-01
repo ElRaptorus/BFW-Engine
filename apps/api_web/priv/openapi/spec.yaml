@@ -125,7 +125,7 @@ paths:
       security: []
       description: |
         Prometheus exposition format (`text/plain`). Disabled when
-        `BFE_METRICS_ENABLED` resolves to false (returns 404 JSON).
+        `BFE_METRICS_ENABLED` resolves to false (plain-text 404, same as an unknown route).
       responses:
         "200":
           description: Prometheus text exposition
@@ -136,16 +136,10 @@ paths:
         "404":
           description: Metrics disabled
           content:
-            application/json:
+            text/plain:
               schema:
-                type: object
-                required: [error, message]
-                properties:
-                  error:
-                    type: string
-                    example: metrics_disabled
-                  message:
-                    type: string
+                type: string
+                example: Not Found
 
   # ---------------------------------------------------------------------------
   # Engine (authenticated)

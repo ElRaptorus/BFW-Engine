@@ -5,6 +5,7 @@ defmodule BfwEngineWeb.Http.MetricsControllerTest do
   import Plug.Conn
 
   alias BfwEngineWeb.Http.MetricsController
+  alias BfwEngineWeb.Http.Router
 
   setup do
     original = Application.get_env(:peripheral_telemetry, :metrics_enabled)
@@ -54,19 +55,22 @@ defmodule BfwEngineWeb.Http.MetricsControllerTest do
   end
 
   describe "index/2 when metrics disabled" do
-    test "returns 404 with metrics_disabled error" do
+    test "router answers with a plain 404 before the controller runs" do
       Application.put_env(:peripheral_telemetry, :metrics_enabled, false)
 
-      conn =
-        conn(:get, "/metrics")
-        |> put_private(:phoenix_format, "json")
-        |> put_private(:phoenix_endpoint, BfwEngineWeb.Http.Endpoint)
-        |> put_private(:phoenix_router, BfwEngineWeb.Http.Router)
-        |> MetricsController.index(%{})
+      conn = conn(:get, "/metrics") |> Router.call(Router.init([]))
 
       assert conn.status == 404
-      body = Jason.decode!(conn.resp_body)
-      assert body["error"] == "metrics_disabled"
+      assert conn.resp_body == "Not Found"
+      assert conn.halted
+    end
+
+    test "router serves metrics again once re-enabled" do
+      Application.put_env(:peripheral_telemetry, :metrics_enabled, true)
+
+      conn = conn(:get, "/metrics") |> Router.call(Router.init([]))
+
+      assert conn.status == 200
     end
   end
 end

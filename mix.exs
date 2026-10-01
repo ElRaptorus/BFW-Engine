@@ -273,7 +273,7 @@ defmodule BfwEngine.Umbrella.MixProject do
       ],
       lint: ["format", "credo"],
       sobelow: [
-        "sobelow --root apps/api_web --router apps/api_web/lib/bfw_engine_web/http/router.ex --skip Config.HTTPS --threshold medium"
+        "sobelow --root apps/api_web"
       ]
     ]
   end
