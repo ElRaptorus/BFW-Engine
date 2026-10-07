@@ -139,13 +139,6 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   # §B — Result processing
   # ===================================================================
 
-  @doc """
-  Processes a successful child completion: aggregates tokens, applies
-  out-mappings, validates result contract, finishes the FNI, and
-  returns `{:ok, FlowNodeResult.t()}`.
-
-  Used on the enter path when `next_ids` is already resolved.
-  """
   @spec apply_out_mappings_to_result(
           FlowNode.t(),
           HandlerContext.t(),
@@ -154,13 +147,13 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           String.t()
         ) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
-  def apply_out_mappings_to_result(
-        flow_node,
-        context,
-        final_tokens,
-        next_ids,
-        child_process_instance_id
-      ) do
+  defp apply_out_mappings_to_result(
+         flow_node,
+         context,
+         final_tokens,
+         next_ids,
+         child_process_instance_id
+       ) do
     aggregated = aggregate_tokens(final_tokens)
     type_properties = %{child_process_instance_id: child_process_instance_id}
     result_contract = Map.get(flow_node.type_data, :result_contract, nil)
@@ -185,15 +178,9 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc """
-  Processes a successful child completion on the resume path.
-
-  Resolves outgoing sequence flows internally (unlike
-  `apply_out_mappings_to_result/5` which receives them as input).
-  """
   @spec apply_result(FlowNode.t(), term(), HandlerContext.t(), term(), String.t()) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
-  def apply_result(flow_node, _entry, context, final_tokens, child_process_instance_id) do
+  defp apply_result(flow_node, _entry, context, final_tokens, child_process_instance_id) do
     {:ok, next_ids} = resolve_outgoing(flow_node, context)
 
     apply_out_mappings_to_result(
@@ -227,14 +214,9 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   # §D — Error / boundary resolution
   # ===================================================================
 
-  @doc """
-  Attempts to match a child error against an error boundary on the
-  handler's flow node. Returns `{:boundary, ...}` if matched, or
-  `{:error, error_info}` if no boundary catches it.
-  """
   @spec handle_child_error(FlowNode.t(), HandlerContext.t(), map()) ::
           {:boundary, String.t(), map(), boolean()} | {:error, map()}
-  def handle_child_error(flow_node, context, error_info) do
+  defp handle_child_error(flow_node, context, error_info) do
     case BoundaryResolver.find_matching_error_boundary(
            flow_node,
            context.process_model,
@@ -250,12 +232,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc """
-  Handles a child BPMN error: tries boundary matching first, then
-  propagates upward if no boundary catches it.
-  """
   @spec handle_child_bpmn_error(FlowNode.t(), HandlerContext.t(), map(), String.t()) :: term()
-  def handle_child_bpmn_error(flow_node, context, error_info, child_process_instance_id) do
+  defp handle_child_bpmn_error(flow_node, context, error_info, child_process_instance_id) do
     case handle_child_error(flow_node, context, error_info) do
       {:boundary, _, _, _} = boundary_result ->
         boundary_result
@@ -265,12 +243,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc """
-  Finishes the handler FNI as `:error` and returns a `{:bpmn_error, ...}`
-  tuple for the PI to propagate to the parent.
-  """
   @spec propagate_bpmn_error(FlowNode.t(), HandlerContext.t(), map(), String.t()) :: term()
-  def propagate_bpmn_error(flow_node, context, error_info, child_process_instance_id) do
+  defp propagate_bpmn_error(flow_node, context, error_info, child_process_instance_id) do
     type_properties = %{child_process_instance_id: child_process_instance_id}
 
     case FniLifecycle.finish_as_error(context, flow_node, nil, type_properties) do
@@ -288,16 +262,10 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc """
-  Normalizes a child error reason into a `%{error_code, error_message}` map.
-
-  If the reason already has an `error_code` key it is returned as-is;
-  otherwise a generic fatal error is constructed using `default_message`.
-  """
   @spec normalize_error(term(), String.t()) :: map()
-  def normalize_error(%{error_code: _} = reason, _default_message), do: reason
+  defp normalize_error(%{error_code: _} = reason, _default_message), do: reason
 
-  def normalize_error(_reason, default_message) do
+  defp normalize_error(_reason, default_message) do
     %{error_code: "CHILD_FATAL", error_message: default_message}
   end
 
@@ -305,10 +273,6 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   # §E — Escalation handling
   # ===================================================================
 
-  @doc """
-  Routes a child escalation-end outcome: checks for interrupting
-  boundary first, then non-interrupting boundaries, then propagation.
-  """
   @spec handle_child_escalation_end(
           FlowNode.t(),
           HandlerContext.t(),
@@ -318,15 +282,15 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           pid(),
           [String.t()]
         ) :: term()
-  def handle_child_escalation_end(
-        flow_node,
-        context,
-        escalation_info,
-        final_tokens,
-        child_process_instance_id,
-        process_instance_pid,
-        next_ids
-      ) do
+  defp handle_child_escalation_end(
+         flow_node,
+         context,
+         escalation_info,
+         final_tokens,
+         child_process_instance_id,
+         process_instance_pid,
+         next_ids
+       ) do
     triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
 
     case EscalationResolver.find_first_interrupting_escalation_boundary(
@@ -351,16 +315,15 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc false
-  def apply_non_interrupting_escalation_end(
-        flow_node,
-        context,
-        escalation_info,
-        final_tokens,
-        child_process_instance_id,
-        process_instance_pid,
-        next_ids
-      ) do
+  defp apply_non_interrupting_escalation_end(
+         flow_node,
+         context,
+         escalation_info,
+         final_tokens,
+         child_process_instance_id,
+         process_instance_pid,
+         next_ids
+       ) do
     triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
 
     boundaries =
@@ -400,14 +363,13 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc false
-  def propagate_escalation_end(
-        flow_node,
-        context,
-        escalation_info,
-        child_process_instance_id,
-        final_tokens \\ []
-      ) do
+  defp propagate_escalation_end(
+         flow_node,
+         context,
+         escalation_info,
+         child_process_instance_id,
+         final_tokens
+       ) do
     type_properties = %{child_process_instance_id: child_process_instance_id}
     output_payload = output_payload_from_final_tokens(final_tokens)
 
@@ -430,14 +392,13 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc false
-  def resume_from_escalated_child(
-        flow_node,
-        context,
-        child_process_instance_id,
-        escalation_error_info,
-        process_instance_pid
-      ) do
+  defp resume_from_escalated_child(
+         flow_node,
+         context,
+         child_process_instance_id,
+         escalation_error_info,
+         process_instance_pid
+       ) do
     {:ok, next_ids} = resolve_outgoing(flow_node, context)
 
     escalation_info =
@@ -463,13 +424,12 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     )
   end
 
-  @doc false
-  def handle_escalation_passthrough_in_await(
-        flow_node,
-        context,
-        escalation_info,
-        process_instance_pid
-      ) do
+  defp handle_escalation_passthrough_in_await(
+         flow_node,
+         context,
+         escalation_info,
+         process_instance_pid
+       ) do
     triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
 
     case EscalationResolver.find_first_interrupting_escalation_boundary(
@@ -495,13 +455,12 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc false
-  def fire_non_interrupting_or_passthrough(
-        flow_node,
-        context,
-        escalation_info,
-        process_instance_pid
-      ) do
+  defp fire_non_interrupting_or_passthrough(
+         flow_node,
+         context,
+         escalation_info,
+         process_instance_pid
+       ) do
     triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
 
     boundaries =
@@ -592,14 +551,6 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     )
   end
 
-  @doc """
-  Routes the tagged result from `await_child_completion` to the
-  appropriate handler function. Used by `monitor_and_wait` and can be
-  called directly by handlers that manage their own await loop.
-
-  `next_ids` is resolved lazily when needed (`{:finished, ...}` and
-  `{:escalation, ...}` paths).
-  """
   @spec dispatch_await_result(
           term(),
           FlowNode.t(),
@@ -610,15 +561,15 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           String.t()
         ) ::
           term()
-  def dispatch_await_result(
-        result,
-        flow_node,
-        entry,
-        context,
-        child_process_instance_id,
-        process_instance_pid,
-        child_label
-      ) do
+  defp dispatch_await_result(
+         result,
+         flow_node,
+         entry,
+         context,
+         child_process_instance_id,
+         process_instance_pid,
+         child_label
+       ) do
     case result do
       {:finished, final_tokens} ->
         apply_result(flow_node, entry, context, final_tokens, child_process_instance_id)
@@ -914,8 +865,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc false
-  def resume_from_bpmn_error_child(flow_node, context, error_info, child_process_instance_id) do
+  defp resume_from_bpmn_error_child(flow_node, context, error_info, child_process_instance_id) do
     handle_child_bpmn_error(
       flow_node,
       context,
@@ -924,16 +874,6 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     )
   end
 
-  @doc """
-  Resumes a child PI from persistence data by starting a new process
-  with the persisted state. After start, monitors and waits for completion.
-
-  `opts` supports:
-  - `:extra_resume_opts` — map merged into the child's resume opts
-    (e.g. `%{subprocess_node_id: flow_node.id}`)
-  - `:child_label` — for error messages
-  - `:extra_message_handler` — callback for `await_child_completion`
-  """
   @spec start_child_from_persistence(
           FlowNode.t(),
           map(),
@@ -943,15 +883,15 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           module(),
           keyword()
         ) :: term()
-  def start_child_from_persistence(
-        flow_node,
-        entry,
-        context,
-        child_process_instance_id,
-        child_pi_data,
-        adapter,
-        opts \\ []
-      ) do
+  defp start_child_from_persistence(
+         flow_node,
+         entry,
+         context,
+         child_process_instance_id,
+         child_pi_data,
+         adapter,
+         opts
+       ) do
     handler_pid = self()
     process_instance_pid = context.process_instance_pid
     child_label = Keyword.get(opts, :child_label, "Child process")
@@ -1023,9 +963,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  @doc "Reads finished end-event FNIs from persistence and extracts their output tokens."
   @spec aggregate_from_persistence(String.t()) :: [map()]
-  def aggregate_from_persistence(child_process_instance_id) do
+  defp aggregate_from_persistence(child_process_instance_id) do
     adapter = PersistenceAdapter.adapter()
 
     case adapter.list_flow_node_instances(child_process_instance_id) do
@@ -1068,11 +1007,10 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     :exit, _ -> :ok
   end
 
-  @doc "Extracts the child PI ID from the FNI's type_properties."
   @spec get_child_process_instance_id(map() | nil) :: String.t() | nil
-  def get_child_process_instance_id(nil), do: nil
+  defp get_child_process_instance_id(nil), do: nil
 
-  def get_child_process_instance_id(type_properties) do
+  defp get_child_process_instance_id(type_properties) do
     type_properties[:child_process_instance_id] ||
       type_properties["child_process_instance_id"]
   end
@@ -1088,10 +1026,9 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     MappingHelper.apply_in_mappings(flow_node.type_data.in_mappings, token.payload, context)
   end
 
-  @doc "Applies output mappings to transform the aggregated child payload."
   @spec apply_out_mappings(FlowNode.t(), map(), HandlerContext.t()) ::
           {:ok, map()} | {:error, term()}
-  def apply_out_mappings(flow_node, aggregated_payload, context) do
+  defp apply_out_mappings(flow_node, aggregated_payload, context) do
     MappingHelper.apply_out_mappings(
       flow_node.type_data.out_mappings,
       aggregated_payload,
@@ -1134,9 +1071,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
 
   defp output_payload_from_final_tokens(_final_tokens), do: %{}
 
-  @doc "Updates the child PI's notify_pid so completion messages reach the current handler Task."
   @spec set_child_notify_pid(pid(), pid()) :: :ok
-  def set_child_notify_pid(child_pid, handler_pid) do
+  defp set_child_notify_pid(child_pid, handler_pid) do
     ProcessInstance.update_notify_pid(child_pid, handler_pid)
   catch
     :exit, _ -> :ok

@@ -9,8 +9,9 @@ defmodule BfwEngine.Execution.CompensationObservabilityTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution
-  alias BfwEngine.Execution.CalledElementResolver
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
+  alias BfwEngine.Execution.TestSupport.CalledElementResolver
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
 
@@ -48,9 +49,9 @@ defmodule BfwEngine.Execution.CompensationObservabilityTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver.NoOp)
-    ModelCache.reset_state()
-    CalledElementResolver.NoOp.reset()
+    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver)
+    ServiceReset.bpmn_model_cache()
+    CalledElementResolver.reset()
 
     sink_name = "test:compensation-obs-#{inspect(self())}"
     :ok = EngineEventBus.register_sink(sink_name, CompensationEventSink, test_pid: self())
@@ -58,8 +59,8 @@ defmodule BfwEngine.Execution.CompensationObservabilityTest do
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :called_element_resolver)
-      ModelCache.reset_state()
-      CalledElementResolver.NoOp.reset()
+      ServiceReset.bpmn_model_cache()
+      CalledElementResolver.reset()
     end)
 
     :ok
@@ -119,7 +120,7 @@ defmodule BfwEngine.Execution.CompensationObservabilityTest do
     parent_version = random_id()
 
     ModelCache.put_new(child_version, BpmnFactory.compensate_end_process("child-process"))
-    CalledElementResolver.NoOp.set_version("child-process", child_version)
+    CalledElementResolver.set_version("child-process", child_version)
     ModelCache.put_new(parent_version, BpmnFactory.call_activity_process())
 
     process_instance_id = random_id()

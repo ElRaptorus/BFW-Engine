@@ -32,7 +32,7 @@ In-BEAM plugins run in the same Erlang VM as the engine. They have unrestricted 
 
 The engine provides guardrails:
 
-- Plugin workers run under a per-plugin supervisor inside `peripheral_plugins`
+- Plugin workers run under a per-plugin supervisor inside `engine_plugins`
 - `on_load` failures quarantine the plugin without crashing the engine
 - CI lints prevent plugins from importing Core modules directly
 

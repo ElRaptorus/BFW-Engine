@@ -4,18 +4,18 @@ defmodule BfwEngineWeb.Http.ProcessControllerTest do
   import Plug.Test
 
   alias BfwEngine.Api
-  alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.BPMN
   alias BfwEngine.BPMN.ModelCache, as: BPMNModelCache
   alias BfwEngine.Persistence.ReadRepo
   alias BfwEngine.Persistence.Repo
+  alias BfwEngineWeb.ServiceReset
   alias Ecto.Adapters.SQL.Sandbox
 
   @endpoint BfwEngineWeb.Http.Endpoint
   @test_secret "test_only_secret_at_least_32_bytes!"
 
   setup do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
 
     try do
       :ok = Sandbox.checkout(Repo)
@@ -26,7 +26,7 @@ defmodule BfwEngineWeb.Http.ProcessControllerTest do
       _ -> :ok
     end
 
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    on_exit(fn -> ServiceReset.provider_registry() end)
     :ok
   end
 

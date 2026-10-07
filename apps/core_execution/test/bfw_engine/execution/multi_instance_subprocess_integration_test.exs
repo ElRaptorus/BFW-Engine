@@ -3,6 +3,7 @@ defmodule BfwEngine.Execution.MultiInstanceSubprocessIntegrationTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
 
@@ -15,11 +16,11 @@ defmodule BfwEngine.Execution.MultiInstanceSubprocessIntegrationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
   end
 

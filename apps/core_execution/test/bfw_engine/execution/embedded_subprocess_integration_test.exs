@@ -32,6 +32,7 @@ defmodule BfwEngine.Execution.EmbeddedSubprocessIntegrationTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Types.Identity
 
   @version_id "subprocess-test-version-001"
@@ -44,7 +45,7 @@ defmodule BfwEngine.Execution.EmbeddedSubprocessIntegrationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     ref = make_ref()
     subscribe_events(ref)
@@ -52,7 +53,7 @@ defmodule BfwEngine.Execution.EmbeddedSubprocessIntegrationTest do
     on_exit(fn ->
       unsubscribe_events(ref)
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
 
     {:ok, ref: ref}

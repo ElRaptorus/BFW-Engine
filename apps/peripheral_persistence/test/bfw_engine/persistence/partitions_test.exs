@@ -9,7 +9,7 @@ defmodule BfwEngine.Persistence.PartitionsTest do
       {:ok, count} = Partitions.ensure_partitions()
       assert count >= 0
 
-      for {table, _col} <- Partitions.partitioned_tables() do
+      for table <- ["process_instance_events", "data_object_writes"] do
         %{rows: partitions} =
           Repo.query!(
             "SELECT inhrelid::regclass::text FROM pg_inherits WHERE inhparent = '#{table}'::regclass"
@@ -38,19 +38,6 @@ defmodule BfwEngine.Persistence.PartitionsTest do
       end)
 
       assert {:ok, 0} = Partitions.ensure_partitions()
-    end
-  end
-
-  describe "partitioned_tables/0" do
-    test "returns at least two entries" do
-      tables = Partitions.partitioned_tables()
-      assert length(tables) >= 2
-    end
-
-    test "includes process_instance_events and data_object_writes" do
-      table_names = Partitions.partitioned_tables() |> Enum.map(&elem(&1, 0))
-      assert "process_instance_events" in table_names
-      assert "data_object_writes" in table_names
     end
   end
 end

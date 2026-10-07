@@ -63,7 +63,7 @@ def on_load(facade) do
 end
 ```
 
-…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugin.Registry` directly — the registry is private to `peripheral_plugins`; only the engine-injected facade may write to it.
+…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugin.Registry` directly — the registry is private to `engine_plugins`; only the engine-injected facade may write to it.
 
 ## Loading model
 
@@ -102,7 +102,7 @@ Highest performance, idiomatic Elixir.
 - The plugin's own `Application.start/2` is a no-op stub (or absent). It
   exists only so the BEAM loads the plugin's modules; it MUST NOT call
   `BfwEngine.Plugin.Registry.register/2` itself.
-- **Discovery**: at engine boot, `peripheral_plugins` reads
+- **Discovery**: at engine boot, `engine_plugins` reads
   `BFE_PLUGINS_INBEAM` (whitespace- or comma-separated list of OTP-app
   names — [configuration.md](./configuration.md)). For each entry, it locates the declared `@behaviour
   BfwEngine.Plugin` module via `Application.get_env(app_name, :plugin_module)`.
@@ -118,7 +118,7 @@ Highest performance, idiomatic Elixir.
   not parallel.
 - **Concurrency**: each plugin's worker processes (anything spun up
   inside `on_load`) live under a per-plugin OTP supervisor inside
-  `peripheral_plugins`'s supervision tree, never in Core.
+  `engine_plugins`'s supervision tree, never in Core.
 
 Plugins are compiled into the release. Dropping uncompiled `.beam` files
 into a directory is not supported: diamond dependency conflicts, OTP
@@ -182,7 +182,7 @@ tables with signatures: [Engine Facade](../guides/plugins/engine-facade.md).
 | `facade.timers` | `trigger_event`, `list_schedules`, `get_schedule`, `enable_schedule`, `disable_schedule` | Timer event trigger + cycle schedule list/enable/disable |
 | `facade.graphql` | `query` | Raw GraphQL execution via `Absinthe.run/3` with plugin identity. Query-only; no mutations. |
 
-Each closure is wired by the `Loader` to the corresponding `BfwEngine.Api` function. The plugin's synthetic identity (`%Identity{id: "plugin:<name>", roles: []}`) is pre-injected for operations that require it (deploy, abort, retry, delete). No HTTP round-trip, no JSON re-encode, no JWT replay for in-BEAM plugins.
+Each closure is built by `BfwEngine.Plugins.FacadeBuilder.build/1` and wired to the corresponding `BfwEngine.Api` function. `Loader` calls `FacadeBuilder` when a plugin loads. The plugin's synthetic identity (`%Identity{id: "plugin:<name>", roles: []}`) is pre-injected for operations that require it (deploy, abort, retry, delete). No HTTP round-trip, no JSON re-encode, no JWT replay for in-BEAM plugins.
 
 Audit hooks live inside the Ash action itself, so a plugin's command
 is subject to **identical audit recording** as a wire request — every
@@ -197,7 +197,7 @@ subject to the full claim dictionary. **Plugins MUST NOT reach into
 for command operations** — those modules are private to the service layer;
 only event-scoped callbacks (plugin behaviours) live inside Core/Peripheral
 boundaries. In-BEAM plugins can reach internals, but the contract forbids it
-and CI lints against it (`peripheral_plugins` declares no compile-time dep
+and CI lints against it (`engine_plugins` declares no compile-time dep
 on `core_execution`).
 
 ### Registration validation
@@ -239,7 +239,7 @@ Parking a Service Task stores `type_properties["implementation"]` and the mapped
 
 ## Default built-in plugins
 
-- `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `peripheral_plugins` (HTTP client stays out of Core); registered before user plugins so operators can override the `http` implementation key.
+- `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `engine_plugins` (HTTP client stays out of Core); registered before user plugins so operators can override the `http` implementation key.
 - Execution persistence is `BfwEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`. There is no plugin PersistenceAdapter capability.
 - No built-in NamedScript handler ships. Inline FEEL evaluation is handled directly by the `ScriptTask` handler without going through the plugin dispatch chain. Plugins register NamedScript handlers via `bfw:scriptRef` for custom script languages or complex logic.
 

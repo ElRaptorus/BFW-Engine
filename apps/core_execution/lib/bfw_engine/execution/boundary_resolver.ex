@@ -38,17 +38,11 @@ defmodule BfwEngine.Execution.BoundaryResolver do
   Scans the host activity's `boundary_event_refs` for an error boundary
   event whose event definition matches `error_info`.
 
-  The 3-arity form is kept for tests that do not supply `Definitions`;
-  `error_ref` lookup is then a no-op (inline `error_code` only).
+  Pass `nil` definitions when the model has no global `<bpmn:error>`
+  entries; `error_ref` lookup is then a no-op (inline `error_code` only).
 
   Returns `{:ok, boundary_flow_node}` for the ranked match, or `:none`.
   """
-  @spec find_matching_error_boundary(FlowNode.t(), struct(), error_info()) ::
-          {:ok, FlowNode.t()} | :none
-  def find_matching_error_boundary(%FlowNode{} = host_node, process_model, error_info) do
-    find_matching_error_boundary(host_node, process_model, nil, error_info)
-  end
-
   @spec find_matching_error_boundary(FlowNode.t(), struct(), Definitions.t() | nil, error_info()) ::
           {:ok, FlowNode.t()} | :none
   def find_matching_error_boundary(

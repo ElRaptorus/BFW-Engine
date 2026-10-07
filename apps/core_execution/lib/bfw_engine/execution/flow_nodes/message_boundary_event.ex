@@ -29,7 +29,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Types.Token
 
   # -------------------------------------------------------------------
@@ -105,7 +105,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
           expected_correlation_value: expected_correlation_value,
           kind: :boundary,
           via_pid: self(),
-          lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+          lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
       if cancel_activity do
@@ -147,7 +147,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
         expected_correlation_value: expected_correlation_value,
         kind: :boundary,
         via_pid: self(),
-        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+        lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
       })
 
     type_properties = %{
@@ -269,7 +269,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
               expected_correlation_value: expected_correlation_value,
               kind: :boundary,
               via_pid: self(),
-              lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+              lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
             })
 
           type_properties = %{

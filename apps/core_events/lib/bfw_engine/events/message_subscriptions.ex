@@ -220,17 +220,6 @@ defmodule BfwEngine.Events.MessageSubscriptions do
     GenServer.call(__MODULE__, :mark_ready)
   end
 
-  @doc """
-  Reset state — used by tests to clear subscriptions between runs.
-  """
-  @spec reset_state() :: :ok
-  def reset_state do
-    :ets.delete_all_objects(@table_name)
-    :ets.delete_all_objects(@process_instance_index_table)
-    GenServer.call(__MODULE__, :reset_ready)
-    :ok
-  end
-
   # -------------------------------------------------------------------
   # GenServer callbacks
   # -------------------------------------------------------------------
@@ -267,11 +256,6 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   def handle_call(:mark_ready, _from, state) do
     Logger.info("MessageSubscriptions: marked as ready — accepting message triggers")
     {:reply, :ok, %{state | ready: true}}
-  end
-
-  @impl true
-  def handle_call(:reset_ready, _from, state) do
-    {:reply, :ok, %{state | ready: false}}
   end
 
   # -------------------------------------------------------------------

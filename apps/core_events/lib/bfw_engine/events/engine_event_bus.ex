@@ -63,12 +63,6 @@ defmodule BfwEngine.Events.EngineEventBus do
     GenServer.call(__MODULE__, :shutdown_sinks, @shutdown_timeout_ms)
   end
 
-  @doc false
-  @spec reset_state() :: :ok
-  def reset_state do
-    GenServer.call(__MODULE__, :reset_state, 15_000)
-  end
-
   # --- Server callbacks ---------------------------------------------------
 
   @impl true
@@ -115,12 +109,6 @@ defmodule BfwEngine.Events.EngineEventBus do
   end
 
   @impl true
-  def handle_call(:reset_state, _from, state) do
-    Enum.each(state.workers, fn {name, _module} -> terminate_worker(name) end)
-    {:reply, :ok, %{workers: %{}}}
-  end
-
-  @impl true
   def handle_call(:shutdown_sinks, _from, state) do
     Enum.each(state.workers, fn {name, _module} ->
       try do
@@ -137,12 +125,5 @@ defmodule BfwEngine.Events.EngineEventBus do
   def handle_cast({:publish, event}, state) do
     Enum.each(state.workers, fn {name, _module} -> SinkWorker.event(name, event) end)
     {:noreply, state}
-  end
-
-  defp terminate_worker(name) do
-    case Registry.lookup(BfwEngine.Events.SinkRegistry, name) do
-      [{pid, _}] -> DynamicSupervisor.terminate_child(BfwEngine.Events.SinkSupervisor, pid)
-      [] -> :ok
-    end
   end
 end

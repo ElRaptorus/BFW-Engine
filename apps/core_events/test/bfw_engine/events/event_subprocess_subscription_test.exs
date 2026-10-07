@@ -13,12 +13,13 @@ defmodule BfwEngine.Events.EventSubprocessSubscriptionTest do
 
   alias BfwEngine.Events.MessagePublisher
   alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Events.ServiceReset
   alias BfwEngine.Events.SignalPublisher
   alias BfwEngine.Events.SignalSubscriptions
 
   setup do
-    MessageSubscriptions.reset_state()
-    SignalSubscriptions.reset_state()
+    ServiceReset.message_subscriptions()
+    ServiceReset.signal_subscriptions()
     :ok
   end
 

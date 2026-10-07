@@ -1458,12 +1458,12 @@ Example (WebSocket `FlowNodeInstanceFinished.errorInfo`):
 }
 ```
 
-**Diagnostic quality requirement:** Every `message` must be a complete English sentence that names the specific element or construct that failed and explains why. Good messages include flow node IDs, BPMN element names, FEEL expression text, `implementation` values, DMN decision refs, contract violation summaries, or payload size figures. Generic fallbacks such as `"An unexpected error occurred"` or atom-to-words conversions (`"In mapping failed"`) are temporary placeholders — each must be replaced with a specific `humanize_error/1` clause in `apps/core_execution/lib/bfw_engine/execution/process_instance/helpers.ex` as the error shape is identified.
+**Diagnostic quality requirement:** Every `message` must be a complete English sentence that names the specific element or construct that failed and explains why. Good messages include flow node IDs, BPMN element names, FEEL expression text, `implementation` values, DMN decision refs, contract violation summaries, or payload size figures. Generic fallbacks such as `"An unexpected error occurred"` or atom-to-words conversions (`"In mapping failed"`) are temporary placeholders — each must be replaced with a specific `humanize_error/1` clause in `apps/core_execution/lib/bfw_engine/execution/process_instance/error_info.ex` as the error shape is identified.
 
 **Implementation contract:**
 
-- `Helpers.build_error_info/1` is the canonical entry point for constructing `errorInfo` maps; it delegates message text to `humanize_error/1`.
-- New error shapes returned by handlers **must** add an explicit `humanize_error/1` clause — never rely on the catch-all fallback or on `sanitize_error_info/1` in `fni_lifecycle.ex` as the primary humanization path.
+- `BfwEngine.Execution.ProcessInstance.ErrorInfo.build/1` is the canonical entry point for constructing `errorInfo` maps; it delegates message text to the private `humanize_error/1` in the same module.
+- New error shapes returned by handlers **must** add an explicit `humanize_error/1` clause — never rely on the catch-all fallback or on `ErrorInfo.sanitize/1` in `process_instance/error_info.ex` as the primary humanization path.
 - REST controllers (e.g. `ProcessController`) format errors at the API boundary with the same diagnostic standard; never expose `inspect/1` output, `Exception.message/1`, or bare atom names in the `message` field.
 
 See also `docs/architecture/common-pitfalls.md` (error messages must be diagnostic sentences).
@@ -1602,7 +1602,7 @@ The `BfwEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/bfw_engine/engin
 
 ### alignment
 
-All external entry points converge through `BfwEngine.Api`. REST controllers are thin HTTP adapters — they call facade functions and map errors; claim and lane enforcement lives in the facade via `BfwEngine.Api.Validation`. Plugins call the same facade with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/d51_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found.
+All external entry points converge through `BfwEngine.Api`. REST controllers are thin HTTP adapters — they call facade functions and map errors; claim and lane enforcement lives in the facade via `BfwEngine.Api.Validation`. Plugins call the same facade with `skip_claims: true`. A static enforcement test (`apps/api_web/test/architecture/facade_enforcement_test.exs`) scans all `api_web` lib files and fails if any direct `Ash.*` call is found. Umbrella layer edges are checked by `apps/api_web/test/architecture/dependency_direction_test.exs`.
 
 ---
 
@@ -2029,10 +2029,10 @@ boundaries with a strict dependency direction.
 
 ```
 Core  <--  Peripheral  <--  API
+Core  <--  Plugins    -->  api_facade
 ```
 
-Core never imports from Peripheral or API. Peripheral never imports from
-API. Violations of this rule break the architecture.
+Core never imports from Peripheral, Plugins, or API. Peripheral never imports from API. Plugins may depend on Core and `api_facade`. `api_web` and `peripheral_telemetry` may depend on `engine_plugins`. Nothing depends on `api_web`. `apps/api_web/test/architecture/dependency_direction_test.exs` enforces the declared edges.
 
 ### Umbrella apps
 
@@ -2047,9 +2047,9 @@ API. Violations of this rule break the architecture.
 | `core_dmn` | Core | DMN parser, evaluator, DRG chaining, BKM invocation, boxed expressions, Decision Services, type system |
 | `peripheral_persistence` | Peripheral | Ash + AshPostgres, dual-pool (Repo + ReadRepo). Mix `evil.retention.purge` for opt-in PI-tree hard-delete (RET-D1) |
 | `peripheral_telemetry` | Peripheral | :telemetry counters, `/stats`, optional `GET /metrics` (Prometheus) |
-| `peripheral_plugins` | Peripheral | Plugin registry, in-BEAM loader |
+| `engine_plugins` | Plugins | Plugin registry, in-BEAM loader |
 | `api_auth` | API | JWT validation (HS256 + RS256/ES256 + JWKS) |
-| `api_facade` | API | `BfwEngine.Api` service-layer facade (no Phoenix dep) |
+| `api_facade` | API | `BfwEngine.Api` delegates to `BfwEngine.Api.Processes`, `ProcessInstances`, `Tasks`, `Triggers`, `TimerSchedules`, `AdhocSubprocesses`, `DataObjects`, and `Decisions` |
 | `api_web` | API | REST + GraphQL + WebSocket + Admin (merged from api_http/api_graphql/api_websocket/api_admin) |
 
 ### TypeScript packages (`packages/js/`)

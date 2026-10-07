@@ -16,6 +16,7 @@ defmodule BfwEngine.EngineFacade.FlowNodeInstances do
   defstruct get: &__MODULE__.noop_1/1,
             list_for_process_instance: &__MODULE__.noop_1/1
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_1(term()) :: {:error, :not_wired}
   def noop_1(_arg), do: {:error, :not_wired}

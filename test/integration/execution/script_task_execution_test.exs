@@ -5,13 +5,13 @@ defmodule BfwEngine.Integration.Execution.ScriptTaskExecutionTest do
   """
   use BfwEngine.ExecutionCase, async: false
 
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.ExamplePlugin
 
   defp register_test_plugin do
     Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
     Application.put_env(:core_execution, :script_dispatch, BfwEngine.Plugins.ScriptRegistryDispatch)
-    facade = Loader.facade_for_plugin("evil:test_script_task")
+    facade = FacadeBuilder.build("evil:test_script_task")
     ExamplePlugin.on_load(facade)
   end
 

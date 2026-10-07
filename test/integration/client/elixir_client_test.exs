@@ -23,8 +23,8 @@ defmodule BfwEngine.Integration.Client.ElixirClientTest do
   alias BfwEngine.Client.Graphql
   alias BfwEngine.Client.ManualTasks
   alias BfwEngine.Client.Notifications
-  alias BfwEngine.Client.ProcessInstances
   alias BfwEngine.Client.Processes
+  alias BfwEngine.Client.ProcessInstances
   alias BfwEngine.Client.UserTasks
   alias BfwEngine.Test.ClientEndpoint
 

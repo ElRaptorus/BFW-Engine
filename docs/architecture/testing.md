@@ -1,5 +1,11 @@
 # Testing
 
+## Architecture tests
+
+`apps/api_web/test/architecture/dependency_direction_test.exs` checks umbrella edges, `Mix.env` in `lib/` (allowlist: `repo_router.ex` and `bfw.gen.plugin.ex`), and forbids module suffixes `Helpers`, `Utils`, `Util`, `Common`, and `Misc`. `facade_enforcement_test.exs` rejects direct `Ash.*` calls in `api_web`.
+
+Tests reset GenServers through `ServiceReset` in each app's `test/support` (and `BfwEngine.Test.ServiceReset` for the root suite) by terminating and restarting the supervised child. They do not call reset functions on the server. Assertions use return values, persisted rows, engine events, and telemetry. `:sys.get_state` is only a discarded synchronisation barrier (`timer_start_listener_test`, `timer_start_integration_test`). Tests that `Application.put_env` are `async: false`.
+
 ## Unit tests
 
 - Per BPMN element handler: state transitions, valid/invalid payloads, contract violations, error codes.
@@ -109,7 +115,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 
 | Module | Purpose |
 |---|---|
-| `ExecutionCase` | Case template: persist adapter + event collector; sandbox checkout (or pool truncate) **before** `Scheduler.reset_state`; PI cleanup |
+| `ExecutionCase` | Case template: persist adapter + event collector; sandbox checkout (or pool truncate) **before** `ServiceReset.scheduler/0`; PI cleanup |
 | `EventCollector` + `EventCollector.Sink` | EventSink-based event accumulator for ordered sequence assertions |
 | `BpmnLoader` | Parse `.bpmn` fixture → `ModelCache.put_new/2` in one call |
 | `DbAssertions` | Ash-backed query helpers: `fetch_process_instance!/1`, `list_child_process_instance_ids/1`, `await_child_process_instance_ids/2`, `fetch_flow_node_instances/1`, `assert_pi_state!/2` (always runs `assert_execution_chain!/2` unless `verify_execution_chain: false`: non-boundary `input_token` map before input mapping, finished non-boundary `output_token` map after output mapping, timestamps, all FNIs terminal on a terminal PI, Started → optional `active→waiting` StateChanged → Finished with matching `terminal_state`; parked types plus MI/loop shells with iterations must have StateChanged), `assert_fni_count!/2`, `assert_all_fnis_state!/2`. Sandbox retries cover `OwnershipError` and `ConnectionError` after interrupted FNI writes. `fetch_process_instance/1` returns `nil` only for a genuine not-found. |
@@ -146,7 +152,7 @@ programmatic `BpmnFactory` structs and the `NoOp` persistence adapter.
 | Alias | What it runs |
 |-------|----------------|
 | `mix test.unit` | Per-app unit tests (`--exclude integration`) |
-| `mix test.examples` | Cookbook unit wrappers in `apps/peripheral_plugins/test/examples/` (acceptance i). Does not boot the engine. |
+| `mix test.examples` | Cookbook unit wrappers in `apps/engine_plugins/test/examples/` (acceptance i). Does not boot the engine. |
 | `mix test.integration` | Full `test/integration/**` suite against the started umbrella, including cookbook boot + README link-check. Excludes `@tag :release`. |
 | `mix test.release` | The prod-release inclusion test (`plugin_release_test.exs`) only. `preferred_envs` selects `MIX_ENV=test`. Sets `BFE_TEST_RELEASE=1` so the integration runner includes `:release`. Not part of `mix quality`. Packages CI runs it after the production release; that step runs `mix deps.get` first because the job fetched dependencies with `--only prod`. The test deletes `_build/prod/rel/bfw_engine` on exit. |
 | `mix test.cookbook` | Same integration runner, glob only `test/integration/plugins/**` (acceptance ii + iii). Do **not** also invoke this from `mix quality` / CI (would double-run). |
@@ -450,7 +456,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - Coverage: `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover`. Never `mix coveralls.github` / `.post`. Do not `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`.
 - One GitHub Actions cache for `deps` + `_build`; save **after compile and before coverage**. PLTs are a separate `priv/plts` cache. Packages CI must install Rust (FEEL NIF) before `mix release`.
 - There is no `Ash.set_actor` helper — use `Ash.PlugHelpers.set_actor/2`. Ash 3.33+ needs `default_string_length_count` on string attributes or the resource fails to compile.
-- `ExecutionCase`: checkout the sandbox (or truncate the pool) **before** `Scheduler.reset_state/0`.
+- `ExecutionCase`: checkout the sandbox (or truncate the pool) **before** `ServiceReset.scheduler/0`.
 - Crash analog for resume tests: `Process.exit(pid, :kill)`, not `DynamicSupervisor.terminate_child/2`. Resume roots only.
 - Do not `Agent.stop` a `start_link` process from ExUnit `on_exit`. Do not `Code.require_file` cookbook sources one path at a time.
 - `poll_pi_state` must restore the shared sandbox on retry — `unavailable` is a swallowed DB error, not a PI state.

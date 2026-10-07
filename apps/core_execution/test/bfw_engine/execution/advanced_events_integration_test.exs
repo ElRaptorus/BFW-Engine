@@ -14,6 +14,7 @@ defmodule BfwEngine.Execution.AdvancedEventsIntegrationTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Event.FlowNodeInstanceFinished
   alias BfwEngine.Types.Identity
@@ -50,8 +51,8 @@ defmodule BfwEngine.Execution.AdvancedEventsIntegrationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
-    EngineEventBus.reset_state()
+    ServiceReset.bpmn_model_cache()
+    ServiceReset.engine_event_bus()
 
     test_process = self()
     sink_name = "advanced-events-test-sink-#{System.unique_integer([:positive])}"
@@ -60,9 +61,9 @@ defmodule BfwEngine.Execution.AdvancedEventsIntegrationTest do
       EngineEventBus.register_sink(sink_name, FatalEventCapturingSink, test_process: test_process)
 
     on_exit(fn ->
-      EngineEventBus.reset_state()
+      ServiceReset.engine_event_bus()
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
 
     %{sink_name: sink_name}

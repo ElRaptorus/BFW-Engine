@@ -18,6 +18,7 @@ defmodule BfwEngine.EngineFacade.Escalations do
 
   defstruct publish: &__MODULE__.noop_publish/1
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_publish(term()) :: {:error, :not_wired}
   def noop_publish(_escalation_code), do: {:error, :not_wired}

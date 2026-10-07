@@ -16,10 +16,12 @@ defmodule BfwEngine.EngineFacade.ManualTasks do
   defstruct confirm: &__MODULE__.noop_2/2,
             cancel: &__MODULE__.noop_3/3
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_2(term(), term()) :: {:error, :not_wired}
   def noop_2(_flow_node_instance_id, _identity), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_3(term(), term(), term()) :: {:error, :not_wired}
   def noop_3(_flow_node_instance_id, _reason, _identity), do: {:error, :not_wired}

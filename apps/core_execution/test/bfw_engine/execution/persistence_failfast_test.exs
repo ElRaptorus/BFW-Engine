@@ -13,6 +13,7 @@ defmodule BfwEngine.Execution.PersistenceFailfastTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
 
@@ -170,14 +171,14 @@ defmodule BfwEngine.Execution.PersistenceFailfastTest do
   end
 
   setup do
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
     previous_level = Logger.level()
     Logger.configure(level: :info)
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :persistence_retry_max_attempts)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
       Logger.configure(level: previous_level)
     end)
   end

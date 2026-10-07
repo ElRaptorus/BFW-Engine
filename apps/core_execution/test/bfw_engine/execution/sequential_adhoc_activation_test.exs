@@ -10,8 +10,8 @@ defmodule BfwEngine.Execution.SequentialAdhocActivationTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution
-  alias BfwEngine.Execution.CalledElementResolver
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
@@ -44,9 +44,13 @@ defmodule BfwEngine.Execution.SequentialAdhocActivationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver.NoOp)
-    ModelCache.reset_state()
-    CalledElementResolver.NoOp.reset()
+    Application.put_env(
+      :core_execution,
+      :called_element_resolver,
+      BfwEngine.Execution.CalledElementResolver.NoOp
+    )
+
+    ServiceReset.bpmn_model_cache()
 
     sink_name = "test:seq-adhoc-#{inspect(self())}"
     :ok = EngineEventBus.register_sink(sink_name, ActivationSink, test_pid: self())
@@ -54,8 +58,7 @@ defmodule BfwEngine.Execution.SequentialAdhocActivationTest do
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :called_element_resolver)
-      ModelCache.reset_state()
-      CalledElementResolver.NoOp.reset()
+      ServiceReset.bpmn_model_cache()
     end)
 
     :ok

@@ -125,15 +125,6 @@ defmodule BfwEngine.Timers.Scheduler do
     GenServer.call(server, {:fire_now_for_target, target})
   end
 
-  @doc """
-  Resets internal state. Deletes all ETS entries and demonitors all PIDs.
-  Intended for test isolation only.
-  """
-  @spec reset_state(GenServer.server()) :: :ok
-  def reset_state(server \\ __MODULE__) do
-    GenServer.call(server, :reset_state)
-  end
-
   # --- Server Callbacks ---
 
   @impl true
@@ -209,18 +200,6 @@ defmodule BfwEngine.Timers.Scheduler do
   def handle_call({:fire_now_for_target, target}, _from, state) do
     count = do_fire_now_for_target(state, target)
     {:reply, count, state}
-  end
-
-  @impl true
-  def handle_call(:reset_state, _from, state) do
-    :ets.delete_all_objects(state.primary)
-    :ets.delete_all_objects(state.target_index)
-
-    Enum.each(state.monitored_pids, fn {_pid, monitor_ref} ->
-      Process.demonitor(monitor_ref, [:flush])
-    end)
-
-    {:reply, :ok, %{state | monitored_pids: %{}}}
   end
 
   @impl true

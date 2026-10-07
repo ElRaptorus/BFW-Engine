@@ -13,7 +13,7 @@ defmodule BfwEngine.Load.ExecutionDurabilityLoadTest do
   use BfwEngine.ExecutionCase, async: false
 
   alias BfwEngine.Events.EngineEventBus
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.AutoFinisher
   alias BfwEngine.Test.CompletionCounter
   alias BfwEngine.Test.DbAssertions
@@ -62,7 +62,7 @@ defmodule BfwEngine.Load.ExecutionDurabilityLoadTest do
   ]
 
   setup do
-    facade = Loader.facade_for_plugin("evil:test_load")
+    facade = FacadeBuilder.build("evil:test_load")
     ExamplePlugin.on_load(facade)
 
     EngineEventBus.register_sink(

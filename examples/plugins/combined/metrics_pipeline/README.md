@@ -39,7 +39,7 @@ service task, which the engine uses to dispatch to the registered handler.
 ## Tests
 
 ```bash
-mix test apps/peripheral_plugins/test/examples/metrics_pipeline_from_examples_test.exs
+mix test apps/engine_plugins/test/examples/metrics_pipeline_from_examples_test.exs
 ```
 
 Or from the project root, if your Mix project includes `examples/` in its test paths:

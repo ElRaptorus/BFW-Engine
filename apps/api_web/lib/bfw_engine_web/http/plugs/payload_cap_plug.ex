@@ -7,9 +7,9 @@ defmodule BfwEngineWeb.Http.Plugs.PayloadCapPlug do
   violation, halts the conn with HTTP 413 and a structured JSON error
   body per `docs/architecture/api.md` §10.1.1.
 
-  This plug is a convenience — the authoritative enforcement lives in the
-  PI Facade (core domain). Inbound requests that pass this plug will be
-  checked again by the Facade before any engine state changes.
+  This plug is a convenience — the authoritative enforcement lives in
+  `BfwEngine.Execution.PayloadCap`. Inbound requests that pass this plug
+  are checked again before any engine state changes.
 
   `PUT /manual-tasks/...` is not capped. Confirm carries no payload, and a
   body that happens to contain `payload` or `values` is ignored by the

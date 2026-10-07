@@ -126,7 +126,7 @@ def on_load(facade) do
 end
 ```
 
-…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugin.Registry.register/2` directly — the registry is private to `peripheral_plugins`; only the engine-injected facade may write to it.
+…and are dispatched identically to the built-in sinks. Plugins MUST NOT call `BfwEngine.Plugin.Registry.register/2` directly — the registry is private to `engine_plugins`; only the engine-injected facade may write to it.
 
 ## Lifecycle Fan-out
 

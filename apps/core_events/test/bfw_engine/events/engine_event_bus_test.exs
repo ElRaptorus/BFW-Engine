@@ -2,10 +2,11 @@ defmodule BfwEngine.Events.EngineEventBusTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Events.ServiceReset
   alias BfwEngine.Types.Event
 
   setup do
-    EngineEventBus.reset_state()
+    ServiceReset.engine_event_bus()
     :ok
   end
 
@@ -172,7 +173,7 @@ defmodule BfwEngine.Events.EngineEventBusTest do
       assert :ok = EngineEventBus.publish(make_event())
       assert_receive {:sink_received, %Event.EngineStarted{}}, 1_000
 
-      assert :ok = EngineEventBus.reset_state()
+      assert :ok = ServiceReset.engine_event_bus()
 
       assert :ok = EngineEventBus.publish(make_event())
       refute_receive {:sink_received, _}, 200
@@ -182,7 +183,7 @@ defmodule BfwEngine.Events.EngineEventBusTest do
       :ok = EngineEventBus.register_sink("to-reset", BfwEngine.Test.TestSink, test_pid: self())
       assert length(EngineEventBus.list_sinks()) == 1
 
-      assert :ok = EngineEventBus.reset_state()
+      assert :ok = ServiceReset.engine_event_bus()
       assert EngineEventBus.list_sinks() == []
     end
 
@@ -195,7 +196,7 @@ defmodule BfwEngine.Events.EngineEventBusTest do
       Process.sleep(20)
 
       # Registry entry was cleared by the supervisor; reset_state must still work.
-      assert :ok = EngineEventBus.reset_state()
+      assert :ok = ServiceReset.engine_event_bus()
       assert EngineEventBus.list_sinks() == []
     end
   end

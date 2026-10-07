@@ -8,6 +8,7 @@ defmodule BfwEngine.Execution.PayloadCapEnforcementTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.ServiceTaskDispatch
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
@@ -69,13 +70,13 @@ defmodule BfwEngine.Execution.PayloadCapEnforcementTest do
 
     Application.put_env(:core_execution, :service_task_dispatch, TestDispatch)
     Application.put_env(:core_execution, :token_max_bytes, @small_cap)
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :service_task_dispatch)
       Application.delete_env(:core_execution, :token_max_bytes)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
   end
 

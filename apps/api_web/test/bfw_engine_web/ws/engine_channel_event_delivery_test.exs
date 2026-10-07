@@ -9,16 +9,14 @@ defmodule BfwEngineWeb.Ws.EngineChannelEventDeliveryTest do
   import Plug.Test
   import Phoenix.ChannelTest
 
-  alias BfwEngine.Auth.ProviderRegistry
-  alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Persistence.ReadRepo
   alias BfwEngine.Persistence.Repo
-  alias BfwEngine.Plugins.Registry, as: PluginRegistry
   alias BfwEngine.Types.Identity
   alias BfwEngineWeb.Http.Endpoint
+  alias BfwEngineWeb.ServiceReset
   alias BfwEngineWeb.Ws.EngineChannel
   alias BfwEngineWeb.Ws.Sinks.WebSocket, as: WebSocketSink
   alias BfwEngineWeb.Ws.UserSocket
@@ -29,14 +27,14 @@ defmodule BfwEngineWeb.Ws.EngineChannelEventDeliveryTest do
   @fixtures_dir Path.expand("../../../../../test/fixtures/bpmns", __DIR__)
 
   setup do
-    EngineEventBus.reset_state()
-    MessageSubscriptions.reset_state()
+    ServiceReset.engine_event_bus()
+    ServiceReset.message_subscriptions()
     MessageSubscriptions.mark_ready()
-    SignalSubscriptions.reset_state()
+    ServiceReset.signal_subscriptions()
     SignalSubscriptions.mark_ready()
-    PluginRegistry.reset_state()
-    ProviderRegistry.reset_to_default()
-    ModelCache.reset_state()
+    ServiceReset.plugin_registry()
+    ServiceReset.provider_registry()
+    ServiceReset.bpmn_model_cache()
     terminate_all_process_instances()
     ensure_test_secret()
 
@@ -66,8 +64,8 @@ defmodule BfwEngineWeb.Ws.EngineChannelEventDeliveryTest do
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :decision_resolver)
-      ProviderRegistry.reset_to_default()
-      EngineEventBus.reset_state()
+      ServiceReset.provider_registry()
+      ServiceReset.engine_event_bus()
     end)
 
     :ok

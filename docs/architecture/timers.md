@@ -52,7 +52,6 @@ GenServer managing all in-memory timers via two ETS tables.
 | `cancel_all_for_target/1` | `target` (PID or atom) | `:ok` | Cancel all timers for a given target |
 | `fire_now_for_target/2` | `target` (PID), optional `server` | `non_neg_integer()` | Immediately fire all pending timers for the target; returns count fired |
 | `armed_count/0` | — | `non_neg_integer()` | Number of currently armed timers |
-| `reset_state/0` | — | `:ok` | Clear all timers (test helper) |
 
 ### ETS Layout
 

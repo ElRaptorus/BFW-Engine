@@ -22,7 +22,7 @@ The engine is an Elixir umbrella project with **14 OTP applications** organized 
 | Layer | Applications | Purpose |
 |-------|-------------|---------|
 | **Core** | `core_types`, `core_execution`, `core_expressions`, `core_bpmn`, `core_dmn`, `core_timers`, `core_events` | Domain logic, runtime, FEEL evaluation, BPMN parsing, DMN evaluation |
-| **Peripheral** | `peripheral_persistence`, `peripheral_telemetry`, `peripheral_plugins` | Database, metrics, plugin registry |
+| **Peripheral** | `peripheral_persistence`, `peripheral_telemetry`, `engine_plugins` | Database, metrics, plugin registry |
 | **API** | `api_auth`, `api_facade`, `api_web` | JWT, service-layer facade, REST + GraphQL + Channels + Swagger UI |
 | **SDK** | `engine_sdk` | Public behaviours and types for plugin authors |
 

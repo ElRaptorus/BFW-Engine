@@ -55,7 +55,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Timers.ISO8601
@@ -462,7 +462,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
       flow_node_id: flow_node.id,
       kind: :boundary,
       root_process_instance_id: context.root_process_instance_id,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end
@@ -498,7 +498,6 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   # Private: timer spec resolution
   # -------------------------------------------------------------------
 
-  @doc false
   @spec resolve_timer_spec(
           :date | :duration | :cycle,
           String.t(),
@@ -506,7 +505,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
           HandlerContext.t(),
           DateTime.t()
         ) :: {:ok, DateTime.t()} | {:ok, {:cycle, ISO8601.cycle_spec()}} | {:error, term()}
-  def resolve_timer_spec(kind, spec_string, token_payload, context, reference_time) do
+  defp resolve_timer_spec(kind, spec_string, token_payload, context, reference_time) do
     feel_context = FeelContext.from_handler_context(context, token_payload)
 
     case try_feel_evaluation(spec_string, feel_context) do

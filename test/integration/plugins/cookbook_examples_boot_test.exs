@@ -7,7 +7,7 @@ defmodule BfwEngine.Integration.CookbookExamplesBootTest do
   use BfwEngine.IntegrationCase, async: false
 
   alias BfwEngine.Events.EngineEventBus
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.CookbookPluginHarness
   alias BfwEngine.Types.Event
 
@@ -61,7 +61,7 @@ defmodule BfwEngine.Integration.CookbookExamplesBootTest do
     row = CookbookPluginHarness.sse_row()
     CookbookPluginHarness.require_example_files(row)
 
-    facade = Loader.facade_for_plugin("cookbook-sse-stream")
+    facade = FacadeBuilder.build("cookbook-sse-stream")
     assert :ok = Examples.EventSinks.Sse.SsePlugin.on_load(facade)
 
     stream_task =

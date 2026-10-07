@@ -35,6 +35,11 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
   require Logger
 
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.JsonSafe
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.DataObjectWriteIntent
@@ -44,7 +49,6 @@ defmodule BfwEngine.Execution.FniLifecycle do
   alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
-  alias BfwEngine.Execution.ProcessInstance.Helpers
   alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Event
 
@@ -173,12 +177,12 @@ defmodule BfwEngine.Execution.FniLifecycle do
         root_process_instance_id \\ nil,
         iteration_context \\ []
       ) do
-    error_info = Helpers.to_json_safe(normalize_error_info(reason))
+    error_info = JsonSafe.convert(normalize_error_info(reason))
     adapter = PersistenceAdapter.adapter()
 
     merged_type_properties =
       existing_type_properties
-      |> Helpers.stringify_keys()
+      |> stringify_keys()
       |> Map.merge(%{"error" => true})
 
     result =
@@ -248,8 +252,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
     merged_type_properties =
       existing_type_properties
-      |> Helpers.stringify_keys()
-      |> Map.merge(Helpers.stringify_keys(%{aborted: true, reason: reason}))
+      |> stringify_keys()
+      |> Map.merge(stringify_keys(%{aborted: true, reason: reason}))
 
     result =
       with_retry_protected_from_shutdown(
@@ -314,12 +318,12 @@ defmodule BfwEngine.Execution.FniLifecycle do
         root_process_instance_id \\ nil,
         iteration_context \\ []
       ) do
-    error_info = Helpers.to_json_safe(normalize_error_info(reason))
+    error_info = JsonSafe.convert(normalize_error_info(reason))
     adapter = PersistenceAdapter.adapter()
 
     merged_type_properties =
       existing_type_properties
-      |> Helpers.stringify_keys()
+      |> stringify_keys()
       |> Map.merge(%{"error" => true})
 
     result =
@@ -389,8 +393,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
     merged_type_properties =
       existing_type_properties
-      |> Helpers.stringify_keys()
-      |> Map.merge(Helpers.stringify_keys(%{interrupted: true, reason: reason}))
+      |> stringify_keys()
+      |> Map.merge(stringify_keys(%{interrupted: true, reason: reason}))
 
     result =
       with_retry_protected_from_shutdown(
@@ -504,7 +508,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
          updated_cache,
          intents
        ) do
-    stringified_type_properties = Helpers.stringify_keys(type_properties)
+    stringified_type_properties = stringify_keys(type_properties)
 
     fni_changes = %{
       state: @fni_state_error,
@@ -574,7 +578,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
          intents,
          opts
        ) do
-    stringified_type_properties = Helpers.stringify_keys(type_properties)
+    stringified_type_properties = stringify_keys(type_properties)
 
     fni_changes = %{
       state: @fni_state_finished,
@@ -663,7 +667,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
     changes = %{
       state: @fni_state_waiting,
-      type_properties: Helpers.stringify_keys(type_properties)
+      type_properties: stringify_keys(type_properties)
     }
 
     case with_retry_protected_from_shutdown(
@@ -743,7 +747,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
 
     event_type =
       if flow_node do
-        Helpers.extract_event_type(flow_node)
+        FlowNodeLookup.extract_event_type(flow_node)
       end
 
     was_waiting = Keyword.get(emit_opts, :was_waiting, terminal_state == :finished)
@@ -760,7 +764,7 @@ defmodule BfwEngine.Execution.FniLifecycle do
         terminal_state: terminal_state,
         triggerer_flow_node_instance_id: triggerer_fni_id,
         type_properties: type_properties,
-        error_info: Helpers.sanitize_error_info(error_info),
+        error_info: ErrorInfo.sanitize(error_info),
         multi_instance_id: Keyword.get(emit_opts, :multi_instance_id),
         iteration_index: Keyword.get(emit_opts, :iteration_index),
         occurred_at: DateTime.utc_now()
@@ -808,10 +812,20 @@ defmodule BfwEngine.Execution.FniLifecycle do
   defp resolve_lane_name(nil, _flow_node), do: nil
 
   defp resolve_lane_name(process_model, flow_node),
-    do: Helpers.resolve_lane_name(process_model, flow_node)
+    do: LaneResolution.resolve_lane_name(process_model, flow_node)
 
   defp normalize_error_info(%{"error_code" => _, "message" => _} = already_normalized),
     do: already_normalized
 
-  defp normalize_error_info(reason), do: Helpers.build_error_info(reason)
+  defp normalize_error_info(reason), do: ErrorInfo.build(reason)
+
+  @spec stringify_keys(map() | nil) :: map() | nil
+  defp stringify_keys(nil), do: nil
+
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {k, v} when is_atom(k) -> {Atom.to_string(k), v}
+      {k, v} -> {k, v}
+    end)
+  end
 end

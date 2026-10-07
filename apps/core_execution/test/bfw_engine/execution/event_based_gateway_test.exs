@@ -15,9 +15,9 @@ defmodule BfwEngine.Execution.EventBasedGatewayTest do
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Execution.TestSupport.SchedulerWait
-  alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Identity
 
   @version_id "00000000-0000-0000-0000-ebg000000001"
@@ -29,17 +29,17 @@ defmodule BfwEngine.Execution.EventBasedGatewayTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
-    Scheduler.reset_state()
-    MessageSubscriptions.reset_state()
-    SignalSubscriptions.reset_state()
+    ServiceReset.bpmn_model_cache()
+    ServiceReset.scheduler()
+    ServiceReset.message_subscriptions()
+    ServiceReset.signal_subscriptions()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
-      Scheduler.reset_state()
-      MessageSubscriptions.reset_state()
-      SignalSubscriptions.reset_state()
+      ServiceReset.bpmn_model_cache()
+      ServiceReset.scheduler()
+      ServiceReset.message_subscriptions()
+      ServiceReset.signal_subscriptions()
     end)
   end
 

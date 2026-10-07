@@ -31,7 +31,6 @@ defmodule BfwEngineWeb.Graphql.ModelResolvers do
   import Absinthe.Resolution.Helpers, only: [on_load: 2]
 
   alias BfwEngine.BPMN.Model
-  alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Persistence.Resources.ProcessInstance
   alias BfwEngine.Persistence.Resources.ProcessVersion
 
@@ -67,17 +66,8 @@ defmodule BfwEngineWeb.Graphql.ModelResolvers do
     Map.from_struct(type_data)
   end
 
-  @doc """
-  Flattens a `%Model.Process{}` into a GraphQL-ready map: the nested
-  `flowNodes` tree plus the flat `allFlowNodes` index (D-2 = C).
-
-  When a `%Model.Definitions{}` is supplied, its catalogs (`messages`,
-  `signals`, `errors`, `escalations`, `linter_scores`) and `definitions_id`
-  are copied onto the result — those live on `Definitions`, not `Process`,
-  but are exposed on `ProcessModel` so clients do not need a second type.
-  """
-  @spec to_graphql_process_model(Model.Process.t(), Model.Definitions.t() | nil) :: map()
-  def to_graphql_process_model(%Model.Process{} = process, definitions \\ nil) do
+  @spec to_graphql_process_model(Model.Process.t(), Model.Definitions.t()) :: map()
+  defp to_graphql_process_model(%Model.Process{} = process, definitions) do
     process
     |> Map.from_struct()
     |> Map.drop([:inclusive_join_analyses, :complex_region_analyses])
@@ -116,15 +106,10 @@ defmodule BfwEngineWeb.Graphql.ModelResolvers do
     end)
   end
 
-  @doc """
-  Selects the single process to expose as `ProcessModel` from a
-  `Definitions.t()`. Ambiguity rule (WP-3.1): exactly one executable
-  process is required; zero or multiple is an error.
-  """
   @spec select_process(Model.Definitions.t()) ::
           {:ok, Model.Process.t()}
           | {:error, :no_executable_process | :multiple_executable_processes}
-  def select_process(%Model.Definitions{processes: processes}) do
+  defp select_process(%Model.Definitions{processes: processes}) do
     case Enum.filter(processes, & &1.is_executable) do
       [process] -> {:ok, process}
       [] -> {:error, :no_executable_process}
@@ -237,34 +222,6 @@ defmodule BfwEngineWeb.Graphql.ModelResolvers do
 
   defp find_flow_node_by_id({:error, :not_found}, _flow_node_id), do: {:ok, nil}
   defp find_flow_node_by_id({:error, reason}, _flow_node_id), do: {:error, reason}
-
-  @doc """
-  Non-Dataloader entry point used by tests and by resolvers that already
-  hold a `process_version_id`. Delegates straight to `ModelCache.fetch/1`.
-
-  No `@spec` is declared here: the success map shape is the flattened,
-  struct-dependent output of `to_graphql_process_model/1`, and the error
-  union additionally includes whatever `ModelCache.fetch/1` itself can
-  surface (e.g. `{:load_task_crashed, reason}`) — a broad `map()`/`term()`
-  contract would be flagged as an `:underspecs` `contract_supertype` by
-  Dialyzer, and a fully precise one would duplicate `ModelCache`'s own spec.
-  """
-  def load_process_model(process_version_id) do
-    with {:ok, definitions} <- ModelCache.fetch(process_version_id),
-         {:ok, process} <- select_process(definitions) do
-      {:ok, to_graphql_process_model(process, definitions)}
-    end
-  end
-
-  defp attach_definition_catalogs(process_model, nil) do
-    process_model
-    |> Map.put(:definitions_id, nil)
-    |> Map.put(:messages, [])
-    |> Map.put(:signals, [])
-    |> Map.put(:errors, [])
-    |> Map.put(:escalations, [])
-    |> Map.put(:linter_scores, [])
-  end
 
   defp attach_definition_catalogs(process_model, %Model.Definitions{} = definitions) do
     process_model

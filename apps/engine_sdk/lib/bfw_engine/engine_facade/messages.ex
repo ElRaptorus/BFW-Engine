@@ -15,6 +15,7 @@ defmodule BfwEngine.EngineFacade.Messages do
 
   defstruct publish: &__MODULE__.noop_publish/3
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_publish(term(), term(), term()) :: {:error, :not_wired}
   def noop_publish(_message_name, _correlation_value, _payload), do: {:error, :not_wired}

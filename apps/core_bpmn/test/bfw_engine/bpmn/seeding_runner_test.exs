@@ -5,6 +5,7 @@ defmodule BfwEngine.BPMN.SeedingRunnerTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.BPMN.SeedingRunner
+  alias BfwEngine.BPMN.ServiceReset
 
   @valid_bpmn """
   <?xml version="1.0" encoding="UTF-8"?>
@@ -30,7 +31,7 @@ defmodule BfwEngine.BPMN.SeedingRunnerTest do
   """
 
   setup do
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
     previous_level = Logger.level()
     Logger.configure(level: :debug)
 

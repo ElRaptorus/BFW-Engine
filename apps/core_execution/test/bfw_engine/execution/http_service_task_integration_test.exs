@@ -10,6 +10,7 @@ defmodule BfwEngine.Execution.HttpServiceTaskIntegrationTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
 
@@ -34,9 +35,9 @@ defmodule BfwEngine.Execution.HttpServiceTaskIntegrationTest do
       Plug.Conn.send_resp(connection, 200, Jason.encode!(%{"default" => true}))
     end)
 
-    previous_http_options = Application.get_env(:peripheral_plugins, :http_req_options)
+    previous_http_options = Application.get_env(:engine_plugins, :http_req_options)
 
-    Application.put_env(:peripheral_plugins, :http_req_options,
+    Application.put_env(:engine_plugins, :http_req_options,
       plug: {Req.Test, __MODULE__},
       retry: false
     )
@@ -49,20 +50,20 @@ defmodule BfwEngine.Execution.HttpServiceTaskIntegrationTest do
 
     Application.put_env(:core_execution, :service_task_dispatch, HttpServiceTaskDispatch)
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     on_exit(fn ->
       Req.Test.set_req_test_to_private()
 
       if previous_http_options do
-        Application.put_env(:peripheral_plugins, :http_req_options, previous_http_options)
+        Application.put_env(:engine_plugins, :http_req_options, previous_http_options)
       else
-        Application.delete_env(:peripheral_plugins, :http_req_options)
+        Application.delete_env(:engine_plugins, :http_req_options)
       end
 
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :service_task_dispatch)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
 
     :ok
@@ -120,61 +121,6 @@ defmodule BfwEngine.Execution.HttpServiceTaskIntegrationTest do
     on_exit(fn -> :telemetry.detach("http-fni-#{label}-#{inspect(reference)}") end)
 
     reference
-  end
-
-  defp poll_service_task_fni_state(process_instance_pid, expected_state, timeout) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    do_poll_service_task_fni_state(process_instance_pid, expected_state, deadline)
-  end
-
-  defp do_poll_service_task_fni_state(process_instance_pid, expected_state, deadline) do
-    if Process.alive?(process_instance_pid) do
-      poll_service_task_fni_state_alive(process_instance_pid, expected_state, deadline)
-    else
-      {:error, :process_dead}
-    end
-  end
-
-  defp poll_service_task_fni_state_alive(process_instance_pid, expected_state, deadline) do
-    {:running, process_instance_state} = :sys.get_state(process_instance_pid)
-
-    service_task_entry =
-      Enum.find_value(process_instance_state.flow_node_instance_states, fn {_id, entry} ->
-        if entry.flow_node_type == :service_task, do: entry, else: nil
-      end)
-
-    case service_task_entry do
-      %{state: ^expected_state} = entry ->
-        {:ok, entry}
-
-      _ ->
-        retry_service_task_fni_poll(
-          process_instance_pid,
-          expected_state,
-          deadline,
-          service_task_entry
-        )
-    end
-  end
-
-  defp retry_service_task_fni_poll(
-         process_instance_pid,
-         expected_state,
-         deadline,
-         service_task_entry
-       ) do
-    if System.monotonic_time(:millisecond) >= deadline do
-      current_state =
-        case service_task_entry do
-          nil -> :missing
-          %{state: state} -> state
-        end
-
-      {:error, {:timeout, current_state}}
-    else
-      Process.sleep(25)
-      do_poll_service_task_fni_state(process_instance_pid, expected_state, deadline)
-    end
   end
 
   describe "HTTP Service Task — successful execution (async)" do
@@ -255,15 +201,15 @@ defmodule BfwEngine.Execution.HttpServiceTaskIntegrationTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_reference = attach_pi_telemetry("http-waiting-park")
+      service_task_reference = attach_fni_telemetry("http-waiting-park")
 
-      assert {:ok, process_instance_pid} = start_process_instance()
+      assert {:ok, _process_instance_pid} = start_process_instance()
 
       assert_receive :http_request_started, 2_000
 
-      assert {:ok, service_task_entry} =
-               poll_service_task_fni_state(process_instance_pid, :waiting, 500)
-
-      assert service_task_entry.type_properties[:async] == true
+      assert_receive {:fni_state_change, ^service_task_reference,
+                      %{flow_node_type: :service_task, new_state: :waiting}},
+                     500
 
       assert_receive {:pi_state_change, ^process_instance_reference, :finished, _metadata}, 2_000
     end

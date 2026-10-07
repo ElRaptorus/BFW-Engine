@@ -20,7 +20,7 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
@@ -351,7 +351,7 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
       flow_node_type: flow_node.type,
       loop_type: "standard_loop",
       total_iterations: nil,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end
@@ -367,7 +367,7 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
       total_iterations: nil,
       completed_iterations: completed,
       early_break: early_break,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

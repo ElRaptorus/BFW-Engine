@@ -24,8 +24,8 @@ defmodule BfwEngine.DMN.Model.DecisionTable do
   Deploy-time rule index for O(1) candidate filtering on equality inputs.
 
   Shape: `%{column_index => column_index_entry()}`.
-  Built by `Precompiler.build_rule_index/1` for columns where all non-dash
-  entries are simple equality literals. `nil` when no columns are indexable.
+  Built at deploy time for columns where all non-dash entries are simple
+  equality literals. `nil` when no columns are indexable.
   """
   @type rule_index :: %{non_neg_integer() => column_index_entry()} | nil
 

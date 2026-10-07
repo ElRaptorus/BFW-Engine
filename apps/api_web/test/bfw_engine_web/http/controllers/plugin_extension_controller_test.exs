@@ -38,22 +38,22 @@ defmodule BfwEngineWeb.Http.PluginExtensionControllerTest do
   import Plug.Test
   import Plug.Conn
 
-  alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.Plugins.Registry
   alias BfwEngine.Test.HttpAuthHelper
   alias BfwEngineWeb.Http.PluginExtensionControllerTest.EchoPlug
+  alias BfwEngineWeb.ServiceReset
 
   @router BfwEngineWeb.Http.Router
 
   setup do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
 
     case Registry.start_link() do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
     end
 
-    Registry.reset_state()
+    ServiceReset.plugin_registry()
     :ok = Registry.register_plugin("echo-test", __MODULE__)
 
     :ok =
@@ -67,7 +67,7 @@ defmodule BfwEngineWeb.Http.PluginExtensionControllerTest do
 
     on_exit(fn ->
       Application.put_env(:api_auth, :auth_disabled, previous)
-      Registry.reset_state()
+      ServiceReset.plugin_registry()
     end)
 
     :ok

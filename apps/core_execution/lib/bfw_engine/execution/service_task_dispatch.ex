@@ -3,7 +3,7 @@ defmodule BfwEngine.Execution.ServiceTaskDispatch do
   Behaviour defining how Service Tasks look up their plugin handler.
 
   `core_execution` defines this contract; the actual implementation
-  lives in `peripheral_plugins` as `RegistryDispatch` and is wired via
+  lives in `engine_plugins` as `RegistryDispatch` and is wired via
   application config (`:core_execution, :service_task_dispatch`). This
   preserves the dependency direction (Core never imports Peripheral).
   """

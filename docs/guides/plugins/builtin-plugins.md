@@ -10,7 +10,7 @@ There is no `bfw:postgres_persistence` plugin. Execution persistence is `BfwEngi
 
 **Implementation:** `implementation="http"`  
 **Module:** `BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`  
-**Location:** `apps/peripheral_plugins/`
+**Location:** `apps/engine_plugins/`
 
 Performs asynchronous HTTP requests using the `Req` library (all Service Task handlers are async-only). `handle_enter/3` validates inputs, spawns a Task for the HTTP call, and returns `{:async, flow_node_instance_id}`. On success, the Task calls `finish_async_service_task`; on failure, `fail_async_service_task`.
 

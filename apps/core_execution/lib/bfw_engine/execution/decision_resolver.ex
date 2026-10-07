@@ -17,53 +17,17 @@ defmodule BfwEngine.Execution.DecisionResolver do
 end
 
 defmodule BfwEngine.Execution.DecisionResolver.NoOp do
-  @moduledoc """
-  Stub resolver for tests.
-
-  Stores mappings in persistent_term so tests can configure
-  which version ID is returned for a given decision definition ID.
-  """
+  @moduledoc "Stub resolver that always returns a fixed decision version."
 
   @behaviour BfwEngine.Execution.DecisionResolver
 
   @impl true
   def resolve_latest_version(decision_definition_id) do
-    case :persistent_term.get({__MODULE__, :error, decision_definition_id}, nil) do
-      nil ->
-        version_id =
-          :persistent_term.get(
-            {__MODULE__, :version, decision_definition_id},
-            "test-dmn-version-id"
-          )
-
-        {:ok,
-         %{
-           decision_version_id: version_id,
-           version: "1.0.0",
-           decision_definition_id: decision_definition_id
-         }}
-
-      error_reason ->
-        {:error, error_reason}
-    end
-  end
-
-  @doc "Configure the version ID returned for a given decision definition ID."
-  def set_version(decision_definition_id, version_id) do
-    :persistent_term.put({__MODULE__, :version, decision_definition_id}, version_id)
-  end
-
-  @doc "Configure an error returned for a given decision definition ID."
-  def set_error(decision_definition_id, error_reason) do
-    :persistent_term.put({__MODULE__, :error, decision_definition_id}, error_reason)
-  end
-
-  @doc "Clear all configured version mappings and error overrides."
-  def reset do
-    :persistent_term.get()
-    |> Enum.each(fn
-      {{__MODULE__, _kind, _key}, _val} = {key, _} -> :persistent_term.erase(key)
-      _ -> :ok
-    end)
+    {:ok,
+     %{
+       decision_version_id: "test-dmn-version-id",
+       version: "1.0.0",
+       decision_definition_id: decision_definition_id
+     }}
   end
 end

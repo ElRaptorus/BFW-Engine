@@ -16,14 +16,14 @@ Docker and release layout: [shipping.md](./shipping.md). Operator recipes:
 
 | App / key path | Purpose |
 |---|---|
-| `config :core_execution, :service_task_dispatch` | Module implementing `BfwEngine.Execution.ServiceTaskDispatch` behaviour. Default **`BfwEngine.Plugins.RegistryDispatch`** (wired in `config/config.exs`) resolves `implementation` handlers from the plugin registry in `peripheral_plugins`. |
+| `config :core_execution, :service_task_dispatch` | Module implementing `BfwEngine.Execution.ServiceTaskDispatch` behaviour. Default **`BfwEngine.Plugins.RegistryDispatch`** (wired in `config/config.exs`) resolves `implementation` handlers from the plugin registry in `engine_plugins`. |
 | `config :core_execution, :persistence_adapter` | Module implementing `BfwEngine.Execution.Persistence` behaviour. Default **`BfwEngine.Persistence.ExecutionAdapter`** (production). Set to `BfwEngine.Execution.Persistence.NoOp` in test environments. Used by `ResumeRunner` at boot and by runtime PI/FNI persistence. |
 | `config :core_bpmn, :model_cache_loader` | MFA tuple `{Module, :function}` called by `ModelCache.fetch/1` on a cache miss. The function receives a `process_version_id` (string) and must return `{:ok, bpmn_xml}` or `{:error, :not_found}`. Configured as `{BfwEngine.Persistence.ExecutionAdapter, :load_bpmn_xml}` in `config.exs` to auto-heal the cache from the `process_versions` DB table. |
 | `config :core_bpmn, :seeding_persist_fn` | Optional **callable** (function capture or `&Mod.fun/4`-style) invoked as `persist_fn.(process, bpmn_xml, version_id)` after parse/validate/(optional) linter gate — must return `{:ok, _}` or `{:error, reason}`. Wired at boot by `peripheral_persistence` (or tests) to write `processes` / `process_versions` rows. When `nil`, seeding only populates `ModelCache` (no catalog writes). |
 | `config :core_bpmn, :linter_gate` | Keyword list: `:rules` (JSON string from `BFE_LINTER_GATE`), `:skip_seeding` (boolean from `BFE_LINTER_GATE_SKIP_SEEDING`). See [Linter-score deploy gate](#linter-score-deploy-gate). |
-| `config :peripheral_plugins, :inbeam_apps` | OTP app atoms to load as in-BEAM plugins (from `BFE_PLUGINS_INBEAM`). |
-| `config :peripheral_plugins, :include_plugins` | Include-only list of plugin names (from `BFE_PLUGINS_INCLUDE`); when non-empty, only listed names load. |
-| `config :peripheral_plugins, :exclude_plugins` | Exclude list of plugin names (from `BFE_PLUGINS_EXCLUDE`); **exclude wins** over include on the same name. |
+| `config :engine_plugins, :inbeam_apps` | OTP app atoms to load as in-BEAM plugins (from `BFE_PLUGINS_INBEAM`). |
+| `config :engine_plugins, :include_plugins` | Include-only list of plugin names (from `BFE_PLUGINS_INCLUDE`); when non-empty, only listed names load. |
+| `config :engine_plugins, :exclude_plugins` | Exclude list of plugin names (from `BFE_PLUGINS_EXCLUDE`); **exclude wins** over include on the same name. |
 | `config :ash, :default_string_length_count` | Required since Ash 3.33. Set to `:codepoints` in `config/config.exs` so `min_length` / `max_length` match PostgreSQL `LENGTH`. Compile fails without it. |
 
 Notable env vars:

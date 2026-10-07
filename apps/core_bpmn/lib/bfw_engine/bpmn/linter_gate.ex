@@ -43,15 +43,6 @@ defmodule BfwEngine.BPMN.LinterGate do
     end
   end
 
-  @doc """
-  Run the linter gate with an explicit config map (useful for testing
-  without relying on application env).
-  """
-  @spec check(Definitions.t(), map()) :: {:ok, :passed} | {:error, [failure()]}
-  def check(%Definitions{} = definitions, config) when is_map(config) do
-    if config == %{}, do: {:ok, :passed}, else: run(definitions, config)
-  end
-
   defp run(definitions, config) do
     failures =
       Enum.flat_map(config, fn {ruleset_id, ruleset_config} ->

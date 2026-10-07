@@ -46,10 +46,6 @@ defmodule BfwEngine.Persistence.Partitions do
     end
   end
 
-  @doc "Returns the list of partitioned table names."
-  @spec partitioned_tables() :: [{String.t(), atom()}]
-  def partitioned_tables, do: @partitioned_tables
-
   defp partition_interval do
     Application.get_env(:peripheral_persistence, :partition_interval, :quarterly)
   end

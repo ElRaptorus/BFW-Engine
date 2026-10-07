@@ -225,7 +225,7 @@ defmodule BfwEngine.Umbrella.MixProject do
 
       # --- Test aliases -----------------------------------------------------
       "test.unit": ["test --exclude integration"],
-      "test.examples": ["test apps/peripheral_plugins/test/examples/"],
+      "test.examples": ["test apps/engine_plugins/test/examples/"],
       "test.integration": ["run test/integration_runner.exs"],
       "test.release": &run_release_test/1,
       "test.cookbook": ["run test/integration_runner.exs -- integration/plugins"],

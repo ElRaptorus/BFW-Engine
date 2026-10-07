@@ -9,6 +9,11 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   require Logger
 
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+  alias BfwEngine.Execution.UuidV7
+
   alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.FlowNodeData
@@ -16,7 +21,6 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
-  alias BfwEngine.Execution.ProcessInstance.Helpers
   alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
@@ -52,7 +56,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         cancel_activity,
         triggerer_fni_id
       ) do
-    host_fni_id = Helpers.resolve_host_fni_id(data, flow_node_instance_id)
+    host_fni_id = resolve_host_fni_id(data, flow_node_instance_id)
     is_subscription_model = host_fni_id != flow_node_instance_id
 
     {data, boundary_fni_id} =
@@ -81,7 +85,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         data
       end
 
-    boundary_node = Helpers.find_flow_node(data, boundary_node_id)
+    boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
     new_token = build_boundary_token(data, boundary_fni_id, payload)
 
     dispatch_targets =
@@ -111,7 +115,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         cancel_activity,
         _triggerer_fni_id
       ) do
-    host_fni_id = Helpers.resolve_host_fni_id(data, flow_node_instance_id)
+    host_fni_id = resolve_host_fni_id(data, flow_node_instance_id)
 
     data =
       if cancel_activity do
@@ -120,7 +124,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         data
       end
 
-    boundary_node = Helpers.find_flow_node(data, boundary_node_id)
+    boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
     new_token = build_boundary_token(data, flow_node_instance_id, payload)
 
     dispatch_targets =
@@ -175,13 +179,13 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     data.flow_node_instance_states
     |> Enum.filter(fn {_id, entry} ->
       entry.state in [:active, :waiting] and
-        Helpers.boundary_fni_for_host?(entry, host_flow_node_instance_id)
+        boundary_fni_for_host?(entry, host_flow_node_instance_id)
     end)
     |> Enum.reduce(data, fn {boundary_fni_id, entry}, accumulator ->
       if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-      flow_node = Helpers.find_flow_node(accumulator, entry.flow_node_id)
-      Helpers.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+      flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
+      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
       _persist_result =
         FniLifecycle.transition_to_interrupted(
@@ -190,7 +194,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
           "host_completed",
           flow_node,
           Map.get(entry, :type_properties, %{}),
-          Helpers.resolve_lane_name(accumulator.process_model, flow_node),
+          LaneResolution.resolve_lane_name(accumulator.process_model, flow_node),
           accumulator.root_process_instance_id,
           multi_instance_id: Map.get(entry, :multi_instance_id),
           iteration_index: Map.get(entry, :iteration_index),
@@ -218,13 +222,13 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     |> Enum.filter(fn {id, entry} ->
       id != triggering_boundary_fni_id and
         entry.state in [:active, :waiting] and
-        Helpers.boundary_fni_for_host?(entry, host_fni_id)
+        boundary_fni_for_host?(entry, host_fni_id)
     end)
     |> Enum.reduce(data, fn {sibling_fni_id, entry}, accumulator ->
       if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-      flow_node = Helpers.find_flow_node(accumulator, entry.flow_node_id)
-      Helpers.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+      flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
+      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
       _persist_result =
         FniLifecycle.transition_to_interrupted(
@@ -233,7 +237,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
           "sibling_boundary_interrupted",
           flow_node,
           Map.get(entry, :type_properties, %{}),
-          Helpers.resolve_lane_name(accumulator.process_model, flow_node),
+          LaneResolution.resolve_lane_name(accumulator.process_model, flow_node),
           accumulator.root_process_instance_id,
           multi_instance_id: Map.get(entry, :multi_instance_id),
           iteration_index: Map.get(entry, :iteration_index),
@@ -258,7 +262,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   @spec has_boundary_fnis?(struct(), String.t()) :: boolean()
   def has_boundary_fnis?(data, host_fni_id) do
     Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
-      Helpers.boundary_fni_for_host?(entry, host_fni_id)
+      boundary_fni_for_host?(entry, host_fni_id)
     end)
   end
 
@@ -270,7 +274,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       entry ->
         if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-        flow_node = Helpers.find_flow_node(data, entry.flow_node_id)
+        flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
         persist_result = persist_boundary_fni_finished(boundary_fni_id, triggerer_fni_id)
 
         if not match?({:error, _reason}, persist_result) do
@@ -293,8 +297,8 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         root_process_instance_id: data.root_process_instance_id,
         flow_node_id: flow_node.id,
         flow_node_type: flow_node.type,
-        event_type: Helpers.extract_event_type(flow_node),
-        lane_name: Helpers.resolve_lane_name(data.process_model, flow_node),
+        event_type: FlowNodeLookup.extract_event_type(flow_node),
+        lane_name: LaneResolution.resolve_lane_name(data.process_model, flow_node),
         terminal_state: :finished,
         triggerer_flow_node_instance_id: triggerer_fni_id,
         type_properties: %{},
@@ -318,11 +322,11 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
   end
 
   defp create_and_finish_error_boundary_fni(data, boundary_node_id, host_fni_id, payload) do
-    boundary_node = Helpers.find_flow_node(data, boundary_node_id)
-    boundary_fni_id = Helpers.generate_id()
-    lane_name = Helpers.resolve_lane_name(data.process_model, boundary_node)
+    boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
+    boundary_fni_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, boundary_node)
     now = DateTime.utc_now()
-    event_type = Helpers.extract_event_type(boundary_node)
+    event_type = FlowNodeLookup.extract_event_type(boundary_node)
 
     type_properties = %{"boundary_fired" => true, "error_info" => payload}
 
@@ -420,7 +424,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       process_instance_id: data.process_instance_id,
       flow_node_id: boundary_node.id,
       flow_node_type: Atom.to_string(boundary_node.type),
-      event_type: Helpers.extract_event_type(boundary_node),
+      event_type: FlowNodeLookup.extract_event_type(boundary_node),
       lane_name: lane_name,
       state: @fni_state_finished,
       started_at: now,
@@ -472,7 +476,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
 
   defp build_boundary_token(data, flow_node_instance_id, payload) do
     %Token{
-      id: Helpers.generate_id(),
+      id: UuidV7.generate(),
       process_instance_id: data.process_instance_id,
       payload: payload,
       originating_flow_node_instance_id: flow_node_instance_id,
@@ -520,5 +524,30 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     Logger.error("Failed to persist #{what} for FNI #{flow_node_instance_id}: #{inspect(reason)}")
 
     :ok
+  end
+
+  @spec resolve_host_fni_id(struct(), String.t()) :: String.t()
+  def resolve_host_fni_id(data, boundary_fni_id) do
+    case Map.get(data.flow_node_instance_states, boundary_fni_id) do
+      %{type_properties: %{host_flow_node_instance_id: host_id}} when is_binary(host_id) ->
+        host_id
+
+      %{type_properties: %{"host_flow_node_instance_id" => host_id}} when is_binary(host_id) ->
+        host_id
+
+      _ ->
+        boundary_fni_id
+    end
+  end
+
+  @spec boundary_fni_for_host?(map(), String.t()) :: boolean()
+  def boundary_fni_for_host?(entry, host_fni_id) do
+    type_props = entry.type_properties || %{}
+
+    host_ref =
+      Map.get(type_props, :host_flow_node_instance_id) ||
+        Map.get(type_props, "host_flow_node_instance_id")
+
+    host_ref == host_fni_id
   end
 end

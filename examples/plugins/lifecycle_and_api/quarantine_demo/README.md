@@ -4,7 +4,7 @@ Author-facing demonstration of plugin quarantine ([plugins.md](../../../../docs/
 [getting-started Failure Handling](../../../../docs/guides/plugins/getting-started.md)).
 
 Engine unit tests already cover Loader quarantine (`L-7`/`L-8` in
-`apps/peripheral_plugins/test/bfw_engine/plugins/loader_test.exs`). This cookbook
+`apps/engine_plugins/test/bfw_engine/plugins/loader_test.exs`). This cookbook
 is what plugin authors copy.
 
 ## What `on_load` failure does

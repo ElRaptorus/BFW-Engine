@@ -2,9 +2,10 @@ defmodule BfwEngine.IntegrationCase do
   @moduledoc """
   Shared setup for full-stack integration tests.
 
-  Boots with all OTP apps running. Resets the EngineEventBus and Plugin
-  Registry state between tests without restarting processes (avoids
-  supervisor restart-budget exhaustion).
+  Boots with all OTP apps running. Restarts the supervised EngineEventBus,
+  plugin registry, auth provider registry, and BPMN model cache between
+  tests. `Supervisor.terminate_child/2` plus `restart_child/2` does not
+  consume the supervisor crash budget.
 
   ## Usage
 
@@ -20,6 +21,8 @@ defmodule BfwEngine.IntegrationCase do
 
   use ExUnit.CaseTemplate
 
+  alias BfwEngine.Test.ServiceReset
+
   @test_secret "test_only_secret_at_least_32_bytes!"
 
   using do
@@ -31,10 +34,10 @@ defmodule BfwEngine.IntegrationCase do
   end
 
   setup do
-    BfwEngine.Events.EngineEventBus.reset_state()
-    BfwEngine.Plugins.Registry.reset_state()
-    BfwEngine.Auth.ProviderRegistry.reset_to_default()
-    BfwEngine.BPMN.ModelCache.reset_state()
+    ServiceReset.engine_event_bus()
+    ServiceReset.plugin_registry()
+    ServiceReset.provider_registry()
+    ServiceReset.bpmn_model_cache()
     ensure_test_secret()
     terminate_all_process_instances()
     :ok

@@ -10,6 +10,7 @@ defmodule BfwEngine.Integration.Execution.MessageEventsTest do
   alias BfwEngine.Api
   alias BfwEngine.Events.MessagePersistence
   alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Test.ServiceReset
 
   # ===================================================================
   # S10 — Cross-PI messaging (single recipient)
@@ -374,7 +375,7 @@ defmodule BfwEngine.Integration.Execution.MessageEventsTest do
       assert publish_result.deliveries == []
       assert publish_result.pending == true
 
-      MessageSubscriptions.reset_state()
+      ServiceReset.message_subscriptions()
       MessageSubscriptions.mark_ready()
 
       {201, _} = http_deploy("message_catch_simple.bpmn")
@@ -444,7 +445,7 @@ defmodule BfwEngine.Integration.Execution.MessageEventsTest do
 
   describe "F5: Message subscription readiness gate" do
     test "returns 503 when engine is not ready" do
-      MessageSubscriptions.reset_state()
+      ServiceReset.message_subscriptions()
 
       json_body = Jason.encode!(%{"payload" => %{"data" => "not_ready"}})
 

@@ -67,7 +67,7 @@ COPY apps/core_timers/mix.exs apps/core_timers/mix.exs
 COPY apps/core_types/mix.exs apps/core_types/mix.exs
 COPY apps/engine_sdk/mix.exs apps/engine_sdk/mix.exs
 COPY apps/peripheral_persistence/mix.exs apps/peripheral_persistence/mix.exs
-COPY apps/peripheral_plugins/mix.exs apps/peripheral_plugins/mix.exs
+COPY apps/engine_plugins/mix.exs apps/engine_plugins/mix.exs
 COPY apps/peripheral_telemetry/mix.exs apps/peripheral_telemetry/mix.exs
 
 RUN --mount=type=cache,target=/root/.cache/hex \

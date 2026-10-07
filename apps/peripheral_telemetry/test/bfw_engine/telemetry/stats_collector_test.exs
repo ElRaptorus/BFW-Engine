@@ -2,6 +2,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Telemetry.ServiceReset
   alias BfwEngine.Telemetry.StatsCollector
 
   describe "info/0" do
@@ -48,7 +49,7 @@ defmodule BfwEngine.Telemetry.StatsCollectorTest do
     end
 
     test "returns default-off sinks when no sinks are registered" do
-      EngineEventBus.reset_state()
+      ServiceReset.engine_event_bus()
 
       try do
         %{listeners: listeners} = StatsCollector.snapshot()

@@ -33,6 +33,7 @@ defmodule BfwEngine.Load.DmnLoadTest do
 
   alias BfwEngine.Test.CompletionCounter
   alias BfwEngine.Test.LoadHelpers
+  alias BfwEngine.Test.ServiceReset
 
   @warmup_runs 2
   @measured_runs 5
@@ -47,7 +48,7 @@ defmodule BfwEngine.Load.DmnLoadTest do
   @payload %{"age" => 18, "status" => "standard"}
 
   setup do
-    BfwEngine.DMN.ModelCache.reset_state()
+    BfwEngine.Test.ServiceReset.dmn_model_cache()
 
     on_exit(fn ->
       LoadHelpers.terminate_all_process_instances()

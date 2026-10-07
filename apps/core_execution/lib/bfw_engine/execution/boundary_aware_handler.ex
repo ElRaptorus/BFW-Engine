@@ -64,6 +64,7 @@ defmodule BfwEngine.Execution.BoundaryAwareHandler do
     end
   end
 
+  # Called by BfwEngine.Execution.ProcessInstance.
   @doc false
   @spec attempt_error_boundary_catch(FlowNode.t(), HandlerContext.t(), term()) ::
           {:boundary, String.t(), map(), boolean()} | {:error, term()}

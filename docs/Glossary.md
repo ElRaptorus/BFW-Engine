@@ -49,7 +49,6 @@ The DMN API naming parallels the BPMN terms above (BPMN equivalent in parenthese
 - **Identity** — structured claim `{id, name?, email?, roles?, groups?, claims}` extracted from a verified JWT and attached to every API action for attribution and authorization ([`Authorization.md`](./architecture/authorization.md) §3). `id` ← JWT `sub` (required); `claims` is the full decoded JWT payload map (renamed from the former `raw` field).
 - **Data Contract** — a JSON Schema 2020-12 document attached to a BPMN element describing the shape of that element's payload or result.
 - **Access Point** — a named command that an external actor (API, plugin, another PI) can invoke on a PI or FNI.
-- **PI Facade** — the typed module FNIs use to interact with their containing PI. Sole upward communication channel.
 
 ### Events & sinks
 

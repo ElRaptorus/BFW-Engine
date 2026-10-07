@@ -104,9 +104,8 @@ defmodule BfwEngine.Telemetry.DbQueryHandler do
     Application.get_env(:peripheral_telemetry, :db_queue_time_warning_ms, @queue_time_warning_ms)
   end
 
-  @doc false
   @spec source_from_metadata(map()) :: String.t()
-  def source_from_metadata(metadata) when is_map(metadata) do
+  defp source_from_metadata(metadata) when is_map(metadata) do
     stringify_source(metadata[:source]) ||
       table_name_from_query(metadata[:query]) ||
       "unknown"
@@ -120,9 +119,8 @@ defmodule BfwEngine.Telemetry.DbQueryHandler do
   defp stringify_source({_prefix, source}), do: stringify_source(source)
   defp stringify_source(_source), do: nil
 
-  @doc false
   @spec table_name_from_query(term()) :: String.t() | nil
-  def table_name_from_query(query) when is_binary(query) do
+  defp table_name_from_query(query) when is_binary(query) do
     case Regex.run(
            ~r/(?:INTO|UPDATE|FROM)\s+(?:(?:public|"public")\.)?"?([A-Za-z0-9_]+)"?/i,
            query
@@ -132,5 +130,5 @@ defmodule BfwEngine.Telemetry.DbQueryHandler do
     end
   end
 
-  def table_name_from_query(_query), do: nil
+  defp table_name_from_query(_query), do: nil
 end

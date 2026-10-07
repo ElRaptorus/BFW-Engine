@@ -66,6 +66,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     "linkEventDefinition" => :link
   }
 
+  # Called by BfwEngine.BPMN.Parser.
   @doc false
   def initial_state(raw_xml) do
     %{
@@ -97,6 +98,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     }
   end
 
+  # Called by BfwEngine.BPMN.Parser.
   @doc false
   def finalize(state) do
     processes =

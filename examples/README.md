@@ -135,7 +135,7 @@ Standalone Node.js projects demonstrating the `@elraptorus/bfw_engine_sdk` packa
 
 | Command | What it covers |
 |---------|----------------|
-| `mix test.examples` | Unit wrappers under `apps/peripheral_plugins/test/examples/` (acceptance i). Does **not** boot the engine. |
+| `mix test.examples` | Unit wrappers under `apps/engine_plugins/test/examples/` (acceptance i). Does **not** boot the engine. |
 | `mix test.cookbook` | Live-engine sequential boot asserts + README link-check under `test/integration/plugins/` (acceptance ii + iii) |
 | `mix test.integration` | Full integration suite, including the cookbook files |
 

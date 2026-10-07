@@ -85,7 +85,7 @@ mix test examples/plugins/business_rules/decision_service_smoke_tester/test/smok
 Or load all example tests via:
 
 ```bash
-mix test apps/peripheral_plugins/test/examples/decision_service_smoke_tester_from_examples_test.exs
+mix test apps/engine_plugins/test/examples/decision_service_smoke_tester_from_examples_test.exs
 ```
 
 ## Architecture: facade-driven, no BRT execution

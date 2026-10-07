@@ -52,31 +52,76 @@
           "boundaryEventRefs": [],
           "dataContracts": [],
           "dataInputAssociations": [],
-          "dataOutputAssociations": [
-            {
-              "id": "DOA_Script",
-              "sourceRef": null,
-              "targetRef": "DataObjRef_Trigger",
-              "valueExpression": null
-            }
-          ],
+          "dataOutputAssociations": [],
           "documentation": null,
-          "id": "Script_WriteDO",
+          "id": "Fork_1",
           "incoming": ["Main_Flow_1"],
           "isForCompensation": false,
           "multiInstance": null,
-          "name": "Write Data Object",
-          "outgoing": ["Main_Flow_2"],
+          "name": "Fork",
+          "outgoing": ["Main_Flow_2", "Flow_Writer"],
           "standardLoop": null,
-          "type": "script_task",
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_WriteTrigger",
+              "sourceRef": null,
+              "targetRef": "DataObjRef_Trigger",
+              "valueExpression": "token.values"
+            }
+          ],
+          "documentation": null,
+          "id": "UserTask_WriteTrigger",
+          "incoming": ["Flow_Writer"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Write Trigger",
+          "outgoing": ["Flow_Writer_End"],
+          "standardLoop": null,
+          "type": "user_task",
           "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": [
+              {
+                "id": "status",
+                "label": "status",
+                "required": false,
+                "type": "text"
+              }
+            ],
             "inMappings": [],
             "outMappings": [],
             "payloadContract": null,
-            "resultContract": null,
-            "script": "{ activated: true }",
-            "scriptFormat": "feel",
-            "scriptRef": null
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Writer",
+          "incoming": ["Flow_Writer_End"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Writer End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
           }
         },
         {
@@ -248,7 +293,9 @@
         {
           "flowNodeRefs": [
             "Start_1",
-            "Script_WriteDO",
+            "Fork_1",
+            "UserTask_WriteTrigger",
+            "End_Writer",
             "Main_UserTask",
             "End_1",
             "ESP_Conditional",
@@ -266,14 +313,30 @@
           "isDefault": false,
           "name": null,
           "sourceRef": "Start_1",
-          "targetRef": "Script_WriteDO"
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Writer",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "UserTask_WriteTrigger"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Writer_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_WriteTrigger",
+          "targetRef": "End_Writer"
         },
         {
           "conditionExpression": null,
           "id": "Main_Flow_2",
           "isDefault": false,
           "name": null,
-          "sourceRef": "Script_WriteDO",
+          "sourceRef": "Fork_1",
           "targetRef": "Main_UserTask"
         },
         {

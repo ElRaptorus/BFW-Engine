@@ -338,32 +338,4 @@ defmodule BfwEngine.Api.ValidationTest do
       refute Validation.admin_override?(caller_identity)
     end
   end
-
-  describe "has_lane_claim?/2" do
-    test "returns true only for write" do
-      assert Validation.has_lane_claim?(identity(%{"lane:operations" => "write"}), "operations")
-    end
-
-    test "returns false for read" do
-      refute Validation.has_lane_claim?(identity(%{"lane:operations" => "read"}), "operations")
-    end
-
-    test "returns false when lane claim is missing" do
-      refute Validation.has_lane_claim?(identity(%{}), "operations")
-    end
-
-    test "returns false when lane claim is boolean true leftover" do
-      refute Validation.has_lane_claim?(identity(%{"lane:operations" => true}), "operations")
-    end
-
-    test "returns false when lane claim is false" do
-      caller_identity = identity(%{"lane:operations" => false})
-      refute Validation.has_lane_claim?(caller_identity, "operations")
-    end
-
-    test "returns false when claims map is nil" do
-      caller_identity = %Identity{id: "user-1", roles: [], groups: [], claims: nil}
-      refute Validation.has_lane_claim?(caller_identity, "operations")
-    end
-  end
 end

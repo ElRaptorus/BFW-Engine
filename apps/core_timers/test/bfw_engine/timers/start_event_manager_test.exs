@@ -3,11 +3,12 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
 
   alias BfwEngine.Timers.Persistence.NoOp, as: PersistenceNoOp
   alias BfwEngine.Timers.Scheduler
+  alias BfwEngine.Timers.ServiceReset
   alias BfwEngine.Timers.StartEventManager
 
   setup do
-    Scheduler.reset_state()
-    PersistenceNoOp.reset_state()
+    ServiceReset.scheduler()
+    ServiceReset.timer_persistence()
     :ok
   end
 
@@ -256,8 +257,8 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
     end
 
     test "enable_schedule returns :not_a_cycle for duration schedule" do
-      Scheduler.reset_state()
-      PersistenceNoOp.reset_state()
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
 
       specs = [%{flow_node_id: "Timer_dur", kind: :duration, iso_spec: "PT1H"}]
 
@@ -270,8 +271,8 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
     end
 
     test "disable_schedule returns :not_a_cycle for duration schedule" do
-      Scheduler.reset_state()
-      PersistenceNoOp.reset_state()
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
 
       specs = [%{flow_node_id: "Timer_dur", kind: :duration, iso_spec: "PT1H"}]
 
@@ -284,8 +285,8 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
     end
 
     test "disable_schedule does not cancel other schedules' timers" do
-      Scheduler.reset_state()
-      PersistenceNoOp.reset_state()
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
 
       specs = [
         %{flow_node_id: "Timer_1", kind: :cycle, iso_spec: "R3/PT1H"},
@@ -306,8 +307,8 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
     end
 
     test "disable then enable restores scheduler entry" do
-      Scheduler.reset_state()
-      PersistenceNoOp.reset_state()
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
 
       specs = [%{flow_node_id: "Timer_re", kind: :cycle, iso_spec: "R3/PT1H"}]
 

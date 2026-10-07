@@ -35,6 +35,13 @@ defmodule BfwEngineWeb.Graphql.Schema do
 
   alias BfwEngineWeb.Graphql.Dataloader.ModelCacheSource
   alias BfwEngineWeb.Graphql.ModelResolvers
+  alias BfwEngineWeb.Graphql.ModelSchema.FieldTable
+
+  @after_compile __MODULE__
+
+  def __after_compile__(_env, _bytecode) do
+    FieldTable.verify_exposed_fields!(__MODULE__)
+  end
 
   query do
   end

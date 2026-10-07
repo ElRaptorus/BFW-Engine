@@ -15,7 +15,7 @@ This starter highlights the ordering guarantees described in [`docs/guides/plugi
 
 ## Configuration access
 
-`facade.get_config/1` delegates to `Application.get_env(:peripheral_plugins, key)` inside the bundled loader. Set `config :peripheral_plugins, :lifecycle_demo_setting, ...` to provide data you read during `on_load/1`.
+`facade.get_config/1` delegates to `Application.get_env(:engine_plugins, key)` inside the bundled loader. Set `config :engine_plugins, :lifecycle_demo_setting, ...` to provide data you read during `on_load/1`.
 
 ## Where to register what
 

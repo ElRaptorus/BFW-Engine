@@ -3,8 +3,8 @@ defmodule BfwEngine.Execution.GatewayIntegrationTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
-  alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Identity
 
   @version_id "00000000-0000-0000-0000-000000000002"
@@ -16,13 +16,13 @@ defmodule BfwEngine.Execution.GatewayIntegrationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
-    Scheduler.reset_state()
+    ServiceReset.bpmn_model_cache()
+    ServiceReset.scheduler()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
-      Scheduler.reset_state()
+      ServiceReset.bpmn_model_cache()
+      ServiceReset.scheduler()
     end)
   end
 

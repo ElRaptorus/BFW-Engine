@@ -163,7 +163,6 @@ Public API:
 | `fetch/1` | ETS hit or single-flight GenServer load from backend |
 | `get/1` | Returns `Definitions.t() | nil` |
 | `delete/1` | Removes a cached entry and updates the namespace index (backfills if multiple versions share a namespace) |
-| `reset_state/0` | Clears both tables (test helper) |
 | `list_cached_ids/0` | Returns all cached keys |
 | `lookup_by_namespace/1` | O(1) lookup of `decision_version_id` by namespace string via the secondary index |
 

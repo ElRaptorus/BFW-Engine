@@ -12,7 +12,7 @@ defmodule BfwEngine.Execution.DurationHelper do
   end
 
   @spec duration_to_ms(Duration.t()) :: integer()
-  def duration_to_ms(%Duration{} = duration) do
+  defp duration_to_ms(%Duration{} = duration) do
     now = DateTime.utc_now()
     future = DateTime.shift(now, duration)
     DateTime.diff(future, now, :millisecond)

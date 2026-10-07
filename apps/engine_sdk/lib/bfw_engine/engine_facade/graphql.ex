@@ -19,6 +19,7 @@ defmodule BfwEngine.EngineFacade.Graphql do
 
   defstruct query: &__MODULE__.noop_2/2
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_2(term(), term()) :: {:error, :not_wired}
   def noop_2(_a, _b), do: {:error, :not_wired}

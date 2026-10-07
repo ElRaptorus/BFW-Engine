@@ -9,6 +9,7 @@ defmodule BfwEngine.BPMN.ModelCacheTest do
   alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
   alias BfwEngine.BPMN.Model.SignalDefinition
   alias BfwEngine.BPMN.ModelCache
+  alias BfwEngine.BPMN.ServiceReset
 
   # ETS table name used by the single-flight test loader. Created/destroyed
   # in the describe "single-flight" setup block.
@@ -35,7 +36,7 @@ defmodule BfwEngine.BPMN.ModelCacheTest do
   end
 
   setup do
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
     :ok
   end
 
@@ -98,7 +99,7 @@ defmodule BfwEngine.BPMN.ModelCacheTest do
       ModelCache.put_new("v1", sample_definitions("a"))
       ModelCache.put_new("v2", sample_definitions("b"))
 
-      assert :ok = ModelCache.reset_state()
+      assert :ok = ServiceReset.bpmn_model_cache()
       assert [] = ModelCache.list_cached_ids()
     end
   end

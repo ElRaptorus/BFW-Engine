@@ -17,6 +17,8 @@ defmodule BfwEngine.ExecutionCase do
 
   use ExUnit.CaseTemplate
 
+  alias BfwEngine.Test.ServiceReset
+
   @test_secret "test_only_secret_at_least_32_bytes!"
   @fixtures_dir Path.expand("../fixtures/bpmns", __DIR__)
   @dmn_fixtures_dir Path.expand("../fixtures/dmns", __DIR__)
@@ -34,14 +36,14 @@ defmodule BfwEngine.ExecutionCase do
   end
 
   setup do
-    BfwEngine.Events.EngineEventBus.reset_state()
-    BfwEngine.Events.MessageSubscriptions.reset_state()
+    ServiceReset.engine_event_bus()
+    ServiceReset.message_subscriptions()
     BfwEngine.Events.MessageSubscriptions.mark_ready()
-    BfwEngine.Events.SignalSubscriptions.reset_state()
+    ServiceReset.signal_subscriptions()
     BfwEngine.Events.SignalSubscriptions.mark_ready()
-    BfwEngine.Plugins.Registry.reset_state()
-    BfwEngine.Auth.ProviderRegistry.reset_to_default()
-    BfwEngine.BPMN.ModelCache.reset_state()
+    ServiceReset.plugin_registry()
+    ServiceReset.provider_registry()
+    ServiceReset.bpmn_model_cache()
     terminate_all_process_instances()
     await_supervisor_drain()
 
@@ -147,7 +149,7 @@ defmodule BfwEngine.ExecutionCase do
 
         _pid ->
           try do
-            BfwEngine.Timers.Scheduler.reset_state()
+            ServiceReset.scheduler()
             {:halt, :ok}
           catch
             :exit, reason ->

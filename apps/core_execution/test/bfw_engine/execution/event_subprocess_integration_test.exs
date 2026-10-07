@@ -36,10 +36,9 @@ defmodule BfwEngine.Execution.EventSubprocessIntegrationTest do
   alias BfwEngine.BPMN.Model.SequenceFlow
   alias BfwEngine.BPMN.Model.SignalDefinition
   alias BfwEngine.BPMN.ModelCache
-  alias BfwEngine.Events.MessageSubscriptions
-  alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Types.Identity
 
   @version_id "esp-test-version-001"
@@ -52,9 +51,9 @@ defmodule BfwEngine.Execution.EventSubprocessIntegrationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
-    MessageSubscriptions.reset_state()
-    SignalSubscriptions.reset_state()
+    ServiceReset.bpmn_model_cache()
+    ServiceReset.message_subscriptions()
+    ServiceReset.signal_subscriptions()
 
     ref = make_ref()
     subscribe_events(ref)
@@ -62,9 +61,9 @@ defmodule BfwEngine.Execution.EventSubprocessIntegrationTest do
     on_exit(fn ->
       unsubscribe_events(ref)
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
-      MessageSubscriptions.reset_state()
-      SignalSubscriptions.reset_state()
+      ServiceReset.bpmn_model_cache()
+      ServiceReset.message_subscriptions()
+      ServiceReset.signal_subscriptions()
     end)
 
     {:ok, ref: ref}

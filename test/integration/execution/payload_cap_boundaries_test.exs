@@ -17,7 +17,7 @@ defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
   alias BfwEngine.Persistence.Repo
   alias BfwEngine.Persistence.Resources.DataObject
   alias BfwEngine.Persistence.Resources.DataObjectWrite
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.EventCollector
   alias BfwEngine.Test.ExamplePlugin
   alias BfwEngine.Test.PayloadCapFixtures
@@ -30,7 +30,7 @@ defmodule BfwEngine.Integration.Execution.PayloadCapBoundariesTest do
       BfwEngine.Plugins.RegistryDispatch
     )
 
-    facade = Loader.facade_for_plugin("evil:test_payload_cap")
+    facade = FacadeBuilder.build("evil:test_payload_cap")
     ExamplePlugin.on_load(facade)
     :ok
   end

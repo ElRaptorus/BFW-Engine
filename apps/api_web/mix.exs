@@ -40,7 +40,7 @@ defmodule ApiWeb.MixProject do
       {:core_execution, in_umbrella: true},
       {:peripheral_persistence, in_umbrella: true},
       {:peripheral_telemetry, in_umbrella: true},
-      {:peripheral_plugins, in_umbrella: true},
+      {:engine_plugins, in_umbrella: true},
       {:engine_sdk, in_umbrella: true},
       {:api_auth, in_umbrella: true},
       {:api_facade, in_umbrella: true},

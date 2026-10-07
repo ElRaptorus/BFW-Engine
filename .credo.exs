@@ -22,10 +22,9 @@
       parse_timeout: 5000,
       color: true,
       checks: [
-        # Domain-specific: enforce the umbrella boundary rules.
-        # We plug real domain-isolation checks in Phase 1 when the first
-        # Core domain gains a real public surface; until then Credo's
-        # stock rules are enough.
+        # Umbrella layer edges, Mix.env in lib/, and grab-bag module names
+        # are enforced by apps/api_web/test/architecture/dependency_direction_test.exs.
+        # api_web Ash calls are enforced by facade_enforcement_test.exs.
         {Credo.Check.Consistency.ExceptionNames, []},
         {Credo.Check.Consistency.LineEndings, []},
         {Credo.Check.Consistency.ParameterPatternMatching, []},

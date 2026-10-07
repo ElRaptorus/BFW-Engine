@@ -12,9 +12,10 @@ defmodule BfwEngine.Conformance.ConformanceTest do
 
   alias BfwEngine.Api
   alias BfwEngine.Auth.ProviderRegistry
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.ConformanceRunner, as: Runner
   alias BfwEngine.Test.ExamplePlugin
+  alias BfwEngine.Test.ServiceReset
 
   @moduletag :conformance
 
@@ -50,7 +51,7 @@ defmodule BfwEngine.Conformance.ConformanceTest do
 
   defp load_example_plugin do
     Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
-    facade = Loader.facade_for_plugin("evil:conformance_plugin")
+    facade = FacadeBuilder.build("evil:conformance_plugin")
     ExamplePlugin.on_load(facade)
   end
 
@@ -665,7 +666,7 @@ defmodule BfwEngine.Conformance.ConformanceTest do
     {201, _} = http_deploy("linear_start_end.bpmn")
 
     ProviderRegistry.register_provider(FakeConformanceAuthProvider)
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    on_exit(fn -> ServiceReset.provider_registry() end)
 
     start_body = Jason.encode!(%{})
 
@@ -687,7 +688,7 @@ defmodule BfwEngine.Conformance.ConformanceTest do
     {201, _} = http_deploy("linear_start_end.bpmn")
 
     ProviderRegistry.register_provider(FakeConformanceAuthProvider)
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    on_exit(fn -> ServiceReset.provider_registry() end)
 
     start_body = Jason.encode!(%{})
 

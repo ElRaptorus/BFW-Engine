@@ -70,7 +70,14 @@ Infrastructure adapters. May import Core, never imported by Core.
 |-----|---------|
 | `peripheral_persistence` | Ash + AshPostgres resources. Mix `bfw.retention.purge` hard-deletes aged terminal PI trees |
 | `peripheral_telemetry` | `:telemetry` counters, /stats data |
-| `peripheral_plugins` | Plugin registry, in-BEAM loader |
+
+### Plugins (`apps/engine_plugins`)
+
+In-BEAM plugin host. May depend on Core and on `api_facade`.
+
+| App | Purpose |
+|-----|---------|
+| `engine_plugins` | Plugin registry, in-BEAM loader |
 
 ### API (`apps/api_*`)
 
@@ -92,7 +99,7 @@ The 4 patterns agents encounter most:
 
 ### 2. Dependency Direction
 
-Strict unidirectional dependency: Core → Peripheral → API. Core apps define behaviours and structs. Peripheral apps implement persistence and infrastructure. API apps translate wire protocols. Violations of this direction are build errors.
+Dependency direction: Core never depends on Peripheral, Plugins, or API. Peripheral depends on Core. Plugins (`engine_plugins`) depend on Core and `api_facade`. API depends on Core and Peripheral; `api_web` also depends on `engine_plugins`. `dependency_direction_test.exs` enforces the declared edges.
 
 ### 3. EngineEventBus Fan-Out
 

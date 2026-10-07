@@ -3,14 +3,15 @@ defmodule BfwEngineWeb.Ws.UserSocketTest do
 
   alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.Types.Identity
+  alias BfwEngineWeb.ServiceReset
   alias BfwEngineWeb.Ws.UserSocket
 
   @test_secret "test_only_secret_at_least_32_bytes!"
 
   setup do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
     ensure_test_secret()
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    on_exit(fn -> ServiceReset.provider_registry() end)
     :ok
   end
 

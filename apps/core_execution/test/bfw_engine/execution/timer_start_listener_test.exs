@@ -10,13 +10,13 @@ defmodule BfwEngine.Execution.TimerStartListenerTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.BPMN.ModelCache
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Execution.TimerStartListener
-  alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Timers.StartEventManager
 
   setup do
-    Scheduler.reset_state()
+    ServiceReset.scheduler()
     :ok
   end
 

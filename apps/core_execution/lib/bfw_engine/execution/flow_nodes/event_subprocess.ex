@@ -61,8 +61,11 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.ProcessInstance
-  alias BfwEngine.Execution.ProcessInstance.Helpers, as: PiHelpers
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.ProcessInstance.State
+  alias BfwEngine.Execution.UuidV7
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Timers.ISO8601
@@ -85,7 +88,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   def handle_enter(flow_node, token, context) do
     with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data) do
       process_instance_pid = context.process_instance_pid
-      child_process_instance_id = PiHelpers.generate_uuid_v7()
+      child_process_instance_id = UuidV7.generate()
 
       continuation = fn ->
         run_child_lifecycle(
@@ -166,10 +169,9 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   # Start-event resolution
   # -------------------------------------------------------------------
 
-  @doc false
   @spec resolve_esp_start_event(FlowNodeData.SubProcess.t()) ::
           {:ok, String.t()} | {:error, term()}
-  def resolve_esp_start_event(%FlowNodeData.SubProcess{flow_nodes: flow_nodes}) do
+  defp resolve_esp_start_event(%FlowNodeData.SubProcess{flow_nodes: flow_nodes}) do
     case Enum.filter(flow_nodes, &(&1.type == :start_event)) do
       [start] ->
         {:ok, start.id}
@@ -614,7 +616,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data) do
-      child_process_instance_id = PiHelpers.generate_uuid_v7()
+      child_process_instance_id = UuidV7.generate()
 
       run_child_lifecycle(
         flow_node,
@@ -763,19 +765,16 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   def resolve_trigger(data, subprocess_node_id, payload) do
     with %EventSubprocessTrigger{armed?: true} = trigger <-
            Map.get(data.event_subprocess_triggers, subprocess_node_id),
-         %FlowNode{} = esp_node <- PiHelpers.find_flow_node(data, subprocess_node_id) do
+         %FlowNode{} = esp_node <- FlowNodeLookup.find_flow_node(data, subprocess_node_id) do
       build_fire_action(trigger, esp_node, payload)
     else
       _ -> :noop
     end
   end
 
-  @doc """
-  Resolve a reactive trigger (error/escalation) into an action tuple.
-  """
   @spec resolve_reactive_trigger(State.t(), EventSubprocessTrigger.t(), map()) :: trigger_action()
-  def resolve_reactive_trigger(data, trigger, payload) do
-    case PiHelpers.find_flow_node(data, trigger.subprocess_node_id) do
+  defp resolve_reactive_trigger(data, trigger, payload) do
+    case FlowNodeLookup.find_flow_node(data, trigger.subprocess_node_id) do
       %FlowNode{} = esp_node -> build_fire_action(trigger, esp_node, payload)
       _ -> :noop
     end
@@ -1059,7 +1058,8 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   end
 
   defp evaluate_correlation_value(data, start_event) do
-    context = PiHelpers.build_handler_context(data, start_event.id, start_event, self())
+    context =
+      InstanceHandlerDispatch.build_handler_context(data, start_event.id, start_event, self())
 
     case MessageEventHelper.evaluate_correlation_key(
            data.process_model,
@@ -1250,8 +1250,15 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
         data
 
       entry ->
-        flow_node = PiHelpers.find_flow_node(data, entry.flow_node_id)
-        context = PiHelpers.build_handler_context(data, flow_node_instance_id, flow_node, self())
+        flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
+        context =
+          InstanceHandlerDispatch.build_handler_context(
+            data,
+            flow_node_instance_id,
+            flow_node,
+            self()
+          )
 
         type_properties =
           entry
@@ -1315,9 +1322,11 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
          subprocess_node_id: node_id,
          start_event_id: start_event_id
        }) do
-    with %FlowNode{} = esp_node <- PiHelpers.find_flow_node(data, node_id),
+    with %FlowNode{} = esp_node <- FlowNodeLookup.find_flow_node(data, node_id),
          {:ok, start_event} <- esp_start_event_node(esp_node) do
-      context = PiHelpers.build_handler_context(data, start_event_id, start_event, self())
+      context =
+        InstanceHandlerDispatch.build_handler_context(data, start_event_id, start_event, self())
+
       feel_context = FeelContext.from_handler_context(context, data.started_with_context || %{})
 
       case Expressions.eval(expression, feel_context) do
@@ -1336,9 +1345,9 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   # -------------------------------------------------------------------
 
   defp resolve_esp_lane_name(data, subprocess_node_id) do
-    PiHelpers.resolve_lane_name(
+    LaneResolution.resolve_lane_name(
       data.process_model,
-      PiHelpers.find_flow_node(data, subprocess_node_id)
+      FlowNodeLookup.find_flow_node(data, subprocess_node_id)
     )
   end
 

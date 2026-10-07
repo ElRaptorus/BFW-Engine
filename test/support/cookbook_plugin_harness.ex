@@ -4,18 +4,20 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
 
   Each row batch-compiles the example with `Examples.Shared.ExampleCompiler`
   (Mix-style `Kernel.ParallelCompiler`, not per-file `Code.require_file/1`),
-  calls `on_load` (and optional `on_ready`) through `Loader.facade_for_plugin/1`,
+  calls `on_load` (and optional `on_ready`) through `FacadeBuilder.build/1`,
   then asserts Registry capabilities and/or `EngineEventBus.list_sinks/0`.
-  Cleanup unregisters capabilities and stops named Agents. Does not call
-  `EngineEventBus.reset_state/0` between rows.
+  Cleanup unregisters capabilities and stops named Agents. Does not restart
+  the event bus between rows.
   """
 
   import ExUnit.Assertions
 
   alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Plugins.Loader
   alias BfwEngine.Plugins.Registry
+  alias BfwEngine.Test.ServiceReset
   alias BfwEngine.Types.Event
 
   @compile {:no_warn_undefined, Examples.Shared.ExampleCompiler}
@@ -338,7 +340,7 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
     apply_row_setup(row)
 
     plugin_name = "cookbook-" <> row.name
-    facade = Loader.facade_for_plugin(plugin_name)
+    facade = FacadeBuilder.build(plugin_name)
     plugin_module = row.plugin_module
 
     try do
@@ -361,7 +363,7 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
       Registry.unregister_plugin_capabilities(plugin_name)
       Enum.each(Map.get(row, :named_processes, []), &stop_named_process/1)
       restore_row_setup(row)
-      ProviderRegistry.reset_to_default()
+      ServiceReset.provider_registry()
     end
   end
 
@@ -406,7 +408,7 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
   end
 
   defp apply_row_setup(%{setup: :auth_reset}) do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
     :ok
   end
 
@@ -479,15 +481,15 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
         collector: collector_name
       )
 
-    previous_inbeam = Application.get_env(:peripheral_plugins, :inbeam_apps)
-    previous_include = Application.get_env(:peripheral_plugins, :include_plugins)
-    previous_exclude = Application.get_env(:peripheral_plugins, :exclude_plugins)
+    previous_inbeam = Application.get_env(:engine_plugins, :inbeam_apps)
+    previous_include = Application.get_env(:engine_plugins, :include_plugins)
+    previous_exclude = Application.get_env(:engine_plugins, :exclude_plugins)
     previous_plugin_module = Application.get_env(:peripheral_telemetry, :plugin_module)
 
     try do
-      Application.put_env(:peripheral_plugins, :inbeam_apps, [:peripheral_telemetry])
-      Application.put_env(:peripheral_plugins, :include_plugins, [])
-      Application.put_env(:peripheral_plugins, :exclude_plugins, [])
+      Application.put_env(:engine_plugins, :inbeam_apps, [:peripheral_telemetry])
+      Application.put_env(:engine_plugins, :include_plugins, [])
+      Application.put_env(:engine_plugins, :exclude_plugins, [])
 
       Application.put_env(
         :peripheral_telemetry,
@@ -502,9 +504,9 @@ defmodule BfwEngine.Test.CookbookPluginHarness do
 
       :ok
     after
-      restore_env(:peripheral_plugins, :inbeam_apps, previous_inbeam)
-      restore_env(:peripheral_plugins, :include_plugins, previous_include)
-      restore_env(:peripheral_plugins, :exclude_plugins, previous_exclude)
+      restore_env(:engine_plugins, :inbeam_apps, previous_inbeam)
+      restore_env(:engine_plugins, :include_plugins, previous_include)
+      restore_env(:engine_plugins, :exclude_plugins, previous_exclude)
       restore_env(:peripheral_telemetry, :plugin_module, previous_plugin_module)
       stop_named_process(collector_name)
     end

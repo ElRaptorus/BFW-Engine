@@ -7,7 +7,7 @@ defmodule BfwEngine.Integration.ListWaitingServiceTasksTest do
   use BfwEngine.ExecutionCase, async: false
 
   alias BfwEngine.Api
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.ExamplePlugin
 
   setup do
@@ -17,7 +17,7 @@ defmodule BfwEngine.Integration.ListWaitingServiceTasksTest do
       BfwEngine.Plugins.RegistryDispatch
     )
 
-    ExamplePlugin.on_load(Loader.facade_for_plugin("test:list_waiting"))
+    ExamplePlugin.on_load(FacadeBuilder.build("test:list_waiting"))
 
     service_version_id = gen_version_id()
     user_version_id = gen_version_id()

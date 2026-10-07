@@ -177,9 +177,8 @@ defmodule Mix.Tasks.Bfw.MintToken do
     )
   end
 
-  @doc false
   @spec parse_duration(String.t()) :: {:ok, pos_integer()} | {:error, String.t()}
-  def parse_duration(input) do
+  defp parse_duration(input) do
     trimmed = String.trim(input)
 
     case Regex.run(~r/^(\d+)(s|m|h|d)?$/, trimmed) do
@@ -248,10 +247,4 @@ defmodule Mix.Tasks.Bfw.MintToken do
   defp coerce_value("true"), do: true
   defp coerce_value("false"), do: false
   defp coerce_value(value), do: value
-
-  @doc false
-  def full_privilege_claims, do: @full_privilege_claims
-
-  @doc false
-  def coerce_claim_value(value), do: coerce_value(value)
 end

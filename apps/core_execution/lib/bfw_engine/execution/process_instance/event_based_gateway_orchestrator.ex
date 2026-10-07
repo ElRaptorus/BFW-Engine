@@ -15,7 +15,9 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   """
 
   alias BfwEngine.Execution.FniLifecycle
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
 
   @pending_cancel_reason "event_based_gateway_sibling_cancelled"
 
@@ -31,7 +33,7 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
          %{flow_node_id: gateway_flow_node_id} <-
            Map.get(data.flow_node_instance_states, gateway_flow_node_instance_id),
          gateway_flow_node when not is_nil(gateway_flow_node) <-
-           Helpers.find_flow_node(data, gateway_flow_node_id),
+           FlowNodeLookup.find_flow_node(data, gateway_flow_node_id),
          true <- gateway_flow_node.type == :event_based_gateway do
       cancel_siblings(data, gateway_flow_node_instance_id, winning_flow_node_instance_id)
     else
@@ -152,8 +154,8 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   defp interrupt_one(data, flow_node_instance_id, entry) do
     graceful_kill_handler(entry.pid)
 
-    flow_node = Helpers.find_flow_node(data, entry.flow_node_id)
-    Helpers.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
     _persist_result =
       FniLifecycle.transition_to_interrupted(
@@ -162,7 +164,7 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
         @pending_cancel_reason,
         flow_node,
         Map.get(entry, :type_properties, %{}),
-        Helpers.resolve_lane_name(data.process_model, flow_node),
+        LaneResolution.resolve_lane_name(data.process_model, flow_node),
         data.root_process_instance_id,
         multi_instance_id: Map.get(entry, :multi_instance_id),
         iteration_index: Map.get(entry, :iteration_index),

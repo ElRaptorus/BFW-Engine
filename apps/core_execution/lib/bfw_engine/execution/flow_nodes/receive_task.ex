@@ -21,7 +21,7 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Types.Token
 
@@ -90,7 +90,7 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
           expected_correlation_value: expected_correlation_value,
           kind: :receive_task,
           via_pid: self(),
-          lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+          lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
       wait_for_message(flow_node, context, subscription_id)
@@ -112,7 +112,7 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
         expected_correlation_value: expected_correlation_value,
         kind: :receive_task,
         via_pid: self(),
-        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+        lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
       })
 
     type_properties = %{

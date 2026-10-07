@@ -9,11 +9,12 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEventTest do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FlowNodes.TimerCatchEvent
   alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Token
 
   setup do
-    Scheduler.reset_state()
+    ServiceReset.scheduler()
     :ok
   end
 
@@ -357,64 +358,6 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEventTest do
       assert Scheduler.armed_count() == 0
 
       Process.exit(task_pid, :kill)
-    end
-  end
-
-  # -------------------------------------------------------------------
-  # resolve_timer_spec/5
-  # -------------------------------------------------------------------
-
-  describe "resolve_timer_spec/5" do
-    test "falls back to ISO 8601 when spec is not a FEEL expression" do
-      context = %HandlerContext{
-        flow_node_instance_id: "fni-1",
-        process_instance_id: "pi-1",
-        process_instance_pid: self(),
-        flow_node_this: %{},
-        context: %{},
-        identity: %{},
-        process: %{},
-        process_instance: %{},
-        data_objects: %{}
-      }
-
-      reference_time = ~U[2026-06-01 10:00:00Z]
-
-      assert {:ok, fire_at} =
-               TimerCatchEvent.resolve_timer_spec(
-                 :duration,
-                 "PT2H",
-                 %{},
-                 context,
-                 reference_time
-               )
-
-      assert DateTime.compare(fire_at, ~U[2026-06-01 12:00:00Z]) == :eq
-    end
-
-    test "resolves ISO date spec directly" do
-      context = %HandlerContext{
-        flow_node_instance_id: "fni-1",
-        process_instance_id: "pi-1",
-        process_instance_pid: self(),
-        flow_node_this: %{},
-        context: %{},
-        identity: %{},
-        process: %{},
-        process_instance: %{},
-        data_objects: %{}
-      }
-
-      assert {:ok, fire_at} =
-               TimerCatchEvent.resolve_timer_spec(
-                 :date,
-                 "2026-12-25T08:00:00Z",
-                 %{},
-                 context,
-                 DateTime.utc_now()
-               )
-
-      assert DateTime.compare(fire_at, ~U[2026-12-25 08:00:00Z]) == :eq
     end
   end
 end

@@ -67,6 +67,7 @@ defmodule BfwEngine.DMN.Parser.SaxHandler do
     :some_in, :some_satisfies
   ]
 
+  # Called by BfwEngine.DMN.Parser.
   @doc false
   def initial_state(raw_xml) do
     %{
@@ -126,6 +127,7 @@ defmodule BfwEngine.DMN.Parser.SaxHandler do
     }
   end
 
+  # Called by BfwEngine.DMN.Parser.
   @doc false
   def finalize(state) do
     decisions =

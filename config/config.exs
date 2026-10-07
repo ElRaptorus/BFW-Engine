@@ -90,9 +90,9 @@ config :core_events,
   signal_persistence_adapter: BfwEngine.Persistence.SignalPersistenceAdapter
 
 # --- Auth provider registry (boundary injection) ----------------------
-# peripheral_plugins (Peripheral) must not compile-depend on api_auth (API).
+# engine_plugins must not compile-depend on api_auth (API).
 # The ProviderRegistry module reference is injected at runtime.
-config :peripheral_plugins, auth_provider_registry: BfwEngine.Auth.ProviderRegistry
+config :engine_plugins, auth_provider_registry: BfwEngine.Auth.ProviderRegistry
 
 # --- Timers --------------------------------------------------
 config :core_timers,

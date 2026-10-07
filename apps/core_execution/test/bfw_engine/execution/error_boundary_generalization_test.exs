@@ -22,6 +22,7 @@ defmodule BfwEngine.Execution.ErrorBoundaryGeneralizationTest do
   alias BfwEngine.BPMN.Model.SequenceFlow
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Types.Identity
 
   @version_id "test-version-error-boundary"
@@ -33,7 +34,7 @@ defmodule BfwEngine.Execution.ErrorBoundaryGeneralizationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     ref = make_ref()
     subscribe_pi_events(ref)
@@ -45,7 +46,7 @@ defmodule BfwEngine.Execution.ErrorBoundaryGeneralizationTest do
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :service_task_dispatch)
       Application.delete_env(:core_execution, :called_element_resolver)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
 
     {:ok, ref: ref}

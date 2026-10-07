@@ -104,9 +104,14 @@ deploy via HTTP, start via HTTP, assert end-to-end.
 
 ## Test types — when to use which
 
+Unit tests reach code only through the public function another module already
+calls. See `.cursor/rules/elixir-conventions.mdc` §12 (Tests never shape
+production code). If no public function exists, integration or conformance
+tests cover the code, and the direct unit test is not written.
+
 | Type | Purpose | Speed |
 |------|---------|-------|
-| **Unit** | Per-handler state transitions, FEEL expressions, Ash actions | Fast |
+| **Unit** | Public functions: return values, persisted rows, events | Fast |
 | **Property-based** | `stream_data` / Concuerror: random BPMN subsets, race-freedom proofs | Medium |
 | **Conformance** | BPMN corpus (`.bpmn` + YAML spec): normative BPMN 2.0 behavior | Medium |
 | **Integration** | Real BPMN end-to-end through all layers, DB-level assertions | Slow |

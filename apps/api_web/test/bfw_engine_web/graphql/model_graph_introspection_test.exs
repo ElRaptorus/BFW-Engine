@@ -9,6 +9,7 @@ defmodule BfwEngineWeb.Graphql.ModelGraphIntrospectionTest do
   """
   use ExUnit.Case, async: true
 
+  alias BfwEngineWeb.Graphql.ModelSchema.FieldTable
   alias BfwEngineWeb.Graphql.Schema
 
   @flow_node_data_prefix "Elixir.BfwEngine.BPMN.Model.FlowNodeData."
@@ -109,55 +110,12 @@ defmodule BfwEngineWeb.Graphql.ModelGraphIntrospectionTest do
     end
   end
 
-  # Completes D-3: `verify!/0` only checks Elixir struct keys against the
-  # table. This test checks that every `exposed` key actually exists on the
-  # Absinthe type `FieldTable.graphql_identifier/1` names, so a table row
-  # that says "exposed" cannot silently omit the GraphQL field (the
-  # SendTask.out_mappings hole this test was added to close).
-  describe "FieldTable exposed keys are present on the Absinthe type" do
-    alias BfwEngineWeb.Graphql.ModelSchema.FieldTable
-
-    test "every FieldTable exposed atom is a field on the mapped GraphQL type" do
-      missing =
-        Enum.flat_map(FieldTable.registry(), fn {module, opts} ->
-          graphql_identifier = FieldTable.graphql_identifier(module)
-          type = Absinthe.Schema.lookup_type(Schema, graphql_identifier)
-
-          assert type != nil,
-                 "#{inspect(module)} maps to #{inspect(graphql_identifier)} but that Absinthe type does not exist"
-
-          field_identifiers = absinthe_field_identifiers(type)
-
-          opts
-          |> Keyword.fetch!(:exposed)
-          |> Enum.reject(&MapSet.member?(field_identifiers, &1))
-          |> Enum.map(&{module, graphql_identifier, &1})
-        end)
-
-      assert missing == [],
-             "FieldTable lists these as exposed but they are missing from the GraphQL type: #{inspect(missing)}"
-    end
-
-    test "every BfwEngine.BPMN.Model.* struct module is registered in FieldTable" do
-      registered =
-        FieldTable.registry()
-        |> Enum.map(&elem(&1, 0))
-        |> MapSet.new()
-
-      model_structs =
-        :core_bpmn
-        |> Application.spec(:modules)
-        |> Enum.filter(fn module ->
-          String.starts_with?(Atom.to_string(module), "Elixir.BfwEngine.BPMN.Model.")
-        end)
-        |> tap(fn modules -> Enum.each(modules, &Code.ensure_loaded!/1) end)
-        |> Enum.filter(&function_exported?(&1, :__struct__, 0))
-        |> MapSet.new()
-
-      assert registered == model_structs,
-             "FieldTable registry drifted from Model.* structs.\n" <>
-               "Unregistered: #{inspect(MapSet.difference(model_structs, registered) |> MapSet.to_list())}\n" <>
-               "Stale: #{inspect(MapSet.difference(registered, model_structs) |> MapSet.to_list())}"
+  # The compile-time checks only run when `ModelTypes` / `Schema` recompile;
+  # an incremental build that only touches `core_bpmn` skips them.
+  describe "FieldTable compile-time checks" do
+    test "every Model struct is registered and every exposed field exists on its Absinthe type" do
+      assert FieldTable.verify!() == :ok
+      assert FieldTable.verify_exposed_fields!(Schema) == :ok
     end
   end
 
@@ -196,18 +154,5 @@ defmodule BfwEngineWeb.Graphql.ModelGraphIntrospectionTest do
 
   defp struct_module_to_event_definition_identifier(module) do
     :"#{struct_module_to_snake_atom(module)}_event_definition"
-  end
-
-  defp absinthe_field_identifiers(type) do
-    fields =
-      case Map.get(type, :fields) do
-        fields when is_map(fields) -> fields
-        fields when is_function(fields, 0) -> fields.()
-        _other -> %{}
-      end
-
-    fields
-    |> Map.keys()
-    |> MapSet.new()
   end
 end

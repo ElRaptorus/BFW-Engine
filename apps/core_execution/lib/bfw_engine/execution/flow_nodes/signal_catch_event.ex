@@ -23,7 +23,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Types.Token
 
@@ -65,7 +65,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
           signal_name: signal_name,
           kind: :intermediate_catch,
           via_pid: self(),
-          lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+          lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
       wait_for_signal(flow_node, context, subscription_id, resume_payload)
@@ -86,7 +86,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
         signal_name: signal_name,
         kind: :intermediate_catch,
         via_pid: self(),
-        lane_name: Helpers.resolve_lane_name_from_context(context, flow_node)
+        lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
       })
 
     type_properties = %{

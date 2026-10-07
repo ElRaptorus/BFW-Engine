@@ -3,10 +3,11 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
 
   alias BfwEngine.Auth.JwtAuthProvider
   alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Auth.ServiceReset
 
   setup do
-    ProviderRegistry.reset_to_default()
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    ServiceReset.provider_registry()
+    on_exit(fn -> ServiceReset.provider_registry() end)
     :ok
   end
 
@@ -66,13 +67,13 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
       ProviderRegistry.register_provider(FakeProvider)
       assert ProviderRegistry.active_provider() == FakeProvider
 
-      ProviderRegistry.reset_to_default()
+      ServiceReset.provider_registry()
       assert ProviderRegistry.active_provider() == JwtAuthProvider
     end
 
     test "allows re-registration after reset" do
       ProviderRegistry.register_provider(FakeProvider)
-      ProviderRegistry.reset_to_default()
+      ServiceReset.provider_registry()
       assert :ok = ProviderRegistry.register_provider(FakeProvider)
       assert ProviderRegistry.active_provider() == FakeProvider
     end

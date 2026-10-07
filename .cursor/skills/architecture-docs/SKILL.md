@@ -48,7 +48,7 @@ Every `####` heading should start with a **Path:** line when documenting a speci
 ```markdown
 #### PluginRegistry
 
-**Path:** `apps/peripheral_plugins/lib/peripheral_plugins/registry.ex`
+**Path:** `apps/engine_plugins/lib/bfw_engine/plugins/registry.ex`
 
 GenServer holding the canonical plugin map. Key responsibilities:
 
@@ -117,8 +117,8 @@ Every document ends with a table mapping modules to their file paths:
 
 | Module | Path |
 |--------|------|
-| PluginRegistry | `apps/peripheral_plugins/lib/peripheral_plugins/registry.ex` |
-| GrpcBridge | `apps/peripheral_plugins/lib/peripheral_plugins/grpc_bridge.ex` |
+| PluginRegistry | `apps/engine_plugins/lib/bfw_engine/plugins/registry.ex` |
+| FacadeBuilder | `apps/engine_plugins/lib/bfw_engine/plugins/facade_builder.ex` |
 ```
 
 ## Content Guidelines

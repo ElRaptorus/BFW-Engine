@@ -63,12 +63,19 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   require Logger
 
-  import BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
+  alias BfwEngine.Execution.ProcessInstance.JsonSafe
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+  alias BfwEngine.Execution.UuidV7
 
   alias BfwEngine.BPMN.ComplexRegionAnalysis
+  alias BfwEngine.BPMN.InclusiveJoinAnalysis
   alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.FlowNodeData
+  alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.SignalSubscriptions
@@ -262,7 +269,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       entry.flow_node_type == :end_event and entry.state in [:finished, :error]
     end)
     |> Enum.map(fn {_id, entry} ->
-      flow_node = find_flow_node(data, entry.flow_node_id)
+      flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
       %FinalToken{
         end_event_id: flow_node.id,
@@ -403,7 +410,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp init_after_persist(data, start_event, opts, now) do
     initial_token = %Token{
-      id: generate_id(),
+      id: UuidV7.generate(),
       process_instance_id: data.process_instance_id,
       payload: opts[:payload],
       originating_flow_node_instance_id: nil,
@@ -1309,7 +1316,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
         if duplicate? do
           error_info =
-            build_error_info(
+            ErrorInfo.build(
               {:duplicate_join_arrival,
                %{flow_node_id: flow_node.id, incoming_flow_id: incoming_flow_id}}
             )
@@ -1396,8 +1403,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
          gateway_type,
          incoming_flow_id
        ) do
-    flow_node_instance_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, flow_node)
+    flow_node_instance_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, flow_node)
 
     case persist_fni_create(
            data,
@@ -1456,7 +1463,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       {:error, _reason} ->
         record_fni_fatal(
           data,
-          generate_id(),
+          UuidV7.generate(),
           flow_node,
           token,
           previous_flow_node_instance_ids,
@@ -1480,14 +1487,23 @@ defmodule BfwEngine.Execution.ProcessInstance do
     process_instance_pid = self()
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
       |> Map.put(:join_metadata, join_metadata)
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result =
              BoundaryAwareHandler.wrap_enter(handler_module, flow_node, token, handler_context)
 
-           dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             flow_node_instance_id,
+             result
+           )
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -1599,8 +1615,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
          %Token{} = token,
          previous_flow_node_instance_ids
        ) do
-    flow_node_instance_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, flow_node)
+    flow_node_instance_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, flow_node)
 
     case persist_fni_create(
            data,
@@ -1681,13 +1697,22 @@ defmodule BfwEngine.Execution.ProcessInstance do
     process_instance_pid = self()
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result =
              BoundaryAwareHandler.wrap_enter(handler_module, flow_node, token, handler_context)
 
-           dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             flow_node_instance_id,
+             result
+           )
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -1696,7 +1721,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           pid: task_pid,
           flow_node_id: flow_node.id,
           flow_node_type: flow_node.type,
-          event_type: extract_event_type(flow_node),
+          event_type: FlowNodeLookup.extract_event_type(flow_node),
           state: :active,
           token: token,
           previous_flow_node_instance_ids: previous_flow_node_instance_ids,
@@ -1740,7 +1765,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         error_details,
         flow_node,
         %{},
-        resolve_lane_name(data.process_model, flow_node),
+        LaneResolution.resolve_lane_name(data.process_model, flow_node),
         data.root_process_instance_id,
         was_waiting: false,
         multi_instance_id: if(existing_entry, do: Map.get(existing_entry, :multi_instance_id)),
@@ -1751,7 +1776,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       pid: nil,
       flow_node_id: flow_node.id,
       flow_node_type: flow_node.type,
-      event_type: extract_event_type(flow_node),
+      event_type: FlowNodeLookup.extract_event_type(flow_node),
       state: :fatal,
       token: token,
       previous_flow_node_instance_ids: previous_flow_node_instance_ids,
@@ -1851,7 +1876,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp maybe_register_conditional_waiter(data, fni_id, entry, extra_type_properties) do
     if Map.get(extra_type_properties, :awaiting_condition) do
-      flow_node = find_flow_node(data, entry.flow_node_id)
+      flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
       {:ok, handler_module} = HandlerDispatch.handler_for(flow_node)
       token_payload = entry.token.payload
 
@@ -2132,7 +2157,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
          next_flow_node_ids
        ) do
     new_token = %Token{
-      id: generate_id(),
+      id: UuidV7.generate(),
       process_instance_id: data.process_instance_id,
       payload: output_payload,
       originating_flow_node_instance_id: originating_flow_node_instance_id,
@@ -2242,9 +2267,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
         data
 
       entry ->
-        flow_node = find_flow_node(data, entry.flow_node_id)
-        error_info = build_error_info(reason)
-        lane_name = resolve_lane_name(data.process_model, flow_node)
+        flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+        error_info = ErrorInfo.build(reason)
+        lane_name = LaneResolution.resolve_lane_name(data.process_model, flow_node)
 
         _persist_result =
           FniLifecycle.transition_to_fatal(
@@ -2279,7 +2304,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp handle_fni_aborted(data, flow_node_instance_id, reason) do
     entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     _persist_result =
       FniLifecycle.transition_to_aborted(
@@ -2288,7 +2313,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         reason,
         flow_node,
         Map.get(entry, :type_properties, %{}),
-        resolve_lane_name(data.process_model, flow_node),
+        LaneResolution.resolve_lane_name(data.process_model, flow_node),
         data.root_process_instance_id,
         multi_instance_id: Map.get(entry, :multi_instance_id),
         iteration_index: Map.get(entry, :iteration_index),
@@ -2307,7 +2332,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp handle_fni_interrupted(data, flow_node_instance_id, reason) do
     entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
@@ -2318,14 +2343,14 @@ defmodule BfwEngine.Execution.ProcessInstance do
         reason,
         flow_node,
         Map.get(entry, :type_properties, %{}),
-        resolve_lane_name(data.process_model, flow_node),
+        LaneResolution.resolve_lane_name(data.process_model, flow_node),
         data.root_process_instance_id,
         multi_instance_id: Map.get(entry, :multi_instance_id),
         iteration_index: Map.get(entry, :iteration_index),
         was_waiting: entry.state == :waiting
       )
 
-    invoke_optional_callback(flow_node, :handle_aborted, [entry])
+    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
     data = unregister_conditional_waiter(data, flow_node_instance_id)
 
@@ -2678,7 +2703,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     output_token =
       case entry do
-        %{token: %{payload: payload}} -> to_json_safe(payload) || %{}
+        %{token: %{payload: payload}} -> JsonSafe.convert(payload) || %{}
         _ -> %{}
       end
 
@@ -2697,7 +2722,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       )
 
     if entry do
-      flow_node = find_flow_node(data, entry.flow_node_id)
+      flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
       TaskInboxEvents.publish_committed_finish(
         persist_result,
@@ -2707,8 +2732,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
           root_process_instance_id: data.root_process_instance_id,
           flow_node_id: entry.flow_node_id,
           flow_node_type: entry.flow_node_type,
-          event_type: if(flow_node, do: extract_event_type(flow_node)),
-          lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
+          event_type: if(flow_node, do: FlowNodeLookup.extract_event_type(flow_node)),
+          lane_name:
+            if(flow_node, do: LaneResolution.resolve_lane_name(data.process_model, flow_node)),
           terminal_state: :finished,
           triggerer_flow_node_instance_id: nil,
           type_properties: Map.get(entry, :type_properties) || %{},
@@ -2773,8 +2799,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
       |> Enum.reduce(data, fn {flow_node_instance_id, entry}, accumulator ->
         if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-        flow_node = find_flow_node(accumulator, entry.flow_node_id)
-        invoke_optional_callback(flow_node, :handle_aborted, [entry])
+        flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
+        InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
         _persist_result =
           FniLifecycle.transition_to_interrupted(
@@ -2783,7 +2809,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
             reason,
             flow_node,
             Map.get(entry, :type_properties, %{}),
-            resolve_lane_name(accumulator.process_model, flow_node),
+            LaneResolution.resolve_lane_name(accumulator.process_model, flow_node),
             accumulator.root_process_instance_id,
             multi_instance_id: Map.get(entry, :multi_instance_id),
             iteration_index: Map.get(entry, :iteration_index),
@@ -2825,8 +2851,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp interrupt_single_region_fni({flow_node_instance_id, entry}, accumulator) do
     if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-    flow_node = find_flow_node(accumulator, entry.flow_node_id)
-    invoke_optional_callback(flow_node, :handle_aborted, [entry])
+    flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
+    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
     _persist_result =
       FniLifecycle.transition_to_interrupted(
@@ -2835,7 +2861,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         :cancelled_by_complex_join,
         flow_node,
         Map.get(entry, :type_properties, %{}),
-        resolve_lane_name(accumulator.process_model, flow_node),
+        LaneResolution.resolve_lane_name(accumulator.process_model, flow_node),
         accumulator.root_process_instance_id,
         multi_instance_id: Map.get(entry, :multi_instance_id),
         iteration_index: Map.get(entry, :iteration_index),
@@ -2907,8 +2933,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp dispatch_boundary_fni(data, boundary_node, host_fni_id, token) do
-    boundary_fni_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, boundary_node)
+    boundary_fni_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, boundary_node)
 
     case persist_fni_create(data, boundary_fni_id, boundary_node, token, lane_name, [
            host_fni_id
@@ -2963,12 +2989,22 @@ defmodule BfwEngine.Execution.ProcessInstance do
     process_instance_pid = self()
 
     handler_context =
-      build_handler_context(data, boundary_fni_id, boundary_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        boundary_fni_id,
+        boundary_node,
+        process_instance_pid
+      )
       |> Map.put(:host_flow_node_instance_id, host_fni_id)
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result = handler_module.handle_enter(boundary_node, token, handler_context)
-           dispatch_handler_result(process_instance_pid, boundary_fni_id, result)
+
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             boundary_fni_id,
+             result
+           )
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -2977,7 +3013,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           pid: task_pid,
           flow_node_id: boundary_node.id,
           flow_node_type: boundary_node.type,
-          event_type: extract_event_type(boundary_node),
+          event_type: FlowNodeLookup.extract_event_type(boundary_node),
           state: :active,
           token: token,
           previous_flow_node_instance_ids: [host_fni_id],
@@ -3027,7 +3063,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp flow_node_type(data, flow_node_instance_id) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{flow_node_id: flow_node_id} ->
-        case find_flow_node(data, flow_node_id) do
+        case FlowNodeLookup.find_flow_node(data, flow_node_id) do
           %{type: type} -> type
           _other -> nil
         end
@@ -3071,7 +3107,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
          payload,
          user_task_action_id \\ nil
        ) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_lookup =
       if Map.has_key?(data.mi_shell_tasks, flow_node_instance_id) do
@@ -3084,7 +3120,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
       {:ok, handler_module} ->
         context =
           %{
-            build_handler_context(data, flow_node_instance_id, flow_node, self())
+            InstanceHandlerDispatch.build_handler_context(
+              data,
+              flow_node_instance_id,
+              flow_node,
+              self()
+            )
             | user_task_action_id: user_task_action_id
           }
 
@@ -3108,12 +3149,19 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp cancel_waiting_fni(data, flow_node_instance_id, entry, reason) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     case HandlerDispatch.handler_for(flow_node) do
       {:ok, handler_module} ->
         if function_exported?(handler_module, :handle_cancel, 4) do
-          context = build_handler_context(data, flow_node_instance_id, flow_node, self())
+          context =
+            InstanceHandlerDispatch.build_handler_context(
+              data,
+              flow_node_instance_id,
+              flow_node,
+              self()
+            )
+
           handler_module.handle_cancel(flow_node, entry, reason, context)
         end
 
@@ -3176,8 +3224,15 @@ defmodule BfwEngine.Execution.ProcessInstance do
          uncaught_reply
        ) do
     entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
-    flow_node = find_flow_node(data, entry.flow_node_id)
-    context = build_handler_context(data, flow_node_instance_id, flow_node, self())
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
+    context =
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        self()
+      )
 
     case BoundaryAwareHandler.attempt_error_boundary_catch(flow_node, context, reason) do
       {:boundary, boundary_node_id, payload, cancel_activity} ->
@@ -3314,7 +3369,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp evaluate_single_complex_join(data, flow_node_id, routing) do
-    flow_node = find_flow_node(data, flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, flow_node_id)
 
     case ComplexJoinEvaluator.evaluate(flow_node, routing, data) do
       :fire ->
@@ -3394,7 +3449,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp fire_conditional_waiter(data, fni_id, %{position: :intermediate_catch} = waiter) do
-    handler_context = build_handler_context(data, fni_id, waiter.flow_node, self())
+    handler_context =
+      InstanceHandlerDispatch.build_handler_context(data, fni_id, waiter.flow_node, self())
 
     case waiter.handler_module.complete_condition(
            waiter.flow_node,
@@ -3410,7 +3466,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp maybe_register_conditional_waiter_from_wait(data, fni_id, entry) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
     {:ok, handler_module} = HandlerDispatch.handler_for(flow_node)
     token_payload = entry.token.payload
 
@@ -3591,7 +3647,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     |> Enum.each(fn {flow_node_instance_id, entry} ->
       if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-      flow_node = find_flow_node(data, entry.flow_node_id)
+      flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
       cascade_error_info = %{
         "error_code" => "process_fatal",
@@ -3605,14 +3661,14 @@ defmodule BfwEngine.Execution.ProcessInstance do
           cascade_error_info,
           flow_node,
           Map.get(entry, :type_properties, %{}),
-          resolve_lane_name(data.process_model, flow_node),
+          LaneResolution.resolve_lane_name(data.process_model, flow_node),
           data.root_process_instance_id,
           multi_instance_id: Map.get(entry, :multi_instance_id),
           iteration_index: Map.get(entry, :iteration_index),
           was_waiting: entry.state == :waiting
         )
 
-      invoke_optional_callback(flow_node, :handle_fatal, [entry])
+      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_fatal, [entry])
     end)
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
@@ -3625,7 +3681,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     |> Enum.each(fn {flow_node_instance_id, entry} ->
       if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-      flow_node = find_flow_node(data, entry.flow_node_id)
+      flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
       _persist_result =
         FniLifecycle.transition_to_aborted(
@@ -3634,14 +3690,14 @@ defmodule BfwEngine.Execution.ProcessInstance do
           "process_aborted",
           flow_node,
           Map.get(entry, :type_properties, %{}),
-          resolve_lane_name(data.process_model, flow_node),
+          LaneResolution.resolve_lane_name(data.process_model, flow_node),
           data.root_process_instance_id,
           multi_instance_id: Map.get(entry, :multi_instance_id),
           iteration_index: Map.get(entry, :iteration_index),
           was_waiting: entry.state == :waiting
         )
 
-      invoke_optional_callback(flow_node, :handle_aborted, [entry])
+      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
     end)
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
@@ -3662,8 +3718,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
       |> Enum.reduce(data, fn {flow_node_instance_id, entry}, accumulator ->
         if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
-        flow_node = find_flow_node(accumulator, entry.flow_node_id)
-        invoke_optional_callback(flow_node, :handle_aborted, [entry])
+        flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
+        InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
         _persist_result =
           FniLifecycle.transition_to_error(
@@ -3672,7 +3728,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
             cascade_error_info,
             flow_node,
             Map.get(entry, :type_properties, %{}),
-            resolve_lane_name(accumulator.process_model, flow_node),
+            LaneResolution.resolve_lane_name(accumulator.process_model, flow_node),
             accumulator.root_process_instance_id,
             multi_instance_id: Map.get(entry, :multi_instance_id),
             iteration_index: Map.get(entry, :iteration_index),
@@ -3741,7 +3797,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           error_info: %{
             "error_code" => "process_fatal",
             "message" => "Process instance went fatal",
-            "detail" => to_json_safe(fatal_reason)
+            "detail" => JsonSafe.convert(fatal_reason)
           }
         })
       end,
@@ -3760,7 +3816,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
                error_info: %{
                  "error_code" => "process_aborted",
                  "message" => "Process instance was aborted",
-                 "detail" => to_json_safe(abort_reason)
+                 "detail" => JsonSafe.convert(abort_reason)
                }
              })
            end,
@@ -3785,7 +3841,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           error_info: %{
             "error_code" => error_info[:error_code] || "bpmn_error",
             "message" => error_info[:error_message] || "Process ended via Error End Event",
-            "detail" => to_json_safe(error_info)
+            "detail" => JsonSafe.convert(error_info)
           }
         })
       end,
@@ -3805,7 +3861,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
             "error_code" => escalation_info[:escalation_code] || "escalation",
             "message" =>
               "Process ended via Escalation End Event — escalation: #{escalation_info[:escalation_name] || "unnamed"}",
-            "detail" => to_json_safe(escalation_info)
+            "detail" => JsonSafe.convert(escalation_info)
           }
         })
       end,
@@ -3888,7 +3944,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       process_instance_id: data.process_instance_id,
       flow_node_id: flow_node.id,
       flow_node_type: Atom.to_string(flow_node.type),
-      event_type: extract_event_type(flow_node),
+      event_type: FlowNodeLookup.extract_event_type(flow_node),
       lane_name: lane_name,
       state: "active",
       started_at: DateTime.utc_now(),
@@ -3916,8 +3972,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
          loop_overlay,
          flow_node
        ) do
-    iteration_fni_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, flow_node)
+    iteration_fni_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, flow_node)
     shell_entry = Map.get(data.flow_node_instance_states, shell_fni_id)
     shell_task_pid = if shell_entry, do: shell_entry.pid
 
@@ -3928,7 +3984,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       process_instance_id: data.process_instance_id,
       flow_node_id: flow_node.id,
       flow_node_type: Atom.to_string(flow_node.type),
-      event_type: extract_event_type(flow_node),
+      event_type: FlowNodeLookup.extract_event_type(flow_node),
       lane_name: lane_name,
       state: "active",
       started_at: DateTime.utc_now(),
@@ -3988,7 +4044,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     process_instance_pid = self()
 
     handler_context =
-      build_handler_context(
+      InstanceHandlerDispatch.build_handler_context(
         data,
         context.iteration_fni_id,
         context.flow_node,
@@ -4013,7 +4069,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
                handler_context
              )
 
-           dispatch_handler_result(process_instance_pid, context.iteration_fni_id, result)
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             context.iteration_fni_id,
+             result
+           )
 
            receive do
              {:EXIT, _from, :shutdown} -> :ok
@@ -4102,7 +4162,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       pid: pid,
       flow_node_id: flow_node.id,
       flow_node_type: flow_node.type,
-      event_type: extract_event_type(flow_node),
+      event_type: FlowNodeLookup.extract_event_type(flow_node),
       state: state,
       token: token,
       previous_flow_node_instance_ids: [shell_fni_id],
@@ -4140,8 +4200,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     data =
       if entry && entry.state not in [:finished, :fatal, :aborted, :interrupted, :error] do
-        flow_node = find_flow_node(data, entry.flow_node_id)
-        error_info = build_error_info(reason)
+        flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+        error_info = ErrorInfo.build(reason)
 
         _transition_result =
           FniLifecycle.transition_to_fatal(
@@ -4150,7 +4210,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
             error_info,
             flow_node,
             Map.get(entry, :type_properties, %{}),
-            resolve_lane_name(data.process_model, flow_node),
+            LaneResolution.resolve_lane_name(data.process_model, flow_node),
             data.root_process_instance_id,
             multi_instance_id: Map.get(entry, :multi_instance_id),
             iteration_index: Map.get(entry, :iteration_index),
@@ -4291,7 +4351,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp finish_interrupted_iteration(data, iteration_fni_id, entry) do
     shell_task = Map.get(data.mi_shell_tasks, iteration_fni_id)
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     persist_result =
       FniLifecycle.transition_to_interrupted(
@@ -4300,7 +4360,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         :cancelled_by_mi_shell,
         flow_node,
         entry.type_properties,
-        resolve_lane_name(data.process_model, flow_node),
+        LaneResolution.resolve_lane_name(data.process_model, flow_node),
         data.root_process_instance_id,
         multi_instance_id: Map.get(entry, :multi_instance_id),
         iteration_index: Map.get(entry, :iteration_index),
@@ -4435,8 +4495,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp resolve_lane_for_flow_node_id(data, flow_node_id) do
-    flow_node = find_flow_node(data, flow_node_id)
-    resolve_lane_name(data.process_model, flow_node)
+    flow_node = FlowNodeLookup.find_flow_node(data, flow_node_id)
+    LaneResolution.resolve_lane_name(data.process_model, flow_node)
   end
 
   defp resolve_lane_for_flow_node_instance(data, flow_node_instance_id) do
@@ -4552,8 +4612,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
       root_process_instance_id: data.root_process_instance_id,
       flow_node_id: flow_node.id,
       flow_node_type: flow_node.type,
-      event_type: extract_event_type(flow_node),
-      lane_name: resolve_lane_name(data.process_model, flow_node),
+      event_type: FlowNodeLookup.extract_event_type(flow_node),
+      lane_name: LaneResolution.resolve_lane_name(data.process_model, flow_node),
       triggerer_flow_node_instance_id: nil,
       multi_instance_id: Keyword.get(opts, :multi_instance_id),
       iteration_index: Keyword.get(opts, :iteration_index),
@@ -4572,7 +4632,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp emit_fni_state_changed(data, flow_node_instance_id, entry, old_state, new_state) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     EngineEventBus.publish(%Event.FlowNodeInstanceStateChanged{
       flow_node_instance_id: flow_node_instance_id,
@@ -4581,8 +4641,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
       flow_node_id: entry.flow_node_id,
       flow_node_type: entry.flow_node_type,
       event_type:
-        if(flow_node, do: extract_event_type(flow_node), else: Map.get(entry, :event_type)),
-      lane_name: if(flow_node, do: resolve_lane_name(data.process_model, flow_node)),
+        if(flow_node,
+          do: FlowNodeLookup.extract_event_type(flow_node),
+          else: Map.get(entry, :event_type)
+        ),
+      lane_name:
+        if(flow_node, do: LaneResolution.resolve_lane_name(data.process_model, flow_node)),
       old_state: old_state,
       new_state: new_state,
       multi_instance_id: Map.get(entry, :multi_instance_id),
@@ -4598,7 +4662,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
         process_instance_id: data.process_instance_id,
         flow_node_type: entry.flow_node_type,
         old_state: old_state,
-        new_state: new_state
+        new_state: new_state,
+        multi_instance_id: Map.get(entry, :multi_instance_id)
       }
     )
   end
@@ -4767,7 +4832,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp dispatch_esp_shell(data, esp_node, payload) do
     token = %Token{
-      id: generate_id(),
+      id: UuidV7.generate(),
       process_instance_id: data.process_instance_id,
       payload: payload || %{},
       originating_flow_node_instance_id: nil,
@@ -5033,7 +5098,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
         activity ->
           activation_token = %Token{
-            id: generate_id(),
+            id: UuidV7.generate(),
             process_instance_id: data.process_instance_id,
             payload: adhoc_current_token_payload(data.flow_node_instance_states),
             originating_flow_node_instance_id: nil,
@@ -5098,7 +5163,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     old_fni_ids = MapSet.new(Map.keys(data.flow_node_instance_states))
 
     activation_token = %Token{
-      id: generate_id(),
+      id: UuidV7.generate(),
       process_instance_id: data.process_instance_id,
       payload: data.flow_node_instance_states |> adhoc_current_token_payload(),
       originating_flow_node_instance_id: nil,
@@ -5231,5 +5296,75 @@ defmodule BfwEngine.Execution.ProcessInstance do
       lane_name: resolve_lane_for_flow_node_id(data, flow_node_id),
       occurred_at: DateTime.utc_now()
     })
+  end
+
+  @spec fetch_process_model(String.t(), String.t() | nil) ::
+          {:ok, struct(), struct()} | {:error, term()}
+  defp fetch_process_model(process_version_id, subprocess_node_id)
+
+  defp fetch_process_model(process_version_id, nil) do
+    case ModelCache.fetch(process_version_id) do
+      {:ok, definitions} ->
+        case Enum.find(definitions.processes, & &1.is_executable) do
+          nil ->
+            {:error, :no_executable_process}
+
+          process ->
+            enriched_process =
+              process
+              |> InclusiveJoinAnalysis.enrich_process()
+              |> ComplexRegionAnalysis.enrich_process()
+
+            {:ok, enriched_process, definitions}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp fetch_process_model(process_version_id, subprocess_node_id) do
+    case ModelCache.fetch_subprocess_model(process_version_id, subprocess_node_id) do
+      {:ok, subprocess_model, definitions} ->
+        enriched_subprocess =
+          subprocess_model
+          |> InclusiveJoinAnalysis.enrich_process()
+          |> ComplexRegionAnalysis.enrich_process()
+
+        {:ok, enriched_subprocess, definitions}
+
+      error ->
+        error
+    end
+  end
+
+  @spec find_fni_by_pid(struct(), pid()) :: {String.t(), map()} | nil
+  defp find_fni_by_pid(data, pid) do
+    Enum.find(data.flow_node_instance_states, fn {_id, entry} -> entry.pid == pid end)
+  end
+
+  @spec build_unsupported_event_definition_error_info(FlowNode.t()) :: %{String.t() => term()}
+  defp build_unsupported_event_definition_error_info(%FlowNode{} = flow_node) do
+    event_type = FlowNodeLookup.extract_event_type(flow_node) || "unknown"
+    flow_node_type = Atom.to_string(flow_node.type)
+
+    %{
+      "error_code" => "unsupported_event_definition",
+      "message" =>
+        "Unsupported event definition '#{event_type}' on flow node '#{flow_node.id}' (#{flow_node_type})",
+      "detail" => %{
+        "flow_node_id" => flow_node.id,
+        "flow_node_type" => flow_node_type,
+        "event_type" => event_type
+      }
+    }
+  end
+
+  @spec send_async_gate(pid() | nil, :continue | :cancel) :: :ok
+  defp send_async_gate(nil, _decision), do: :ok
+
+  defp send_async_gate(pid, decision) when decision in [:continue, :cancel] do
+    send(pid, {:async_gate, decision})
+    :ok
   end
 end

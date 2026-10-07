@@ -4,8 +4,8 @@ defmodule BfwEngine.Execution.PayloadCap do
 
   This is the **authoritative enforcement site** — every payload-producing
   operation in the engine must go through `check/2` before persisting. The
-  PI Facade (Phase 1) calls it on `write_result/2`, `publish_message/2`,
-  `publish_signal/2`, and any FEEL-originated token output. The escalation
+  process instance calls it on token output, message and signal publish,
+  and any FEEL-originated payload. The escalation
   REST trigger (`POST /escalations/{escalation_code}/trigger`) carries no
   payload and does not call PayloadCap. The API layer calls it as a
   supplementary fast-fail on inbound request bodies that do carry a payload.
@@ -27,8 +27,6 @@ defmodule BfwEngine.Execution.PayloadCap do
 
     * `:field` — a descriptive atom identifying the payload origin
       (e.g. `:fni_output`, `:message_payload`). Defaults to `:payload`.
-    * `:limit` — override the configured cap (useful for testing).
-      Must be >= #{@min_cap_bytes}.
 
   ## Examples
 
@@ -45,7 +43,7 @@ defmodule BfwEngine.Execution.PayloadCap do
 
   def check(payload, opts) do
     field = Keyword.get(opts, :field, :payload)
-    limit = resolve_limit(opts)
+    limit = resolve_limit()
 
     with {:ok, json_bytes} <- measure(payload) do
       if json_bytes <= limit do
@@ -63,16 +61,8 @@ defmodule BfwEngine.Execution.PayloadCap do
     end
   end
 
-  defp resolve_limit(opts) do
-    explicit = Keyword.get(opts, :limit)
-
-    cap =
-      if is_integer(explicit) do
-        explicit
-      else
-        Application.get_env(:core_execution, :token_max_bytes, @default_cap_bytes)
-      end
-
+  defp resolve_limit do
+    cap = Application.get_env(:core_execution, :token_max_bytes, @default_cap_bytes)
     max(cap, @min_cap_bytes)
   end
 

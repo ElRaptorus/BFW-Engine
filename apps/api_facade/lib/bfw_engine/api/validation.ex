@@ -170,15 +170,6 @@ defmodule BfwEngine.Api.Validation do
   def observe_all?(identity_or_claims),
     do: Map.get(claims_of(identity_or_claims), "observe_all", false) == true
 
-  @doc """
-  Returns `true` when the identity may **act** on the named lane (`\"write\"` only).
-
-  A `\"read\"` claim is not enough — use `lane_access/2` when observe vs act matters.
-  """
-  @spec has_lane_claim?(struct(), String.t()) :: boolean()
-  def has_lane_claim?(identity, lane_name),
-    do: lane_access(identity, lane_name) == :write
-
   @spec skip_claims?(keyword()) :: boolean()
   defp skip_claims?(opts), do: Keyword.get(opts, :skip_claims, false)
 

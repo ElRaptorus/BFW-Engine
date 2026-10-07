@@ -3,6 +3,7 @@ defmodule BfwEngine.Telemetry.MeasurementsTest do
 
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Telemetry.Measurements
+  alias BfwEngine.Telemetry.ServiceReset
   alias BfwEngine.Types.Event
 
   @dummy_children_key :measurements_dummy_children
@@ -250,7 +251,7 @@ defmodule BfwEngine.Telemetry.MeasurementsTest do
       original = Application.get_env(:core_execution, :max_concurrent_process_instances)
       {:ok, _} = Application.ensure_all_started(:core_execution)
       {:ok, _} = Application.ensure_all_started(:core_events)
-      EngineEventBus.reset_state()
+      ServiceReset.engine_event_bus()
       :persistent_term.put(:bfw_engine_load_level, :normal)
 
       sink_name = "measurements-overload-#{System.unique_integer([:positive])}"
@@ -260,7 +261,7 @@ defmodule BfwEngine.Telemetry.MeasurementsTest do
 
       on_exit(fn ->
         cleanup_all_dummy_children()
-        EngineEventBus.reset_state()
+        ServiceReset.engine_event_bus()
 
         if original do
           Application.put_env(:core_execution, :max_concurrent_process_instances, original)

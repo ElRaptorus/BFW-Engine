@@ -24,12 +24,6 @@ defmodule BfwEngine.Auth.JwksCache do
     GenServer.call(__MODULE__, :get_keys)
   end
 
-  @doc "Force an immediate refresh (useful in tests)."
-  @spec refresh() :: :ok
-  def refresh do
-    GenServer.cast(__MODULE__, :refresh)
-  end
-
   # --- Server callbacks ---------------------------------------------------
 
   @impl true
@@ -55,12 +49,6 @@ defmodule BfwEngine.Auth.JwksCache do
   @impl true
   def handle_call(:get_keys, _from, state) do
     {:reply, state.keys, state}
-  end
-
-  @impl true
-  def handle_cast(:refresh, state) do
-    new_state = do_fetch(state)
-    {:noreply, new_state}
   end
 
   @impl true

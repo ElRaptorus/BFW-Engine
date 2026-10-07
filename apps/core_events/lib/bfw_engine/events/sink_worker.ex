@@ -32,11 +32,6 @@ defmodule BfwEngine.Events.SinkWorker do
     GenServer.call(via_tuple(name), :shutdown)
   end
 
-  @doc false
-  def get_state(name) do
-    GenServer.call(via_tuple(name), :get_state)
-  end
-
   defp via_tuple(name), do: {:via, Registry, {BfwEngine.Events.SinkRegistry, name}}
 
   # ---------------------------------------------------------------------------
@@ -72,11 +67,6 @@ defmodule BfwEngine.Events.SinkWorker do
     end
 
     {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_call(:get_state, _from, state) do
-    {:reply, state, state}
   end
 
   defp dispatch(event, state) do

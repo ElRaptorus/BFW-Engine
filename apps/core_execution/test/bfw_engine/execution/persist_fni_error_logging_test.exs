@@ -19,6 +19,7 @@ defmodule BfwEngine.Execution.PersistFniErrorLoggingTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
 
@@ -98,7 +99,7 @@ defmodule BfwEngine.Execution.PersistFniErrorLoggingTest do
   setup do
     Application.put_env(:core_execution, :persistence_adapter, FailingUpdateAdapter)
     Application.put_env(:core_execution, :persistence_retry_max_attempts, 1)
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     # `coverage_runner.exs` sets Logger level to :critical, which suppresses
     # the `Logger.error` calls in `persist_fni_*` BEFORE `capture_log` can
@@ -109,7 +110,7 @@ defmodule BfwEngine.Execution.PersistFniErrorLoggingTest do
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :persistence_retry_max_attempts)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
       Logger.configure(level: previous_level)
     end)
   end

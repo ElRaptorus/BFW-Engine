@@ -20,7 +20,7 @@ The execution runtime converts a parsed BPMN model into a running process instan
 │        ProcessInstance (:gen_statem)              │
 │  ┌─────────────────┐  ┌──────────────────────┐   │
 │  │ FniLifecycle     │  │ BoundaryOrchestrator │   │
-│  │ Helpers          │  │ Resumption           │   │
+│  │ ErrorInfo        │  │ Resumption           │   │
 │  └─────────────────┘  └──────────────────────┘   │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
 │  │ FNI Task │  │ FNI Task │  │ FNI Task │  …    │
@@ -47,7 +47,12 @@ The PI module is decomposed into focused submodules:
 | Module | Path | Responsibility |
 |--------|------|----------------|
 | `ProcessInstance` | `process_instance.ex` | `:gen_statem` shell: state machine, client API, message routing, FNI dispatch, cascade operations |
-| `ProcessInstance.Helpers` | `process_instance/helpers.ex` | Pure utilities: ID generation, flow node lookup, key stringification, JSON safety, event type extraction |
+| `ProcessInstance.ErrorInfo` | `process_instance/error_info.ex` | `build/1` and `sanitize/1`; humanization is private |
+| `ProcessInstance.JsonSafe` | `process_instance/json_safe.ex` | `convert/1` for token payloads |
+| `ProcessInstance.LaneResolution` | `process_instance/lane_resolution.ex` | Lane name lookup |
+| `ProcessInstance.FlowNodeLookup` | `process_instance/flow_node_lookup.ex` | Flow node and event-type lookup |
+| `ProcessInstance.HandlerDispatch` | `process_instance/handler_dispatch.ex` | Handler context and result dispatch |
+| `Execution.UuidV7` | `uuid_v7.ex` | `generate/0` |
 | `FniLifecycle` | `fni_lifecycle.ex` | FNI state transitions: `finish/4` (happy-path), `transition_to_waiting/2`, `park_async/3`, `transition_to_fatal/4`, `transition_to_aborted/4`, `transition_to_interrupted/4`. Handlers own their own lifecycle persistence. |
 | `FniLifecycle.LifecycleResult` | `fni_lifecycle/lifecycle_result.ex` | Return struct from `FniLifecycle.finish/4` carrying data object cache updates |
 | `ProcessInstance.BoundaryOrchestrator` | `process_instance/boundary_orchestrator.ex` | Boundary event orchestration: catch handling, cycle fires, subscription dispatch, cancel/abort |
@@ -96,12 +101,6 @@ When a boundary event interrupts an FNI (`handle_fni_interrupted/3`), the handle
 **Path:** `apps/core_execution/lib/bfw_engine/execution/process_instance/state.ex`
 
 Holds the PI's in-memory runtime data: process model, identity, FNI state map (`flow_node_instance_states`), Task.Supervisor pid, and data object cache.
-
-#### Facade
-
-**Path:** `apps/core_execution/lib/bfw_engine/execution/process_instance/facade.ex`
-
-Typed API for FNIs to communicate back to their parent PI. Currently exposes `finish_user_task/4` (User Task result), `confirm_manual_task/3` (Manual Task confirm; no payload, the entered token passes through), and `cancel_inbox_task/4` (cancel either task type and abort the PI tree).
 
 ### FNI Event Type Derivation
 
@@ -462,7 +461,7 @@ Converging inclusive gateways (`incoming_count > 1`, `outgoing_count <= 1`) are 
 
 **Deploy-time analysis (`InclusiveJoinAnalysis`)**
 
-`BfwEngine.BPMN.InclusiveJoinAnalysis` (in `apps/core_bpmn/`) pre-computes, for each incoming flow of each inclusive join, the set of upstream flow node IDs reachable via backward BFS through the process graph (excluding the join itself). The analysis is stored on `Model.Process.inclusive_join_analyses` and populated by `InclusiveJoinAnalysis.enrich_process/1`, called in `Helpers.fetch_process_model/2` when the model is loaded from `ModelCache`. This means the analysis is computed once per model load (not per PI start or per deploy).
+`BfwEngine.BPMN.InclusiveJoinAnalysis` (in `apps/core_bpmn/`) pre-computes, for each incoming flow of each inclusive join, the set of upstream flow node IDs reachable via backward BFS through the process graph (excluding the join itself). The analysis is stored on `Model.Process.inclusive_join_analyses` and populated by `InclusiveJoinAnalysis.enrich_process/1`, called in `the private `fetch_process_model/2` on `ProcessInstance`` when the model is loaded from `ModelCache`. This means the analysis is computed once per model load (not per PI start or per deploy).
 
 **Runtime evaluation (`InclusiveJoinEvaluator`)**
 
@@ -629,7 +628,7 @@ A join that fails any of these is excluded from `complex_region_analyses`, and t
 
 Unlike `interrupt_remaining_fnis/2` (used by Terminate/Error End Events), this is **scoped to the region** — it does NOT purge the whole PI's subscriptions. Branches outside the region (including an enclosing region's other branches) are untouched. In a nested layout, an inner join firing cancels only the inner region; the outer region's parallel branches keep running.
 
-**Deploy enrichment.** `ComplexRegionAnalysis.enrich_process/1` is chained after `InclusiveJoinAnalysis.enrich_process/1` in `Helpers.fetch_process_model/2,3` (top-level process and embedded subprocess scopes), populating `Model.Process.complex_region_analyses` keyed by join id.
+**Deploy enrichment.** `ComplexRegionAnalysis.enrich_process/1` is chained after `InclusiveJoinAnalysis.enrich_process/1` in `the private `fetch_process_model/2` on `ProcessInstance`,3` (top-level process and embedded subprocess scopes), populating `Model.Process.complex_region_analyses` keyed by join id.
 
 **Resume.** On rehydration, `Resumption.reactivate_join_gateway_fni/5` reactivates `:complex_gateway` join FNIs, reconstructing the routing entry (`activation_condition`, `merged_payload` rebuilt from persisted `gateway_pending_arrivals`, `fired: false`) so the resumed PI re-evaluates the join and can still fire + cancel correctly after an engine restart.
 
@@ -802,7 +801,7 @@ Embedded SubProcesses (`<bpmn:subProcess>` with `triggeredByEvent="false"`) exec
 
 #### Synthetic process model
 
-The child PI does not reference a separately deployed process definition. At start and resume time, `Helpers.fetch_process_model/2` delegates to `ModelCache.fetch_subprocess_model/2`, which:
+The child PI does not reference a separately deployed process definition. At start and resume time, `the private `fetch_process_model/2` on `ProcessInstance`` delegates to `ModelCache.fetch_subprocess_model/2`, which:
 
 1. Loads the parent's cached `%Definitions{}` from ETS (keyed by `process_version_id`)
 2. Locates the `%FlowNode{type: :sub_process}` with the given `subprocess_node_id` (recursive search through nested subprocesses)
@@ -1456,7 +1455,7 @@ BfwEngine.Execution.ApplicationSupervisor (one_for_one)
 
 ## Error Info Schema
 
-All `error_info` maps persisted on FNIs and PIs follow a standardized schema. The normalization is performed by `Helpers.build_error_info/1` in `core_execution`.
+All `error_info` maps persisted on FNIs and PIs follow a standardized schema. The normalization is performed by `ProcessInstance.ErrorInfo.build/1` in `core_execution`.
 
 | Key | Type | Description |
 |-----|------|-------------|
@@ -1464,7 +1463,7 @@ All `error_info` maps persisted on FNIs and PIs follow a standardized schema. Th
 | `message` | `string` | Human-readable error description |
 | `detail` | `term \| nil` | Optional additional context (JSON-safe). Absent when there is no extra detail to convey |
 
-`build_error_info/1` accepts arbitrary error reasons (atoms, tuples, maps, binaries) and normalizes them into this schema. Callers in `ProcessInstance` and `FniLifecycle` use it to ensure every persisted `error_info` is uniform.
+`ErrorInfo.build/1` accepts arbitrary error reasons (atoms, tuples, maps, binaries) and normalizes them into this schema. Callers in `ProcessInstance` and `FniLifecycle` use it to ensure every persisted `error_info` is uniform.
 
 The `FlowNodeInstanceFinished` engine event also carries `error_info` (as `errorInfo` on the wire) for fatal FNIs, so real-time consumers can display error details without re-querying the API.
 
@@ -1990,8 +1989,12 @@ The `TimerStartListener` uses a dedicated system identity (`system:timer-start`)
 | `BfwEngine.Execution` | `apps/core_execution/lib/bfw_engine/execution.ex` |
 | `BfwEngine.Execution.ProcessInstance` | `apps/core_execution/lib/bfw_engine/execution/process_instance.ex` |
 | `BfwEngine.Execution.ProcessInstance.State` | `apps/core_execution/lib/bfw_engine/execution/process_instance/state.ex` |
-| `BfwEngine.Execution.ProcessInstance.Facade` | `apps/core_execution/lib/bfw_engine/execution/process_instance/facade.ex` |
-| `BfwEngine.Execution.ProcessInstance.Helpers` | `apps/core_execution/lib/bfw_engine/execution/process_instance/helpers.ex` |
+| `BfwEngine.Execution.UuidV7` | `apps/core_execution/lib/bfw_engine/execution/uuid_v7.ex` |
+| `BfwEngine.Execution.ProcessInstance.ErrorInfo` | `apps/core_execution/lib/bfw_engine/execution/process_instance/error_info.ex` |
+| `BfwEngine.Execution.ProcessInstance.JsonSafe` | `apps/core_execution/lib/bfw_engine/execution/process_instance/json_safe.ex` |
+| `BfwEngine.Execution.ProcessInstance.LaneResolution` | `apps/core_execution/lib/bfw_engine/execution/process_instance/lane_resolution.ex` |
+| `BfwEngine.Execution.ProcessInstance.FlowNodeLookup` | `apps/core_execution/lib/bfw_engine/execution/process_instance/flow_node_lookup.ex` |
+| `BfwEngine.Execution.ProcessInstance.HandlerDispatch` | `apps/core_execution/lib/bfw_engine/execution/process_instance/handler_dispatch.ex` |
 | `BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator` | `apps/core_execution/lib/bfw_engine/execution/process_instance/boundary_orchestrator.ex` |
 | `BfwEngine.Execution.ProcessInstance.Resumption` | `apps/core_execution/lib/bfw_engine/execution/process_instance/resumption.ex` |
 | `BfwEngine.Execution.FniLifecycle` | `apps/core_execution/lib/bfw_engine/execution/fni_lifecycle.ex` |

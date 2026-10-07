@@ -6,7 +6,10 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
   require Logger
 
-  import BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+  alias BfwEngine.Execution.UuidV7
 
   alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
@@ -58,7 +61,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     flow_node_instance_states =
       Map.new(flow_node_instance_data, fn flow_node_instance ->
         token = %Token{
-          id: generate_id(),
+          id: UuidV7.generate(),
           process_instance_id: data.process_instance_id,
           payload: flow_node_instance.input_token,
           originating_flow_node_instance_id: nil,
@@ -217,7 +220,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
                put_complex_join_fields: 5
              ]}
   defp put_complex_join_fields(routing, :complex_gateway, data, flow_node_id, rows) do
-    flow_node = find_flow_node(data, flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, flow_node_id)
 
     merged_payload =
       rows
@@ -389,7 +392,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_mi_shell_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     if flow_node == nil do
       Logger.error(
@@ -399,7 +402,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       data
     else
       handler_context =
-        build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+        InstanceHandlerDispatch.build_handler_context(
+          data,
+          flow_node_instance_id,
+          flow_node,
+          process_instance_pid
+        )
 
       handler_module =
         case HandlerDispatch.handler_for(flow_node) do
@@ -440,12 +448,17 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     do: data
 
   defp reactivate_active_iteration_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     with flow_node when not is_nil(flow_node) <- flow_node,
          {:ok, handler_module} <- HandlerDispatch.inner_handler_for(flow_node) do
       handler_context =
-        build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+        InstanceHandlerDispatch.build_handler_context(
+          data,
+          flow_node_instance_id,
+          flow_node,
+          process_instance_pid
+        )
 
       handler_context = %{
         handler_context
@@ -486,7 +499,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          process_instance_pid,
          persisted_arrivals
        ) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     if flow_node == nil do
       Logger.error(
@@ -503,7 +516,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         end
 
       handler_context =
-        build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+        InstanceHandlerDispatch.build_handler_context(
+          data,
+          flow_node_instance_id,
+          flow_node,
+          process_instance_pid
+        )
 
       spawn_resume_task(
         data,
@@ -572,7 +590,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_active_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    with flow_node when not is_nil(flow_node) <- find_flow_node(data, entry.flow_node_id),
+    with flow_node when not is_nil(flow_node) <-
+           FlowNodeLookup.find_flow_node(data, entry.flow_node_id),
          {:ok, handler_module} <- HandlerDispatch.handler_for(flow_node) do
       data =
         respawn_fni_task(
@@ -624,7 +643,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          process_instance_pid
        ) do
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
       |> maybe_inject_boundary_host(entry)
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
@@ -636,7 +660,11 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
                handler_context
              )
 
-           dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             flow_node_instance_id,
+             result
+           )
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -720,10 +748,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_timer_catch_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     spawn_resume_task(
       data,
@@ -736,10 +769,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_timer_start_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     spawn_resume_task(
       data,
@@ -752,10 +790,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_timer_boundary_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
       |> Map.put(
         :host_flow_node_instance_id,
         Map.get(entry.type_properties, :host_flow_node_instance_id) ||
@@ -773,10 +816,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_message_catch_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     spawn_resume_task(
       data,
@@ -789,10 +837,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_message_boundary_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
       |> Map.put(
         :host_flow_node_instance_id,
         Map.get(entry.type_properties, :host_flow_node_instance_id) ||
@@ -810,10 +863,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_signal_catch_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     spawn_resume_task(
       data,
@@ -826,10 +884,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_signal_boundary_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
       |> Map.put(
         :host_flow_node_instance_id,
         Map.get(entry.type_properties, :host_flow_node_instance_id) ||
@@ -847,10 +910,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_conditional_catch_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     spawn_resume_task(
       data,
@@ -870,10 +938,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          entry,
          process_instance_pid
        ) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
       |> Map.put(
         :host_flow_node_instance_id,
         Map.get(entry.type_properties, :host_flow_node_instance_id) ||
@@ -897,10 +970,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_receive_task_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     spawn_resume_task(
       data,
@@ -924,7 +1002,10 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         flow_node_instance_id: flow_node_instance_id,
         process_instance_id: data.process_instance_id,
         lane_name:
-          resolve_lane_name(data.process_model, find_flow_node(data, entry.flow_node_id)),
+          LaneResolution.resolve_lane_name(
+            data.process_model,
+            FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+          ),
         occurred_at: DateTime.utc_now()
       })
     end
@@ -933,10 +1014,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_call_activity_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     type_properties = entry.type_properties || %{}
 
@@ -962,10 +1048,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp reactivate_sub_process_fni(data, flow_node_instance_id, entry, process_instance_pid) do
-    flow_node = find_flow_node(data, entry.flow_node_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_context =
-      build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
 
     type_properties = entry.type_properties || %{}
 
@@ -1024,7 +1115,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
        ) do
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result = resume_function.()
-           dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
+
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             flow_node_instance_id,
+             result
+           )
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -1070,7 +1166,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         |> Enum.filter(fn {_id, entry} ->
           entry.flow_node_type == :boundary_event and
             entry.state in [:active, :waiting] and
-            boundary_fni_for_host?(entry, host_fni_id)
+            BoundaryOrchestrator.boundary_fni_for_host?(entry, host_fni_id)
         end)
         |> Enum.map(fn {_id, entry} -> entry.flow_node_id end)
         |> MapSet.new()
@@ -1098,8 +1194,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          token,
          process_instance_pid
        ) do
-    boundary_fni_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, boundary_node)
+    boundary_fni_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, boundary_node)
 
     case persist_boundary_fni(data, boundary_fni_id, boundary_node, token, lane_name, host_fni_id) do
       {:ok, _} ->
@@ -1133,7 +1229,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           process_instance_id: data.process_instance_id,
           flow_node_id: boundary_node.id,
           flow_node_type: Atom.to_string(boundary_node.type),
-          event_type: extract_event_type(boundary_node),
+          event_type: FlowNodeLookup.extract_event_type(boundary_node),
           lane_name: lane_name,
           state: "active",
           started_at: DateTime.utc_now(),
@@ -1152,7 +1248,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       root_process_instance_id: data.root_process_instance_id,
       flow_node_id: boundary_node.id,
       flow_node_type: boundary_node.type,
-      event_type: extract_event_type(boundary_node),
+      event_type: FlowNodeLookup.extract_event_type(boundary_node),
       lane_name: lane_name,
       occurred_at: DateTime.utc_now()
     })
@@ -1197,12 +1293,22 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          process_instance_pid
        ) do
     handler_context =
-      build_handler_context(data, boundary_fni_id, boundary_node, process_instance_pid)
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        boundary_fni_id,
+        boundary_node,
+        process_instance_pid
+      )
       |> Map.put(:host_flow_node_instance_id, host_fni_id)
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result = handler_module.handle_enter(boundary_node, token, handler_context)
-           dispatch_handler_result(process_instance_pid, boundary_fni_id, result)
+
+           InstanceHandlerDispatch.dispatch_handler_result(
+             process_instance_pid,
+             boundary_fni_id,
+             result
+           )
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
@@ -1211,7 +1317,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           pid: task_pid,
           flow_node_id: boundary_node.id,
           flow_node_type: boundary_node.type,
-          event_type: extract_event_type(boundary_node),
+          event_type: FlowNodeLookup.extract_event_type(boundary_node),
           state: :active,
           token: token,
           previous_flow_node_instance_ids: [host_fni_id],
@@ -1229,4 +1335,19 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         data
     end
   end
+
+  @spec parse_flow_node_type(atom() | String.t()) :: atom()
+  defp parse_flow_node_type(type) when is_atom(type), do: type
+  defp parse_flow_node_type(type) when is_binary(type), do: String.to_existing_atom(type)
+
+  @spec parse_fni_state(atom() | String.t()) :: atom()
+  defp parse_fni_state(state) when is_atom(state), do: state
+  defp parse_fni_state("active"), do: :active
+  defp parse_fni_state("waiting"), do: :waiting
+  defp parse_fni_state("finished"), do: :finished
+  defp parse_fni_state("fatal"), do: :fatal
+  defp parse_fni_state("aborted"), do: :aborted
+  defp parse_fni_state("interrupted"), do: :interrupted
+  defp parse_fni_state("error"), do: :error
+  defp parse_fni_state("cancelled"), do: :aborted
 end

@@ -5,7 +5,7 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Execution.ResumeRunner
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.EventCollector
   alias BfwEngine.Test.ExamplePlugin
   alias BfwEngine.Types.Event
@@ -136,12 +136,15 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
 
       {:ok, _} = ResumeRunner.resume_all()
 
-      {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
-      {:running, state} = :sys.get_state(process_instance_pid)
+      {:ok, _process_instance_pid} = poll_pi_alive(process_instance_id)
 
-      assert state.started_with_context == process_instance_before.started_with_context
-      resumed_entry = state.flow_node_instance_states[ut_fni.id]
-      assert resumed_entry.token.payload == ut_fni.input_token
+      process_instance_after = fetch_process_instance!(process_instance_id)
+      resumed_flow_node_instance = poll_fni_state(process_instance_id, "user_task", "waiting")
+
+      assert process_instance_after.started_with_context ==
+               process_instance_before.started_with_context
+
+      assert resumed_flow_node_instance.input_token == ut_fni.input_token
     end
   end
 
@@ -380,7 +383,7 @@ defmodule BfwEngine.Integration.Execution.ResumeTest do
       BfwEngine.Plugins.RegistryDispatch
     )
 
-    facade = Loader.facade_for_plugin("evil:test_resume")
+    facade = FacadeBuilder.build("evil:test_resume")
     ExamplePlugin.on_load(facade)
   end
 end

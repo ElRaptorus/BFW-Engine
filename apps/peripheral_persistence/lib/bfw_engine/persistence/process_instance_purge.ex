@@ -96,12 +96,8 @@ defmodule BfwEngine.Persistence.ProcessInstancePurge do
     end)
   end
 
-  @doc """
-  Root process instance IDs whose `finished_at` is older than the
-  configured per-state cutoff. Bypasses the Ash soft-delete filter.
-  """
   @spec eligible_root_ids(keyword(), pos_integer(), DateTime.t()) :: [String.t()]
-  def eligible_root_ids(retention_config, batch_size, now) do
+  defp eligible_root_ids(retention_config, batch_size, now) do
     clauses = cutoff_clauses(retention_config, now)
 
     if clauses == [] do
@@ -124,11 +120,8 @@ defmodule BfwEngine.Persistence.ProcessInstancePurge do
     end
   end
 
-  @doc """
-  True when any descendant (not the root) is `running` or `suspended`.
-  """
   @spec tree_has_non_terminal_descendant?(String.t()) :: boolean()
-  def tree_has_non_terminal_descendant?(root_process_instance_id) do
+  defp tree_has_non_terminal_descendant?(root_process_instance_id) do
     sql = """
     WITH RECURSIVE tree AS (
       SELECT id FROM process_instances WHERE id = $1::uuid

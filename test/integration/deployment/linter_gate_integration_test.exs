@@ -1,5 +1,19 @@
 defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+
+  setup do
+    previous = Application.get_env(:core_bpmn, :linter_gate)
+
+    on_exit(fn ->
+      if previous == nil do
+        Application.delete_env(:core_bpmn, :linter_gate)
+      else
+        Application.put_env(:core_bpmn, :linter_gate, previous)
+      end
+    end)
+
+    :ok
+  end
 
   alias BfwEngine.BPMN.LinterGate
   alias BfwEngine.BPMN.Model.Definitions
@@ -25,29 +39,33 @@ defmodule BfwEngine.Integration.Deployment.LinterGateIntegrationTest do
     }
   end
 
-  test "check/2 returns {:ok, :passed} when config thresholds pass" do
+  test "check/1 returns {:ok, :passed} when config thresholds pass" do
     definitions = sample_definitions()
 
-    passing_config = %{
-      "bfw-default" => %{
-        "minScorePercent" => 90,
-        "maxErrors" => 1
+    Application.put_env(:core_bpmn, :linter_gate,
+      rules: %{
+        "bfw-default" => %{
+          "minScorePercent" => 90,
+          "maxErrors" => 1
+        }
       }
-    }
+    )
 
-    assert {:ok, :passed} = LinterGate.check(definitions, passing_config)
+    assert {:ok, :passed} = LinterGate.check(definitions)
   end
 
-  test "check/2 returns {:error, failures} when config fails" do
+  test "check/1 returns {:error, failures} when config fails" do
     definitions = sample_definitions(score: 70)
 
-    strict_config = %{
-      "bfw-default" => %{
-        "minScorePercent" => 85
+    Application.put_env(:core_bpmn, :linter_gate,
+      rules: %{
+        "bfw-default" => %{
+          "minScorePercent" => 85
+        }
       }
-    }
+    )
 
-    assert {:error, failures} = LinterGate.check(definitions, strict_config)
+    assert {:error, failures} = LinterGate.check(definitions)
     assert is_list(failures)
     assert Enum.any?(failures, &(&1.check == "minScorePercent"))
   end

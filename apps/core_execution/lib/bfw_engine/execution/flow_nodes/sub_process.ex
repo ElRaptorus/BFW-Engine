@@ -32,7 +32,7 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.ProcessInstance
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.UuidV7
   alias BfwEngine.Types.Token
 
   # -------------------------------------------------------------------
@@ -53,7 +53,7 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),
          {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context) do
       process_instance_pid = context.process_instance_pid
-      child_process_instance_id = Helpers.generate_uuid_v7()
+      child_process_instance_id = UuidV7.generate()
 
       continuation = fn ->
         run_child_lifecycle(
@@ -313,7 +313,7 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
 
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     type_data = flow_node.type_data
-    child_process_instance_id = Helpers.generate_uuid_v7()
+    child_process_instance_id = UuidV7.generate()
 
     with :ok <- guard_event_subprocess(type_data),
          {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),

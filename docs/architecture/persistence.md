@@ -34,7 +34,7 @@ The router dispatches based on the Ash operation type:
 
 This means GraphQL queries, REST list/get endpoints, and any `Ash.read` call automatically use the read pool, while `Ash.create`, `Ash.update`, and `Ash.destroy` use the write pool.
 
-**Test mode:** In `MIX_ENV=test`, `RepoRouter` routes all operations to `Repo` because `Ecto.Adapters.SQL.Sandbox` uses per-repo transaction isolation — data written through `Repo` would be invisible to `ReadRepo` within the same test.
+**Test mode:** `RepoRouter.repo/2` checks `Mix.env() == :test` and routes every operation to `Repo`. `Ecto.Adapters.SQL.Sandbox` isolates per repo, so a write through `Repo` would be invisible to `ReadRepo` in the same test. This `Mix.env` branch is the accepted sandbox exception; the architecture test allowlists `repo_router.ex`.
 
 **Defense-in-depth:** `ReadRepo` overrides `insert/2` and `insert!/2` to raise `RuntimeError` at runtime, preventing accidental direct writes that bypass the Ash routing layer. Ecto's compile-time `read_only: true` cannot be used because AshPostgres assumes write functions are defined by `Ecto.Repo`.
 

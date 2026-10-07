@@ -4,10 +4,34 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
 
   @version_id "00000000-0000-0000-0000-000000000001"
+
+  defmodule CapturingPersistence do
+    @moduledoc false
+    alias BfwEngine.Execution.Persistence
+    alias BfwEngine.Execution.Persistence.NoOp
+
+    @behaviour Persistence
+
+    @impl true
+    def create_flow_node_instance(attributes) do
+      send(__MODULE__, {:flow_node_instance_created, attributes})
+      NoOp.create_flow_node_instance(attributes)
+    end
+
+    for {name, arity} <- Persistence.behaviour_info(:callbacks),
+        name != :create_flow_node_instance do
+      arguments = Macro.generate_arguments(arity, __MODULE__)
+
+      @impl true
+      def unquote(name)(unquote_splicing(arguments)),
+        do: NoOp.unquote(name)(unquote_splicing(arguments))
+    end
+  end
 
   setup do
     Application.put_env(
@@ -16,11 +40,11 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
   end
 
@@ -78,6 +102,14 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
     ref
   end
 
+  defp receive_waiting_flow_node_instance_id(reference) do
+    assert_receive {:fni_state_change, ^reference,
+                    %{new_state: :waiting, flow_node_instance_id: flow_node_instance_id}},
+                   2_000
+
+    flow_node_instance_id
+  end
+
   # -------------------------------------------------------------------
   # Integration: Start → End (minimal linear)
   # -------------------------------------------------------------------
@@ -122,21 +154,13 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_id = random_id()
+      flow_node_reference = attach_fni_telemetry("user-task-wait")
 
       assert {:ok, process_instance_pid} =
                start_process_instance(@version_id, process_instance_id: process_instance_id)
 
-      Process.sleep(100)
+      flow_node_instance_id = receive_waiting_flow_node_instance_id(flow_node_reference)
       assert Process.alive?(process_instance_pid)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      waiting_flow_node_instances =
-        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
-          entry.state == :waiting
-        end)
-
-      assert [{flow_node_instance_id, _entry}] = waiting_flow_node_instances
 
       identity = %Identity{id: "finisher"}
 
@@ -165,17 +189,12 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_id = random_id()
+      flow_node_reference = attach_fni_telemetry("user-task-not-service")
 
       assert {:ok, process_instance_pid} =
                start_process_instance(@version_id, process_instance_id: process_instance_id)
 
-      Process.sleep(100)
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      [{flow_node_instance_id, _entry}] =
-        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
-          entry.state == :waiting
-        end)
+      flow_node_instance_id = receive_waiting_flow_node_instance_id(flow_node_reference)
 
       assert {:error, :fni_not_service_task} =
                ProcessInstance.finish_async_service_task(
@@ -204,17 +223,13 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_id = random_id()
+      flow_node_reference = attach_fni_telemetry("user-task-contract")
 
       assert {:ok, process_instance_pid} =
                start_process_instance(@version_id, process_instance_id: process_instance_id)
 
-      Process.sleep(100)
+      flow_node_instance_id = receive_waiting_flow_node_instance_id(flow_node_reference)
       assert Process.alive?(process_instance_pid)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      [{flow_node_instance_id, _}] =
-        Enum.filter(state.flow_node_instance_states, fn {_id, e} -> e.state == :waiting end)
 
       identity = %Identity{id: "finisher"}
 
@@ -226,11 +241,11 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
                  identity
                )
 
-      Process.sleep(100)
-      assert Process.alive?(process_instance_pid)
+      refute_receive {:fni_state_change, ^flow_node_reference,
+                      %{flow_node_instance_id: ^flow_node_instance_id, terminal_state: _}},
+                     200
 
-      {:running, state} = :sys.get_state(process_instance_pid)
-      assert %{state: :waiting} = Map.get(state.flow_node_instance_states, flow_node_instance_id)
+      assert Process.alive?(process_instance_pid)
     end
 
     test "a contract written against flat field values keeps the task waiting" do
@@ -244,18 +259,12 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_id = random_id()
+      flow_node_reference = attach_fni_telemetry("user-task-flat-contract")
 
       assert {:ok, process_instance_pid} =
                start_process_instance(@version_id, process_instance_id: process_instance_id)
 
-      Process.sleep(100)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      [{flow_node_instance_id, _}] =
-        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
-          entry.state == :waiting
-        end)
+      flow_node_instance_id = receive_waiting_flow_node_instance_id(flow_node_reference)
 
       identity = %Identity{id: "finisher"}
 
@@ -268,10 +277,11 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
                  action_id: "confirm"
                )
 
-      {:running, still_waiting} = :sys.get_state(process_instance_pid)
+      refute_receive {:fni_state_change, ^flow_node_reference,
+                      %{flow_node_instance_id: ^flow_node_instance_id, terminal_state: _}},
+                     200
 
-      assert %{state: :waiting} =
-               Map.get(still_waiting.flow_node_instance_states, flow_node_instance_id)
+      assert Process.alive?(process_instance_pid)
     end
 
     test "finish with an action id completes when the contract checks the envelope" do
@@ -288,18 +298,12 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
       ModelCache.put_new(@version_id, definitions)
 
       process_instance_id = random_id()
+      flow_node_reference = attach_fni_telemetry("user-task-envelope")
 
       assert {:ok, process_instance_pid} =
                start_process_instance(@version_id, process_instance_id: process_instance_id)
 
-      Process.sleep(100)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      [{flow_node_instance_id, _}] =
-        Enum.filter(state.flow_node_instance_states, fn {_id, entry} ->
-          entry.state == :waiting
-        end)
+      flow_node_instance_id = receive_waiting_flow_node_instance_id(flow_node_reference)
 
       assert :ok =
                ProcessInstance.finish_user_task(
@@ -320,21 +324,20 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
     test "PI pauses at ManualTask, completes after confirm call" do
       definitions = BpmnFactory.manual_task_process(true)
       ModelCache.put_new(@version_id, definitions)
+      Application.put_env(:core_execution, :persistence_adapter, CapturingPersistence)
+      Process.register(self(), CapturingPersistence)
 
       process_instance_id = random_id()
+      flow_node_reference = attach_fni_telemetry("manual-task-wait")
 
       assert {:ok, process_instance_pid} =
                start_process_instance(@version_id, process_instance_id: process_instance_id)
 
-      Process.sleep(100)
+      flow_node_instance_id = receive_waiting_flow_node_instance_id(flow_node_reference)
       assert Process.alive?(process_instance_pid)
 
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      [{flow_node_instance_id, waiting_entry}] =
-        Enum.filter(state.flow_node_instance_states, fn {_id, e} -> e.state == :waiting end)
-
-      assert waiting_entry.token.payload == %{"input" => "data"}
+      assert_received {:flow_node_instance_created,
+                       %{id: ^flow_node_instance_id, input_token: %{"input" => "data"}}}
 
       identity = %Identity{id: "user"}
 
@@ -346,10 +349,11 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
                  identity
                )
 
-      {:running, still_waiting} = :sys.get_state(process_instance_pid)
+      refute_receive {:fni_state_change, ^flow_node_reference,
+                      %{flow_node_instance_id: ^flow_node_instance_id, terminal_state: _}},
+                     200
 
-      assert %{state: :waiting} =
-               Map.get(still_waiting.flow_node_instance_states, flow_node_instance_id)
+      assert Process.alive?(process_instance_pid)
 
       ref = attach_pi_telemetry("manual-task-confirm")
 

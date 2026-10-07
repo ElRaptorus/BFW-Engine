@@ -16,12 +16,6 @@ defmodule BfwEngine.Timers.Persistence.NoOp do
     Agent.start_link(fn -> %{} end, name: opts[:name] || __MODULE__)
   end
 
-  @doc "Resets all stored schedules. For test isolation."
-  @spec reset_state(GenServer.server()) :: :ok
-  def reset_state(server \\ __MODULE__) do
-    Agent.update(server, fn _state -> %{} end)
-  end
-
   @impl true
   def create_schedule(attrs) do
     schedule_id = attrs[:id] || generate_id()

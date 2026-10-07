@@ -38,11 +38,6 @@ defmodule BfwEngine.Auth.ProviderRegistry do
   def verify_and_resolve(token),
     do: active_provider().verify_and_resolve(token)
 
-  @doc false
-  @spec reset_to_default() :: :ok
-  def reset_to_default,
-    do: GenServer.call(__MODULE__, :reset_to_default)
-
   # --- Server callbacks ---------------------------------------------------
 
   @impl true
@@ -57,7 +52,4 @@ defmodule BfwEngine.Auth.ProviderRegistry do
 
   def handle_call({:register_provider, module}, _from, _state),
     do: {:reply, :ok, %{provider: module, source: :plugin}}
-
-  def handle_call(:reset_to_default, _from, _state),
-    do: {:reply, :ok, %{provider: @default_provider, source: :builtin}}
 end

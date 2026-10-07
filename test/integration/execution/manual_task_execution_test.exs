@@ -5,7 +5,7 @@ defmodule BfwEngine.Integration.Execution.ManualTaskExecutionTest do
   """
   use BfwEngine.ExecutionCase, async: false
 
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Types.Identity
 
   @entered_payload %{"step" => "pack"}
@@ -290,7 +290,7 @@ defmodule BfwEngine.Integration.Execution.ManualTaskExecutionTest do
   describe "plugin facade manual_tasks namespace" do
     test "confirm finishes the manual task with the entered token" do
       {process_instance_id, manual_task_flow_node_instance} = start_confirming_manual_task()
-      facade = Loader.facade_for_plugin("test:manual_tasks")
+      facade = FacadeBuilder.build("test:manual_tasks")
 
       assert :ok =
                facade.manual_tasks.confirm.(
@@ -309,7 +309,7 @@ defmodule BfwEngine.Integration.Execution.ManualTaskExecutionTest do
 
     test "cancel aborts the process instance" do
       {process_instance_id, manual_task_flow_node_instance} = start_confirming_manual_task()
-      facade = Loader.facade_for_plugin("test:manual_tasks")
+      facade = FacadeBuilder.build("test:manual_tasks")
 
       assert :ok =
                facade.manual_tasks.cancel.(

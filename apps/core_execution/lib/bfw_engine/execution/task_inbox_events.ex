@@ -20,7 +20,7 @@ defmodule BfwEngine.Execution.TaskInboxEvents do
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.HandlerContext
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Types.Event
 
   @doc """
@@ -51,7 +51,7 @@ defmodule BfwEngine.Execution.TaskInboxEvents do
       flow_node_id: flow_node.id,
       flow_node_type: flow_node.type,
       assignees: assignees,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
 

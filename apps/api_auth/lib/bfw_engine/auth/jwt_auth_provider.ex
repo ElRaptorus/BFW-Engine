@@ -22,9 +22,8 @@ defmodule BfwEngine.Auth.JwtAuthProvider do
     end
   end
 
-  @doc "Build an `%Identity{}` from decoded JWT claims."
   @spec build_identity(map()) :: Identity.t()
-  def build_identity(claims) when is_map(claims) do
+  defp build_identity(claims) when is_map(claims) do
     %Identity{
       id: claims["sub"] || claims["client_id"] || "unknown",
       roles: extract_list(claims, "roles"),

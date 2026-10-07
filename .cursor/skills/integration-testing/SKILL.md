@@ -128,8 +128,9 @@ mix quality
 
 `BfwEngine.IntegrationCase` provides:
 
-- **State reset** between tests via `EngineEventBus.reset_state()` and
-  `Registry.reset_state()` — no process restarts, no supervisor budget exhaustion.
+- **State reset** between tests via `BfwEngine.Test.ServiceReset` (and the
+  per-app `ServiceReset` modules). Each function restarts the supervised
+  child, which rebuilds its ETS or agent state.
 - **JWT helpers**: `sign_jwt/1`, `conn_with_auth/3`
 - **Router helper**: `route/1` sends a conn through the real HTTP router
 - **Config override**: `with_config/4` temporarily swaps an app env key

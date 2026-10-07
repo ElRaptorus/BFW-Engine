@@ -17,6 +17,9 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
   struct it fetches the actual struct keys via `Map.from_struct/1` — legal
   because `core_bpmn` is a fully-compiled umbrella dependency by the time
   `api_web` compiles — and asserts they exactly match `exposed ++ excluded`.
+  It also requires every `BfwEngine.BPMN.Model` struct module to be registered.
+  `verify_exposed_fields!/1` then checks those exposed keys against the
+  compiled Absinthe schema.
 
   **A struct field that is neither mapped nor excluded fails the build.**
   This is the guarantee D-3 asks for: not automatic generation, but a
@@ -317,16 +320,8 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
     Model.StandardLoop => :standard_loop
   }
 
-  @doc "The full registry, for introspection by tests (e.g. WP-7 test (i))."
-  @spec registry() :: [entry()]
-  def registry, do: @registry
-
   @doc """
   Absinthe type identifier that exposes this struct's `exposed` fields.
-
-  Used by the FieldTable → schema field-presence test so a key listed as
-  `exposed` that is missing from the corresponding GraphQL type fails the
-  suite — `verify!/0` only checks Elixir struct keys against the table.
   """
   @spec graphql_identifier(module()) :: atom()
   def graphql_identifier(Model.Definitions), do: :process_model
@@ -350,8 +345,9 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
 
   @doc """
   Verifies that every registered struct's actual field set is covered
-  exactly by `exposed ++ excluded`. Raises `ArgumentError` (aborting
-  compilation of the calling module) on any mismatch.
+  exactly by `exposed ++ excluded`, and that every BPMN model struct is
+  registered. Raises `ArgumentError` (aborting compilation of the calling
+  module) on any mismatch.
   """
   @spec verify!() :: :ok
   def verify! do
@@ -383,6 +379,75 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
       end
     end)
 
+    verify_registered_structs!()
     :ok
   end
+
+  @doc """
+  Verifies that every `exposed` key is a field on the Absinthe type
+  named by `graphql_identifier/1`.
+  """
+  @spec verify_exposed_fields!(module()) :: :ok
+  def verify_exposed_fields!(schema) do
+    Enum.each(@registry, fn {module, opts} ->
+      identifier = graphql_identifier(module)
+      type = Absinthe.Schema.lookup_type(schema, identifier)
+
+      if is_nil(type) do
+        raise ArgumentError, """
+        BfwEngineWeb.Graphql.ModelSchema.FieldTable has no Absinthe type #{inspect(identifier)} for #{inspect(module)}.
+        """
+      end
+
+      field_identifiers = field_identifiers(type)
+      missing = Keyword.fetch!(opts, :exposed) -- field_identifiers
+
+      if missing != [] do
+        raise ArgumentError, """
+        #{inspect(module)} exposed fields are missing from Absinthe type #{inspect(identifier)}: #{inspect(missing)}.
+        """
+      end
+    end)
+
+    :ok
+  end
+
+  defp verify_registered_structs! do
+    registered = MapSet.new(Enum.map(@registry, &elem(&1, 0)))
+
+    missing =
+      core_bpmn_modules()
+      |> Enum.filter(&model_struct?/1)
+      |> Enum.reject(&MapSet.member?(registered, &1))
+
+    if missing != [] do
+      raise ArgumentError, """
+      BfwEngineWeb.Graphql.ModelSchema.FieldTable is missing BPMN model structs: #{inspect(missing)}.
+
+      Register each struct with `exposed` and `excluded` fields.
+      """
+    end
+  end
+
+  defp core_bpmn_modules do
+    case :application.get_key(:core_bpmn, :modules) do
+      {:ok, modules} -> modules
+      :undefined -> raise ArgumentError, "core_bpmn is not loaded"
+    end
+  end
+
+  defp model_struct?(module) do
+    String.starts_with?(Atom.to_string(module), "Elixir.BfwEngine.BPMN.Model.") and
+      Code.ensure_loaded?(module) and function_exported?(module, :__struct__, 0)
+  end
+
+  defp field_identifiers(%{fields: fields}) when is_function(fields, 0) do
+    fields.() |> Map.keys()
+  end
+
+  defp field_identifiers(%{fields: fields}) when is_map(fields) do
+    Map.keys(fields)
+  end
+
+  defp field_identifiers(_type), do: []
 end

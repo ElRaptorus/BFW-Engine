@@ -20,7 +20,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
@@ -737,7 +737,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
       flow_node_type: flow_node.type,
       loop_type: loop_type(mi),
       total_iterations: total,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end
@@ -753,7 +753,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
       total_iterations: total,
       completed_iterations: completed,
       early_break: early_break,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

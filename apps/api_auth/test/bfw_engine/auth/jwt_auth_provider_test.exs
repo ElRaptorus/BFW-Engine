@@ -38,25 +38,25 @@ defmodule BfwEngine.Auth.JwtAuthProviderTest do
     end
   end
 
-  describe "build_identity/1" do
+  describe "verify_and_resolve/1 identity mapping" do
     test "uses sub claim as identity id" do
-      identity = JwtAuthProvider.build_identity(%{"sub" => "user-99"})
+      identity = identity_from(%{"sub" => "user-99"})
       assert identity.id == "user-99"
     end
 
     test "falls back to client_id when sub is absent" do
-      identity = JwtAuthProvider.build_identity(%{"client_id" => "svc-1"})
+      identity = identity_from(%{"client_id" => "svc-1"})
       assert identity.id == "svc-1"
     end
 
-    test "falls back to 'unknown' when neither sub nor client_id present" do
-      identity = JwtAuthProvider.build_identity(%{"custom" => "data"})
+    test "falls back to unknown when neither sub nor client_id present" do
+      identity = identity_from(%{"custom" => "data"})
       assert identity.id == "unknown"
     end
 
     test "extracts roles and groups as lists" do
       identity =
-        JwtAuthProvider.build_identity(%{
+        identity_from(%{
           "sub" => "x",
           "roles" => ["a", "b"],
           "groups" => ["g1"]
@@ -67,14 +67,14 @@ defmodule BfwEngine.Auth.JwtAuthProviderTest do
     end
 
     test "defaults roles and groups to empty lists when absent" do
-      identity = JwtAuthProvider.build_identity(%{"sub" => "x"})
+      identity = identity_from(%{"sub" => "x"})
       assert identity.roles == []
       assert identity.groups == []
     end
 
     test "defaults roles and groups to empty lists when not a list" do
       identity =
-        JwtAuthProvider.build_identity(%{
+        identity_from(%{
           "sub" => "x",
           "roles" => "single-string",
           "groups" => 42
@@ -86,7 +86,7 @@ defmodule BfwEngine.Auth.JwtAuthProviderTest do
 
     test "preserves zeeky_boogie_doog admin override claim in identity" do
       identity =
-        JwtAuthProvider.build_identity(%{
+        identity_from(%{
           "sub" => "admin-user",
           "zeeky_boogie_doog" => true
         })
@@ -109,5 +109,13 @@ defmodule BfwEngine.Auth.JwtAuthProviderTest do
         assert identity.claims["deploy_bpmn"] == false
       end)
     end
+  end
+
+  defp identity_from(claims) do
+    AuthHelper.with_auth_enabled(fn ->
+      token = AuthHelper.sign_jwt(claims)
+      assert {:ok, identity} = JwtAuthProvider.verify_and_resolve(token)
+      identity
+    end)
   end
 end

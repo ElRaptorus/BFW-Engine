@@ -38,7 +38,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
@@ -127,10 +127,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
   end
 
   # -------------------------------------------------------------------
-  # Timer spec resolution (public for testing)
+  # Timer spec resolution
   # -------------------------------------------------------------------
 
-  @doc false
   @spec resolve_timer_spec(
           :date | :duration,
           String.t(),
@@ -138,7 +137,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
           HandlerContext.t(),
           DateTime.t()
         ) :: {:ok, DateTime.t()} | {:error, term()}
-  def resolve_timer_spec(kind, spec_string, token_payload, context, reference_time) do
+  defp resolve_timer_spec(kind, spec_string, token_payload, context, reference_time) do
     feel_context = FeelContext.from_handler_context(context, token_payload)
 
     case try_feel_evaluation(spec_string, feel_context) do
@@ -294,7 +293,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerCatchEvent do
       flow_node_id: flow_node.id,
       kind: :catch,
       root_process_instance_id: context.root_process_instance_id,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

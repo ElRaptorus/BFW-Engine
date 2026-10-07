@@ -2,11 +2,12 @@ defmodule BfwEngine.Events.SinkRegistrarTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Events.ServiceReset
   alias BfwEngine.Events.SinkRegistrar
 
   setup do
-    EngineEventBus.reset_state()
-    on_exit(fn -> EngineEventBus.reset_state() end)
+    ServiceReset.engine_event_bus()
+    on_exit(fn -> ServiceReset.engine_event_bus() end)
     :ok
   end
 

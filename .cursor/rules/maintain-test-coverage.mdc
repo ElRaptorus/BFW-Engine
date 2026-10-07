@@ -20,7 +20,7 @@ When you add a new module or significantly change an existing one:
    ```
    After Engine code changes, `mix quality` is the required completion gate (see `.cursor/rules/build.mdc`); it includes that pair. Both levels are checked in a single coveralls run. The command will fail if any per-app threshold or the global aggregate threshold is missed. `mix coveralls.html --umbrella` **without** `--import-cover` only measures per-app unit tests and will undershoot the 80% gate.
 
-2. **Check for zero-coverage modules** — every newly created module must be exercised by at least one test. Inspect the terminal summary table to confirm no new module shows 0 %.
+2. **Check for zero-coverage modules** — coverage comes from the merged unit + integration + conformance pass (`mix test.coverdata` imported into the coveralls run). A module at 0 % means no test path reaches it, not that a unit test of a private function is missing. Close the gap through a public function, an integration scenario, or a conformance scenario. Never re-export a function so a unit test can reach it.
 
 3. **Investigate uncovered lines** — when the terminal summary reveals a module with low coverage, drill into the exact uncovered code paths:
    ```bash

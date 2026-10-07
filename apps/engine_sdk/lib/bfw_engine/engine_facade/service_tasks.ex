@@ -22,14 +22,17 @@ defmodule BfwEngine.EngineFacade.ServiceTasks do
             fail_async: &__MODULE__.noop_3/3,
             list_waiting: &__MODULE__.noop_1/1
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_1(term()) :: {:error, :not_wired}
   def noop_1(_implementations), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_2(term(), term()) :: {:error, :not_wired}
   def noop_2(_a, _b), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_3(term(), term(), term()) :: {:error, :not_wired}
   def noop_3(_a, _b, _c), do: {:error, :not_wired}

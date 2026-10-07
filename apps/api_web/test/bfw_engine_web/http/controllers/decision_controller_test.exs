@@ -4,19 +4,19 @@ defmodule BfwEngineWeb.Http.DecisionControllerTest do
   import Plug.Test
 
   alias BfwEngine.Api
-  alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.DMN
   alias BfwEngine.DMN.ModelCache, as: DMNModelCache
-  alias BfwEngine.Execution.DecisionResolver
+  alias BfwEngine.Execution.TestSupport.DecisionResolver
   alias BfwEngine.Persistence.ReadRepo
   alias BfwEngine.Persistence.Repo
+  alias BfwEngineWeb.ServiceReset
   alias Ecto.Adapters.SQL.Sandbox
 
   @endpoint BfwEngineWeb.Http.Endpoint
   @test_secret "test_only_secret_at_least_32_bytes!"
 
   setup do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
 
     try do
       :ok = Sandbox.checkout(Repo)
@@ -27,7 +27,12 @@ defmodule BfwEngineWeb.Http.DecisionControllerTest do
       _ -> :ok
     end
 
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    on_exit(fn ->
+      ServiceReset.provider_registry()
+      DecisionResolver.reset()
+      Application.delete_env(:core_execution, :decision_resolver)
+    end)
+
     :ok
   end
 
@@ -101,7 +106,9 @@ defmodule BfwEngineWeb.Http.DecisionControllerTest do
     {:ok, definition} = Api.get_decision_by_model_id(decision_definition_id)
     {:ok, version} = Api.get_latest_decision_version(definition.id)
 
-    DecisionResolver.NoOp.set_version(
+    Application.put_env(:core_execution, :decision_resolver, DecisionResolver)
+
+    DecisionResolver.set_version(
       decision_definition_id,
       version.id
     )

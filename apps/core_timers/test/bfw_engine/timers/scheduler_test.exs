@@ -2,11 +2,12 @@ defmodule BfwEngine.Timers.SchedulerTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Timers.Scheduler
+  alias BfwEngine.Timers.ServiceReset
 
   @tick_interval_ms 20
 
   setup do
-    Scheduler.reset_state()
+    ServiceReset.scheduler()
     :ok
   end
 
@@ -342,7 +343,7 @@ defmodule BfwEngine.Timers.SchedulerTest do
 
       assert 2 == Scheduler.armed_count()
 
-      Scheduler.reset_state()
+      ServiceReset.scheduler()
       assert 0 == Scheduler.armed_count()
     end
   end

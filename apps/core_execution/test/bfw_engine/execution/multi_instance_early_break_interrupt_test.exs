@@ -8,6 +8,7 @@ defmodule BfwEngine.Execution.MultiInstanceEarlyBreakInterruptTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
 
@@ -18,11 +19,11 @@ defmodule BfwEngine.Execution.MultiInstanceEarlyBreakInterruptTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
 
     :ok
@@ -64,7 +65,7 @@ defmodule BfwEngine.Execution.MultiInstanceEarlyBreakInterruptTest do
                identity: %Identity{id: "test-user", roles: ["admin"], groups: []}
              })
 
-    waiting_ids = await_waiting_user_tasks(process_instance_pid, 3)
+    waiting_ids = await_waiting_user_tasks(ref, 3)
     [first_id | remaining_ids] = waiting_ids
 
     assert :ok =
@@ -87,23 +88,31 @@ defmodule BfwEngine.Execution.MultiInstanceEarlyBreakInterruptTest do
     await_process_death(process_instance_pid)
   end
 
-  defp await_waiting_user_tasks(process_instance_pid, count) do
-    Enum.reduce_while(1..100, [], fn _attempt, _acc ->
-      {:running, state} = :sys.get_state(process_instance_pid)
+  defp await_waiting_user_tasks(reference, count) do
+    Enum.reduce_while(1..100, [], fn _attempt, waiting_ids ->
+      receive do
+        {:fni_state, ^reference,
+         %{
+           flow_node_type: :user_task,
+           new_state: :waiting,
+           flow_node_instance_id: flow_node_instance_id,
+           multi_instance_id: multi_instance_id
+         }}
+        when is_binary(multi_instance_id) ->
+          waiting_ids = Enum.uniq([flow_node_instance_id | waiting_ids])
 
-      waiting_ids =
-        state.flow_node_instance_states
-        |> Enum.filter(fn {_id, entry} ->
-          entry.flow_node_type == :user_task and entry.state == :waiting and
-            is_binary(Map.get(entry, :multi_instance_id))
-        end)
-        |> Enum.map(fn {id, _entry} -> id end)
-
-      if length(waiting_ids) >= count do
-        {:halt, waiting_ids}
-      else
-        Process.sleep(20)
-        {:cont, waiting_ids}
+          if length(waiting_ids) >= count do
+            {:halt, Enum.reverse(waiting_ids)}
+          else
+            {:cont, waiting_ids}
+          end
+      after
+        50 ->
+          if length(waiting_ids) >= count do
+            {:halt, Enum.reverse(waiting_ids)}
+          else
+            {:cont, waiting_ids}
+          end
       end
     end)
   end

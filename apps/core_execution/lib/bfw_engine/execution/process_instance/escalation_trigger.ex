@@ -14,7 +14,8 @@ defmodule BfwEngine.Execution.ProcessInstance.EscalationTrigger do
   alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.Execution.EscalationResolver
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
 
   @type boundary_fire :: %{
           host_flow_node_instance_id: String.t(),
@@ -61,10 +62,10 @@ defmodule BfwEngine.Execution.ProcessInstance.EscalationTrigger do
 
   defp collect_waiting_escalation_boundary(data, fni_id, entry, accumulator)
        when entry.state in [:waiting, :active] do
-    case Helpers.find_flow_node(data, entry.flow_node_id) do
+    case FlowNodeLookup.find_flow_node(data, entry.flow_node_id) do
       %FlowNode{type: :boundary_event, type_data: type_data} ->
         if match?(%EventDefinition.Escalation{}, type_data.event_definition) do
-          host_id = Helpers.resolve_host_fni_id(data, fni_id)
+          host_id = BoundaryOrchestrator.resolve_host_fni_id(data, fni_id)
           host_waiters = Map.get(accumulator, host_id, [])
           waiter = %{flow_node_instance_id: fni_id, flow_node_id: entry.flow_node_id}
           Map.put(accumulator, host_id, [waiter | host_waiters])
@@ -89,7 +90,7 @@ defmodule BfwEngine.Execution.ProcessInstance.EscalationTrigger do
        ) do
     case Map.get(data.flow_node_instance_states, host_fni_id) do
       %{state: state, flow_node_id: host_node_id} when state in [:active, :waiting] ->
-        host_node = Helpers.find_flow_node(data, host_node_id)
+        host_node = FlowNodeLookup.find_flow_node(data, host_node_id)
         waiters = Map.get(waiting_by_host, host_fni_id, [])
 
         build_host_fires(

@@ -45,7 +45,7 @@ apps/
 ├── api_auth/                # JWT validator (HS256 / RS256 / ES256 / JWKS)
 ├── peripheral_persistence/  # Ash + AshPostgres (mix bfw.retention.purge)
 ├── peripheral_telemetry/    # :telemetry counters, GET /metrics, GET /stats
-├── peripheral_plugins/      # Plugin registry + in-BEAM loader
+├── engine_plugins/      # Plugin registry + in-BEAM loader
 └── engine_sdk/              # Public behaviours for plugin authors
 ```
 
@@ -119,7 +119,7 @@ Three concerns, all decoupled from Core:
    (`BFE_METRICS_ENABLED`, default on), the telemetry EventSink (event-bus
    counters), and `StatsCollector` for JWT `GET /stats` (live Ash/ETS
    snapshot, not those counters).
-3. **`peripheral_plugins`** — plugin registry, in-BEAM loader, quarantine.
+3. **`engine_plugins`** — plugin registry, in-BEAM loader, quarantine.
    Plugins register under a supervised task tree so a crashing plugin
    cannot take down the engine. Plugin EventSinks attach here on the way
    back into `EngineEventBus`.

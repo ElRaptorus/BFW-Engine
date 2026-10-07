@@ -21,6 +21,7 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Execution.TestSupport.SchedulerWait
   alias BfwEngine.Timers.Scheduler
@@ -29,7 +30,7 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
   @test_identity %Identity{id: "test-user", roles: ["admin"], groups: ["all"]}
 
   setup do
-    Scheduler.reset_state()
+    ServiceReset.scheduler()
     :ok
   end
 

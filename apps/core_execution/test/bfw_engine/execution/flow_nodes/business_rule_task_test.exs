@@ -6,6 +6,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
   alias BfwEngine.BPMN.Model.Mapping
   alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
   alias BfwEngine.BPMN.Model.SequenceFlow
+  alias BfwEngine.DMN.ServiceReset, as: DmnServiceReset
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FlowNodes
   alias BfwEngine.Execution.HandlerContext
@@ -183,7 +184,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
   describe "implementation='dmn' — DMN decision evaluation" do
     alias BfwEngine.DMN
     alias BfwEngine.DMN.ModelCache
-    alias BfwEngine.Execution.DecisionResolver
+    alias BfwEngine.Execution.TestSupport.DecisionResolver
 
     @dmn_fixtures_dir Path.join([
                         __DIR__,
@@ -200,12 +201,20 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
                       |> Path.expand()
 
     setup do
-      ModelCache.reset_state()
-      DecisionResolver.NoOp.reset()
+      DmnServiceReset.dmn_model_cache()
+
+      Application.put_env(
+        :core_execution,
+        :decision_resolver,
+        DecisionResolver
+      )
+
+      DecisionResolver.reset()
 
       on_exit(fn ->
-        ModelCache.reset_state()
-        DecisionResolver.NoOp.reset()
+        DmnServiceReset.dmn_model_cache()
+        DecisionResolver.reset()
+        Application.delete_env(:core_execution, :decision_resolver)
       end)
 
       :ok
@@ -299,7 +308,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
     # -- Error paths ----------------------------------------------------------
 
     test "decision not found — resolver returns :decision_definition_not_found" do
-      DecisionResolver.NoOp.set_error("missing_ref", :decision_definition_not_found)
+      DecisionResolver.set_error("missing_ref", :decision_definition_not_found)
 
       node = brt_node(implementation: "dmn", decision_ref: "missing_ref")
       {node, context} = make_context(node)
@@ -310,7 +319,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
     end
 
     test "decision disabled — resolver returns :decision_disabled" do
-      DecisionResolver.NoOp.set_error("disabled_ref", :decision_disabled)
+      DecisionResolver.set_error("disabled_ref", :decision_disabled)
 
       node = brt_node(implementation: "dmn", decision_ref: "disabled_ref")
       {node, context} = make_context(node)
@@ -321,7 +330,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
     end
 
     test "no version available — resolver returns :no_version_available" do
-      DecisionResolver.NoOp.set_error("no_version_ref", :no_version_available)
+      DecisionResolver.set_error("no_version_ref", :no_version_available)
 
       node = brt_node(implementation: "dmn", decision_ref: "no_version_ref")
       {node, context} = make_context(node)
@@ -332,7 +341,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
     end
 
     test "DMN cache load failure — version not in cache and no loader configured" do
-      DecisionResolver.NoOp.set_version("cache_miss_ref", "nonexistent-version-id")
+      DecisionResolver.set_version("cache_miss_ref", "nonexistent-version-id")
 
       node = brt_node(implementation: "dmn", decision_ref: "cache_miss_ref")
       {node, context} = make_context(node)

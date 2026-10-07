@@ -328,7 +328,7 @@ config :peripheral_telemetry,
   db_queue_time_warning_ms: Env.get_int("BFE_DB_QUEUE_TIME_WARNING_MS", 500)
 
 # --- Plugin loading -----------------------------------
-config :peripheral_plugins,
+config :engine_plugins,
   inbeam_apps: Enum.map(Env.get_list("BFE_PLUGINS_INBEAM"), &String.to_atom/1),
   include_plugins: Env.get_list("BFE_PLUGINS_INCLUDE"),
   exclude_plugins: Env.get_list("BFE_PLUGINS_EXCLUDE")

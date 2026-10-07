@@ -747,7 +747,7 @@ defmodule BfwEngine.DMN.Evaluator do
       |> Enum.zip(inputs)
       |> Enum.zip(resolved_inputs)
       |> Enum.map(fn {{entry, input}, value} ->
-        matched = evaluate_input_entry(entry, value)
+        matched = DecisionTableEvaluator.evaluate_input_entry(entry, value)
 
         trace = %EvaluationTrace.InputEntryTrace{
           input_id: input.id,
@@ -763,18 +763,12 @@ defmodule BfwEngine.DMN.Evaluator do
     traces = Enum.map(entry_results, fn {_matched, trace} -> trace end)
 
     if all_matched do
-      output_values = evaluate_output_entries(rule.output_entries, outputs)
+      output_values = DecisionTableEvaluator.evaluate_output_entries(rule.output_entries, outputs)
       {:match, output_values, traces}
     else
       {:no_match, traces}
     end
   end
-
-  defdelegate evaluate_input_entry(input_entry, value), to: DecisionTableEvaluator
-  defdelegate evaluate_output_entries(output_entries, outputs), to: DecisionTableEvaluator
-
-  @doc false
-  defdelegate named_output_key(output, index), to: DecisionTableEvaluator
 
   defp eval_input_expression(input, display_expression, input_context) do
     DecisionTableEvaluator.eval_input_expression(input, display_expression, input_context)

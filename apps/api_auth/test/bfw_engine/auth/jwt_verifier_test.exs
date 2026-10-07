@@ -1,6 +1,7 @@
 defmodule BfwEngine.Auth.JwtVerifierTest do
   use ExUnit.Case, async: false
 
+  alias BfwEngine.Auth.JwksCache
   alias BfwEngine.Auth.JwtVerifier
   alias BfwEngine.Test.AuthHelper
 
@@ -210,13 +211,17 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
     setup do
       private_jwk = JOSE.JWK.generate_key({:rsa, 2048})
       public_jwk = JOSE.JWK.to_public(private_jwk)
+      {_key_type, public_fields} = JOSE.JWK.to_map(public_jwk)
+      body = Jason.encode!(public_fields)
+      {server, port} = start_jwks_server(body)
 
-      :sys.replace_state(BfwEngine.Auth.JwksCache, fn state ->
-        %{state | keys: public_jwk}
-      end)
+      restart_jwks_cache("http://127.0.0.1:#{port}/jwks")
+
+      assert wait_for_jwks_keys()
 
       on_exit(fn ->
-        :sys.replace_state(BfwEngine.Auth.JwksCache, fn state -> %{state | keys: nil} end)
+        Process.exit(server, :kill)
+        restart_jwks_cache(nil)
       end)
 
       {:ok, private_jwk: private_jwk}
@@ -247,6 +252,56 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
         JOSE.JWT.sign(other_jwk, %{"alg" => "RS256"}, claims) |> JOSE.JWS.compact()
 
       assert {:error, :invalid_signature} = JwtVerifier.verify(token)
+    end
+  end
+
+  defp restart_jwks_cache(jwks_url) do
+    supervisor = BfwEngine.Auth.Supervisor
+    _ = Supervisor.terminate_child(supervisor, JwksCache)
+    _ = Supervisor.delete_child(supervisor, JwksCache)
+
+    {:ok, _pid} =
+      Supervisor.start_child(supervisor, {JwksCache, jwks_url: jwks_url})
+  end
+
+  defp wait_for_jwks_keys do
+    Enum.reduce_while(1..50, false, fn _attempt, _seen ->
+      if JwksCache.get_keys() do
+        {:halt, true}
+      else
+        Process.sleep(20)
+        {:cont, false}
+      end
+    end)
+  end
+
+  defp start_jwks_server(body) do
+    {:ok, listen} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen)
+    server = spawn_link(fn -> accept_jwks(listen, body) end)
+    {server, port}
+  end
+
+  defp accept_jwks(listen, body) do
+    case :gen_tcp.accept(listen, 5_000) do
+      {:ok, socket} ->
+        _ = :gen_tcp.recv(socket, 0, 2_000)
+
+        response =
+          "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: #{byte_size(body)}\r\nconnection: close\r\n\r\n" <>
+            body
+
+        :gen_tcp.send(socket, response)
+        :gen_tcp.close(socket)
+        accept_jwks(listen, body)
+
+      {:error, :timeout} ->
+        accept_jwks(listen, body)
+
+      {:error, :closed} ->
+        :ok
     end
   end
 end

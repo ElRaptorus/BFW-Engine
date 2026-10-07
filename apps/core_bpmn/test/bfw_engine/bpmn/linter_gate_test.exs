@@ -5,6 +5,25 @@ defmodule BfwEngine.BPMN.LinterGateTest do
   alias BfwEngine.BPMN.Model.Definitions
   alias BfwEngine.BPMN.Model.LinterRulesetScore
 
+  setup do
+    previous = Application.get_env(:core_bpmn, :linter_gate)
+
+    on_exit(fn ->
+      if previous == nil do
+        Application.delete_env(:core_bpmn, :linter_gate)
+      else
+        Application.put_env(:core_bpmn, :linter_gate, previous)
+      end
+    end)
+
+    :ok
+  end
+
+  defp check(definitions, config) do
+    Application.put_env(:core_bpmn, :linter_gate, rules: config)
+    LinterGate.check(definitions)
+  end
+
   # The linter gate reads scores from the **definitions** level (ESP-D17), not
   # from individual processes. These helpers build a `%Definitions{}` carrying
   # the Studio-emitted score entries directly.
@@ -12,7 +31,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
     %Definitions{raw_xml: "", processes: [], linter_scores: linter_scores}
   end
 
-  describe "check/2" do
+  describe "check/1" do
     test "passes when scores meet all thresholds for one ruleset" do
       definitions =
         definitions_with_scores([
@@ -37,7 +56,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
         }
       }
 
-      assert {:ok, :passed} = LinterGate.check(definitions, config)
+      assert {:ok, :passed} = check(definitions, config)
     end
 
     test "passes when multiple configured rulesets all pass" do
@@ -52,7 +71,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
         "b" => %{"minScorePercent" => 70}
       }
 
-      assert {:ok, :passed} = LinterGate.check(definitions, config)
+      assert {:ok, :passed} = check(definitions, config)
     end
 
     test "ignores BPMN rulesets that have no gate config" do
@@ -64,7 +83,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
 
       config = %{"gated" => %{"minScorePercent" => 50}}
 
-      assert {:ok, :passed} = LinterGate.check(definitions, config)
+      assert {:ok, :passed} = check(definitions, config)
     end
 
     test "empty explicit config is a no-op" do
@@ -73,7 +92,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
           %LinterRulesetScore{ruleset_id: "x", score_percent: 0}
         ])
 
-      assert {:ok, :passed} = LinterGate.check(definitions, %{})
+      assert {:ok, :passed} = check(definitions, %{})
     end
 
     test "fails requirePresence when ruleset is absent" do
@@ -81,7 +100,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
 
       config = %{"bfw-default" => %{"requirePresence" => true}}
 
-      assert {:error, failures} = LinterGate.check(definitions, config)
+      assert {:error, failures} = check(definitions, config)
 
       assert %{
                ruleset_id: "bfw-default",
@@ -100,7 +119,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
       config = %{"bfw-default" => %{"minScorePercent" => 90}}
 
       assert {:error, [%{check: "minScorePercent", expected: 90, actual: 70} = failure]} =
-               LinterGate.check(definitions, config)
+               check(definitions, config)
 
       assert failure.ruleset_id == "bfw-default"
     end
@@ -118,7 +137,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
       config = %{"bfw-default" => %{"maxErrors" => 2}}
 
       assert {:error, [%{check: "maxErrors", expected: 2, actual: 5}]} =
-               LinterGate.check(definitions, config)
+               check(definitions, config)
     end
 
     test "fails maxWarnings when rawWarningFindings exceeds limit" do
@@ -134,7 +153,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
       config = %{"bfw-default" => %{"maxWarnings" => 1}}
 
       assert {:error, [%{check: "maxWarnings", expected: 1, actual: 4}]} =
-               LinterGate.check(definitions, config)
+               check(definitions, config)
     end
 
     test "fails requireComplianceStatus on mismatch" do
@@ -156,7 +175,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
                   expected: "pass",
                   actual: "fail"
                 }
-              ]} = LinterGate.check(definitions, config)
+              ]} = check(definitions, config)
     end
 
     test "fails schemaVersion on mismatch" do
@@ -178,7 +197,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
                   expected: "1",
                   actual: "2"
                 }
-              ]} = LinterGate.check(definitions, config)
+              ]} = check(definitions, config)
     end
 
     test "collects failures across rulesets in one response" do
@@ -193,7 +212,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
         "b" => %{"minScorePercent" => 90}
       }
 
-      assert {:error, failures} = LinterGate.check(definitions, config)
+      assert {:error, failures} = check(definitions, config)
       assert length(failures) == 2
 
       rulesets = failures |> Enum.map(& &1.ruleset_id) |> Enum.sort()
@@ -219,7 +238,7 @@ defmodule BfwEngine.BPMN.LinterGateTest do
         }
       }
 
-      assert {:error, failures} = LinterGate.check(definitions, config)
+      assert {:error, failures} = check(definitions, config)
       checks = failures |> Enum.map(& &1.check) |> Enum.sort()
       assert checks == ["maxErrors", "maxWarnings", "minScorePercent"]
     end
@@ -229,25 +248,11 @@ defmodule BfwEngine.BPMN.LinterGateTest do
 
       config = %{"bfw-default" => %{"requirePresence" => true}}
 
-      assert {:error, [%{check: "requirePresence"}]} = LinterGate.check(definitions, config)
+      assert {:error, [%{check: "requirePresence"}]} = check(definitions, config)
     end
   end
 
   describe "check/1 (application env)" do
-    setup do
-      previous = Application.get_env(:core_bpmn, :linter_gate)
-
-      on_exit(fn ->
-        if previous == nil do
-          Application.delete_env(:core_bpmn, :linter_gate)
-        else
-          Application.put_env(:core_bpmn, :linter_gate, previous)
-        end
-      end)
-
-      :ok
-    end
-
     test "no linter_gate config is a no-op" do
       Application.delete_env(:core_bpmn, :linter_gate)
 

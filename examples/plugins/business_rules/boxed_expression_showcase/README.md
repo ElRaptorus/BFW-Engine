@@ -98,7 +98,7 @@ mix test examples/plugins/business_rules/boxed_expression_showcase/test/boxed_sh
 Or via the umbrella loader:
 
 ```bash
-mix test apps/peripheral_plugins/test/examples/boxed_expression_showcase_from_examples_test.exs
+mix test apps/engine_plugins/test/examples/boxed_expression_showcase_from_examples_test.exs
 ```
 
 ## Architecture

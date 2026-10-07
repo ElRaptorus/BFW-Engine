@@ -10,7 +10,7 @@ defmodule BfwEngine.Integration.Execution.ParallelGatewayTest do
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ResumeRunner
   alias BfwEngine.Persistence.Resources.GatewayPendingArrival
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.ExamplePlugin
 
   require Ash.Query
@@ -281,7 +281,7 @@ defmodule BfwEngine.Integration.Execution.ParallelGatewayTest do
 
   defp register_test_plugin do
     Application.put_env(:core_execution, :service_task_dispatch, BfwEngine.Plugins.RegistryDispatch)
-    facade = Loader.facade_for_plugin("evil:test_parallel_gateway")
+    facade = FacadeBuilder.build("evil:test_parallel_gateway")
     ExamplePlugin.on_load(facade)
   end
 

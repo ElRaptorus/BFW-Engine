@@ -5,9 +5,10 @@ defmodule BfwEngine.DMN.ModelCacheTelemetryTest do
 
   alias BfwEngine.DMN.Model.Definitions
   alias BfwEngine.DMN.ModelCache
+  alias BfwEngine.DMN.ServiceReset
 
   setup do
-    ModelCache.reset_state()
+    ServiceReset.dmn_model_cache()
 
     test_pid = self()
     handler_id = "dmn-cache-telemetry-#{System.unique_integer([:positive])}"

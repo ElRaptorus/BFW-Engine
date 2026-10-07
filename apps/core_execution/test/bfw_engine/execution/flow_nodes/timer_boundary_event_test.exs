@@ -8,11 +8,12 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
   alias BfwEngine.BPMN.Model.SequenceFlow
   alias BfwEngine.Execution.FlowNodes.TimerBoundaryEvent
   alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Token
 
   setup do
-    Scheduler.reset_state()
+    ServiceReset.scheduler()
     :ok
   end
 

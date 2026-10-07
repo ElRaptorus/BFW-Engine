@@ -4,9 +4,10 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
   alias BfwEngine.BPMN.Model.Mapping
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
-  alias BfwEngine.Execution.CalledElementResolver
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
+  alias BfwEngine.Execution.TestSupport.CalledElementResolver
   alias BfwEngine.Types.Identity
 
   @parent_version "parent-version-001"
@@ -19,9 +20,9 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver.NoOp)
-    ModelCache.reset_state()
-    CalledElementResolver.NoOp.reset()
+    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver)
+    ServiceReset.bpmn_model_cache()
+    CalledElementResolver.reset()
 
     ref = make_ref()
     subscribe_pi_events(ref)
@@ -30,8 +31,8 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
       unsubscribe_pi_events(ref)
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :called_element_resolver)
-      ModelCache.reset_state()
-      CalledElementResolver.NoOp.reset()
+      ServiceReset.bpmn_model_cache()
+      CalledElementResolver.reset()
     end)
 
     {:ok, ref: ref}
@@ -58,7 +59,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
   defp setup_child_process do
     child_definitions = BpmnFactory.linear_start_end("child-process")
     ModelCache.put_new(@child_version, child_definitions)
-    CalledElementResolver.NoOp.set_version("child-process", @child_version)
+    CalledElementResolver.set_version("child-process", @child_version)
   end
 
   defp await_process_death(pid) do
@@ -149,7 +150,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
       setup_child_process()
       ModelCache.put_new(@pinned_child_version, BpmnFactory.linear_start_end("child-process"))
 
-      CalledElementResolver.NoOp.set_specific_version(
+      CalledElementResolver.set_specific_version(
         "child-process",
         "1.2.0",
         @pinned_child_version
@@ -184,7 +185,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "unpinned still resolves latest", %{ref: ref} do
       setup_child_process()
 
-      CalledElementResolver.NoOp.set_specific_version(
+      CalledElementResolver.set_specific_version(
         "child-process",
         "1.2.0",
         @pinned_child_version
@@ -219,7 +220,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "unknown pin fatals the Call Activity", %{ref: ref} do
       setup_child_process()
 
-      CalledElementResolver.NoOp.set_specific_version(
+      CalledElementResolver.set_specific_version(
         "child-process",
         "9.9.9",
         {:error, :version_not_found}
@@ -245,7 +246,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "disabled catalog process with pin fatals version_disabled", %{ref: ref} do
       setup_child_process()
 
-      CalledElementResolver.NoOp.set_specific_version(
+      CalledElementResolver.set_specific_version(
         "child-process",
         "1.0.0",
         {:error, :version_disabled}
@@ -277,7 +278,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "parent PI goes fatal when child fatals and no boundary is attached", %{ref: ref} do
       child_definitions = BpmnFactory.dead_end_process()
       ModelCache.put_new(@child_version, child_definitions)
-      CalledElementResolver.NoOp.set_version("child-process", @child_version)
+      CalledElementResolver.set_version("child-process", @child_version)
 
       parent_definitions = BpmnFactory.call_activity_process()
       ModelCache.put_new(@parent_version, parent_definitions)
@@ -317,7 +318,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "parent routes through error boundary when child fatals", %{ref: ref} do
       child_definitions = BpmnFactory.dead_end_process()
       ModelCache.put_new(@child_version, child_definitions)
-      CalledElementResolver.NoOp.set_version("child-process", @child_version)
+      CalledElementResolver.set_version("child-process", @child_version)
 
       parent_definitions = BpmnFactory.call_activity_with_error_boundary()
       ModelCache.put_new(@parent_version, parent_definitions)
@@ -357,7 +358,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "parent fatals when boundary is present but error code doesn't match", %{ref: ref} do
       child_definitions = BpmnFactory.dead_end_process()
       ModelCache.put_new(@child_version, child_definitions)
-      CalledElementResolver.NoOp.set_version("child-process", @child_version)
+      CalledElementResolver.set_version("child-process", @child_version)
 
       parent_definitions =
         BpmnFactory.call_activity_with_error_boundary(error_code: "VERY_SPECIFIC_ERROR")
@@ -427,7 +428,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "in_mappings transform the payload passed to the child", %{ref: ref} do
       child_definitions = BpmnFactory.user_task_process(process_id: "child-process")
       ModelCache.put_new(@child_version, child_definitions)
-      CalledElementResolver.NoOp.set_version("child-process", @child_version)
+      CalledElementResolver.set_version("child-process", @child_version)
 
       parent_definitions =
         BpmnFactory.call_activity_process(
@@ -455,15 +456,15 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
         2_000
       )
 
-      # Child pauses at user task — inspect its input payload
-      Process.sleep(50)
-      {:ok, child_pid} = Execution.lookup_process_instance(child_id)
-      {:running, child_state} = :sys.get_state(child_pid)
-      assert child_state.started_with_context == nil
+      assert_receive {:fni_state, ^ref,
+                      %{
+                        process_instance_id: ^child_id,
+                        new_state: :waiting,
+                        flow_node_instance_id: flow_node_instance_id
+                      }},
+                     2_000
 
-      # Finish user task so everything completes
-      [{flow_node_instance_id, _}] =
-        Enum.filter(child_state.flow_node_instance_states, fn {_id, e} -> e.state == :waiting end)
+      {:ok, child_pid} = Execution.lookup_process_instance(child_id)
 
       identity = %Identity{id: "finisher", roles: ["admin"], groups: []}
 
@@ -516,7 +517,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "out_mappings transform the child result before returning to parent", %{ref: ref} do
       child_definitions = BpmnFactory.linear_three_node("child-process")
       ModelCache.put_new(@child_version, child_definitions)
-      CalledElementResolver.NoOp.set_version("child-process", @child_version)
+      CalledElementResolver.set_version("child-process", @child_version)
 
       parent_definitions =
         BpmnFactory.call_activity_process(
@@ -607,7 +608,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
     test "child with task passes payload through correctly", %{ref: ref} do
       child_definitions = BpmnFactory.linear_three_node("child-process")
       ModelCache.put_new(@child_version, child_definitions)
-      CalledElementResolver.NoOp.set_version("child-process", @child_version)
+      CalledElementResolver.set_version("child-process", @child_version)
 
       parent_definitions = BpmnFactory.call_activity_process()
       ModelCache.put_new(@parent_version, parent_definitions)
@@ -701,7 +702,7 @@ defmodule BfwEngine.Execution.CallActivityIntegrationTest do
   defp setup_multi_start_child_process do
     child_definitions = BpmnFactory.multi_start_process("multi-start-child")
     ModelCache.put_new(@multi_start_child_version, child_definitions)
-    CalledElementResolver.NoOp.set_version("multi-start-child", @multi_start_child_version)
+    CalledElementResolver.set_version("multi-start-child", @multi_start_child_version)
   end
 
   describe "Call Activity — startEventId with single-start child" do

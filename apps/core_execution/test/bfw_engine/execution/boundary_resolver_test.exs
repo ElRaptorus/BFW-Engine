@@ -48,7 +48,9 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([])
 
       assert :none ==
-               BoundaryResolver.find_matching_error_boundary(host, model, %{error_code: "ERR"})
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
+                 error_code: "ERR"
+               })
     end
 
     test "matches by error_code only" do
@@ -56,7 +58,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([boundary])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_code: "ORDER_FAILED"
                })
 
@@ -68,7 +70,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([boundary])
 
       assert :none ==
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_code: "OTHER_ERROR"
                })
     end
@@ -78,7 +80,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([boundary])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_message: "timeout"
                })
 
@@ -93,6 +95,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
                BoundaryResolver.find_matching_error_boundary(
                  host,
                  model,
+                 nil,
                  %{error_code: "ERR_01", error_message: "bad input"}
                )
 
@@ -100,6 +103,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
                BoundaryResolver.find_matching_error_boundary(
                  host,
                  model,
+                 nil,
                  %{error_code: "ERR_01", error_message: "wrong message"}
                )
 
@@ -107,6 +111,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
                BoundaryResolver.find_matching_error_boundary(
                  host,
                  model,
+                 nil,
                  %{error_code: "WRONG", error_message: "bad input"}
                )
     end
@@ -116,7 +121,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([boundary])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_code: "ANYTHING"
                })
 
@@ -129,7 +134,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([b1, b2])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_code: "SPECIFIC"
                })
 
@@ -142,7 +147,9 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([b1, b2])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{error_code: "OTHER"})
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
+                 error_code: "OTHER"
+               })
 
       assert matched.id == "BE_2"
     end
@@ -153,7 +160,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([catch_all, specific])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_code: "CHARGE_FAILED"
                })
 
@@ -196,7 +203,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([specific, catch_all])
 
       assert {:ok, matched} =
-               BoundaryResolver.find_matching_error_boundary(host, model, %{
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
                  error_code: "UNKNOWN"
                })
 
@@ -216,7 +223,9 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
       {host, model} = build_host_and_model([timer_boundary])
 
       assert :none ==
-               BoundaryResolver.find_matching_error_boundary(host, model, %{error_code: "ERR"})
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
+                 error_code: "ERR"
+               })
     end
   end
 end

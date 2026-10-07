@@ -2,12 +2,12 @@ defmodule BfwEngine.Auth.PlugTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Auth.Plug, as: AuthPlug
-  alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Auth.ServiceReset
   alias BfwEngine.Test.AuthHelper
   alias BfwEngine.Types.Identity
 
   setup do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
     :ok
   end
 

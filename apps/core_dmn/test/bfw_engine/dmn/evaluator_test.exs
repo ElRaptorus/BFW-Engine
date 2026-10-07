@@ -1,7 +1,7 @@
 defmodule BfwEngine.DMN.EvaluatorTest do
   @moduledoc false
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
@@ -35,6 +35,7 @@ defmodule BfwEngine.DMN.EvaluatorTest do
   alias BfwEngine.DMN.Parser
   alias BfwEngine.DMN.Precompiler
   alias BfwEngine.DMN.ServiceEvaluationResult
+  alias BfwEngine.DMN.ServiceReset
 
   @fixtures_dir Path.join([__DIR__, "..", "..", "fixtures", "dmns"])
   defp read_fixture(name), do: File.read!(Path.join(@fixtures_dir, name))
@@ -541,7 +542,7 @@ defmodule BfwEngine.DMN.EvaluatorTest do
     alias BfwEngine.DMN.ModelCache
 
     setup do
-      ModelCache.reset_state()
+      ServiceReset.dmn_model_cache()
       :ok
     end
 
@@ -671,7 +672,7 @@ defmodule BfwEngine.DMN.EvaluatorTest do
     alias BfwEngine.DMN.ModelCache
 
     setup do
-      ModelCache.reset_state()
+      ServiceReset.dmn_model_cache()
       :ok
     end
 
@@ -789,7 +790,7 @@ defmodule BfwEngine.DMN.EvaluatorTest do
     alias BfwEngine.DMN.ModelCache
 
     setup do
-      ModelCache.reset_state()
+      ServiceReset.dmn_model_cache()
       :ok
     end
 

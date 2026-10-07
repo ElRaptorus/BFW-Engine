@@ -143,14 +143,19 @@ defmodule BfwEngine.EngineFacade do
     graphql: %Graphql{}
   ]
 
+  # Default capture for this module's struct fields.
   @doc false
   def noop_register_2(_key, _handler), do: {:error, :not_wired}
+  # Default capture for this module's struct fields.
   @doc false
   def noop_register_1(_handler), do: {:error, :not_wired}
+  # Default capture for this module's struct fields.
   @doc false
   def noop_publish_event(_event), do: :ok
+  # Default capture for this module's struct fields.
   @doc false
   def noop_register_event_sink(_name, _mod, _opts), do: {:error, :not_wired}
+  # Default capture for this module's struct fields.
   @doc false
   def noop_get_config(_key), do: nil
 end

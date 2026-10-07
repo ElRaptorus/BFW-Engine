@@ -20,6 +20,8 @@ defmodule BfwEngine.Execution.SignalStartHandler do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Types.Identity
 
+  alias BfwEngine.Execution.UuidV7
+
   require Logger
 
   @doc """
@@ -38,7 +40,7 @@ defmodule BfwEngine.Execution.SignalStartHandler do
 
     started_ids =
       Enum.flat_map(matching_starts, fn {process_id, process_version_id, start_event_id} ->
-        process_instance_id = generate_id()
+        process_instance_id = UuidV7.generate()
 
         case start_process_from_signal(
                process_instance_id,
@@ -65,17 +67,6 @@ defmodule BfwEngine.Execution.SignalStartHandler do
       end)
 
     {:ok, started_ids}
-  end
-
-  defp generate_id do
-    timestamp_ms = System.system_time(:millisecond)
-    <<rand_a::12, rand_b::62, _::6>> = :crypto.strong_rand_bytes(10)
-
-    <<timestamp_ms::48, 7::4, rand_a::12, 2::2, rand_b::62>>
-    |> Base.encode16(case: :lower)
-    |> then(fn <<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>> ->
-      "#{a}-#{b}-#{c}-#{d}-#{e}"
-    end)
   end
 
   defp start_process_from_signal(

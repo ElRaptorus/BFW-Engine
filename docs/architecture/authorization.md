@@ -492,7 +492,7 @@ All JWT claim checks, lane access checks, and admin override logic are centraliz
 | `check_required_claim/4` | `(Identity.t(), claim_name, required_value, opts)` | Value claims: `trigger_message`, `trigger_signal` (require `"all"`) |
 | `check_lane_access/3` | `(record_with_lane_name, Identity.t(), opts)` | FNI **write** gate. `:ok` for `"write"` / zeeky / laneless / `skip_claims`. `{:error, :forbidden, details}` when the caller can observe (`"read"` or `observe_all`) but not write. `{:error, :not_found}` when the caller cannot observe that lane |
 | `admin_override?/1` | `(Identity.t()) :: boolean()` | True when `zeeky_boogie_doog=true` in claims |
-| `has_lane_claim?/2` | `(Identity.t(), lane_name :: String.t()) :: boolean()` | True when `lane:<lane_name>="write"` (act). `"read"` is **not** a write grant |
+| `lane_access/2` | `(Identity.t(), lane_name :: String.t()) :: :write \| :read \| :none` | `"write"` is the act grant. `"read"` is observe only |
 
 Private `skip_claims?/1` reads `Keyword.get(opts, :skip_claims, false)`. When true, all claim and lane helpers short-circuit to `:ok`.
 
@@ -515,7 +515,7 @@ Admin override (`zeeky_boogie_doog`) bypasses all claim checks in every helper a
 
 ### Plugin `skip_claims` opt-out
 
-The plugin loader (`apps/peripheral_plugins/lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` on every claim-gated facade closure it constructs (deploy, enable/disable, delete, abort, retry, delete PI, finish/cancel user task, publish message/signal, etc.). Plugins remain inside the operator trust boundary; audit still records the `plugin:<name>` identity on each Api invocation.
+The plugin loader (`apps/engine_plugins/lib/bfw_engine/plugins/loader.ex`) passes `skip_claims: true` on every claim-gated facade closure it constructs (deploy, enable/disable, delete, abort, retry, delete PI, finish/cancel user task, publish message/signal, etc.). Plugins remain inside the operator trust boundary; audit still records the `plugin:<name>` identity on each Api invocation.
 
 ---
 

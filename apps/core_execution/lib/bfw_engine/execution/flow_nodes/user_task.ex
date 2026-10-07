@@ -20,6 +20,8 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
 
   require Logger
 
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.FlowNodeResult
@@ -27,7 +29,6 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
   alias BfwEngine.Execution.PayloadCap
-  alias BfwEngine.Execution.ProcessInstance.Helpers
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Expressions
@@ -149,7 +150,7 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
       process_instance_id: context.process_instance_id,
       flow_node_id: flow_node.id,
       violations: violations,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end

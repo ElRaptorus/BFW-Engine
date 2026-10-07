@@ -20,10 +20,12 @@ defmodule BfwEngine.EngineFacade.ProcessInstances do
             retry: &__MODULE__.noop_2/2,
             delete: &__MODULE__.noop_1/1
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_1(term()) :: {:error, :not_wired}
   def noop_1(_arg), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_2(term(), term()) :: {:error, :not_wired}
   def noop_2(_arg1, _arg2), do: {:error, :not_wired}

@@ -3,11 +3,12 @@ defmodule BfwEngine.Integration.AuthProviderPluginTest do
   use BfwEngine.IntegrationCase, async: false
 
   alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Test.ServiceReset
   alias BfwEngine.Types.Identity
 
   setup do
-    ProviderRegistry.reset_to_default()
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    ServiceReset.provider_registry()
+    on_exit(fn -> ServiceReset.provider_registry() end)
     :ok
   end
 

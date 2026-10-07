@@ -165,6 +165,48 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphTest do
       end
     end
 
+    test "processModel reports a cached model with no executable process or more than one" do
+      {201, deploy_body} = http_deploy("linear_start_end.bpmn")
+      [deployed] = deploy_body["deployed"]
+
+      {200, list_body} =
+        http_graphql(
+          "query { processVersions { results { id version processId bpmnXml } } }",
+          %{},
+          @admin_claims
+        )
+
+      found =
+        Enum.find(list_body["data"]["processVersions"]["results"], fn version ->
+          version["version"] == deployed["version"] and
+            is_binary(version["bpmnXml"]) and
+            String.contains?(version["bpmnXml"], @process_model_id)
+        end)
+
+      version_id = found["id"]
+      xml = File.read!(Path.expand("../../fixtures/bpmns/linear_start_end.bpmn", __DIR__))
+      {:ok, definitions} = BfwEngine.BPMN.Parser.parse(xml)
+      [process | _] = definitions.processes
+
+      query_replaced = fn processes ->
+        :ok = BfwEngine.BPMN.ModelCache.delete(version_id)
+        :ok = BfwEngine.BPMN.ModelCache.put_new(version_id, %{definitions | processes: processes})
+
+        {_status, body} =
+          http_graphql(@model_graph_query, %{"id" => version_id}, @admin_claims)
+
+        body["errors"] || []
+      end
+
+      none = query_replaced.([%{process | is_executable: false}])
+      assert Enum.any?(none, &(&1["message"] =~ "no_executable_process"))
+
+      several =
+        query_replaced.([process, %{process | id: "SecondExecutable", is_executable: true}])
+
+      assert Enum.any?(several, &(&1["message"] =~ "multiple_executable_processes"))
+    end
+
     test "exposes Definitions catalogs and SendTaskNode.outMappings" do
       {201, deploy_body} = http_deploy("send_receive_task.bpmn")
       [deployed] = deploy_body["deployed"]

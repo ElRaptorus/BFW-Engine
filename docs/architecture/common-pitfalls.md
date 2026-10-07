@@ -217,7 +217,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 **Why:** The debugger and API consumers need the element, the expression, and why it failed.
 
-**Correct approach:** `Helpers.build_error_info/1` + an explicit `humanize_error/1` clause per new error shape. See [api.md](api.md).
+**Correct approach:** `ProcessInstance.ErrorInfo.build/1` + an explicit private `humanize_error/1` clause per new error shape. See [api.md](api.md).
 
 ---
 

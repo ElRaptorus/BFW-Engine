@@ -8,7 +8,7 @@ defmodule BfwEngine.Load.JsonbCompressionLoadTest do
   @moduletag :hardening
 
   alias BfwEngine.Execution.ResumeRunner
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.CompletionCounter
   alias BfwEngine.Test.DbAssertions
   alias BfwEngine.Test.ExamplePlugin
@@ -39,7 +39,7 @@ defmodule BfwEngine.Load.JsonbCompressionLoadTest do
       BfwEngine.Plugins.RegistryDispatch
     )
 
-    facade = Loader.facade_for_plugin("evil:test_jsonb_compression")
+    facade = FacadeBuilder.build("evil:test_jsonb_compression")
     ExamplePlugin.on_load(facade)
 
     on_exit(fn ->

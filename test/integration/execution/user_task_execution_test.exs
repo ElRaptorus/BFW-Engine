@@ -2,7 +2,7 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
   @moduledoc "Integration tests for User Task execution (waiting, finish, contract violation)."
   use BfwEngine.ExecutionCase, async: false
 
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Test.EventCollector
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
@@ -204,7 +204,7 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
   describe "plugin facade user_tasks namespace" do
     test "finish forwards the action id into the task token" do
       {process_instance_id, user_task_flow_node_instance} = start_waiting_user_task()
-      facade = Loader.facade_for_plugin("test:user_tasks")
+      facade = FacadeBuilder.build("test:user_tasks")
 
       assert :ok =
                facade.user_tasks.finish.(
@@ -227,7 +227,7 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
 
     test "finish without an action id writes a nil actionId" do
       {process_instance_id, user_task_flow_node_instance} = start_waiting_user_task()
-      facade = Loader.facade_for_plugin("test:user_tasks")
+      facade = FacadeBuilder.build("test:user_tasks")
 
       assert :ok =
                facade.user_tasks.finish.(
@@ -250,7 +250,7 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
 
     test "finish rejects an invalid action id" do
       {_process_instance_id, user_task_flow_node_instance} = start_waiting_user_task()
-      facade = Loader.facade_for_plugin("test:user_tasks")
+      facade = FacadeBuilder.build("test:user_tasks")
 
       assert {:error, :invalid_action_id} =
                facade.user_tasks.finish.(

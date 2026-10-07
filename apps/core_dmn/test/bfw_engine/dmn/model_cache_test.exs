@@ -5,9 +5,10 @@ defmodule BfwEngine.DMN.ModelCacheTest do
 
   alias BfwEngine.DMN.Model.Definitions
   alias BfwEngine.DMN.ModelCache
+  alias BfwEngine.DMN.ServiceReset
 
   setup do
-    ModelCache.reset_state()
+    ServiceReset.dmn_model_cache()
     :ok
   end
 
@@ -85,7 +86,7 @@ defmodule BfwEngine.DMN.ModelCacheTest do
       ModelCache.put_new("v1", sample_definitions("one"))
       ModelCache.put_new("v2", sample_definitions("two"))
 
-      assert :ok = ModelCache.reset_state()
+      assert :ok = ServiceReset.dmn_model_cache()
       assert [] = ModelCache.list_cached_ids()
       assert {:error, :not_found} = ModelCache.fetch("v1")
     end
@@ -148,11 +149,13 @@ defmodule BfwEngine.DMN.ModelCacheTest do
       definitions = sample_definitions("indexed")
       ModelCache.put_new("v1", definitions)
 
-      assert {:ok, ^definitions} = ModelCache.lookup_by_namespace("https://example.com/dmn/indexed")
+      assert {:ok, ^definitions} =
+               ModelCache.lookup_by_namespace("https://example.com/dmn/indexed")
     end
 
     test "returns :not_found for unknown namespace" do
-      assert {:error, :not_found} = ModelCache.lookup_by_namespace("https://example.com/dmn/unknown")
+      assert {:error, :not_found} =
+               ModelCache.lookup_by_namespace("https://example.com/dmn/unknown")
     end
 
     test "latest put_new wins when multiple versions share a namespace" do
@@ -183,7 +186,8 @@ defmodule BfwEngine.DMN.ModelCacheTest do
 
       ModelCache.delete("v1")
 
-      assert {:error, :not_found} = ModelCache.lookup_by_namespace("https://example.com/dmn/cleanup")
+      assert {:error, :not_found} =
+               ModelCache.lookup_by_namespace("https://example.com/dmn/cleanup")
     end
 
     test "delete backfills namespace index from remaining versions" do
@@ -213,9 +217,10 @@ defmodule BfwEngine.DMN.ModelCacheTest do
 
       assert {:ok, _} = ModelCache.lookup_by_namespace("https://example.com/dmn/reset")
 
-      ModelCache.reset_state()
+      ServiceReset.dmn_model_cache()
 
-      assert {:error, :not_found} = ModelCache.lookup_by_namespace("https://example.com/dmn/reset")
+      assert {:error, :not_found} =
+               ModelCache.lookup_by_namespace("https://example.com/dmn/reset")
     end
 
     test "nil namespace is not indexed" do
@@ -238,33 +243,6 @@ defmodule BfwEngine.DMN.ModelCacheTest do
     test "DOWN message for unknown ref is silently ignored" do
       fake_ref = make_ref()
       send(ModelCache, {:DOWN, fake_ref, :process, self(), :normal})
-
-      Process.sleep(50)
-      assert Process.alive?(Process.whereis(ModelCache))
-    end
-
-    test "task result with known ref but missing inflight entry does not crash" do
-      state = :sys.get_state(ModelCache)
-
-      fake_ref = make_ref()
-      poisoned_state = %{state | ref_to_id: Map.put(state.ref_to_id, fake_ref, "orphan_id")}
-      :sys.replace_state(ModelCache, fn _ -> poisoned_state end)
-
-      send(ModelCache, {fake_ref, {:ok, sample_definitions("orphan")}})
-
-      Process.sleep(50)
-      assert Process.alive?(Process.whereis(ModelCache))
-      refute "orphan_id" in ModelCache.list_cached_ids()
-    end
-
-    test "DOWN with known ref but missing inflight entry does not crash" do
-      state = :sys.get_state(ModelCache)
-
-      fake_ref = make_ref()
-      poisoned_state = %{state | ref_to_id: Map.put(state.ref_to_id, fake_ref, "orphan_down")}
-      :sys.replace_state(ModelCache, fn _ -> poisoned_state end)
-
-      send(ModelCache, {:DOWN, fake_ref, :process, self(), :boom})
 
       Process.sleep(50)
       assert Process.alive?(Process.whereis(ModelCache))

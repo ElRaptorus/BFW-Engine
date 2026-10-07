@@ -1,7 +1,7 @@
 defmodule CoreExecution.MixProject do
   @moduledoc """
   The BPMN runtime — Process-Instance and Flow-Node-Instance state
-  machines, the PI Facade, Resume, Payload Cap, and the
+  machines, Resume, Payload Cap, and the
   handler dispatcher.
 
   Phase 0 scaffolds the app and a top-level supervisor only. Actual

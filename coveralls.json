@@ -17,7 +17,7 @@
     "apps/core_execution/lib/bfw_engine/execution/application.ex",
     "apps/core_timers/lib/bfw_engine/timers/application.ex",
     "apps/peripheral_persistence/lib/bfw_engine/persistence/application.ex",
-    "apps/peripheral_plugins/lib/bfw_engine/plugins/application.ex",
+    "apps/engine_plugins/lib/bfw_engine/plugins/application.ex",
     "apps/peripheral_telemetry/lib/bfw_engine/telemetry/application.ex",
     "apps/api_auth/lib/mix/tasks/",
     "apps/peripheral_persistence/lib/mix/tasks/",

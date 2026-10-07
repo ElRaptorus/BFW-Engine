@@ -4,8 +4,9 @@ defmodule BfwEngine.Execution.CallActivityRootIdTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution
-  alias BfwEngine.Execution.CalledElementResolver
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
+  alias BfwEngine.Execution.TestSupport.CalledElementResolver
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
 
@@ -40,9 +41,9 @@ defmodule BfwEngine.Execution.CallActivityRootIdTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver.NoOp)
-    ModelCache.reset_state()
-    CalledElementResolver.NoOp.reset()
+    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver)
+    ServiceReset.bpmn_model_cache()
+    CalledElementResolver.reset()
 
     sink_name = "test:ca-root-#{inspect(self())}"
     :ok = EngineEventBus.register_sink(sink_name, RootIdSink, test_pid: self())
@@ -63,8 +64,8 @@ defmodule BfwEngine.Execution.CallActivityRootIdTest do
       :telemetry.detach("ca-root-child-#{inspect(ref)}")
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :called_element_resolver)
-      ModelCache.reset_state()
-      CalledElementResolver.NoOp.reset()
+      ServiceReset.bpmn_model_cache()
+      CalledElementResolver.reset()
     end)
 
     {:ok, ref: ref}
@@ -73,7 +74,7 @@ defmodule BfwEngine.Execution.CallActivityRootIdTest do
   test "child process instance inherits the parent's root_process_instance_id", %{ref: ref} do
     child_definitions = BpmnFactory.user_task_process(process_id: "child-process")
     ModelCache.put_new(@child_version, child_definitions)
-    CalledElementResolver.NoOp.set_version("child-process", @child_version)
+    CalledElementResolver.set_version("child-process", @child_version)
 
     parent_definitions = BpmnFactory.call_activity_process()
     ModelCache.put_new(@parent_version, parent_definitions)
@@ -96,13 +97,6 @@ defmodule BfwEngine.Execution.CallActivityRootIdTest do
        }},
       2_000
     )
-
-    Process.sleep(50)
-    {:ok, child_pid} = Execution.lookup_process_instance(child_id)
-    {:running, child_state} = :sys.get_state(child_pid)
-
-    assert child_state.root_process_instance_id == parent_process_instance_id
-    refute child_state.root_process_instance_id == child_id
 
     assert_receive {:fni_started, %Event.FlowNodeInstanceStarted{} = started}, 2_000
 

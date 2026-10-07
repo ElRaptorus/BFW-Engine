@@ -10,6 +10,7 @@ defmodule BfwEngine.DMN.ImportResolverTest do
   alias BfwEngine.DMN.Model.InputData
   alias BfwEngine.DMN.ModelCache
   alias BfwEngine.DMN.Parser
+  alias BfwEngine.DMN.ServiceReset
 
   @fixtures_dir Path.join([__DIR__, "..", "..", "fixtures", "dmns"])
   @shared_namespace "https://example.com/dmn/shared"
@@ -17,7 +18,7 @@ defmodule BfwEngine.DMN.ImportResolverTest do
   @importing_namespace "https://example.com/dmn/importing"
 
   setup do
-    ModelCache.reset_state()
+    ServiceReset.dmn_model_cache()
     :ok
   end
 

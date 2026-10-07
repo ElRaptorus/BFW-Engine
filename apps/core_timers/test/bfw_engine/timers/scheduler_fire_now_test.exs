@@ -2,9 +2,10 @@ defmodule BfwEngine.Timers.SchedulerFireNowTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Timers.Scheduler
+  alias BfwEngine.Timers.ServiceReset
 
   setup do
-    Scheduler.reset_state()
+    ServiceReset.scheduler()
     :ok
   end
 

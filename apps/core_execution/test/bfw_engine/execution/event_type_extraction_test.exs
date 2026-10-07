@@ -18,6 +18,7 @@ defmodule BfwEngine.Execution.EventTypeExtractionTest do
   alias BfwEngine.BPMN.Model.SequenceFlow
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Types.Identity
 
   @version_id "00000000-0000-0000-0000-event-type-01"
@@ -103,12 +104,12 @@ defmodule BfwEngine.Execution.EventTypeExtractionTest do
 
   setup do
     Application.put_env(:core_execution, :persistence_adapter, CapturingAdapter)
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
     :persistent_term.put(:event_type_test_pid, self())
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
       :persistent_term.erase(:event_type_test_pid)
     end)
   end

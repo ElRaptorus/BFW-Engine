@@ -3,7 +3,7 @@ defmodule BfwEngine.Execution.ScriptDispatch do
   Behaviour defining how Script Tasks look up their named-script plugin.
 
   `core_execution` defines this contract; the actual implementation
-  lives in `peripheral_plugins` as `ScriptRegistryDispatch` and is wired
+  lives in `engine_plugins` as `ScriptRegistryDispatch` and is wired
   via application config (`:core_execution, :script_dispatch`). This
   preserves the dependency direction (Core never imports Peripheral).
   """

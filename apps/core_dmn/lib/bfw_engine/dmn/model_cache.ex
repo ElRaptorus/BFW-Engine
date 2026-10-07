@@ -67,13 +67,6 @@ defmodule BfwEngine.DMN.ModelCache do
     :ok
   end
 
-  @spec reset_state() :: :ok
-  def reset_state do
-    :ets.delete_all_objects(@table)
-    :ets.delete_all_objects(@namespace_index)
-    :ok
-  end
-
   @spec list_cached_ids() :: [String.t()]
   def list_cached_ids do
     :ets.select(@table, [{{:"$1", :_}, [], [:"$1"]}])

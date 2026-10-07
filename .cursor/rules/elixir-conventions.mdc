@@ -46,12 +46,17 @@ defmodule BfwEngine.Expressions do
 end
 ```
 
-### 3. Don't Repeat Yourself
+### 3. Where Shared Code Goes
 
-If the same logic appears in two or more places, extract it into a shared
-function. If the same constant appears in two or more places, extract it into
-a module attribute. Duplication is a maintenance liability — when a bug is
-fixed in one copy, the other copy silently remains broken.
+A one-line expression needed in several places is repeated, not extracted.
+Extract only logic longer than one line that must stay identical. A constant
+used in two or more places is a module attribute (see §6).
+
+A private function with one caller module lives in that module. A module with
+one consumer is `defp` code in the consumer, unless it has its own named
+purpose and the consumer uses it as a worker.
+
+No modules named `*Helpers`, `*Utils`, `*Util`, `*Common`, or `*Misc`.
 
 ### 4. Convention over Configuration
 
@@ -166,20 +171,15 @@ defp execute_deploy(command), do: ...
 defp execute_start(command), do: ...
 ```
 
-### 9. Single Responsibility — No God Modules
+### 9. Split by Purpose, Not Size
 
-Every module should have exactly one reason to change. A module that parses
-BPMN XML should not also validate it — parsing and validation are separate
-modules. Signs of a God Module:
+Every module has one purpose, and its name states that purpose. A large
+module with one purpose stays whole. `process_instance.ex` and
+`BoundaryOrchestrator` are examples: size is not a reason to split them.
 
-- More than ~10 public functions
-- The `@moduledoc` needs the word "and" to describe what it does
-- Functions in the module call each other in a chain that spans unrelated
-  concerns
-
-When a module grows too large, split it along responsibility boundaries and
-use `alias` / `defdelegate` in the original module if a unified facade is
-needed.
+Split when a second purpose appears. A module that parses BPMN XML does not
+also validate it — parsing and validation are separate purposes. Do not split
+a file only because it has crossed a line count or a public-function count.
 
 ### 10. Documentation: Public Yes, Private No
 
@@ -197,6 +197,46 @@ needed.
   - `# Partition pruning requires the timestamp column in the WHERE clause`
 - **Never** add comments that narrate code: `# Convert to map`, `# Return
   the result`, `# Handle the error`.
+
+### 11. Public Surface
+
+`def` is only for a function called from another module today. Export only
+what another module imports.
+
+`@doc false def` is allowed only for callbacks, macro-generated entry points,
+and functions called from another module of the same app that are not part of
+the app's API. Each such function carries a one-line comment naming its
+caller module.
+
+Never `@doc false def` so a test can reach a function.
+
+### 12. Tests Never Shape Production Code
+
+No `def`, option, default argument, overload, `Mix.env` branch, or
+reset/clear function exists only so a test can use it. Tests reset GenServer
+state by restarting the child under its supervisor from test support
+(`Supervisor.terminate_child/2` then `Supervisor.restart_child/2`).
+
+Tests assert observable behaviour: return values, persisted rows, emitted
+events, telemetry, and messages. They never assert on `:sys.get_state/1`.
+`:sys.get_state/1` is allowed only as a synchronisation barrier whose result
+is discarded.
+
+A unit test targets the nearest public function. If none exists, integration
+or conformance tests cover the code. A unit test that can reach the code only
+by widening production is deleted.
+
+Accepted exceptions:
+
+- The no-op behaviour adapters (`Execution.Persistence.NoOp`,
+  `CalledElementResolver.NoOp`, `DecisionResolver.NoOp`,
+  `Timers.Persistence.NoOp`, and the script and service-task dispatch no-ops)
+  are the null implementation of a Core behaviour. They are selected
+  umbrella-wide in `config/test.exs`. Their test-only reset functions are
+  still forbidden.
+- `RepoRouter`'s `Mix.env() == :test` read-pool redirect stays. The Ecto
+  sandbox needs one pool. The branch is documented in
+  `docs/architecture/persistence.md`.
 
 ---
 

@@ -9,9 +9,9 @@ defmodule BfwEngine.Integration.Persistence.RetentionPurgeTest do
 
   use BfwEngine.ExecutionCase, async: false
 
-  alias Ecto.Adapters.SQL, as: EctoSQL
   alias BfwEngine.Persistence.ProcessInstancePurge
   alias BfwEngine.Persistence.Repo
+  alias Ecto.Adapters.SQL, as: EctoSQL
 
   @moduletag :integration
 

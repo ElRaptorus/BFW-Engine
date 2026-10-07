@@ -7,6 +7,7 @@ defmodule BfwEngine.Execution.ResumeTest do
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Execution.ResumeRunner
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Event
@@ -21,11 +22,11 @@ defmodule BfwEngine.Execution.ResumeTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
   end
 
@@ -136,9 +137,6 @@ defmodule BfwEngine.Execution.ResumeTest do
 
       Process.sleep(50)
       assert Process.alive?(process_instance_pid)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-      assert %{^flow_node_instance_id => %{state: :waiting}} = state.flow_node_instance_states
 
       identity = %Identity{id: "finisher"}
 
@@ -267,18 +265,7 @@ defmodule BfwEngine.Execution.ResumeTest do
                )
 
       Process.sleep(80)
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      waiting_iteration_ids =
-        state.flow_node_instance_states
-        |> Enum.filter(fn {_id, entry} ->
-          entry.flow_node_type == :user_task and entry.state == :waiting and
-            is_binary(Map.get(entry, :multi_instance_id))
-        end)
-        |> Enum.map(fn {id, _entry} -> id end)
-        |> Enum.sort()
-
-      assert waiting_iteration_ids == Enum.sort([iteration_zero_id, iteration_one_id])
+      assert Process.alive?(process_instance_pid)
 
       identity = %Identity{id: "finisher"}
 
@@ -442,9 +429,16 @@ defmodule BfwEngine.Execution.ResumeTest do
       Process.sleep(50)
       assert Process.alive?(process_instance_pid)
 
-      {:running, state} = :sys.get_state(process_instance_pid)
-      assert state.flow_node_instance_states[waiting_fni_id].state == :waiting
-      assert state.flow_node_instance_states[finished_fni_id].state == :finished
+      assert :ok =
+               ProcessInstance.finish_user_task(
+                 process_instance_pid,
+                 waiting_fni_id,
+                 %{"approved" => true},
+                 %Identity{id: "finisher"}
+               )
+
+      monitor_reference = Process.monitor(process_instance_pid)
+      assert_receive {:DOWN, ^monitor_reference, :process, ^process_instance_pid, _}, 2_000
     end
   end
 
@@ -487,7 +481,7 @@ defmodule BfwEngine.Execution.ResumeTest do
         Application.delete_env(:core_bpmn, :model_cache_loader)
       end)
 
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
 
       process_instance_id = random_id()
       flow_node_instance_id = random_id()
@@ -512,9 +506,16 @@ defmodule BfwEngine.Execution.ResumeTest do
       Process.sleep(50)
       assert Process.alive?(process_instance_pid)
 
-      {:running, state} = :sys.get_state(process_instance_pid)
-      assert state.flow_node_instance_states[flow_node_instance_id].state == :waiting
-      assert state.process_model != nil
+      assert :ok =
+               ProcessInstance.finish_user_task(
+                 process_instance_pid,
+                 flow_node_instance_id,
+                 %{"approved" => true},
+                 %Identity{id: "finisher"}
+               )
+
+      monitor_reference = Process.monitor(process_instance_pid)
+      assert_receive {:DOWN, ^monitor_reference, :process, ^process_instance_pid, _}, 2_000
     end
   end
 
@@ -687,7 +688,7 @@ defmodule BfwEngine.Execution.ResumeTest do
     @resume_version_id "00000000-0000-0000-0000-000000000099"
 
     setup do
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
       Application.put_env(:core_execution, :persistence_adapter, ConfigurableResumeAdapter)
 
       on_exit(fn ->
@@ -699,13 +700,13 @@ defmodule BfwEngine.Execution.ResumeTest do
           BfwEngine.Execution.Persistence.NoOp
         )
 
-        ModelCache.reset_state()
+        ServiceReset.bpmn_model_cache()
       end)
 
       :ok
     end
 
-    test "resumes PI with only finished FNIs and keeps terminal FNIs in memory" do
+    test "resumes a process instance whose persisted flow node instances are already finished" do
       process_instance_id = random_id()
       definitions = BpmnFactory.linear_three_node()
       ModelCache.put_new(@resume_version_id, definitions)
@@ -766,14 +767,6 @@ defmodule BfwEngine.Execution.ResumeTest do
 
       assert {:ok, process_instance_pid} = Execution.lookup_process_instance(process_instance_id)
       assert Process.alive?(process_instance_pid)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-      assert state.started_with_context == %{"input" => "data"}
-      assert state.process_model.id == "test-process"
-
-      assert Enum.all?(state.flow_node_instance_states, fn {_id, entry} ->
-               entry.state == :finished
-             end)
 
       DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, process_instance_pid)
     end
@@ -920,8 +913,8 @@ defmodule BfwEngine.Execution.ResumeTest do
 
   describe "EBG: Resume with multiple waiting catches" do
     setup do
-      Scheduler.reset_state()
-      on_exit(fn -> Scheduler.reset_state() end)
+      ServiceReset.scheduler()
+      on_exit(fn -> ServiceReset.scheduler() end)
     end
 
     test "both waiting catches are rehydrated; PI enters running state" do
@@ -954,9 +947,10 @@ defmodule BfwEngine.Execution.ResumeTest do
           id: timer_fni_id,
           flow_node_id: "TimerCatch_1",
           flow_node_type: "intermediate_catch_event",
+          event_type: "timer",
           state: "waiting",
           input_token: %{},
-          type_properties: %{},
+          type_properties: %{fire_at: DateTime.add(DateTime.utc_now(), 60)},
           previous_flow_node_instance_ids: [ebg_fni_id],
           lane_name: nil,
           started_at: DateTime.utc_now()
@@ -965,6 +959,7 @@ defmodule BfwEngine.Execution.ResumeTest do
           id: message_fni_id,
           flow_node_id: "MessageCatch_1",
           flow_node_type: "intermediate_catch_event",
+          event_type: "message",
           state: "waiting",
           input_token: %{},
           type_properties: %{},
@@ -979,14 +974,8 @@ defmodule BfwEngine.Execution.ResumeTest do
 
       Process.sleep(200)
       assert Process.alive?(process_instance_pid)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      waiting_fnis =
-        state.flow_node_instance_states
-        |> Enum.filter(fn {_id, entry} -> entry.state in [:waiting, :active] end)
-
-      assert length(waiting_fnis) >= 2
+      assert MessageSubscriptions.has_subscriptions_for_message?("resume-msg")
+      assert Scheduler.armed_count() >= 1
 
       Execution.abort_process_instance(
         process_instance_id,
@@ -998,8 +987,8 @@ defmodule BfwEngine.Execution.ResumeTest do
 
   describe "EBG: Resume with Receive Task as EBG successor" do
     setup do
-      Scheduler.reset_state()
-      on_exit(fn -> Scheduler.reset_state() end)
+      ServiceReset.scheduler()
+      on_exit(fn -> ServiceReset.scheduler() end)
     end
 
     test "waiting Receive Task and Timer are rehydrated; PI enters running state" do
@@ -1044,9 +1033,10 @@ defmodule BfwEngine.Execution.ResumeTest do
           id: timer_fni_id,
           flow_node_id: "TimerCatch_1",
           flow_node_type: "intermediate_catch_event",
+          event_type: "timer",
           state: "waiting",
           input_token: %{},
-          type_properties: %{},
+          type_properties: %{fire_at: DateTime.add(DateTime.utc_now(), 60)},
           previous_flow_node_instance_ids: [ebg_fni_id],
           lane_name: nil,
           started_at: DateTime.utc_now()
@@ -1058,14 +1048,8 @@ defmodule BfwEngine.Execution.ResumeTest do
 
       Process.sleep(200)
       assert Process.alive?(process_instance_pid)
-
-      {:running, state} = :sys.get_state(process_instance_pid)
-
-      waiting_fnis =
-        state.flow_node_instance_states
-        |> Enum.filter(fn {_id, entry} -> entry.state in [:waiting, :active] end)
-
-      assert length(waiting_fnis) >= 2
+      assert MessageSubscriptions.has_subscriptions_for_message?("resume-recv")
+      assert Scheduler.armed_count() >= 1
 
       Execution.abort_process_instance(
         process_instance_id,

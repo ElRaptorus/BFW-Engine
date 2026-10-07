@@ -15,6 +15,7 @@ defmodule BfwEngine.Execution.FailAsyncErrorBoundaryTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Types.Identity
 
   defmodule ParkingServiceTaskHandler do
@@ -43,7 +44,7 @@ defmodule BfwEngine.Execution.FailAsyncErrorBoundaryTest do
 
     Application.put_env(:core_execution, :service_task_dispatch, ParkingServiceTaskDispatch)
 
-    ModelCache.reset_state()
+    ServiceReset.bpmn_model_cache()
 
     ref = make_ref()
     subscribe_pi_events(ref)
@@ -54,7 +55,7 @@ defmodule BfwEngine.Execution.FailAsyncErrorBoundaryTest do
       unsubscribe_fni_events(ref)
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :service_task_dispatch)
-      ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
     end)
 
     {:ok, ref: ref}

@@ -144,20 +144,6 @@ defmodule BfwEngine.BPMN.ModelCache do
     :ok
   end
 
-  @doc """
-  Clear all cached entries (for test isolation).
-
-  Does not cancel in-flight loads. Because tests run with `async: false`,
-  no in-flight loads exist when this is called from `setup`.
-  """
-  @spec reset_state() :: :ok
-  def reset_state do
-    :ets.delete_all_objects(@table)
-    :ets.delete_all_objects(@message_start_index)
-    :ets.delete_all_objects(@signal_start_index)
-    :ok
-  end
-
   @doc "Return all cached process version IDs."
   @spec list_cached_ids() :: [String.t()]
   def list_cached_ids do

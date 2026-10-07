@@ -10,6 +10,7 @@ defmodule BfwEngine.Integration.SoftDeleteSecurityTest do
   use BfwEngine.ExecutionCase, async: false
 
   alias BfwEngine.Persistence.Resources
+  alias BfwEngine.Test.ServiceReset
 
   # ---------------------------------------------------------------------------
   # Helpers
@@ -176,7 +177,7 @@ defmodule BfwEngine.Integration.SoftDeleteSecurityTest do
 
       soft_delete_version_directly(version_id)
 
-      BfwEngine.BPMN.ModelCache.reset_state()
+      ServiceReset.bpmn_model_cache()
 
       assert {:ok, _count} = BfwEngine.Execution.ResumeRunner.resume_all()
 

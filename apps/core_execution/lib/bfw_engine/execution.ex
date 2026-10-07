@@ -116,6 +116,7 @@ defmodule BfwEngine.Execution do
     end
   end
 
+  # Called by BfwEngine.Execution.ResumeRunner.
   @doc false
   @spec count_active() :: non_neg_integer()
   def count_active do
@@ -123,6 +124,7 @@ defmodule BfwEngine.Execution do
     count
   end
 
+  # Called by BfwEngine.Execution.ResumeRunner.
   @doc false
   @spec configured_limit() :: non_neg_integer() | :infinity
   def configured_limit do

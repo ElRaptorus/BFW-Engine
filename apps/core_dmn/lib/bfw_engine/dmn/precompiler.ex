@@ -446,19 +446,8 @@ defmodule BfwEngine.DMN.Precompiler do
     end
   end
 
-  @doc """
-  Builds a deploy-time rule index for decision table columns that use
-  only simple equality literals (strings, integers, floats, booleans).
-
-  For each indexable column, produces a map of `literal_value → MapSet`
-  of rule indices. At evaluation time, the index enables O(1) candidate
-  filtering per column before falling back to FEEL evaluation on
-  non-indexed columns.
-
-  Returns `nil` when no columns are indexable.
-  """
   @spec build_rule_index([struct()]) :: DecisionTable.rule_index()
-  def build_rule_index(rules) when is_list(rules) do
+  defp build_rule_index(rules) when is_list(rules) do
     return_if_empty(rules, fn ->
       column_count = rules |> List.first() |> Map.get(:input_entries) |> length()
 
@@ -512,15 +501,8 @@ defmodule BfwEngine.DMN.Precompiler do
   defp wildcard_entry?(%InputEntry{text: ""}), do: true
   defp wildcard_entry?(_entry), do: false
 
-  @doc """
-  Parses an input entry text as a simple equality literal.
-
-  Returns the normalized value (string, integer, float, or boolean) if
-  the text is a simple literal, or `:not_indexable` for expressions,
-  ranges, comparisons, etc.
-  """
   @spec parse_equality_literal(String.t()) :: String.t() | number() | boolean() | :not_indexable
-  def parse_equality_literal(text) do
+  defp parse_equality_literal(text) do
     trimmed = String.trim(text)
 
     cond do

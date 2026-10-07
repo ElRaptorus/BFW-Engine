@@ -4,14 +4,14 @@ defmodule BfwEngineWeb.Http.RoutesTest do
   import Plug.Test
   import Plug.Conn
 
-  alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.Test.HttpAuthHelper
   alias BfwEngineWeb.Http.OpenApiSpecLoader
+  alias BfwEngineWeb.ServiceReset
 
   @router BfwEngineWeb.Http.Router
 
   setup do
-    ProviderRegistry.reset_to_default()
+    ServiceReset.provider_registry()
     :ok
   end
 

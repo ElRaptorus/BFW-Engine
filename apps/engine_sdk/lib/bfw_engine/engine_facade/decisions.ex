@@ -60,22 +60,27 @@ defmodule BfwEngine.EngineFacade.Decisions do
             delete_version: &__MODULE__.noop_2/2,
             undeploy: &__MODULE__.noop_1/1
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_0() :: {:error, :not_wired}
   def noop_0, do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_1(term()) :: {:error, :not_wired}
   def noop_1(_arg), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_2(term(), term()) :: {:error, :not_wired}
   def noop_2(_arg1, _arg2), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_3(term(), term(), term()) :: {:error, :not_wired}
   def noop_3(_arg1, _arg2, _arg3), do: {:error, :not_wired}
 
+  # Default capture for this module's struct fields.
   @doc false
   @spec noop_4(term(), term(), term(), term()) :: {:error, :not_wired}
   def noop_4(_arg1, _arg2, _arg3, _arg4), do: {:error, :not_wired}

@@ -28,11 +28,12 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
             ]}
 
   alias BfwEngine.Auth.ProviderRegistry
+  alias BfwEngine.Test.ServiceReset
   alias BfwEngine.Types.Identity
 
   setup do
-    ProviderRegistry.reset_to_default()
-    on_exit(fn -> ProviderRegistry.reset_to_default() end)
+    ServiceReset.provider_registry()
+    on_exit(fn -> ServiceReset.provider_registry() end)
     :ok
   end
 
@@ -110,14 +111,14 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "on_load registers the LDAP auth provider" do
-      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-ldap-plugin")
+      facade = BfwEngine.Plugins.FacadeBuilder.build("test-ldap-plugin")
       assert :ok = MyCompany.LdapPlugin.on_load(facade)
 
       assert ProviderRegistry.active_provider() == MyCompany.LdapAuthProvider
     end
 
     test "on_ready returns :ok" do
-      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-ldap-plugin")
+      facade = BfwEngine.Plugins.FacadeBuilder.build("test-ldap-plugin")
       assert :ok = MyCompany.LdapPlugin.on_ready(facade)
     end
   end
@@ -277,14 +278,14 @@ defmodule BfwEngine.Integration.ExampleAuthProvidersTest do
     end
 
     test "on_load registers the CompanyGraph auth provider" do
-      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-cg-plugin")
+      facade = BfwEngine.Plugins.FacadeBuilder.build("test-cg-plugin")
       assert :ok = MyCompany.CompanyGraphPlugin.on_load(facade)
 
       assert ProviderRegistry.active_provider() == MyCompany.CompanyGraphAuthProvider
     end
 
     test "on_ready returns :ok (permission seeding is stubbed)" do
-      facade = BfwEngine.Plugins.Loader.facade_for_plugin("test-cg-plugin")
+      facade = BfwEngine.Plugins.FacadeBuilder.build("test-cg-plugin")
       assert :ok = MyCompany.CompanyGraphPlugin.on_ready(facade)
     end
 

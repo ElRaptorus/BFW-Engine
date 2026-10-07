@@ -14,7 +14,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
   use BfwEngine.ExecutionCase, async: false
 
   alias BfwEngine.Execution
-  alias BfwEngine.Plugins.Loader
+  alias BfwEngine.Plugins.FacadeBuilder
   alias BfwEngine.Plugins.Registry
   alias BfwEngine.Test.EventCollector
   alias BfwEngine.Test.ExamplePlugin
@@ -57,7 +57,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
   end
 
   defp load_example_plugin_via_facade do
-    facade = Loader.facade_for_plugin("evil:test_example")
+    facade = FacadeBuilder.build("evil:test_example")
     ExamplePlugin.on_load(facade)
   end
 
@@ -155,7 +155,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
 
   describe "plugin lifecycle via Loader" do
     test "facade capabilities are wired — register, publish, complete all work" do
-      facade = Loader.facade_for_plugin("lifecycle_test")
+      facade = FacadeBuilder.build("lifecycle_test")
 
       assert is_binary(facade.engine_id)
       assert is_binary(facade.engine_name)
@@ -183,7 +183,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
           timeout: 10_000
         )
 
-      facade = Loader.facade_for_plugin("msg_test_plugin")
+      facade = FacadeBuilder.build("msg_test_plugin")
 
       {:ok, result} = facade.messages.publish.("test-message", nil, %{"from" => "plugin"})
 
@@ -210,7 +210,7 @@ defmodule BfwEngine.Integration.PluginDispatchTest do
           timeout: 10_000
         )
 
-      facade = Loader.facade_for_plugin("sig_test_plugin")
+      facade = FacadeBuilder.build("sig_test_plugin")
 
       {:ok, result} = facade.signals.publish.("test-signal")
 

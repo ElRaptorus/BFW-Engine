@@ -22,7 +22,7 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.ProcessInstance
-  alias BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.UuidV7
   alias BfwEngine.Types.Token
 
   # -------------------------------------------------------------------
@@ -37,7 +37,7 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, resolved} <- resolve_called_version(flow_node) do
       process_instance_pid = context.process_instance_pid
-      child_process_instance_id = Helpers.generate_uuid_v7()
+      child_process_instance_id = UuidV7.generate()
 
       continuation = fn ->
         run_child_lifecycle(
@@ -215,7 +215,7 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
 
   defp run_fresh_lifecycle(flow_node, entry, context, _process_instance_pid) do
     process_instance_pid = context.process_instance_pid
-    child_process_instance_id = Helpers.generate_uuid_v7()
+    child_process_instance_id = UuidV7.generate()
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, resolved} <- resolve_called_version(flow_node),

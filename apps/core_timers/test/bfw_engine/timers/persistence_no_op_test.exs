@@ -2,9 +2,10 @@ defmodule BfwEngine.Timers.Persistence.NoOpTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Timers.Persistence.NoOp
+  alias BfwEngine.Timers.ServiceReset
 
   setup do
-    NoOp.reset_state()
+    ServiceReset.timer_persistence()
     :ok
   end
 
@@ -148,7 +149,7 @@ defmodule BfwEngine.Timers.Persistence.NoOpTest do
       NoOp.create_schedule(%{id: "s1"})
       NoOp.create_schedule(%{id: "s2"})
 
-      NoOp.reset_state()
+      ServiceReset.timer_persistence()
       {:ok, all} = NoOp.list_all_schedules()
       assert all == []
     end

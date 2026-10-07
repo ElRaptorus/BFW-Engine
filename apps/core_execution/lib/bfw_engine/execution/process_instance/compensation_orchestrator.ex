@@ -11,7 +11,11 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
   require Logger
 
-  import BfwEngine.Execution.ProcessInstance.Helpers
+  alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
+  alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
+  alias BfwEngine.Execution.ProcessInstance.JsonSafe
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+  alias BfwEngine.Execution.UuidV7
 
   alias BfwEngine.Execution.BoundaryAwareHandler
   alias BfwEngine.Execution.HandlerDispatch
@@ -195,16 +199,15 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
     end
   end
 
-  @doc false
   @spec dispatch_next_handler(map(), String.t(), runtime()) :: map()
-  def dispatch_next_handler(data, throw_fni_id, runtime) do
+  defp dispatch_next_handler(data, throw_fni_id, runtime) do
     run = Map.fetch!(data.compensation_runs, throw_fni_id)
     target = current_target(run)
 
     if target == nil do
       finish_run(data, throw_fni_id, run, runtime)
     else
-      handler_node = find_flow_node(data, target.handler_activity_id)
+      handler_node = FlowNodeLookup.find_flow_node(data, target.handler_activity_id)
 
       if handler_node == nil do
         Logger.warning(
@@ -216,7 +219,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
         dispatch_next_handler(data, throw_fni_id, runtime)
       else
         handler_token = %Token{
-          id: generate_id(),
+          id: UuidV7.generate(),
           process_instance_id: data.process_instance_id,
           payload: target.token_snapshot,
           originating_flow_node_instance_id: throw_fni_id,
@@ -261,7 +264,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
           |> Enum.reject(&is_nil/1)
 
         new_token = %Token{
-          id: generate_id(),
+          id: UuidV7.generate(),
           process_instance_id: data.process_instance_id,
           payload: run.token_payload,
           originating_flow_node_instance_id: throw_fni_id,
@@ -305,8 +308,8 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
          extra_type_properties,
          runtime
        ) do
-    flow_node_instance_id = generate_id()
-    lane_name = resolve_lane_name(data.process_model, handler_node)
+    flow_node_instance_id = UuidV7.generate()
+    lane_name = LaneResolution.resolve_lane_name(data.process_model, handler_node)
 
     case persist_handler_fni(
            data,
@@ -381,7 +384,12 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
     with {:ok, handler_module} <- HandlerDispatch.handler_for(handler_node),
          handler_context =
-           build_handler_context(data, flow_node_instance_id, handler_node, process_instance_pid),
+           InstanceHandlerDispatch.build_handler_context(
+             data,
+             flow_node_instance_id,
+             handler_node,
+             process_instance_pid
+           ),
          {:ok, task_pid} <-
            Task.Supervisor.start_child(data.task_supervisor, fn ->
              result =
@@ -392,7 +400,11 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
                  handler_context
                )
 
-             dispatch_handler_result(process_instance_pid, flow_node_instance_id, result)
+             InstanceHandlerDispatch.dispatch_handler_result(
+               process_instance_pid,
+               flow_node_instance_id,
+               result
+             )
            end) do
       Process.monitor(task_pid)
 
@@ -448,7 +460,7 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
 
     output_token =
       case entry do
-        %{token: %{payload: payload}} -> to_json_safe(payload) || %{}
+        %{token: %{payload: payload}} -> JsonSafe.convert(payload) || %{}
         _ -> %{}
       end
 
@@ -483,8 +495,8 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
         root_process_instance_id: data.root_process_instance_id,
         flow_node_id: entry.flow_node_id,
         flow_node_type: entry.flow_node_type,
-        event_type: if(flow_node, do: extract_event_type(flow_node)),
-        lane_name: resolve_lane_name(data.process_model, flow_node),
+        event_type: if(flow_node, do: FlowNodeLookup.extract_event_type(flow_node)),
+        lane_name: LaneResolution.resolve_lane_name(data.process_model, flow_node),
         terminal_state: :finished,
         triggerer_flow_node_instance_id: nil,
         type_properties: entry.type_properties || %{},

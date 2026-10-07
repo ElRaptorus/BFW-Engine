@@ -19,6 +19,7 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
   alias BfwEngine.Execution.FlowNodes
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Types.Identity
   alias BfwEngine.Types.Token
@@ -136,16 +137,16 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
       BfwEngine.Execution.Persistence.NoOp
     )
 
-    ModelCache.reset_state()
-    MessageSubscriptions.reset_state()
+    ServiceReset.bpmn_model_cache()
+    ServiceReset.message_subscriptions()
 
     on_exit(fn ->
       Application.delete_env(:core_execution, :persistence_adapter)
       Application.delete_env(:core_execution, :service_task_dispatch)
       Application.delete_env(:core_execution, :persistence_retry_max_attempts)
       Application.delete_env(:core_execution, :persistence_retry_initial_backoff_ms)
-      ModelCache.reset_state()
-      MessageSubscriptions.reset_state()
+      ServiceReset.bpmn_model_cache()
+      ServiceReset.message_subscriptions()
     end)
 
     :ok
@@ -212,7 +213,7 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
     Application.put_env(:core_execution, :persistence_retry_max_attempts, 1)
     Application.put_env(:core_execution, :persistence_retry_initial_backoff_ms, 1)
 
-    MessageSubscriptions.reset_state()
+    ServiceReset.message_subscriptions()
     MessageSubscriptions.mark_ready()
 
     {flow_node, context} = receive_task_context()

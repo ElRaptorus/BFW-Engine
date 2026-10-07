@@ -3,11 +3,12 @@ defmodule BfwEngine.Events.SubscriptionProcessInstanceIndexTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Events.ServiceReset
   alias BfwEngine.Events.SignalSubscriptions
 
   setup do
-    MessageSubscriptions.reset_state()
-    SignalSubscriptions.reset_state()
+    ServiceReset.message_subscriptions()
+    ServiceReset.signal_subscriptions()
     :ok
   end
 

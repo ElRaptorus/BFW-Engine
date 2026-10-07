@@ -26,6 +26,9 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
 
   require Logger
 
+  alias BfwEngine.Execution.ProcessInstance.LaneResolution
+  alias BfwEngine.Execution.UuidV7
+
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.Events.EngineEventBus
@@ -35,7 +38,6 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
   alias BfwEngine.Execution.Persistence
   alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Execution.ProcessInstance.AdHocMode
-  alias BfwEngine.Execution.ProcessInstance.Helpers
   alias BfwEngine.Expressions.Context, as: ExpressionsContext
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
@@ -55,7 +57,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
     with :ok <- validate_adhoc_contents(flow_node.id, type_data),
          {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context) do
       process_instance_pid = context.process_instance_pid
-      child_process_instance_id = Helpers.generate_uuid_v7()
+      child_process_instance_id = UuidV7.generate()
 
       continuation = fn ->
         run_child_lifecycle(
@@ -305,7 +307,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
 
     Enum.each(activities_to_activate, fn activity ->
       activation_token = %Token{
-        id: Helpers.generate_uuid_v7(),
+        id: UuidV7.generate(),
         process_instance_id: nil,
         payload: input_payload,
         originating_flow_node_instance_id: nil,
@@ -444,7 +446,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
       adhoc_node_id: flow_node.id,
       completion_reason: completion_reason,
       total_activations: total_activations,
-      lane_name: Helpers.resolve_lane_name_from_context(context, flow_node),
+      lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node),
       occurred_at: DateTime.utc_now()
     })
   end
@@ -458,7 +460,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
 
   defp run_fresh_lifecycle_from_entry(flow_node, entry, context, _process_instance_pid) do
     type_data = flow_node.type_data
-    child_process_instance_id = Helpers.generate_uuid_v7()
+    child_process_instance_id = UuidV7.generate()
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          :ok <- validate_adhoc_contents(flow_node.id, type_data),
