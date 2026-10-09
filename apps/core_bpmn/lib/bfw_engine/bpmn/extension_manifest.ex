@@ -103,6 +103,7 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
       attributes: [],
       applicable_to: [
         "ServiceTask",
+        "UserTask",
         "ScriptTask",
         "BusinessRuleTask",
         "SendTask",

@@ -51,6 +51,7 @@
       "attributes": [],
       "applicable_to": [
         "ServiceTask",
+        "UserTask",
         "ScriptTask",
         "BusinessRuleTask",
         "SendTask",

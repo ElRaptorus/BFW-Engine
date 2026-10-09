@@ -16,6 +16,7 @@ defmodule BfwEngine.BPMN.ExtensionManifestTest do
   use ExUnit.Case, async: true
 
   alias BfwEngine.BPMN.ExtensionManifest
+  alias BfwEngine.BPMN.Parser
 
   @repo_root Path.expand("../../../../../", __DIR__)
   @root_fixtures Path.join(@repo_root, "test/fixtures/bpmns")
@@ -45,6 +46,42 @@ defmodule BfwEngine.BPMN.ExtensionManifestTest do
     test "element names are unique" do
       elements = Enum.map(ExtensionManifest.build(), & &1.element)
       assert Enum.uniq(elements) == elements
+    end
+
+    test "payloadContract applies to UserTask, the same types the parser stores" do
+      entry = Enum.find(ExtensionManifest.build(), &(&1.element == "payloadContract"))
+
+      assert entry.applicable_to == [
+               "ServiceTask",
+               "UserTask",
+               "ScriptTask",
+               "BusinessRuleTask",
+               "SendTask",
+               "SubProcess",
+               "IntermediateThrowEvent",
+               "EndEvent"
+             ]
+
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                        id="Definitions_1">
+        <bpmn:process id="Process_1" isExecutable="true">
+          <bpmn:extensionElements><bfw:version>1.0.0</bfw:version></bpmn:extensionElements>
+          <bpmn:userTask id="Task_review">
+            <bpmn:extensionElements>
+              <bfw:payloadContract>{"type":"object"}</bfw:payloadContract>
+            </bpmn:extensionElements>
+          </bpmn:userTask>
+        </bpmn:process>
+      </bpmn:definitions>
+      """
+
+      {:ok, definitions} = Parser.parse(xml)
+      [process] = definitions.processes
+      task = Enum.find(process.flow_nodes, &(&1.id == "Task_review"))
+      assert task.type_data.payload_contract == %{"type" => "object"}
     end
 
     test "carrier: :attributes entries declare at least one attribute" do
