@@ -20,7 +20,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "^12.4.2",
+      "version": "12.11.2",
       "onFail": "download"
     }
   },
@@ -44,7 +44,7 @@
     "format:check": "oxfmt -c ../.oxfmtrc.json --check src test"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.11.1"
+    "fast-xml-parser": "^5.11.2"
   },
   "devDependencies": {
     "oxfmt": "catalog:",

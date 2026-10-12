@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Bfw.Gen.Contracts do
     * `contracts/graphql/schema.graphql`
     * `contracts/openapi.json`
 
-  Other engines (BFW-Engine-Light) vendor these files and test against them.
+  Other engines (BFW-Engine-Lite) vendor these files and test against them.
   """
 
   use Mix.Task
