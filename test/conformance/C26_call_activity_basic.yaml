@@ -1,11 +1,14 @@
-name: "C26: Call Activity spawns child, result flows back"
-fixture: "call_activity_basic.bpmn"
-child_fixture: "call_activity_child.bpmn"
-process_model_id: "CallActivityBasic"
+name: 'C26: Call Activity spawns child, result flows back'
+wait_timeout_ms: 15000
+fixture: call_activity_basic.bpmn
+child_fixtures:
+- call_activity_child.bpmn
+process_model_id: CallActivityBasic
 tier: call_activity
 start:
   payload: null
+steps: []
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

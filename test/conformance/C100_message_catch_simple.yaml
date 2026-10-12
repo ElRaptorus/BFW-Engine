@@ -1,11 +1,18 @@
-name: "C100: Message intermediate catch — single recipient, catch advances"
-fixture: "message_catch_simple.bpmn"
-process_model_id: "MessageCatchSimple"
+name: 'C100: Message intermediate catch — single recipient, catch advances'
+fixture: message_catch_simple.bpmn
+process_model_id: MessageCatchSimple
 tier: interactive
 start:
   payload: {}
+steps:
+- await_waiting:
+    type: intermediate_catch_event
+- trigger_message:
+    name: test-message
+    payload:
+      data: hello
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

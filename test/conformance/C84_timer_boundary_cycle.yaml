@@ -1,13 +1,21 @@
-name: "C84: Timer Boundary Event — non-interrupting cycle, multiple fires"
-fixture: "timer_boundary_cycle.bpmn"
-process_model_id: "TimerBoundaryCycle"
+name: 'C84: Timer Boundary Event — non-interrupting cycle, multiple fires'
+fixture: timer_boundary_cycle.bpmn
+process_model_id: TimerBoundaryCycle
 tier: interactive
 start:
   payload: null
+steps:
+- await_waiting:
+    type: user_task
+- await_finished_count:
+    node_id: End_Timeout
+    count: 3
+- finish_user_task:
+    any_waiting: true
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_Normal"
-    - endEventId: "End_Timeout"
-    - endEventId: "End_Timeout"
-    - endEventId: "End_Timeout"
+  - endEventId: End_Normal
+  - endEventId: End_Timeout
+  - endEventId: End_Timeout
+  - endEventId: End_Timeout

@@ -1,12 +1,15 @@
-name: "C30: XOR routes to Call Activity branch, CA has error boundary"
-fixture: "xor_to_call_activity.bpmn"
-child_fixture: "call_activity_child.bpmn"
-process_model_id: "XorToCallActivity"
+name: 'C30: XOR routes to Call Activity branch, CA has error boundary'
+wait_timeout_ms: 15000
+fixture: xor_to_call_activity.bpmn
+child_fixtures:
+- call_activity_child.bpmn
+process_model_id: XorToCallActivity
 tier: call_activity
 start:
   payload:
-    route: "call"
+    route: call
+steps: []
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_CA"
+  - endEventId: End_CA

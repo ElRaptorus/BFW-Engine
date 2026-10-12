@@ -1,0 +1,31 @@
+name: 'C128: FIFO pending drain — first subscriber claims cached signal, second does not'
+fixture: signal_end_event.bpmn
+process_model_id: SignalEndEvent
+child_fixtures:
+- signal_catch_done.bpmn
+tier: interactive
+start:
+  payload: {}
+steps:
+- await_state:
+    state: finished
+- pause: 500
+- start_process:
+    process_model_id: SignalCatchDone
+    payload: {}
+    as: first_subscriber
+- await_state:
+    pi: first_subscriber
+    state: finished
+- start_process:
+    process_model_id: SignalCatchDone
+    payload: {}
+    as: second_subscriber
+- await_waiting:
+    type: intermediate_catch_event
+    pi: second_subscriber
+- assert_state:
+    pi: second_subscriber
+    state: running
+expected:
+  final_state: finished

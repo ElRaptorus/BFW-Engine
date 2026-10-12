@@ -1,16 +1,35 @@
-name: "C243: TX → CA → child fatal — nested CA PI retry blocked by transaction ancestor"
-fixture: "transaction_retry_nested_ca.bpmn"
-process_model_id: "transaction_retry_nested_ca"
+name: 'C243: TX → CA → child fatal — nested CA PI retry blocked by transaction ancestor'
+fixture: transaction_retry_nested_ca.bpmn
 child_fixtures:
-  - "transaction_retry_nested_ca_child.bpmn"
+- transaction_retry_nested_ca_child.bpmn
+process_model_id: transaction_retry_nested_ca
 tier: interactive
-notes: >
-  Transaction subprocess contains a Call Activity whose child process always
-  fatals. All three PIs go fatal. Retrying the Call Activity child PI directly
-  must be rejected with retry_inside_transaction_scope. Retrying the direct
-  transaction child PI must also be rejected. Only retrying the root PI
-  (containing the transaction shell FNI) is valid.
+notes: 'Transaction subprocess contains a Call Activity whose child process always fatals. All three PIs go fatal. Retrying the Call Activity child PI directly must be rejected with retry_inside_transaction_scope. Retrying the direct transaction child PI must also be rejected. Only retrying the root PI (containing the transaction shell FNI) is valid.
+
+  '
 start:
   payload: null
+steps:
+- await_state:
+    state: fatal
+    timeout: 15000
+- child:
+    of: main
+    as: transaction_child
+- assert_state:
+    pi: transaction_child
+    state: fatal
+- child:
+    of: transaction_child
+    as: call_activity_child
+- assert_state:
+    pi: call_activity_child
+    state: fatal
+- retry:
+    pi: transaction_child
+    expect_error: retry_inside_transaction_scope
+- retry:
+    pi: call_activity_child
+    expect_error: retry_inside_transaction_scope
 expected:
-  final_state: "fatal"
+  final_state: fatal

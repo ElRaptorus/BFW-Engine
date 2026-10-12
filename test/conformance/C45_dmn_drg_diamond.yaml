@@ -1,4 +1,6 @@
 name: "C45: DMN DRD Diamond Deduplication"
+requires:
+- dmn
 type: dmn
 fixture: drg_diamond.dmn
 decision_definition_id: "definitions_diamond"

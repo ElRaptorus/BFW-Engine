@@ -1,4 +1,6 @@
 name: "C40: DMN Deploy + Evaluate UNIQUE"
+requires:
+- dmn
 type: dmn
 fixture: "simple_unique.dmn"
 decision_definition_id: "definitions_discount"

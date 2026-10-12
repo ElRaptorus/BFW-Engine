@@ -1,4 +1,6 @@
 name: "C55: DMN Boxed Conditional"
+requires:
+- dmn
 type: dmn
 fixture: boxed_conditional_basic.dmn
 decision_definition_id: "definitions_conditional"

@@ -1,19 +1,19 @@
-name: "C236: Transaction with Call Activity — cancel interrupts CA child PI"
-fixture: "transaction_with_call_activity.bpmn"
-process_model_id: "transaction_with_call_activity"
+name: 'C236: Transaction with Call Activity — cancel interrupts CA child PI'
+fixture: transaction_with_call_activity.bpmn
 child_fixtures:
-  - "transaction_with_call_activity_child.bpmn"
+- transaction_with_call_activity_child.bpmn
+process_model_id: transaction_with_call_activity
 tier: interactive
-notes: >
-  Transaction contains a Call Activity that starts a long-running child process.
-  Nested work parks at UserTask_1; cancel parks at Tx_CancelGate (P45). The
-  interactive test finishes the gate after the nested user task is waiting.
-  Cancel then interrupts the Call Activity child PI. The transaction child PI
-  goes :cancelled. Cancel Boundary on the shell fires, parent finishes at
-  End_Cancelled.
+notes: 'Transaction contains a Call Activity that starts a long-running child process. Nested work parks at UserTask_1; cancel parks at Tx_CancelGate (P45). The interactive test finishes the gate after the nested user task is waiting. Cancel then interrupts the Call Activity child PI. The transaction child PI goes :cancelled. Cancel Boundary on the shell fires, parent finishes at End_Cancelled.
+
+  '
 start:
   payload: null
+steps:
+- finish_transaction_cancel_gate:
+    'on': nested_child
+    node_id: UserTask_1
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_Cancelled"
+  - endEventId: End_Cancelled

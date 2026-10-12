@@ -1,8 +1,10 @@
-name: "C117: Pending signal TTL — expired signal not delivered"
-fixture: "signal_catch_simple.bpmn"
-process_model_id: "SignalCatchSimple"
+name: 'C117: Pending signal TTL — expired signal not delivered'
+fixture: signal_catch_simple.bpmn
+process_model_id: SignalCatchSimple
 tier: interactive
 start:
   payload: {}
 expected:
-  final_state: "waiting"
+  final_state: waiting
+engine_internal: true
+engine_internal_reason: needs the engine configured with signal_pending_ttl = PT1S

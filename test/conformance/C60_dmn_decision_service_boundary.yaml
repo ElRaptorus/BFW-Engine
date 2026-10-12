@@ -1,4 +1,6 @@
 name: "C60: Decision Service — missing required inputData"
+requires:
+- dmn
 type: dmn
 fixture: "decision_service_basic.dmn"
 decision_definition_id: "Definitions_ds_basic"

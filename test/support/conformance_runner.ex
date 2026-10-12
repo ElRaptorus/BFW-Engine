@@ -23,9 +23,21 @@ defmodule BfwEngine.Test.ConformanceRunner do
 
   alias BfwEngine.Persistence.Api, as: Domain
   alias BfwEngine.Persistence.Resources.ProcessInstance, as: PiResource
+  alias BfwEngine.Test.ConformanceSteps
 
+  # `payload_cap` capability: the engine caps a start token at 2048 bytes, and
+  # `start.payload_oversize` sends a payload well beyond that.
+  @payload_cap_bytes 2048
+  @oversize_payload_characters 5000
   @conformance_dir Path.expand("../conformance", __DIR__)
-  @terminal_process_instance_states ["finished", "fatal", "aborted", "escalated", "cancelled", "compensated"]
+  @terminal_process_instance_states [
+    "finished",
+    "fatal",
+    "aborted",
+    "escalated",
+    "cancelled",
+    "compensated"
+  ]
 
   @doc """
   Load and parse a YAML spec file from `test/conformance/`.
@@ -59,11 +71,118 @@ defmodule BfwEngine.Test.ConformanceRunner do
   end
 
   @doc """
+  Run a spec that carries a `steps:` list (see `ConformanceSteps`) or an
+  `expected.start_error` rejection.
+
+  Order: apply the spec's `requires:` capabilities, deploy and start, run the
+  steps, then (when the spec has an `expected.final_state`) wait for the main
+  process instance to settle and assert the `expected` block.
+  """
+  def run_interactive(spec) do
+    with_capabilities(spec["requires"] || [], fn ->
+      Application.put_env(
+        :core_execution,
+        :called_element_resolver,
+        BfwEngine.Persistence.CalledElementResolverImpl
+      )
+
+      if get_in(spec, ["expected", "start_error"]) do
+        assert_start_rejected(spec)
+      else
+        run_steps_and_assert(spec)
+      end
+    end)
+  end
+
+  defp run_steps_and_assert(spec) do
+    main_process_instance_id = deploy_and_start(spec)
+    state = ConformanceSteps.run(spec["steps"] || [], main_process_instance_id)
+
+    case {Map.get(state.instances, "main"), get_in(spec, ["expected", "final_state"])} do
+      {nil, _final_state} -> :ok
+      {_process_instance_id, nil} -> :ok
+      {process_instance_id, _final_state} -> settle_and_assert(process_instance_id, spec)
+    end
+  end
+
+  defp settle_and_assert(process_instance_id, spec) do
+    wait_for_completion(process_instance_id, spec)
+
+    if spec["expected"]["final_state"] in @terminal_process_instance_states do
+      apply(BfwEngine.ExecutionCase, :wait_for_process_instance, [
+        process_instance_id,
+        completion_timeout(spec)
+      ])
+    end
+
+    assert_expectations(process_instance_id, spec)
+  end
+
+  defp assert_start_rejected(spec) do
+    deploy_child_fixtures(spec["child_fixtures"] || [])
+    {201, _} = apply(BfwEngine.ExecutionCase, :http_deploy, [spec["fixture"]])
+
+    {status, _body} =
+      apply(BfwEngine.ExecutionCase, :http_start, [
+        spec["process_model_id"],
+        start_body(spec["start"] || %{})
+      ])
+
+    unless status == spec["expected"]["start_status"] do
+      raise ExUnit.AssertionError,
+        message:
+          "Expected start to be rejected with #{spec["expected"]["start_status"]}, got #{status}"
+    end
+  end
+
+  # Capability vocabulary: see docs/architecture/testing.md. Capabilities the
+  # Elixir engine always provides (`dmn`, `plugin_service_task`,
+  # `engine_restart`) need no setup here.
+  defp with_capabilities(capabilities, function) do
+    Enum.each(capabilities, &enable_capability/1)
+
+    try do
+      function.()
+    after
+      Enum.each(capabilities, &disable_capability/1)
+    end
+  end
+
+  defp enable_capability("payload_cap"),
+    do: Application.put_env(:core_execution, :token_max_bytes, @payload_cap_bytes)
+
+  defp enable_capability("plugin_script"),
+    do:
+      Application.put_env(
+        :core_execution,
+        :script_dispatch,
+        BfwEngine.Plugins.ScriptRegistryDispatch
+      )
+
+  defp enable_capability(_capability), do: :ok
+
+  defp disable_capability("payload_cap"),
+    do: Application.put_env(:core_execution, :token_max_bytes, 65_536)
+
+  defp disable_capability("plugin_script"),
+    do: Application.delete_env(:core_execution, :script_dispatch)
+
+  defp disable_capability(_capability), do: :ok
+
+  defp completion_timeout(spec) do
+    case spec["wait_timeout_ms"] do
+      timeout when is_integer(timeout) and timeout > 0 -> timeout
+      _other -> 20_000
+    end
+  end
+
+  @doc """
   Deploy the BPMN fixture and start a PI. Returns the PI ID.
 
-  Supports two start modes via the `start.mode` YAML key:
+  Supports these start modes via the `start.mode` YAML key:
 
   - `"http"` (default): Start via HTTP POST to the start endpoint.
+  - `"none"`: Deploy only and return `nil`; a step starts the instances.
   - `"timer_auto"`: Deploy only, then poll the DB until the Scheduler
     auto-creates a PI from a Timer Start Event.
 
@@ -83,28 +202,30 @@ defmodule BfwEngine.Test.ConformanceRunner do
 
     case start_config["mode"] do
       "timer_auto" -> poll_for_timer_started_pi(spec["process_model_id"])
+      "none" -> nil
       _ -> start_via_http(spec["process_model_id"], start_config)
     end
   end
 
   defp start_via_http(process_model_id, start_config) do
-    payload = start_config["payload"]
+    {201, response} =
+      apply(BfwEngine.ExecutionCase, :http_start, [process_model_id, start_body(start_config)])
 
-    body =
-      if payload do
-        %{"payload" => payload}
-      else
-        %{}
-      end
-
-    body =
-      case start_config["start_event_id"] do
-        nil -> body
-        id -> Map.put(body, "startEventId", id)
-      end
-
-    {201, response} = apply(BfwEngine.ExecutionCase, :http_start, [process_model_id, body])
     response["processInstanceId"]
+  end
+
+  defp start_body(start_config) do
+    payload =
+      if start_config["payload_oversize"],
+        do: %{"data" => String.duplicate("x", @oversize_payload_characters)},
+        else: start_config["payload"]
+
+    body = if payload, do: %{"payload" => payload}, else: %{}
+
+    case start_config["start_event_id"] do
+      nil -> body
+      id -> Map.put(body, "startEventId", id)
+    end
   end
 
   defp poll_for_timer_started_pi(process_model_id) do
@@ -173,11 +294,7 @@ defmodule BfwEngine.Test.ConformanceRunner do
   def wait_for_completion(process_instance_id, spec) do
     expected = spec["expected"]
     final_state = expected["final_state"]
-    timeout_milliseconds =
-      case spec["wait_timeout_ms"] do
-        timeout when is_integer(timeout) and timeout > 0 -> timeout
-        _other -> 20_000
-      end
+    timeout_milliseconds = completion_timeout(spec)
 
     if final_state in @terminal_process_instance_states do
       case apply(BfwEngine.Test.ProcessInteractions, :await_process_instance_state, [
@@ -185,8 +302,11 @@ defmodule BfwEngine.Test.ConformanceRunner do
              final_state,
              [timeout: timeout_milliseconds]
            ]) do
-        {:ok, _process_instance} -> :ok
-        {:error, :timeout} -> raise "PI #{process_instance_id} did not reach '#{final_state}' within #{timeout_milliseconds}ms"
+        {:ok, _process_instance} ->
+          :ok
+
+        {:error, :timeout} ->
+          raise "PI #{process_instance_id} did not reach '#{final_state}' within #{timeout_milliseconds}ms"
       end
     else
       Process.sleep(200)
@@ -217,6 +337,7 @@ defmodule BfwEngine.Test.ConformanceRunner do
     if expected["fni_count"] do
       flow_node_instances =
         apply(BfwEngine.Test.DbAssertions, :fetch_flow_node_instances, [process_instance_id])
+
       assert_flow_node_instance_count(flow_node_instances, expected["fni_count"])
     end
   end
@@ -230,8 +351,7 @@ defmodule BfwEngine.Test.ConformanceRunner do
 
     if process_instance.final_tokens == nil do
       raise ExUnit.AssertionError,
-        message:
-          "Expected non-nil finalTokens for finished PI #{process_instance_id}, got nil"
+        message: "Expected non-nil finalTokens for finished PI #{process_instance_id}, got nil"
     end
   end
 

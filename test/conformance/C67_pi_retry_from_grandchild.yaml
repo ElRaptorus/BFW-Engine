@@ -1,12 +1,29 @@
-name: "C67: Tree retry from grandchild — 3-level chain all restarted"
-fixtures:
-  - "call_activity_failing_child.bpmn"
-  - "retry_parent_with_failing_child.bpmn"
-  - "retry_nested_grandchild.bpmn"
-process_model_id: "RetryNestedGrandchild"
+name: 'C67: Tree retry from grandchild — 3-level chain all restarted'
+fixture: retry_nested_grandchild.bpmn
+child_fixtures:
+- call_activity_failing_child.bpmn
+- retry_parent_with_failing_child.bpmn
+process_model_id: RetryNestedGrandchild
 tier: interactive
 start:
   payload: null
-expected:
-  root_pre_retry_state: "fatal"
-  root_post_retry_state: "fatal"
+steps:
+- await_state:
+    state: fatal
+    timeout: 20000
+- child:
+    of: main
+    as: middle_child
+- child:
+    of: middle_child
+    as: grandchild
+- assert_state:
+    pi: grandchild
+    state: fatal
+- retry:
+    pi: grandchild
+    alive: main
+- await_completion:
+    timeout: 20000
+- assert_state:
+    state: fatal

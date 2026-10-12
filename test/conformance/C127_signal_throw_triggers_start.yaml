@@ -1,0 +1,18 @@
+name: 'C127: Signal throw triggers start event in separate process'
+fixture: signal_throw_trigger.bpmn
+process_model_id: SignalThrowTrigger
+child_fixtures:
+- signal_start_event.bpmn
+tier: interactive
+start:
+  payload: {}
+steps:
+- await_state:
+    state: finished
+- await_other_instance:
+    excluding:
+    - main
+    state: finished
+    as: started
+expected:
+  final_state: finished

@@ -12,3 +12,5 @@ expected:
   final_state: "finished"
   final_tokens:
     - endEventId: "End_1"
+engine_internal: true
+engine_internal_reason: "Multi-instance / compensation behaviour is covered by Elixir integration tests, not yet expressed as steps"

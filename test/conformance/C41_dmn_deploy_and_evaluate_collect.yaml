@@ -1,4 +1,6 @@
 name: "C41: DMN Deploy + Evaluate COLLECT SUM"
+requires:
+- dmn
 type: dmn
 fixture: "collect_with_sum.dmn"
 decision_definition_id: "definitions_bonus"

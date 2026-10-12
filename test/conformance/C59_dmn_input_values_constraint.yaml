@@ -1,4 +1,6 @@
 name: "C59: inputValues constraint — reject out-of-range"
+requires:
+- dmn
 type: dmn
 fixture: "input_values_constraint.dmn"
 decision_definition_id: "Definitions_input_values"

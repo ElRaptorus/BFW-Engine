@@ -1,4 +1,6 @@
 name: "C50: DMN BKM Invocation via boxed invocation"
+requires:
+- dmn
 type: dmn
 fixture: "boxed_invocation_basic.dmn"
 decision_definition_id: "Definitions_invocation"

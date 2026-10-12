@@ -1,4 +1,6 @@
 name: "C43: DMN Evaluate Non-existent Decision"
+requires:
+- dmn
 type: dmn
 fixture: null
 decision_definition_id: "nonexistent_decision"

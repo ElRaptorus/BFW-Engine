@@ -1,4 +1,6 @@
 name: "C33: Business rule task in DMN mode — UNIQUE hit policy"
+requires:
+  - dmn
 fixture: "business_rule_task_dmn.bpmn"
 dmn_fixtures:
   - "simple_unique.dmn"

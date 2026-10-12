@@ -1,16 +1,46 @@
-name: "C244: TX → SP → CA → grandchild fatal — all nested PI retries blocked, root retry succeeds"
-fixture: "transaction_retry_nested_deep.bpmn"
-process_model_id: "transaction_retry_nested_deep"
+name: 'C244: TX → SP → CA → grandchild fatal — all nested PI retries blocked, root retry succeeds'
+wait_timeout_ms: 15000
+fixture: transaction_retry_nested_deep.bpmn
 child_fixtures:
-  - "transaction_retry_nested_deep_grandchild.bpmn"
+- transaction_retry_nested_deep_grandchild.bpmn
+process_model_id: transaction_retry_nested_deep
 tier: interactive
-notes: >
-  Deep nesting: Transaction → Embedded SubProcess → Call Activity → grandchild
-  fatals. All four PIs go fatal. Retrying the CA grandchild, the SP child, and
-  the direct transaction child must all be rejected with
-  retry_inside_transaction_scope. Only retrying the root PI succeeds and
-  re-runs the entire transaction from scratch.
+notes: 'Deep nesting: Transaction → Embedded SubProcess → Call Activity → grandchild fatals. All four PIs go fatal. Retrying the CA grandchild, the SP child, and the direct transaction child must all be rejected with retry_inside_transaction_scope. Only retrying the root PI succeeds and re-runs the entire transaction from scratch.
+
+  '
 start:
   payload: null
+steps:
+- await_state:
+    state: fatal
+    timeout: 15000
+- child:
+    of: main
+    as: transaction_child
+- assert_state:
+    pi: transaction_child
+    state: fatal
+- child:
+    of: transaction_child
+    as: subprocess_child
+- assert_state:
+    pi: subprocess_child
+    state: fatal
+- child:
+    of: subprocess_child
+    as: call_activity_child
+- assert_state:
+    pi: call_activity_child
+    state: fatal
+- retry:
+    pi: call_activity_child
+    expect_error: retry_inside_transaction_scope
+- retry:
+    pi: subprocess_child
+    expect_error: retry_inside_transaction_scope
+- retry:
+    pi: main
+- await_completion:
+    timeout: 15000
 expected:
-  final_state: "fatal"
+  final_state: fatal

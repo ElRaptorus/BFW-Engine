@@ -1,11 +1,19 @@
-name: "C12: Async service task completed via plugin"
-fixture: "service_task_async_park.bpmn"
-process_model_id: "ServiceTaskAsyncPark"
+name: 'C12: Async service task completed via plugin'
+requires:
+- plugin_service_task
+fixture: service_task_async_park.bpmn
+process_model_id: ServiceTaskAsyncPark
 tier: interactive
 start:
   payload: null
+steps:
+- await_waiting:
+    type: service_task
+- finish_async_service_task:
+    result:
+      result: done
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

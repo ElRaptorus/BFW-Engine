@@ -11,3 +11,5 @@ start:
   payload: null
 expected:
   final_state: "finished"
+engine_internal: true
+engine_internal_reason: "Multi-instance / compensation behaviour is covered by Elixir integration tests, not yet expressed as steps"

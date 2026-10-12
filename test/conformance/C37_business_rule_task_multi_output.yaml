@@ -1,4 +1,6 @@
 name: "C37: Business rule task in DMN mode — multi-output RULE ORDER"
+requires:
+  - dmn
 fixture: "business_rule_task_dmn_multi_output.bpmn"
 dmn_fixtures:
   - "multi_output_rule_order.dmn"

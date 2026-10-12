@@ -1,11 +1,18 @@
-name: "C121: REST trigger — POST /signals/:name/trigger with no payload"
-fixture: "signal_catch_simple.bpmn"
-process_model_id: "SignalCatchSimple"
+name: 'C121: REST trigger — POST /signals/:name/trigger with no payload'
+fixture: signal_catch_simple.bpmn
+process_model_id: SignalCatchSimple
 tier: interactive
 start:
   payload: {}
+steps:
+- await_waiting:
+    type: intermediate_catch_event
+- trigger_signal:
+    name: test-signal
+    expect_deliveries: 1
+    expect_pending: false
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

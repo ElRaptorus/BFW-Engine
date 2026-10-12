@@ -1,9 +1,17 @@
-name: "C13: Async service task failed via plugin"
-fixture: "service_task_async_park.bpmn"
-process_model_id: "ServiceTaskAsyncPark"
+name: 'C13: Async service task failed via plugin'
+requires:
+- plugin_service_task
+fixture: service_task_async_park.bpmn
+process_model_id: ServiceTaskAsyncPark
 tier: interactive
 start:
   payload: null
+steps:
+- await_waiting:
+    type: service_task
+- fail_async_service_task:
+    code: FAIL_CODE
+    message: test failure
 expected:
-  final_state: "fatal"
+  final_state: fatal
   final_tokens: null

@@ -9,3 +9,5 @@ start:
       - fail: true
 expected:
   final_state: "fatal"
+engine_internal: true
+engine_internal_reason: "Multi-instance / compensation behaviour is covered by Elixir integration tests, not yet expressed as steps"

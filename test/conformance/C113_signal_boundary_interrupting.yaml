@@ -1,10 +1,15 @@
-name: "C113: Signal boundary (interrupting) — interrupts host activity"
-fixture: "signal_boundary_interrupting.bpmn"
-process_model_id: "SignalBoundaryInterrupting"
+name: 'C113: Signal boundary (interrupting) — interrupts host activity'
+fixture: signal_boundary_interrupting.bpmn
+process_model_id: SignalBoundaryInterrupting
 tier: interactive
 start:
   payload: {}
+steps:
+- await_waiting:
+    type: user_task
+- trigger_signal:
+    name: cancel-signal
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_cancelled"
+  - endEventId: End_cancelled

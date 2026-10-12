@@ -1,8 +1,15 @@
-name: "C115: Signal start event — new PI from broadcast"
-fixture: "signal_start_event.bpmn"
-process_model_id: "SignalStartEventProcess"
+name: 'C115: Signal start event — new PI from broadcast'
+fixture: signal_start_event.bpmn
+process_model_id: SignalStartEventProcess
 tier: interactive
+start:
+  mode: none
+steps:
+- trigger_signal:
+    name: trigger-process
+    expect_started_at_least: 1
+    as_started: main
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

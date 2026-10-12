@@ -1,8 +1,16 @@
-name: "C108: resultContract violation on message catch → FNI fatal"
-fixture: "message_catch_contract_violation.bpmn"
-process_model_id: "MessageCatchContractViolation"
+name: 'C108: resultContract violation on message catch → FNI fatal'
+wait_timeout_ms: 10000
+fixture: message_catch_contract_violation.bpmn
+process_model_id: MessageCatchContractViolation
 tier: interactive
 start:
   payload: {}
+steps:
+- await_waiting:
+    type: intermediate_catch_event
+- trigger_message:
+    name: contract-message
+    payload:
+      wrong_field: no orderId
 expected:
-  final_state: "fatal"
+  final_state: fatal

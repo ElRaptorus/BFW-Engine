@@ -1,4 +1,6 @@
 name: "C57: DMN Boxed For / Every / Some"
+requires:
+- dmn
 type: dmn
 fixture: boxed_iterators.dmn
 decision_definition_id: "definitions_iterators"

@@ -1,12 +1,15 @@
-name: "C11: Service task via echo plugin (D77 async)"
-fixture: "service_task_echo.bpmn"
-process_model_id: "ServiceTaskEcho"
+name: 'C11: Service task via echo plugin (D77 async)'
+requires:
+- plugin_service_task
+fixture: service_task_echo.bpmn
+process_model_id: ServiceTaskEcho
 tier: interactive
 start:
   payload:
-    echo: "ping"
+    echo: ping
+steps: []
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

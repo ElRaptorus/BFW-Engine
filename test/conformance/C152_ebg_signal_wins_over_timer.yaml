@@ -1,10 +1,15 @@
-name: "C152: Event-Based Gateway — signal wins over timer"
-fixture: "event_based_gateway_signal_timer.bpmn"
-process_model_id: "EbgSignalTimer"
+name: 'C152: Event-Based Gateway — signal wins over timer'
+fixture: event_based_gateway_signal_timer.bpmn
+process_model_id: EbgSignalTimer
 tier: interactive
 start:
   payload: null
+steps:
+- await_waiting:
+    type: intermediate_catch_event
+- trigger_signal:
+    name: ebg-test-signal
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

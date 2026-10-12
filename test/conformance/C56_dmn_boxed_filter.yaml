@@ -1,4 +1,6 @@
 name: "C56: DMN Boxed Filter"
+requires:
+- dmn
 type: dmn
 fixture: boxed_filter_basic.dmn
 decision_definition_id: "definitions_filter"

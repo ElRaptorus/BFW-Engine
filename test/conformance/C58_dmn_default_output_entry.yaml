@@ -1,4 +1,6 @@
 name: "C58: defaultOutputEntry — fallback when no rules match"
+requires:
+- dmn
 type: dmn
 fixture: "default_output_entry.dmn"
 decision_definition_id: "Definitions_default_output"

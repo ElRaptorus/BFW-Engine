@@ -1,17 +1,18 @@
-name: "C238: Transaction parallel branches — one cancels, other interrupted, compensation runs"
-fixture: "transaction_parallel_cancel.bpmn"
-process_model_id: "transaction_parallel_cancel"
+name: 'C238: Transaction parallel branches — one cancels, other interrupted, compensation runs'
+wait_timeout_ms: 20000
+fixture: transaction_parallel_cancel.bpmn
+process_model_id: transaction_parallel_cancel
 tier: interactive
-notes: >
-  Parallel gateway splits into branch A (Tx_CancelGate then Cancel End) and
-  branch B (waiting Tx_UserTask). The interactive test finishes the gate after
-  Tx_UserTask is waiting (P45). Cancel then interrupts branch B. Automatic LIFO
-  compensation runs for completed compensable activities. Child PI goes
-  :cancelled. Cancel Boundary fires, parent finishes at End_Cancelled.
+notes: 'Parallel gateway splits into branch A (Tx_CancelGate then Cancel End) and branch B (waiting Tx_UserTask). The interactive test finishes the gate after Tx_UserTask is waiting (P45). Cancel then interrupts branch B. Automatic LIFO compensation runs for completed compensable activities. Child PI goes :cancelled. Cancel Boundary fires, parent finishes at End_Cancelled.
+
+  '
 start:
   payload: null
-wait_timeout_ms: 20000
+steps:
+- finish_transaction_cancel_gate:
+    'on': transaction_child
+    node_id: Tx_UserTask
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_Cancelled"
+  - endEventId: End_Cancelled

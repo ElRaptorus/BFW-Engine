@@ -1,4 +1,6 @@
 name: "C54: DMN Relation evaluation"
+requires:
+- dmn
 type: dmn
 fixture: "relation_basic.dmn"
 decision_definition_id: "definitions_relation"

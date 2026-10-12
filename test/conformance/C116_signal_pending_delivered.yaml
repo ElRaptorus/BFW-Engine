@@ -1,11 +1,20 @@
-name: "C116: Pending signal — cached on zero-match, delivered on first subscriber"
-fixture: "signal_catch_simple.bpmn"
-process_model_id: "SignalCatchSimple"
+name: 'C116: Pending signal — cached on zero-match, delivered on first subscriber'
+fixture: signal_catch_simple.bpmn
+process_model_id: SignalCatchSimple
 tier: interactive
 start:
-  payload: {}
+  mode: none
+steps:
+- trigger_signal:
+    name: test-signal
+    expect_pending: true
+    expect_deliveries: 0
+- start_process:
+    process_model_id: SignalCatchSimple
+    payload: {}
+    as: main
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

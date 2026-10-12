@@ -1,4 +1,6 @@
 name: "C49: DMN Boxed Context with intermediate variables"
+requires:
+- dmn
 type: dmn
 fixture: "boxed_context_basic.dmn"
 decision_definition_id: "definitions_context"

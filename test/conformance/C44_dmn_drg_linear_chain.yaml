@@ -1,4 +1,6 @@
 name: "C44: DMN DRD Linear Chain"
+requires:
+- dmn
 type: dmn
 fixture: drg_linear_chain.dmn
 decision_definition_id: "definitions_linear_chain"

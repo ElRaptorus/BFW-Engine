@@ -1,4 +1,6 @@
 name: "C52: DMN Boxed List evaluation"
+requires:
+- dmn
 type: dmn
 fixture: "boxed_list_basic.dmn"
 decision_definition_id: "definitions_list"

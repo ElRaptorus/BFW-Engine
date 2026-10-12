@@ -1,0 +1,32 @@
+name: 'C134: FIFO pending drain — first subscriber claims cached message, second does not'
+fixture: message_end_event.bpmn
+process_model_id: MessageEndEvent
+child_fixtures:
+- message_catch_done.bpmn
+tier: interactive
+start:
+  payload:
+    status: done
+steps:
+- await_state:
+    state: finished
+- pause: 500
+- start_process:
+    process_model_id: MessageCatchDone
+    payload: {}
+    as: first_subscriber
+- await_state:
+    pi: first_subscriber
+    state: finished
+- start_process:
+    process_model_id: MessageCatchDone
+    payload: {}
+    as: second_subscriber
+- await_waiting:
+    type: intermediate_catch_event
+    pi: second_subscriber
+- assert_state:
+    pi: second_subscriber
+    state: running
+expected:
+  final_state: finished

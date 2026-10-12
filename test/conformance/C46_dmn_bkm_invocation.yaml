@@ -1,4 +1,6 @@
 name: "C46: DMN BKM Invocation"
+requires:
+- dmn
 type: dmn
 fixture: bkm_invocation_literal.dmn
 decision_definition_id: "definitions_bkm_invoke_le"

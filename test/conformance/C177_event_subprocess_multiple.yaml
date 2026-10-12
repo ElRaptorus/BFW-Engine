@@ -1,8 +1,14 @@
-name: "C177: Two Event Subprocesses in one scope; only the matching (message) trigger fires"
-fixture: "event_subprocess_multiple.bpmn"
-process_model_id: "EventSubprocessMultiple"
+name: 'C177: Two Event Subprocesses in one scope; only the matching (message) trigger fires'
+wait_timeout_ms: 10000
+fixture: event_subprocess_multiple.bpmn
+process_model_id: EventSubprocessMultiple
 tier: interactive
 start:
   payload: {}
+steps:
+- await_waiting:
+    type: user_task
+- trigger_message:
+    name: esp-multi-message
 expected:
-  final_state: "finished"
+  final_state: finished

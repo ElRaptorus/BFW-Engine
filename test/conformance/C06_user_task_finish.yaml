@@ -1,12 +1,18 @@
-name: "C06: User task finished via explicit call"
-fixture: "user_task_simple.bpmn"
-process_model_id: "UserTaskSimple"
+name: 'C06: User task finished via explicit call'
+fixture: user_task_simple.bpmn
+process_model_id: UserTaskSimple
 tier: interactive
 start:
   payload:
-    task: "review"
+    task: review
+steps:
+- await_waiting:
+    type: user_task
+- finish_user_task:
+    values:
+      approved: true
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

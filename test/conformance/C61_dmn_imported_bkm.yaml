@@ -1,4 +1,6 @@
 name: "C61: Imported BKM auto-invocation via knowledgeRequirement"
+requires:
+- dmn
 type: dmn
 fixture_multi:
   - "bkm_helper_model.dmn"

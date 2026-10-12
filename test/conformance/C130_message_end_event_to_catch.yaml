@@ -1,0 +1,21 @@
+name: 'C130: Message end event delivers to waiting catch in separate process'
+fixture: message_catch_done.bpmn
+process_model_id: MessageCatchDone
+child_fixtures:
+- message_end_event.bpmn
+tier: interactive
+start:
+  payload: {}
+steps:
+- await_waiting:
+    type: intermediate_catch_event
+- start_process:
+    process_model_id: MessageEndEvent
+    payload:
+      status: done
+    as: thrower
+- await_state:
+    pi: thrower
+    state: finished
+expected:
+  final_state: finished

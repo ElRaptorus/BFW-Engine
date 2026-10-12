@@ -1,4 +1,6 @@
 name: "C47: DMN DRG Cycle Rejected at Deploy"
+requires:
+- dmn
 type: dmn
 fixture: drg_cycle.dmn
 expected:

@@ -1,12 +1,13 @@
-name: "C35: Business rule task in FEEL mode"
-fixture: "business_rule_task_feel.bpmn"
-process_model_id: "BrtFeelProcess"
+name: 'C35: Business rule task in FEEL mode'
+fixture: business_rule_task_feel.bpmn
+process_model_id: BrtFeelProcess
 tier: interactive
 start:
   payload:
     amount: 200
+steps: []
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

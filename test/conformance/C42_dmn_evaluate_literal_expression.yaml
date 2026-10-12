@@ -1,4 +1,6 @@
 name: "C42: DMN Deploy + Evaluate Literal Expression"
+requires:
+- dmn
 type: dmn
 fixture: "literal_expression.dmn"
 decision_definition_id: "definitions_sum"

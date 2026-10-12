@@ -1,4 +1,6 @@
 name: "C53: DMN nested boxed expressions across types"
+requires:
+- dmn
 type: dmn
 fixture: "nested_boxed_multi_type.dmn"
 decision_definition_id: "definitions_nested_multi"

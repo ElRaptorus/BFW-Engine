@@ -1,0 +1,25 @@
+name: 'C131: Message throw interrupts boundary event on separate process'
+fixture: message_boundary_interrupting.bpmn
+process_model_id: MessageBoundaryInterrupting
+child_fixtures:
+- message_throw_cancel.bpmn
+tier: interactive
+start:
+  payload: {}
+steps:
+- await_waiting:
+    type: user_task
+- start_process:
+    process_model_id: MessageThrowCancel
+    payload: {}
+    as: thrower
+- await_state:
+    pi: thrower
+    state: finished
+- await_state:
+    state: finished
+- assert_fni:
+    node_id: End_cancelled
+    at_least: 1
+expected:
+  final_state: finished

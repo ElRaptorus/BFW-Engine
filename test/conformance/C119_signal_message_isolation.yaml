@@ -1,10 +1,37 @@
-name: "C119: Signal + message isolation — signal NEVER triggers message event"
-fixture: "signal_isolation_signal_side.bpmn"
-process_model_id: "SignalIsolationSignalSide"
+name: 'C119: Signal + message isolation — signal NEVER triggers message event'
+fixture: signal_isolation_signal_side.bpmn
+process_model_id: SignalIsolationSignalSide
 tier: interactive
 start:
-  payload: {}
+  mode: none
+steps:
+- deploy:
+  - signal_isolation_message_side.bpmn
+- start_process:
+    process_model_id: SignalIsolationMessageSide
+    payload: {}
+    as: message_side
+- await_waiting:
+    type: intermediate_catch_event
+    pi: message_side
+- start_process:
+    process_model_id: SignalIsolationSignalSide
+    payload: {}
+    as: main
+- await_waiting:
+    type: intermediate_catch_event
+    pi: main
+- trigger_signal:
+    name: same-name
+    expect_deliveries: 1
+    expect_delivery_to: main
+- await_completion:
+    pi: main
+- await_state:
+    pi: message_side
+    state: running
+    timeout: 2000
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

@@ -1,9 +1,21 @@
-name: "C62: PI retry from fatal (dead-end → retry → fatal again)"
-fixture: "retry_fatal_dead_end.bpmn"
-process_model_id: "RetryFatalDeadEnd"
+name: 'C62: PI retry from fatal (dead-end → retry → fatal again)'
+fixture: retry_fatal_dead_end.bpmn
+process_model_id: RetryFatalDeadEnd
 tier: interactive
 start:
   payload: null
+steps:
+- await_state:
+    state: fatal
+    timeout: 10000
+- await_completion:
+    timeout: 10000
+- assert_state:
+    state: fatal
+- retry: null
+- await_completion:
+    timeout: 10000
+- assert_state:
+    state: fatal
 expected:
-  pre_retry_state: "fatal"
-  post_retry_state: "fatal"
+  final_state: fatal

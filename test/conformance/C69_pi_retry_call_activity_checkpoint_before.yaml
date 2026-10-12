@@ -1,22 +1,24 @@
----
-id: C69
-name: "PI retry — checkpoint BEFORE Call Activity (Scenario C)"
+name: 'C69: PI retry — checkpoint BEFORE Call Activity (Scenario C)'
+fixture: retry_parent_task_before_then_fatal.bpmn
+child_fixtures:
+- call_activity_child.bpmn
+process_model_id: RetryParentTaskBeforeThenFatal
 tier: interactive
-description: |
-  Parent process with a task before a Call Activity, then a dead-end task.
-  Retry the parent with resetToFlowNodeInstanceId = Task_Before (before the CA).
-  The Call Activity FNI is deleted and the child PI is hard-deleted (Scenario C).
-
-bpmn:
-  - retry_parent_task_before_then_fatal.bpmn
-  - call_activity_child.bpmn
-
-process_id: RetryParentTaskBeforeThenFatal
-
-pre_retry_state: fatal
-post_retry_state: fatal
-checkpoint: task_before_fni
-
-expectations:
-  child_pi_deleted: true
-  new_child_pi_created: true
+start:
+  payload: null
+steps:
+- await_state:
+    state: fatal
+    timeout: 15000
+- child:
+    of: main
+    as: old_child
+    index: first
+- retry:
+    reset_to_node_id: Task_Before
+- await_completion:
+    timeout: 15000
+- assert_state:
+    state: fatal
+- assert_children:
+    excludes: old_child

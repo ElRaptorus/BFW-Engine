@@ -1,10 +1,19 @@
-name: "C120: Signal Start + Catch simultaneous — both fire on broadcast"
-fixture: "signal_catch_for_dual_test.bpmn"
-process_model_id: "SignalCatchForDual"
+name: 'C120: Signal Start + Catch simultaneous — both fire on broadcast'
+fixture: signal_catch_for_dual_test.bpmn
+child_fixtures:
+- signal_start_for_dual_test.bpmn
+process_model_id: SignalCatchForDual
 tier: interactive
 start:
   payload: {}
+steps:
+- await_waiting:
+    type: intermediate_catch_event
+- trigger_signal:
+    name: shared-signal
+    expect_deliveries_at_least: 1
+    expect_started_at_least: 1
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

@@ -1,8 +1,17 @@
-name: "C103: Message start event — PI created from published message"
-fixture: "message_start_event.bpmn"
-process_model_id: "MessageStartEvent"
+name: 'C103: Message start event — PI created from published message'
+fixture: message_start_event.bpmn
+process_model_id: MessageStartEvent
 tier: interactive
+start:
+  mode: none
+steps:
+- trigger_message:
+    name: trigger-process
+    payload:
+      input: start
+    expect_started_at_least: 1
+    as_started: main
 expected:
-  final_state: "finished"
+  final_state: finished
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

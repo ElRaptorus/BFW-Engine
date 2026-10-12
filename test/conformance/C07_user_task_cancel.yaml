@@ -1,10 +1,15 @@
-name: "C07: User task cancelled"
-fixture: "user_task_simple.bpmn"
-process_model_id: "UserTaskSimple"
+name: 'C07: User task cancelled'
+fixture: user_task_simple.bpmn
+process_model_id: UserTaskSimple
 tier: interactive
 start:
   payload:
-    task: "review"
+    task: review
+steps:
+- await_waiting:
+    type: user_task
+- cancel_user_task:
+    reason: not needed
 expected:
-  final_state: "aborted"
+  final_state: aborted
   final_tokens: null

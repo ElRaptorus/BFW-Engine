@@ -1,4 +1,6 @@
 name: "C48: DMN Cross-Model Import Resolution"
+requires:
+- dmn
 type: dmn
 fixtures:
   - imported_helper.dmn

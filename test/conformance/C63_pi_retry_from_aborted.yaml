@@ -1,9 +1,26 @@
-name: "C63: PI retry from aborted (user task abort → retry → finish)"
-fixture: "retry_user_task.bpmn"
-process_model_id: "RetryUserTask"
+name: 'C63: PI retry from aborted (user task abort → retry → finish)'
+fixture: retry_user_task.bpmn
+process_model_id: RetryUserTask
 tier: interactive
 start:
   payload: null
+steps:
+- await_waiting:
+    type: user_task
+- abort:
+    reason: conformance_abort
+- await_completion:
+    timeout: 5000
+- assert_state:
+    state: aborted
+- retry: null
+- await_waiting:
+    type: user_task
+    as: retried
+    timeout: 10000
+- finish_user_task:
+    fni: retried
+    values:
+      done: true
 expected:
-  pre_retry_state: "aborted"
-  post_retry_state: "finished"
+  final_state: finished

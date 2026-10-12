@@ -1,11 +1,23 @@
-name: "C20: Resume async service task after engine restart"
-fixture: "service_task_async_park.bpmn"
-process_model_id: "ServiceTaskAsyncPark"
+name: 'C20: Resume async service task after engine restart'
+requires:
+- plugin_service_task
+- engine_restart
+fixture: service_task_async_park.bpmn
+process_model_id: ServiceTaskAsyncPark
 tier: interactive
 start:
   payload: null
+steps:
+- await_waiting:
+    type: service_task
+    as: parked
+- restart_engine: null
+- finish_async_service_task:
+    fni: parked
+    result:
+      result: after_resume
 expected:
-  final_state: "finished"
+  final_state: finished
   fni_count: 3
   final_tokens:
-    - endEventId: "End_1"
+  - endEventId: End_1

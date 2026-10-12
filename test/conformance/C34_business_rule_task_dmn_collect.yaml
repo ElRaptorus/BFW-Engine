@@ -1,4 +1,6 @@
 name: "C34: Business rule task in DMN mode — COLLECT + SUM hit policy"
+requires:
+  - dmn
 fixture: "business_rule_task_dmn_collect.bpmn"
 dmn_fixtures:
   - "collect_with_sum.dmn"

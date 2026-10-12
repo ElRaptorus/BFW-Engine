@@ -1,9 +1,12 @@
-name: "C28: Call Activity child fails, no boundary, parent fatals"
-fixture: "call_activity_no_boundary_fatal.bpmn"
-child_fixture: "call_activity_failing_child.bpmn"
-process_model_id: "CallActivityNoBoundaryFatal"
+name: 'C28: Call Activity child fails, no boundary, parent fatals'
+wait_timeout_ms: 15000
+fixture: call_activity_no_boundary_fatal.bpmn
+child_fixtures:
+- call_activity_failing_child.bpmn
+process_model_id: CallActivityNoBoundaryFatal
 tier: call_activity
 start:
   payload: null
+steps: []
 expected:
-  final_state: "fatal"
+  final_state: fatal
