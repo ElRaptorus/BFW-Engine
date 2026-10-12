@@ -194,64 +194,64 @@ export interface FacadeAdHocSubprocesses {
  * includes) are imported from @elraptorus/bfw_engine_sdk.
  */
 export interface FacadeGraphql {
-  queryProcessModels<F extends ProcessModelField>(
-    options: ListQueryOptions<F, ProcessModelFilter, ProcessModelInclude>,
-  ): Promise<PaginatedResult<Pick<ProcessModel, F>>>;
+  queryProcessModels<SelectedField extends ProcessModelField>(
+    options: ListQueryOptions<SelectedField, ProcessModelFilter, ProcessModelInclude>,
+  ): Promise<PaginatedResult<Pick<ProcessModel, SelectedField>>>;
 
-  getProcessModel<F extends ProcessModelField>(
+  getProcessModel<SelectedField extends ProcessModelField>(
     id: string,
-    options: GetQueryOptions<F, ProcessModelInclude>,
-  ): Promise<Pick<ProcessModel, F>>;
+    options: GetQueryOptions<SelectedField, ProcessModelInclude>,
+  ): Promise<Pick<ProcessModel, SelectedField>>;
 
-  queryProcessInstances<F extends ProcessInstanceField>(
-    options: ListQueryOptions<F, ProcessInstanceFilter, ProcessInstanceInclude>,
-  ): Promise<PaginatedResult<Pick<ProcessInstance, F>>>;
+  queryProcessInstances<SelectedField extends ProcessInstanceField>(
+    options: ListQueryOptions<SelectedField, ProcessInstanceFilter, ProcessInstanceInclude>,
+  ): Promise<PaginatedResult<Pick<ProcessInstance, SelectedField>>>;
 
-  getProcessInstance<F extends ProcessInstanceField>(
+  getProcessInstance<SelectedField extends ProcessInstanceField>(
     id: string,
-    options: GetQueryOptions<F, ProcessInstanceInclude>,
-  ): Promise<Pick<ProcessInstance, F>>;
+    options: GetQueryOptions<SelectedField, ProcessInstanceInclude>,
+  ): Promise<Pick<ProcessInstance, SelectedField>>;
 
-  queryFlowNodeInstances<F extends FlowNodeInstanceField>(
-    options: ListQueryOptions<F, FlowNodeInstanceFilter, FlowNodeInstanceInclude>,
-  ): Promise<PaginatedResult<Pick<FlowNodeInstance, F>>>;
+  queryFlowNodeInstances<SelectedField extends FlowNodeInstanceField>(
+    options: ListQueryOptions<SelectedField, FlowNodeInstanceFilter, FlowNodeInstanceInclude>,
+  ): Promise<PaginatedResult<Pick<FlowNodeInstance, SelectedField>>>;
 
-  getFlowNodeInstance<F extends FlowNodeInstanceField>(
+  getFlowNodeInstance<SelectedField extends FlowNodeInstanceField>(
     id: string,
-    options: GetQueryOptions<F, FlowNodeInstanceInclude>,
-  ): Promise<Pick<FlowNodeInstance, F>>;
+    options: GetQueryOptions<SelectedField, FlowNodeInstanceInclude>,
+  ): Promise<Pick<FlowNodeInstance, SelectedField>>;
 
-  queryDataObjectValues<F extends DataObjectValueField>(
-    options: ListQueryOptions<F, DataObjectValueFilter, DataObjectValueInclude>,
-  ): Promise<PaginatedResult<Pick<DataObjectValue, F>>>;
+  queryDataObjectValues<SelectedField extends DataObjectValueField>(
+    options: ListQueryOptions<SelectedField, DataObjectValueFilter, DataObjectValueInclude>,
+  ): Promise<PaginatedResult<Pick<DataObjectValue, SelectedField>>>;
 
-  getDataObjectValue<F extends DataObjectValueField>(
+  getDataObjectValue<SelectedField extends DataObjectValueField>(
     id: string,
-    options: GetQueryOptions<F, DataObjectValueInclude>,
-  ): Promise<Pick<DataObjectValue, F>>;
+    options: GetQueryOptions<SelectedField, DataObjectValueInclude>,
+  ): Promise<Pick<DataObjectValue, SelectedField>>;
 
-  queryDataObjectHistory<F extends DataObjectValueField>(
-    options: ListQueryOptions<F, DataObjectValueFilter, DataObjectValueInclude>,
-  ): Promise<PaginatedResult<Pick<DataObjectValue, F>>>;
+  queryDataObjectHistory<SelectedField extends DataObjectValueField>(
+    options: ListQueryOptions<SelectedField, DataObjectValueFilter, DataObjectValueInclude>,
+  ): Promise<PaginatedResult<Pick<DataObjectValue, SelectedField>>>;
 
-  queryProcessVersions<F extends ProcessVersionField>(
-    options: ListQueryOptions<F, ProcessVersionFilter, Record<string, never>>,
-  ): Promise<PaginatedResult<Pick<ProcessVersion, F>>>;
+  queryProcessVersions<SelectedField extends ProcessVersionField>(
+    options: ListQueryOptions<SelectedField, ProcessVersionFilter, Record<string, never>>,
+  ): Promise<PaginatedResult<Pick<ProcessVersion, SelectedField>>>;
 
-  queryDecisionVersions<F extends DecisionVersionField>(
-    options: ListQueryOptions<F, DecisionVersionFilter, Record<string, never>>,
-  ): Promise<PaginatedResult<Pick<DecisionVersion, F>>>;
+  queryDecisionVersions<SelectedField extends DecisionVersionField>(
+    options: ListQueryOptions<SelectedField, DecisionVersionFilter, Record<string, never>>,
+  ): Promise<PaginatedResult<Pick<DecisionVersion, SelectedField>>>;
 
-  queryDecisionDefinitions<F extends DecisionDefinitionField>(
-    options: ListQueryOptions<F, DecisionDefinitionFilter, DecisionDefinitionInclude>,
-  ): Promise<PaginatedResult<Pick<DecisionDefinition, F>>>;
+  queryDecisionDefinitions<SelectedField extends DecisionDefinitionField>(
+    options: ListQueryOptions<SelectedField, DecisionDefinitionFilter, DecisionDefinitionInclude>,
+  ): Promise<PaginatedResult<Pick<DecisionDefinition, SelectedField>>>;
 
-  getDecisionDefinition<F extends DecisionDefinitionField>(
+  getDecisionDefinition<SelectedField extends DecisionDefinitionField>(
     decisionDefinitionId: string,
-    options: { fields: F[] },
-  ): Promise<Pick<DecisionDefinition, F> | null>;
+    options: { fields: SelectedField[] },
+  ): Promise<Pick<DecisionDefinition, SelectedField> | null>;
 
-  raw<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T>;
+  raw<Result = unknown>(query: string, variables?: Record<string, unknown>): Promise<Result>;
 }
 
 export type RegistrationResult = { status: 'ok' } | { status: 'conflict'; incumbentPluginName: string };

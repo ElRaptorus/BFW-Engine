@@ -4,7 +4,7 @@
  * The Model graph (`ProcessVersion.processModel`, `FlowNodeInstance.flowNode`,
  * `FlowNodeInstance.processVersion`) is polymorphic: `flowNode` is a GraphQL
  * interface with 21 concrete `*Node` types, and `eventDefinition` is a union
- * with 11 concrete types. The flat `F extends string` field-union pattern
+ * with 11 concrete types. The flat `SelectedField extends string` field-union pattern
  * used elsewhere in this package (see `fields.ts`) cannot express "select
  * these common fields, plus these extra fields only when the concrete type
  * is X" — GraphQL needs inline fragments (`... on ServiceTaskNode { ... }`)

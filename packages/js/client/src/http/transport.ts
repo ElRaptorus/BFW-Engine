@@ -24,10 +24,10 @@ export class HttpTransport {
   ) {}
 
   /** GET request returning parsed JSON. */
-  async get<T>(path: string, options?: RequestOptions): Promise<T> {
+  async get<ResponseBody>(path: string, options?: RequestOptions): Promise<ResponseBody> {
     const headers = await this.buildHeaders(options);
     const response = await fetch(`${this.baseUrl}${path}`, { headers });
-    return this.handleResponse<T>(response);
+    return this.handleResponse<ResponseBody>(response);
   }
 
   /** GET request returning raw text (for non-JSON endpoints like /metrics). Returns `null` on 404. */
@@ -45,7 +45,7 @@ export class HttpTransport {
   }
 
   /** POST request with JSON body. */
-  async post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+  async post<ResponseBody>(path: string, body?: unknown, options?: RequestOptions): Promise<ResponseBody> {
     const headers = await this.buildHeaders(options);
     headers['Content-Type'] = 'application/json';
     const fetchOptions: RequestInit = { method: 'POST', headers };
@@ -53,7 +53,7 @@ export class HttpTransport {
       fetchOptions.body = JSON.stringify(body);
     }
     const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-    return this.handleResponse<T>(response);
+    return this.handleResponse<ResponseBody>(response);
   }
 
   /** PUT request with optional JSON body. */
@@ -108,14 +108,14 @@ export class HttpTransport {
     return headers;
   }
 
-  private async handleResponse<T>(response: Response): Promise<T> {
+  private async handleResponse<ResponseBody>(response: Response): Promise<ResponseBody> {
     if (!response.ok) {
       const body = await response.json().catch(() => ({ error: 'unknown' }));
       throw mapResponseError(response.status, body as Record<string, unknown>);
     }
     if (response.status === 204) {
-      return undefined as T;
+      return undefined as ResponseBody;
     }
-    return response.json() as Promise<T>;
+    return response.json() as Promise<ResponseBody>;
   }
 }

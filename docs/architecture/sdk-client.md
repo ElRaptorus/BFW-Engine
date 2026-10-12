@@ -19,9 +19,17 @@ The SDK never imports from the client. All contracts (types, error classes, even
 
 ## Workspace dependencies
 
-The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/` and `examples/sdk-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, ESLint packages, `prettier`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
+The pnpm workspace root is `packages/js/`. Example packages under `examples/client-js/` and `examples/sdk-js/` are workspace members (they are not published). Shared toolchain versions live in the `catalog:` map in `packages/js/pnpm-workspace.yaml` (`typescript`, `vitest`, `tsx`, `@types/node`, `oxlint`, `oxfmt`). Members reference them with `"catalog:"` so examples cannot drift onto an older Vitest/Vite line.
 
-TypeScript stays on **6.0.x**. `typescript@7` is on npm `latest`, but `typescript-eslint@8.69.0` peers `typescript: >=4.8.4 <6.1.0`. Do not bump until typescript-eslint widens that range.
+TypeScript is pinned to **6.0.x** in the catalog.
+
+### Lint and format
+
+`oxlint` and `oxfmt` (exact versions in the catalog) replace ESLint and Prettier. `sdk` and `client` share `packages/js/.oxlintrc.json` and `packages/js/.oxfmtrc.json` and pass them with `-c ../…` in their `lint`, `lint:fix`, `format` and `format:check` scripts (CI runs `lint`). `categories.correctness` is off, so only the rules listed in `.oxlintrc.json` run. The `@typescript-eslint` rules `no-array-constructor`, `no-unused-expressions` and `no-unused-vars` map to the Oxlint core rules of the same name, which understand TypeScript.
+
+Not covered: `no-octal` (the TypeScript compiler rejects octal literals) and `no-useless-assignment` (only an experimental nursery rule in Oxlint). `id-length` also checks type parameters, so type parameters need descriptive names (`SelectedField`, `Item`, `Result`, …).
+
+`sdk/src/generated/extension-manifest.json` is listed in `ignorePatterns` of `.oxfmtrc.json`: `mix bfw.gen.extension_manifest --check` compares it byte for byte with the Elixir generator output, so the formatter must not touch it.
 
 The catalog pins **Vitest 5** (`^5.0.0`). Requires Node.js `>=22.12.0` (packages declare `>=24.20.0`) and Vite `>=6.4.0` as a transitive peer. Vitest 5 removed `describe.sequential` / `test.sequential`; client integration suites that must not run concurrently use `describe('…', { concurrent: false }, …)`. Unlike the Studio, SDK/client configs do **not** enable `sequence.shuffle` — tests keep declaration order. `client/vitest.config.ts` keeps `fileParallelism: false`. Artifact output lives under `.vitest/` (gitignored).
 

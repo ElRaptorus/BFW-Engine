@@ -16,4 +16,5 @@ export interface NamedScriptInput {
 
 /** Result returned by a named script handler. */
 export type NamedScriptResult =
-  { status: 'completed'; output: Record<string, unknown> } | { status: 'error'; reason: string };
+  | { status: 'completed'; output: Record<string, unknown> }
+  | { status: 'error'; reason: string };

@@ -14,7 +14,8 @@ interface BuildListQueryParams {
   filter?: Record<string, unknown> | undefined;
   sort?: SortClause<string>[] | undefined;
   include?:
-    Record<string, { fields: string[]; filter?: Record<string, unknown>; sort?: SortClause<string>[] }> | undefined;
+    | Record<string, { fields: string[]; filter?: Record<string, unknown>; sort?: SortClause<string>[] }>
+    | undefined;
   pagination?: PaginationOptions | undefined;
 }
 
@@ -22,7 +23,8 @@ interface BuildGetQueryParams {
   resourceName: string;
   fields: SelectionField[];
   include?:
-    Record<string, { fields: string[]; filter?: Record<string, unknown>; sort?: SortClause<string>[] }> | undefined;
+    | Record<string, { fields: string[]; filter?: Record<string, unknown>; sort?: SortClause<string>[] }>
+    | undefined;
 }
 
 interface BuiltQuery {

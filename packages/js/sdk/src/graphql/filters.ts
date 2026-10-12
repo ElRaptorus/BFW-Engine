@@ -64,8 +64,8 @@ export interface MapFilter {
 export type SortDirection = 'asc' | 'desc';
 
 /** A single sort criterion: which field to sort by and in which direction. */
-export interface SortClause<F extends string> {
-  field: F;
+export interface SortClause<SelectedField extends string> {
+  field: SelectedField;
   direction: SortDirection;
 }
 

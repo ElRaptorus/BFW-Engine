@@ -38,10 +38,10 @@
     "test": "vitest run test/unit/",
     "test:unit": "vitest run test/unit/",
     "test:integration": "vitest run test/integration/",
-    "lint": "eslint src/ test/",
-    "lint:fix": "eslint --fix src/ test/",
-    "format": "prettier --write --config ../.prettierrc.json src/ test/",
-    "format:check": "prettier --check --config ../.prettierrc.json src/ test/"
+    "lint": "oxlint -c ../.oxlintrc.json --report-unused-disable-directives src test",
+    "lint:fix": "oxlint -c ../.oxlintrc.json --fix --report-unused-disable-directives src test",
+    "format": "oxfmt -c ../.oxfmtrc.json src test",
+    "format:check": "oxfmt -c ../.oxfmtrc.json --check src test"
   },
   "dependencies": {
     "@elraptorus/bfw_engine_sdk": "workspace:*",
@@ -49,11 +49,10 @@
   },
   "devDependencies": {
     "@types/phoenix": "^1.6.7",
-    "eslint": "catalog:",
     "jose": "^6.2.12",
-    "prettier": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
     "vitest": "catalog:"
   }
 }

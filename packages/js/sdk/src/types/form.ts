@@ -21,7 +21,16 @@ export interface FormFieldDefinition {
 
 /** Supported form field types. */
 export type FormFieldType =
-  'text' | 'number' | 'date' | 'checkbox' | 'dropdown' | 'radio' | 'textarea' | 'file' | 'toggle' | 'section_header';
+  | 'text'
+  | 'number'
+  | 'date'
+  | 'checkbox'
+  | 'dropdown'
+  | 'radio'
+  | 'textarea'
+  | 'file'
+  | 'toggle'
+  | 'section_header';
 
 /** A selectable option for dropdown, radio, and checkbox group fields. */
 export interface FormFieldOption {

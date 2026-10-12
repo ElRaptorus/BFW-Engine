@@ -44,13 +44,24 @@ export type FlowNodeInstanceField =
 
 /** Queryable scalar fields on `DataObjectValue` and `DataObjectHistoryEntry`. */
 export type DataObjectValueField =
-  'id' | 'processInstanceId' | 'dataObjectId' | 'flowNodeInstanceId' | 'value' | 'createdAt';
+  | 'id'
+  | 'processInstanceId'
+  | 'dataObjectId'
+  | 'flowNodeInstanceId'
+  | 'value'
+  | 'createdAt';
 
 /**
  * Queryable scalar fields on the `ProcessVersion` GraphQL type.
  */
 export type ProcessVersionField =
-  'id' | 'processId' | 'version' | 'definitionsId' | 'deployedAt' | 'bpmnXml' | 'deployer';
+  | 'id'
+  | 'processId'
+  | 'version'
+  | 'definitionsId'
+  | 'deployedAt'
+  | 'bpmnXml'
+  | 'deployer';
 
 /**
  * Queryable scalar fields on the `DecisionDefinition` GraphQL type.

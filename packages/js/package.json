@@ -16,12 +16,6 @@
     "format:check": "pnpm -r run format:check"
   },
   "devDependencies": {
-    "@eslint/js": "catalog:",
-    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "@types/node": "catalog:",
-    "eslint": "catalog:",
-    "eslint-config-prettier": "catalog:",
-    "globals": "catalog:",
-    "typescript-eslint": "catalog:"
+    "@types/node": "catalog:"
   }
 }

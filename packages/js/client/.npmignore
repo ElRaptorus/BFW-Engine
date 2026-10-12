@@ -14,8 +14,6 @@ tsconfig.json
 vitest.config.*
 
 # Linting & formatting
-eslint.config.*
-.prettierrc*
 .editorconfig
 
 # IDE & tooling

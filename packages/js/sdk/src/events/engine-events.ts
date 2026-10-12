@@ -5,9 +5,9 @@ import type { ErrorInfo } from '../types/error-info.js';
  * Typed wrapper for engine events delivered over WebSocket.
  * The `type` field matches the event's discriminant for easy switching.
  */
-export interface EngineEventEnvelope<T extends EngineEvent = EngineEvent> {
-  type: T['type'];
-  data: T;
+export interface EngineEventEnvelope<EventType extends EngineEvent = EngineEvent> {
+  type: EventType['type'];
+  data: EventType;
   occurredAt: string;
 }
 

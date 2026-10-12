@@ -42,8 +42,8 @@ import { buildGetQuery, buildListQuery } from './query-builder.js';
 
 const GRAPHQL_PATH = '/api/v1/graphql';
 
-interface GraphqlResponse<T> {
-  data?: T;
+interface GraphqlResponse<Data> {
+  data?: Data;
   errors?: { message: string; extensions?: Record<string, unknown> }[];
 }
 
@@ -68,10 +68,10 @@ export class GraphqlClient {
   constructor(private readonly transport: HttpTransport) {}
 
   /** Query process models with typed field selection, filters, sorting, pagination, and includes. */
-  async queryProcessModels<F extends ProcessModelField>(
-    options: ListQueryOptions<F, ProcessModelFilter, ProcessModelInclude>,
-  ): Promise<PaginatedResult<Pick<ProcessModel, F>>> {
-    return this.executeListQuery<ProcessModel, F, ProcessModelFilter, ProcessModelInclude>(
+  async queryProcessModels<SelectedField extends ProcessModelField>(
+    options: ListQueryOptions<SelectedField, ProcessModelFilter, ProcessModelInclude>,
+  ): Promise<PaginatedResult<Pick<ProcessModel, SelectedField>>> {
+    return this.executeListQuery<ProcessModel, SelectedField, ProcessModelFilter, ProcessModelInclude>(
       'processes',
       'Process',
       options,
@@ -83,11 +83,11 @@ export class GraphqlClient {
    * Uses a filtered list query internally because the AshGraphql `getProcess`
    * endpoint expects the internal UUID primary key, not the string process model ID.
    */
-  async getProcessModel<F extends ProcessModelField>(
+  async getProcessModel<SelectedField extends ProcessModelField>(
     processModelId: string,
-    options: GetQueryOptions<F, ProcessModelInclude>,
-  ): Promise<Pick<ProcessModel, F>> {
-    const listOptions: ListQueryOptions<F, ProcessModelFilter, ProcessModelInclude> = {
+    options: GetQueryOptions<SelectedField, ProcessModelInclude>,
+  ): Promise<Pick<ProcessModel, SelectedField>> {
+    const listOptions: ListQueryOptions<SelectedField, ProcessModelFilter, ProcessModelInclude> = {
       fields: options.fields,
       filter: { processModelId: { eq: processModelId } },
       pagination: { mode: 'offset', limit: 1, offset: 0 },
@@ -95,22 +95,22 @@ export class GraphqlClient {
     if (options.include) {
       listOptions.include = options.include;
     }
-    const result = await this.executeListQuery<ProcessModel, F, ProcessModelFilter, ProcessModelInclude>(
+    const result = await this.executeListQuery<ProcessModel, SelectedField, ProcessModelFilter, ProcessModelInclude>(
       'processes',
       'Process',
       listOptions,
     );
     if (result.data.length === 0) {
-      return null as unknown as Pick<ProcessModel, F>;
+      return null as unknown as Pick<ProcessModel, SelectedField>;
     }
     return result.data[0]!;
   }
 
   /** Query process versions with typed field selection, filters, sorting, and pagination. */
-  async queryProcessVersions<F extends ProcessVersionField>(
-    options: ListQueryOptions<F, ProcessVersionFilter, Record<string, never>>,
-  ): Promise<PaginatedResult<Pick<ProcessVersion, F>>> {
-    return this.executeListQuery<ProcessVersion, F, ProcessVersionFilter, Record<string, never>>(
+  async queryProcessVersions<SelectedField extends ProcessVersionField>(
+    options: ListQueryOptions<SelectedField, ProcessVersionFilter, Record<string, never>>,
+  ): Promise<PaginatedResult<Pick<ProcessVersion, SelectedField>>> {
+    return this.executeListQuery<ProcessVersion, SelectedField, ProcessVersionFilter, Record<string, never>>(
       'processVersions',
       'ProcessVersion',
       options,
@@ -118,10 +118,10 @@ export class GraphqlClient {
   }
 
   /** Query process instances with typed field selection, filters, sorting, pagination, and includes. */
-  async queryProcessInstances<F extends ProcessInstanceField>(
-    options: ListQueryOptions<F, ProcessInstanceFilter, ProcessInstanceInclude>,
-  ): Promise<PaginatedResult<Pick<ProcessInstance, F>>> {
-    return this.executeListQuery<ProcessInstance, F, ProcessInstanceFilter, ProcessInstanceInclude>(
+  async queryProcessInstances<SelectedField extends ProcessInstanceField>(
+    options: ListQueryOptions<SelectedField, ProcessInstanceFilter, ProcessInstanceInclude>,
+  ): Promise<PaginatedResult<Pick<ProcessInstance, SelectedField>>> {
+    return this.executeListQuery<ProcessInstance, SelectedField, ProcessInstanceFilter, ProcessInstanceInclude>(
       'processInstances',
       'ProcessInstance',
       options,
@@ -129,18 +129,18 @@ export class GraphqlClient {
   }
 
   /** Get a single process instance by ID. */
-  async getProcessInstance<F extends ProcessInstanceField>(
+  async getProcessInstance<SelectedField extends ProcessInstanceField>(
     id: string,
-    options: GetQueryOptions<F, ProcessInstanceInclude>,
-  ): Promise<Pick<ProcessInstance, F>> {
-    return this.executeGetQuery<ProcessInstance, F, ProcessInstanceInclude>('processInstance', id, options);
+    options: GetQueryOptions<SelectedField, ProcessInstanceInclude>,
+  ): Promise<Pick<ProcessInstance, SelectedField>> {
+    return this.executeGetQuery<ProcessInstance, SelectedField, ProcessInstanceInclude>('processInstance', id, options);
   }
 
   /** Query flow node instances with typed field selection, filters, sorting, pagination, and includes. */
-  async queryFlowNodeInstances<F extends FlowNodeInstanceField>(
-    options: ListQueryOptions<F, FlowNodeInstanceFilter, FlowNodeInstanceInclude>,
-  ): Promise<PaginatedResult<Pick<FlowNodeInstance, F>>> {
-    return this.executeListQuery<FlowNodeInstance, F, FlowNodeInstanceFilter, FlowNodeInstanceInclude>(
+  async queryFlowNodeInstances<SelectedField extends FlowNodeInstanceField>(
+    options: ListQueryOptions<SelectedField, FlowNodeInstanceFilter, FlowNodeInstanceInclude>,
+  ): Promise<PaginatedResult<Pick<FlowNodeInstance, SelectedField>>> {
+    return this.executeListQuery<FlowNodeInstance, SelectedField, FlowNodeInstanceFilter, FlowNodeInstanceInclude>(
       'flowNodeInstances',
       'FlowNodeInstance',
       options,
@@ -148,11 +148,15 @@ export class GraphqlClient {
   }
 
   /** Get a single flow node instance by ID. */
-  async getFlowNodeInstance<F extends FlowNodeInstanceField>(
+  async getFlowNodeInstance<SelectedField extends FlowNodeInstanceField>(
     id: string,
-    options: GetQueryOptions<F, FlowNodeInstanceInclude>,
-  ): Promise<Pick<FlowNodeInstance, F>> {
-    return this.executeGetQuery<FlowNodeInstance, F, FlowNodeInstanceInclude>('flowNodeInstance', id, options);
+    options: GetQueryOptions<SelectedField, FlowNodeInstanceInclude>,
+  ): Promise<Pick<FlowNodeInstance, SelectedField>> {
+    return this.executeGetQuery<FlowNodeInstance, SelectedField, FlowNodeInstanceInclude>(
+      'flowNodeInstance',
+      id,
+      options,
+    );
   }
 
   /**
@@ -169,13 +173,13 @@ export class GraphqlClient {
    *   `processModel.allFlowNodes` is always flat (never recursive) — it is
    *   the canonical every-scope index and does not need depth.
    */
-  async getProcessVersionWithModel<F extends ProcessVersionField>(
+  async getProcessVersionWithModel<SelectedField extends ProcessVersionField>(
     id: string,
-    options: { fields: F[]; flowNodeDepth?: number },
-  ): Promise<(Pick<ProcessVersion, F> & { processModel: Record<string, unknown> | null }) | null> {
+    options: { fields: SelectedField[]; flowNodeDepth?: number },
+  ): Promise<(Pick<ProcessVersion, SelectedField> & { processModel: Record<string, unknown> | null }) | null> {
     const selection: SelectionField[] = [...options.fields, buildProcessModelSelection(options.flowNodeDepth ?? 4)];
     return this.executeGetQuerySelection('processVersion', id, selection) as Promise<
-      (Pick<ProcessVersion, F> & { processModel: Record<string, unknown> | null }) | null
+      (Pick<ProcessVersion, SelectedField> & { processModel: Record<string, unknown> | null }) | null
     >;
   }
 
@@ -191,16 +195,16 @@ export class GraphqlClient {
    * @param options.includeProcessVersion - When `true`, also selects
    *   `processVersion` with the given `processVersionFields` (default: `['id']`).
    */
-  async getFlowNodeInstanceWithModel<F extends FlowNodeInstanceField>(
+  async getFlowNodeInstanceWithModel<SelectedField extends FlowNodeInstanceField>(
     id: string,
     options: {
-      fields: F[];
+      fields: SelectedField[];
       flowNodeDepth?: number;
       includeProcessVersion?: boolean;
       processVersionFields?: ProcessVersionField[];
     },
   ): Promise<
-    | (Pick<FlowNodeInstance, F> & {
+    | (Pick<FlowNodeInstance, SelectedField> & {
         flowNode: Record<string, unknown> | null;
         processVersion?: Record<string, unknown> | null;
       })
@@ -214,7 +218,7 @@ export class GraphqlClient {
       });
     }
     return this.executeGetQuerySelection('flowNodeInstance', id, selection) as Promise<
-      | (Pick<FlowNodeInstance, F> & {
+      | (Pick<FlowNodeInstance, SelectedField> & {
           flowNode: Record<string, unknown> | null;
           processVersion?: Record<string, unknown> | null;
         })
@@ -235,10 +239,10 @@ export class GraphqlClient {
    *   Per-FNI `flowNode` selections stay flat (depth 0) — they resolve
    *   against the every-scope index and do not recurse.
    */
-  async getProcessInstanceWithModel<F extends ProcessInstanceField>(
+  async getProcessInstanceWithModel<SelectedField extends ProcessInstanceField>(
     id: string,
     options: {
-      fields: F[];
+      fields: SelectedField[];
       flowNodeDepth?: number;
       flowNodeInstanceFields?: FlowNodeInstanceField[];
       processVersionFields?: ProcessVersionField[];
@@ -265,10 +269,10 @@ export class GraphqlClient {
   }
 
   /** Query current data object values (latest value per Data Object per PI). */
-  async queryDataObjectValues<F extends DataObjectValueField>(
-    options: ListQueryOptions<F, DataObjectValueFilter, DataObjectValueInclude>,
-  ): Promise<PaginatedResult<Pick<DataObjectValue, F>>> {
-    return this.executeListQuery<DataObjectValue, F, DataObjectValueFilter, DataObjectValueInclude>(
+  async queryDataObjectValues<SelectedField extends DataObjectValueField>(
+    options: ListQueryOptions<SelectedField, DataObjectValueFilter, DataObjectValueInclude>,
+  ): Promise<PaginatedResult<Pick<DataObjectValue, SelectedField>>> {
+    return this.executeListQuery<DataObjectValue, SelectedField, DataObjectValueFilter, DataObjectValueInclude>(
       'dataObjectValues',
       'DataObjectValue',
       options,
@@ -276,18 +280,18 @@ export class GraphqlClient {
   }
 
   /** Get a single data object value by ID. */
-  async getDataObjectValue<F extends DataObjectValueField>(
+  async getDataObjectValue<SelectedField extends DataObjectValueField>(
     id: string,
-    options: GetQueryOptions<F, DataObjectValueInclude>,
-  ): Promise<Pick<DataObjectValue, F>> {
-    return this.executeGetQuery<DataObjectValue, F, DataObjectValueInclude>('dataObjectValue', id, options);
+    options: GetQueryOptions<SelectedField, DataObjectValueInclude>,
+  ): Promise<Pick<DataObjectValue, SelectedField>> {
+    return this.executeGetQuery<DataObjectValue, SelectedField, DataObjectValueInclude>('dataObjectValue', id, options);
   }
 
   /** Query data object history (full audit trail of all writes). */
-  async queryDataObjectHistory<F extends DataObjectValueField>(
-    options: ListQueryOptions<F, DataObjectValueFilter, DataObjectValueInclude>,
-  ): Promise<PaginatedResult<Pick<DataObjectValue, F>>> {
-    return this.executeListQuery<DataObjectValue, F, DataObjectValueFilter, DataObjectValueInclude>(
+  async queryDataObjectHistory<SelectedField extends DataObjectValueField>(
+    options: ListQueryOptions<SelectedField, DataObjectValueFilter, DataObjectValueInclude>,
+  ): Promise<PaginatedResult<Pick<DataObjectValue, SelectedField>>> {
+    return this.executeListQuery<DataObjectValue, SelectedField, DataObjectValueFilter, DataObjectValueInclude>(
       'dataObjectHistory',
       'DataObjectHistoryEntry',
       options,
@@ -295,10 +299,10 @@ export class GraphqlClient {
   }
 
   /** Query decision versions with typed field selection, filters, sorting, and pagination. */
-  async queryDecisionVersions<F extends DecisionVersionField>(
-    options: ListQueryOptions<F, DecisionVersionFilter, Record<string, never>>,
-  ): Promise<PaginatedResult<Pick<DecisionVersion, F>>> {
-    return this.executeListQuery<DecisionVersion, F, DecisionVersionFilter, Record<string, never>>(
+  async queryDecisionVersions<SelectedField extends DecisionVersionField>(
+    options: ListQueryOptions<SelectedField, DecisionVersionFilter, Record<string, never>>,
+  ): Promise<PaginatedResult<Pick<DecisionVersion, SelectedField>>> {
+    return this.executeListQuery<DecisionVersion, SelectedField, DecisionVersionFilter, Record<string, never>>(
       'decisionVersions',
       'DecisionVersion',
       options,
@@ -306,14 +310,15 @@ export class GraphqlClient {
   }
 
   /** Query decision definitions with typed field selection, filters, sorting, pagination, and includes. */
-  async queryDecisionDefinitions<F extends DecisionDefinitionField>(
-    options: ListQueryOptions<F, DecisionDefinitionFilter, DecisionDefinitionInclude>,
-  ): Promise<PaginatedResult<Pick<DecisionDefinition, F>>> {
-    return this.executeListQuery<DecisionDefinition, F, DecisionDefinitionFilter, DecisionDefinitionInclude>(
-      'decisionDefinitions',
-      'DecisionDefinition',
-      options,
-    );
+  async queryDecisionDefinitions<SelectedField extends DecisionDefinitionField>(
+    options: ListQueryOptions<SelectedField, DecisionDefinitionFilter, DecisionDefinitionInclude>,
+  ): Promise<PaginatedResult<Pick<DecisionDefinition, SelectedField>>> {
+    return this.executeListQuery<
+      DecisionDefinition,
+      SelectedField,
+      DecisionDefinitionFilter,
+      DecisionDefinitionInclude
+    >('decisionDefinitions', 'DecisionDefinition', options);
   }
 
   /**
@@ -321,11 +326,11 @@ export class GraphqlClient {
    * Uses a filtered list query internally because the AshGraphql endpoint
    * expects the internal UUID, not the string decision definition ID.
    */
-  async getDecisionDefinition<F extends DecisionDefinitionField>(
+  async getDecisionDefinition<SelectedField extends DecisionDefinitionField>(
     decisionDefinitionId: string,
-    options: GetQueryOptions<F, DecisionDefinitionInclude>,
-  ): Promise<Pick<DecisionDefinition, F>> {
-    const listOptions: ListQueryOptions<F, DecisionDefinitionFilter, DecisionDefinitionInclude> = {
+    options: GetQueryOptions<SelectedField, DecisionDefinitionInclude>,
+  ): Promise<Pick<DecisionDefinition, SelectedField>> {
+    const listOptions: ListQueryOptions<SelectedField, DecisionDefinitionFilter, DecisionDefinitionInclude> = {
       fields: options.fields,
       filter: { decisionDefinitionId: { eq: decisionDefinitionId } },
       pagination: { mode: 'offset', limit: 1, offset: 0 },
@@ -335,12 +340,12 @@ export class GraphqlClient {
     }
     const result = await this.executeListQuery<
       DecisionDefinition,
-      F,
+      SelectedField,
       DecisionDefinitionFilter,
       DecisionDefinitionInclude
     >('decisionDefinitions', 'DecisionDefinition', listOptions);
     if (result.data.length === 0) {
-      return null as unknown as Pick<DecisionDefinition, F>;
+      return null as unknown as Pick<DecisionDefinition, SelectedField>;
     }
     return result.data[0]!;
   }
@@ -352,25 +357,25 @@ export class GraphqlClient {
    * @param variables - Optional GraphQL variables.
    * @param options.headers - Additional HTTP headers (e.g. operation-tracing, tenancy).
    */
-  async raw<T = unknown>(
+  async raw<Result = unknown>(
     query: string,
     variables?: Record<string, unknown>,
     options?: { headers?: Record<string, string> },
-  ): Promise<T> {
-    const response = await this.transport.post<GraphqlResponse<T>>(
+  ): Promise<Result> {
+    const response = await this.transport.post<GraphqlResponse<Result>>(
       GRAPHQL_PATH,
       { query, variables },
       options?.headers ? { headers: options.headers } : undefined,
     );
     this.throwOnGraphqlErrors(response);
-    return response.data as T;
+    return response.data as Result;
   }
 
-  private async executeListQuery<Resource, F extends string, Filter, Include>(
+  private async executeListQuery<Resource, SelectedField extends string, Filter, Include>(
     resourceName: string,
     ashTypeName: string,
-    options: ListQueryOptions<F, Filter, Include>,
-  ): Promise<PaginatedResult<Pick<Resource, F & keyof Resource>>> {
+    options: ListQueryOptions<SelectedField, Filter, Include>,
+  ): Promise<PaginatedResult<Pick<Resource, SelectedField & keyof Resource>>> {
     const { query, variables } = buildListQuery({
       resourceName,
       ashTypeName,
@@ -414,18 +419,18 @@ export class GraphqlClient {
 
     const camelizedData = resourceData.results.map((record) => camelizeKeys(record as Record<string, unknown>)) as Pick<
       Resource,
-      F & keyof Resource
+      SelectedField & keyof Resource
     >[];
     const pageInfo = this.buildPageInfo(resourceData, options.pagination, camelizedData.length);
 
     return { data: camelizedData, pageInfo };
   }
 
-  private async executeGetQuery<Resource, F extends string, Include>(
+  private async executeGetQuery<Resource, SelectedField extends string, Include>(
     resourceName: string,
     id: string,
-    options: GetQueryOptions<F, Include>,
-  ): Promise<Pick<Resource, F & keyof Resource>> {
+    options: GetQueryOptions<SelectedField, Include>,
+  ): Promise<Pick<Resource, SelectedField & keyof Resource>> {
     const built = buildGetQuery(id, {
       resourceName,
       fields: options.fields,
@@ -441,16 +446,16 @@ export class GraphqlClient {
     const responseKey = built.getFieldName ?? resourceName;
     const resourceData = response.data?.[responseKey];
     if (resourceData === null || resourceData === undefined) {
-      return null as unknown as Pick<Resource, F & keyof Resource>;
+      return null as unknown as Pick<Resource, SelectedField & keyof Resource>;
     }
-    return camelizeKeys(resourceData as Record<string, unknown>) as Pick<Resource, F & keyof Resource>;
+    return camelizeKeys(resourceData as Record<string, unknown>) as Pick<Resource, SelectedField & keyof Resource>;
   }
 
   /**
    * Like `executeGetQuery`, but accepts an arbitrary `SelectionField[]`
-   * (nested fields + inline fragments) instead of a flat `F[]` field-name
+   * (nested fields + inline fragments) instead of a flat `SelectedField[]` field-name
    * union. Used for the polymorphic Model graph, whose response shape
-   * cannot be expressed as `Pick<Resource, F>`.
+   * cannot be expressed as `Pick<Resource, SelectedField>`.
    */
   private async executeGetQuerySelection(
     resourceName: string,

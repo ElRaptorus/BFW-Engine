@@ -47,9 +47,9 @@ export type PaginationOptions = CursorPagination | OffsetPagination;
  * For offset pagination: `pageInfo` carries total count and page position.
  * Both styles populate `data` the same way.
  */
-export interface PaginatedResult<T> {
+export interface PaginatedResult<Item> {
   /** The result records for this page. */
-  data: T[];
+  data: Item[];
   /** Navigation metadata — shape depends on which pagination style was used. */
   pageInfo: CursorPageInfo | OffsetPageInfo;
 }

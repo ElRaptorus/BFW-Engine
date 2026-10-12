@@ -38,19 +38,18 @@
     "test": "vitest run",
     "test:unit": "vitest run test/unit/",
     "test:conformance": "vitest run test/conformance/",
-    "lint": "eslint src/ test/",
-    "lint:fix": "eslint --fix src/ test/",
-    "format": "prettier --write --config ../.prettierrc.json src/ test/",
-    "format:check": "prettier --check --config ../.prettierrc.json src/ test/"
+    "lint": "oxlint -c ../.oxlintrc.json --report-unused-disable-directives src test",
+    "lint:fix": "oxlint -c ../.oxlintrc.json --fix --report-unused-disable-directives src test",
+    "format": "oxfmt -c ../.oxfmtrc.json src test",
+    "format:check": "oxfmt -c ../.oxfmtrc.json --check src test"
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.1"
   },
   "devDependencies": {
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
-    "eslint": "catalog:",
-    "prettier": "catalog:",
     "vitest": "catalog:"
   }
 }
