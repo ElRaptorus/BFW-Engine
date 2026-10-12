@@ -1,0 +1,4662 @@
+{
+  "components": {
+    "parameters": {
+      "DecisionModelId": {
+        "description": "The DMN definitions ID (the `id` attribute on the `<definitions>` element, used as the decision definition identifier in the engine).",
+        "in": "path",
+        "name": "model_id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DecisionVersion": {
+        "description": "The decision version string (first 12 hex characters of the SHA-256 hash of the raw DMN XML).",
+        "in": "path",
+        "name": "version",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "FlowNodeInstanceId": {
+        "description": "The flow node instance ID (UUIDv7).",
+        "in": "path",
+        "name": "flowNodeInstanceId",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "ProcessInstanceId": {
+        "description": "The process instance ID (UUIDv7).",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "ProcessModelId": {
+        "description": "The BPMN process ID (the `id` attribute on the `<bpmn:process>` element, used as the process model identifier in the engine).",
+        "in": "path",
+        "name": "model_id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "TimerScheduleId": {
+        "description": "The timer schedule ID (UUID).",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Forbidden": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ForbiddenError"
+            }
+          }
+        },
+        "description": "Insufficient claims (structured body per D52 camelCase wire encoding)."
+      },
+      "NotFound": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "error": {
+                  "example": "not_found",
+                  "type": "string"
+                },
+                "message": {
+                  "description": "Human-readable detail when provided.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "Resource not found"
+      },
+      "Unauthorized": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "error": {
+                  "example": "unauthorized",
+                  "type": "string"
+                },
+                "message": {
+                  "description": "Human-readable detail when provided.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "description": "Missing or invalid JWT"
+      }
+    },
+    "schemas": {
+      "ActiveInstancesExistError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "active_instances_exist"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "AdhocActivateResult": {
+        "properties": {
+          "flowNodeInstanceId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "flowNodeInstanceId"
+        ],
+        "type": "object"
+      },
+      "AdhocActivity": {
+        "properties": {
+          "activeCount": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Inner activity flow-node ID",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "performedCount": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "enabled",
+          "performedCount",
+          "activeCount"
+        ],
+        "type": "object"
+      },
+      "AdhocActivityList": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AdhocActivity"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "AdhocCompleteResult": {
+        "properties": {
+          "completed": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "completed"
+        ],
+        "type": "object"
+      },
+      "AdhocStatus": {
+        "properties": {
+          "activeCount": {
+            "type": "integer"
+          },
+          "completionSignaled": {
+            "type": "boolean"
+          },
+          "enabledActivities": {
+            "description": "Inner activity IDs currently eligible for activation",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "performedActivities": {
+            "description": "Inner activity IDs that have completed at least once",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "activeCount",
+          "performedActivities",
+          "enabledActivities",
+          "completionSignaled"
+        ],
+        "type": "object"
+      },
+      "AmbiguousStartEventError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "ambiguous_start_event"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "BadRequestError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "bad_request"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "BatchConflictError": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "error": {
+            "enum": [
+              "batch_conflict"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "conflicts"
+        ],
+        "type": "object"
+      },
+      "BkmTrace": {
+        "description": "Trace of a single BKM invocation (recursive for BKM-to-BKM chains).",
+        "properties": {
+          "bkmId": {
+            "type": "string"
+          },
+          "bkmName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dependentBkmTraces": {
+            "items": {
+              "$ref": "#/components/schemas/BkmTrace"
+            },
+            "type": "array"
+          },
+          "durationMicroseconds": {
+            "type": "integer"
+          },
+          "formalParameters": {
+            "items": {
+              "properties": {
+                "boundValue": {},
+                "name": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "result": {}
+        },
+        "type": "object"
+      },
+      "CoercionTrace": {
+        "description": "Per-input type coercion record from TypeResolver.",
+        "properties": {
+          "coerced": {
+            "type": "boolean"
+          },
+          "coercedValue": {},
+          "inputName": {
+            "type": "string"
+          },
+          "originalValue": {},
+          "targetType": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ContractViolationError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "contract_violation"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "violations": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "violations"
+        ],
+        "type": "object"
+      },
+      "DecisionDetail": {
+        "description": "Decision metadata for a single definition. Includes deployer and optional DMN XML.",
+        "properties": {
+          "deployedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deployer": {
+            "additionalProperties": true,
+            "nullable": true,
+            "type": "object"
+          },
+          "dmnXml": {
+            "description": "DMN XML of the latest active version. Only present when `?includeXml=true` is set.",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "DMN definitions ID.",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "DecisionEvaluateRequest": {
+        "properties": {
+          "decisionModelId": {
+            "description": "Optional. The specific decision element ID within the DMN model to evaluate. Required when the model contains multiple decisions.",
+            "type": "string"
+          },
+          "includeUnmatchedDetails": {
+            "default": false,
+            "description": "When true, the evaluation trace includes full detail for unmatched rules in decision tables.",
+            "type": "boolean"
+          },
+          "input": {
+            "additionalProperties": true,
+            "description": "Input data for the decision evaluation.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "type": "object"
+      },
+      "DecisionSummary": {
+        "description": "Decision listing entry (latest active version). The `id` is the DMN `<definitions id=\"...\">` attribute.",
+        "properties": {
+          "deployedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "DMN definitions ID.",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "version": {
+            "description": "Auto-derived version (SHA-256 hash prefix).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "enabled",
+          "deployedAt"
+        ],
+        "type": "object"
+      },
+      "DecisionTrace": {
+        "properties": {
+          "bkmTraces": {
+            "items": {
+              "$ref": "#/components/schemas/BkmTrace"
+            },
+            "type": "array"
+          },
+          "decisionModelId": {
+            "type": "string"
+          },
+          "decisionName": {
+            "type": "string"
+          },
+          "durationMicroseconds": {
+            "type": "integer"
+          },
+          "hitPolicy": {
+            "type": "string"
+          },
+          "importTraces": {
+            "items": {
+              "$ref": "#/components/schemas/ImportTrace"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "items": {
+              "properties": {
+                "expression": {
+                  "type": "string"
+                },
+                "inputId": {
+                  "type": "string"
+                },
+                "inputLabel": {
+                  "type": "string"
+                },
+                "resolvedValue": {}
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "matchedRules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "result": {},
+          "unmatchedRules": {
+            "description": "Only present when `includeUnmatchedDetails` was true.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "unmatchedRulesCount": {
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "DecisionVersionDetail": {
+        "description": "Version entry for a decision definition. Includes the version's database UUID as `versionId` for delete operations.",
+        "properties": {
+          "deployedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deployer": {
+            "additionalProperties": true,
+            "nullable": true,
+            "type": "object"
+          },
+          "dmnXml": {
+            "description": "DMN XML content. Only present when `?includeXml=true` is set.",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "DMN definitions ID.",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "versionId": {
+            "description": "Database UUID of this specific decision version.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "versionId",
+          "version",
+          "name",
+          "enabled",
+          "deployedAt"
+        ],
+        "type": "object"
+      },
+      "DecisionVersionExistsError": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "decisionDefinitionId": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "error": {
+            "enum": [
+              "decision_version_exists"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "conflicts"
+        ],
+        "type": "object"
+      },
+      "DeployRequest": {
+        "example": {
+          "sources": [
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><bpmn:definitions ...>...</bpmn:definitions>"
+          ]
+        },
+        "properties": {
+          "sources": {
+            "description": "One or more BPMN 2.0 XML documents as strings",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "type": "object"
+      },
+      "DeployResult": {
+        "description": "One entry per deployed process in the batch.",
+        "properties": {
+          "processModelId": {
+            "description": "BPMN process ID (the `<process id=\"...\">` attribute).",
+            "type": "string"
+          },
+          "version": {
+            "description": "Deployment version string (`bfw:version`).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "processModelId",
+          "version"
+        ],
+        "type": "object"
+      },
+      "DeployValidationFailedError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "validation_failed"
+            ],
+            "type": "string"
+          },
+          "failures": {
+            "description": "Legacy wire key today; array of `{file, details}` objects from parse/validate.",
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "details": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "file": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          },
+          "violations": {
+            "description": "Structured BPMN validator violations (`message` / `path` entries when emitted as rule results).",
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "DmnDeployRequest": {
+        "example": {
+          "sources": [
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><definitions ...>...</definitions>"
+          ]
+        },
+        "properties": {
+          "sources": {
+            "description": "One or more DMN XML documents as strings.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "type": "object"
+      },
+      "DmnDeployResult": {
+        "description": "One entry per deployed decision in the batch.",
+        "properties": {
+          "decisionDefinitionId": {
+            "description": "DMN definitions ID.",
+            "type": "string"
+          },
+          "version": {
+            "description": "Auto-derived version (SHA-256 hash prefix).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decisionDefinitionId",
+          "version"
+        ],
+        "type": "object"
+      },
+      "DmnEvaluationError": {
+        "description": "Catch-all for DMN evaluation errors. The `error` field indicates the specific error type.",
+        "properties": {
+          "bkmIds": {
+            "description": "BKM cycle participant IDs (for `dmn_cycle_error`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "decisionIds": {
+            "description": "Cycle participant IDs (for `dmn_cycle_error`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "decisionModelId": {
+            "description": "The decision element ID when relevant.",
+            "type": "string"
+          },
+          "details": {
+            "description": "Sub-category detail (e.g. `missing_required_decision`, `type_coercion_failed`, `import_not_found`).",
+            "type": "string"
+          },
+          "error": {
+            "enum": [
+              "dmn_evaluation_error",
+              "dmn_cycle_error",
+              "ambiguous_decision",
+              "no_decisions",
+              "input_value_violation",
+              "missing_service_input",
+              "service_not_found",
+              "bkm_not_found",
+              "decision_not_found",
+              "decision_definition_not_found",
+              "no_active_version"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "DmnParseError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "dmn_parse_error"
+            ],
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "details": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "file": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "failures"
+        ],
+        "type": "object"
+      },
+      "DmnValidationFailedError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "validation_failed"
+            ],
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "details": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "file": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "EngineAtCapacityError": {
+        "properties": {
+          "active": {
+            "description": "Current number of child PI processes under the execution supervisor",
+            "type": "integer"
+          },
+          "error": {
+            "example": "engine_at_capacity",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Configured `BFE_MAX_CONCURRENT_PIS` cap (omitted or null only if misconfigured; normal responses use a finite integer)",
+            "nullable": true,
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryAfterSeconds": {
+            "example": 5,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "active",
+          "retryAfterSeconds"
+        ],
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "conflicts": {
+            "description": "Version conflict details (deploy 409)",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "error": {
+            "description": "Machine-readable error code",
+            "type": "string"
+          },
+          "failures": {
+            "description": "Structured failure details (parse/validation/linter errors)",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "description": "Human-readable detail (optional)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "EvaluationResult": {
+        "description": "DMN evaluation result with execution trace (camelCase wire keys).",
+        "properties": {
+          "decisionModelId": {
+            "type": "string"
+          },
+          "decisionName": {
+            "type": "string"
+          },
+          "decisionVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "definitionsId": {
+            "type": "string"
+          },
+          "definitionsNamespace": {
+            "type": "string"
+          },
+          "durationMicroseconds": {
+            "type": "integer"
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hitPolicy": {
+            "type": "string"
+          },
+          "matchedRules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "result": {
+            "description": "The decision output value."
+          },
+          "trace": {
+            "$ref": "#/components/schemas/EvaluationTrace"
+          }
+        },
+        "type": "object"
+      },
+      "EvaluationTrace": {
+        "description": "Nested execution trace for debugger step-into navigation.",
+        "properties": {
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionTrace"
+            },
+            "type": "array"
+          },
+          "inputCoercions": {
+            "items": {
+              "$ref": "#/components/schemas/CoercionTrace"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "FniNotWaitingError": {
+        "properties": {
+          "error": {
+            "description": "Flow node instance is not in a state where the operation applies.",
+            "enum": [
+              "fni_not_waiting",
+              "fni_already_finished",
+              "fni_already_aborted",
+              "fni_already_interrupted",
+              "fni_already_fatal"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ForbiddenError": {
+        "description": "Structured 403 body (camelCase per D52). `message` and `requiredValue` may be omitted when the engine has no extra detail.",
+        "properties": {
+          "error": {
+            "enum": [
+              "forbidden"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable detail when provided.",
+            "type": "string"
+          },
+          "requiredClaim": {
+            "description": "Claim name the caller must satisfy (e.g. deploy_bpmn, lane:Review).",
+            "type": "string"
+          },
+          "requiredValue": {
+            "description": "Expected claim value when applicable (e.g. \"write\", \"true\", \"own or all\").",
+            "type": "string"
+          },
+          "resource": {
+            "description": "Resource category the authorization check applied to.",
+            "enum": [
+              "process",
+              "process_instance",
+              "decision"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "requiredClaim",
+          "resource"
+        ],
+        "type": "object"
+      },
+      "ImportTrace": {
+        "description": "Trace wrapping a full evaluation of an imported DMN model.",
+        "properties": {
+          "decisionId": {
+            "type": "string"
+          },
+          "durationMicroseconds": {
+            "type": "integer"
+          },
+          "evaluationTrace": {
+            "$ref": "#/components/schemas/EvaluationTrace"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "result": {},
+          "sourceDefinitionsId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InternalEngineError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "internal_error"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "LinterGateFailedError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "linter_gate_failed"
+            ],
+            "type": "string"
+          },
+          "failures": {
+            "description": "Ruleset failures by file (always present on the wire today).",
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "rulesetFailures": {
+                  "description": "Linter output objects (opaque per ruleset).",
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "NoActiveVersionError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "no_active_version"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "NoExecutableProcessError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "no_executable_process"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "NoStartEventError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "no_start_event"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ParseError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "parse_error"
+            ],
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "details": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "file": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "failures"
+        ],
+        "type": "object"
+      },
+      "PayloadTooLargeError": {
+        "properties": {
+          "details": {
+            "additionalProperties": true,
+            "description": "Some endpoints (for example User Task finish) nest `field`, `size`, and `limit` here instead of at the top level until responses are fully flattened.",
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "number"
+              },
+              "size": {
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "error": {
+            "enum": [
+              "payload_too_large"
+            ],
+            "type": "string"
+          },
+          "field": {
+            "description": "Body field that exceeded the cap (for example `payload` or `result`).",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Configured maximum (for example `BFE_TOKEN_MAX_BYTES`).",
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          },
+          "size": {
+            "description": "Observed size in bytes.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ProcessDetail": {
+        "description": "ProcessModel-shaped response for a single process. Includes deployer and optional BPMN XML.",
+        "properties": {
+          "bpmnXml": {
+            "description": "BPMN XML of the latest active version. Only present when `?includeXml=true` is set.",
+            "type": "string"
+          },
+          "definitionsId": {
+            "description": "BPMN `<definitions id=\"...\">` attribute.",
+            "nullable": true,
+            "type": "string"
+          },
+          "deployedAt": {
+            "description": "Timestamp when this version was deployed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "deployer": {
+            "additionalProperties": true,
+            "description": "Identity snapshot of the deployer when available.",
+            "nullable": true,
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "BPMN process ID (the `<process id=\"...\">` attribute).",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "version": {
+            "description": "Deployment version string (`bfw:version`).",
+            "type": "string"
+          },
+          "versionId": {
+            "description": "Database UUID of the latest active process version.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "ProcessDisabledError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "process_disabled"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ProcessInstanceAlreadyTerminalError": {
+        "properties": {
+          "currentState": {
+            "description": "The terminal state the process instance is in (finished, fatal, or aborted).",
+            "type": "string"
+          },
+          "error": {
+            "enum": [
+              "process_already_terminal"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ProcessInstanceNotRetriableError": {
+        "properties": {
+          "currentState": {
+            "description": "Current state of the process instance",
+            "example": "running",
+            "type": "string"
+          },
+          "error": {
+            "enum": [
+              "process_instance_not_retriable"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "example": "Process instance cannot be retried in its current state",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "currentState"
+        ],
+        "type": "object"
+      },
+      "ProcessInstanceNotTerminalError": {
+        "properties": {
+          "currentState": {
+            "description": "Current state of the process instance.",
+            "type": "string"
+          },
+          "error": {
+            "enum": [
+              "process_instance_not_terminal"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ProcessNotFoundError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "process_not_found"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ProcessSummary": {
+        "description": "ProcessModel-shaped response entry (listing). The `id` is the BPMN `<process id=\"...\">` attribute, not a database UUID.",
+        "properties": {
+          "definitionsId": {
+            "description": "BPMN `<definitions id=\"...\">` attribute.",
+            "nullable": true,
+            "type": "string"
+          },
+          "deployedAt": {
+            "description": "Timestamp when this version was deployed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "BPMN process ID (the `<process id=\"...\">` attribute).",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "version": {
+            "description": "Deployment version string (`bfw:version`).",
+            "type": "string"
+          },
+          "versionId": {
+            "description": "Database UUID of the latest active process version.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "enabled",
+          "deployedAt"
+        ],
+        "type": "object"
+      },
+      "ProcessVersionDetail": {
+        "description": "ProcessModel-shaped response for a specific version entry. Includes the version's database UUID as `versionId` for delete operations.",
+        "properties": {
+          "bpmnXml": {
+            "description": "BPMN XML content. Only present when `?includeXml=true` is set.",
+            "type": "string"
+          },
+          "definitionsId": {
+            "description": "BPMN `<definitions id=\"...\">` attribute.",
+            "nullable": true,
+            "type": "string"
+          },
+          "deployedAt": {
+            "description": "Timestamp when this version was deployed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "deployer": {
+            "additionalProperties": true,
+            "description": "Identity snapshot of the deployer when available.",
+            "nullable": true,
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "BPMN process ID (the `<process id=\"...\">` attribute).",
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "version": {
+            "description": "Deployment version string (`bfw:version`).",
+            "type": "string"
+          },
+          "versionId": {
+            "description": "Database UUID of this specific process version (used for deletion).",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "versionId",
+          "version",
+          "name",
+          "enabled",
+          "deployedAt"
+        ],
+        "type": "object"
+      },
+      "RateLimitedError": {
+        "properties": {
+          "error": {
+            "example": "rate_limited",
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryAfterSeconds": {
+            "example": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "retryAfterSeconds"
+        ],
+        "type": "object"
+      },
+      "ServiceEvaluationResult": {
+        "description": "Result of evaluating a DMN Decision Service (camelCase wire keys).",
+        "properties": {
+          "durationMicroseconds": {
+            "type": "integer"
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outputs": {
+            "additionalProperties": true,
+            "description": "Map of output variable names to their values, one per output decision in the Decision Service.",
+            "type": "object"
+          },
+          "serviceId": {
+            "type": "string"
+          },
+          "serviceName": {
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/EvaluationTrace"
+          }
+        },
+        "type": "object"
+      },
+      "StartEventNotFoundError": {
+        "properties": {
+          "error": {
+            "enum": [
+              "start_event_not_found"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "type": "object"
+      },
+      "StartResult": {
+        "properties": {
+          "processInstanceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "processModelId": {
+            "type": "string"
+          },
+          "state": {
+            "example": "running",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StatsResponse": {
+        "description": "Runtime snapshot from `StatsCollector.snapshot/0` (camelCase wire keys).",
+        "properties": {
+          "asyncFlowNodes": {
+            "properties": {
+              "byPlugin": {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "waiting": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "dbPools": {
+            "additionalProperties": {
+              "properties": {
+                "poolSize": {
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "description": "Connection pool size per repo (`write`, and `read` when the read pool is running).",
+            "type": "object"
+          },
+          "engine": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "load": {
+                "description": "Current PI capacity ratio: `normal` (<70%), `elevated` (70–89%), `critical` (≥90%). Always `normal` when no cap is configured.",
+                "enum": [
+                  "normal",
+                  "elevated",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "startedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "uptimeSeconds": {
+                "type": "number"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "flowNodeInstances": {
+            "properties": {
+              "aborted": {
+                "type": "integer"
+              },
+              "active": {
+                "type": "integer"
+              },
+              "byType": {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "fatal": {
+                "type": "integer"
+              },
+              "finished": {
+                "type": "integer"
+              },
+              "interrupted": {
+                "type": "integer"
+              },
+              "waiting": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "listeners": {
+            "properties": {
+              "eventSinksByName": {
+                "additionalProperties": {
+                  "enum": [
+                    "on",
+                    "off"
+                  ],
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "eventSinksCount": {
+                "type": "integer"
+              },
+              "monitoringPanelsCount": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "plugins": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "processInstances": {
+            "properties": {
+              "aborted": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "fatal": {
+                "type": "integer"
+              },
+              "finished": {
+                "type": "integer"
+              },
+              "running": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "timers": {
+            "properties": {
+              "armed": {
+                "type": "integer"
+              },
+              "fireInNextMinute": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "userTasksPending": {
+            "properties": {
+              "byAssigneeRole": {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "count": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "TimerSchedule": {
+        "description": "A Timer Start Event schedule. Created automatically when a process with a `timeCycle` start event is deployed. Date and duration start events also appear as schedules but are not auto-scheduled.",
+        "properties": {
+          "cycleRemaining": {
+            "description": "Remaining cycle repetitions (`null` for infinite cycles).",
+            "nullable": true,
+            "type": "integer"
+          },
+          "cycleTotal": {
+            "description": "Total cycle repetitions (`null` for infinite cycles like `R/PT1H`).",
+            "nullable": true,
+            "type": "integer"
+          },
+          "enabled": {
+            "description": "Whether the schedule is active. Only meaningful for `cycle` schedules.",
+            "type": "boolean"
+          },
+          "flowNodeId": {
+            "description": "BPMN flow node ID of the Timer Start Event.",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isoSpec": {
+            "description": "Original ISO 8601 spec string (e.g. `R/PT1H`, `2027-01-01T00:00:00Z`).",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Timer type.",
+            "enum": [
+              "cycle",
+              "date",
+              "duration"
+            ],
+            "type": "string"
+          },
+          "lastTriggeredAt": {
+            "description": "Timestamp of the last successful fire. `null` if never fired.",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "nextFireAt": {
+            "description": "Next scheduled fire time. `null` when the schedule is exhausted (one-shot already fired, or cycle repetitions depleted).",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "processModelId": {
+            "description": "BPMN process ID.",
+            "type": "string"
+          },
+          "processVersionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "processModelId",
+          "processVersionId",
+          "flowNodeId",
+          "kind",
+          "isoSpec",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "TriggerDelivery": {
+        "description": "One catch-side recipient of a published message, signal, or escalation.",
+        "properties": {
+          "flowNodeInstanceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "processInstanceId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "processInstanceId",
+          "flowNodeInstanceId"
+        ],
+        "type": "object"
+      },
+      "VersionExistsError": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "processModelId": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "error": {
+            "enum": [
+              "version_exists"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "conflicts"
+        ],
+        "type": "object"
+      },
+      "VersionMigrationIncompatibleError": {
+        "properties": {
+          "conflicts": {
+            "description": "List of flow node instances whose flow_node_id does not exist in the target process version model.",
+            "items": {
+              "properties": {
+                "flowNodeId": {
+                  "type": "string"
+                },
+                "flowNodeInstanceId": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "error": {
+            "enum": [
+              "version_migration_incompatible"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "example": "FNI chain is incompatible with target version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "conflicts"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "HS256/RS256/ES256 JWT. Mint Studio operator tokens with `mix bfw.mint_token --full` (includes `lane:default=\"write\"`, not `observe_all`). Observer: `--claim observe_all=true`. Lane claims are `\"read\"` | `\"write\"` — boolean `true` is rejected. See `docs/guides/api/authentication.md`.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Bifrost Forge World Engine — a BPMN 2.0 Workflow Engine.\n\nThis REST API surface exposes health checks, engine info, telemetry,\nprocess deployment, instance management, timer schedule management,\nDMN decision evaluation, and trigger endpoints.\n\n**GraphQL** is served separately at `POST /api/v1/graphql` (requires JWT).\nAn interactive [GraphQL Playground](/admin/graphiql) is available for\nbrowsing the schema and running queries. It comes pre-loaded with\nexample query tabs covering catalog resources, instances, data objects,\ndecisions, and the BPMN process-model graph.\n\n**Note:** This spec, Swagger UI, and GraphQL Playground are disabled in\nproduction by default (`BFE_DEVTOOLS_ENABLED`). The spec endpoint can\nbe individually enabled via `BFE_EXPOSE_OPENAPI_SPEC=true`.\n",
+    "title": "Bifrost Forge World Engine API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/adhoc-subprocesses/{id}/activities": {
+      "get": {
+        "description": "Lists enabled/performed inner activities of an ad-hoc subprocess. `{id}` is the **child process instance ID** spawned by the ad-hoc shell. Requires `manage_adhoc_subprocess` (or `zeeky_boogie_doog`). `observe_all` does **not** grant this claim.",
+        "operationId": "listAdhocActivities",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocActivityList"
+                }
+              }
+            },
+            "description": "Activity list"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Process instance is not an ad-hoc subprocess"
+          }
+        },
+        "summary": "List ad-hoc inner activities",
+        "tags": [
+          "Ad-hoc Subprocesses"
+        ]
+      }
+    },
+    "/adhoc-subprocesses/{id}/activities/{activity_id}/activate": {
+      "post": {
+        "description": "Activates an inner activity of an ad-hoc subprocess. Requires `manage_adhoc_subprocess`. `observe_all` does not grant activation.",
+        "operationId": "activateAdhocActivity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activity_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocActivateResult"
+                }
+              }
+            },
+            "description": "Activity activated"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Ad-hoc subprocess is completing or no longer active"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sequential ad-hoc is busy, or PI is not ad-hoc"
+          }
+        },
+        "summary": "Activate an ad-hoc inner activity",
+        "tags": [
+          "Ad-hoc Subprocesses"
+        ]
+      }
+    },
+    "/adhoc-subprocesses/{id}/complete": {
+      "post": {
+        "description": "Signals completion of an ad-hoc subprocess. Requires `manage_adhoc_subprocess`. `observe_all` does not grant this.",
+        "operationId": "completeAdhocSubprocess",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocCompleteResult"
+                }
+              }
+            },
+            "description": "Completion signaled"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Completion already signaled or subprocess not active"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Process instance is not an ad-hoc subprocess"
+          }
+        },
+        "summary": "Signal ad-hoc subprocess completion",
+        "tags": [
+          "Ad-hoc Subprocesses"
+        ]
+      }
+    },
+    "/adhoc-subprocesses/{id}/status": {
+      "get": {
+        "description": "Returns runtime status of an ad-hoc subprocess child PI. Requires `manage_adhoc_subprocess`. `observe_all` does not grant this.",
+        "operationId": "getAdhocStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocStatus"
+                }
+              }
+            },
+            "description": "Status payload"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Process instance is not an ad-hoc subprocess"
+          }
+        },
+        "summary": "Query ad-hoc subprocess status",
+        "tags": [
+          "Ad-hoc Subprocesses"
+        ]
+      }
+    },
+    "/decisions": {
+      "get": {
+        "description": "Returns all currently deployed DMN decisions. Each entry contains the latest active version. Decisions with no active versions (fully undeployed) are excluded.",
+        "operationId": "listDecisions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of deployed decisions"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List deployed decisions",
+        "tags": [
+          "Decisions"
+        ]
+      },
+      "post": {
+        "description": "Atomic batch deploy of one or more DMN definitions. Pass an array of raw DMN XML strings in the JSON body. All sources are parsed, validated, and persisted in one atomic transaction. If any source fails, the entire batch is rejected. Versions are auto-derived from a SHA-256 hash of the raw XML (first 12 hex characters).\n**Authorization:** Requires `deploy_dmn=true` claim.",
+        "operationId": "deployDecisions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DmnDeployRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deployed": {
+                      "items": {
+                        "$ref": "#/components/schemas/DmnDeployResult"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Deployment succeeded"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/BadRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DmnParseError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid request body (missing sources) or DMN parse error."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionVersionExistsError"
+                }
+              }
+            },
+            "description": "Version conflict (duplicate version)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DmnValidationFailedError"
+                }
+              }
+            },
+            "description": "DMN validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected persistence or internal failure"
+          }
+        },
+        "summary": "Deploy DMN decisions",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}": {
+      "delete": {
+        "description": "Soft-deletes all versions of a decision, effectively undeploying it.\n**Authorization:** Requires `delete_dmn=true` claim.",
+        "operationId": "undeployDecision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All versions deleted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Undeploy a decision (delete all versions)",
+        "tags": [
+          "Decisions"
+        ]
+      },
+      "get": {
+        "description": "Returns decision metadata. Use `?includeXml=true` to include the latest active version's DMN XML. Version history is available at `GET /decisions/{model_id}/versions`.",
+        "operationId": "showDecision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          },
+          {
+            "description": "Include the latest active version's DMN XML in the response.",
+            "in": "query",
+            "name": "includeXml",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDetail"
+                }
+              }
+            },
+            "description": "Decision found"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Show decision",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/disable": {
+      "put": {
+        "description": "Sets the decision to disabled. Evaluation requests against this definition will fail until re-enabled.\n**Authorization:** Requires `deploy_dmn=true` claim.",
+        "operationId": "disableDecision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Decision disabled (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Disable a decision",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/enable": {
+      "put": {
+        "description": "Sets the decision to enabled, allowing evaluation.\n**Authorization:** Requires `deploy_dmn=true` claim.",
+        "operationId": "enableDecision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Decision enabled (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Enable a decision",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/evaluate": {
+      "post": {
+        "description": "Ad-hoc evaluation against the latest active version of the given decision definition. Optionally target a specific decision element within the DMN model via `decisionModelId`.",
+        "operationId": "evaluateDecision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResult"
+                }
+              }
+            },
+            "description": "Evaluation succeeded"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            },
+            "description": "Invalid request (input must be a JSON object)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Decision definition not found, no active version, specific decision element not found, or BKM not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DmnEvaluationError"
+                }
+              }
+            },
+            "description": "Evaluation error — ambiguous decision, DRG cycle, expression failure, type coercion failure, input value violation, or other evaluation-time error."
+          }
+        },
+        "summary": "Evaluate a decision (latest version)",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/services/{service_id}/evaluate": {
+      "post": {
+        "description": "Evaluate a DMN Decision Service within the given decision definition. The service exposes a subset of decisions with declared input/output contracts.",
+        "operationId": "evaluateDecisionService",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          },
+          {
+            "description": "The DMN Decision Service element ID (`<decisionService id=\"...\">`).",
+            "in": "path",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "input": {
+                    "additionalProperties": true,
+                    "description": "Input data for the Decision Service evaluation.",
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceEvaluationResult"
+                }
+              }
+            },
+            "description": "Evaluation succeeded"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Decision definition or Decision Service not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DmnEvaluationError"
+                }
+              }
+            },
+            "description": "Missing service input, evaluation error, or other constraint violation."
+          }
+        },
+        "summary": "Evaluate a Decision Service",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/versions": {
+      "get": {
+        "description": "Returns the version history for a decision. Use `?includeXml=true` to include each version's DMN XML.",
+        "operationId": "listDecisionVersions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          },
+          {
+            "description": "Include each version's DMN XML in the response.",
+            "in": "query",
+            "name": "includeXml",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionVersionDetail"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Version list"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "List decision versions",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/versions/{version}": {
+      "delete": {
+        "description": "Soft-deletes a specific decision version.\n**Authorization:** Requires `delete_dmn=true` claim.",
+        "operationId": "deleteDecisionVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          },
+          {
+            "$ref": "#/components/parameters/DecisionVersion"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Version deleted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Delete a decision version",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/decisions/{model_id}/versions/{version}/evaluate": {
+      "post": {
+        "description": "Evaluate a specific version of a decision definition. Same request and response shape as the latest-version evaluate endpoint.",
+        "operationId": "evaluateDecisionVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DecisionModelId"
+          },
+          {
+            "$ref": "#/components/parameters/DecisionVersion"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResult"
+                }
+              }
+            },
+            "description": "Evaluation succeeded"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Decision or version not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DmnEvaluationError"
+                }
+              }
+            },
+            "description": "Evaluation error"
+          }
+        },
+        "summary": "Evaluate a decision (specific version)",
+        "tags": [
+          "Decisions"
+        ]
+      }
+    },
+    "/escalations/{escalation_code}/trigger": {
+      "post": {
+        "description": "Delivers `escalation_code` to matching waiting catchers on every running process instance: Escalation Event Subprocess starts and waiting Escalation Boundary FNIs. Requires JWT claim `trigger_escalation: true`. Escalations carry no payload. Any `payload` key in the request body is silently ignored. Unmatched process instances are skipped (not transitioned to `escalated`). There is no pending buffer. `pending` is always `false`.",
+        "operationId": "triggerEscalation",
+        "parameters": [
+          {
+            "description": "Escalation code to inject (non-blank, at most 256 characters)",
+            "in": "path",
+            "name": "escalation_code",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deliveries": {
+                      "items": {
+                        "$ref": "#/components/schemas/TriggerDelivery"
+                      },
+                      "type": "array"
+                    },
+                    "escalationCode": {
+                      "type": "string"
+                    },
+                    "pending": {
+                      "enum": [
+                        false
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "escalationCode",
+                    "deliveries",
+                    "pending"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Escalation delivered to matching waiters (possibly none)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Blank or oversize escalation code"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected internal error while triggering the escalation"
+          }
+        },
+        "summary": "Inject a named escalation into waiting catchers",
+        "tags": [
+          "Escalations"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Liveness probe. Returns 204 (no body) if the engine is running. For load level and detailed status, use the authenticated GET /stats endpoint.",
+        "operationId": "healthCheck",
+        "responses": {
+          "204": {
+            "description": "Engine is healthy (no body)"
+          }
+        },
+        "security": [],
+        "summary": "Health check",
+        "tags": [
+          "Application"
+        ]
+      }
+    },
+    "/info": {
+      "get": {
+        "description": "Returns the engine identity and version.",
+        "operationId": "engineInfo",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "engineId": {
+                      "example": "bfw-engine-01",
+                      "type": "string"
+                    },
+                    "engineName": {
+                      "example": "Bifrost Forge World Engine (local dev)",
+                      "type": "string"
+                    },
+                    "startedAt": {
+                      "description": "Engine boot timestamp (UTC).",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "version": {
+                      "example": "0.1.0",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "engineId",
+                    "engineName",
+                    "version",
+                    "startedAt"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Engine info"
+          }
+        },
+        "security": [],
+        "summary": "Engine info",
+        "tags": [
+          "Application"
+        ]
+      }
+    },
+    "/manual-tasks/{flowNodeInstanceId}/cancel": {
+      "put": {
+        "description": "Cancels a waiting Manual Task and aborts the entire process instance (same effect as PUT /process-instances/{id}/abort). All parallel branches are stopped. Authorization: same as confirm — `\"write\"` on the task lane. `\"read\"` / `observe_all` → **403**. Invisible → **404**. Manual Tasks only — a User Task id returns **404**, the same as an unknown id.",
+        "operationId": "cancelManualTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FlowNodeInstanceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "reason": {
+                    "description": "Optional cancellation reason.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "204": {
+            "description": "Task cancelled and process instance aborted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Caller can observe the task (`\"read\"` or `observe_all`) but lacks `lane:<name>=\"write\"`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FNI not found or invisible to caller"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FniNotWaitingError"
+                }
+              }
+            },
+            "description": "Task is not in waiting state"
+          }
+        },
+        "summary": "Cancel a manual task",
+        "tags": [
+          "Manual Tasks"
+        ]
+      }
+    },
+    "/manual-tasks/{flowNodeInstanceId}/confirm": {
+      "put": {
+        "description": "Confirms a waiting Manual Task (`bfw:requireConfirmation=\"true\"`). The token the task entered with continues unchanged — this endpoint does not accept or return a result payload. Authorization: caller must hold `lane:<lane_name>=\"write\"` for the task's lane. `\"read\"` or `observe_all` (visible, not writable) returns **403**. Invisible tasks return **404**. Manual Tasks only — a User Task id returns **404**, the same as an unknown id.",
+        "operationId": "confirmManualTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FlowNodeInstanceId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Task confirmed (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Caller can observe the task (`\"read\"` or `observe_all`) but lacks `lane:<name>=\"write\"`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FNI not found or invisible to caller"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FniNotWaitingError"
+                }
+              }
+            },
+            "description": "Task is not in waiting state"
+          }
+        },
+        "summary": "Confirm a manual task",
+        "tags": [
+          "Manual Tasks"
+        ]
+      }
+    },
+    "/messages/{message_name}/trigger": {
+      "post": {
+        "description": "Publishes a message to the engine routing pipeline. Requires JWT claim `trigger_message: \"all\"`. Returns 503 with `Retry-After` while the engine is resuming and message subscriptions are not yet ready.",
+        "operationId": "triggerMessage",
+        "parameters": [
+          {
+            "description": "The global message name (from the BPMN `<bpmn:message name=\"...\">` definition)",
+            "in": "path",
+            "name": "message_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "correlation": "ORD-42",
+                "payload": {
+                  "orderId": "ORD-42",
+                  "status": "paid"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "correlation": {
+                    "description": "Optional correlation value for targeted delivery. When omitted, the message is published with no correlation.",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "payload": {
+                    "additionalProperties": true,
+                    "description": "Message payload delivered to matching subscriptions",
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "correlationValue": "ORD-42",
+                  "deliveries": [
+                    {
+                      "flowNodeInstanceId": "0db0b43c-1e4e-4c5a-9f2a-8a0e2c1b3d4e",
+                      "processInstanceId": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    }
+                  ],
+                  "messageId": "550e8400-e29b-41d4-a716-446655440000",
+                  "messageName": "payment-received",
+                  "pending": false,
+                  "startedProcessInstanceIds": []
+                },
+                "schema": {
+                  "properties": {
+                    "correlationValue": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "deliveries": {
+                      "description": "Catch-side subscriptions that received the message",
+                      "items": {
+                        "$ref": "#/components/schemas/TriggerDelivery"
+                      },
+                      "type": "array"
+                    },
+                    "messageId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "messageName": {
+                      "type": "string"
+                    },
+                    "pending": {
+                      "description": "True when no subscriber or start event matched and the message was held in pending_messages",
+                      "type": "boolean"
+                    },
+                    "startedProcessInstanceIds": {
+                      "description": "PIs started via Message Start Events (empty when catch subscriptions consumed the message)",
+                      "items": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "messageId",
+                    "messageName",
+                    "deliveries",
+                    "startedProcessInstanceIds",
+                    "pending"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Message published"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected internal error while publishing the message"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Engine is resuming — message subscriptions not ready yet. Client may retry after `Retry-After` seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Publish a named message",
+        "tags": [
+          "Messages"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "description": "Prometheus exposition format (`text/plain`). Disabled when\n`BFE_METRICS_ENABLED` resolves to false (plain-text 404, same as an unknown route).\n",
+        "operationId": "prometheusMetrics",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Prometheus text exposition"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "example": "Not Found",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Metrics disabled"
+          }
+        },
+        "security": [],
+        "summary": "Prometheus metrics",
+        "tags": [
+          "Application"
+        ]
+      }
+    },
+    "/process-instances/{id}": {
+      "delete": {
+        "description": "Deletes a terminal process instance and all its flow node instances. Only terminal PIs (`finished`, `fatal`, `aborted`) can be deleted — running PIs return 422.\n**Authorization:** Requires `delete_process_instance` claim (`own` or `all`) per D43 §6.2.",
+        "operationId": "deleteProcessInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessInstanceId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Process instance and FNIs deleted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Process instance not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessInstanceNotTerminalError"
+                }
+              }
+            },
+            "description": "Process instance is not in a terminal state"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected failure while deleting the instance"
+          }
+        },
+        "summary": "Delete a process instance",
+        "tags": [
+          "Process Instances"
+        ]
+      }
+    },
+    "/process-instances/{id}/abort": {
+      "put": {
+        "description": "Aborts a running process instance. All active and waiting FNIs are cancelled, and the PI transitions to `:aborted`. Requires the `abort_process_instance` claim (`own` or `all`) per D43 §6.2.",
+        "operationId": "abortProcessInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessInstanceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "reason": {
+                    "description": "Optional abort reason.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "204": {
+            "description": "Process instance aborted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Process instance not found or not running"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessInstanceAlreadyTerminalError"
+                }
+              }
+            },
+            "description": "Process instance is already in a terminal state"
+          }
+        },
+        "summary": "Abort a process instance",
+        "tags": [
+          "Process Instances"
+        ]
+      }
+    },
+    "/process-instances/{id}/retry": {
+      "put": {
+        "description": "Retries a terminal (`fatal`, `aborted`, or `error`) process instance. Optionally migrates to a different version and/or resets to a checkpoint FNI. Requires the `retry_process_instance` claim (`\"own\"` or `\"all\"`).",
+        "operationId": "retryProcessInstance",
+        "parameters": [
+          {
+            "description": "UUID of the process instance to retry",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "resetToFlowNodeInstanceId": {
+                    "description": "UUID of a flow node instance to use as a reset checkpoint. All FNIs downstream of this checkpoint are deleted; the checkpoint FNI itself is reset to active.",
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Target version to migrate to. Omit to retry on same version. `\"latest\"` resolves to the most recent enabled version of the same process.",
+                    "example": "2.0.0",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "204": {
+            "description": "Retry initiated successfully (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Caller lacks the `retry_process_instance` claim, or has `\"own\"` but the PI was started by a different identity."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Process instance not found, target version not found, or checkpoint FNI not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProcessInstanceNotRetriableError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/VersionMigrationIncompatibleError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Process instance is not retriable, root PI is not terminal, target process is disabled, or FNI chain is incompatible with target version."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineAtCapacityError"
+                }
+              }
+            },
+            "description": "Engine at capacity (`BFE_MAX_CONCURRENT_PIS`). Client may retry after `Retry-After` seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Retry a terminal process instance",
+        "tags": [
+          "Process Instances"
+        ]
+      }
+    },
+    "/processes": {
+      "get": {
+        "description": "Returns all currently deployed processes. Each entry contains the latest active version. Processes with no active versions (fully undeployed) are excluded.",
+        "operationId": "listProcesses",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProcessSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of deployed processes"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List deployed processes",
+        "tags": [
+          "Processes"
+        ]
+      },
+      "post": {
+        "description": "Atomic batch deploy of one or more BPMN process definitions. Pass an array of raw BPMN XML strings in the JSON body. All sources are parsed, validated, and persisted in one atomic transaction. If any source fails, the entire batch is rejected.\n**Authorization:** Requires `deploy_bpmn=true` claim (D43 §4.1).",
+        "operationId": "deployProcesses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeployRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deployed": {
+                      "items": {
+                        "$ref": "#/components/schemas/DeployResult"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Deployment succeeded"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/BadRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ParseError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Invalid request body (missing sources) or BPMN parse error in one or more files."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/VersionExistsError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BatchConflictError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Version conflict (duplicate version or intra-batch conflict)"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Unsupported media type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/DeployValidationFailedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LinterGateFailedError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "BPMN validation failed or deploy-time linter gate failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected persistence or internal failure"
+          }
+        },
+        "summary": "Deploy BPMN processes",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/processes/{model_id}": {
+      "delete": {
+        "description": "Deletes all versions of a process, effectively undeploying it. Rejects the request if non-terminal process instances are still running on any version.\n**Authorization:** Requires `delete_bpmn=true` claim (D43 §4.2).",
+        "operationId": "undeployProcess",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All versions deleted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessNotFoundError"
+                }
+              }
+            },
+            "description": "Process not found or already fully undeployed"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveInstancesExistError"
+                }
+              }
+            },
+            "description": "Non-terminal process instances exist on one or more versions"
+          }
+        },
+        "summary": "Completely deletes a process and all its versions",
+        "tags": [
+          "Processes"
+        ]
+      },
+      "get": {
+        "description": "Returns process metadata. Use `?includeXml=true` to include the latest active version's BPMN XML. Version history is available at `GET /processes/{model_id}/versions`.",
+        "operationId": "showProcess",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          },
+          {
+            "description": "Include the latest active version's BPMN XML in the response.",
+            "in": "query",
+            "name": "includeXml",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessDetail"
+                }
+              }
+            },
+            "description": "Process found"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Show process",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/processes/{model_id}/disable": {
+      "put": {
+        "description": "Sets the process to disabled. Running instances are not affected, but new instances cannot be started.\n**Authorization:** Requires `deploy_bpmn=true` claim (D43 §4.1).",
+        "operationId": "disableProcess",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Process disabled (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Disable a process",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/processes/{model_id}/enable": {
+      "put": {
+        "description": "Sets the process to enabled, allowing new instances to be started.\n**Authorization:** Requires `deploy_bpmn=true` claim (D43 §4.1).",
+        "operationId": "enableProcess",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Process enabled (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Enable a process",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/processes/{model_id}/start": {
+      "post": {
+        "description": "Starts a new process instance from the latest active version of the given process model. Optionally targets a specific Start Event, passes an initial payload, and sets immutable context variables.\n**Authorization:** If the target Start Event sits on a lane, the caller must hold `lane:<lane_name>=\"write\"`. `\"read\"` or `observe_all` (visible, not writable) returns **403**. No observe of that lane returns **404**. Boolean `true` is not a write alias.",
+        "operationId": "startProcessInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "businessKey": {
+                    "description": "Optional caller-supplied business key.",
+                    "type": "string"
+                  },
+                  "context": {
+                    "additionalProperties": true,
+                    "description": "Immutable context variables stored as `started_with_context` on the process instance, accessible as `context.*` in FEEL expressions. Independent from the token payload. When omitted, context is empty.",
+                    "type": "object"
+                  },
+                  "payload": {
+                    "additionalProperties": true,
+                    "description": "Initial token payload for the process instance.",
+                    "type": "object"
+                  },
+                  "startEventId": {
+                    "description": "ID of the Start Event to use. Required when the process has multiple untyped Start Events.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResult"
+                }
+              }
+            },
+            "description": "Process instance started"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Caller lacks the required lane claim for the target Start Event (`forbidden`), or generic insufficient claims."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProcessNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NoActiveVersionError"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Process not found (`process_not_found`) or no active version (`no_active_version`)"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayloadTooLargeError"
+                }
+              }
+            },
+            "description": "Payload exceeds BFE_TOKEN_MAX_BYTES"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProcessDisabledError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AmbiguousStartEventError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/StartEventNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NoStartEventError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NoExecutableProcessError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContractViolationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Unprocessable entity. Possible causes: process is disabled (`process_disabled`), ambiguous start event, missing executable process, contract violation, or related start errors."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedError"
+                }
+              }
+            },
+            "description": "Global start rate limit exceeded (D49 Layer 2 — `BFE_PI_START_RATE_LIMIT`). Clients may retry after `Retry-After` (`retryAfterSeconds` in the JSON body matches it).",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected internal error while starting the instance"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineAtCapacityError"
+                }
+              }
+            },
+            "description": "Maximum concurrent process instances reached (D49 Layer 1 — `BFE_MAX_CONCURRENT_PIS`). Clients may retry after `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start a process instance",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/processes/{model_id}/versions": {
+      "get": {
+        "description": "Returns the version history for a process. Use `?includeXml=true` to include each version's BPMN XML.",
+        "operationId": "listProcessVersions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          },
+          {
+            "description": "Include each version's BPMN XML in the response.",
+            "in": "query",
+            "name": "includeXml",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProcessVersionDetail"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Version list"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "List process versions",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/processes/{model_id}/versions/{version}": {
+      "delete": {
+        "description": "Deletes a specific version. Rejects the request if non-terminal process instances are still running on this version.\n**Authorization:** Requires `delete_bpmn=true` claim (D43 §4.2).",
+        "operationId": "deleteProcessVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProcessModelId"
+          },
+          {
+            "description": "The version string (e.g. `\"1.0.0\"` — corresponds to `bfw:version`).",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Version deleted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveInstancesExistError"
+                }
+              }
+            },
+            "description": "Non-terminal process instances exist on this version"
+          }
+        },
+        "summary": "Delete a process version",
+        "tags": [
+          "Processes"
+        ]
+      }
+    },
+    "/signals/{signal_name}/trigger": {
+      "post": {
+        "description": "Broadcasts a signal to the engine routing pipeline. Requires JWT claim `trigger_signal: \"all\"`. Signals carry no payload and no correlation. Any `payload` key in the request body is silently ignored. Returns 503 with `Retry-After` while the engine is resuming and signal subscriptions are not yet ready.",
+        "operationId": "triggerSignal",
+        "parameters": [
+          {
+            "description": "The global signal name (from the BPMN signal definition)",
+            "in": "path",
+            "name": "signal_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deliveries": {
+                      "items": {
+                        "$ref": "#/components/schemas/TriggerDelivery"
+                      },
+                      "type": "array"
+                    },
+                    "pending": {
+                      "type": "boolean"
+                    },
+                    "signalId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "signalName": {
+                      "type": "string"
+                    },
+                    "startedProcessInstanceIds": {
+                      "items": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "signalId",
+                    "signalName",
+                    "deliveries",
+                    "startedProcessInstanceIds",
+                    "pending"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Signal published"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalEngineError"
+                }
+              }
+            },
+            "description": "Unexpected internal error while publishing the signal"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Engine is resuming — signal subscriptions not ready yet",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Broadcast a named signal",
+        "tags": [
+          "Signals"
+        ]
+      }
+    },
+    "/stats": {
+      "get": {
+        "description": "Returns a comprehensive snapshot of engine runtime telemetry — active process instances, event listeners, and counters.",
+        "operationId": "runtimeStats",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            },
+            "description": "Stats snapshot"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Runtime statistics",
+        "tags": [
+          "Application"
+        ]
+      }
+    },
+    "/timer-events/{flowNodeInstanceId}/trigger": {
+      "post": {
+        "description": "Manually fires a waiting Intermediate Catch or Boundary timer FNI. No dedicated JWT trigger claim — gated like user-task finish.\n**Authorization:** `lane:<name>=\"write\"` on the FNI's lane, or laneless FNI, or `zeeky_boogie_doog`. `\"read\"` / `observe_all` (visible, not writable) → **403**. Invisible lane → **404**.",
+        "operationId": "triggerTimerEvent",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FlowNodeInstanceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "triggered": {
+                      "example": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "triggered"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Timer triggered"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Visible but not writable (`\"read\"` / `observe_all`)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FNI not found or invisible to caller"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Timer FNI is not in a triggerable state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FNI is not a timer event"
+          }
+        },
+        "summary": "Manually trigger a waiting timer",
+        "tags": [
+          "Timer Events"
+        ]
+      }
+    },
+    "/timer-schedules": {
+      "get": {
+        "description": "Returns all Timer Start Event schedules across all deployed process versions. Schedules are created automatically when a process with a `timeCycle` start event is deployed.\n**Authorization:** Requires `deploy_bpmn=true` claim.",
+        "operationId": "listTimerSchedules",
+        "parameters": [
+          {
+            "description": "Filter by process version ID.",
+            "in": "query",
+            "name": "processVersionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by enabled state (`true` or `false`).",
+            "in": "query",
+            "name": "enabled",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/TimerSchedule"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of timer schedules"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        },
+        "summary": "List timer start schedules",
+        "tags": [
+          "Timer Schedules"
+        ]
+      }
+    },
+    "/timer-schedules/{id}": {
+      "get": {
+        "description": "Returns a single Timer Start Event schedule by ID.\n**Authorization:** Requires `deploy_bpmn=true` claim.",
+        "operationId": "showTimerSchedule",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TimerScheduleId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TimerSchedule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Timer schedule found"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Show a timer schedule",
+        "tags": [
+          "Timer Schedules"
+        ]
+      }
+    },
+    "/timer-schedules/{id}/disable": {
+      "put": {
+        "description": "Disables a timer schedule. The armed ETS entry is cancelled and the schedule is marked `enabled=false` in the database. The timer stops firing until re-enabled. Only applicable to `cycle` schedules — date and duration schedules return 422.\n**Authorization:** Requires `deploy_bpmn=true` claim.",
+        "operationId": "disableTimerSchedule",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TimerScheduleId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TimerSchedule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Schedule disabled"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not applicable (schedule is not a cycle timer)"
+          }
+        },
+        "summary": "Disable a timer schedule",
+        "tags": [
+          "Timer Schedules"
+        ]
+      }
+    },
+    "/timer-schedules/{id}/enable": {
+      "put": {
+        "description": "Re-enables a previously disabled timer schedule. The next fire time is recomputed based on the cycle spec and current time. Only applicable to `cycle` schedules — date and duration schedules return 422.\n**Authorization:** Requires `deploy_bpmn=true` claim.",
+        "operationId": "enableTimerSchedule",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TimerScheduleId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TimerSchedule"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Schedule enabled"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not applicable (schedule is not a cycle timer)"
+          }
+        },
+        "summary": "Enable a timer schedule",
+        "tags": [
+          "Timer Schedules"
+        ]
+      }
+    },
+    "/user-tasks/{flowNodeInstanceId}/cancel": {
+      "put": {
+        "description": "Cancels a waiting User Task and aborts the entire process instance (same effect as PUT /process-instances/{id}/abort). All parallel branches are stopped. Authorization: same as finish — `\"write\"` on the task lane. `\"read\"` / `observe_all` → **403**. Invisible → **404**. User Tasks only — a Manual Task id returns **404**, the same as an unknown id. Use PUT /manual-tasks/{flowNodeInstanceId}/cancel for Manual Tasks.",
+        "operationId": "cancelUserTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FlowNodeInstanceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "reason": {
+                    "description": "Optional cancellation reason.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "204": {
+            "description": "Task cancelled and process instance aborted (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Caller can observe the task (`\"read\"` or `observe_all`) but lacks `lane:<name>=\"write\"`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FNI not found or invisible to caller"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FniNotWaitingError"
+                }
+              }
+            },
+            "description": "Task is not in waiting state"
+          }
+        },
+        "summary": "Cancel a user task",
+        "tags": [
+          "User Tasks"
+        ]
+      }
+    },
+    "/user-tasks/{flowNodeInstanceId}/finish": {
+      "put": {
+        "description": "Completes a waiting User Task. The body is written as the task token `{ actionId, values }`, replacing the input token. Output mappings see that object as FEEL `token`. Authorization: caller must hold `lane:<lane_name>=\"write\"` for the task's lane. `\"read\"` or `observe_all` (visible, not writable) returns **403**. Invisible tasks return **404**. Boolean `true` is not a write alias. User Tasks only — a Manual Task id returns **404**, the same as an unknown id. Use PUT /manual-tasks/{flowNodeInstanceId}/confirm for Manual Tasks.",
+        "operationId": "finishUserTask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FlowNodeInstanceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "actionId": {
+                    "description": "Pressed action id. Omitted or null is stored as null. Blank or longer than 255 characters is 422 invalid_action_id.",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "values": {
+                    "additionalProperties": true,
+                    "description": "Field values keyed by form field id. Omitted or null is stored as {}. A non-object is 422 invalid_values.",
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "204": {
+            "description": "Task finished successfully (no body)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            },
+            "description": "Caller can observe the task (`\"read\"` or `observe_all`) but lacks `lane:<name>=\"write\"`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FNI not found or invisible to caller"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayloadTooLargeError"
+                }
+              }
+            },
+            "description": "values exceeds BFE_TOKEN_MAX_BYTES (field values), or the token written after the envelope and output mappings does (field user_task_result). A values object exactly at the cap can still be rejected, because the stored token is { actionId, values }. The task stays waiting."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FniNotWaitingError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContractViolationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Task is not in waiting state, values is not a JSON object, actionId is not a non-blank string of at most 255 characters, or contract violation (PI stays running, FNI stays waiting — caller may retry with valid data)"
+          }
+        },
+        "summary": "Finish a user task",
+        "tags": [
+          "User Tasks"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "description": "Telemetry, Engine Identity, Liveness & readiness probes (no auth required)",
+      "name": "Application"
+    },
+    {
+      "description": "BPMN process deployment, catalog, and instance lifecycle",
+      "name": "Processes"
+    },
+    {
+      "description": "Process instance administrative operations (abort, delete)",
+      "name": "Process Instances"
+    },
+    {
+      "description": "User Task interaction (finish, cancel) — User Tasks only",
+      "name": "User Tasks"
+    },
+    {
+      "description": "Manual Task interaction (confirm, cancel) — Manual Tasks only",
+      "name": "Manual Tasks"
+    },
+    {
+      "description": "Timer Start Event schedule management — list, inspect, enable, and disable cycle-based timer start schedules created at deploy time",
+      "name": "Timer Schedules"
+    },
+    {
+      "description": "Manual trigger of waiting timer catch / boundary FNIs",
+      "name": "Timer Events"
+    },
+    {
+      "description": "DMN decision deployment, catalog, evaluation, and Decision Service invocation",
+      "name": "Decisions"
+    },
+    {
+      "description": "Message publish and trigger operations",
+      "name": "Messages"
+    },
+    {
+      "description": "Signal broadcast and trigger operations",
+      "name": "Signals"
+    },
+    {
+      "description": "Escalation inject into waiting catchers (Event Subprocess starts and Escalation Boundaries)",
+      "name": "Escalations"
+    },
+    {
+      "description": "Runtime control of ad-hoc subprocess inner activities",
+      "name": "Ad-hoc Subprocesses"
+    }
+  ],
+  "x-graphql-limits": {
+    "description": "GraphQL operational configuration (environment variables): - BFE_GRAPHQL_MAX_DEPTH (default 16) — max query field nesting depth - BFE_GRAPHQL_MAX_COMPLEXITY (default 10000) — max query complexity score (sized for Studio debugger dataObjectValues limit 500) - BFE_GRAPHQL_INTROSPECTION_DISABLED (default false) — blocks __schema/__type queries when true\n"
+  },
+  "x-security-headers": {
+    "description": "All API responses include the following security headers (set by SecurityHeadersPlug): - x-content-type-options: nosniff - x-frame-options: DENY - referrer-policy: strict-origin-when-cross-origin - permissions-policy: camera=(), microphone=(), geolocation=() - strict-transport-security: max-age=31536000; includeSubDomains (HTTPS only)\n"
+  }
+}

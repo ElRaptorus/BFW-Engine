@@ -255,6 +255,7 @@ defmodule BfwEngine.Umbrella.MixProject do
       quality: [
         "compile --warnings-as-errors",
         "bfw.gen.extension_manifest --check",
+        "bfw.gen.contracts --check",
         "format",
         "credo --strict",
         "dialyzer",

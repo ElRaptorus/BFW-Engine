@@ -40,6 +40,7 @@ every environment.
 | Module | File | Purpose |
 |--------|------|---------|
 | `BfwEngine.Test.ConformanceRunner` | `test/support/conformance_runner.ex` | Loads YAML specs, deploys BPMNs, starts PIs, waits for completion, asserts expectations |
+| `BfwEngine.Test.ConformanceSteps` | `test/support/conformance_steps.ex` | Executes the declarative `steps:` list of a spec (vocabulary below) |
 | `BfwEngine.Test.ProcessInteractions` | `test/support/process_interactions.ex` | Reusable functions for interacting with running PIs (finish/cancel user tasks, complete/fail async FNIs, poll PI/FNI state, wait for finished timeout End Events, retrying user-task finish). `find_waiting_fni/2` skips MI/loop shells (`type_properties.mi_shell`). `finish_waiting_user_task_by_node_id/3` is required when more than one user task may be waiting (cancel-arm gate plus nested wait). `finish_transaction_cancel_gate_after_nested_idle/2` finishes `Tx_CancelGate` only after nested work is idle-waiting (C236–C238 / TX-7–TX-9). Interrupting-boundary proximity fixtures (ESC-1, ESC-3) use Escalation End after the arm user task so the child PI does not dispatch a None End writer that the boundary would kill mid-persist. See [ExUnit and CI constraints](#exunit-and-ci-constraints). |
 
 **Test tiers:**
@@ -47,8 +48,10 @@ every environment.
 | Tier | Description | YAML `tier` value | Test generation |
 |------|-------------|-------------------|-----------------|
 | Auto | Deploy → start → wait → assert. No mid-execution interaction required. A spec whose fixture parks on a user task that **must be finished** (for example `Tx_CancelGate`) cannot be auto. | `auto` | Dynamically generated from `for` loop over YAML files |
-| Interactive | Requires mid-execution steps (user task finish, async completion, engine restart). | `interactive` | Hand-written `test` blocks using `ProcessInteractions` |
-| Error | Tests start-time rejections (ambiguous start event, oversize payload). | `error` | Hand-written `test` blocks asserting HTTP error status codes |
+| Interactive / call_activity | Mid-execution steps (user task finish, async completion, triggers, retry, engine restart). | `interactive`, `call_activity` | Generated; a spec with a `steps:` list runs through `Runner.run_interactive` |
+| Error | Start-time rejections. Specs with `expected.start_error: true` (plus `start_status`) run through `run_interactive`. | `error` | Generated |
+
+A spec marked `engine_internal: true` (with a one-line `engine_internal_reason`) is skipped by the generic loop and keeps a hand-written test in `conformance_test.exs`; it is not part of the portable contract (C70, C78, C79, C88, C117).
 
 Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See [ExUnit and CI constraints](#exunit-and-ci-constraints). Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing. When an EBG catch sibling **wins** (C8), wait until every sibling is `:waiting` before completing the work that satisfies the winner — cancelling a sibling mid-persist tears the shared sandbox connection. C8 uses `conditional_catch_ebg_conditional_wins.bpmn` (a parallel user task writes the Data Object after both catches are parked); C9 keeps `conditional_catch_ebg.bpmn` with a timer-first start context.
 
@@ -68,6 +71,28 @@ expected:
     - end_event_id: "End_1"
   fni_count: 2
 ```
+
+#### Spec keys and capabilities
+
+| Key | Meaning |
+|-----|---------|
+| `requires` | Capability tags a non-Elixir engine may lack: `dmn`, `payload_cap` (2048-byte token cap; `start.payload_oversize: true` sends 5000 characters), `plugin_service_task`, `plugin_script`, `engine_restart` |
+| `start.mode` | `none` (deploy only), `timer_auto`, default HTTP start |
+| `child_fixtures` | Fixtures deployed before the main fixture (Call Activity targets) |
+| `wait_timeout_ms` | Overrides the completion wait |
+
+#### `steps:` vocabulary
+
+Each step is a one-key map. `main` aliases the started PI; `as:` stores an alias; a step without `fni:` uses the last awaited FNI.
+
+| Group | Steps |
+|-------|-------|
+| Wait / complete | `await_waiting`, `finish_user_task`, `cancel_user_task`, `finish_manual_task`, `finish_async_service_task`, `fail_async_service_task`, `finish_transaction_cancel_gate` |
+| Triggers | `trigger_message`, `trigger_signal` (`raw_body`), `trigger_escalation`, `trigger_timer`; expectations `expect_deliveries`, `expect_deliveries_at_least`, `expect_started_at_least`, `expect_pending`, `expect_delivery_to`, `as_started` |
+| Deploy / start | `deploy`, `deploy_variant` (fixture, version, replace), `start_process`, `await_other_instance` |
+| State waits | `await_state`, `await_completion`, `await_child`, `await_finished_count`, `pause` |
+| PI lifecycle | `abort`, `retry` (`version`, `reset_to_node_id`, `expect_error`, `expect_conflicts`, `alive` = alias expected to come alive, needed for tree retry from a child), `restart_engine`, `child` (`of`, `as`, `index`) |
+| Assertions | `assert_state`, `assert_fni` (`count`, `at_least`, `state`), `assert_children` (`includes`, `excludes`), `remember_process_version`, `assert_process_version_changed` |
 
 **Linear and task fixtures (C01–C20 + C04a):** 21 specs covering linear flows, user tasks
 (finish/cancel/contract violation), manual tasks (passthrough/confirmation),

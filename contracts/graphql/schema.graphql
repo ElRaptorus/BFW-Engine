@@ -1,0 +1,2870 @@
+schema {
+  query: RootQueryType
+}
+
+enum DecisionVersionSortField {
+  ID
+  DECISION_DEFINITION_ID
+  VERSION
+  DMN_XML
+  DEPLOYER
+  DEPLOYED_AT
+}
+
+"A page of :decision_version"
+type PageOfDecisionVersion {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [DecisionVersion!]
+}
+
+input DecisionVersionFilterDeployedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input DecisionVersionFilterDeployer {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input DecisionVersionFilterDmnXml {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input DecisionVersionFilterVersion {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input DecisionVersionFilterDecisionDefinitionId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DecisionVersionFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DecisionVersionFilterInput {
+  and: [DecisionVersionFilterInput!]
+  or: [DecisionVersionFilterInput!]
+  not: [DecisionVersionFilterInput!]
+  id: DecisionVersionFilterId
+  decisionDefinitionId: DecisionVersionFilterDecisionDefinitionId
+  version: DecisionVersionFilterVersion
+  dmnXml: DecisionVersionFilterDmnXml
+  deployer: DecisionVersionFilterDeployer
+  deployedAt: DecisionVersionFilterDeployedAt
+}
+
+input DecisionVersionSortInput {
+  order: SortOrder
+  field: DecisionVersionSortField!
+}
+
+type DecisionVersion {
+  id: ID!
+  decisionDefinitionId: ID!
+  version: String!
+  dmnXml: String!
+  deployer: JsonString
+  deployedAt: DateTime!
+}
+
+enum DecisionDefinitionSortField {
+  ID
+  DECISION_DEFINITION_ID
+  NAME
+  ENABLED
+  CREATED_AT
+}
+
+"A page of :decision_definition"
+type PageOfDecisionDefinition {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [DecisionDefinition!]
+}
+
+input DecisionDefinitionFilterCreatedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input DecisionDefinitionFilterEnabled {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input DecisionDefinitionFilterName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input DecisionDefinitionFilterDecisionDefinitionId {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input DecisionDefinitionFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DecisionDefinitionFilterInput {
+  and: [DecisionDefinitionFilterInput!]
+  or: [DecisionDefinitionFilterInput!]
+  not: [DecisionDefinitionFilterInput!]
+  id: DecisionDefinitionFilterId
+  decisionDefinitionId: DecisionDefinitionFilterDecisionDefinitionId
+  name: DecisionDefinitionFilterName
+  enabled: DecisionDefinitionFilterEnabled
+  createdAt: DecisionDefinitionFilterCreatedAt
+  versions: DecisionVersionFilterInput
+}
+
+input DecisionDefinitionSortInput {
+  order: SortOrder
+  field: DecisionDefinitionSortField!
+}
+
+type DecisionDefinition {
+  id: ID!
+  decisionDefinitionId: String!
+  name: String
+  enabled: Boolean!
+  createdAt: DateTime!
+  versions(
+    "How to sort the records in the response"
+    sort: [DecisionVersionSortInput]
+
+    "A filter to limit the results"
+    filter: DecisionVersionFilterInput
+
+    "The number of records to return."
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): [DecisionVersion!]!
+}
+
+enum DataObjectHistoryEntrySortField {
+  ID
+  PROCESS_INSTANCE_ID
+  DATA_OBJECT_ID
+  FLOW_NODE_INSTANCE_ID
+  VALUE
+  CREATED_AT
+}
+
+"A page of :data_object_history_entry"
+type PageOfDataObjectHistoryEntry {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [DataObjectHistoryEntry!]
+}
+
+input DataObjectHistoryEntryFilterCreatedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input DataObjectHistoryEntryFilterValue {
+  isNil: Boolean
+}
+
+input DataObjectHistoryEntryFilterFlowNodeInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DataObjectHistoryEntryFilterDataObjectId {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input DataObjectHistoryEntryFilterProcessInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DataObjectHistoryEntryFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DataObjectHistoryEntryFilterInput {
+  and: [DataObjectHistoryEntryFilterInput!]
+  or: [DataObjectHistoryEntryFilterInput!]
+  not: [DataObjectHistoryEntryFilterInput!]
+  id: DataObjectHistoryEntryFilterId
+  processInstanceId: DataObjectHistoryEntryFilterProcessInstanceId
+  dataObjectId: DataObjectHistoryEntryFilterDataObjectId
+  flowNodeInstanceId: DataObjectHistoryEntryFilterFlowNodeInstanceId
+  value: DataObjectHistoryEntryFilterValue
+  createdAt: DataObjectHistoryEntryFilterCreatedAt
+}
+
+input DataObjectHistoryEntrySortInput {
+  order: SortOrder
+  field: DataObjectHistoryEntrySortField!
+}
+
+type DataObjectHistoryEntry {
+  id: ID!
+  processInstanceId: ID!
+  dataObjectId: String!
+  flowNodeInstanceId: ID!
+  value: Json!
+  createdAt: DateTime!
+}
+
+enum DataObjectValueSortField {
+  ID
+  PROCESS_INSTANCE_ID
+  DATA_OBJECT_ID
+  FLOW_NODE_INSTANCE_ID
+  VALUE
+  CREATED_AT
+}
+
+"A page of :data_object_value"
+type PageOfDataObjectValue {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [DataObjectValue!]
+}
+
+input DataObjectValueFilterCreatedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input DataObjectValueFilterValue {
+  isNil: Boolean
+}
+
+input DataObjectValueFilterFlowNodeInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DataObjectValueFilterDataObjectId {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input DataObjectValueFilterProcessInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DataObjectValueFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input DataObjectValueFilterInput {
+  and: [DataObjectValueFilterInput!]
+  or: [DataObjectValueFilterInput!]
+  not: [DataObjectValueFilterInput!]
+  id: DataObjectValueFilterId
+  processInstanceId: DataObjectValueFilterProcessInstanceId
+  dataObjectId: DataObjectValueFilterDataObjectId
+  flowNodeInstanceId: DataObjectValueFilterFlowNodeInstanceId
+  value: DataObjectValueFilterValue
+  createdAt: DataObjectValueFilterCreatedAt
+}
+
+input DataObjectValueSortInput {
+  order: SortOrder
+  field: DataObjectValueSortField!
+}
+
+type DataObjectValue {
+  id: ID!
+  processInstanceId: ID!
+  dataObjectId: String!
+  flowNodeInstanceId: ID!
+  value: Json
+  createdAt: DateTime!
+}
+
+enum FlowNodeInstanceSortField {
+  ID
+  PROCESS_INSTANCE_ID
+  FLOW_NODE_ID
+  FLOW_NODE_TYPE
+  EVENT_TYPE
+  LANE_NAME
+  STATE
+  STARTED_AT
+  FINISHED_AT
+  TRIGGERER_FLOW_NODE_INSTANCE_ID
+  INPUT_TOKEN
+  OUTPUT_TOKEN
+  TYPE_PROPERTIES
+  ERROR_INFO
+  MULTI_INSTANCE_ID
+  ITERATION_INDEX
+}
+
+"A page of :flow_node_instance"
+type PageOfFlowNodeInstance {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [FlowNodeInstance!]
+}
+
+input FlowNodeInstanceFilterIterationIndex {
+  isNil: Boolean
+  eq: Int
+  notEq: Int
+  in: [Int]
+  lessThan: Int
+  greaterThan: Int
+  lessThanOrEqual: Int
+  greaterThanOrEqual: Int
+  isDistinctFrom: Int
+  isNotDistinctFrom: Int
+}
+
+input FlowNodeInstanceFilterMultiInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input FlowNodeInstanceFilterErrorInfo {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input FlowNodeInstanceFilterTypeProperties {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input FlowNodeInstanceFilterOutputToken {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input FlowNodeInstanceFilterInputToken {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input FlowNodeInstanceFilterTriggererFlowNodeInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input FlowNodeInstanceFilterFinishedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input FlowNodeInstanceFilterStartedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input FlowNodeInstanceFilterState {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input FlowNodeInstanceFilterLaneName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input FlowNodeInstanceFilterEventType {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input FlowNodeInstanceFilterFlowNodeType {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input FlowNodeInstanceFilterFlowNodeId {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input FlowNodeInstanceFilterProcessInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input FlowNodeInstanceFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input FlowNodeInstanceFilterInput {
+  and: [FlowNodeInstanceFilterInput!]
+  or: [FlowNodeInstanceFilterInput!]
+  not: [FlowNodeInstanceFilterInput!]
+  id: FlowNodeInstanceFilterId
+  processInstanceId: FlowNodeInstanceFilterProcessInstanceId
+  flowNodeId: FlowNodeInstanceFilterFlowNodeId
+  flowNodeType: FlowNodeInstanceFilterFlowNodeType
+  eventType: FlowNodeInstanceFilterEventType
+  laneName: FlowNodeInstanceFilterLaneName
+  state: FlowNodeInstanceFilterState
+  startedAt: FlowNodeInstanceFilterStartedAt
+  finishedAt: FlowNodeInstanceFilterFinishedAt
+  triggererFlowNodeInstanceId: FlowNodeInstanceFilterTriggererFlowNodeInstanceId
+  inputToken: FlowNodeInstanceFilterInputToken
+  outputToken: FlowNodeInstanceFilterOutputToken
+  typeProperties: FlowNodeInstanceFilterTypeProperties
+  errorInfo: FlowNodeInstanceFilterErrorInfo
+  multiInstanceId: FlowNodeInstanceFilterMultiInstanceId
+  iterationIndex: FlowNodeInstanceFilterIterationIndex
+}
+
+input FlowNodeInstanceSortInput {
+  order: SortOrder
+  field: FlowNodeInstanceSortField!
+}
+
+type FlowNodeInstance {
+  id: ID!
+
+  processInstanceId: ID!
+
+  flowNodeId: String!
+
+  flowNodeType: String!
+
+  eventType: String
+
+  laneName: String
+
+  state: String!
+
+  startedAt: DateTime!
+
+  finishedAt: DateTime
+
+  previousFlowNodeInstanceIds: [ID!]
+
+  triggererFlowNodeInstanceId: ID
+
+  inputToken: JsonString
+
+  outputToken: JsonString
+
+  typeProperties: JsonString
+
+  errorInfo: JsonString
+
+  multiInstanceId: ID
+
+  iterationIndex: Int
+
+  "The process version this instance ran against. No direct persistence relationship exists — resolved via the parent ProcessInstance."
+  processVersion: ProcessVersion
+
+  "The BPMN flow node this instance ran, resolved from ModelCache's flat, every-scope index. Reaches nodes inside any nested subprocess scope."
+  flowNode: FlowNode
+}
+
+enum ProcessInstanceSortField {
+  ID
+  PROCESS_VERSION_ID
+  PARENT_PROCESS_INSTANCE_ID
+  BUSINESS_KEY
+  TRIGGERER_FLOW_NODE_INSTANCE_ID
+  STATE
+  STARTED_AT
+  FINISHED_AT
+  STARTED_BY
+  STARTED_WITH_CONTEXT
+  ERROR_INFO
+  ID_TEXT
+}
+
+"A page of :process_instance"
+type PageOfProcessInstance {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [ProcessInstance!]
+}
+
+input ProcessInstanceFilterIdText {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessInstanceFilterErrorInfo {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input ProcessInstanceFilterStartedWithContext {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input ProcessInstanceFilterStartedBy {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input ProcessInstanceFilterFinishedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input ProcessInstanceFilterStartedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input ProcessInstanceFilterState {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessInstanceFilterTriggererFlowNodeInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessInstanceFilterBusinessKey {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessInstanceFilterParentProcessInstanceId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessInstanceFilterProcessVersionId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessInstanceFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessInstanceFilterInput {
+  and: [ProcessInstanceFilterInput!]
+
+  or: [ProcessInstanceFilterInput!]
+
+  not: [ProcessInstanceFilterInput!]
+
+  id: ProcessInstanceFilterId
+
+  processVersionId: ProcessInstanceFilterProcessVersionId
+
+  parentProcessInstanceId: ProcessInstanceFilterParentProcessInstanceId
+
+  businessKey: ProcessInstanceFilterBusinessKey
+
+  triggererFlowNodeInstanceId: ProcessInstanceFilterTriggererFlowNodeInstanceId
+
+  state: ProcessInstanceFilterState
+
+  startedAt: ProcessInstanceFilterStartedAt
+
+  finishedAt: ProcessInstanceFilterFinishedAt
+
+  startedBy: ProcessInstanceFilterStartedBy
+
+  startedWithContext: ProcessInstanceFilterStartedWithContext
+
+  errorInfo: ProcessInstanceFilterErrorInfo
+
+  processVersion: ProcessVersionFilterInput
+
+  flowNodeInstances: FlowNodeInstanceFilterInput
+
+  dataObjectValues: DataObjectValueFilterInput
+
+  dataObjectHistory: DataObjectHistoryEntryFilterInput
+
+  "UUID primary key cast to text — enables substring (ilike) search in GraphQL"
+  idText: ProcessInstanceFilterIdText
+}
+
+input ProcessInstanceSortInput {
+  order: SortOrder
+  field: ProcessInstanceSortField!
+}
+
+type ProcessInstance {
+  id: ID!
+
+  processVersionId: ID!
+
+  parentProcessInstanceId: ID
+
+  businessKey: String
+
+  triggererFlowNodeInstanceId: ID
+
+  state: String!
+
+  startedAt: DateTime!
+
+  finishedAt: DateTime
+
+  startedBy: JsonString
+
+  startedWithContext: JsonString
+
+  errorInfo: JsonString
+
+  processVersion: ProcessVersion
+
+  flowNodeInstances(
+    "How to sort the records in the response"
+    sort: [FlowNodeInstanceSortInput]
+
+    "A filter to limit the results"
+    filter: FlowNodeInstanceFilterInput
+
+    "The number of records to return."
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): [FlowNodeInstance!]!
+
+  dataObjectValues(
+    "How to sort the records in the response"
+    sort: [DataObjectValueSortInput]
+
+    "A filter to limit the results"
+    filter: DataObjectValueFilterInput
+
+    "The number of records to return."
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): [DataObjectValue!]!
+
+  dataObjectHistory(
+    "How to sort the records in the response"
+    sort: [DataObjectHistoryEntrySortInput]
+
+    "A filter to limit the results"
+    filter: DataObjectHistoryEntryFilterInput
+
+    "The number of records to return."
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): [DataObjectHistoryEntry!]!
+
+  "End-event output tokens for finished PIs; nil for all other states"
+  finalTokens: [JsonString!]
+
+  "UUID primary key cast to text — enables substring (ilike) search in GraphQL"
+  idText: String
+}
+
+enum ProcessVersionSortField {
+  ID
+  PROCESS_ID
+  VERSION
+  DEFINITIONS_ID
+  BPMN_XML
+  DEPLOYER
+  DEPLOYED_AT
+}
+
+"A page of :process_version"
+type PageOfProcessVersion {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [ProcessVersion!]
+}
+
+input ProcessVersionFilterDeployedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input ProcessVersionFilterDeployer {
+  isNil: Boolean
+  eq: JsonString
+  notEq: JsonString
+  in: [JsonString]
+  lessThan: JsonString
+  greaterThan: JsonString
+  lessThanOrEqual: JsonString
+  greaterThanOrEqual: JsonString
+  isDistinctFrom: JsonString
+  isNotDistinctFrom: JsonString
+}
+
+input ProcessVersionFilterBpmnXml {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessVersionFilterDefinitionsId {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessVersionFilterVersion {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessVersionFilterProcessId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessVersionFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessVersionFilterInput {
+  and: [ProcessVersionFilterInput!]
+  or: [ProcessVersionFilterInput!]
+  not: [ProcessVersionFilterInput!]
+  id: ProcessVersionFilterId
+  processId: ProcessVersionFilterProcessId
+  version: ProcessVersionFilterVersion
+  definitionsId: ProcessVersionFilterDefinitionsId
+  bpmnXml: ProcessVersionFilterBpmnXml
+  deployer: ProcessVersionFilterDeployer
+  deployedAt: ProcessVersionFilterDeployedAt
+  processInstances: ProcessInstanceFilterInput
+}
+
+input ProcessVersionSortInput {
+  order: SortOrder
+  field: ProcessVersionSortField!
+}
+
+type ProcessVersion {
+  id: ID!
+
+  processId: ID!
+
+  version: String!
+
+  definitionsId: String
+
+  bpmnXml: String
+
+  deployer: JsonString
+
+  deployedAt: DateTime!
+
+  processInstances(
+    "How to sort the records in the response"
+    sort: [ProcessInstanceSortInput]
+
+    "A filter to limit the results"
+    filter: ProcessInstanceFilterInput
+
+    "The number of records to return."
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): [ProcessInstance!]!
+
+  "The parsed BPMN process for this version, resolved from ModelCache (not the database). Null if the model has been evicted and cannot be reloaded (e.g. the source XML is gone)."
+  processModel: ProcessModel
+}
+
+enum ProcessSortField {
+  ID
+  PROCESS_MODEL_ID
+  NAME
+  ENABLED
+  CREATED_AT
+}
+
+"A page of :process"
+type PageOfProcess {
+  "Whether or not there is a next page"
+  hasNextPage: Boolean!
+
+  "Whether or not there is a previous page"
+  hasPreviousPage: Boolean!
+
+  "The number of the current page"
+  pageNumber: Int!
+
+  "The number of the last page"
+  lastPage: Int!
+
+  "The number of records per page"
+  limit: Int!
+
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [Process!]
+}
+
+input ProcessFilterCreatedAt {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input ProcessFilterEnabled {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input ProcessFilterName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessFilterProcessModelId {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input ProcessFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input ProcessFilterInput {
+  and: [ProcessFilterInput!]
+  or: [ProcessFilterInput!]
+  not: [ProcessFilterInput!]
+  id: ProcessFilterId
+  processModelId: ProcessFilterProcessModelId
+  name: ProcessFilterName
+  enabled: ProcessFilterEnabled
+  createdAt: ProcessFilterCreatedAt
+  versions: ProcessVersionFilterInput
+}
+
+input ProcessSortInput {
+  order: SortOrder
+  field: ProcessSortField!
+}
+
+type Process {
+  id: ID!
+  processModelId: String!
+  name: String
+  enabled: Boolean!
+  createdAt: DateTime!
+  versions(
+    "How to sort the records in the response"
+    sort: [ProcessVersionSortInput]
+
+    "A filter to limit the results"
+    filter: ProcessVersionFilterInput
+
+    "The number of records to return."
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): [ProcessVersion!]!
+}
+
+enum SortOrder {
+  DESC
+  DESC_NULLS_FIRST
+  DESC_NULLS_LAST
+  ASC
+  ASC_NULLS_FIRST
+  ASC_NULLS_LAST
+}
+
+type RootQueryType {
+  getProcess(
+    "The id of the record"
+    id: ID!
+  ): Process
+  processes(
+    "How to sort the records in the response"
+    sort: [ProcessSortInput]
+
+    "A filter to limit the results"
+    filter: ProcessFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfProcess
+  getProcessVersion(
+    "The id of the record"
+    id: ID!
+  ): ProcessVersion
+  processVersions(
+    "How to sort the records in the response"
+    sort: [ProcessVersionSortInput]
+
+    "A filter to limit the results"
+    filter: ProcessVersionFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfProcessVersion
+  getProcessInstance(
+    "The id of the record"
+    id: ID!
+  ): ProcessInstance
+  processInstances(
+    "How to sort the records in the response"
+    sort: [ProcessInstanceSortInput]
+
+    "A filter to limit the results"
+    filter: ProcessInstanceFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfProcessInstance
+  getFlowNodeInstance(
+    "The id of the record"
+    id: ID!
+  ): FlowNodeInstance
+  flowNodeInstances(
+    "How to sort the records in the response"
+    sort: [FlowNodeInstanceSortInput]
+
+    "A filter to limit the results"
+    filter: FlowNodeInstanceFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfFlowNodeInstance
+  getDataObjectValue(
+    "The id of the record"
+    id: ID!
+  ): DataObjectValue
+  dataObjectValues(
+    "How to sort the records in the response"
+    sort: [DataObjectValueSortInput]
+
+    "A filter to limit the results"
+    filter: DataObjectValueFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfDataObjectValue
+  dataObjectHistory(
+    "How to sort the records in the response"
+    sort: [DataObjectHistoryEntrySortInput]
+
+    "A filter to limit the results"
+    filter: DataObjectHistoryEntryFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfDataObjectHistoryEntry
+  getDecisionDefinition(
+    "The id of the record"
+    id: ID!
+  ): DecisionDefinition
+  decisionDefinitions(
+    "How to sort the records in the response"
+    sort: [DecisionDefinitionSortInput]
+
+    "A filter to limit the results"
+    filter: DecisionDefinitionFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfDecisionDefinition
+  getDecisionVersion(
+    "The id of the record"
+    id: ID!
+  ): DecisionVersion
+  decisionVersions(
+    "How to sort the records in the response"
+    sort: [DecisionVersionSortInput]
+
+    "A filter to limit the results"
+    filter: DecisionVersionFilterInput
+
+    "The number of records to return. Maximum 250"
+    limit: Int
+
+    "The number of records to skip."
+    offset: Int
+  ): PageOfDecisionVersion
+}
+
+"""
+The `Json` scalar type represents arbitrary json string data, represented as UTF-8
+character sequences. The Json type is most often used to represent a free-form
+human-readable json string.
+"""
+scalar JsonString
+
+"""
+The `Json` scalar type represents arbitrary json string data, represented as UTF-8
+character sequences. The Json type is most often used to represent a free-form
+human-readable json string.
+"""
+scalar Json
+
+"""
+The `DateTime` scalar type represents a date and time in the UTC
+timezone. The DateTime appears in a JSON response as an ISO8601 formatted
+string, including UTC timezone ("Z"). The parsed date and time string will
+be converted to UTC if there is an offset.
+"""
+scalar DateTime
+
+"The kind of a BPMN flow node, aligned 1:1 with `BfwEngine.BPMN.Model.FlowNodeData.*`. Event kind (message\/timer\/error\/...) is not folded in here — see the `EventDefinition` union on event-position nodes."
+enum FlowNodeType {
+  TASK
+  USER_TASK
+  SERVICE_TASK
+  MANUAL_TASK
+  SCRIPT_TASK
+  BUSINESS_RULE_TASK
+  SEND_TASK
+  RECEIVE_TASK
+  CALL_ACTIVITY
+  SUB_PROCESS
+  EXCLUSIVE_GATEWAY
+  PARALLEL_GATEWAY
+  INCLUSIVE_GATEWAY
+  EVENT_BASED_GATEWAY
+  COMPLEX_GATEWAY
+  START_EVENT
+  END_EVENT
+  INTERMEDIATE_CATCH_EVENT
+  INTERMEDIATE_THROW_EVENT
+  BOUNDARY_EVENT
+  UNKNOWN
+}
+
+"Standard BPMN loop ordering for a multi-instance activity."
+enum MultiInstanceOrdering {
+  SEQUENTIAL
+  PARALLEL
+}
+
+"Direction of a data contract relative to the owning flow node."
+enum DataContractDirection {
+  INPUT
+  OUTPUT
+}
+
+type NoneEventDefinition {
+  "Marker field — a `None` event definition carries no data."
+  isNone: Boolean!
+}
+
+type MessageEventDefinition {
+  messageRef: String
+  correlationRetrievalExpression: String
+}
+
+type SignalEventDefinition {
+  signalRef: String
+}
+
+type TimerEventDefinition {
+  timeDate: String
+  timeDuration: String
+  timeCycle: String
+}
+
+type ErrorEventDefinition {
+  errorRef: String
+  errorCode: String
+  errorMessage: String
+}
+
+type EscalationEventDefinition {
+  escalationRef: String
+  escalationCode: String
+}
+
+type ConditionalEventDefinition {
+  conditionExpression: String
+}
+
+type CompensationEventDefinition {
+  activityRef: String
+  waitForCompletion: Boolean!
+}
+
+type TerminateEventDefinition {
+  isTerminate: Boolean!
+}
+
+type CancelEventDefinition {
+  isCancel: Boolean!
+}
+
+type LinkEventDefinition {
+  linkName: String
+}
+
+"The trigger-specific payload of an event-position flow node (Start\/End\/IntermediateCatch\/IntermediateThrow\/Boundary). Exactly one concrete type per `BfwEngine.BPMN.Model.EventDefinition.*` struct."
+union EventDefinition = NoneEventDefinition | MessageEventDefinition | SignalEventDefinition | TimerEventDefinition | ErrorEventDefinition | EscalationEventDefinition | ConditionalEventDefinition | CompensationEventDefinition | TerminateEventDefinition | CancelEventDefinition | LinkEventDefinition
+
+type Mapping {
+  source: String!
+  target: String!
+}
+
+type DataAssociation {
+  id: ID!
+  sourceRef: String
+  targetRef: String
+  valueExpression: String
+}
+
+type DataContract {
+  direction: DataContractDirection!
+  jsonSchema: Json!
+}
+
+type MultiInstance {
+  isSequential: Boolean!
+  collectionExpression: String
+  elementVariable: String
+  completionCondition: String
+  outputCollection: String
+  outputElementVariable: String
+  loopBreakCondition: String
+  loopInterval: String
+  maxIterations: Int
+}
+
+type StandardLoop {
+  testBefore: Boolean!
+  loopCondition: String
+  loopMaximum: Int
+  loopInterval: String
+}
+
+type SequenceFlow {
+  id: ID!
+  name: String
+  sourceRef: String!
+  targetRef: String!
+  conditionExpression: String
+  isDefault: Boolean!
+}
+
+type Lane {
+  id: ID!
+  name: String
+  flowNodeRefs: [String!]!
+}
+
+type DataObjectModel {
+  id: ID!
+  name: String
+  itemSubjectRef: String
+  valueContract: Json
+}
+
+type DataObjectReferenceModel {
+  id: ID!
+  name: String
+  dataObjectRef: String
+  dataState: String
+}
+
+"A `<bpmn:dataStoreReference>`. Data Stores are recognised, not modelled: `dataStoreRef` is preserved verbatim and never resolved or validated by the Engine."
+type DataStoreReferenceModel {
+  id: ID!
+  name: String
+  dataStoreRef: String
+  dataState: String
+}
+
+type Association {
+  id: ID!
+  sourceRef: String
+  targetRef: String
+  associationDirection: String
+}
+
+type BpmnExtension {
+  key: String!
+  value: String
+  attributes: Json!
+  children: [BpmnExtension!]!
+}
+
+type LinterRulesetScore {
+  rulesetId: String!
+  scorePercent: Float
+  complianceStatus: String
+  computedAtIso: String
+  schemaVersion: String
+  maxPoints: Float
+  penaltyPoints: Float
+  rawErrorFindings: Int
+  rawWarningFindings: Int
+}
+
+type MessageDefinition {
+  id: ID!
+  name: String
+}
+
+type SignalDefinition {
+  id: ID!
+  name: String
+}
+
+type ErrorDefinition {
+  id: ID!
+  name: String
+  errorCode: String
+}
+
+type EscalationDefinition {
+  id: ID!
+  name: String
+  escalationCode: String
+}
+
+"A polymorphic BPMN flow node. Concrete type is one of the 21 `*Node` types below, aligned 1:1 with `BfwEngine.BPMN.Model.FlowNodeData.*`."
+interface FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+}
+
+type TaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+}
+
+type UserTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  formFields: Json
+
+  formActions: Json
+
+  assigneesExpression: String
+
+  payloadContract: Json
+
+  resultContract: Json
+
+  dueDate: String
+
+  priority: Int
+}
+
+type ServiceTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  implementation: String
+
+  payloadContract: Json
+
+  resultContract: Json
+
+  httpUrl: String
+
+  httpMethod: String
+
+  httpBody: String
+
+  httpAuthHeader: String
+
+  httpResponseHeaders: String
+}
+
+type ManualTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  requireConfirmation: Boolean!
+}
+
+type ScriptTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  scriptFormat: String
+
+  script: String
+
+  scriptRef: String
+
+  payloadContract: Json
+
+  resultContract: Json
+}
+
+type BusinessRuleTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  implementation: String
+
+  script: String
+
+  "Legacy field, parsed for XML fidelity only. The validator rejects `implementation=\"plugin\"`, so this is never the decision actually invoked — use `decisionRef`."
+  ruleRef: String
+
+  decisionRef: String
+
+  decisionElementId: String
+
+  resultVariable: String
+
+  traceUnmatchedRules: Boolean!
+
+  payloadContract: Json
+
+  resultContract: Json
+}
+
+type SendTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  messageRef: String
+
+  payloadContract: Json
+}
+
+type ReceiveTaskNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  messageRef: String
+
+  resultContract: Json
+}
+
+type CallActivityNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  calledElement: String
+
+  startEventId: String
+
+  calledProcessVersion: String
+}
+
+type SubProcessNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  inMappings: [Mapping!]!
+
+  outMappings: [Mapping!]!
+
+  triggeredByEvent: Boolean!
+
+  isTransaction: Boolean!
+
+  transactionMethod: String
+
+  isAdHoc: Boolean!
+
+  adhocOrdering: MultiInstanceOrdering
+
+  cancelRemainingInstances: Boolean!
+
+  adhocCompletionCondition: String
+
+  implementation: String
+
+  activeElementsExpression: String
+
+  payloadContract: Json
+
+  resultContract: Json
+
+  dataObjects: [DataObjectModel!]!
+
+  dataObjectReferences: [DataObjectReferenceModel!]!
+
+  dataStoreReferences: [DataStoreReferenceModel!]!
+
+  flowNodes: [FlowNode!]!
+
+  sequenceFlows: [SequenceFlow!]!
+}
+
+type ExclusiveGatewayNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  defaultFlowRef: String
+}
+
+type ParallelGatewayNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+}
+
+type InclusiveGatewayNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  defaultFlowRef: String
+}
+
+type EventBasedGatewayNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+}
+
+type ComplexGatewayNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  activationCondition: String
+}
+
+type UnknownNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  elementName: String
+
+  attributes: Json
+}
+
+type StartEventNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  eventDefinition: EventDefinition!
+
+  resultContract: Json
+
+  isInterrupting: Boolean!
+}
+
+type EndEventNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  eventDefinition: EventDefinition!
+
+  inMappings: [Mapping!]!
+
+  payloadContract: Json
+}
+
+type IntermediateCatchEventNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  eventDefinition: EventDefinition!
+
+  outMappings: [Mapping!]!
+
+  resultContract: Json
+}
+
+type IntermediateThrowEventNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  eventDefinition: EventDefinition!
+
+  inMappings: [Mapping!]!
+
+  payloadContract: Json
+}
+
+type BoundaryEventNode implements FlowNode {
+  id: ID!
+
+  name: String
+
+  type: FlowNodeType!
+
+  incoming: [String!]!
+
+  outgoing: [String!]!
+
+  boundaryEventRefs: [String!]!
+
+  dataContracts: [DataContract!]!
+
+  dataInputAssociations: [DataAssociation!]!
+
+  dataOutputAssociations: [DataAssociation!]!
+
+  multiInstance: MultiInstance
+
+  standardLoop: StandardLoop
+
+  isForCompensation: Boolean!
+
+  documentation: String
+
+  "The flow node ID of the enclosing SubProcess\/Transaction\/AdHocSubProcess shell, or null at the top level. Only meaningful (and only populated) on `ProcessModel.allFlowNodes` entries — always null on the nested `flowNodes` tree, where the parent is implicit."
+  parentSubProcessId: String
+
+  eventDefinition: EventDefinition!
+
+  attachedToRef: String
+
+  cancelActivity: Boolean!
+
+  compensationHandlerId: String
+
+  outMappings: [Mapping!]!
+
+  resultContract: Json
+}
+
+"The parsed BPMN process, projected from `BfwEngine.BPMN.Model.Process` via `ModelCache`. Named `ProcessModel` (not `Process`) to avoid colliding with the persistence-layer `Process` GraphQL type."
+type ProcessModel {
+  id: ID!
+
+  name: String
+
+  version: String
+
+  isExecutable: Boolean!
+
+  isTransactionScope: Boolean!
+
+  isAdHocScope: Boolean!
+
+  correlationKey: String
+
+  "Top-level flow nodes only. Nested subprocess scopes recurse via SubProcessNode.flowNodes. Use `allFlowNodes` for a flat, every-scope lookup."
+  flowNodes: [FlowNode!]!
+
+  "Every flow node across every scope (top-level and nested subprocesses alike), flattened. Each entry carries `parentSubProcessId`. This is what `FlowNodeInstance.flowNode` resolves against."
+  allFlowNodes: [FlowNode!]!
+
+  sequenceFlows: [SequenceFlow!]!
+
+  lanes: [Lane!]!
+
+  dataObjects: [DataObjectModel!]!
+
+  dataObjectReferences: [DataObjectReferenceModel!]!
+
+  dataStoreReferences: [DataStoreReferenceModel!]!
+
+  associations: [Association!]!
+
+  extensions: [BpmnExtension!]!
+
+  "BPMN `<definitions>` id of the source document this process was parsed from."
+  definitionsId: ID
+
+  messages: [MessageDefinition!]!
+
+  signals: [SignalDefinition!]!
+
+  errors: [ErrorDefinition!]!
+
+  escalations: [EscalationDefinition!]!
+
+  linterScores: [LinterRulesetScore!]!
+}

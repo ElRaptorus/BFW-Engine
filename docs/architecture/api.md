@@ -470,7 +470,8 @@ See [configuration.md](./configuration.md) and [database.md](../guides/operation
 ### 10.4 OpenAPI + GraphQL SDL
 
 - OpenAPI 3.x served at `GET /api/openapi`; Swagger UI at `GET /` (path to the spec configured in the plug). All three devtools routes are gated by `BFE_DEVTOOLS_ENABLED` (defaults to `false` in prod). The OpenAPI spec can be individually re-enabled via `BFE_EXPOSE_OPENAPI_SPEC=true`.
-- GraphQL Playground at `/admin/graphiql` (devtools-only, pre-loaded with example query tabs). SDL export endpoint is not currently implemented.
+- GraphQL Playground at `/admin/graphiql` (devtools-only, pre-loaded with example query tabs). There is no SDL endpoint; the SDL is exported to a committed file instead (see below).
+- **Committed contracts.** `contracts/graphql/schema.graphql` (Absinthe SDL of `BfwEngineWeb.Graphql.Schema`) and `contracts/openapi.json` (`priv/openapi/spec.yaml` as key-sorted JSON, without the runtime `servers` block) are written by `mix bfw.gen.contracts` (`BfwEngineWeb.ContractExport`). `mix bfw.gen.contracts --check` is a step of `mix quality` and fails on drift; `ContractExportTest` repeats the comparison in the unit run. Other engines (BFW-Engine-Light) vendor these two files and test against them. Regenerate and commit them whenever the GraphQL schema or `spec.yaml` changes.
 - Client generation is CI-driven ([plugins.md](./plugins.md) — SDK packages).
 
 ### 10.5 Deprecation headers (RFC 8594)
