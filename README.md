@@ -1,11 +1,5 @@
 # Bifrost Forge World Engine
 
-> Toll the great Bell once! Pull the lever forward, to engage the Piston and Pump!\
-> Toll the great Bell twice! With the push of the Button, fire the Engine and spark the Turbine into life!\
-> Toll the great Bell Thrice! Sing praise to the God of all Machines!
->
-> Ave Deus Mechanicus
-
 ## What is this?
 
 A BPMN 2.0 workflow engine written in Elixir / OTP and sanctified oils and pistons from the holy [Forges of Mars](https://wh40k.lexicanum.com/wiki/Adeptus_Mechanicus).
