@@ -1430,4 +1430,56 @@ describe('parseBpmn', () => {
       expect(process.isAdHocScope).toBe(false);
     });
   });
+
+  describe('multi-instance data items', () => {
+    const wrap = (loop: string) => `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+      xmlns:bfw="https://bifrostforge.world/schema/bpmn" id="D">
+      <bpmn:process id="p" isExecutable="true">
+        <bpmn:serviceTask id="t" implementation="http">${loop}</bpmn:serviceTask>
+      </bpmn:process></bpmn:definitions>`;
+
+    it('reads the variable names from the name attribute of inputDataItem and outputDataItem', () => {
+      const multiInstance = parseBpmn(
+        wrap(`<bpmn:multiInstanceLoopCharacteristics>
+          <bpmn:inputDataItem name="item" /><bpmn:outputDataItem name="result" />
+        </bpmn:multiInstanceLoopCharacteristics>`),
+      ).processes[0]!.flowNodes[0]!.multiInstance!;
+
+      expect(multiInstance.elementVariable).toBe('item');
+      expect(multiInstance.outputElementVariable).toBe('result');
+    });
+
+    it('prefers the bfw extension over the standard data items', () => {
+      const multiInstance = parseBpmn(
+        wrap(`<bpmn:multiInstanceLoopCharacteristics>
+          <bpmn:extensionElements><bfw:elementVariable>fromExtension</bfw:elementVariable></bpmn:extensionElements>
+          <bpmn:inputDataItem name="fromItem" />
+        </bpmn:multiInstanceLoopCharacteristics>`),
+      ).processes[0]!.flowNodes[0]!.multiInstance!;
+
+      expect(multiInstance.elementVariable).toBe('fromExtension');
+    });
+  });
+
+  describe('well-formedness', () => {
+    it('throws an error naming line and column for malformed XML', () => {
+      expect(() => parseBpmn('<bpmn:definitions xmlns:bpmn="x">\n<bpmn:process></bpmn:definitions>')).toThrow(
+        /line 2, column \d+/,
+      );
+    });
+
+    it('names only the line when the validator reports no column', () => {
+      expect(() => parseBpmn('')).toThrow('Malformed BPMN XML at line 1: Start tag expected.');
+    });
+
+    it('rejects DOCTYPE declarations', () => {
+      expect(() => parseBpmn('<!DOCTYPE definitions [<!ENTITY a "b">]><definitions/>')).toThrow(
+        'DOCTYPE declarations are not allowed in BPMN files.',
+      );
+    });
+
+    it('ignores the word DOCTYPE inside a comment', () => {
+      expect(() => parseBpmn('<!-- <!DOCTYPE x> --><definitions/>')).not.toThrow();
+    });
+  });
 });

@@ -1,0 +1,183 @@
+{
+  "definitionsId": "Definitions_MiDataItems",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Standard",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": {
+            "collectionExpression": "token.items",
+            "compiledCollection": null,
+            "compiledCompletionCondition": null,
+            "compiledLoopBreakCondition": null,
+            "compiledOutputCollection": null,
+            "completionCondition": null,
+            "elementVariable": "item",
+            "isSequential": false,
+            "loopBreakCondition": null,
+            "loopCardinality": null,
+            "loopInterval": null,
+            "maxIterations": null,
+            "outputCollection": null,
+            "outputElementVariable": "result"
+          },
+          "name": "Standard data items",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Extension",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": {
+            "collectionExpression": "token.items",
+            "compiledCollection": null,
+            "compiledCompletionCondition": null,
+            "compiledLoopBreakCondition": null,
+            "compiledOutputCollection": null,
+            "completionCondition": null,
+            "elementVariable": "fromExtension",
+            "isSequential": false,
+            "loopBreakCondition": null,
+            "loopCardinality": null,
+            "loopInterval": null,
+            "maxIterations": null,
+            "outputCollection": null,
+            "outputElementVariable": null
+          },
+          "name": "Extension wins",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_MiDataItems",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Task_Standard", "Task_Extension", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "MI data items",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_Standard"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Standard",
+          "targetRef": "Task_Extension"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Extension",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

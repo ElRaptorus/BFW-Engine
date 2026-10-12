@@ -1,0 +1,141 @@
+{
+  "definitionsId": "Definitions_data_object",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "DataObject_1",
+          "dataState": null,
+          "id": "DataObjectRef_1",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "DataObject_1",
+          "itemSubjectRef": null,
+          "name": "ResultData",
+          "valueContract": null
+        }
+      ],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DataOutputAssoc_1",
+              "sourceRef": null,
+              "targetRef": "DataObjectRef_1",
+              "valueExpression": null
+            }
+          ],
+          "documentation": null,
+          "id": "ServiceTask_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Echo With Data Output",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "echo",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "integration-data-object",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ServiceTask_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Integration Data Object",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ServiceTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,4 +1,4 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 import { FlowNodeType } from '../types/enums.js';
 import type { FormAction, FormFieldDefinition } from '../types/form.js';
@@ -33,9 +33,20 @@ import type {
 
 /**
  * Parse BPMN 2.0 XML into a fully typed model matching the engine's
- * internal parser output. Synchronous, pure, throws on malformed XML.
+ * internal parser output. Synchronous, pure, throws on malformed XML and on
+ * DOCTYPE declarations (the engine rejects both, so the SDK must not accept them).
  */
 export function parseBpmn(xml: string): BpmnDefinitions {
+  const validation = XMLValidator.validate(xml);
+  if (validation !== true) {
+    const { msg, line, col } = validation.err;
+    const position = col === undefined ? `line ${line}` : `line ${line}, column ${col}`;
+    throw new Error(`Malformed BPMN XML at ${position}: ${msg}`);
+  }
+  if (/<!DOCTYPE/i.test(xml.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, ''))) {
+    throw new Error('DOCTYPE declarations are not allowed in BPMN files.');
+  }
+
   const parser = new XMLParser({
     ignoreAttributes: false,
     removeNSPrefix: true,
@@ -1151,16 +1162,22 @@ function collectDataContracts(kids: OrderedNode[], contracts: DataContract[]): v
   }
 }
 
+/** The standard BPMN data items carry the variable name in the `name` attribute, as the Elixir parser reads it. */
+function dataItemName(parentChildren: OrderedNode[], tagName: string): string {
+  const element = findElement(parentChildren, tagName);
+  return element ? (attr(element, 'name') ?? '') : '';
+}
+
 function parseMultiInstance(node: OrderedNode): MultiInstance {
   const kids = children(node);
   const extKids = getExtensionChildren(kids);
 
   const maxIterationsText = childText(extKids, 'maxIterations');
 
-  const elementVariable = childText(extKids, 'elementVariable') || childText(kids, 'inputDataItem') || null;
+  const elementVariable = childText(extKids, 'elementVariable') || dataItemName(kids, 'inputDataItem') || null;
 
   const outputElementVariable =
-    childText(extKids, 'outputElementVariable') || childText(kids, 'outputDataItem') || null;
+    childText(extKids, 'outputElementVariable') || dataItemName(kids, 'outputDataItem') || null;
 
   return {
     isSequential: attr(node, 'isSequential') === 'true',

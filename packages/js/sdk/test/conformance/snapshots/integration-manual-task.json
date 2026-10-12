@@ -1,0 +1,111 @@
+{
+  "definitionsId": "Definitions_manual_task",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ManualTask_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Pack Order",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "manual_task",
+          "typeData": {
+            "requireConfirmation": true
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "integration-manual-task",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "ManualTask_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Integration Manual Task",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ManualTask_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ManualTask_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

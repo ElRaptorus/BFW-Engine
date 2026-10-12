@@ -50,6 +50,25 @@ defmodule BfwEngine.BPMN.ParserTest do
     Enum.find(esp.type_data.flow_nodes, &(&1.id == "ESP_Start_1"))
   end
 
+  describe "parse/1 — DOCTYPE declarations" do
+    test "refuses a document with a DOCTYPE" do
+      xml = ~s(<!DOCTYPE definitions [<!ENTITY a "b">]>) <> read_fixture("minimal_valid.bpmn")
+      assert {:error, :doctype_not_allowed} = Parser.parse(xml)
+    end
+
+    test "accepts the word DOCTYPE inside a comment" do
+      xml =
+        String.replace(
+          read_fixture("minimal_valid.bpmn"),
+          "<bpmn:definitions",
+          "<!-- <!DOCTYPE x> --><bpmn:definitions",
+          global: false
+        )
+
+      assert {:ok, %Definitions{}} = Parser.parse(xml)
+    end
+  end
+
   describe "parse/1 — minimal valid BPMN" do
     test "returns {:ok, %Definitions{}}" do
       xml = read_fixture("minimal_valid.bpmn")

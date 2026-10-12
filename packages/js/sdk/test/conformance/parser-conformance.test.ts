@@ -9,6 +9,7 @@
  * Fixture directories (relative to the engine project root):
  *   - test/fixtures/bpmns/                 (integration-level fixtures)
  *   - apps/core_bpmn/test/fixtures/bpmns/  (parser-level fixtures)
+ *   - packages/js/client/test/integration/fixtures/  (documents the client suite deploys)
  *
  * The fixture list is derived from the filesystem, never hand-maintained. A
  * previous revision enumerated fixtures manually and asserted only 76 of 332
@@ -27,6 +28,7 @@ const PROJECT_ROOT = resolve(__dirname, '../../../../..');
 const SNAPSHOT_DIR = resolve(__dirname, 'snapshots');
 const ROOT_FIXTURES = join(PROJECT_ROOT, 'test/fixtures/bpmns');
 const CORE_FIXTURES = join(PROJECT_ROOT, 'apps/core_bpmn/test/fixtures/bpmns');
+const CLIENT_FIXTURES = join(PROJECT_ROOT, 'packages/js/client/test/integration/fixtures');
 
 function walk(directory: string, extension: string): string[] {
   let entries: string[];
@@ -61,7 +63,7 @@ function byteCompare(left: string, right: string): number {
  * snapshot.
  */
 function buildFixtureIndex(): Map<string, string> {
-  const paths = [...walk(ROOT_FIXTURES, '.bpmn'), ...walk(CORE_FIXTURES, '.bpmn')]
+  const paths = [...walk(ROOT_FIXTURES, '.bpmn'), ...walk(CORE_FIXTURES, '.bpmn'), ...walk(CLIENT_FIXTURES, '.bpmn')]
     .map((path) => [path.slice(PROJECT_ROOT.length + 1), path] as const)
     .sort(([relativeLeft], [relativeRight]) => byteCompare(relativeLeft, relativeRight));
 

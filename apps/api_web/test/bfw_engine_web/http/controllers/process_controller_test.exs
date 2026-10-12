@@ -235,6 +235,15 @@ defmodule BfwEngineWeb.Http.ProcessControllerTest do
       assert body["message"] =~ "parsing"
     end
 
+    test "returns 400 parse_error for a DOCTYPE declaration" do
+      conn = deploy_conn(%{"sources" => [~s(<!DOCTYPE a [<!ENTITY b "c">]><bpmn:definitions/>)]})
+
+      assert conn.status == 400
+      body = Jason.decode!(conn.resp_body)
+      assert_error_body(body, "parse_error")
+      assert inspect(body) =~ "DOCTYPE declarations are not allowed"
+    end
+
     test "returns 403 without deploy_bpmn claim" do
       conn = deploy_conn(%{"sources" => ["<xml/>"]}, %{})
 

@@ -378,3 +378,13 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 **Why:** Scenarios A and B preserve child identity. A retryable-terminal child (`fatal` / `aborted` / `error`) is **reset in place** — progress on retryable FNIs is erased, the instance is not. A `finished` child is left as-is. A new child instance/version needs a checkpoint **before** the Call Activity (hard-delete + re-enter) or a retry of the **child** PI with Target Version.
 
 **Correct approach:** See [retry.md](../guides/handbook/retry.md) Process Instance Tree (known limitation) and [call-activities.md](../guides/handbook/call-activities.md).
+
+---
+
+## Sandboxed commands can truncate `.git/config`, `.cursorignore`, and `.cursor/hooks.json`
+
+**Mistake:** Assuming the project-level `.cursor/hooks.json` restores the protected files, or hand-editing the files after finding them empty (0 bytes).
+
+**Why:** A Cursor sandbox overlay can leave these paths empty after a command. `.cursor/hooks.json` is one of them, so the project hook that should repair the damage is itself disabled when it matters.
+
+**Correct approach:** Each repository lists its protected files and backups in `.cursor/protected/manifest.json` (`target`, `backup`, `minimumBytes`). The user-level hook `~/.cursor/hooks/restore-protected-files.py` (registered for `sessionStart` and `stop` in `~/.cursor/hooks.json`) restores every workspace repository that has a manifest; `.cursor/hooks/restore_protected_files.py <root>` does the same for one repository. After changing a protected file on purpose, refresh its backup under `.cursor/protected/`.

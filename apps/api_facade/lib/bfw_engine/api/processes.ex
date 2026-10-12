@@ -422,6 +422,9 @@ defmodule BfwEngine.Api.Processes do
 
   defp format_bpmn_parse_error(reason) when is_binary(reason), do: [reason]
 
+  defp format_bpmn_parse_error(:doctype_not_allowed),
+    do: ["DOCTYPE declarations are not allowed in BPMN files."]
+
   defp format_bpmn_parse_error(reason) do
     Logger.error("Unrecognized parse error shape: #{inspect(reason)}")
     ["BPMN parsing failed. Server logs contain the full diagnostic."]
