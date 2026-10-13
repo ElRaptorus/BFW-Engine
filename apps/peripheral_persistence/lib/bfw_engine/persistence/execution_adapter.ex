@@ -64,6 +64,25 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
 
   @doc "Update a flow node instance via the specified Ash action."
   @impl true
+  # The park runs in the PI while the handler Task may be finishing the same
+  # row, so the state check and the write must be one UPDATE statement.
+  def update_flow_node_instance(id, :update_waiting, changes) do
+    FlowNodeInstance
+    |> Ash.Query.filter(id == ^id and state in [@state_active, @state_waiting])
+    |> Ash.bulk_update(:update_waiting, changes,
+      domain: @domain,
+      authorize?: false,
+      strategy: [:atomic],
+      return_records?: true,
+      return_errors?: true
+    )
+    |> case do
+      %Ash.BulkResult{status: :success, records: [_record]} -> :ok
+      %Ash.BulkResult{status: :success, records: []} -> {:error, :already_terminal}
+      %Ash.BulkResult{errors: errors} -> {:error, errors}
+    end
+  end
+
   def update_flow_node_instance(id, action, changes) do
     with {:ok, record} <- Ash.get(FlowNodeInstance, id, domain: @domain, authorize?: false),
          :ok <- guard_first_terminal_write(record, action),

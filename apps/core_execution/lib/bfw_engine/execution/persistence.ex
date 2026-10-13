@@ -64,9 +64,11 @@ defmodule BfwEngine.Execution.Persistence do
   @doc """
   Update a flow node instance through the named adapter action.
 
-  `:update_finished` succeeds only while the row is still `active` or
-  `waiting`. A later terminal write returns `{:error, :already_terminal}`
-  and does not change the row. `:update_waiting`, `:retry_reset`, and
+  `:update_finished` and `:update_waiting` succeed only while the row is
+  still `active` or `waiting`. On a terminal row they return
+  `{:error, :already_terminal}` and do not change the row. `:update_waiting`
+  checks and writes in one statement, because the PI parks a row its
+  handler Task may be finishing concurrently. `:retry_reset` and
   `:soft_delete` are not guarded.
   """
   @callback update_flow_node_instance(String.t(), atom(), map()) :: :ok | {:error, term()}

@@ -37,6 +37,15 @@ defmodule BfwEngine.Integration.Execution.ParallelGatewayTest do
       pending_arrivals_before = fetch_pending_arrivals(process_instance_id)
       assert length(pending_arrivals_before) == 2
 
+      [join_flow_node_instance_id] =
+        pending_arrivals_before |> Enum.map(& &1.gateway_flow_node_instance_id) |> Enum.uniq()
+
+      parked_join =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.id == join_flow_node_instance_id))
+
+      assert parked_join.state == "waiting"
+      assert parked_join.type_properties == %{"async" => true, "join_gateway" => true}
+
       terminate_process_instance(process_instance_id)
       await_process_exit(process_instance_id)
       assert_pi_state!(process_instance_id, "running")

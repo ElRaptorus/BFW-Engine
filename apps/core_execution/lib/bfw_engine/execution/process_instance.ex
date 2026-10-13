@@ -1857,6 +1857,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
         )
       end
 
+    _ =
+      if is_map_key(extra_type_properties, :join_gateway) do
+        FniLifecycle.transition_to_waiting_by_id(flow_node_instance_id, type_properties)
+      end
+
     emit_fni_state_changed(data, flow_node_instance_id, entry, :active, :waiting)
 
     task_alive = entry.pid != nil and Process.alive?(entry.pid)

@@ -402,6 +402,8 @@ Converging parallel gateways (`incoming_count > 1`, `outgoing_count <= 1`) are d
 
 The PI's in-memory `join_routing` map (keyed by BPMN `flow_node_id`) holds a lightweight routing entry: `%{fni_id:, gateway_type:, required:, arrived_via_flow_ids:}`. Token accumulation, payload merging, and GPA persistence are fully owned by the handler — the PI only routes messages.
 
+**Parked state.** When a join handler (parallel, inclusive, or complex) returns `{:async, ..., %{join_gateway: true}}`, `do_handle_fni_async/4` persists the join FNI as `waiting` with `type_properties` `%{"async" => true, "join_gateway" => true}` via `FniLifecycle.transition_to_waiting_by_id/2`, then emits `FlowNodeInstanceStateChanged` (`active` → `waiting`). The database and the wire therefore agree. The fired join's `type_properties` is `%{}`. The join's handler Task can finish the row before the PI handles the async message; the adapter writes `:update_waiting` as one conditional `UPDATE ... WHERE state IN ('active', 'waiting')` (`{:error, :already_terminal}` when no row matches), so the late park never reopens a finished join, even while the Task's finish transaction is still in flight.
+
 #### `gateway_pending_arrivals` persistence
 
 Each branch arrival is persisted to the `gateway_pending_arrivals` table by the handler Task (best-effort; persistence failure is logged but does not block execution). Rows record `process_instance_id`, `gateway_flow_node_instance_id`, `source_branch_sequence_flow_id`, `source_flow_node_instance_id`, `arrived_payload`, and `arrived_at`.
@@ -427,7 +429,7 @@ Gateways with both `incoming_count > 1` **and** `outgoing_count > 1` are rejecte
 
 #### Abort/fatal cleanup
 
-When a PI transitions to `:fatal` or `:aborted`, `cleanup_all_pending_arrivals/1` iterates all `join_routing` entries and calls `delete_gateway_pending_arrivals/1` for each gateway FNI ID. This removes orphaned `gateway_pending_arrivals` rows for joins that never completed. The handler's `handle_fatal/1` and `handle_aborted/1` callbacks are also invoked for handler-level cleanup.
+When a PI transitions to `:fatal` or `:aborted`, the `gateway_pending_arrivals` rows of a join that never fired stay in place; `ParallelGateway.handle_fatal/1` and `handle_aborted/1` do no cleanup. A full retry clears them through `clear_gpa_fni_ids` in the reset spec (see §Retry), and retention purge deletes them with the tree.
 
 #### Retry guard
 
@@ -517,7 +519,7 @@ Same as Parallel Gateway: `incoming_count > 1` AND `outgoing_count > 1` → fata
 
 #### Abort/fatal cleanup
 
-Same as Parallel Gateway: `cleanup_all_pending_arrivals/1` removes `gateway_pending_arrivals` rows for all active `join_routing` entries. Handler `handle_fatal/1` and `handle_aborted/1` callbacks are invoked for handler-level cleanup.
+Same as Parallel Gateway: the `gateway_pending_arrivals` rows of an unfired join stay until a full retry or retention purge removes them.
 
 #### Retry guard
 

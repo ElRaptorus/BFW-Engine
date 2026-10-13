@@ -677,6 +677,8 @@ defmodule BfwEngine.Execution.FniLifecycle do
            "FNI waiting #{flow_node_instance_id}"
          ) do
       :ok -> :ok
+      # A handler Task can finish the row before the PI parks it; the terminal state stands.
+      {:error, :already_terminal} -> :ok
       {:error, _} -> {:error, :persistence_failed}
     end
   end

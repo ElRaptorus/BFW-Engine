@@ -587,5 +587,33 @@ defmodule BfwEngine.Persistence.ExecutionAdapterTest do
 
       assert flow_node_instance.state == "waiting"
     end
+
+    test "update_waiting on a terminal row leaves it unchanged",
+         %{process_instance_id: process_instance_id, now: now} do
+      flow_node_instance_id = Ash.UUIDv7.generate()
+
+      FlowNodeInstance
+      |> Ash.Changeset.for_create(:create, %{
+        id: flow_node_instance_id,
+        process_instance_id: process_instance_id,
+        flow_node_id: "Join_finished",
+        flow_node_type: "complex_gateway",
+        state: "finished",
+        started_at: now
+      })
+      |> Ash.create!()
+
+      assert {:error, :already_terminal} =
+               ExecutionAdapter.update_flow_node_instance(
+                 flow_node_instance_id,
+                 :update_waiting,
+                 %{state: "waiting", type_properties: %{"join_gateway" => true}}
+               )
+
+      {:ok, flow_node_instance} =
+        Ash.get(FlowNodeInstance, flow_node_instance_id, authorize?: false)
+
+      assert flow_node_instance.state == "finished"
+    end
   end
 end

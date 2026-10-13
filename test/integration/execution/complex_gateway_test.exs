@@ -223,7 +223,7 @@ defmodule BfwEngine.Integration.Execution.ComplexGatewayTest do
 
       assert to_string(user_inner_b.type_properties["reason"]) == "cancelled_by_complex_join"
 
-      inner_join = find_fni_by_flow_node_id(process_instance_id, "InnerJoin")
+      inner_join = poll_flow_node_state(process_instance_id, "InnerJoin", "finished", 10_000)
       assert inner_join.state == "finished"
 
       user_inner_a_after = find_fni_by_flow_node_id(process_instance_id, "UserTask_InnerA")
