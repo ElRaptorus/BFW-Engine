@@ -620,6 +620,8 @@ Because the pairing always selects the *innermost* enclosing split, nested compl
 
 A join that fails any of these is excluded from `complex_region_analyses`, and the deploy is rejected.
 
+`check_complex_gateways/1` runs on the top-level process and on every subprocess scope (embedded, event, transaction, ad-hoc, nested at any depth). Inner-scope violations carry the scope prefix (`[in SubProcess '<id>'] `).
+
 **Runtime cancellation (`interrupt_region_fnis/3`).** On fire, the PI:
 
 1. Looks up the paired region's `region_node_ids` from the enriched process model (`complex_region_node_ids/2`).

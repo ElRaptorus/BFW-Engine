@@ -1181,10 +1181,10 @@ function parseMultiInstance(node: OrderedNode): MultiInstance {
 
   return {
     isSequential: attr(node, 'isSequential') === 'true',
-    collectionExpression: childText(extKids, 'inputCollection') || null,
+    collectionExpression: childText(extKids, 'inputCollection') || childText(kids, 'loopDataInput') || null,
     elementVariable,
     completionCondition: childText(kids, 'completionCondition') || null,
-    outputCollection: childText(extKids, 'outputCollection') || null,
+    outputCollection: childText(extKids, 'outputCollection') || childText(kids, 'loopDataOutput') || null,
     outputElementVariable,
     loopBreakCondition: childText(extKids, 'loopBreakCondition') || null,
     loopInterval: childText(extKids, 'loopInterval') || null,

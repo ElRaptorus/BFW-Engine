@@ -1210,6 +1210,7 @@ Inner-scope checks (messages prefixed with `[in SubProcess '<id>']`):
 - Inner BoundaryEvent `attachedToRef` must resolve within the subprocess scope
 - Inner flow nodes undergo the same type-specific completeness checks as top-level nodes (recursive for nested subprocesses)
 - Cross-boundary flows are rejected: parent-scope SequenceFlows must not reference inner subprocess node IDs; inner SequenceFlows must not reference parent-scope node IDs
+- Complex Gateway checks (mixed, join activation condition, pairing / SESE region rules) run in every scope, top level and inner, with the scope prefix
 
 Event Subprocesses (`triggeredByEvent="true"`) **are** validated recursively at
 deploy time (`validate_event_subprocess_structure`). They undergo the same

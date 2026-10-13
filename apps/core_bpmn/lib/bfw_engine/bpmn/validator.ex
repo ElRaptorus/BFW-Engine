@@ -777,12 +777,18 @@ defmodule BfwEngine.BPMN.Validator do
         do: [],
         else: check_subprocess_orphan_nodes(scope_label, data.flow_nodes, data.sequence_flows)
 
+    complex_gateway_errors =
+      inner_scope_as_process
+      |> check_complex_gateways()
+      |> Enum.map(fn {code, message} -> {code, scope_label <> message} end)
+
     List.flatten([
       check_subprocess_essential_properties(scope_label, data),
       check_subprocess_sequence_flow_refs(scope_label, data.sequence_flows, inner_node_ids),
       orphan_check,
       association_errors,
       check_event_based_gateways(inner_scope_as_process),
+      complex_gateway_errors,
       Enum.flat_map(data.flow_nodes, fn %FlowNode{id: id, type: type, type_data: type_data} ->
         validate_type_data(id, type, type_data, inner_node_ids, definitions, scope_label)
       end)

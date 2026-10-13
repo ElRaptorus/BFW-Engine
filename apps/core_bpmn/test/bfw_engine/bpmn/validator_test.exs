@@ -1354,6 +1354,132 @@ defmodule BfwEngine.BPMN.ValidatorTest do
     end
   end
 
+  describe "validate/1 — ComplexGateway checks inside subprocess scopes" do
+    defp inner_start_and_end do
+      {%FlowNode{id: "In_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+       %FlowNode{id: "In_End", type: :end_event, type_data: %FlowNodeData.EndEvent{}}}
+    end
+
+    defp wrap_in_subprocess(inner_nodes, inner_flows) do
+      minimal_valid_definitions(
+        extra_nodes: [subprocess_node("SubProcess_1", inner_nodes, inner_flows)],
+        extra_flows: [
+          %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "SubProcess_1"},
+          %SequenceFlow{id: "F3", source_ref: "SubProcess_1", target_ref: "E1"}
+        ]
+      )
+    end
+
+    defp complex_join(id) do
+      %FlowNode{
+        id: id,
+        type: :complex_gateway,
+        type_data: %FlowNodeData.ComplexGateway{activation_condition: "activatedCount >= 2"}
+      }
+    end
+
+    defp unpaired_join_scope do
+      {start_event, end_event} = inner_start_and_end()
+
+      nodes = [
+        start_event,
+        %FlowNode{id: "In_T1", type: :task, type_data: %FlowNodeData.Task{}},
+        %FlowNode{id: "In_T2", type: :task, type_data: %FlowNodeData.Task{}},
+        %FlowNode{
+          id: "In_Fork",
+          type: :parallel_gateway,
+          type_data: %FlowNodeData.ParallelGateway{}
+        },
+        complex_join("In_Join"),
+        end_event
+      ]
+
+      flows = [
+        %SequenceFlow{id: "In_F1", source_ref: "In_Start", target_ref: "In_Fork"},
+        %SequenceFlow{id: "In_F2", source_ref: "In_Fork", target_ref: "In_T1"},
+        %SequenceFlow{id: "In_F3", source_ref: "In_Fork", target_ref: "In_T2"},
+        %SequenceFlow{id: "In_F4", source_ref: "In_T1", target_ref: "In_Join"},
+        %SequenceFlow{id: "In_F5", source_ref: "In_T2", target_ref: "In_Join"},
+        %SequenceFlow{id: "In_F6", source_ref: "In_Join", target_ref: "In_End"}
+      ]
+
+      {nodes, flows}
+    end
+
+    test "rejects a Complex Join without a split inside an embedded subprocess" do
+      {nodes, flows} = unpaired_join_scope()
+
+      assert {:error, violations} = Validator.validate(wrap_in_subprocess(nodes, flows))
+
+      {_, message} =
+        Enum.find(violations, fn {code, _} -> code == :complex_join_no_paired_split end)
+
+      assert message =~ "[in SubProcess 'SubProcess_1']"
+      assert message =~ "ComplexGateway 'In_Join'"
+    end
+
+    test "accepts a well-formed Complex split and join inside a subprocess" do
+      {start_event, end_event} = inner_start_and_end()
+
+      nodes = [
+        start_event,
+        %FlowNode{
+          id: "In_Split",
+          type: :complex_gateway,
+          type_data: %FlowNodeData.ComplexGateway{}
+        },
+        %FlowNode{id: "In_T1", type: :task, type_data: %FlowNodeData.Task{}},
+        %FlowNode{id: "In_T2", type: :task, type_data: %FlowNodeData.Task{}},
+        complex_join("In_Join"),
+        end_event
+      ]
+
+      flows = [
+        %SequenceFlow{id: "In_F1", source_ref: "In_Start", target_ref: "In_Split"},
+        %SequenceFlow{
+          id: "In_F2",
+          source_ref: "In_Split",
+          target_ref: "In_T1",
+          condition_expression: "token.a = true"
+        },
+        %SequenceFlow{id: "In_F3", source_ref: "In_Split", target_ref: "In_T2", is_default: true},
+        %SequenceFlow{id: "In_F4", source_ref: "In_T1", target_ref: "In_Join"},
+        %SequenceFlow{id: "In_F5", source_ref: "In_T2", target_ref: "In_Join"},
+        %SequenceFlow{id: "In_F6", source_ref: "In_Join", target_ref: "In_End"}
+      ]
+
+      definitions = wrap_in_subprocess(nodes, flows)
+
+      refute_violation_code(definitions, :complex_join_no_paired_split)
+      refute_violation_code(definitions, :complex_region_cross_boundary)
+      refute_violation_code(definitions, :complex_gateway_mixed)
+    end
+
+    test "rejects a broken Complex Join in a subprocess nested inside a subprocess" do
+      {inner_nodes, inner_flows} = unpaired_join_scope()
+      {start_event, end_event} = inner_start_and_end()
+
+      outer_nodes = [
+        %{start_event | id: "Out_Start"},
+        subprocess_node("SubProcess_Inner", inner_nodes, inner_flows),
+        %{end_event | id: "Out_End"}
+      ]
+
+      outer_flows = [
+        %SequenceFlow{id: "Out_F1", source_ref: "Out_Start", target_ref: "SubProcess_Inner"},
+        %SequenceFlow{id: "Out_F2", source_ref: "SubProcess_Inner", target_ref: "Out_End"}
+      ]
+
+      assert {:error, violations} =
+               Validator.validate(wrap_in_subprocess(outer_nodes, outer_flows))
+
+      assert Enum.any?(violations, fn {code, message} ->
+               code == :complex_join_no_paired_split and
+                 message =~ "[in SubProcess 'SubProcess_Inner']"
+             end)
+    end
+  end
+
   # -------------------------------------------------------------------------
   # Event definition completeness
   # -------------------------------------------------------------------------
