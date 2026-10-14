@@ -34,6 +34,7 @@ defmodule BfwEngine.Test.ConformanceRunner do
     "finished",
     "fatal",
     "aborted",
+    "error",
     "escalated",
     "cancelled",
     "compensated"

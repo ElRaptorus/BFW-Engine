@@ -51,7 +51,7 @@ every environment.
 | Interactive / call_activity | Mid-execution steps (user task finish, async completion, triggers, retry, engine restart). | `interactive`, `call_activity` | Generated; a spec with a `steps:` list runs through `Runner.run_interactive` |
 | Error | Start-time rejections. Specs with `expected.start_error: true` (plus `start_status`) run through `run_interactive`. | `error` | Generated |
 
-A spec marked `engine_internal: true` (with a one-line `engine_internal_reason`) is skipped by the generic loop and keeps a hand-written test in `conformance_test.exs`; it is not part of the portable contract (C70, C78, C79, C88, C117).
+A spec marked `engine_internal: true` (with a one-line `engine_internal_reason`) is skipped by the generic loop and keeps a hand-written test in `conformance_test.exs`; it is not part of the portable contract (C70, C78, C79, C88, C117, C220, C246, C247, C252, C254, C256, C257, C262, C267, C268, C270).
 
 Non-interrupting timer boundaries (C83, C84, C91) and non-interrupting timer Event Subprocesses (C175) must wait for the timeout path to persist **before** finishing the host user task. Finishing the host cancels the boundary. See [ExUnit and CI constraints](#exunit-and-ci-constraints). Timer unit tests poll `Scheduler.armed_count/0` or drain the listener with `:sys.get_state/1` instead of `Process.sleep`. Event-Based Gateway races wait until the message/signal subscription exists before publishing. When an EBG catch sibling **wins** (C8), wait until every sibling is `:waiting` before completing the work that satisfies the winner — cancelling a sibling mid-persist tears the shared sandbox connection. C8 uses `conditional_catch_ebg_conditional_wins.bpmn` (a parallel user task writes the Data Object after both catches are parked); C9 keeps `conditional_catch_ebg.bpmn` with a timer-first start context.
 
@@ -68,7 +68,7 @@ start:
 expected:
   final_state: "finished"
   final_tokens:
-    - end_event_id: "End_1"
+    - endEventId: "End_1"
   fni_count: 2
 ```
 
