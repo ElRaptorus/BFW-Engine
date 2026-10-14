@@ -20,7 +20,7 @@ jobs:
       BFE_LOAD_TEST_POOL_SIZE: "20"
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: bfw_engine
           POSTGRES_PASSWORD: bfw_engine

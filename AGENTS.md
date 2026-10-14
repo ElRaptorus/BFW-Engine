@@ -50,7 +50,7 @@ docker exec bfw-engine-postgres-test pg_isready -U bfw_engine
 MIX_ENV=test mix ecto.migrate
 ```
 
-Container: `bfw-engine-postgres-test` | Port: `5543` | User: `bfw_engine` | Image: `postgres:16-alpine`
+Container: `bfw-engine-postgres-test` | Port: `5543` | User: `bfw_engine` | Image: `postgres:18-alpine`
 
 ### Prohibited behaviors
 

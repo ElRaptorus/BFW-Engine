@@ -31,7 +31,7 @@ jobs:
       MIX_ENV: test
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: bfw_engine
           POSTGRES_PASSWORD: bfw_engine
@@ -199,7 +199,7 @@ jobs:
             -e POSTGRES_USER=bfw_engine \
             -e POSTGRES_PASSWORD=bfw_engine \
             -e POSTGRES_DB=bfw_engine_ci \
-            postgres:16-alpine \
+            postgres:18-alpine \
             postgres -c max_connections=200
 
           ready=0

@@ -10,7 +10,7 @@ description: >-
 
 ## Step 0: Project Overview
 
-Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 16+. It is structured as an Elixir umbrella project following DDD domain boundaries.
+Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 18+. It is structured as an Elixir umbrella project following DDD domain boundaries.
 
 | Directory | What's here |
 |-----------|------------|

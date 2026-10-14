@@ -30,9 +30,9 @@ On `main`, the smoke job stashes `engine:ci` as a gzipped `docker save` artifact
 Two services:
 
 - `engine` (image built from the repo)
-- `postgres:16` with a volume, started as `postgres -c max_connections=200`
+- `postgres:18` with a volume, started as `postgres -c max_connections=200`
 
-Production pool defaults (`BFE_DB_POOL_SIZE` 100 + `BFE_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:16-alpine`.
+Production pool defaults (`BFE_DB_POOL_SIZE` 100 + `BFE_DB_READ_POOL_SIZE` 50) exceed Postgres's default `max_connections` of 100. Both compose files raise the limit; CI Docker smoke does the same. Do not start a production-pool engine against an unmodified `postgres:18-alpine`.
 
 There is no tracing sidecar and no metrics sidecar. Prometheus scrape is the engine's own `GET /metrics`.
 

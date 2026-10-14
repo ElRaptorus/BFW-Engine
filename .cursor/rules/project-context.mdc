@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Bifrost Forge World Engine Project Context
 
-Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 16+. It is structured as an Elixir umbrella project following DDD domain boundaries with a strict dependency direction: Core never depends on Peripheral, Plugins, or API. Peripheral never depends on API. Plugins (`engine_plugins`) depend on Core and on `api_facade`.
+Bifrost Forge World Engine (or simply "the Engine") is a fully qualified BPMN 2.0 Workflow Engine built with Elixir/OTP, Ash Framework, Phoenix, and PostgreSQL 18+. It is structured as an Elixir umbrella project following DDD domain boundaries with a strict dependency direction: Core never depends on Peripheral, Plugins, or API. Peripheral never depends on API. Plugins (`engine_plugins`) depend on Core and on `api_facade`.
 
 ## Key Invariants
 

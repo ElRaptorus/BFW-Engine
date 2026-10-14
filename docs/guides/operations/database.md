@@ -1,6 +1,6 @@
 # Database Administration
 
-The engine requires PostgreSQL 16+ for JSONB support and LZ4 toast compression.
+The engine requires PostgreSQL 18+ for JSONB support and LZ4 toast compression.
 
 ## Connection Configuration
 
@@ -243,7 +243,7 @@ shape and [Troubleshooting](troubleshooting.md) for 413.
 |---------|---------|
 | `BFE_JSONB_COMPRESSION` | `lz4` |
 
-Requires PostgreSQL 14+ (the engine requires 16+). The setting applies to
+Requires PostgreSQL 14+ (the engine requires 18+). The setting applies to
 **new** column data created by migrations. Existing rows keep whatever
 compression they were written with until rewritten:
 

@@ -2,7 +2,7 @@ defmodule BfwEngine.Persistence.Repo do
   @moduledoc """
   Primary (write) `AshPostgres.Repo` for the engine.
 
-  Postgres 16+ is required — we rely on `COMPRESSION lz4` and
+  Postgres 18+ is required — we rely on `COMPRESSION lz4` and
   declarative partitioning.
 
   Pool tuning parameters (CoDel `queue_target`/`queue_interval`,
@@ -24,7 +24,7 @@ defmodule BfwEngine.Persistence.Repo do
   @doc false
   @impl true
   def min_pg_version do
-    %Version{major: 16, minor: 0, patch: 0, pre: [], build: nil}
+    %Version{major: 18, minor: 0, patch: 0, pre: [], build: nil}
   end
 
   @doc false

@@ -93,7 +93,7 @@ services:
       - "15672:15672"
 
   postgres:
-    image: postgres:16
+    image: postgres:18
     environment:
       POSTGRES_DB: bfw_engine
       POSTGRES_PASSWORD: postgres

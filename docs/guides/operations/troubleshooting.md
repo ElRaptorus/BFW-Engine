@@ -10,7 +10,7 @@ Common issues and their solutions.
 - `BFE_DATABASE_URL` (or individual DB vars) is set and the database is reachable
 - `BFE_HTTP_SECRET_KEY_BASE` is set and at least 64 characters (generate with `mix phx.gen.secret`)
 - At least one of `BFE_JWT_HS256_SECRET` or `BFE_JWT_JWKS_URL` is set (or `BFE_AUTH_DISABLED=true`)
-- PostgreSQL version is 16+ (required for JSONB + LZ4)
+- PostgreSQL version is 18+ (required for JSONB + LZ4)
 
 ## Authentication Failures (401)
 

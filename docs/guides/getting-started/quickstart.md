@@ -8,7 +8,7 @@ This guide walks you through setting up the engine locally, deploying a BPMN pro
 |------|---------|---------|
 | Elixir | 1.19.5 / OTP 28 | Runtime |
 | Rust | 1.94+ | FEEL expression NIF (compiled at build time) |
-| PostgreSQL | 16+ | Persistence (JSONB + LZ4) |
+| PostgreSQL | 18+ | Persistence (JSONB + LZ4) |
 | asdf or mise | latest | Version management (optional but recommended) |
 
 Install pinned versions from `.tool-versions`:

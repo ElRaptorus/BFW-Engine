@@ -29,7 +29,7 @@ Narrower commands (`mix compile --warnings-as-errors`, `mix test apps/<app>/test
 (docker inspect --format='{{.State.Running}}' bfw-engine-postgres-test 2>/dev/null | grep -q true) || (docker start bfw-engine-postgres-test 2>/dev/null || bash scripts/create-test-db.sh) && docker exec bfw-engine-postgres-test pg_isready -U bfw_engine && MIX_ENV=test mix ecto.migrate
 ```
 
-Container: `bfw-engine-postgres-test`, port `5543`, user `bfw_engine`, password `bfw_engine`, image `postgres:16-alpine`.
+Container: `bfw-engine-postgres-test`, port `5543`, user `bfw_engine`, password `bfw_engine`, image `postgres:18-alpine`.
 
 ## Test coverage requirements
 

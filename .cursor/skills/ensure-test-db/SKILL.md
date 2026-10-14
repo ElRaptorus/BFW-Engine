@@ -53,7 +53,7 @@ bash scripts/create-test-db.sh
 ```
 
 This script:
-1. Creates a `postgres:16-alpine` container named `bfw-engine-postgres-test`
+1. Creates a `postgres:18-alpine` container named `bfw-engine-postgres-test`
 2. Exposes port **5543** (maps to container port 5432)
 3. Sets credentials: user `bfw_engine`, password `bfw_engine`, database `bfw_engine_dev`
 4. Starts Postgres with `max_connections=200` (load-test pools are 50 write + 25 read; production defaults need 170+)
@@ -94,7 +94,7 @@ These match `config/test.exs`:
 | Password | `bfw_engine` |
 | Database | `bfw_engine_test` (with optional `MIX_TEST_PARTITION` suffix) |
 | Container name | `bfw-engine-postgres-test` |
-| Image | `postgres:16-alpine` |
+| Image | `postgres:18-alpine` |
 
 ## Troubleshooting
 

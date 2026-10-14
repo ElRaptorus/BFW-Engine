@@ -50,7 +50,7 @@ defmodule BfwEngine.Persistence.ReadRepo do
   @doc false
   @impl true
   def min_pg_version do
-    %Version{major: 16, minor: 0, patch: 0, pre: [], build: nil}
+    %Version{major: 18, minor: 0, patch: 0, pre: [], build: nil}
   end
 
   @doc false

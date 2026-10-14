@@ -505,7 +505,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `mix test.coverdata` then `mix coveralls --umbrella --import-cover cover` — same coverage merge as `mix quality` (integration + conformance under one `:cover` session, then per-app unit tests). Enforces `coveralls.json` `minimum_coverage`. Does **not** upload to coveralls.io (`mix coveralls.github` / `mix coveralls.post` are the upload tasks and must not be used). Do **not** gate coverage on `mix coveralls --umbrella` alone (unit tests only; ~65% vs the 80% gate). `test/coverage_runner.exs` must **not** `:cover.compile` `Elixir.BfwEngine.Expressions.Nif.beam`. Cookbook `mix test.cookbook` is **not** a separate CI step (the plugins tests are already in the integration glob). CI installs Node.js 26 (`actions/setup-node` `node-version: 26`) so `node_script` / `ScriptSandbox` `.js` tests run; `ubuntu-latest` already provides `python3`.
 - `mix sobelow` for security
 - `mix deps.audit`
-- Docker smoke: `postgres:16-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)
+- Docker smoke: `postgres:18-alpine` with `max_connections=200` so production pool defaults (100 write + 50 read) can check out; smoke asserts `GET /health` **HTTP 204** (empty body — not JSON `"status":"ok"`)
 - On `refs/heads/main` only, after smoke: `docker save engine:ci` uploaded as artifact `engine-ci-image`
 - `docker-publish` job (`needs: [build_and_test, docker]`, `if: github.ref == 'refs/heads/main'`): load that artifact, retag as `ghcr.io/<github-username>/bfw_engine:<mix.exs @version>`, push, then `gh api users/<owner>/packages/container/bfw_engine` must report `visibility=private`. Does not rebuild. Skipped on other branches and on pull requests (`refs/pull/…/merge`)
 
@@ -514,7 +514,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 | Step | Detail |
 |------|--------|
 | Trigger | GitHub Actions → **Load benchmarks** → Run workflow |
-| Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `16-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
+| Stack | OTP `29.0.5`, Elixir `1.20.3-otp-29`, Rust `1.98.0`, Postgres `18-alpine` on host port **5543** (same credentials as `config/test.exs`; FEEL NIF needs Rust, not Node) |
 | Run | `mix deps.get`, `mix deps.compile.sat`, `mix deps.compile`, `mix compile --warnings-as-errors`, `ecto.create` + `ecto.migrate`, then `mix test.load` (120-minute job timeout). Job env sets `MIX_ENV: test`, `BFE_LOAD_TEST_POOL: "1"`, and `BFE_LOAD_TEST_POOL_SIZE: "50"` (50 write / 25 read; 75 total stays under the service-container Postgres `max_connections` of 100). Intended to complete on standard `ubuntu-latest` (2 vCPU, ~7 GB). Does **not** run `mix test.load.durability`. |
 | Artifact | `actions/upload-artifact@v4` uploads `test/load/reports/*.json` as `load-bench-report` (`if: always()`, `if-no-files-found: error`) |
 | Baseline | Does **not** set `BFE_LOAD_BASELINE_PATH` — download the artifact and compare locally |

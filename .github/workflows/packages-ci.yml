@@ -55,7 +55,7 @@ jobs:
       MIX_ENV: prod
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: bfw_engine
           POSTGRES_PASSWORD: bfw_engine
@@ -68,7 +68,7 @@ jobs:
           --health-timeout=5s
           --health-retries=12
       postgres-test:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: bfw_engine
           POSTGRES_PASSWORD: bfw_engine
