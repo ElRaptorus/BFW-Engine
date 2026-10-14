@@ -36,6 +36,7 @@ defmodule BfwEngine.BPMN.Validator do
   alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
   alias BfwEngine.BPMN.Model.SequenceFlow
   alias BfwEngine.BPMN.Model.StandardLoop
+  alias BfwEngine.BPMN.Validator.ContractScan
 
   @activity_types [
     :task,
@@ -68,6 +69,7 @@ defmodule BfwEngine.BPMN.Validator do
     violations =
       check_missing_extension_namespace(definitions) ++
         check_definitions_id(definitions) ++
+        check_contracts_are_json_objects(definitions) ++
         Enum.flat_map(definitions.processes, &validate_process(&1, definitions))
 
     case violations do
@@ -122,6 +124,19 @@ defmodule BfwEngine.BPMN.Validator do
       ]
     end
   end
+
+  # A contract is static JSON Schema; text that is not a JSON object would otherwise be dropped or kept
+  # as a scalar and only fail (or silently not apply) at runtime.
+  defp check_contracts_are_json_objects(%Definitions{raw_xml: raw_xml}) do
+    for {contract_name, owner_id} <- ContractScan.offenders(raw_xml) do
+      {:contract_not_json_object,
+       "#{owner_label(owner_id)} has a bfw:#{contract_name} that is not a JSON object " <>
+         "(JSON Schema contracts must be objects)"}
+    end
+  end
+
+  defp owner_label(nil), do: "An element"
+  defp owner_label(owner_id), do: "Element '#{owner_id}'"
 
   defp check_missing_extension_namespace(%Definitions{raw_xml: raw_xml, processes: processes}) do
     has_executable_process = Enum.any?(processes, & &1.is_executable)
@@ -468,12 +483,6 @@ defmodule BfwEngine.BPMN.Validator do
                  "DataObject '#{obj.id}' has an invalid bfw:valueContract JSON Schema"}
               ]
           end
-
-        _ ->
-          [
-            {:invalid_value_contract,
-             "DataObject '#{obj.id}' has an invalid bfw:valueContract (must be a JSON object)"}
-          ]
       end
     end)
   end

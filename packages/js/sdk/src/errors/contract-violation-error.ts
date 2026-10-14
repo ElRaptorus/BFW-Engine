@@ -4,7 +4,7 @@ import { BfwEngineError } from './bfw-engine-error.js';
 export class ContractViolationError extends BfwEngineError {
   constructor(
     message: string,
-    public readonly violations: { message: string; path: string[] }[],
+    public readonly violations: { message: string; path: string }[],
     rawBody?: Record<string, unknown>,
   ) {
     super(422, 'contract_violation', message, rawBody);

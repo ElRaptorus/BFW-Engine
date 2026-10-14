@@ -2117,22 +2117,6 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert :invalid_value_contract in codes
     end
 
-    test "non-map value_contract produces error" do
-      definitions =
-        minimal_valid_definitions(
-          process: [
-            data_objects: [
-              %BfwEngine.BPMN.Model.DataObject{id: "DO_1", value_contract: "not a map"}
-            ],
-            data_object_references: []
-          ]
-        )
-
-      assert {:error, violations} = Validator.validate(definitions)
-      codes = Enum.map(violations, fn {code, _} -> code end)
-      assert :invalid_value_contract in codes
-    end
-
     test "valid JSON Schema on DataObject passes" do
       definitions =
         minimal_valid_definitions(

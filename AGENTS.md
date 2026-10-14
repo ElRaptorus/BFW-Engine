@@ -1081,6 +1081,7 @@ pass. It never short-circuits on the first problem.
 
 - Executable definitions must declare `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` (exact URI). Absence yields `:missing_extension_namespace`.
 - The `<bpmn:definitions>` element must carry a non-blank `id` attribute. Absence yields `:missing_definitions_id`; it becomes `process_versions.definitions_id`, which is `NOT NULL`.
+- Every non-blank `bfw:payloadContract`, `bfw:resultContract`, and `bfw:valueContract` must be a JSON object (static JSON Schema, never FEEL). Malformed JSON, arrays, scalars, and `null` yield `:contract_not_json_object`; deploy answers 422 `validation_failed`. Scanned from `raw_xml` by `Validator.ContractScan`.
 
 ### Process-level checks
 

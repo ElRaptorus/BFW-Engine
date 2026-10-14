@@ -217,7 +217,7 @@ describe('domain-specific errors', () => {
   });
 
   it('ContractViolationError preserves violations', () => {
-    const violations = [{ message: 'required field', path: ['payload', 'orderId'] }];
+    const violations = [{ message: 'required field', path: '#/payload/orderId' }];
     const error = new ContractViolationError('contract violated', violations);
     expect(error).toBeInstanceOf(BfwEngineError);
     expect(error.violations).toBe(violations);

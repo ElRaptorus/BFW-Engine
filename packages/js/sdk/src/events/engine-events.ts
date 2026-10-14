@@ -251,7 +251,7 @@ export interface UserTaskValidationFailed {
   flowNodeInstanceId: string;
   processInstanceId: string;
   flowNodeId: string;
-  violations: { message: string; path: string[] }[];
+  violations: { message: string; path: string }[];
   laneName: string | null;
   occurredAt: string;
 }

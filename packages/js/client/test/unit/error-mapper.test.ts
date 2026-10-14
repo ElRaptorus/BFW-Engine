@@ -220,7 +220,7 @@ describe('mapResponseError — domain error code mapping', () => {
   });
 
   it('maps contract_violation to ContractViolationError with violations', () => {
-    const violations = [{ message: 'Missing field', path: ['token', 'orderId'] }];
+    const violations = [{ message: 'Missing field', path: '#/token/orderId' }];
     const error = mapResponseError(422, {
       error: 'contract_violation',
       message: 'Contract violation',
