@@ -22,6 +22,7 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
   alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Execution.TestSupport.SchedulerWait
+  alias BfwEngine.Execution.TestSupport.StateChangeWait
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Identity
 
@@ -61,18 +62,19 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
 
   describe "timer catch event — duration (happy path)" do
     test "PI waits on timer catch event, completes when timer fires" do
-      %{pid: pid} = start_pi_with_timer(time_duration: "PT0S")
+      states = StateChangeWait.attach()
+      %{process_instance_id: process_instance_id} = start_pi_with_timer(time_duration: "PT0S")
 
-      ref = Process.monitor(pid)
-
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
 
     test "timer catch event with short duration fires and completes PI" do
-      %{pid: pid} = start_pi_with_timer(time_duration: "PT0S", process_id: "timer-test")
+      states = StateChangeWait.attach()
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      %{process_instance_id: process_instance_id} =
+        start_pi_with_timer(time_duration: "PT0S", process_id: "timer-test")
+
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
@@ -80,10 +82,10 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
     test "past date fires immediately, PI completes" do
       past = DateTime.utc_now() |> DateTime.add(-1, :second) |> DateTime.to_iso8601()
 
-      %{pid: pid} = start_pi_with_timer(time_date: past)
+      states = StateChangeWait.attach()
+      %{process_instance_id: process_instance_id} = start_pi_with_timer(time_date: past)
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
 
     test "future date keeps FNI in waiting state" do
@@ -120,10 +122,12 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
     test "input payload is preserved through timer wait" do
       payload = %{"order_id" => "ORD-42", "amount" => 100}
 
-      %{pid: pid} = start_pi_with_timer([time_duration: "PT0S"], payload)
+      states = StateChangeWait.attach()
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      %{process_instance_id: process_instance_id} =
+        start_pi_with_timer([time_duration: "PT0S"], payload)
+
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
@@ -175,6 +179,8 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
     end
 
     test "resume with past fire_at completes FNI immediately" do
+      states = StateChangeWait.attach()
+
       past_iso =
         DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
 
@@ -211,16 +217,16 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
         fni_data: fni_data
       }
 
-      {:ok, pid} =
+      {:ok, _pid} =
         DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
   describe "timer catch event — FEEL expression" do
     test "FEEL expression evaluating to a duration string fires timer correctly" do
+      states = StateChangeWait.attach()
       definitions = BpmnFactory.timer_catch_event_process(time_duration: "PT0S")
       version_id = "version-feel-#{System.unique_integer([:positive])}"
 
@@ -235,11 +241,10 @@ defmodule BfwEngine.Execution.TimerCatchIntegrationTest do
         identity: @test_identity
       }
 
-      {:ok, pid} =
+      {:ok, _pid} =
         DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 

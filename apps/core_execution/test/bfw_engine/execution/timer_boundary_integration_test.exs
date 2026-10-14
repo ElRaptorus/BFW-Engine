@@ -24,6 +24,7 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
   alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
   alias BfwEngine.Execution.TestSupport.SchedulerWait
+  alias BfwEngine.Execution.TestSupport.StateChangeWait
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Identity
 
@@ -72,11 +73,12 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
 
   describe "interrupting timer boundary — PT0S (immediate fire)" do
     test "boundary fires immediately, host is interrupted, PI completes via timeout path" do
-      %{pid: pid} =
+      states = StateChangeWait.attach()
+
+      %{process_instance_id: process_instance_id} =
         start_pi_with_boundary(time_duration: "PT0S", cancel_activity: true)
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
@@ -108,13 +110,13 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
 
   describe "host completion cleans up boundary FNIs" do
     test "when host activity finishes normally, boundary timer is cancelled and PI completes" do
+      states = StateChangeWait.attach()
       armed_before = Scheduler.armed_count()
 
-      %{pid: pid} =
+      %{process_instance_id: process_instance_id} =
         start_pi_with_auto_host_boundary(time_duration: "PT1H", cancel_activity: true)
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
 
       assert :ok = SchedulerWait.wait_until_count(armed_before)
     end
@@ -139,11 +141,12 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
     end
 
     test "time_cycle on interrupting boundary fires once and completes PI" do
-      %{pid: pid} =
+      states = StateChangeWait.attach()
+
+      %{process_instance_id: process_instance_id} =
         start_pi_with_boundary(time_cycle: "R3/PT0S", cancel_activity: true)
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
@@ -195,6 +198,7 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
 
   describe "multiple interrupting boundaries — first wins, second stale" do
     test "two interrupting timer boundaries fire simultaneously, PI completes via one path" do
+      states = StateChangeWait.attach()
       definitions = BpmnFactory.user_task_with_dual_timer_boundaries(time_duration: "PT0S")
 
       version_id = "version-#{System.unique_integer([:positive])}"
@@ -208,16 +212,17 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
         identity: @test_identity
       }
 
-      {:ok, pid} =
+      {:ok, _pid} =
         DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
   describe "mixed interrupting + non-interrupting boundaries" do
     test "both boundaries fire, PI completes normally" do
+      states = StateChangeWait.attach()
+
       definitions =
         BpmnFactory.user_task_with_mixed_timer_boundaries(
           non_interrupting_duration: "PT0S",
@@ -235,11 +240,10 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
         identity: @test_identity
       }
 
-      {:ok, pid} =
+      {:ok, _pid} =
         DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
@@ -306,6 +310,8 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
     end
 
     test "resume with past timer boundary fire_at fires immediately, host interrupted" do
+      states = StateChangeWait.attach()
+
       definitions =
         BpmnFactory.user_task_with_timer_boundary(
           time_duration: "PT1M",
@@ -357,11 +363,16 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
         fni_data: fni_data
       }
 
-      {:ok, pid} =
+      {:ok, _pid} =
         DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {ProcessInstance, opts})
 
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 5_000
+      StateChangeWait.assert_flow_node_instance_terminal_state(
+        states,
+        "fni-user-task-1",
+        :interrupted
+      )
+
+      StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
