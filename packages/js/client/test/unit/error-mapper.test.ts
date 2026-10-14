@@ -778,6 +778,17 @@ describe('mapResponseError — HTTP status fallback', () => {
     expect(error).toBeInstanceOf(ValidationError);
   });
 
+  it('keeps the engine error code on the 422 fallback', () => {
+    const error = mapResponseError(422, { error: 'feature_not_supported', message: 'DMN is not supported' });
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error.errorCode).toBe('feature_not_supported');
+  });
+
+  it('uses validation_error on the 422 fallback when the body carries no error code', () => {
+    const error = mapResponseError(422, { message: 'Invalid input' });
+    expect(error.errorCode).toBe('validation_error');
+  });
+
   it('falls back to BadRequestError for 400 with unknown error code', () => {
     const error = mapResponseError(400, { error: 'unknown', message: 'Malformed JSON' });
     expect(error).toBeInstanceOf(BadRequestError);

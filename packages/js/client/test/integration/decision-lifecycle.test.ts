@@ -8,25 +8,38 @@ import {
   DmnParseError,
   ForbiddenError,
 } from '@elraptorus/bfw_engine_sdk';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   createAdminClient,
   createReadOnlyClient,
+  deployDecisionsIfSupported,
   deployDmnFixture,
   ensureEngineReachable,
   readDmnFixture,
+  undeployDecisionQuietly,
 } from '../support/test-engine.js';
 
 const definitionsId = 'definitions_discount';
 let adminClient: BfwEngineClient;
 let readOnlyClient: BfwEngineClient;
+let decisionsSupported = false;
 
 beforeAll(async () => {
   await ensureEngineReachable();
   adminClient = await createAdminClient();
   readOnlyClient = await createReadOnlyClient();
+  decisionsSupported = await deployDecisionsIfSupported(adminClient, 'simple_unique.dmn');
+  if (decisionsSupported) {
+    await undeployDecisionQuietly(adminClient, definitionsId);
+  }
+});
+
+beforeEach((context) => {
+  if (!decisionsSupported) {
+    context.skip();
+  }
 });
 
 afterAll(() => {

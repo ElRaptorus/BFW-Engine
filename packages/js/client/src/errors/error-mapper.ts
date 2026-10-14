@@ -332,7 +332,7 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
 
 function mapByStatusCode(
   status: number,
-  _errorCode: string,
+  errorCode: string,
   message: string,
   body: Record<string, unknown>,
 ): BfwEngineError | null {
@@ -365,7 +365,12 @@ function mapByStatusCode(
     case 409:
       return new ConflictError(message, body);
     case 422:
-      return new ValidationError(message, Array.isArray(body['failures']) ? (body['failures'] as unknown[]) : [], body);
+      return new ValidationError(
+        message,
+        Array.isArray(body['failures']) ? (body['failures'] as unknown[]) : [],
+        body,
+        body['error'] != null ? errorCode : undefined,
+      );
     case 500:
       return new InternalEngineError(message, body);
     case 503:
