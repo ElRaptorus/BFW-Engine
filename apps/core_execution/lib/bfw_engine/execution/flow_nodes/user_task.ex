@@ -107,9 +107,10 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
       {:error, :payload_too_large, details} ->
         {:error, :payload_too_large, details}
 
-      {:error, {:contract_violation, violations}} = error ->
+      {:error, {:contract_violation, violations}} ->
+        violations = normalize_violations(violations)
         emit_user_task_validation_failed(context, flow_node, violations)
-        error
+        {:error, {:contract_violation, violations}}
 
       {:error, _reason} = error ->
         error
@@ -135,6 +136,16 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   end
 
   # -- Events ----------------------------------------------------------------
+
+  # An unusable result contract is reported as one violation at the document root, so the finish caller and the
+  # event see the same `{message, path}` shape as for a failed constraint.
+  defp normalize_violations({:invalid_contract_schema, message}) do
+    [%{message: "The contract is not a valid JSON Schema: #{message}", path: "#"}]
+  end
+
+  defp normalize_violations(violations) when is_list(violations) do
+    Enum.map(violations, fn {message, path} -> %{message: message, path: path} end)
+  end
 
   defp emit_user_task_validation_failed(context, flow_node, violations) do
     EngineEventBus.publish(%Event.UserTaskValidationFailed{

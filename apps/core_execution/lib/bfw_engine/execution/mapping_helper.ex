@@ -49,7 +49,7 @@ defmodule BfwEngine.Execution.MappingHelper do
   `violations` is a list of `{message, path}` tuples or
   `{:invalid_contract_schema, message}`.
   """
-  @spec validate_contract(map() | nil, map()) :: :ok | {:error, term()}
+  @spec validate_contract(term(), map()) :: :ok | {:error, term()}
   def validate_contract(nil, _payload), do: :ok
 
   def validate_contract(contract, payload) when is_map(contract) do
@@ -64,11 +64,16 @@ defmodule BfwEngine.Execution.MappingHelper do
       {:error, {:invalid_contract_schema, Exception.message(exception)}}
   end
 
+  # The parser keeps any JSON value, so a contract such as `[1]` or `true` reaches here.
+  def validate_contract(_contract, _payload) do
+    {:error, {:invalid_contract_schema, "a contract must be a JSON object"}}
+  end
+
   @doc """
   Same as `validate_contract/2`, but tags a failure with `error_code`:
   `{:error, {error_code, violations}}`.
   """
-  @spec validate_contract(map() | nil, map(), atom()) :: :ok | {:error, {atom(), term()}}
+  @spec validate_contract(term(), map(), atom()) :: :ok | {:error, {atom(), term()}}
   def validate_contract(contract, payload, error_code) do
     case validate_contract(contract, payload) do
       :ok -> :ok

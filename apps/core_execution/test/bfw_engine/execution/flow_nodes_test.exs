@@ -5,6 +5,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
   alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
   alias BfwEngine.BPMN.Model.SequenceFlow
+  alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FlowNodes
   alias BfwEngine.Execution.HandlerContext
@@ -448,6 +449,85 @@ defmodule BfwEngine.Execution.FlowNodesTest do
 
       assert {:error, {:contract_violation, _violations}} =
                FlowNodes.UserTask.handle_complete(node, entry, %{"wrong" => "data"}, context)
+    end
+
+    defmodule ValidationFailedSink do
+      @moduledoc false
+      @behaviour BfwEngine.Plugin.EventSink
+
+      @impl true
+      def init(opts), do: {:ok, %{test_pid: Keyword.fetch!(opts, :test_pid)}}
+
+      @impl true
+      def accepts?(%BfwEngine.Types.Event.UserTaskValidationFailed{}), do: true
+      def accepts?(_event), do: false
+
+      @impl true
+      def handle_event(event, state) do
+        send(state.test_pid, {:validation_failed, event})
+        {:ok, state}
+      end
+
+      @impl true
+      def handle_shutdown(_state), do: :ok
+    end
+
+    defp finish_with_contract(contract, flow_node_instance_id) do
+      sink_name = "test:user-task-validation-#{flow_node_instance_id}"
+
+      :ok = EngineEventBus.register_sink(sink_name, ValidationFailedSink, test_pid: self())
+
+      node = %FlowNode{
+        id: "ut1",
+        type: :user_task,
+        type_data: %FlowNodeData.UserTask{result_contract: contract}
+      }
+
+      context = %HandlerContext{
+        flow_node_instance_id: flow_node_instance_id,
+        process_instance_id: "pi-1"
+      }
+
+      FlowNodes.UserTask.handle_complete(
+        node,
+        %{next_flow_node_ids: ["end1"]},
+        %{"wrong" => "data"},
+        context
+      )
+    end
+
+    test "a failed constraint publishes the violations as message/path maps" do
+      contract = %{"type" => "object", "required" => ["approved"]}
+
+      assert {:error, {:contract_violation, [%{message: message, path: "#"}]}} =
+               finish_with_contract(contract, "fni-constraint")
+
+      assert is_binary(message)
+      assert_receive {:validation_failed, %{flow_node_instance_id: "fni-constraint"} = event}
+      assert [%{message: ^message, path: "#"}] = event.violations
+      assert {:ok, _json} = Jason.encode(event)
+    end
+
+    test "an unusable result contract is one encodable violation at the document root" do
+      contract = %{"type" => "nonsense"}
+
+      assert {:error, {:contract_violation, [%{message: message, path: "#"}]}} =
+               finish_with_contract(contract, "fni-invalid-schema")
+
+      assert message =~ "The contract is not a valid JSON Schema: "
+      assert_receive {:validation_failed, %{flow_node_instance_id: "fni-invalid-schema"} = event}
+      assert [%{message: ^message, path: "#"}] = event.violations
+      assert {:ok, _json} = Jason.encode(event)
+    end
+
+    test "a result contract that is not a JSON object is one violation instead of a crash" do
+      assert {:error, {:contract_violation, [%{message: message, path: "#"}]}} =
+               finish_with_contract([1], "fni-array-contract")
+
+      assert message ==
+               "The contract is not a valid JSON Schema: a contract must be a JSON object"
+
+      assert_receive {:validation_failed, %{flow_node_instance_id: "fni-array-contract"}}
     end
   end
 

@@ -178,6 +178,27 @@ defmodule BfwEngine.Integration.Execution.MapperContractPipelineTest do
       assert_pi_state!(process_instance_id, "finished")
     end
 
+    test "UT-8: unusable result contract → 422 with one violation, task stays waiting" do
+      {201, _} = http_deploy("user_task_invalid_result_schema.bpmn")
+      {201, body} = http_start("UserTaskInvalidResultSchema")
+      process_instance_id = body["processInstanceId"]
+
+      user_task_fni = poll_fni_state(process_instance_id, "user_task", "waiting")
+
+      {422, err_body} = http_finish_user_task(user_task_fni.id, %{"approved" => true})
+      assert err_body["error"] == "contract_violation"
+
+      assert [%{"message" => message, "path" => "#"}] = err_body["violations"]
+      assert message =~ "The contract is not a valid JSON Schema: "
+
+      assert_pi_state!(process_instance_id, "running")
+
+      still_waiting =
+        Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.id == user_task_fni.id))
+
+      assert still_waiting.state == "waiting"
+    end
+
     test "UT-6: output mapper reshapes user submission to satisfy contract" do
       {201, _} = http_deploy("user_task_output_mapper_reshapes.bpmn")
       {201, body} = http_start("UserTaskOutputMapperReshapes", %{"payload" => %{"data" => "x"}})

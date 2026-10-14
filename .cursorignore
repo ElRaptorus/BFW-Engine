@@ -1,0 +1,21 @@
+# Dependencies
+**/deps/
+**/node_modules/
+
+# Build outputs
+**/_build/
+**/cover/
+**/native/*/target/
+packages/js/*/dist/
+
+# Testing artifacts
+/coverage/
+.vitest/
+**/.vitest/
+
+# OS files
+.DS_Store
+
+# Logs
+**/npm-debug.log*
+erl_crash.dump

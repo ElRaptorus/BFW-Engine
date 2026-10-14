@@ -160,6 +160,7 @@ defmodule BfwEngineWeb.Http.UserTaskController do
 
   defp format_violations(violations) do
     Enum.map(violations, fn
+      %{message: _message, path: _path} = violation -> violation
       {message, path} -> %{message: message, path: path}
       other when is_binary(other) -> %{message: other}
       _other -> %{message: "Validation constraint violated"}
