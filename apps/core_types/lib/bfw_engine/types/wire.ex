@@ -24,7 +24,6 @@ defmodule BfwEngine.Types.Wire do
                         :error_info,
                         :payload_contract,
                         :result_contract,
-                        :data_contracts,
                         :bpmn_xml,
                         :dmn_xml,
                         :violations,

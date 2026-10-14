@@ -133,13 +133,6 @@ defmodule BfwEngine.Execution.Persistence do
   @callback list_flow_node_instances(String.t()) :: {:ok, [map()]} | {:error, term()}
 
   @doc """
-  Atomically UPSERT the Data Object snapshot and INSERT an audit row.
-
-  Returns `{:ok, %{write_id: id, created_at: datetime}}` on success.
-  """
-  @callback write_data_object(params :: map()) :: {:ok, map()} | {:error, term()}
-
-  @doc """
   Atomically finish an FNI and persist all Data Object write intents
   in a single transaction. The FNI is updated to `:finished` state
   and all DO snapshot UPSERTs + audit INSERTs are executed together.
@@ -349,9 +342,6 @@ defmodule BfwEngine.Execution.Persistence.NoOp do
         result
     end
   end
-
-  @impl true
-  def write_data_object(_params), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
 
   @impl true
   def list_data_objects(_process_instance_id), do: {:ok, []}

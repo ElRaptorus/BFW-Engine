@@ -12,7 +12,6 @@ export type {
   DataStore,
   DataStoreReference,
   DataAssociation,
-  DataContract,
   Extension,
   LinterRulesetScore,
   MultiInstance,

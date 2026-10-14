@@ -16,7 +16,6 @@
       "flowNodes": [
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -36,7 +35,6 @@
         },
         {
           "boundaryEventRefs": ["TimerBE_NonInt"],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -62,7 +60,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -89,7 +86,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -109,7 +105,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,

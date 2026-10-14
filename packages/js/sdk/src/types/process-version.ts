@@ -12,7 +12,7 @@ export interface ProcessVersion {
   /** Deployment version string (`bfw:version` from the BPMN XML). */
   version: string;
   /** BPMN `<definitions id="...">` identifier. */
-  definitionsId?: string | null;
+  definitionsId: string;
   /** ISO 8601 timestamp when this version was deployed. */
   deployedAt: string;
   /** Raw BPMN XML of this version. Only populated when explicitly requested. */

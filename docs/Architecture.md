@@ -136,10 +136,8 @@ sinks:
 | `telemetry` | **ON** | Increments Prometheus `bfw_engine.event_bus.events.total` |
 | `websocket` | **ON** | Phoenix.Channels push to connected clients |
 
-The engine does not persist typed events to Postgres. The
-`process_instance_events` table exists for schema compatibility and is
-not populated by any built-in sink. Operators who need DB-backed event
-storage register a plugin sink.
+The engine does not persist typed events to Postgres. Operators who need
+DB-backed event storage register a plugin sink.
 
 Plugin sinks register from `on_load/1` via
 `facade.register_event_sink.(name, module, opts)`. Typical deployments:
@@ -155,8 +153,8 @@ metrics wire format.
 - **Other clients** (CLIs, dashboards) use the same REST + GraphQL +
   WebSocket surfaces.
 - **PostgreSQL** is the sole persistent backend. The engine owns its
-  schema via AshPostgres. Six tables are range-partitioned by timestamp
-  (`process_instance_events`, `data_object_writes`, `messages`,
+  schema via AshPostgres. Five tables are range-partitioned by timestamp
+  (`data_object_writes`, `messages`,
   `pending_messages`, `signals`, `pending_signals`). Boot pre-creates
   `BFE_PARTITION_AHEAD_MONTHS` future partitions.
 - **The Seeding Directory** (`BFE_SEEDING_DIRECTORY`) is scanned once at

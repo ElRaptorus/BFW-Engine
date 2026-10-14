@@ -137,7 +137,12 @@ defmodule BfwEngine.Execution.DataObjectWriter do
     with {:ok, data_object_id} <-
            resolve_target(association.target_ref, do_ref_index, data_object_index),
          {:ok, new_value} <-
-           evaluate_value(association.value_expression, output_payload, handler_context),
+           evaluate_value(
+             data_object_id,
+             association.value_expression,
+             output_payload,
+             handler_context
+           ),
          :ok <- validate_value_contract(data_object_id, new_value, data_object_index),
          :ok <- check_payload_cap(new_value) do
       previous_value = Map.get(cache, data_object_id)
@@ -167,14 +172,20 @@ defmodule BfwEngine.Execution.DataObjectWriter do
     end
   end
 
-  defp evaluate_value(nil, output_payload, _handler_context), do: {:ok, output_payload}
+  defp evaluate_value(_data_object_id, nil, output_payload, _handler_context),
+    do: {:ok, output_payload}
 
-  defp evaluate_value(expression, output_payload, handler_context) do
+  defp evaluate_value(data_object_id, expression, output_payload, handler_context) do
     feel_context = FeelContext.from_handler_context(handler_context, output_payload)
 
     case Expressions.eval(expression, feel_context) do
-      {:ok, value} -> {:ok, value}
-      {:error, reason} -> {:error, {:feel_eval_failed, expression, reason}}
+      {:ok, value} ->
+        {:ok, value}
+
+      {:error, reason} ->
+        {:error,
+         {:data_object_transformation_failed, data_object_id,
+          {:feel_eval_failed, expression, reason}}}
     end
   end
 

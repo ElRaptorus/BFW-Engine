@@ -56,9 +56,6 @@ defmodule BfwEngine.Execution.PersistFniErrorLoggingTest do
       do: {:error, :db_unavailable}
 
     @impl true
-    def write_data_object(_params), do: {:ok, %{write_id: "mock", created_at: DateTime.utc_now()}}
-
-    @impl true
     def list_data_objects(_process_instance_id), do: {:ok, []}
 
     @impl true
@@ -192,10 +189,6 @@ defmodule BfwEngine.Execution.PersistFniErrorLoggingTest do
 
         @impl true
         def list_flow_node_instances(_id), do: {:ok, []}
-
-        @impl true
-        def write_data_object(_params),
-          do: {:ok, %{write_id: "mock", created_at: DateTime.utc_now()}}
 
         @impl true
         def list_data_objects(_process_instance_id), do: {:ok, []}

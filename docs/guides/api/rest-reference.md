@@ -405,20 +405,6 @@ All endpoints accepting user payloads enforce `BFE_TOKEN_MAX_BYTES` (default 64 
 
 See [Error Handling](../handbook/error-handling.md).
 
-## Deprecation Policy
-
-When an API endpoint is deprecated, responses include RFC 8594 headers:
-
-| Header | Value | Description |
-|---|---|---|
-| `Deprecation` | `true` | Endpoint is deprecated |
-| `Link` | `<successor-url>; rel="successor-version"` | Replacement endpoint |
-| `Sunset` | HTTP-date (RFC 7231) | When the endpoint will be removed (optional) |
-
-**No routes are currently deprecated.** These headers will appear when
-endpoints are retired in future versions. Consumers should monitor for
-the `Deprecation: true` header in integration tests.
-
 ## Related
 
 - [Authentication](authentication.md) -- JWT setup

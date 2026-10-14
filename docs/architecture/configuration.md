@@ -7,7 +7,7 @@ Docker and release layout: [shipping.md](./shipping.md). Operator recipes:
 
 ## Configuration sources (priority order)
 
-1. Env vars (`BFE_*` — Forge Engine; the former `EVIL_` prefix is not read)
+1. Env vars (`BFE_*`)
 2. `config.exs` compiled-in defaults
 3. `runtime.exs` reading env
 4. `/etc/bfw-engine/engine.toml` override (optional, mounted into container)
@@ -73,7 +73,6 @@ Notable env vars:
 | `BFE_EVENT_SINK_TELEMETRY` | Toggle for the `telemetry` sink (Prometheus `bfw_engine.event_bus.events.total`). Does **not** feed `/stats` | `on` |
 | `BFE_EVENT_SINK_WEBSOCKET` | Toggle for the `websocket` sink that pushes events to connected Phoenix Channels clients | `on` |
 | ~~`BFE_EVENT_SINK_WEBSOCKET_MIN_SEVERITY`~~ | **Does not exist.** Console severity is `BFE_LOG_MIN_SEVERITY` only. The WebSocket sink rejects only `SinkFailed`. | — |
-| ~~`BFE_EVENT_SINK_DATABASE`~~ | **Removed.** The built-in database sink has been removed. Use a plugin sink for DB-backed event persistence. | — |
 | `BFE_RETENTION_RUN_INTERVAL` | **Ignored.** Cron/systemd owns the Mix-task interval. The key remains in `runtime.exs` unused | `PT1H` |
 | `BFE_RETENTION_BATCH_SIZE` | Max number of **root trees** purged per `mix bfw.retention.purge` invocation | `500` |
 | `BFE_RETENTION_FINISHED_DAYS` | Max age, in days, for PIs with state `finished` before they are eligible for Mix purge. Unset = never auto-purge `finished` PIs | *(unset)* |
@@ -87,7 +86,7 @@ Notable env vars:
 | `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` | When `true` (default), `pending_messages` rows persist after their state transitions away from `pending` (delivery-attempt audit). They are then eligible for operator SQL via the `BFE_RETENTION_ENGINE_AUDIT_DAYS` cutoff convention. When `false`, the engine physically deletes the row on deliver/expire/cancel, so the table only ever holds live `pending` rows. Destroy still requires `state == 'pending'` | `true` |
 | `BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION` | Same semantics as `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION`, applied to `pending_signals` | `true` |
 | ~~`BFE_PENDING_ESCALATIONS_KEEP_AFTER_TRANSITION`~~ | **Removed / not applicable.** There is no `pending_escalations` table | — |
-| `BFE_PARTITION_AHEAD_MONTHS` | Number of future monthly partitions the `mix bfw.partitions.ensure` boot hook creates ahead of time for the tables in `BfwEngine.Persistence.Partitions`: `process_instance_events`, `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`. There is no `pending_escalations` table. There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and unpartitioned. At least 1 is enforced regardless of configured value | `3` |
+| `BFE_PARTITION_AHEAD_MONTHS` | Number of future monthly partitions the `mix bfw.partitions.ensure` boot hook creates ahead of time for the tables in `BfwEngine.Persistence.Partitions`: `data_object_writes`, `messages`, `pending_messages`, `signals`, `pending_signals`. There is no `pending_escalations` table. There are no `escalations` / `compensations` / `engine_timers` tables. `timer_start_schedules` is operational and unpartitioned. At least 1 is enforced regardless of configured value | `3` |
 | `BFE_TOKEN_MAX_BYTES` | **Hard payload cap** applied to the canonicalized JSON byte size of every user-supplied payload across: FNI output tokens via `write_result/2`, Data Object values at DOA-commit time (DOA-only: check runs when the engine materializes each `dataOutputAssociation` post-`onFinished`), published messages/signals/escalations via the PI facade + API trigger surfaces, PI `started_with_context` at start, User Task completion results, async Service Task completion/fail payloads via `engine_facade.finish_async_service_task/2` and `fail_async_service_task/3` ([plugins.md](./plugins.md); operator guide: [database.md](../guides/operations/database.md)) — **no dedicated public REST path** for async plugin callbacks; cap is enforced on the facade and REST. Overflow → structured `{:error, :payload_too_large, size, limit}` from the facade; causing FNI transitions to `fatal`; HTTP endpoints return HTTP 413 before any engine-side work runs. Values below `1024` (1 KiB) **refuse boot** with `minimum_required: 1024` in the error (`BfwEngine.Execution.PayloadCap.parse_token_max_bytes/1` from `runtime.exs`); they are not silently clamped. No max — operators running legitimately large-payload workloads can raise this arbitrarily. Configurable for the **entire engine**; no per-process/per-endpoint override in v1 | `65536` (64 KiB) |
 | `BFE_MAX_CONCURRENT_PIS` | **PI admission control (Layer 1)** — soft cap on **new** PI starts via the public API. Enforced as a pre-check inside `Execution.start_process_instance/1` (not on the `DynamicSupervisor`, which runs with `max_children: :infinity`). When the active PI count is at or above the cap, the function returns `{:error, :engine_at_capacity, %{active, limit}}` and `POST /processes/{model_id}/start` responds **503** with `Retry-After: 5`. **Does not apply during resume at boot** — `ResumeRunner` brings every `:running` PI back online regardless of the cap, so the cap may be briefly exceeded after a restart. The cap then resumes governing new starts until active count drops back below the limit. See [`execution.md`](execution.md) §Resume on Startup. Literal `infinity` (default) disables the cap. | `infinity` |
 | `BFE_RESUME_BATCH_SIZE` | **Resume pagination (PF-1)** — batch size for paginated resume of `:running` PIs at boot. `ResumeRunner` pages through the DB one batch at a time, loading at most this many root PI rows (plus their resume-relevant FNIs) before processing them and moving to the next batch. Higher = faster resume on small datasets; lower = bounded peak memory at boot. Must be a positive integer; refusing values ≤ 0 at startup | `1000` |
@@ -439,7 +438,6 @@ Audit tables that grow in append-only fashion ship as `PARTITION BY RANGE` on th
 
 | Table | Partition column | Populates when |
 |---|---|---|
-| `process_instance_events` | `occurred_at` | Retained empty — built-in database sink removed |
 | `data_object_writes` | `created_at` | Always |
 
 **Shipped (partitioned on `published_at`):** `messages`, `pending_messages`, `signals`, `pending_signals`. There are no `escalations` or `compensations` tables.
@@ -475,7 +473,7 @@ Boot-time `ensure_partitions` is **not** a `pg_partman` replacement. It only pre
 - Only **root** PIs (`parent_process_instance_id IS NULL`) are selection keys. Age column: `finished_at`. Raw SQL bypasses the Ash `deleted == false` filter so already-soft-deleted terminal roots still free disk.
 - States with a days knob: `finished`, `error`, `fatal`, `aborted`, `escalated`, `compensated`, `cancelled`. Unset knob for a state → that state is never selected.
 - If the whole tree is fully terminal, delete **every** descendant with the root (even if a child is younger than cutoff). If any descendant is `running` or `suspended`, skip the root.
-- One transaction per root tree. Cascade order: `process_instance_events` → `gateway_pending_arrivals` → `data_object_writes` → `data_objects` → `flow_node_instances` → `process_instances`.
+- One transaction per root tree. Cascade order: `gateway_pending_arrivals` → `data_object_writes` → `data_objects` → `flow_node_instances` → `process_instances`.
 - Do not touch `messages` / `signals` / `pending_*` / `timer_start_schedules` / catalog rows.
 - Batch size = `BFE_RETENTION_BATCH_SIZE` (default 500) = max trees per Mix invocation.
 - `--dry-run` counts eligible roots without deleting.
@@ -493,7 +491,6 @@ There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 
 | Feature | Interaction |
 |---|---|
-| **DB event sink removed** | `process_instance_events` is no longer populated — the built-in database sink was removed. Mix `evil.retention.purge` still deletes leftover rows for a purged PI. Operator SQL for message/signal tables is independent of event sinks. |
 | **Studio engine-debugger views** | The **BPMN-flow view** reads always-on kernel tables. Mix purge trims reach for aged terminal PIs. Operator SQL (when run) caps how far back the message/signal delivery panels reach. |
 | **Resume** | Mix purge only touches terminal trees. A `running` PI is never selected. A pending message or pending signal is always preserved regardless of age. |
 | **`data_object_writes` always-on** | Purged together with the parent PI tree. A Data Object write audit can live no longer than the PI whose writes it records. |
@@ -512,4 +509,3 @@ There are no `Event.RetentionPurged` / `Event.EngineAuditPurged` events.
 - Per-PI retention overrides (e.g. "keep this one PI forever") — Mix purge is global by terminal state.
 - Engine-owned sweep of `messages` / `signals` / terminal `pending_*` — operators run the SQL recipe (or `pg_partman`) themselves. `BFE_RETENTION_ENGINE_AUDIT_DAYS` is a cutoff convention only.
 - Cascading engine-audit rows with PI purge: a `messages` row is not deleted when any of its recipient PIs is purged.
-- Event-level retention (keep PI rows but drop old events): leftover `process_instance_events` live as long as the PI row does.

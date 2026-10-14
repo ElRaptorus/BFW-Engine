@@ -226,7 +226,6 @@ defmodule BfwEngine.Persistence.ProcessInstancePurge do
 
   defp delete_rows_for_process_instance_ids!(process_instance_ids) do
     delete_statements = [
-      "DELETE FROM process_instance_events WHERE process_instance_id = ANY($1::uuid[])",
       "DELETE FROM gateway_pending_arrivals WHERE process_instance_id = ANY($1::uuid[])",
       "DELETE FROM data_object_writes WHERE process_instance_id = ANY($1::uuid[])",
       "DELETE FROM data_objects WHERE process_instance_id = ANY($1::uuid[])",

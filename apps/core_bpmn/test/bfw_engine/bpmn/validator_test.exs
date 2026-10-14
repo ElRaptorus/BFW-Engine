@@ -53,6 +53,7 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       )
 
     %Definitions{
+      definitions_id: "Definitions_1",
       raw_xml: @canonical_extension_namespace_declaration,
       processes: [struct!(BpmnProcess, proc_fields)]
     }
@@ -189,31 +190,11 @@ defmodule BfwEngine.BPMN.ValidatorTest do
   # -------------------------------------------------------------------------
 
   describe "validate/1 — extension namespace" do
-    test "rejects xmlns:evil together with a legacy URI" do
-      xml = """
-      <?xml version="1.0" encoding="UTF-8"?>
-      <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                        xmlns:evil="https://evilengine.dev/schema/bpmn"
-                        id="Definitions_1">
-        <bpmn:process id="Process_1" name="Legacy Namespace" isExecutable="true">
-          <bpmn:extensionElements>
-            <evil:version>1.0.0</evil:version>
-          </bpmn:extensionElements>
-          <bpmn:startEvent id="Start_1"/>
-          <bpmn:endEvent id="End_1"/>
-          <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="End_1"/>
-        </bpmn:process>
-      </bpmn:definitions>
-      """
+    test "rejects a definition without the bfw namespace declaration" do
+      definitions = %{minimal_valid_definitions([]) | raw_xml: ""}
 
-      definitions = parse_fixture_from_xml(xml)
       assert {:error, violations} = Validator.validate(definitions)
-      assert Enum.any?(violations, fn {code, _} -> code == :legacy_extension_namespace end)
-
-      {_code, message} =
-        Enum.find(violations, fn {code, _} -> code == :legacy_extension_namespace end)
-
-      assert message =~ "xmlns:evil" or message =~ "https://evilengine.dev/schema/bpmn"
+      assert Enum.any?(violations, fn {code, _} -> code == :missing_extension_namespace end)
     end
 
     test "rejects executable process that omits xmlns:bfw canonical URI" do
@@ -240,6 +221,30 @@ defmodule BfwEngine.BPMN.ValidatorTest do
     test "accepts xmlns:bfw canonical URI with bfw:version" do
       definitions = parse_fixture("minimal_valid.bpmn")
       assert {:ok, ^definitions} = Validator.validate(definitions)
+    end
+  end
+
+  describe "validate/1 — definitions id" do
+    test "rejects a definition without an id attribute" do
+      definitions = %{minimal_valid_definitions([]) | definitions_id: nil}
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {:missing_definitions_id, message} =
+        Enum.find(violations, fn {code, _} -> code == :missing_definitions_id end)
+
+      assert message =~ "bpmn:definitions"
+    end
+
+    test "rejects a definition with a blank id attribute" do
+      definitions = %{minimal_valid_definitions([]) | definitions_id: "  "}
+
+      assert {:error, violations} = Validator.validate(definitions)
+      assert Enum.any?(violations, fn {code, _} -> code == :missing_definitions_id end)
+    end
+
+    test "accepts a definition with an id attribute" do
+      assert {:ok, _definitions} = Validator.validate(minimal_valid_definitions([]))
     end
   end
 
@@ -1031,7 +1036,7 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert {:ok, _} = Validator.validate(definitions)
     end
 
-    test "rejects plugin mode even with rule_ref" do
+    test "rejects plugin mode" do
       definitions =
         minimal_valid_definitions(
           extra_nodes: [
@@ -1039,8 +1044,7 @@ defmodule BfwEngine.BPMN.ValidatorTest do
               id: "BR1",
               type: :business_rule_task,
               type_data: %FlowNodeData.BusinessRuleTask{
-                implementation: "plugin",
-                rule_ref: "my_rule"
+                implementation: "plugin"
               }
             }
           ],
@@ -2843,6 +2847,7 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       }
 
       %Definitions{
+        definitions_id: "Definitions_1",
         raw_xml: @canonical_extension_namespace_declaration,
         processes: [process],
         messages: messages

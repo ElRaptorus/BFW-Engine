@@ -2,8 +2,7 @@ defmodule BfwEngine.Execution.HandlerDispatch do
   @moduledoc """
   Maps BPMN flow nodes to their handler modules.
 
-  Accepts either a `%FlowNode{}` struct (primary) or a bare type atom
-  (legacy fallback). For intermediate events the struct-based clause
+  Accepts a `%FlowNode{}` struct. For intermediate events the clause
   inspects the event definition to route to a type-specific handler
   (e.g. `LinkThrowEvent`); all other node types fall through to the
   static type-atom map.
@@ -48,13 +47,12 @@ defmodule BfwEngine.Execution.HandlerDispatch do
   @doc """
   Look up the handler module for a flow node.
 
-  Accepts a `%FlowNode{}` struct (preferred — enables event-definition-aware
-  dispatch for intermediate events) or a bare type atom (legacy fallback).
+  Event-definition-aware dispatch applies to intermediate events.
 
   Returns `{:ok, module}`, `{:error, :unsupported_element}`, or
   `{:error, {:unsupported_event_definition, flow_node}}`.
   """
-  @spec handler_for(FlowNode.t() | atom()) ::
+  @spec handler_for(FlowNode.t()) ::
           {:ok, module()}
           | {:error, :unsupported_element}
           | {:error, {:unsupported_event_definition, FlowNode.t()}}
@@ -77,10 +75,6 @@ defmodule BfwEngine.Execution.HandlerDispatch do
       :fallback ->
         handler_for_type(flow_node.type)
     end
-  end
-
-  def handler_for(flow_node_type) when is_atom(flow_node_type) do
-    handler_for_type(flow_node_type)
   end
 
   @doc """

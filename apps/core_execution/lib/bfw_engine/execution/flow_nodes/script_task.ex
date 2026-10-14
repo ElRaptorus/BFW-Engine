@@ -103,35 +103,28 @@ defmodule BfwEngine.Execution.FlowNodes.ScriptTask do
 
   defp apply_input_pipeline(type_data, payload, context) do
     with {:ok, mapped} <- MappingHelper.apply_in_mappings(type_data.in_mappings, payload, context),
-         :ok <- validate_contract(type_data.payload_contract, mapped) do
+         :ok <-
+           MappingHelper.validate_contract(
+             type_data.payload_contract,
+             mapped,
+             :script_task_input_contract_violation
+           ) do
       {:ok, mapped}
-    else
-      {:error, {:feel_eval_failed, _source, _reason} = detail} ->
-        {:error, {:in_mapping_failed, detail}}
-
-      {:error, violations} ->
-        {:error, {:script_task_contract_violation, violations}}
     end
   end
 
   defp apply_output_pipeline(type_data, output, context) do
     with {:ok, mapped} <-
            MappingHelper.apply_out_mappings(type_data.out_mappings, output, context),
-         :ok <- validate_contract(type_data.result_contract, mapped) do
+         :ok <-
+           MappingHelper.validate_contract(
+             type_data.result_contract,
+             mapped,
+             :script_task_contract_violation
+           ) do
       {:ok, mapped}
-    else
-      {:error, {:feel_eval_failed, _source, _reason} = detail} ->
-        {:error, {:out_mapping_failed, detail}}
-
-      {:error, violations} ->
-        {:error, {:script_task_contract_violation, violations}}
     end
   end
-
-  defp validate_contract(nil, _payload), do: :ok
-
-  defp validate_contract(contract, payload),
-    do: MappingHelper.validate_contract(contract, payload)
 
   defp resolve_outgoing(flow_node, context) do
     case SequenceFlowResolver.resolve(flow_node, context.process_model) do

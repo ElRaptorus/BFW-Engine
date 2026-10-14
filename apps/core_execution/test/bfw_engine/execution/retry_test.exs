@@ -91,7 +91,7 @@ defmodule BfwEngine.Execution.RetryTest do
   end
 
   describe "Execution.retry_process_instance/1 — EBG-loser checkpoint guard" do
-    test "returns {:error, :retry_checkpoint_is_ebg_loser} for aborted EBG sibling FNI" do
+    test "returns {:error, :retry_checkpoint_is_ebg_loser} for interrupted EBG sibling FNI" do
       defmodule EbgLoserAdapter do
         @moduledoc false
         @behaviour BfwEngine.Execution.Persistence
@@ -116,8 +116,6 @@ defmodule BfwEngine.Execution.RetryTest do
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
-        @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
@@ -162,11 +160,10 @@ defmodule BfwEngine.Execution.RetryTest do
                id: "fni-message-loser",
                flow_node_id: "MessageCatch_1",
                flow_node_type: "intermediate_catch_event",
-               state: "aborted",
+               state: "interrupted",
                previous_flow_node_instance_ids: ["fni-ebg"],
                type_properties: %{
-                 "reason" => "event_based_gateway_sibling_cancelled",
-                 "aborted" => true
+                 "reason" => "event_based_gateway_sibling_cancelled"
                },
                input_token: %{},
                error_info: nil
@@ -242,8 +239,6 @@ defmodule BfwEngine.Execution.RetryTest do
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
-        @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
@@ -365,8 +360,6 @@ defmodule BfwEngine.Execution.RetryTest do
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
-        @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
@@ -493,8 +486,6 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
         @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
-        @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
             Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
@@ -606,8 +597,6 @@ defmodule BfwEngine.Execution.RetryTest do
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
-        @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
@@ -743,8 +732,6 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
         @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
-        @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
             Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
@@ -869,8 +856,6 @@ defmodule BfwEngine.Execution.RetryTest do
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
         @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
-        @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =
             Enum.map(intents, fn _ -> %{write_id: "noop", created_at: DateTime.utc_now()} end)
@@ -983,8 +968,6 @@ defmodule BfwEngine.Execution.RetryTest do
         def list_running_process_instances(_), do: {:ok, %{records: [], next_cursor: nil}}
         @impl true
         def list_flow_node_instances(_), do: {:ok, []}
-        @impl true
-        def write_data_object(_), do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
         @impl true
         def finish_fni_with_data_objects(_, _, intents) do
           writes =

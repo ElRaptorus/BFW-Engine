@@ -16,7 +16,6 @@
       "flowNodes": [
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,

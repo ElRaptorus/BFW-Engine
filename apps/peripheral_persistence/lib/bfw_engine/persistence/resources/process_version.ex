@@ -106,7 +106,10 @@ defmodule BfwEngine.Persistence.Resources.ProcessVersion do
       public? true
     end
 
-    attribute :definitions_id, :string, public?: true
+    attribute :definitions_id, :string do
+      allow_nil? false
+      public? true
+    end
 
     attribute :bpmn_xml, :string, public?: true
     attribute :deployer, :map, public?: true

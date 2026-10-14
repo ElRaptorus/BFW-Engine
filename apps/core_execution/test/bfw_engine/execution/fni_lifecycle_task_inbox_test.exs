@@ -89,8 +89,6 @@ defmodule BfwEngine.Execution.FniLifecycleTaskInboxTest do
     @impl true
     def finish_fni_with_data_objects(_fni_id, _fni_changes, _intents), do: {:ok, %{writes: []}}
     @impl true
-    def write_data_object(_params), do: {:ok, %{write_id: "mock", created_at: DateTime.utc_now()}}
-    @impl true
     def list_data_objects(_process_instance_id), do: {:ok, []}
     @impl true
     def cleanup_orphaned_flow_node_instances, do: {:ok, 0}

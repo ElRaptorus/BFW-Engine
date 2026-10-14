@@ -16,7 +16,7 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.CommonFields do
       field(:incoming, non_null(list_of(non_null(:string))))
       field(:outgoing, non_null(list_of(non_null(:string))))
       field(:boundary_event_refs, non_null(list_of(non_null(:string))))
-      field(:data_contracts, non_null(list_of(non_null(:data_contract))))
+
       field(:data_input_associations, non_null(list_of(non_null(:data_association))))
       field(:data_output_associations, non_null(list_of(non_null(:data_association))))
       field(:multi_instance, :multi_instance)

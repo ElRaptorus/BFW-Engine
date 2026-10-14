@@ -49,15 +49,7 @@ Built-in sinks registered at boot by `BfwEngine.Events.SinkRegistrar`:
 Plugin sinks register from `on_load/1` via
 `facade.register_event_sink.(name, module, opts)`.
 
-**Database sink removed.** There is no `BfwEngine.Events.Sinks.Database`,
-no `BFE_EVENT_SINK_DATABASE`, and no GraphQL resource over a typed-event
-log. The `process_instance_events` table is retained for schema/migration
-compatibility, partitioned monthly, and stays empty unless a **plugin**
-sink writes it. Mix `evil.retention.purge` still deletes leftover rows
-when a PI tree is hard-deleted.
-
-**Debugger reconstruction does not need that table.** Kernel tables are
-written regardless of sink configuration:
+**Debugger reconstruction** uses kernel tables, written regardless of sink configuration:
 
 | Table / field | What it reconstructs |
 |---------------|----------------------|
@@ -241,7 +233,7 @@ in-memory event ring buffer.
 | Current PI/FNI/user-task counts | `GET /stats` or GraphQL on kernel resources |
 | Historical PI/FNI/DO/message/signal state | GraphQL / SQL on kernel tables (lane-visible) |
 | Rates, latency, VM, DB pool | Prometheus scrape + operator TSDB |
-| Flat typed-event log (lifecycle, plugin events, severity sweeps) | Plugin EventSink (or logs). `process_instance_events` is empty. |
+| Flat typed-event log (lifecycle, plugin events, severity sweeps) | Plugin EventSink (or logs). |
 
 ### Not shipped
 

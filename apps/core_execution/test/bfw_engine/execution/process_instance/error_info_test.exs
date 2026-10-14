@@ -151,15 +151,22 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
       assert result["message"] =~ "limit"
     end
 
-    test "called_element_resolution_failed with string detail" do
-      result = ErrorInfo.build({:called_element_resolution_failed, "not found"})
-      assert result["message"] =~ "not found"
-      assert result["message"] =~ "Call Activity"
+    test "process_not_found and no_version_available name the Call Activity" do
+      assert ErrorInfo.build(:process_not_found)["message"] =~ "Call Activity"
+      assert ErrorInfo.build(:no_version_available)["message"] =~ "no enabled version"
     end
 
-    test "called_element_resolution_failed with atom detail" do
-      result = ErrorInfo.build({:called_element_resolution_failed, :not_deployed})
-      assert result["message"] =~ "Call Activity"
+    test "data_object_transformation_failed names the data object and expression" do
+      result =
+        ErrorInfo.build(
+          {:data_object_transformation_failed, "DO_Order",
+           {:feel_eval_failed, "token.missing.field", "unknown variable"}}
+        )
+
+      assert result["error_code"] == "data_object_transformation_failed"
+      assert result["message"] =~ "Writing data object 'DO_Order' failed"
+      assert result["message"] =~ "token.missing.field"
+      assert result["message"] =~ "unknown variable"
     end
 
     test "called_process_version_not_found names process id and version" do
@@ -235,6 +242,18 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
       assert result["message"] =~ "ref"
     end
 
+    test "invalid_named_script_return" do
+      result = ErrorInfo.build({:invalid_named_script_return, :nope})
+      assert result["error_code"] == "invalid_named_script_return"
+      assert result["message"] =~ "{:ok, map}"
+    end
+
+    test "invalid_contract_schema" do
+      result = ErrorInfo.build({:invalid_contract_schema, "unresolvable $ref"})
+      assert result["error_code"] == "invalid_contract_schema"
+      assert result["message"] == "The contract is not a valid JSON Schema: unresolvable $ref"
+    end
+
     test "script_eval_failed" do
       result = ErrorInfo.build({:script_eval_failed, "x + ", "syntax error"})
       assert result["message"] =~ "syntax error"
@@ -257,6 +276,67 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
     test "contract_violation" do
       result = ErrorInfo.build({:contract_violation, [%{message: "mismatch"}]})
       assert result["message"] =~ "mismatch"
+    end
+
+    test "input contract violations name the element and the payload contract" do
+      for {code, element} <- [
+            {:service_task_input_contract_violation, "Service task"},
+            {:script_task_input_contract_violation, "Script task"},
+            {:business_rule_task_input_contract_violation, "Business rule task"}
+          ] do
+        result = ErrorInfo.build({code, [{"is missing", "#/a"}]})
+        assert result["error_code"] == Atom.to_string(code)
+
+        assert result["message"] ==
+                 "#{element} input does not match the payload contract: #/a: is missing"
+      end
+    end
+
+    test "output contract violations name the element and the result contract" do
+      for {code, element} <- [
+            {:script_task_contract_violation, "Script task"},
+            {:business_rule_task_contract_violation, "Business rule task"}
+          ] do
+        result = ErrorInfo.build({code, [%{message: "bad"}]})
+        assert result["message"] == "#{element} output does not match the result contract: bad"
+      end
+    end
+
+    test "payload and result contract violations from message and subprocess elements" do
+      payload = ErrorInfo.build({:payload_contract_violation, [{"x", "#/p"}]})
+      assert payload["error_code"] == "payload_contract_violation"
+      assert payload["message"] =~ "payload contract: #/p: x"
+
+      result = ErrorInfo.build({:result_contract_violation, [{"y", "#/r"}]})
+      assert result["error_code"] == "result_contract_violation"
+      assert result["message"] =~ "result contract: #/r: y"
+    end
+
+    test "value contract violation names the data object" do
+      result = ErrorInfo.build({:value_contract_violation, "DO_1", [{"nope", "#/v"}]})
+      assert result["error_code"] == "value_contract_violation"
+
+      assert result["message"] ==
+               "Data object 'DO_1' value does not match its value contract: #/v: nope"
+    end
+
+    test "invalid contract schema is explained" do
+      result =
+        ErrorInfo.build(
+          {:service_task_input_contract_violation, {:invalid_contract_schema, "bad ref"}}
+        )
+
+      assert result["message"] =~ "the contract is not a valid JSON Schema: bad ref"
+    end
+
+    test "data object and http handler errors have explicit messages" do
+      assert ErrorInfo.build({:unknown_data_object_reference, "Ref_1"})["message"] =~ "'Ref_1'"
+      assert ErrorInfo.build({:unknown_data_object, "DO_9"})["message"] =~ "'DO_9'"
+      assert ErrorInfo.build({:http_handler_missing_url, "Task_1"})["message"] =~ "no bfw:httpUrl"
+      assert ErrorInfo.build({:http_handler_invalid_method, "TRACE"})["message"] =~ "'TRACE'"
+
+      assert ErrorInfo.build({:http_response_headers_expression_error, "boom"})["message"] =~
+               "bfw:httpResponseHeaders expression failed: boom"
     end
 
     test "in_mapping_failed with plain string detail" do
@@ -289,10 +369,9 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
     end
 
     test "contract_violation with tuple violations" do
-      violations = [{"$.amount", "must be positive"}]
+      violations = [{"must be positive", "#/amount"}]
       result = ErrorInfo.build({:service_task_contract_violation, violations})
-      assert result["message"] =~ "$.amount"
-      assert result["message"] =~ "must be positive"
+      assert result["message"] =~ "#/amount: must be positive"
     end
 
     test "contract_violation with bare string violations" do
@@ -316,33 +395,6 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
     test "contract_violation with non-list violations" do
       result = ErrorInfo.build({:service_task_contract_violation, "not a list"})
       assert result["message"] =~ "contract violation"
-    end
-
-    test "called_element_resolution_failed with map detail containing :message" do
-      result =
-        ErrorInfo.build({:called_element_resolution_failed, %{message: "version not found"}})
-
-      assert result["message"] =~ "version not found"
-    end
-
-    test "called_element_resolution_failed with map detail containing \"message\"" do
-      result =
-        ErrorInfo.build({:called_element_resolution_failed, %{"message" => "no such process"}})
-
-      assert result["message"] =~ "no such process"
-    end
-
-    test "called_element_resolution_failed with FEEL detail" do
-      result =
-        ErrorInfo.build({:called_element_resolution_failed, {:feel_eval_failed, "expr", "error"}})
-
-      assert result["message"] =~ "FEEL"
-      assert result["message"] =~ "expr"
-    end
-
-    test "called_element_resolution_failed with opaque detail" do
-      result = ErrorInfo.build({:called_element_resolution_failed, 12_345})
-      assert result["message"] =~ "see error details"
     end
   end
 
@@ -552,7 +604,6 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
       {{:service_task_contract_violation, [%{message: "field required"}]}, "field required"},
       {{:user_task_input_contract_violation, [%{message: "invalid type"}]}, "invalid type"},
       {{:contract_violation, [%{message: "schema mismatch"}]}, "schema mismatch"},
-      {{:called_element_resolution_failed, "child-not-found"}, "child-not-found"},
       {{:called_process_version_not_found, "order-fulfillment", "1.2.0"}, "order-fulfillment"},
       {:version_disabled, "disabled"},
       {{:in_mapping_failed, "mapping detail"}, "mapping detail"},

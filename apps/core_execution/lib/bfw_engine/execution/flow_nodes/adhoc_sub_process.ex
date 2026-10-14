@@ -171,7 +171,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
 
     case ChildLifecycle.resolve_input_payload(flow_node, token, context) do
       {:ok, input_payload} ->
-        case ChildLifecycle.validate_contract(type_data.payload_contract, input_payload) do
+        case ChildLifecycle.validate_payload_contract(type_data.payload_contract, input_payload) do
           :ok ->
             execute_child(
               flow_node,
@@ -182,12 +182,12 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
               child_process_instance_id
             )
 
-          {:error, violations} ->
-            {:error, %{reason: :payload_contract_violation, violations: violations}}
+          {:error, _reason} = error ->
+            error
         end
 
-      {:error, reason} ->
-        {:error, {:in_mapping_failed, reason}}
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -466,7 +466,8 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
          :ok <- validate_adhoc_contents(flow_node.id, type_data),
          {:ok, input_payload} <-
            ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),
-         :ok <- ChildLifecycle.validate_contract(type_data.payload_contract, input_payload) do
+         :ok <-
+           ChildLifecycle.validate_payload_contract(type_data.payload_contract, input_payload) do
       execute_child(
         flow_node,
         context,

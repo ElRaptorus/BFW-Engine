@@ -143,7 +143,6 @@ defmodule BfwEngine.Test.DbAssertions do
       gateway_pending_arrivals,
       data_objects,
       data_object_writes,
-      process_instance_events,
       process_versions,
       processes,
       decision_versions,

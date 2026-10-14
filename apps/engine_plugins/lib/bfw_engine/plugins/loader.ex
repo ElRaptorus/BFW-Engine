@@ -8,7 +8,9 @@ defmodule BfwEngine.Plugins.Loader do
   and drives the `on_load/1` → `on_ready/1` lifecycle.
 
   Built-in capabilities (HTTP Service Task, etc.) are registered before
-  user plugins so they can be overridden.
+  user plugins. The Registry is first-wins, so built-ins are final: a plugin
+  that registers the same key (for example `http`) gets
+  `{:error, :conflict, "bfw:builtin"}`.
   """
 
   use GenServer

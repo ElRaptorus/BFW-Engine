@@ -90,6 +90,7 @@ defmodule BfwEngine.Persistence.Resources.CatalogTest do
                |> Ash.Changeset.for_create(:create, %{
                  process_id: process.id,
                  version: "1.0.0",
+                 definitions_id: "Definitions_1",
                  bpmn_xml: "<bpmn/>"
                })
                |> Ash.create(domain: Domain, authorize?: false)
@@ -104,6 +105,7 @@ defmodule BfwEngine.Persistence.Resources.CatalogTest do
                |> Ash.Changeset.for_create(:create, %{
                  process_id: process.id,
                  version: "2.0.0",
+                 definitions_id: "Definitions_1",
                  bpmn_xml: "<bpmn/>"
                })
                |> Ash.create(domain: Domain, authorize?: false)
@@ -119,7 +121,12 @@ defmodule BfwEngine.Persistence.Resources.CatalogTest do
     end
 
     test "duplicate (process_id, version) returns error", %{process: process} do
-      attributes = %{process_id: process.id, version: "3.0.0", bpmn_xml: "<a/>"}
+      attributes = %{
+        process_id: process.id,
+        version: "3.0.0",
+        definitions_id: "Definitions_1",
+        bpmn_xml: "<a/>"
+      }
 
       assert {:ok, _} =
                ProcessVersion

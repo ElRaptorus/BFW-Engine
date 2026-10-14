@@ -406,7 +406,7 @@ defmodule BfwEngine.DMN.ParserTest do
       assert definitions.namespace == "https://example.com/dmn/bkm-dt"
     end
 
-    test "falls back to namespace attribute for backward compatibility" do
+    test "reads the namespace attribute" do
       {:ok, definitions} = Parser.parse(read_fixture("simple_unique.dmn"))
       assert definitions.namespace == "https://example.com/dmn/discount"
     end
@@ -458,7 +458,7 @@ defmodule BfwEngine.DMN.ParserTest do
 
   # --- Phase 4: new Definitions fields default to empty ----------------------
 
-  describe "parse/1 — backward compatibility" do
+  describe "parse/1 — namespace attribute" do
     test "existing fixtures produce empty Phase 4 lists" do
       {:ok, definitions} = Parser.parse(read_fixture("simple_unique.dmn"))
 

@@ -73,7 +73,6 @@ The engine extends BPMN with custom elements under `xmlns:bfw="https://bifrostfo
 |-----------|-------|---------|
 | `bfw:inputMapping` / `bfw:outputMapping` | Tasks, Call Activity, SubProcess, throw/catch events | FEEL `source` → `target` |
 | `bfw:payloadContract` / `bfw:resultContract` | Tasks, throw/catch message events (flow-node `extensionElements`, never inside the event definition) | JSON Schema on input / output |
-| `bfw:dataContract` | Any flow node | JSON Schema with `direction` `input` or `output` |
 
 ### Service Task
 

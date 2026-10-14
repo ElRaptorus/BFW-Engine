@@ -418,7 +418,7 @@ describe('parseBpmn', () => {
       expect(def.eventDefinition).not.toHaveProperty('eventMapping');
     });
 
-    it('message event definition no longer carries payloadContract', () => {
+    it('message event definition does not carry payloadContract', () => {
       const xml = wrap(`
         <bpmn:message id="Msg_1" name="OrderReceived"/>
         <bpmn:process id="P" isExecutable="true">
@@ -1145,35 +1145,6 @@ describe('parseBpmn', () => {
       expect(mi.loopInterval).toBe('PT1S');
       expect(mi.maxIterations).toBe(100);
       expect(mi.loopCardinality).toBe('5');
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Data contracts
-  // -------------------------------------------------------------------------
-
-  describe('data contracts', () => {
-    it('parses bfw:dataContract on flow node', () => {
-      const xml = processWrap(
-        'P',
-        `
-        <bpmn:task id="T1">
-          <bpmn:extensionElements>
-            <bfw:dataContract>{"direction":"input","schema":{"type":"object","required":["orderId"]}}</bfw:dataContract>
-          </bpmn:extensionElements>
-        </bpmn:task>
-      `,
-      );
-
-      const result = parseBpmn(xml);
-      expect(result.processes[0]!.flowNodes[0]!.dataContracts).toHaveLength(1);
-      const contract = result.processes[0]!.flowNodes[0]!.dataContracts[0]!;
-      expect(contract.direction).toBe('input');
-      expect(contract.jsonSchema).toEqual({
-        type: 'object',
-        required: ['orderId'],
-      });
-      expect(contract.compiledSchema).toBeNull();
     });
   });
 

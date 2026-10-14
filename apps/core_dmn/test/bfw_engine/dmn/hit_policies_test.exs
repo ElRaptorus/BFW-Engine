@@ -514,7 +514,7 @@ defmodule BfwEngine.DMN.HitPoliciesTest do
       assert result.result == %{"tier" => "free", "limit" => 0}
     end
 
-    test "table without defaults returns nil when no rules match (backward compat)" do
+    test "table without defaults returns nil when no rules match" do
       definitions = parse_fixture("default_output_entry.dmn")
 
       {:ok, result} =

@@ -69,7 +69,12 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
 
     with {:ok, mapped_output} <-
            MappingHelper.apply_out_mappings(type_data.out_mappings, payload, context),
-         :ok <- validate_result_contract(type_data.result_contract, mapped_output),
+         :ok <-
+           MappingHelper.validate_contract(
+             type_data.result_contract,
+             mapped_output,
+             :service_task_contract_violation
+           ),
          {:ok, next_ids} <- resolve_outgoing(flow_node, context),
          {:ok, lifecycle_result} <- FniLifecycle.finish(context, flow_node, mapped_output, %{}) do
       {:ok,
@@ -78,18 +83,6 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
          next_flow_node_ids: next_ids,
          metadata: %{persisted: true, lifecycle: lifecycle_result}
        }}
-    else
-      {:error, {:feel_eval_failed, _source, _reason} = detail} ->
-        {:error, {:out_mapping_failed, detail}}
-
-      {:error, {:payload_too_large, _details}} = error ->
-        error
-
-      {:error, violations} when is_list(violations) ->
-        {:error, {:service_task_contract_violation, violations}}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
@@ -116,28 +109,15 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
 
   defp apply_input_pipeline(type_data, payload, context) do
     with {:ok, mapped} <- MappingHelper.apply_in_mappings(type_data.in_mappings, payload, context),
-         :ok <- validate_payload_contract(type_data.payload_contract, mapped) do
+         :ok <-
+           MappingHelper.validate_contract(
+             type_data.payload_contract,
+             mapped,
+             :service_task_input_contract_violation
+           ) do
       {:ok, mapped}
-    else
-      {:error, {:feel_eval_failed, _source, _reason} = detail} ->
-        {:error, {:in_mapping_failed, detail}}
-
-      {:error, violations} ->
-        {:error, {:service_task_contract_violation, violations}}
     end
   end
-
-  # -- Contract validation ---------------------------------------------------
-
-  defp validate_payload_contract(nil, _payload), do: :ok
-
-  defp validate_payload_contract(contract, payload),
-    do: MappingHelper.validate_contract(contract, payload)
-
-  defp validate_result_contract(nil, _payload), do: :ok
-
-  defp validate_result_contract(contract, payload),
-    do: MappingHelper.validate_contract(contract, payload)
 
   # -- Helpers ---------------------------------------------------------------
 

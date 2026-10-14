@@ -23,10 +23,9 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
   `BfwEngineWeb.Graphql.ModelResolvers.to_graphql_flow_node/2` — the
   polymorphic `type_data` struct is merged onto the wrapper's fields before
   Absinthe's default `Map.get/2` resolution runs, so every field below
-  resolves without a per-field `resolve` function. Leaf structs
-  (`Mapping`, `DataAssociation`, `DataContract`, `MultiInstance`,
-  `StandardLoop`, `EventDefinition.*`) are passed through as-is — their
-  field names already match 1:1.
+  resolves without a per-field `resolve` function. Leaf structs (`Mapping`,
+  `DataAssociation`, `MultiInstance`, `StandardLoop`, `EventDefinition.*`)
+  are passed through as-is — their field names already match 1:1.
   """
 
   use Absinthe.Schema.Notation
@@ -80,12 +79,6 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
   enum :multi_instance_ordering do
     value(:sequential)
     value(:parallel)
-  end
-
-  @desc "Direction of a data contract relative to the owning flow node."
-  enum :data_contract_direction do
-    value(:input)
-    value(:output)
   end
 
   # ---------------------------------------------------------------------
@@ -196,11 +189,6 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     field(:source_ref, :string)
     field(:target_ref, :string)
     field(:value_expression, :string)
-  end
-
-  object :data_contract do
-    field(:direction, non_null(:data_contract_direction))
-    field(:json_schema, non_null(:json))
   end
 
   object :multi_instance do
@@ -407,8 +395,6 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     field(:implementation, :string)
     field(:script, :string)
 
-    @desc "Legacy field, parsed for XML fidelity only. The validator rejects `implementation=\"plugin\"`, so this is never the decision actually invoked — use `decisionRef`."
-    field(:rule_ref, :string)
     field(:decision_ref, :string)
     field(:decision_element_id, :string)
     field(:result_variable, :string)
@@ -572,7 +558,7 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     field(:extensions, non_null(list_of(non_null(:bpmn_extension))))
 
     @desc "BPMN `<definitions>` id of the source document this process was parsed from."
-    field(:definitions_id, :id)
+    field(:definitions_id, non_null(:id))
 
     field(:messages, non_null(list_of(non_null(:message_definition))))
     field(:signals, non_null(list_of(non_null(:signal_definition))))

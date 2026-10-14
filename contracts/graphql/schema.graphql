@@ -1317,7 +1317,7 @@ input ProcessVersionFilterDefinitionsId {
   isNil: Boolean
   eq: String
   notEq: String
-  in: [String]
+  in: [String!]
   lessThan: String
   greaterThan: String
   lessThanOrEqual: String
@@ -1401,7 +1401,7 @@ type ProcessVersion {
 
   version: String!
 
-  definitionsId: String
+  definitionsId: String!
 
   bpmnXml: String
 
@@ -1769,12 +1769,6 @@ enum MultiInstanceOrdering {
   PARALLEL
 }
 
-"Direction of a data contract relative to the owning flow node."
-enum DataContractDirection {
-  INPUT
-  OUTPUT
-}
-
 type NoneEventDefinition {
   "Marker field — a `None` event definition carries no data."
   isNone: Boolean!
@@ -1840,11 +1834,6 @@ type DataAssociation {
   sourceRef: String
   targetRef: String
   valueExpression: String
-}
-
-type DataContract {
-  direction: DataContractDirection!
-  jsonSchema: Json!
 }
 
 type MultiInstance {
@@ -1965,8 +1954,6 @@ interface FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -1996,8 +1983,6 @@ type TaskNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2026,8 +2011,6 @@ type UserTaskNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2075,8 +2058,6 @@ type ServiceTaskNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2127,8 +2108,6 @@ type ManualTaskNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2159,8 +2138,6 @@ type ScriptTaskNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2205,8 +2182,6 @@ type BusinessRuleTaskNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2229,9 +2204,6 @@ type BusinessRuleTaskNode implements FlowNode {
   implementation: String
 
   script: String
-
-  "Legacy field, parsed for XML fidelity only. The validator rejects `implementation=\"plugin\"`, so this is never the decision actually invoked — use `decisionRef`."
-  ruleRef: String
 
   decisionRef: String
 
@@ -2258,8 +2230,6 @@ type SendTaskNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2298,8 +2268,6 @@ type ReceiveTaskNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2336,8 +2304,6 @@ type CallActivityNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2377,8 +2343,6 @@ type SubProcessNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2445,8 +2409,6 @@ type ExclusiveGatewayNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2478,8 +2440,6 @@ type ParallelGatewayNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2508,8 +2468,6 @@ type InclusiveGatewayNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2542,8 +2500,6 @@ type EventBasedGatewayNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2572,8 +2528,6 @@ type ComplexGatewayNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2605,8 +2559,6 @@ type UnknownNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2640,8 +2592,6 @@ type StartEventNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2678,8 +2628,6 @@ type EndEventNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2714,8 +2662,6 @@ type IntermediateCatchEventNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2752,8 +2698,6 @@ type IntermediateThrowEventNode implements FlowNode {
 
   boundaryEventRefs: [String!]!
 
-  dataContracts: [DataContract!]!
-
   dataInputAssociations: [DataAssociation!]!
 
   dataOutputAssociations: [DataAssociation!]!
@@ -2788,8 +2732,6 @@ type BoundaryEventNode implements FlowNode {
   outgoing: [String!]!
 
   boundaryEventRefs: [String!]!
-
-  dataContracts: [DataContract!]!
 
   dataInputAssociations: [DataAssociation!]!
 
@@ -2856,7 +2798,7 @@ type ProcessModel {
   extensions: [BpmnExtension!]!
 
   "BPMN `<definitions>` id of the source document this process was parsed from."
-  definitionsId: ID
+  definitionsId: ID!
 
   messages: [MessageDefinition!]!
 

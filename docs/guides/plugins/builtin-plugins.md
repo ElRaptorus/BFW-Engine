@@ -45,7 +45,7 @@ The `httpResponseHeaders` expression additionally receives a `responseHeaders` b
 
 ## Built-in Event Sinks
 
-Three built-in sinks, registered by `SinkRegistrar` (not the plugin Loader). The built-in database sink was removed.
+Three built-in sinks, registered by `SinkRegistrar` (not the plugin Loader).
 
 ### Console Sink
 

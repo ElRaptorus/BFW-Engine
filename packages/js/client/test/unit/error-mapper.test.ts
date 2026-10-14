@@ -342,14 +342,6 @@ describe('mapResponseError — domain error code mapping', () => {
     expect(error.errorCode).toBe('version_migration_incompatible');
   });
 
-  it('maps the legacy incompatible_version_migration alias to IncompatibleVersionMigrationError', () => {
-    const error = mapResponseError(422, {
-      error: 'incompatible_version_migration',
-      message: 'Incompatible version',
-    });
-    expect(error).toBeInstanceOf(IncompatibleVersionMigrationError);
-  });
-
   it('maps retry_checkpoint_is_non_retryable to RetryCheckpointIsNonRetryableError', () => {
     const error = mapResponseError(422, {
       error: 'retry_checkpoint_is_non_retryable',

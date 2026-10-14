@@ -167,7 +167,9 @@ defmodule BfwEngine.Execution.DataObjectWriterTest do
       flow_node = build_flow_node([doa])
       handler_context = build_handler_context(flow_node, state)
 
-      assert {:error, {:feel_eval_failed, "###INVALID###", _reason}} =
+      assert {:error,
+              {:data_object_transformation_failed, "DO_1",
+               {:feel_eval_failed, "###INVALID###", _reason}}} =
                call_prepare(flow_node, "fni-1", %{"x" => 1}, state, handler_context)
     end
 

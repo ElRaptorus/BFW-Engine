@@ -9,36 +9,37 @@ defmodule BfwEngine.Execution.HandlerDispatchTest do
   alias BfwEngine.Execution.FlowNodes
   alias BfwEngine.Execution.HandlerDispatch
 
-  describe "handler_for/1 with atom (legacy fallback)" do
+  describe "handler_for/1 with plain flow nodes" do
     test "known types return their handler module" do
-      assert {:ok, FlowNodes.StartEvent} == HandlerDispatch.handler_for(:start_event)
-      assert {:ok, FlowNodes.EndEvent} == HandlerDispatch.handler_for(:end_event)
-      assert {:ok, FlowNodes.Task} == HandlerDispatch.handler_for(:task)
+      expectations = [
+        start_event: FlowNodes.StartEvent,
+        end_event: FlowNodes.EndEvent,
+        task: FlowNodes.Task,
+        intermediate_catch_event: FlowNodes.IntermediateEvent,
+        intermediate_throw_event: FlowNodes.IntermediateEvent,
+        manual_task: FlowNodes.ManualTask,
+        user_task: FlowNodes.UserTask,
+        service_task: FlowNodes.ServiceTask,
+        exclusive_gateway: FlowNodes.ExclusiveGateway,
+        call_activity: FlowNodes.CallActivity,
+        boundary_event: FlowNodes.BoundaryEvent,
+        business_rule_task: FlowNodes.BusinessRuleTask,
+        parallel_gateway: FlowNodes.ParallelGateway
+      ]
 
-      assert {:ok, FlowNodes.IntermediateEvent} ==
-               HandlerDispatch.handler_for(:intermediate_catch_event)
-
-      assert {:ok, FlowNodes.IntermediateEvent} ==
-               HandlerDispatch.handler_for(:intermediate_throw_event)
-
-      assert {:ok, FlowNodes.ManualTask} == HandlerDispatch.handler_for(:manual_task)
-      assert {:ok, FlowNodes.UserTask} == HandlerDispatch.handler_for(:user_task)
-      assert {:ok, FlowNodes.ServiceTask} == HandlerDispatch.handler_for(:service_task)
-      assert {:ok, FlowNodes.ExclusiveGateway} == HandlerDispatch.handler_for(:exclusive_gateway)
-      assert {:ok, FlowNodes.CallActivity} == HandlerDispatch.handler_for(:call_activity)
-      assert {:ok, FlowNodes.BoundaryEvent} == HandlerDispatch.handler_for(:boundary_event)
-
-      assert {:ok, FlowNodes.BusinessRuleTask} ==
-               HandlerDispatch.handler_for(:business_rule_task)
+      for {type, handler} <- expectations do
+        assert {:ok, handler} ==
+                 HandlerDispatch.handler_for(%FlowNode{id: "node", type: type, type_data: nil})
+      end
     end
 
     test "unknown type returns {:error, :unsupported_element}" do
-      assert {:error, :unsupported_element} == HandlerDispatch.handler_for(:nonexistent)
-    end
-
-    test "parallel_gateway type returns ParallelGateway handler" do
-      assert {:ok, FlowNodes.ParallelGateway} ==
-               HandlerDispatch.handler_for(:parallel_gateway)
+      assert {:error, :unsupported_element} ==
+               HandlerDispatch.handler_for(%FlowNode{
+                 id: "node",
+                 type: :nonexistent,
+                 type_data: nil
+               })
     end
   end
 

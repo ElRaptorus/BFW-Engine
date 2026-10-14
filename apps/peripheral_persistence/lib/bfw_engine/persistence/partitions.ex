@@ -16,7 +16,6 @@ defmodule BfwEngine.Persistence.Partitions do
   alias BfwEngine.Persistence.Repo
 
   @partitioned_tables [
-    {"process_instance_events", :occurred_at},
     {"data_object_writes", :created_at},
     {"messages", :published_at},
     {"pending_messages", :published_at},

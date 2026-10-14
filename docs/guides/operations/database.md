@@ -69,7 +69,6 @@ Live tables include:
 | `flow_node_instances` | FNI state, tokens, type properties |
 | `data_objects` | Current Data Object snapshots |
 | `data_object_writes` | Append-only DO write audit (partitioned) |
-| `process_instance_events` | Partitioned table retained for schema compatibility; the engine does not write typed events here |
 | `gateway_pending_arrivals` | Pending gateway join tokens |
 | `timer_start_schedules` | Cycle Timer Start Event schedules |
 | `messages` / `pending_messages` | Published messages and pending-message hold |
@@ -80,7 +79,7 @@ There are **no** `escalations`, `compensations`, `engine_timers`, or `pending_es
 
 ## Partitioning
 
-Six tables are range-partitioned by timestamp: `process_instance_events`,
+Five tables are range-partitioned by timestamp:
 `data_object_writes`, `messages`, `pending_messages`, `signals`, and
 `pending_signals`. At boot the engine creates partitions for the current
 period and upcoming periods:
@@ -142,8 +141,7 @@ Example cron (daily 03:00 UTC):
 - Selection key is a **root** process instance whose `finished_at` is older
   than the knob for its terminal state.
 - Skip that root if any descendant is `running` or `suspended`.
-- One transaction per tree: `process_instance_events` →
-  `gateway_pending_arrivals` → `data_object_writes` → `data_objects` →
+- One transaction per tree: `gateway_pending_arrivals` → `data_object_writes` → `data_objects` →
   `flow_node_instances` → `process_instances`.
 - Catalog rows (`processes`, `process_versions`) are never touched.
 - `messages`, `signals`, `pending_*`, and `timer_start_schedules` are
@@ -201,7 +199,7 @@ DELETE FROM signals
 ### Partition drop (`pg_partman`)
 
 For `DETACH` / `DROP` of old partitions, run `pg_partman` (or equivalent)
-on `process_instance_events`, `data_object_writes`, `messages`,
+on `data_object_writes`, `messages`,
 `pending_messages`, `signals`, and `pending_signals`.
 
 ## Payload cap (`BFE_TOKEN_MAX_BYTES`)

@@ -16,7 +16,6 @@
       "flowNodes": [
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -36,7 +35,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -72,14 +70,12 @@
             "payloadContract": null,
             "resultContract": null,
             "resultVariable": null,
-            "ruleRef": null,
             "script": "{ discount: if token.item.amount > 100 then 0.1 else 0 }",
             "traceUnmatchedRules": false
           }
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,

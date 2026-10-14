@@ -10,7 +10,6 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
 
   alias BfwEngine.BPMN.Model.Association
   alias BfwEngine.BPMN.Model.DataAssociation
-  alias BfwEngine.BPMN.Model.DataContract
   alias BfwEngine.BPMN.Model.DataObject
   alias BfwEngine.BPMN.Model.DataObjectReference
   alias BfwEngine.BPMN.Model.DataStoreReference
@@ -686,20 +685,12 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: [:evil_result_variable | state.stack]}}
   end
 
-  defp handle_start("ruleRef", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_rule_ref | state.stack]}}
-  end
-
   defp handle_start("traceUnmatchedRules", _attributes, state) do
     {:ok, %{state | text_buffer: "", stack: [:evil_trace_unmatched_rules | state.stack]}}
   end
 
   defp handle_start("extensionElements", _attributes, state) do
     {:ok, %{state | stack: [:extension_elements | state.stack]}}
-  end
-
-  defp handle_start("dataContract", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_data_contract | state.stack]}}
   end
 
   defp handle_start("script", _attributes, state) do
@@ -1673,21 +1664,6 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("ruleRef", %{stack: [:evil_rule_ref | rest]} = state) do
-    text = String.trim(state.text_buffer)
-
-    data =
-      case state.current_node_data do
-        %FlowNodeData.BusinessRuleTask{} = d ->
-          %FlowNodeData.BusinessRuleTask{d | rule_ref: text}
-
-        other ->
-          other
-      end
-
-    {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
-  end
-
   defp handle_end("traceUnmatchedRules", %{stack: [:evil_trace_unmatched_rules | rest]} = state) do
     text = String.trim(state.text_buffer)
 
@@ -1705,31 +1681,6 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
 
   defp handle_end("extensionElements", state) do
     {:ok, %{state | stack: tl(state.stack)}}
-  end
-
-  defp handle_end("dataContract", %{stack: [:evil_data_contract | rest]} = state) do
-    text = String.trim(state.text_buffer)
-    parsed = parse_json_text(text)
-
-    state =
-      case {parsed, state.current_node} do
-        {parsed, %FlowNode{} = node} when parsed != nil ->
-          direction = if parsed["direction"] == "output", do: :output, else: :input
-          schema_map = parsed["schema"] || parsed
-
-          contract = %DataContract{
-            direction: direction,
-            json_schema: schema_map
-          }
-
-          node = %FlowNode{node | data_contracts: [contract | node.data_contracts]}
-          %{state | current_node: node}
-
-        _ ->
-          state
-      end
-
-    {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
   defp handle_end("script", %{stack: [:script | rest]} = state) do

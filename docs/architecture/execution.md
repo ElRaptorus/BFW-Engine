@@ -172,15 +172,14 @@ assembly, and child PI creation (Call Activity).
 | `host_flow_node_instance_id` | `String.t() \| nil` | For subscription-model boundary FNIs: the FNI ID of the host activity this boundary is attached to. `nil` for all non-boundary FNIs. Set by the PI when dispatching boundary FNIs alongside their host |
 
 **Important:** `identity`, `process`, and `process_instance` use atom keys on
-`HandlerContext` for backward compatibility with Call Activity (which passes
-`context.identity` to child PI creation). The conversion to string-keyed,
+`HandlerContext` (Call Activity passes `context.identity` to child PI creation). The conversion to string-keyed,
 camelCase maps required by the FEEL NIF happens in `Context.from_handler_context/2`.
 
 ### Handler Dispatch
 
 **Path:** `apps/core_execution/lib/bfw_engine/execution/handler_dispatch.ex`
 
-Two-tier dispatch: `handler_for/1` accepts either a `%FlowNode{}` struct (preferred) or a bare type atom (legacy fallback). For intermediate events and boundary events, a private `resolve_handler/1` function inspects the `event_definition` on the flow node's `type_data` and routes to the type-specific handler. For all other node types, it falls through to the static type-atom map. Returns `{:error, :unsupported_element}` for unknown types (Tier 3 encounter-time validation).
+Two-tier dispatch: `handler_for/1` takes a `%FlowNode{}`. For intermediate events and boundary events, a private `resolve_handler/1` function inspects the `event_definition` on the flow node's `type_data` and routes to the type-specific handler. For all other node types, it falls through to the static type-atom map. Returns `{:error, :unsupported_element}` for unknown types (Tier 3 encounter-time validation).
 
 #### Static type-atom map
 
@@ -477,7 +476,7 @@ The join fires when **all flows are either arrived or dead**, AND **at least one
 
 This is **structural backward-cone DPE**, not Camunda-style token-set / path-activation tracking. Each incoming flow's "still live?" test is: any `:active`/`:waiting` FNI whose `flow_node_id` lies in the pre-computed backward reachability set. Well-structured SESE split/join pairs match expected OR-join behaviour. Known gaps versus a token-set model: loops that re-enter the cone, unstructured graphs, and Link Throw/Catch edges that jump outside the backward BFS.
 
-A runtime BFS fallback exists for models without pre-computed analysis data (backward compatibility).
+A runtime BFS fallback exists for models without pre-computed analysis data (for example Complex Join scope models).
 
 #### PI-level routing
 
@@ -690,7 +689,7 @@ The EBG can precede any catch event type (Message, Signal, Timer, Conditional) a
 
 #### Retry at interrupted EBG siblings
 
-Interrupted EBG-sibling FNIs (identified by `type_properties.reason == "event_based_gateway_sibling_cancelled"`) are **not valid retry checkpoints**. `Execution.retry_process_instance/1` rejects checkpoint attempts targeting these FNIs with `{:error, :retry_checkpoint_is_ebg_loser}` (HTTP 422, error code `retry_checkpoint_is_ebg_loser`). Retrying at the gateway itself or upstream is the correct approach. EBG losers use state `:interrupted` (not `:aborted`) — the guard checks both states for backward compatibility with pre-existing DB rows.
+Interrupted EBG-sibling FNIs (identified by `type_properties.reason == "event_based_gateway_sibling_cancelled"`) are **not valid retry checkpoints**. `Execution.retry_process_instance/1` rejects checkpoint attempts targeting these FNIs with `{:error, :retry_checkpoint_is_ebg_loser}` (HTTP 422, error code `retry_checkpoint_is_ebg_loser`). Retrying at the gateway itself or upstream is the correct approach. EBG losers use state `:interrupted` (not `:aborted`).
 
 #### Resume after engine restart
 
@@ -1040,7 +1039,6 @@ The runtime calls persistence through `BfwEngine.Execution.Persistence.adapter()
 | `update_flow_node_instance/3` | Update FNI state, output, type_properties |
 | `finish_flow_node_instance/2` | Guarded `:update_finished` write. Returns `{:ok, record, previous_state}` so inbox withdrawal uses the row state, not the PI's in-memory flag |
 | `finish_fni_with_data_objects/3` | Atomically transition an FNI to `:finished` and persist all Data Object write intents in a single `Repo.transaction`. Called for every FNI completion (including those with zero DOAs). Returns `{:ok, %{writes: [...]}}`. |
-| `write_data_object/1` | Standalone UPSERT snapshot + INSERT audit for a single Data Object. Retained for future use; not called during FNI completion. |
 | `list_data_objects/1` | List current Data Object snapshots for a PI (used for resume rehydration of `data_object_cache`). |
 | `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `BFE_RESUME_BATCH_SIZE` (default `1000`). |
 | `list_flow_node_instances/1` | Read FNIs needed for resume of a PI: all `:active`/`:waiting` FNIs (re-dispatched / re-attached) plus `:finished` End-Event FNIs (for final-token aggregation across restarts). Other terminal FNIs are skipped — the live PI never reads their history. The finished-End-Event clause is forward-compat with non-interrupting fan-out features; it loads zero extra rows under the current feature set because no PI can produce multiple finished End-Event FNIs in a single execution today. |
@@ -1473,6 +1471,19 @@ All `error_info` maps persisted on FNIs and PIs follow a standardized schema. Th
 
 The `FlowNodeInstanceFinished` engine event also carries `error_info` (as `errorInfo` on the wire) for fatal FNIs, so real-time consumers can display error details without re-querying the API.
 
+**Data pipeline error codes.** Each pipeline step tags its own error where it fails, so the three failure classes never share a code: `MappingHelper.apply_in_mappings/3` / `apply_out_mappings/3` return `in_mapping_failed` / `out_mapping_failed` (detail `{:feel_eval_failed, expression, reason}`), `MappingHelper.validate_contract/3` returns the contract code its caller passes in, and `DataObjectWriter` returns the Data Object write codes below. Handlers propagate these errors unchanged; they never re-wrap them in an `else` clause. Every code has an explicit `humanize_error/1` clause. Violations are ExJsonSchema `{message, path}` tuples and print as `path: message`; a schema that cannot be resolved is `{:invalid_contract_schema, message}`.
+
+| Code | Raised by |
+|------|-----------|
+| `service_task_input_contract_violation`, `script_task_input_contract_violation`, `business_rule_task_input_contract_violation`, `user_task_input_contract_violation` | Payload contract after the input mappings |
+| `service_task_contract_violation`, `script_task_contract_violation`, `business_rule_task_contract_violation`, `contract_violation` (user task, 422 `contract_violation` on the wire) | Result contract after the output mappings |
+| `payload_contract_violation`, `result_contract_violation` | Send/receive tasks, message events, subprocess, transaction, ad-hoc, `ChildLifecycle` |
+| `in_mapping_failed`, `out_mapping_failed` | A `bfw:inputMapping` / `bfw:outputMapping` FEEL source failed (not a contract) |
+| `value_contract_violation` (`detail`: `[data_object_id, violations]`) | `bfw:valueContract` of a written Data Object |
+| `data_object_transformation_failed` (`detail`: `[data_object_id, [feel_eval_failed, expression, reason]]`) | The `<bpmn:transformation>` of a data output association failed |
+| `unknown_data_object_reference`, `unknown_data_object` | A data output association targets an undeclared reference or Data Object |
+| `payload_too_large` (`detail.field`: `data_object_value`) | A Data Object value exceeds the payload cap |
+
 The `Wire` module treats `error_info` as an opaque field — its internal keys (`error_code`, `message`, `detail`) are **not** camelCased during serialization.
 
 ---
@@ -1872,7 +1883,7 @@ When an FNI completes successfully, the engine evaluates the writes with no data
 3. On commit → update in-memory cache, emit `Event.DataObjectWritten` per intent, emit FNI finished event, dispatch successors
 4. On rollback → nothing is persisted; FNI transitions to `:fatal`
 
-This atomic approach ensures no partial/inconsistent DB state on failure. The `write_data_object/1` callback is retained in the Persistence behaviour for standalone/future use but is no longer called during FNI completion.
+This atomic approach ensures no partial/inconsistent DB state on failure.
 
 ### Error handling
 

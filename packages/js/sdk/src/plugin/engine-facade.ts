@@ -105,7 +105,7 @@ export interface EngineFacade {
 export interface StartOptions {
   startEventId?: string;
   payload?: Record<string, unknown>;
-  /** Immutable context variables accessible as `context.*` in FEEL expressions. Independent from the token payload. When omitted, the engine falls back to the payload for backward compatibility. */
+  /** Immutable context variables accessible as `context.*` in FEEL expressions. Independent from the token payload. When omitted, `context` is empty. */
   context?: Record<string, unknown>;
   businessKey?: string;
 }

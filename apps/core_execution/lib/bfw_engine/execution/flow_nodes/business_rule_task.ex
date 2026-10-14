@@ -15,7 +15,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
     matched rules, and the structured trace — is stored in the
     FNI's `type_properties` for auditing and debugger consumption.
 
-  Plugin delegation (`implementation="plugin"`) was removed in Business Rule Tasks exclusively evaluate business rules via FEEL or
+  Business Rule Tasks exclusively evaluate business rules via FEEL or
   DMN. Plugins observe BRT execution via engine events and analyze
   results through the facade — they never replace the execution path.
 
@@ -204,14 +204,13 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
 
   defp apply_input_pipeline(type_data, payload, context) do
     with {:ok, mapped} <- MappingHelper.apply_in_mappings(type_data.in_mappings, payload, context),
-         :ok <- validate_contract(type_data.payload_contract, mapped) do
+         :ok <-
+           MappingHelper.validate_contract(
+             type_data.payload_contract,
+             mapped,
+             :business_rule_task_input_contract_violation
+           ) do
       {:ok, mapped}
-    else
-      {:error, {:feel_eval_failed, _source, _reason} = detail} ->
-        {:error, {:in_mapping_failed, detail}}
-
-      {:error, violations} ->
-        {:error, {:business_rule_task_contract_violation, violations}}
     end
   end
 
@@ -220,23 +219,15 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
   defp apply_output_pipeline(type_data, output, context) do
     with {:ok, mapped} <-
            MappingHelper.apply_out_mappings(type_data.out_mappings, output, context),
-         :ok <- validate_contract(type_data.result_contract, mapped) do
+         :ok <-
+           MappingHelper.validate_contract(
+             type_data.result_contract,
+             mapped,
+             :business_rule_task_contract_violation
+           ) do
       {:ok, mapped}
-    else
-      {:error, {:feel_eval_failed, _source, _reason} = detail} ->
-        {:error, {:out_mapping_failed, detail}}
-
-      {:error, violations} ->
-        {:error, {:business_rule_task_contract_violation, violations}}
     end
   end
-
-  # -- Contract validation ----------------------------------------------------
-
-  defp validate_contract(nil, _payload), do: :ok
-
-  defp validate_contract(contract, payload),
-    do: MappingHelper.validate_contract(contract, payload)
 
   # -- Helpers ----------------------------------------------------------------
 

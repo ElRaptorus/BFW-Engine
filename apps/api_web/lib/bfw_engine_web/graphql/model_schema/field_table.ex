@@ -76,7 +76,6 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
        :incoming,
        :outgoing,
        :boundary_event_refs,
-       :data_contracts,
        :data_input_associations,
        :data_output_associations,
        :multi_instance,
@@ -133,7 +132,6 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
      exposed: [
        :implementation,
        :script,
-       :rule_ref,
        :decision_ref,
        :decision_element_id,
        :result_variable,
@@ -251,11 +249,6 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
      exposed: [:id, :source_ref, :target_ref, :association_direction], excluded: []},
     {Model.Mapping, exposed: [:source, :target], excluded: []},
     {Model.Extension, exposed: [:key, :value, :attributes, :children], excluded: []},
-    {Model.DataContract,
-     exposed: [:direction, :json_schema],
-     excluded: [
-       {:compiled_schema, "precompiled ExJsonSchema reference, opaque and never populated"}
-     ]},
     {Model.LinterRulesetScore,
      exposed: [
        :ruleset_id,
@@ -314,7 +307,6 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
     Model.Association => :association,
     Model.Mapping => :mapping,
     Model.Extension => :bpmn_extension,
-    Model.DataContract => :data_contract,
     Model.LinterRulesetScore => :linter_ruleset_score,
     Model.MultiInstance => :multi_instance,
     Model.StandardLoop => :standard_loop

@@ -143,7 +143,11 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
         out_mappings = Map.get(flow_node.type_data, :out_mappings, [])
 
         with :ok <-
-               MappingHelper.validate_contract(flow_node.type_data.result_contract, payload),
+               MappingHelper.validate_contract(
+                 flow_node.type_data.result_contract,
+                 payload,
+                 :result_contract_violation
+               ),
              {:ok, mapped_output} <-
                MappingHelper.apply_out_mappings(out_mappings, payload, context),
              {:ok, next_ids} <- resolve_outgoing(flow_node, context),
@@ -157,12 +161,6 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
              next_flow_node_ids: next_ids,
              metadata: %{persisted: true, lifecycle: lifecycle_result}
            }}
-        else
-          {:error, violations} when is_list(violations) ->
-            {:error, %{reason: :result_contract_violation, violations: violations}}
-
-          {:error, _reason} = error ->
-            error
         end
     end
   end

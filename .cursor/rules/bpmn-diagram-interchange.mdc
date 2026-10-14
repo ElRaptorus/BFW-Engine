@@ -100,7 +100,7 @@ Every new BPMN diagram **must** contain at least one pool (`<bpmn:participant>` 
 
 ## Namespace URI
 
-The canonical `bfw:` namespace URI is `https://bifrostforge.world/schema/bpmn`. Older variants (`http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`) are deprecated and must not be used in new files.
+The canonical `bfw:` namespace URI is `https://bifrostforge.world/schema/bpmn`.
 
 ## Coordinate calculation
 

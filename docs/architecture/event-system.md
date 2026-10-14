@@ -166,9 +166,7 @@ All sinks run **concurrently** under supervised `Task`s started from `EngineEven
 
 **Integration tests** assert kernel tables (`flow_node_instances`,
 `data_object_writes`, `gateway_pending_arrivals`, and so on). The engine
-does not persist typed events to `process_instance_events`; that table
-exists for schema compatibility and stays empty unless a plugin sink
-writes it.
+does not persist typed events; a plugin sink can write them elsewhere.
 
 ## Root Process Instance ID and WebSocket Fan-out
 

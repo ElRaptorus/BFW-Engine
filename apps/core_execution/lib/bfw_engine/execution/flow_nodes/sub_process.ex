@@ -201,7 +201,7 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
        ) do
     case ChildLifecycle.resolve_input_payload(flow_node, token, context) do
       {:ok, input_payload} ->
-        case ChildLifecycle.validate_contract(
+        case ChildLifecycle.validate_payload_contract(
                flow_node.type_data.payload_contract,
                input_payload
              ) do
@@ -216,12 +216,12 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
               child_process_instance_id
             )
 
-          {:error, violations} ->
-            {:error, %{reason: :payload_contract_violation, violations: violations}}
+          {:error, _reason} = error ->
+            error
         end
 
-      {:error, reason} ->
-        {:error, {:in_mapping_failed, reason}}
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -320,7 +320,8 @@ defmodule BfwEngine.Execution.FlowNodes.SubProcess do
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),
          {:ok, input_payload} <-
            ChildLifecycle.resolve_input_payload(flow_node, entry.token, context),
-         :ok <- ChildLifecycle.validate_contract(type_data.payload_contract, input_payload) do
+         :ok <-
+           ChildLifecycle.validate_payload_contract(type_data.payload_contract, input_payload) do
       result =
         start_and_monitor_child(
           context,

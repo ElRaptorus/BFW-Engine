@@ -443,7 +443,6 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
   def business_rule_task_process(opts \\ []) do
     implementation = Keyword.get(opts, :implementation, "feel")
     script = Keyword.get(opts, :script, nil)
-    rule_ref = Keyword.get(opts, :rule_ref, nil)
     decision_ref = Keyword.get(opts, :decision_ref, nil)
     result_variable = Keyword.get(opts, :result_variable, nil)
     trace_unmatched_rules = Keyword.get(opts, :trace_unmatched_rules, false)
@@ -466,7 +465,6 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
       type_data: %FlowNodeData.BusinessRuleTask{
         implementation: implementation,
         script: script,
-        rule_ref: rule_ref,
         decision_ref: decision_ref,
         result_variable: result_variable,
         trace_unmatched_rules: trace_unmatched_rules,

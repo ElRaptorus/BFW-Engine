@@ -9,7 +9,7 @@ defmodule BfwEngine.Persistence.Repo.Migrations.CreateInitialSchema do
   1. Ash/Postgres extension functions (uuid_generate_v7, ash_raise_error, etc.)
   2. Catalog tables (processes, process_versions)
   3. Execution tables (process_instances, flow_node_instances, gateway_pending_arrivals)
-  4. Audit tables (process_instance_events, data_objects, data_object_writes)
+  4. Audit tables (data_objects, data_object_writes)
   5. All indexes, constraints, and compression settings
   6. DMN catalog tables (decision_definitions, decision_versions)
   7. Operational Timer Start schedules (timer_start_schedules)
@@ -27,7 +27,6 @@ defmodule BfwEngine.Persistence.Repo.Migrations.CreateInitialSchema do
   ]
 
   @lz4_columns_partitioned [
-    {"process_instance_events", "payload"},
     {"data_object_writes", "value"},
     {"messages", "payload"},
     {"pending_messages", "payload"}
@@ -195,7 +194,7 @@ defmodule BfwEngine.Persistence.Repo.Migrations.CreateInitialSchema do
         null: false
 
       add :version, :text, null: false
-      add :definitions_id, :text
+      add :definitions_id, :text, null: false
       add :bpmn_xml, :text
       add :deployer, :map
       add :deleted, :boolean, null: false, default: false
@@ -380,45 +379,6 @@ defmodule BfwEngine.Persistence.Repo.Migrations.CreateInitialSchema do
     # ---------------------------------------------------------------
 
     partitioned? = partition_interval() != :off
-
-    if partitioned? do
-      execute("""
-      CREATE TABLE process_instance_events (
-        id UUID NOT NULL DEFAULT uuid_generate_v7(),
-        process_instance_id UUID,
-        flow_node_instance_id UUID,
-        event_type TEXT NOT NULL,
-        severity TEXT NOT NULL DEFAULT 'info',
-        occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        payload JSONB,
-        PRIMARY KEY (id, occurred_at)
-      ) PARTITION BY RANGE (occurred_at)
-      """)
-    else
-      execute("""
-      CREATE TABLE process_instance_events (
-        id UUID NOT NULL DEFAULT uuid_generate_v7() PRIMARY KEY,
-        process_instance_id UUID,
-        flow_node_instance_id UUID,
-        event_type TEXT NOT NULL,
-        severity TEXT NOT NULL DEFAULT 'info',
-        occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        payload JSONB
-      )
-      """)
-
-      create index(:process_instance_events, [:occurred_at],
-               name: "process_instance_events_occurred_at_idx"
-             )
-    end
-
-    create index(:process_instance_events, [:process_instance_id],
-             name: "process_instance_events_process_instance_id_idx"
-           )
-
-    create index(:process_instance_events, [:event_type],
-             name: "process_instance_events_event_type_idx"
-           )
 
     create table(:data_objects, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("uuid_generate_v7()"), primary_key: true
@@ -812,20 +772,6 @@ defmodule BfwEngine.Persistence.Repo.Migrations.CreateInitialSchema do
                    )
 
     drop table(:data_objects)
-
-    drop_if_exists index(:process_instance_events, [:event_type],
-                     name: "process_instance_events_event_type_idx"
-                   )
-
-    drop_if_exists index(:process_instance_events, [:process_instance_id],
-                     name: "process_instance_events_process_instance_id_idx"
-                   )
-
-    drop_if_exists index(:process_instance_events, [:occurred_at],
-                     name: "process_instance_events_occurred_at_idx"
-                   )
-
-    execute("DROP TABLE IF EXISTS process_instance_events CASCADE")
 
     drop_if_exists constraint(:process_instances, :process_instances_deleted_consistency)
 

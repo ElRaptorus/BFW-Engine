@@ -51,7 +51,6 @@ export const FLOW_NODE_COMMON_FIELDS: SelectionField[] = [
   'isForCompensation',
   'documentation',
   'parentSubProcessId',
-  { name: 'dataContracts', fields: ['direction', 'jsonSchema'] },
   { name: 'dataInputAssociations', fields: ['id', 'sourceRef', 'targetRef', 'valueExpression'] },
   { name: 'dataOutputAssociations', fields: ['id', 'sourceRef', 'targetRef', 'valueExpression'] },
   {
@@ -153,7 +152,6 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
     ...mappingFieldsAsNested('outMappings'),
     'implementation',
     'script',
-    'ruleRef',
     'decisionRef',
     'decisionElementId',
     'resultVariable',

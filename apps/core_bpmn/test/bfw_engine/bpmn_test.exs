@@ -27,7 +27,7 @@ defmodule BfwEngine.BPMNTest do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                        xmlns:bfw="https://bifrostforge.world/schema/bpmn">
+                        xmlns:bfw="https://bifrostforge.world/schema/bpmn" id="Definitions_1">
         <bpmn:process id="proc_1" isExecutable="true">
           <bpmn:extensionElements><bfw:version>1.0</bfw:version></bpmn:extensionElements>
           <bpmn:startEvent id="start_1"/>

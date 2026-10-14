@@ -50,10 +50,6 @@ defmodule BfwEngine.Execution.FniLifecycleTypePropertiesTest do
       do: {:ok, %{writes: []}}
 
     @impl true
-    def write_data_object(_params),
-      do: {:ok, %{write_id: "mock", created_at: DateTime.utc_now()}}
-
-    @impl true
     def list_data_objects(_process_instance_id), do: {:ok, []}
 
     @impl true

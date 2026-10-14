@@ -9,7 +9,6 @@ import type {
   BpmnProcess,
   BusinessRuleTaskTypeData,
   DataAssociation,
-  DataContract,
   DataObject,
   DataObjectReference,
   DataStore,
@@ -472,7 +471,6 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
   let documentation: string | null = null;
   let multiInstance: MultiInstance | null = null;
   let standardLoop: StandardLoop | null = null;
-  const dataContracts: DataContract[] = [];
   const dataInputAssociations: DataAssociation[] = [];
   const dataOutputAssociations: DataAssociation[] = [];
 
@@ -515,8 +513,6 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
     }
   }
 
-  collectDataContracts(kids, dataContracts);
-
   const tagName = elementName(node) ?? undefined;
   const typeData = buildTypeData(node, kids, type, tagName);
 
@@ -533,7 +529,6 @@ function parseFlowNode(node: OrderedNode, type: FlowNodeType): FlowNode {
     incoming: incoming.reverse(),
     outgoing: outgoing.reverse(),
     boundaryEventRefs: [],
-    dataContracts,
     dataInputAssociations: dataInputAssociations.reverse(),
     dataOutputAssociations: dataOutputAssociations.reverse(),
     multiInstance,
@@ -752,7 +747,6 @@ function buildBusinessRuleTaskTypeData(
     type: 'business_rule_task',
     implementation: bpmnImpl ?? extImpl,
     script: childText(kids, 'script') || null,
-    ruleRef: childText(extKids, 'ruleRef') || null,
     decisionRef: childText(extKids, 'decisionRef') || null,
     decisionElementId: childText(extKids, 'decisionElementId') || null,
     resultVariable: childText(extKids, 'resultVariable') || null,
@@ -1141,26 +1135,6 @@ function parseAssociation(node: OrderedNode, prefix: string): DataAssociation {
     targetRef: childText(kids, 'targetRef') || null,
     valueExpression: childText(kids, 'transformation') || null,
   };
-}
-
-function collectDataContracts(kids: OrderedNode[], contracts: DataContract[]): void {
-  const extKids = getExtensionChildren(kids);
-  for (const child of findAllElements(extKids, 'dataContract')) {
-    const text = textContent(child);
-    const parsed = parseJsonText(text);
-    if (parsed === null) {
-      continue;
-    }
-
-    const direction: 'input' | 'output' = parsed['direction'] === 'output' ? 'output' : 'input';
-    const schemaMap = (parsed['schema'] ?? parsed) as Record<string, unknown>;
-
-    contracts.push({
-      direction,
-      jsonSchema: schemaMap,
-      compiledSchema: null,
-    });
-  }
 }
 
 /** The standard BPMN data items carry the variable name in the `name` attribute, as the Elixir parser reads it. */

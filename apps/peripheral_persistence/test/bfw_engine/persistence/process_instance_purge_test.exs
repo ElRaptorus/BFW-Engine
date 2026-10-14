@@ -41,13 +41,22 @@ defmodule BfwEngine.Persistence.ProcessInstancePurgeTest do
           started_at: DateTime.utc_now()
         })
 
-      {:ok, _write} =
-        ExecutionAdapter.write_data_object(%{
-          process_instance_id: process_instance_id,
-          data_object_id: "DO_Order",
-          flow_node_instance_id: flow_node_instance_id,
-          value: %{"status" => "ok"}
-        })
+      EctoSQL.query!(
+        Repo,
+        """
+        INSERT INTO data_object_writes (id, process_instance_id, data_object_id,
+                                        flow_node_instance_id, value, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        [
+          Ecto.UUID.dump!(Ash.UUIDv7.generate()),
+          Ecto.UUID.dump!(process_instance_id),
+          "DO_Order",
+          Ecto.UUID.dump!(flow_node_instance_id),
+          %{"status" => "ok"},
+          DateTime.utc_now()
+        ]
+      )
 
       {:ok, _arrival} =
         Ash.create(

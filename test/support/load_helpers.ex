@@ -277,7 +277,6 @@ defmodule BfwEngine.Test.LoadHelpers do
     {"flow_node_instances", "type_properties"},
     {"gateway_pending_arrivals", "arrived_payload"},
     {"data_objects", "value"},
-    {"process_instance_events", "payload"},
     {"data_object_writes", "value"},
     {"messages", "payload"},
     {"pending_messages", "payload"}

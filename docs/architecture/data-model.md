@@ -32,8 +32,8 @@ process_versions
   id                  uuid PK
   process_id          uuid FK -> processes.id
   version             text        NOT NULL    -- from <bfw:version>, required at deploy time
-  definitions_id      text        NULL        -- bpmn:definitions@id from the BPMN XML; nullable for legacy deploys
-  bpmn_xml            text         -- full XML, normalized. SINGLE SOURCE OF TRUTH for the process definition. The parsed AST is built in memory by BfwEngine.BPMN.ModelCache on first access and is never persisted — neither the AST nor the compiled Data Contracts live in the database.
+  definitions_id      text        NOT NULL    -- bpmn:definitions@id from the BPMN XML; required at deploy time
+  bpmn_xml            text         -- full XML, normalized. SINGLE SOURCE OF TRUTH for the process definition. The parsed AST is built in memory by BfwEngine.BPMN.ModelCache on first access and is never persisted — neither the AST nor the parsed contracts live in the database.
   deployer            jsonb        -- identity claim of deployer at deploy time
   deleted             boolean     NOT NULL DEFAULT false       -- deletion flag, irreversible in v1
   deleted_at          timestamptz NULL                         -- set in the same txn that flips `deleted` to true
@@ -169,8 +169,7 @@ flow_node_instances
 --   Every "active token" is 1:1 with a `flow_node_instances` row in state='active' whose `input_token`
 --   column already stores the payload. Resume rehydrates active tokens by scanning
 --   `flow_node_instances WHERE state='active'` per running PI — no separate shadow table needed.
---   The narrow case `active_tokens` formerly covered — parallel-join arrival buffering — moves to
---   the dedicated `gateway_pending_arrivals` table below.
+--   Parallel-join arrival buffering lives in the dedicated `gateway_pending_arrivals` table below.
 
 gateway_pending_arrivals   -- parallel / inclusive gateway join buffering
                            -- Written when a token arrives at a join gateway whose incoming branches
@@ -225,53 +224,6 @@ data_objects        -- CURRENT-VALUE snapshot, one row per (PI, DO), upserted on
 ### 4.3 Audit / communication (append-only)
 
 ```
-process_instance_events
-  -- PARTITIONED: PARTITION BY RANGE (occurred_at), one partition per calendar month
-  -- (e.g. process_instance_events_2026_04). Partitions are created ahead of time by a Mix
-  -- task (`mix bfw.partitions.ensure`) run from the engine's release hook on boot; future
-  -- v2 archival will drop whole partitions instead of running row-by-row DELETEs.
-  --
-  -- NO LONGER POPULATED: the built-in `database` EventSink was removed. This table
-  -- is retained for migration compatibility but stays empty on fresh installs. Historical
-  -- audit-trail design used the `database` sink to write rows here when
-  -- `BFE_EVENT_SINK_DATABASE=on`; that env var and sink no longer exist. Operators who
-  -- need a SQL-queryable event log register a plugin sink instead. The Studio debugger's
-  -- BPMN-flow view does NOT require this table (it reconstructs from the always-on
-  -- kernel tables: flow_node_instances with triggerer_flow_node_instance_id,
-  -- process_instances, data_object_writes, messages/signals with
-  -- correlations[] — see [`observability.md`](./observability.md)).
-  --
-  -- data_object.written rows were previously mirrored here by the DB sink; the underlying
-  -- data_object_writes row (below) is always written regardless — see the note in
-  -- [event-system.md](./event-system.md) on the "kernel state"
-  -- vs "observability sink" split.
-  id                      uuid NOT NULL (UUIDv7 — natural time sort)
-  process_instance_id     uuid FK
-  flow_node_instance_id   uuid FK NULL
-  event_type              text      -- canonical values:
-                                    --   pi.started | pi.finished | pi.error | pi.fatal | pi.compensated | pi.escalated | pi.resumed
-                                    --   fni.started | fni.finished | fni.error | fni.fatal | fni.interrupted | fni.compensated
-                                    --   message.published | message.received
-                                    --   signal.published | signal.received
-                                    --   escalation.raised | escalation.caught
-                                    --   timer.armed | timer.fired | timer.cancelled
-                                    --   data_object.written                             (payload carries write_id + flow_node_instance_id + value + previous_value)
-                                    --   user_task.claimed | user_task.completed
-                                    --   retention.purged                                (not emitted in v1 — Mix purge has no bus event)
-                                    --   sink.failed                                     (emitted by EngineEventBus when a sink crashes)
-  severity                text      -- error|warn|info|debug|verbose
-  occurred_at             timestamptz NOT NULL
-  payload                 jsonb COMPRESSION lz4
-                                    -- LZ4-compressed; payload carries the typed Event.* struct serialized
-                                    -- to JSON. For data_object.written events the payload carries a reference
-                                    -- to the kernel-state `data_object_writes` row (write_id) so subscribers
-                                    -- can join rather than duplicate the full value. Cap applies via the emitting
-                                    -- write_* boundary (the caller has already rejected oversize payloads; the
-                                    -- event-persist step cannot see anything over BFE_TOKEN_MAX_BYTES).
-  PRIMARY KEY (id, occurred_at)     -- composite because partition key must be in PK
-  INDEX (process_instance_id, occurred_at)
-  INDEX (event_type, occurred_at)
-
 -- NOTE: `messages`, `pending_messages`, `signals`, and `pending_signals` are
 -- ENGINE-LEVEL AUDIT tables — they have no PI FK (the relation to PIs is via `messages.correlations[]`
 -- / broadcast semantics), so they are NOT cleaned up by Mix `evil.retention.purge`.
@@ -284,7 +236,7 @@ process_instance_events
 
 messages
   -- PARTITIONED: PARTITION BY RANGE (published_at), one partition per calendar month.
-  -- Same partitioning scheme as process_instance_events. Partitions are pre-created
+  -- Partitions are pre-created
   -- by `mix bfw.partitions.ensure` gated by BFE_PARTITION_AHEAD_MONTHS. Composite primary
   -- key (id, published_at) because the partition key must be in the PK.
   id                       uuid NOT NULL (UUIDv7 — natural time sort)
@@ -431,12 +383,10 @@ data_object_writes   -- append-only history, one row per Data Object write.
                      -- to value; written_at renamed to created_at.
                      --
                      -- PARTITIONED: PARTITION BY RANGE (created_at), one partition per
-                     -- calendar month, same scheme as process_instance_events. Partitions
+                     -- calendar month. Partitions
                      -- created ahead of time by `mix bfw.partitions.ensure`.
                      --
-                     -- ALWAYS-ON: unlike the legacy data_object.written rows that the
-                     -- removed database sink used to mirror in process_instance_events,
-                     -- this table is kernel state, not an observability sink — it is required
+                     -- ALWAYS-ON: this table is kernel state, not an observability sink — it is required
                      -- for downstream write-audit reconstruction (Studio debugger "who wrote
                      -- what when" panel) and for resume-time invariants. It is always written.
   id                       uuid NOT NULL (UUIDv7 — natural time sort)
@@ -448,12 +398,10 @@ data_object_writes   -- append-only history, one row per Data Object write.
                                                     -- value written. jsonb 'null' is legitimate.
                                                     -- LZ4-compressed; capped at BFE_TOKEN_MAX_BYTES at DOA-commit time.
   created_at               timestamptz NOT NULL
-                                                    -- every row is DOA-originated — there is no
-                                                    --   handler-facing write_data_object/2 facade in v1 (see
-                                                    --   [execution.md](./execution.md) Data Objects), so the prior
-                                                    --   `source` column (which distinguished DOA vs handler_api) would
-                                                    --   be constant and has been removed. The FNI-attribution
-                                                    --   invariant ("one write ↔ one owning FNI") is trivially
+                                                    -- every row is DOA-originated (there is no
+                                                    --   handler-facing write facade; see
+                                                    --   [execution.md](./execution.md) Data Objects). The
+                                                    --   FNI-attribution invariant ("one write ↔ one owning FNI") is trivially
                                                     --   enforced by flow_node_instance_id + DOA's 1:1 mapping from
                                                     --   a completing FNI to the DOs it targets.
   PRIMARY KEY (id, created_at)                             -- composite because partition key must be in PK
@@ -474,7 +422,7 @@ computes pending user-task and waiting-FNI counts with live Ash queries against
 | Concept requirement | Mechanism |
 |---|---|
 | "Never the DB bottleneck" | Partial indexes on `state='running'`/`'active'` keep working set small; JSONB GIN for free-form queries; materialized views for heavy aggregates |
-| "Store full execution path" | `previous_flow_node_instance_ids` chain + `process_instance_events` append log (table exists; built-in DatabaseSink removed so it stays empty unless a plugin sink writes it) + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
+| "Store full execution path" | `previous_flow_node_instance_ids` chain + `messages` (origin+correlation) / `signals` (origin+deliveries). Escalation and compensation traces are EngineEventBus events, not dedicated audit tables. |
 | "Full Resume support after crash" | Live rehydration: select all `process_instances.state='running'`, rehydrate PI GenServer, re-project `flow_node_instances.state IN ('active','waiting')` (in-flight token payload lives on `input_token`) + `gateway_pending_arrivals` (for half-completed joins). PI-scoped timers resume from FNI `type_properties` into Scheduler ETS. There is no `engine_timers` table. |
 | "Bounded per-row JSONB growth" | Payload slim-down: `process_instances.final_token` eliminated (derived); `active_tokens` table eliminated (derived); LZ4 compression on all heavy JSONB columns (typically 20-40% storage reduction with 3-8% CPU *win* over PGLZ on realistic workloads); hard 64 KiB cap per token/DO/message payload via `BFE_TOKEN_MAX_BYTES` |
 | "Bounded engine-wide audit-table growth" | Operator SQL (recipe in [database.md](../guides/operations/database.md)) closes the gap Mix PI-tree purge left for engine-level audit tables with no PI affinity. **Tables that exist today:** `messages` / `pending_messages` / `signals` / `pending_signals`, partitioned on `published_at` (`BfwEngine.Persistence.Partitions`). Single unused convention `BFE_RETENTION_ENGINE_AUDIT_DAYS`. Operational-state rows (`pending_messages.state='pending'`, `pending_signals.state='pending'`) excluded. Optional `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION=false` / `BFE_PENDING_SIGNALS_KEEP_AFTER_TRANSITION=false` flips each pending table into zero-retention mode. `timer_start_schedules` is operational — do not DELETE it. Recommend `pg_partman` for `DETACH`/`DROP` of old partitions. |

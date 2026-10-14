@@ -1,11 +1,13 @@
 defmodule BfwEngine.Execution.MappingHelper do
   @moduledoc """
   Shared helpers for FEEL-based input/output mappings and JSON Schema
-  contract validation. Used by CallActivity, ScriptTask, ServiceTask,
-  and UserTask handlers to implement the uniform data transformation
-  pipeline:
+  contract validation. Used by every handler that implements the uniform
+  data transformation pipeline:
 
       token -> in_mappings -> payload_contract -> handler -> out_mappings -> result_contract -> downstream
+
+  Each step tags its own error, so a mapping failure, a contract violation,
+  and a Data Object write failure never share an `error_code`.
   """
 
   alias BfwEngine.Expressions
@@ -14,7 +16,7 @@ defmodule BfwEngine.Execution.MappingHelper do
   @doc """
   Apply input mappings to transform a token payload into the handler's
   expected input shape. Returns `{:ok, mapped_payload}` or
-  `{:error, {:feel_eval_failed, source, reason}}`.
+  `{:error, {:in_mapping_failed, {:feel_eval_failed, source, reason}}}`.
 
   When `mappings` is empty, returns the original payload unchanged.
   """
@@ -22,13 +24,13 @@ defmodule BfwEngine.Execution.MappingHelper do
   def apply_in_mappings([], payload, _context), do: {:ok, payload || %{}}
 
   def apply_in_mappings(mappings, payload, context) do
-    eval_mappings(mappings, payload || %{}, context)
+    eval_mappings(mappings, payload || %{}, context, :in_mapping_failed)
   end
 
   @doc """
   Apply output mappings to transform a handler's result into the
   downstream token shape. Returns `{:ok, mapped_output}` or
-  `{:error, {:feel_eval_failed, source, reason}}`.
+  `{:error, {:out_mapping_failed, {:feel_eval_failed, source, reason}}}`.
 
   When `mappings` is empty, returns the original payload unchanged.
   """
@@ -36,14 +38,16 @@ defmodule BfwEngine.Execution.MappingHelper do
   def apply_out_mappings([], payload, _context), do: {:ok, payload || %{}}
 
   def apply_out_mappings(mappings, payload, context) do
-    eval_mappings(mappings, payload || %{}, context)
+    eval_mappings(mappings, payload || %{}, context, :out_mapping_failed)
   end
 
   @doc """
   Validate a payload against a JSON Schema contract.
 
   Returns `:ok` when the contract is nil (no validation) or when the
-  payload passes. Returns `{:error, violations}` on failure.
+  payload passes. Returns `{:error, violations}` on failure, where
+  `violations` is a list of `{message, path}` tuples or
+  `{:invalid_contract_schema, message}`.
   """
   @spec validate_contract(map() | nil, map()) :: :ok | {:error, term()}
   def validate_contract(nil, _payload), do: :ok
@@ -60,7 +64,19 @@ defmodule BfwEngine.Execution.MappingHelper do
       {:error, {:invalid_contract_schema, Exception.message(exception)}}
   end
 
-  defp eval_mappings(mappings, payload, context) do
+  @doc """
+  Same as `validate_contract/2`, but tags a failure with `error_code`:
+  `{:error, {error_code, violations}}`.
+  """
+  @spec validate_contract(map() | nil, map(), atom()) :: :ok | {:error, {atom(), term()}}
+  def validate_contract(contract, payload, error_code) do
+    case validate_contract(contract, payload) do
+      :ok -> :ok
+      {:error, violations} -> {:error, {error_code, violations}}
+    end
+  end
+
+  defp eval_mappings(mappings, payload, context, error_code) do
     feel_context = FeelContext.from_handler_context(context, payload)
 
     Enum.reduce_while(mappings, {:ok, %{}}, fn mapping, {:ok, acc} ->
@@ -69,7 +85,7 @@ defmodule BfwEngine.Execution.MappingHelper do
           {:cont, {:ok, Map.put(acc, mapping.target, value)}}
 
         {:error, reason} ->
-          {:halt, {:error, {:feel_eval_failed, mapping.source, reason}}}
+          {:halt, {:error, {error_code, {:feel_eval_failed, mapping.source, reason}}}}
       end
     end)
   end

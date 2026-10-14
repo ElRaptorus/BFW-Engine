@@ -33,7 +33,11 @@ defmodule BfwEngine.Execution.FlowNodes.MessageStartEvent do
     output_payload = token.payload
 
     with :ok <-
-           MappingHelper.validate_contract(flow_node.type_data.result_contract, output_payload),
+           MappingHelper.validate_contract(
+             flow_node.type_data.result_contract,
+             output_payload,
+             :result_contract_violation
+           ),
          {:ok, targets} <-
            resolve_outgoing(flow_node, context),
          {:ok, lifecycle_result} <-
@@ -44,12 +48,6 @@ defmodule BfwEngine.Execution.FlowNodes.MessageStartEvent do
          next_flow_node_ids: Enum.map(targets, & &1.id),
          metadata: %{persisted: true, lifecycle: lifecycle_result}
        }}
-    else
-      {:error, violations} when is_list(violations) ->
-        {:error, %{reason: :result_contract_violation, violations: violations}}
-
-      {:error, _reason} = error ->
-        error
     end
   end
 

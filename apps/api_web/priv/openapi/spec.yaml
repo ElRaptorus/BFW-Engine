@@ -2299,7 +2299,7 @@ components:
         failures:
           type: array
           description: >-
-            Legacy wire key today; array of `{file, details}` objects from parse/validate.
+            Array of `{file, details}` objects from parse/validate.
           items:
             type: object
             properties:
@@ -2562,7 +2562,7 @@ components:
       description: >-
         ProcessModel-shaped response entry (listing). The `id` is the BPMN
         `<process id="...">` attribute, not a database UUID.
-      required: [id, version, name, enabled, deployedAt]
+      required: [id, versionId, definitionsId, version, name, enabled, deployedAt]
       properties:
         id:
           type: string
@@ -2573,7 +2573,6 @@ components:
           description: Database UUID of the latest active process version.
         definitionsId:
           type: string
-          nullable: true
           description: BPMN `<definitions id="...">` attribute.
         version:
           type: string
@@ -2604,7 +2603,6 @@ components:
           description: Database UUID of the latest active process version.
         definitionsId:
           type: string
-          nullable: true
           description: BPMN `<definitions id="...">` attribute.
         version:
           type: string
@@ -2634,7 +2632,7 @@ components:
       description: >-
         ProcessModel-shaped response for a specific version entry. Includes
         the version's database UUID as `versionId` for delete operations.
-      required: [id, versionId, version, name, enabled, deployedAt]
+      required: [id, versionId, definitionsId, version, name, enabled, deployedAt]
       properties:
         id:
           type: string
@@ -2645,7 +2643,6 @@ components:
           description: Database UUID of this specific process version (used for deletion).
         definitionsId:
           type: string
-          nullable: true
           description: BPMN `<definitions id="...">` attribute.
         version:
           type: string

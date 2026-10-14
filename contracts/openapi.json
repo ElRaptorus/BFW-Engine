@@ -679,7 +679,7 @@
             "type": "string"
           },
           "failures": {
-            "description": "Legacy wire key today; array of `{file, details}` objects from parse/validate.",
+            "description": "Array of `{file, details}` objects from parse/validate.",
             "items": {
               "additionalProperties": true,
               "properties": {
@@ -1294,7 +1294,6 @@
           },
           "definitionsId": {
             "description": "BPMN `<definitions id=\"...\">` attribute.",
-            "nullable": true,
             "type": "string"
           },
           "deployedAt": {
@@ -1446,7 +1445,6 @@
         "properties": {
           "definitionsId": {
             "description": "BPMN `<definitions id=\"...\">` attribute.",
-            "nullable": true,
             "type": "string"
           },
           "deployedAt": {
@@ -1477,6 +1475,8 @@
         },
         "required": [
           "id",
+          "versionId",
+          "definitionsId",
           "version",
           "name",
           "enabled",
@@ -1493,7 +1493,6 @@
           },
           "definitionsId": {
             "description": "BPMN `<definitions id=\"...\">` attribute.",
-            "nullable": true,
             "type": "string"
           },
           "deployedAt": {
@@ -1531,6 +1530,7 @@
         "required": [
           "id",
           "versionId",
+          "definitionsId",
           "version",
           "name",
           "enabled",

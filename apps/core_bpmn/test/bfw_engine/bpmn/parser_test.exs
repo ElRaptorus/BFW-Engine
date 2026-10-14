@@ -573,7 +573,7 @@ defmodule BfwEngine.BPMN.ParserTest do
              }
     end
 
-    test "EventDefinition.Message no longer carries payload_contract" do
+    test "EventDefinition.Message does not carry payload_contract" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"

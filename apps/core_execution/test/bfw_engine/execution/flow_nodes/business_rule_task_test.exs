@@ -61,7 +61,6 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
       type_data: %FlowNodeData.BusinessRuleTask{
         implementation: Keyword.get(opts, :implementation, "feel"),
         script: Keyword.get(opts, :script, nil),
-        rule_ref: Keyword.get(opts, :rule_ref, nil),
         decision_ref: Keyword.get(opts, :decision_ref, nil),
         result_variable: Keyword.get(opts, :result_variable, nil),
         trace_unmatched_rules: Keyword.get(opts, :trace_unmatched_rules, false),
@@ -168,7 +167,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
 
   describe "implementation='plugin' — rejected after plugin mode removal" do
     test "returns unknown_brt_implementation error" do
-      node = brt_node(implementation: "plugin", rule_ref: "echo_rule")
+      node = brt_node(implementation: "plugin")
       {node, context} = make_context(node)
       token = make_token()
 
@@ -498,7 +497,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
       {node, context} = make_context(node)
       token = make_token(%{"age" => 25})
 
-      assert {:error, {:business_rule_task_contract_violation, _violations}} =
+      assert {:error, {:business_rule_task_input_contract_violation, _violations}} =
                FlowNodes.BusinessRuleTask.handle_enter(node, token, context)
     end
 
@@ -641,7 +640,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTaskTest do
       {node, context} = make_context(node)
       token = make_token(%{"other" => "data"})
 
-      assert {:error, {:business_rule_task_contract_violation, _violations}} =
+      assert {:error, {:business_rule_task_input_contract_violation, _violations}} =
                FlowNodes.BusinessRuleTask.handle_enter(node, token, context)
     end
 

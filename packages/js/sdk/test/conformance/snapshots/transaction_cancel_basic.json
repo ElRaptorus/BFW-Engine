@@ -23,7 +23,6 @@
       "flowNodes": [
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -43,7 +42,6 @@
         },
         {
           "boundaryEventRefs": ["Boundary_Cancel"],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -68,7 +66,6 @@
             "flowNodes": [
               {
                 "boundaryEventRefs": [],
-                "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
@@ -88,7 +85,6 @@
               },
               {
                 "boundaryEventRefs": ["Tx_CompBoundaryA"],
-                "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
@@ -104,7 +100,6 @@
               },
               {
                 "boundaryEventRefs": [],
-                "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
@@ -130,7 +125,6 @@
               },
               {
                 "boundaryEventRefs": [],
-                "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
@@ -146,7 +140,6 @@
               },
               {
                 "boundaryEventRefs": [],
-                "dataContracts": [],
                 "dataInputAssociations": [],
                 "dataOutputAssociations": [],
                 "documentation": null,
@@ -196,7 +189,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -219,7 +211,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,
@@ -239,7 +230,6 @@
         },
         {
           "boundaryEventRefs": [],
-          "dataContracts": [],
           "dataInputAssociations": [],
           "dataOutputAssociations": [],
           "documentation": null,

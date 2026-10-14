@@ -159,7 +159,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     result_contract = Map.get(flow_node.type_data, :result_contract, nil)
 
     with {:ok, output} <- apply_out_mappings(flow_node, aggregated, context),
-         :ok <- validate_contract(result_contract, output),
+         :ok <-
+           MappingHelper.validate_contract(result_contract, output, :result_contract_violation),
          {:ok, lifecycle_result} <-
            FniLifecycle.finish(context, flow_node, output, type_properties) do
       {:ok,
@@ -169,12 +170,6 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
          type_properties: type_properties,
          metadata: %{persisted: true, lifecycle: lifecycle_result}
        }}
-    else
-      {:error, violations} when is_list(violations) ->
-        {:error, %{reason: :result_contract_violation, violations: violations}}
-
-      {:error, reason} ->
-        {:error, {:out_mapping_failed, reason}}
     end
   end
 
@@ -515,7 +510,14 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           pid(),
           String.t(),
           (term() -> {:handled, term()} | :skip) | nil
-        ) :: term()
+        ) ::
+          :abort_cascade
+          | {:error, term()}
+          | {:ok, FlowNodeResult.t()}
+          | {:bpmn_error, map(), FlowNodeResult.t()}
+          | {:escalation_end_propagate, map(), FlowNodeResult.t()}
+          | {:boundary, String.t(), map(), boolean()}
+          | {:boundary, String.t(), map(), true, term()}
   def monitor_and_wait(
         flow_node,
         entry,
@@ -1036,10 +1038,11 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     )
   end
 
-  @doc "Validates a payload or result against a JSON Schema contract."
-  @spec validate_contract(map() | nil, map()) :: :ok | {:error, list()}
-  def validate_contract(contract, data) do
-    MappingHelper.validate_contract(contract, data)
+  @doc "Validates the subprocess input against `bfw:payloadContract`."
+  @spec validate_payload_contract(map() | nil, map()) ::
+          :ok | {:error, {:payload_contract_violation, term()}}
+  def validate_payload_contract(contract, data) do
+    MappingHelper.validate_contract(contract, data, :payload_contract_violation)
   end
 
   @doc "Resolves outgoing sequence flow IDs for the handler's flow node."

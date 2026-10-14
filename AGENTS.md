@@ -73,9 +73,7 @@ Container: `bfw-engine-postgres-test` | Port: `5543` | User: `bfw_engine` | Imag
 
 Bifrost Forge World Engine uses standard BPMN 2.0 XML with custom extension
 elements under the `bfw:` namespace. The **canonical namespace URI** is
-`https://bifrostforge.world/schema/bpmn`. All new and existing BPMN files
-**must** use this URI. Older evilengine.dev / evilengine.io variants are
-deprecated and must not be used.
+`https://bifrostforge.world/schema/bpmn`. All BPMN files **must** use this URI.
 
 Every BPMN file consumed by the engine must declare the namespace in the
 `<bpmn:definitions>` root element:
@@ -634,7 +632,7 @@ Maps variables between the parent process token and the subprocess child PI scop
 
 #### `bfw:payloadContract` / `bfw:resultContract`
 
-JSON Schema contracts on the subprocess shell's input and output, validated at runtime via `MappingHelper` (same semantics as Call Activity — violations are fatal to the shell FNI).
+JSON Schema contracts on the subprocess shell's input and output, validated at runtime via `MappingHelper` (violations are fatal to the shell FNI). Call Activity has no contracts.
 
 Boundary events may be attached to the subprocess shell or to activities inside the inner scope; error boundaries on the shell receive BPMN errors bubbled up from the child PI.
 
@@ -766,17 +764,6 @@ spawn emits `SubProcessChildStarted` carrying the mandatory
 #### Not supported
 
 Multiple / Parallel-Multiple start events are not supported.
-
-### Data Contract Extension
-
-#### `bfw:dataContract`
-
-JSON string defining a typed data contract on any flow node. Contains
-`direction` (`"input"` or `"output"`) and `schema` (JSON Schema map).
-
-```xml
-<bfw:dataContract>{"direction":"input","schema":{"type":"object","required":["orderId"]}}</bfw:dataContract>
-```
 
 ### Data Object Extensions
 
@@ -1093,7 +1080,7 @@ pass. It never short-circuits on the first problem.
 ### Definitions-level checks
 
 - Executable definitions must declare `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` (exact URI). Absence yields `:missing_extension_namespace`.
-- `xmlns:evil` and legacy URIs (`https://evilengine.dev/schema/bpmn`, `http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`, `https://evil.studio/schema/bpmn/platform/1.0`) are rejected with `:legacy_extension_namespace`. The parser still strips prefixes; this scan is on `definitions.raw_xml`.
+- The `<bpmn:definitions>` element must carry a non-blank `id` attribute. Absence yields `:missing_definitions_id`; it becomes `process_versions.definitions_id`, which is `NOT NULL`.
 
 ### Process-level checks
 
@@ -1360,7 +1347,7 @@ to the string-keyed format required by the Rust NIF.
 - `bfw:inputMapping` / `bfw:outputMapping` `source` attributes
 - `<bpmn:completionCondition>` on ad-hoc subprocess — FEEL expression evaluated after each inner activity completion
 - `bfw:activeElements` — FEEL expression returning list of element IDs for initial activation
-- `bfw:dataContract` / `bfw:payloadContract` / `bfw:resultContract` do
+- `bfw:payloadContract` / `bfw:resultContract` do
   **not** contain FEEL — they contain JSON Schema
 
 ### Precompilation

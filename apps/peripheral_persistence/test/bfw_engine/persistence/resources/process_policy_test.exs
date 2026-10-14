@@ -68,6 +68,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessPolicyTest do
       |> Ash.Changeset.for_create(:create, %{
         process_id: process_id,
         version: "1.0.0",
+        definitions_id: "Definitions_1",
         bpmn_xml: "<bpmn/>"
       })
       |> Ash.create(domain: Domain, authorize?: false)
@@ -225,6 +226,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessPolicyTest do
                |> Ash.Changeset.for_create(:create, %{
                  process_id: process.id,
                  version: "2.0.0",
+                 definitions_id: "Definitions_1",
                  bpmn_xml: "<bpmn/>"
                })
                |> Ash.create(domain: Domain, actor: deployer())
@@ -236,6 +238,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessPolicyTest do
                |> Ash.Changeset.for_create(:create, %{
                  process_id: process.id,
                  version: "3.0.0",
+                 definitions_id: "Definitions_1",
                  bpmn_xml: "<bpmn/>"
                })
                |> Ash.create(domain: Domain, actor: actor())
@@ -247,6 +250,7 @@ defmodule BfwEngine.Persistence.Resources.ProcessPolicyTest do
                |> Ash.Changeset.for_create(:create, %{
                  process_id: process.id,
                  version: "4.0.0",
+                 definitions_id: "Definitions_1",
                  bpmn_xml: "<bpmn/>"
                })
                |> Ash.create(domain: Domain, actor: admin())

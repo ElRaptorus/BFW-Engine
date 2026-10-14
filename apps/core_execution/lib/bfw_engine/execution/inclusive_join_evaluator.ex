@@ -14,8 +14,8 @@ defmodule BfwEngine.Execution.InclusiveJoinEvaluator do
   and at least one flow is `arrived`.
 
   Uses pre-computed `InclusiveJoinAnalysis` data from the process model.
-  Falls back to runtime BFS when no analysis is available (backward
-  compatibility with models deployed before the analysis was introduced).
+  Falls back to runtime BFS when the process model carries no analysis
+  (for example the synthetic scope models of Complex Joins).
   """
 
   alias BfwEngine.BPMN.InclusiveJoinAnalysis

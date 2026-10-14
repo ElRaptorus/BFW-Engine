@@ -67,7 +67,6 @@ export interface FlowNode {
   incoming: string[];
   outgoing: string[];
   boundaryEventRefs: string[];
-  dataContracts: DataContract[];
   dataInputAssociations: DataAssociation[];
   dataOutputAssociations: DataAssociation[];
   multiInstance: MultiInstance | null;
@@ -193,12 +192,6 @@ export interface StandardLoop {
   loopInterval: string | null;
 }
 
-export interface DataContract {
-  direction: 'input' | 'output';
-  jsonSchema: Record<string, unknown>;
-  compiledSchema: null;
-}
-
 /**
  * A single input or output variable mapping.
  * `source` is a FEEL expression evaluated against the current context.
@@ -312,8 +305,6 @@ export interface BusinessRuleTaskTypeData extends WithMappings, WithContracts {
   implementation: string | null;
   /** Inline FEEL expression from `<bpmn:script>`. Used when `implementation` is `"feel"`. */
   script: string | null;
-  /** Legacy `bfw:ruleRef`. Retained for XML fidelity; plugin delegation was removed. */
-  ruleRef: string | null;
   /** `bfw:decisionRef` — DMN model reference. Used when `implementation` is `"dmn"`. */
   decisionRef: string | null;
   /** `bfw:decisionElementId` — which `<decision>` to evaluate in a multi-decision model. */

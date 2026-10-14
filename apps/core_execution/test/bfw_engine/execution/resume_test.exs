@@ -556,8 +556,6 @@ defmodule BfwEngine.Execution.ResumeTest do
     @impl true
     def finish_fni_with_data_objects(_id, _changes, _intents), do: {:ok, %{writes: []}}
     @impl true
-    def write_data_object(_params), do: {:ok, %{write_id: "mock", created_at: DateTime.utc_now()}}
-    @impl true
     def list_data_objects(_id), do: {:ok, []}
     @impl true
     def cleanup_orphaned_flow_node_instances, do: {:ok, 0}
@@ -645,10 +643,6 @@ defmodule BfwEngine.Execution.ResumeTest do
         def list_flow_node_instances(_id), do: {:ok, []}
         @impl true
         def finish_fni_with_data_objects(_id, _changes, _intents), do: {:ok, %{writes: []}}
-        @impl true
-        def write_data_object(_params),
-          do: {:ok, %{write_id: "noop", created_at: DateTime.utc_now()}}
-
         @impl true
         def list_data_objects(_id), do: {:ok, []}
         @impl true

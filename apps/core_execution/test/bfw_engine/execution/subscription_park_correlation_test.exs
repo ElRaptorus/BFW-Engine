@@ -49,9 +49,6 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
     defdelegate finish_fni_with_data_objects(fni_id, fni_changes, intents), to: NoOp
 
     @impl true
-    defdelegate write_data_object(params), to: NoOp
-
-    @impl true
     defdelegate list_data_objects(process_instance_id), to: NoOp
 
     @impl true

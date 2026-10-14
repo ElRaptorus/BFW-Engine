@@ -210,6 +210,7 @@ defmodule BfwEngine.Persistence.TimerStartScheduleAdapterTest do
         %{
           process_id: process.id,
           version: "1.0.0",
+          definitions_id: "Definitions_1",
           bpmn_xml: "<xml/>"
         },
         authorize?: false

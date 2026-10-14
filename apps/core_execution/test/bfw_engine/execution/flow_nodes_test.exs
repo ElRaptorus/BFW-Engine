@@ -487,7 +487,8 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       mappings = [%Mapping{source: "for x in [1] return if x then", target: "id"}]
       ctx = mapping_context()
 
-      assert {:error, {:feel_eval_failed, "for x in [1] return if x then", _reason}} =
+      assert {:error,
+              {:in_mapping_failed, {:feel_eval_failed, "for x in [1] return if x then", _reason}}} =
                MappingHelper.apply_in_mappings(mappings, %{}, ctx)
     end
 
@@ -503,7 +504,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       mappings = [%Mapping{source: "for x in [1] return if x then", target: "out"}]
       ctx = mapping_context()
 
-      assert {:error, {:feel_eval_failed, _, _}} =
+      assert {:error, {:out_mapping_failed, {:feel_eval_failed, _, _}}} =
                MappingHelper.apply_out_mappings(mappings, %{}, ctx)
     end
 
@@ -798,7 +799,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       {node, context} = make_context(node)
       token = make_token(%{"wrong" => "data"})
 
-      assert {:error, {:service_task_contract_violation, _}} =
+      assert {:error, {:service_task_input_contract_violation, _}} =
                FlowNodes.ServiceTask.handle_enter(node, token, context)
     end
 
@@ -854,7 +855,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       {node, context} = make_context(node)
       token = make_token()
 
-      assert {:error, {:service_task_contract_violation, {:invalid_contract_schema, _}}} =
+      assert {:error, {:service_task_input_contract_violation, {:invalid_contract_schema, _}}} =
                FlowNodes.ServiceTask.handle_enter(node, token, context)
     end
 
@@ -928,6 +929,37 @@ defmodule BfwEngine.Execution.FlowNodesTest do
                  %{"data" => 1},
                  context
                )
+    end
+
+    test "ST: handle_complete failing data object transformation is a data object write error" do
+      node = %{
+        service_task_node([])
+        | data_output_associations: [
+            %BfwEngine.BPMN.Model.DataAssociation{
+              id: "DOA_1",
+              target_ref: "DOR_1",
+              value_expression: "###INVALID###"
+            }
+          ]
+      }
+
+      {node, context} = make_context(node)
+
+      context = %{
+        context
+        | process_model: %{
+            context.process_model
+            | data_objects: [%BfwEngine.BPMN.Model.DataObject{id: "DO_1"}],
+              data_object_references: [
+                %BfwEngine.BPMN.Model.DataObjectReference{id: "DOR_1", data_object_ref: "DO_1"}
+              ]
+          }
+      }
+
+      assert {:error,
+              {:data_object_transformation_failed, "DO_1",
+               {:feel_eval_failed, "###INVALID###", _reason}}} =
+               FlowNodes.ServiceTask.handle_complete(node, %{}, %{"data" => 1}, context)
     end
   end
 
@@ -1115,7 +1147,7 @@ defmodule BfwEngine.Execution.FlowNodesTest do
       {node, context} = make_context(node)
       token = make_token(%{"wrong" => "data"})
 
-      assert {:error, {:script_task_contract_violation, _}} =
+      assert {:error, {:script_task_input_contract_violation, _}} =
                FlowNodes.ScriptTask.handle_enter(node, token, context)
     end
 

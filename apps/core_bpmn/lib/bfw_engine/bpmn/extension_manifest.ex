@@ -168,14 +168,6 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
       model_field: "*.out_mappings"
     },
     %{
-      element: "dataContract",
-      value_kind: :json_schema,
-      carrier: :body,
-      attributes: [],
-      applicable_to: ["FlowNode (any type)"],
-      model_field: "FlowNode.data_contracts"
-    },
-    %{
       element: "valueContract",
       value_kind: :json_schema,
       carrier: :body,
@@ -274,14 +266,6 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
       attributes: [],
       applicable_to: ["BusinessRuleTask"],
       model_field: "FlowNodeData.BusinessRuleTask.trace_unmatched_rules"
-    },
-    %{
-      element: "ruleRef",
-      value_kind: :static_string,
-      carrier: :body,
-      attributes: [],
-      applicable_to: ["BusinessRuleTask"],
-      model_field: "FlowNodeData.BusinessRuleTask.rule_ref"
     },
 
     # -------------------------------------------------------------------

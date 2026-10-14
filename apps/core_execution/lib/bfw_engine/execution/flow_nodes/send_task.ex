@@ -46,7 +46,11 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
            MappingHelper.apply_in_mappings(in_mappings, raw_payload, context),
          :ok <- PayloadCap.check(mapped_payload, field: :message_payload),
          :ok <-
-           MappingHelper.validate_contract(type_data.payload_contract, mapped_payload),
+           MappingHelper.validate_contract(
+             type_data.payload_contract,
+             mapped_payload,
+             :payload_contract_violation
+           ),
          {:ok, message_name} <-
            MessageEventHelper.resolve_message_name(flow_node, context.definitions),
          {:ok, correlation_value} <-
@@ -59,9 +63,6 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}
-
-      {:error, violations} when is_list(violations) ->
-        {:error, %{reason: :payload_contract_violation, violations: violations}}
 
       {:error, _reason} = error ->
         error

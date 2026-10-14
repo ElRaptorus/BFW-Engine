@@ -282,58 +282,6 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     %{write_id: write_id, created_at: now}
   end
 
-  @doc "Write a single Data Object snapshot + audit row in a transaction."
-  @impl true
-  def write_data_object(params) do
-    now = DateTime.utc_now()
-    write_id = Ash.UUIDv7.generate()
-
-    Repo.transaction(fn ->
-      upsert_sql = """
-      INSERT INTO data_objects (id, process_instance_id, data_object_id,
-                                flow_node_instance_id, value, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (process_instance_id, data_object_id)
-      DO UPDATE SET id = EXCLUDED.id,
-                    flow_node_instance_id = EXCLUDED.flow_node_instance_id,
-                    value = EXCLUDED.value,
-                    created_at = EXCLUDED.created_at
-      """
-
-      snapshot_id = dump_uuid!(Ash.UUIDv7.generate())
-      process_instance_id_bin = dump_uuid!(params.process_instance_id)
-      flow_node_instance_id_bin = dump_uuid!(params.flow_node_instance_id)
-
-      _upsert_result =
-        EctoSQL.query!(Repo, upsert_sql, [
-          snapshot_id,
-          process_instance_id_bin,
-          params.data_object_id,
-          flow_node_instance_id_bin,
-          params.value,
-          now
-        ])
-
-      audit_sql = """
-      INSERT INTO data_object_writes (id, process_instance_id, data_object_id,
-                                      flow_node_instance_id, value, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      """
-
-      _audit_result =
-        EctoSQL.query!(Repo, audit_sql, [
-          dump_uuid!(write_id),
-          process_instance_id_bin,
-          params.data_object_id,
-          flow_node_instance_id_bin,
-          params.value,
-          now
-        ])
-
-      %{write_id: write_id, created_at: now}
-    end)
-  end
-
   @doc "Load the current Data Object values for a process instance (for resume cache)."
   @impl true
   def list_data_objects(process_instance_id) do

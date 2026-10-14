@@ -10,7 +10,6 @@ defmodule BfwEngine.BPMN.Model.FlowNode do
   """
 
   alias BfwEngine.BPMN.Model.DataAssociation
-  alias BfwEngine.BPMN.Model.DataContract
   alias BfwEngine.BPMN.Model.MultiInstance
   alias BfwEngine.BPMN.Model.StandardLoop
 
@@ -22,7 +21,6 @@ defmodule BfwEngine.BPMN.Model.FlowNode do
           incoming: [String.t()],
           outgoing: [String.t()],
           boundary_event_refs: [String.t()],
-          data_contracts: [DataContract.t()],
           data_input_associations: [DataAssociation.t()],
           data_output_associations: [DataAssociation.t()],
           multi_instance: MultiInstance.t() | nil,
@@ -43,7 +41,6 @@ defmodule BfwEngine.BPMN.Model.FlowNode do
     incoming: [],
     outgoing: [],
     boundary_event_refs: [],
-    data_contracts: [],
     data_input_associations: [],
     data_output_associations: [],
     is_for_compensation: false
@@ -203,10 +200,6 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.BusinessRuleTask do
     specifies which `<decision>` element to evaluate as the root. When omitted
     the evaluator auto-resolves single-decision models.
 
-  Plugin delegation (`implementation="plugin"`) was removed.
-  The `rule_ref` field is retained for XML parsing but rejected by the
-  validator if `implementation="plugin"` is used.
-
   `implementation` and `<bpmn:script>` are standard BPMN 2.0 properties.
   All `bfw:*` fields are engine-specific extensions.
   """
@@ -216,7 +209,6 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.BusinessRuleTask do
   @type t :: %__MODULE__{
           implementation: String.t() | nil,
           script: String.t() | nil,
-          rule_ref: String.t() | nil,
           decision_ref: String.t() | nil,
           decision_element_id: String.t() | nil,
           result_variable: String.t() | nil,
@@ -230,7 +222,6 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.BusinessRuleTask do
   defstruct [
     :implementation,
     :script,
-    :rule_ref,
     :decision_ref,
     :decision_element_id,
     :result_variable,

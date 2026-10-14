@@ -353,7 +353,6 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphWp7Test do
             id
             name
             type
-            dataContracts { direction jsonSchema }
             multiInstance { isSequential collectionExpression }
             ... on SubProcessNode {
               flowNodes {

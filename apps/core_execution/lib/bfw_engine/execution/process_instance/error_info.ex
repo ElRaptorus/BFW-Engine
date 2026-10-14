@@ -125,16 +125,77 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "No handler registered for implementation '#{implementation}'. Is the plugin loaded?"
   end
 
+  defp humanize_error({:service_task_input_contract_violation, violations}) do
+    input_violation_message("Service task", violations)
+  end
+
   defp humanize_error({:service_task_contract_violation, violations}) do
-    "Service task output does not match the result contract: #{format_violations_summary(violations)}"
+    output_violation_message("Service task", violations)
+  end
+
+  defp humanize_error({:script_task_input_contract_violation, violations}) do
+    input_violation_message("Script task", violations)
+  end
+
+  defp humanize_error({:script_task_contract_violation, violations}) do
+    output_violation_message("Script task", violations)
+  end
+
+  defp humanize_error({:business_rule_task_input_contract_violation, violations}) do
+    input_violation_message("Business rule task", violations)
+  end
+
+  defp humanize_error({:business_rule_task_contract_violation, violations}) do
+    output_violation_message("Business rule task", violations)
   end
 
   defp humanize_error({:user_task_input_contract_violation, violations}) do
-    "User task input does not match the payload contract: #{format_violations_summary(violations)}"
+    input_violation_message("User task", violations)
   end
 
   defp humanize_error({:contract_violation, violations}) do
     "Output does not match the result contract: #{format_violations_summary(violations)}"
+  end
+
+  defp humanize_error({:payload_contract_violation, violations}) do
+    "Input does not match the payload contract: #{format_violations_summary(violations)}"
+  end
+
+  defp humanize_error({:result_contract_violation, violations}) do
+    "Output does not match the result contract: #{format_violations_summary(violations)}"
+  end
+
+  defp humanize_error({:value_contract_violation, data_object_id, violations}) do
+    "Data object '#{data_object_id}' value does not match its value contract: " <>
+      format_violations_summary(violations)
+  end
+
+  defp humanize_error(
+         {:data_object_transformation_failed, data_object_id,
+          {:feel_eval_failed, expression, reason}}
+       ) do
+    "Writing data object '#{data_object_id}' failed: the data output association's transformation " <>
+      "'#{expression}' could not be evaluated — #{format_detail(reason)}"
+  end
+
+  defp humanize_error({:unknown_data_object_reference, reference}) do
+    "Data output association targets '#{format_detail(reference)}', which is not a data object reference in this process"
+  end
+
+  defp humanize_error({:unknown_data_object, data_object_id}) do
+    "Data object reference points to data object '#{format_detail(data_object_id)}', which is not declared in this process"
+  end
+
+  defp humanize_error({:http_handler_missing_url, flow_node_id}) do
+    "HTTP service task '#{format_detail(flow_node_id)}' has no bfw:httpUrl"
+  end
+
+  defp humanize_error({:http_handler_invalid_method, method}) do
+    "HTTP service task has unsupported method '#{format_detail(method)}' (expected GET, POST, PUT, PATCH, DELETE, HEAD, or OPTIONS)"
+  end
+
+  defp humanize_error({:http_response_headers_expression_error, detail}) do
+    "HTTP service task bfw:httpResponseHeaders expression failed: #{format_detail(detail)}"
   end
 
   defp humanize_error({:script_eval_failed, _script_text, reason}) do
@@ -151,6 +212,14 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
 
   defp humanize_error({:named_script_failed, ref, reason}) do
     "Named script '#{ref}' failed: #{format_detail(reason)}"
+  end
+
+  defp humanize_error({:invalid_named_script_return, _detail}) do
+    "Named script returned an invalid result; it must return {:ok, map} or {:error, reason}"
+  end
+
+  defp humanize_error({:invalid_contract_schema, message}) when is_binary(message) do
+    "The contract is not a valid JSON Schema: #{message}"
   end
 
   defp humanize_error({:decision_not_found, ref}) do
@@ -181,12 +250,16 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "Payload exceeds the configured size limit"
   end
 
-  defp humanize_error({:called_element_resolution_failed, detail}) do
-    "Could not resolve the called process for this Call Activity: #{format_detail(detail)}"
-  end
-
   defp humanize_error({:called_process_version_not_found, process_model_id, version_string}) do
     "Could not resolve called process '#{process_model_id}' at version '#{version_string}'. The pin must match an existing <bfw:version> string of that process; typing 'latest' looks up a version actually named latest."
+  end
+
+  defp humanize_error(:process_not_found) do
+    "The called process is not deployed or is disabled in the engine catalog, so this Call Activity cannot start it."
+  end
+
+  defp humanize_error(:no_version_available) do
+    "The called process has no enabled version, so this Call Activity cannot start it."
   end
 
   defp humanize_error(:version_disabled) do
@@ -356,13 +429,25 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
 
   defp format_detail(_detail), do: "see error details"
 
+  defp input_violation_message(element, violations) do
+    "#{element} input does not match the payload contract: #{format_violations_summary(violations)}"
+  end
+
+  defp output_violation_message(element, violations) do
+    "#{element} output does not match the result contract: #{format_violations_summary(violations)}"
+  end
+
+  defp format_violations_summary({:invalid_contract_schema, message}) do
+    "the contract is not a valid JSON Schema: #{message}"
+  end
+
   defp format_violations_summary(violations) when is_list(violations) do
     violations
     |> Enum.take(3)
     |> Enum.map_join("; ", fn
       %{message: message} -> message
       %{"message" => message} -> message
-      {path, message} -> "#{path}: #{message}"
+      {message, path} when is_binary(message) and is_binary(path) -> "#{path}: #{message}"
       other when is_binary(other) -> other
       other -> inspect(other)
     end)

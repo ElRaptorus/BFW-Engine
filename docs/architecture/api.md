@@ -63,15 +63,13 @@ The umbrella currently mounts **process-catalog** REST handlers at the **root** 
 | `DELETE` | `/processes/{model_id}` | **Undeploy** a process: deletes all versions. Rejects with 409 if non-terminal PIs exist on any version. Requires `delete_bpmn=true`. Returns 404 for unknown or already-undeployed processes |
 | `DELETE` | `/processes/{model_id}/versions/{version}` | **Delete** a version: marks the matching version as deleted (204 No Content). Rejects with 409 if non-terminal PIs exist on the version |
 
-#### 10.1.0.1 Public `/health`, `/metrics`, process-start back-pressure, and deprecation
+#### 10.1.0.1 Public `/health`, `/metrics`, and process-start back-pressure
 
 **`GET /health`** — Liveness/readiness; **no auth**. Returns **204 No Content** (empty body). Kubernetes probes should check the status code only. Load level is **not** on `/health`; it is `engine.load` on **`GET /stats`** (`normal` / `elevated` / `critical`, derived from active PI count vs. `BFE_MAX_CONCURRENT_PIS` at 70% / 90% thresholds when the cap is finite; always `normal` when the cap is `:infinity`). This aligns with the `bfw_engine.process_instance.capacity.ratio` last-value metric and overload signaling.
 
 **`GET /metrics`** — Prometheus text exposition (public; **no auth**). Served by `api_web` when `BFE_METRICS_ENABLED` is `true` (default). Metric definitions live in `BfwEngine.Telemetry.Metrics` (`peripheral_telemetry`); scrape output is plain text per Prometheus exposition format. When metrics are disabled, `MetricsGatePlug` (router pipeline `:metrics_gate`) halts the request before the controller with a plain-text **404** `Not Found`, identical to the devtools gate (`DevtoolsGatePlug.reject/1`). Routes stay registered because the flag is a runtime setting (`config/runtime.exs`), while Phoenix routes are compiled.
 
 **`POST /processes/{model_id}/start` — `503` / `429`** — When the admission pre-check rejects a new PI because `BFE_MAX_CONCURRENT_PIS` is reached, the facade returns `{:error, :engine_at_capacity, %{active, limit}}` and the controller responds with **503 Service Unavailable**, a `Retry-After` header, and a structured JSON body. When `BFE_PI_START_RATE_LIMIT` is greater than zero and the ETS token-bucket plug (`RateLimitPlug` on the authenticated pipeline) is exhausted, the controller responds with **429 Too Many Requests** and `Retry-After`. Env vars and defaults: [configuration.md](./configuration.md).
-
-**Deprecation headers (RFC 8594)** — Routes mark themselves by setting `conn.private[:deprecated]` to `%{successor: path, sunset: optional_datetime}` (via `plug :put_private` or scope options). `DeprecationPlug` injects `Deprecation`, `Link` (`rel="successor-version"`), and optional `Sunset` on responses. Full rules: [§10.5](#105-deprecation-headers-rfc-8594).
 
 Additional trigger-style paths in the table below remain specified for v1 parity; wire them through REST controllers (and the plugin facade) when not yet present on `BfwEngineWeb.Http.Router`. GraphQL is query-only — it is never a command surface.
 
@@ -288,7 +286,6 @@ interface FlowNode {
   incoming: [String!]!             # sequence-flow ids, document order
   outgoing: [String!]!             # sequence-flow ids, document order
   boundaryEventRefs: [String!]!
-  dataContracts: [DataContract!]!
   dataInputAssociations: [DataAssociation!]!
   dataOutputAssociations: [DataAssociation!]!
   multiInstance: MultiInstance
@@ -403,7 +400,7 @@ extend type FlowNodeInstance {
 
 - **Declarative field table, not typespec introspection (D-3 = B).** `BfwEngineWeb.Graphql.ModelSchema.FieldTable` registers every `BfwEngine.BPMN.Model.*` struct field as `exposed` (with the GraphQL field it maps to) or `excluded` (with a reason). `FieldTable.verify!/0` runs at the top of `model_types.ex` and **fails the build** if any struct key is neither mapped nor excluded — this is the enforcement mechanism, not automatic derivation from `@type t`. A field added to an Elixir struct without a matching `FieldTable` entry is a compile error, not a silent gap. `verify!/0` also fails when a `BfwEngine.BPMN.Model.*` struct module is not registered at all. `BfwEngineWeb.Graphql.Schema` runs `FieldTable.verify_exposed_fields!/1` in `@after_compile` and fails the build when an `exposed` key is not a field on its Absinthe type. Both checks run only when `ModelTypes` / `Schema` recompile, so `ModelGraphIntrospectionTest` calls them as well to cover incremental builds that only touch `core_bpmn`.
 - **`:json` scalar is reused, not redefined.** AshGraphql already registers a `:json` scalar on the same schema; `model_types.ex` imports it rather than declaring a second one (Absinthe requires globally unique type identifiers).
-- **Compiled artifacts are never exposed.** `DataContract.compiled_schema`, the four `MultiInstance.compiled_*` fields, `StandardLoop.compiled_loop_condition`, the two `SubProcess.*_compiled` fields, `Process.inclusive_join_analyses`, `Process.complex_region_analyses`, and `Definitions.raw_xml` are all `excluded` entries in the `FieldTable` — enforced by `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest`, which scans the entire introspected schema for any identifier matching `compiled`, `precompiled`, or `raw_xml` and fails if one is reachable.
+- **Compiled artifacts are never exposed.** the four `MultiInstance.compiled_*` fields, `StandardLoop.compiled_loop_condition`, the two `SubProcess.*_compiled` fields, `Process.inclusive_join_analyses`, `Process.complex_region_analyses`, and `Definitions.raw_xml` are all `excluded` entries in the `FieldTable` — enforced by `BfwEngineWeb.Graphql.ModelGraphIntrospectionTest`, which scans the entire introspected schema for any identifier matching `compiled`, `precompiled`, or `raw_xml` and fails if one is reachable.
 - **Dataloader batching.** `BfwEngineWeb.Graphql.Dataloader.ModelCacheSource` batches `ModelCache.fetch/1` calls keyed by `process_version_id` via `Dataloader.KV`, registered in `Schema.context/1` with `get_policy: :tuples` (required — the default `:raise_on_error` would turn the ordinary `{:error, :not_found}` cold-cache-miss outcome into a raised exception). All `FlowNodeInstance.flowNode` resolutions in one request that share a `process_version_id` — e.g. every FNI of one PI, the Studio-debugger access pattern — collapse to exactly one `ModelCache.fetch/1` call, verified in `graphql_model_graph_wp7_test.exs` via `:telemetry` instrumentation on `[:bfw_engine, :model_cache, :fetch]`.
 - **`process_instance_id` / `flow_node_id` reload guard.** AshGraphql only loads attributes the client's query selected. `ModelResolvers.ensure_required_ids_loaded/2` reloads these two `FlowNodeInstance` attributes via `Ash.load/3` whenever the resolver needs them but the client didn't select them as scalar fields — otherwise the resolver would crash on `%Ash.NotLoaded{}`.
 - **Authorization.** No new policy layer — resolvers read the persistence parent (`ProcessVersion` or, via `FlowNodeInstance → ProcessInstance`, the owning PI) through `Ash.get/2` with the request's `actor`, so the same Ash policies that gate `ProcessVersion`/`FlowNodeInstance`/`ProcessInstance` visibility gate the attached Model data. A caller who cannot see the `FlowNodeInstance` at all gets `flowNode`/`processVersion` as unreachable fields on a `null` parent — never a separate authorization error. `ProcessVersion` read policy is `actor_present()`: any authenticated JWT can read `processModel` (the same bar as `bpmnXml`); an unauthenticated caller is rejected at the HTTP plug (401/403) before Absinthe runs.
@@ -476,42 +473,17 @@ See [configuration.md](./configuration.md) and [database.md](../guides/operation
 - **Committed contracts.** `contracts/graphql/schema.graphql` (Absinthe SDL of `BfwEngineWeb.Graphql.Schema`) and `contracts/openapi.json` (`priv/openapi/spec.yaml` as key-sorted JSON, without the runtime `servers` block) are written by `mix bfw.gen.contracts` (`BfwEngineWeb.ContractExport`). `mix bfw.gen.contracts --check` is a step of `mix quality` and fails on drift; `ContractExportTest` repeats the comparison in the unit run. Other engines (BFW-Engine-Lite) vendor these two files and test against them. Regenerate and commit them whenever the GraphQL schema or `spec.yaml` changes.
 - Client generation is CI-driven ([plugins.md](./plugins.md) — SDK packages).
 
-### 10.5 Deprecation headers (RFC 8594)
-
-When a REST endpoint is superseded by a newer route, the old route is **not removed immediately**. Instead, it continues to function but carries standard deprecation headers so clients can discover and migrate to the replacement at their own pace:
-
-| Header | Value | Purpose |
-|--------|-------|---------|
-| `Deprecation` | `true` | Signals the endpoint is deprecated (RFC 8594) |
-| `Link` | `<{replacement_url}>; rel="successor-version"` | Points the client to the replacement route |
-| `Sunset` | HTTP-date per RFC 7231 (optional) | When set, indicates the date after which the deprecated route may be removed |
-
-**Mechanism:** A `DeprecationPlug` reads `conn.private[:deprecated]` (set via `plug :put_private` or a per-route plug option on the deprecated scope). The value is a map:
-
-```elixir
-%{
-  successor: "/processes/{model_id}/start",   # required — replacement path
-  sunset: ~U[2027-01-01 00:00:00Z]      # optional — removal date
-}
-```
-
-If `conn.private[:deprecated]` is present, the plug injects the three headers (two if no `sunset`). If absent, it is a no-op. The plug sits in the `:authenticated` pipeline so all authenticated routes gain automatic deprecation support.
-
-**What deprecation headers are _not_:** They do not enforce migration. They do not block requests. They do not version-negotiate. Actual migration guidance (changelogs, upgrade scripts, client library updates) is documentation work, not engine work.
-
-**OpenAPI:** Deprecated endpoints carry `deprecated: true` in `spec.yaml`. The `Link` header is documented as a response header on each deprecated operation.
-
-### 10.6 API-vs-Core boundary rule
+### 10.5 API-vs-Core boundary rule
 
 Every Ash action (mutation) maps to exactly one Core access point. API layers never mutate persistence directly — they go through Core, which emits telemetry → peripheral_persistence updates the DB.
 
-### 10.7 Soft-delete filtering
+### 10.6 Soft-delete filtering
 
 All soft-deletable Ash resources (`ProcessInstance`, `FlowNodeInstance`, `ProcessVersion`, `DecisionVersion`) enforce `filter expr(deleted == false)` on their primary `:read` action. This guarantees that deleted records are invisible through every external surface — GraphQL, REST, WebSocket, Ash calculations, and plugin queries — without requiring per-endpoint filtering.
 
 There is no `:read_including_deleted` bypass action. The invariant is: **a version cannot be soft-deleted while non-terminal PIs exist on it.** Both `DELETE /processes/{model_id}/versions/{version}` and `DELETE /processes/{model_id}` (undeploy) reject with `409 active_instances_exist` when non-terminal PIs are found on the target version(s). If a version is deleted despite this guard (e.g. manual DB manipulation), resume fails with a generic not-found error — the engine never leaks the fact that a record is soft-deleted.
 
-### 10.8 Validation layering (Api facade as authoritative enforcement)
+### 10.7 Validation layering (Api facade as authoritative enforcement)
 
 Authorization and business-rule validation follow a strict three-layer model:
 
@@ -586,8 +558,6 @@ Triggers a named message event. Correlates with waiting `ReceiveTask`, `Intermed
 
 Auth claim: `trigger_message` (`"all"`).
 
-The legacy RPC-style `POST /triggers/messages` was **removed**. Use this resource-oriented route.
-
 ### `POST /signals/{signal_name}/trigger` — **implemented**
 
 Triggers a named signal event. Broadcasts to all waiting signal catchers. See [§10.1.4](#1014-signal-triggers-signalcontroller--implemented).
@@ -601,8 +571,6 @@ Returns `503` with `Retry-After: 5` when signal subscriptions are not ready (eng
 Response: `{ signalId, signalName, deliveries: [{processInstanceId, flowNodeInstanceId}], startedProcessInstanceIds: [string], pending: boolean }`.
 
 Note: Signals carry no payload and no correlation — they are pure broadcast by signal name.
-
-The legacy RPC-style `POST /triggers/signals` was **removed**. Use this resource-oriented route.
 
 ### Timer Schedule Management
 
@@ -642,7 +610,7 @@ Delegates to `BfwEngine.Timers.StartEventManager` for all operations.
 
 ## BPMN Runtime Facade Functions (claim-enforced)
 
-These `BfwEngine.Api` functions centralize claim checks previously scattered across REST controllers. All accept `opts \\ []` with optional `skip_claims: true` (see §10.8).
+These `BfwEngine.Api` functions centralize claim checks previously scattered across REST controllers. All accept `opts \\ []` with optional `skip_claims: true` (see §10.7).
 
 | Function | Signature | Claim / access | Business rules |
 |----------|-----------|----------------|----------------|

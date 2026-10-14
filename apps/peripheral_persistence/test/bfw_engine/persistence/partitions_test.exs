@@ -9,7 +9,7 @@ defmodule BfwEngine.Persistence.PartitionsTest do
       {:ok, count} = Partitions.ensure_partitions()
       assert count >= 0
 
-      for table <- ["process_instance_events", "data_object_writes"] do
+      for table <- ["data_object_writes"] do
         %{rows: partitions} =
           Repo.query!(
             "SELECT inhrelid::regclass::text FROM pg_inherits WHERE inhparent = '#{table}'::regclass"

@@ -144,8 +144,7 @@ FEEL ([expressions.md](./expressions.md)):
 
 `@callback handle_enter/3` on `BfwEngine.Execution.FlowNodeHandler` is therefore
 `(flow_node, token, %HandlerContext{}) → {:ok, …} | {:wait, …} | {:error, …}` for **most** built-in BPMN handlers. **`FlowNodes.ServiceTask`** exclusively propagates **`{:async, ref}`** from plugin `@behaviour BfwEngine.Plugin.ServiceTaskHandler` implementations (async-only contract) — `ref` is typically the `flow_node_instance_id` from the context; the PI GenServer matches `{:async, _ref}` and parks the FNI. Plugin `ServiceTaskHandler` follows the same arity; the
-third argument is this struct (the SDK type spec may still name it `facade` in
-legacy call-sites — it is **not** the `engine_facade` injected into `on_load`).
+third argument is this struct (it is **not** the `engine_facade` injected into `on_load`).
 
 ### The `engine_facade`
 
@@ -239,7 +238,7 @@ Parking a Service Task stores `type_properties["implementation"]` and the mapped
 
 ## Default built-in plugins
 
-- `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `engine_plugins` (HTTP client stays out of Core); registered before user plugins so operators can override the `http` implementation key.
+- `http` — Default HTTP Service Task handler (`BfwEngine.Plugins.Builtin.HttpServiceTaskHandler`). Lives in `engine_plugins` (HTTP client stays out of Core); registered before user plugins and final: the Registry is first-wins, so a plugin registering `http` gets `{:error, :conflict, "bfw:builtin"}`.
 - Execution persistence is `BfwEngine.Execution.Persistence` (AshPostgres via `ExecutionAdapter` in production, `NoOp` in tests), configured with `:core_execution, :persistence_adapter`. There is no plugin PersistenceAdapter capability.
 - No built-in NamedScript handler ships. Inline FEEL evaluation is handled directly by the `ScriptTask` handler without going through the plugin dispatch chain. Plugins register NamedScript handlers via `bfw:scriptRef` for custom script languages or complex logic.
 

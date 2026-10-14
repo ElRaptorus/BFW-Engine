@@ -159,26 +159,6 @@ defmodule BfwEngine.BPMN.Model.Extension do
   defstruct [:key, :value, attributes: %{}, children: []]
 end
 
-defmodule BfwEngine.BPMN.Model.DataContract do
-  @moduledoc """
-  A JSON Schema data contract attached to a flow node.
-
-  `direction` is `:input` or `:output` from the element's perspective.
-  `json_schema` is the raw JSON Schema map. `compiled_schema` holds
-  the precompiled `ExJsonSchema.Schema.Root.t()` (populated at deploy
-  time, nil during initial parse).
-  """
-
-  @type t :: %__MODULE__{
-          direction: :input | :output,
-          json_schema: map(),
-          compiled_schema: ExJsonSchema.Schema.Root.t() | nil
-        }
-
-  @enforce_keys [:direction, :json_schema]
-  defstruct [:direction, :json_schema, :compiled_schema]
-end
-
 defmodule BfwEngine.BPMN.Model.LinterRulesetScore do
   @moduledoc """
   A `<bfw:linterRulesetScore>` entry carried on the **definitions**

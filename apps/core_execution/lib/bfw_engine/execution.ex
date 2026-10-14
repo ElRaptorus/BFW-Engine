@@ -584,7 +584,7 @@ defmodule BfwEngine.Execution do
   end
 
   defp ebg_loser_fni?(fni) do
-    fni.state in ["aborted", "interrupted"] and
+    fni.state == "interrupted" and
       (Map.get(fni.type_properties, "reason") == "event_based_gateway_sibling_cancelled" or
          Map.get(fni.type_properties, :reason) == "event_based_gateway_sibling_cancelled")
   end

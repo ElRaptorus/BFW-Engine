@@ -23,7 +23,8 @@ defmodule BfwEngine.BPMN.Validator do
   - Nested transaction rejection (bpmn:transaction inside bpmn:transaction)
   - Ad-hoc subprocess structural checks (inner activities, no start/end events, ordering constraints)
   - Ad-hoc subprocess nesting restrictions (no ad-hoc inside ad-hoc, no ad-hoc inside event subprocess)
-  - Definitions-level extension namespace (canonical `xmlns:bfw` required; legacy `xmlns:evil` and URIs rejected)
+  - Definitions-level extension namespace (canonical `xmlns:bfw` required)
+  - Definitions-level `id` attribute (required)
   """
 
   alias BfwEngine.BPMN.ComplexRegionAnalysis
@@ -53,15 +54,6 @@ defmodule BfwEngine.BPMN.Validator do
   @canonical_extension_namespace_prefix "bfw"
   @canonical_extension_namespace_declaration "xmlns:#{@canonical_extension_namespace_prefix}=\"#{@canonical_extension_namespace_uri}\""
 
-  @forbidden_legacy_extension_namespace_prefix "xmlns:evil"
-
-  @forbidden_legacy_extension_namespace_uris [
-    "https://evilengine.dev/schema/bpmn",
-    "http://evilengine.dev/bpmn",
-    "http://evilengine.io/schema/bpmn",
-    "https://evil.studio/schema/bpmn/platform/1.0"
-  ]
-
   @type violation :: {atom(), String.t()}
 
   @doc """
@@ -74,7 +66,8 @@ defmodule BfwEngine.BPMN.Validator do
   @spec validate(Definitions.t()) :: {:ok, Definitions.t()} | {:error, [violation()]}
   def validate(%Definitions{} = definitions) do
     violations =
-      check_extension_namespace(definitions) ++
+      check_missing_extension_namespace(definitions) ++
+        check_definitions_id(definitions) ++
         Enum.flat_map(definitions.processes, &validate_process(&1, definitions))
 
     case violations do
@@ -118,34 +111,16 @@ defmodule BfwEngine.BPMN.Validator do
   # Definitions-level checks
   # ---------------------------------------------------------------------------
 
-  defp check_extension_namespace(%Definitions{} = definitions) do
-    check_legacy_extension_namespace(definitions.raw_xml) ++
-      check_missing_extension_namespace(definitions)
-  end
-
-  defp check_legacy_extension_namespace(raw_xml) do
-    prefix_violations =
-      if String.contains?(raw_xml, @forbidden_legacy_extension_namespace_prefix) do
-        [
-          {:legacy_extension_namespace,
-           "BPMN definitions declare the forbidden extension prefix " <>
-             "'#{@forbidden_legacy_extension_namespace_prefix}'. " <>
-             "Declare #{@canonical_extension_namespace_declaration} instead."}
-        ]
-      else
-        []
-      end
-
-    uri_violations =
-      @forbidden_legacy_extension_namespace_uris
-      |> Enum.filter(&String.contains?(raw_xml, &1))
-      |> Enum.map(fn forbidden_uri ->
-        {:legacy_extension_namespace,
-         "BPMN definitions declare the forbidden extension namespace URI " <>
-           "'#{forbidden_uri}'. Declare #{@canonical_extension_namespace_declaration} instead."}
-      end)
-
-    prefix_violations ++ uri_violations
+  defp check_definitions_id(%Definitions{definitions_id: definitions_id}) do
+    if is_binary(definitions_id) and String.trim(definitions_id) != "" do
+      []
+    else
+      [
+        {:missing_definitions_id,
+         "The bpmn:definitions element has no id attribute. " <>
+           "Every deployed BPMN file needs a definitions id."}
+      ]
+    end
   end
 
   defp check_missing_extension_namespace(%Definitions{raw_xml: raw_xml, processes: processes}) do

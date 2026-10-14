@@ -1,7 +1,7 @@
 ExUnit.start()
 
 # Partitioned tables (messages, pending_messages, signals, pending_signals,
-# data_object_writes, process_instance_events) require child partitions
+# data_object_writes) require child partitions
 # before any INSERT. Create them once before the test suite starts.
 # See docs/architecture/common-pitfalls.md (Create partitions before INSERT).
 {:ok, _} = BfwEngine.Persistence.Partitions.ensure_partitions()
@@ -18,7 +18,7 @@ already_owner? =
   end
 
 for table <-
-      ~w(pending_messages pending_signals messages signals data_object_writes process_instance_events) do
+      ~w(pending_messages pending_signals messages signals data_object_writes) do
   BfwEngine.Persistence.Repo.query!("TRUNCATE #{table} CASCADE")
 end
 

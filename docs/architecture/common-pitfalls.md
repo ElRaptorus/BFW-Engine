@@ -11,16 +11,6 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ---
 
-## Legacy `xmlns:evil` is rejected at validate, not parse
-
-**Mistake:** Deploying BPMN that still declares `xmlns:evil` or a legacy URI (`https://evilengine.dev/schema/bpmn`, `http://evilengine.dev/bpmn`, `http://evilengine.io/schema/bpmn`, `https://evil.studio/schema/bpmn/platform/1.0`), or omitting `xmlns:bfw`.
-
-**Why:** The parser strips prefixes and still builds a model. `BfwEngine.BPMN.Validator` scans `definitions.raw_xml` once: forbidden markers yield `:legacy_extension_namespace`; an executable process without exact `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` yields `:missing_extension_namespace`.
-
-**Correct approach:** Declare `xmlns:bfw="https://bifrostforge.world/schema/bpmn"` on `<bpmn:definitions>` and use `bfw:*` extensions. Do not keep a second xmlns for the old prefix.
-
----
-
 ## Core must not import Peripheral — use a Persistence behaviour
 
 **Mistake:** Calling `Ash.create/3` from `core_execution` to persist PI/FNI state.

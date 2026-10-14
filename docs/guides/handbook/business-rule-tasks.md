@@ -111,7 +111,8 @@ All failures in the Business Rule Task pipeline transition the FNI to `fatal`:
 - **Unrecognized implementation** — `{:unknown_brt_implementation, value}`
 - **Input mapping failure** — `{:in_mapping_failed, details}`
 - **Output mapping failure** — `{:out_mapping_failed, details}`
-- **Contract violation** — `{:business_rule_task_contract_violation, violations}`
+- **Data Object write failure** — `{:data_object_transformation_failed, data_object_id, details}` (transformation FEEL failed) or `{:value_contract_violation, data_object_id, violations}` (`bfw:valueContract`)
+- **Contract violation** — `{:business_rule_task_input_contract_violation, violations}` (payload contract) or `{:business_rule_task_contract_violation, violations}` (result contract)
 
 ## Comparison with Script Task
 

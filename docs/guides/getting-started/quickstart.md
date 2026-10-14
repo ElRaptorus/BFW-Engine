@@ -76,7 +76,8 @@ Every BPMN file must include the mandatory `<bfw:version>` extension element. Mi
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+<bpmn:definitions id="Definitions_1"
+                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                   xmlns:bfw="https://bifrostforge.world/schema/bpmn">
   <bpmn:process id="hello_world" isExecutable="true">
     <bpmn:extensionElements>

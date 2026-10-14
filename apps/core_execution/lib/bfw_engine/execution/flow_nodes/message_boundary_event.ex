@@ -220,15 +220,13 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
         MessageSubscriptions.unregister(subscription_id)
 
         with :ok <-
-               MappingHelper.validate_contract(flow_node.type_data.result_contract, payload),
+               MappingHelper.validate_contract(
+                 flow_node.type_data.result_contract,
+                 payload,
+                 :result_contract_violation
+               ),
              {:ok, mapped_payload} <- apply_output_mappings(flow_node, context, payload) do
           {:boundary, flow_node.id, mapped_payload, true, triggerer_fni_id}
-        else
-          {:error, violations} when is_list(violations) ->
-            {:error, %{reason: :result_contract_violation, violations: violations}}
-
-          {:error, _reason} = error ->
-            error
         end
     end
   end
@@ -251,7 +249,11 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
         MessageSubscriptions.unregister(current_subscription_id)
 
         with :ok <-
-               MappingHelper.validate_contract(flow_node.type_data.result_contract, payload),
+               MappingHelper.validate_contract(
+                 flow_node.type_data.result_contract,
+                 payload,
+                 :result_contract_violation
+               ),
              {:ok, mapped_payload} <- apply_output_mappings(flow_node, context, payload) do
           send(
             process_instance_pid,
@@ -300,12 +302,6 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
             {:error, :persistence_failed} = error ->
               error
           end
-        else
-          {:error, violations} when is_list(violations) ->
-            {:error, %{reason: :result_contract_violation, violations: violations}}
-
-          {:error, _reason} = error ->
-            error
         end
     end
   end

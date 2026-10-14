@@ -543,7 +543,6 @@ const OPAQUE_KEYS = new Set([
   'error_info',
   'payload_contract',
   'result_contract',
-  'data_contracts',
   'bpmn_xml',
   'dmn_xml',
   'violations',

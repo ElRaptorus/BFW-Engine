@@ -45,16 +45,17 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
          {:ok, message_name} <-
            MessageEventHelper.resolve_message_name(flow_node, context.definitions),
          :ok <-
-           MappingHelper.validate_contract(flow_node.type_data.payload_contract, mapped_payload),
+           MappingHelper.validate_contract(
+             flow_node.type_data.payload_contract,
+             mapped_payload,
+             :payload_contract_violation
+           ),
          {:ok, correlation_value} <-
            resolve_throw_correlation(event_definition, mapped_payload, context) do
       publish_and_finish(flow_node, context, message_name, mapped_payload, correlation_value)
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}
-
-      {:error, violations} when is_list(violations) ->
-        {:error, %{reason: :payload_contract_violation, violations: violations}}
 
       {:error, _reason} = error ->
         error

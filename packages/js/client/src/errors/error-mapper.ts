@@ -205,7 +205,6 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
     case 'process_instance_not_retriable':
       return new ProcessInstanceNotRetriableError(message, body);
     case 'version_migration_incompatible':
-    case 'incompatible_version_migration':
       return new IncompatibleVersionMigrationError(message, body);
     case 'retry_checkpoint_is_join_gateway':
       return new RetryCheckpointIsJoinGatewayError(message, body);

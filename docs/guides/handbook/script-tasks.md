@@ -82,7 +82,8 @@ All failures in the Script Task pipeline transition the FNI to `fatal`:
 - **Unknown script_ref** (no handler registered) — `{:no_handler_for_script_ref, script_ref}`
 - **Input mapping failure** — `{:in_mapping_failed, details}`
 - **Output mapping failure** — `{:out_mapping_failed, details}`
-- **Contract violation** — `{:script_task_contract_violation, violations}`
+- **Data Object write failure** — `{:data_object_transformation_failed, data_object_id, details}` (transformation FEEL failed) or `{:value_contract_violation, data_object_id, violations}` (`bfw:valueContract`)
+- **Contract violation** — `{:script_task_input_contract_violation, violations}` (payload contract) or `{:script_task_contract_violation, violations}` (result contract)
 - **Missing both script and scriptRef** — `{:missing_script, message}`
 
 ## scriptRef vs. Inline Script Precedence

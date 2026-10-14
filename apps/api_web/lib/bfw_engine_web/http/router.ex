@@ -22,7 +22,6 @@ defmodule BfwEngineWeb.Http.Router do
     plug BfwEngineWeb.Http.Plugs.PayloadCapPlug, field: "payload"
     plug BfwEngineWeb.Http.Plugs.PayloadCapPlug, field: "values"
     plug BfwEngineWeb.Http.Plugs.RateLimitPlug
-    plug BfwEngineWeb.Http.Plugs.DeprecationPlug
   end
 
   pipeline :graphql_context do

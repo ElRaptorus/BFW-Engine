@@ -200,11 +200,10 @@ The lane system controls *who can act* on which FNI, not *who can observe*.
 Same as FNI: inherits from PI visibility. If you can see the PI, you can read
 all its Data Objects.
 
-### 5.4 Event visibility (process_instance_events)
+### 5.4 Event visibility
 
-The built-in database EventSink was removed. `process_instance_events` is
-retained empty for schema compatibility; there is no GraphQL `list`/`get` on
-it. Typed engine events are not a persistence-visibility concern. Kernel
+Typed engine events are not persisted, so there is no GraphQL `list`/`get` on
+them and no persistence-visibility concern. Kernel
 tables (PI, FNI, Data Objects, messages/signals) remain the queryable
 history, with PI visibility as in §5.1.
 

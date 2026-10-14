@@ -38,7 +38,7 @@ defmodule BfwEngine.Persistence.Release do
   (monthly, quarterly, half_yearly, yearly, off). When `off`, this
   is a no-op.
 
-  Currently covers: `process_instance_events`, `data_object_writes`,
+  Currently covers: `data_object_writes`,
   `messages`, `pending_messages`, `signals`, `pending_signals`.
   There is no `pending_escalations` table (escalation D1). There are no
   `escalations`, `compensations`, or `engine_timers` tables.

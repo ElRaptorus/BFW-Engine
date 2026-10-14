@@ -152,8 +152,8 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
           @child_label
         )
 
-      {:error, reason} ->
-        {:error, {:in_mapping_failed, reason}}
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -241,12 +241,6 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
         next_ids,
         @child_label
       )
-    else
-      {:error, %{} = structured} ->
-        {:error, structured}
-
-      {:error, reason} ->
-        {:error, {:called_element_resolution_failed, reason}}
     end
   end
 
