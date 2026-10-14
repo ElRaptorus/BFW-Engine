@@ -134,7 +134,7 @@ Full error class list:
 | `NotFoundError` | (status-based) | 404 |
 | `ProcessNotFoundError` | `process_not_found` | 404 |
 | `ProcessDisabledError` | `process_disabled` | 422 |
-| `ParseError` | `parse_error` | 400/422 |
+| `ParseError` | `parse_error` | 400 |
 | `VersionExistsError` | `version_exists` | 409 |
 | `ActiveInstancesExistError` | `active_instances_exist` | 409 |
 | `ProcessInstanceAlreadyTerminalError` | `process_already_terminal` | 422 |
@@ -142,7 +142,7 @@ Full error class list:
 | `ProcessInstanceNotRetriableError` | `process_instance_not_retriable` | 422 |
 | `IncompatibleVersionMigrationError` | `version_migration_incompatible` | 422 |
 | `FniNotWaitingError` | `fni_not_waiting`, `fni_already_finished`, `fni_already_aborted`, `fni_already_interrupted`, `fni_already_fatal` | 422 |
-| `DeployValidationFailedError` | `validation_failed` | 422 |
+| `DeployValidationFailedError` | `validation_failed` | 422 (carries `failures`) |
 | `LinterGateFailedError` | `linter_gate_failed` | 422 |
 | `ContractViolationError` | `contract_violation` | 422 |
 | `PayloadTooLargeError` | `payload_too_large` | 413 |

@@ -373,7 +373,7 @@ defmodule BfwEngine.Api.ProcessInstances do
 
   defp do_check_start_lane(process_version_id, start_event_id, identity) do
     with {:ok, definitions} <- ModelCache.fetch(process_version_id),
-         {:ok, process} <- find_executable_process(definitions),
+         {:ok, process} <- find_executable_process(definitions, process_version_id),
          {:ok, start_event} <- resolve_start_event(process, start_event_id),
          lane_name when not is_nil(lane_name) <- find_lane_for_element(process, start_event.id) do
       record = %{lane_name: lane_name}
@@ -384,10 +384,20 @@ defmodule BfwEngine.Api.ProcessInstances do
     end
   end
 
-  defp find_executable_process(definitions) do
-    case Enum.find(definitions.processes, & &1.is_executable) do
-      nil -> {:error, :no_executable_process}
-      process -> {:ok, process}
+  defp find_executable_process(definitions, process_version_id) do
+    case Enum.filter(definitions.processes, & &1.is_executable) do
+      [] -> {:error, :no_executable_process}
+      [single_process] -> {:ok, single_process}
+      executable_processes -> find_versioned_process(executable_processes, process_version_id)
+    end
+  end
+
+  defp find_versioned_process(executable_processes, process_version_id) do
+    with {:ok, process_model_id} <- find_process_model_id_for_version(process_version_id),
+         %{} = process <- Enum.find(executable_processes, &(&1.id == process_model_id)) do
+      {:ok, process}
+    else
+      _missing -> {:error, :no_executable_process}
     end
   end
 

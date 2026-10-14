@@ -155,32 +155,17 @@ function parseJsonText(text: string): Record<string, unknown> | null {
   }
 }
 
-function parseJsonAttr(value: string | null): Record<string, unknown> {
-  if (value === null || value === '') {
-    return {};
-  }
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-    return {};
-  } catch {
-    return {};
-  }
-}
-
 function parseIntValue(text: string): number | null {
   const parsed = parseInt(text, 10);
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function parseNumberValue(text: string | null): number {
-  if (text === null || text === '') {
-    return 0;
-  }
-  const parsed = parseFloat(text);
-  return Number.isNaN(parsed) ? 0 : parsed;
+const LEADING_FLOAT = /^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/;
+const LEADING_INTEGER = /^[+-]?\d+/;
+
+function parseLeadingNumber(text: string | null, pattern: RegExp): number | null {
+  const match = text === null ? null : pattern.exec(text);
+  return match === null ? null : Number(match[0]);
 }
 
 function emptyDefinitions(rawXml: string): BpmnDefinitions {
@@ -191,6 +176,7 @@ function emptyDefinitions(rawXml: string): BpmnDefinitions {
     signals: [],
     errors: [],
     escalations: [],
+    linterScores: [],
     rawXml,
   };
 }
@@ -310,6 +296,10 @@ function parseDefinitions(node: OrderedNode, rawXml: string): BpmnDefinitions {
         } satisfies EscalationDefinition);
         break;
 
+      case 'extensionElements':
+        collectLinterScores(child, result.linterScores);
+        break;
+
       case 'process':
         result.processes.push(parseProcess(child));
         break;
@@ -317,6 +307,30 @@ function parseDefinitions(node: OrderedNode, rawXml: string): BpmnDefinitions {
   }
 
   return result;
+}
+
+function collectLinterScores(node: OrderedNode, linterScores: LinterRulesetScore[]): void {
+  for (const child of children(node)) {
+    if (elementName(child) !== 'linterRulesetScore') {
+      collectLinterScores(child, linterScores);
+      continue;
+    }
+    const rulesetId = attr(child, 'rulesetId');
+    if (rulesetId === null || rulesetId === '') {
+      continue;
+    }
+    linterScores.push({
+      rulesetId,
+      scorePercent: parseLeadingNumber(attr(child, 'scorePercent'), LEADING_FLOAT),
+      complianceStatus: attr(child, 'complianceStatus'),
+      computedAtIso: attr(child, 'computedAtIso'),
+      schemaVersion: attr(child, 'schemaVersion'),
+      maxPoints: parseLeadingNumber(attr(child, 'maxPoints'), LEADING_FLOAT),
+      penaltyPoints: parseLeadingNumber(attr(child, 'penaltyPoints'), LEADING_FLOAT),
+      rawErrorFindings: parseLeadingNumber(attr(child, 'rawErrorFindings'), LEADING_INTEGER),
+      rawWarningFindings: parseLeadingNumber(attr(child, 'rawWarningFindings'), LEADING_INTEGER),
+    });
+  }
 }
 
 function parseProcess(node: OrderedNode): BpmnProcess {
@@ -333,8 +347,6 @@ function parseProcess(node: OrderedNode): BpmnProcess {
 
   let version: string | null = null;
   let correlationKey: string | null = null;
-  const linterScores: LinterRulesetScore[] = [];
-
   for (const child of kids) {
     const tag = elementName(child);
     if (!tag) {
@@ -391,7 +403,6 @@ function parseProcess(node: OrderedNode): BpmnProcess {
           (key) => {
             correlationKey = key;
           },
-          linterScores,
         );
         break;
     }
@@ -420,7 +431,6 @@ function parseProcess(node: OrderedNode): BpmnProcess {
     dataStoreReferences,
     associations,
     extensions: [],
-    linterScores,
   };
 
   applyDefaultFlows(process, defaultFlows);
@@ -433,7 +443,6 @@ function parseProcessExtensions(
   extensionChildren: OrderedNode[],
   setVersion: (version: string) => void,
   setCorrelationKey: (key: string) => void,
-  linterScores: LinterRulesetScore[],
 ): void {
   for (const child of extensionChildren) {
     const tag = elementName(child);
@@ -452,13 +461,6 @@ function parseProcessExtensions(
         }
         break;
       }
-      case 'linterRulesetScore':
-        linterScores.push({
-          rulesetId: attr(child, 'rulesetId') ?? attr(child, 'ruleset-id') ?? '',
-          score: parseNumberValue(attr(child, 'score')),
-          checks: parseJsonAttr(attr(child, 'checks')),
-        });
-        break;
     }
   }
 }
@@ -844,7 +846,6 @@ function buildSubProcessTypeData(
     dataStoreReferences: innerDataStoreRefs,
     associations: [],
     extensions: [],
-    linterScores: [],
   };
 
   applyDefaultFlows(syntheticProcess, innerDefaults);

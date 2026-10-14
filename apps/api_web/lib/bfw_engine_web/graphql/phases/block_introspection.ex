@@ -8,6 +8,10 @@ defmodule BfwEngineWeb.Graphql.Phases.BlockIntrospection do
   variable. Defaults to `false` so development and test environments retain
   full introspection.
 
+  Root selections are searched through inline fragments and named fragment
+  spreads (resolved via `blueprint.fragments`, cycle-guarded), so wrapping
+  `__schema` / `__type` in a fragment does not bypass the block.
+
   `__typename` is **not** blocked: it is commonly required by GraphQL
   client libraries for union / interface type discrimination and is not
   a schema-enumeration vector.
@@ -57,11 +61,40 @@ defmodule BfwEngineWeb.Graphql.Phases.BlockIntrospection do
   end
 
   defp find_introspection_field(blueprint) do
-    Enum.find_value(blueprint.operations, fn op ->
-      Enum.find(op.selections, fn
-        %Blueprint.Document.Field{name: name} when name in @blocked_fields -> true
-        _ -> false
-      end)
+    Enum.find_value(blueprint.operations, fn operation ->
+      find_in_selections(operation.selections, blueprint.fragments, %{})
     end)
   end
+
+  defp find_in_selections(selections, fragments, visited_names) do
+    Enum.find_value(selections, fn selection ->
+      find_in_selection(selection, fragments, visited_names)
+    end)
+  end
+
+  defp find_in_selection(%Blueprint.Document.Field{name: name}, _fragments, _visited_names)
+       when name in @blocked_fields,
+       do: true
+
+  defp find_in_selection(
+         %Blueprint.Document.Fragment.Inline{selections: children},
+         fragments,
+         visited_names
+       ),
+       do: find_in_selections(children, fragments, visited_names)
+
+  defp find_in_selection(
+         %Blueprint.Document.Fragment.Spread{name: name},
+         fragments,
+         visited_names
+       ) do
+    with false <- Map.has_key?(visited_names, name),
+         %{selections: children} <- Enum.find(fragments, &(&1.name == name)) do
+      find_in_selections(children, fragments, Map.put(visited_names, name, true))
+    else
+      _already_visited_or_unknown -> nil
+    end
+  end
+
+  defp find_in_selection(_other_selection, _fragments, _visited_names), do: nil
 end

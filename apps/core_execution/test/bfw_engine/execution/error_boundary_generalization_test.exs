@@ -100,6 +100,9 @@ defmodule BfwEngine.Execution.ErrorBoundaryGeneralizationTest do
     def resolve_latest_version_for_process_id(_process_id) do
       {:error, :process_not_found}
     end
+
+    @impl true
+    def resolve_process_model_id(_process_version_id), do: {:error, :not_found}
   end
 
   # ===================================================================

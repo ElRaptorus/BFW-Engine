@@ -282,6 +282,27 @@ describe('mapResponseError — domain error code mapping', () => {
       message: 'Validation failed',
     });
     expect(error).toBeInstanceOf(DeployValidationFailedError);
+    expect((error as DeployValidationFailedError).failures).toEqual([]);
+  });
+
+  it('fills DeployValidationFailedError.failures from the deploy 422 body', () => {
+    const failures = [{ file: 'source_1.bpmn', details: ['StartEvent is missing'] }];
+    const error = mapResponseError(422, {
+      error: 'validation_failed',
+      message: 'BPMN validation failed',
+      failures,
+    });
+    expect(error).toBeInstanceOf(DeployValidationFailedError);
+    expect((error as DeployValidationFailedError).failures).toEqual(failures);
+  });
+
+  it('ignores a non-array failures field on validation_failed', () => {
+    const error = mapResponseError(422, {
+      error: 'validation_failed',
+      message: 'BPMN validation failed',
+      failures: 'oops',
+    });
+    expect((error as DeployValidationFailedError).failures).toEqual([]);
   });
 
   it('maps linter_gate_failed to LinterGateFailedError', () => {

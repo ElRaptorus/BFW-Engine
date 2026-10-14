@@ -1167,6 +1167,8 @@ The `ResumeRunner` is started as a one-shot `Task` child. It pages through all P
 
 ## Start Event Resolution
 
+**Which process:** a BPMN file may hold several executable processes that share one `Definitions` in `ModelCache` (keyed by `process_version_id`). The process to run is the one whose id equals the `process_model_id` of the version's catalog `Process` row, resolved through `CalledElementResolver.resolve_process_model_id/1` (used by `ProcessInstance.fetch_process_model/2` for start and resume, by `Execution.resolve_process_model_id/1` for retry events, and by `BfwEngine.Api` for the start lane check). When the resolver cannot answer (no persistence), the first executable process is used.
+
 When starting a PI, the runtime resolves the Start Event using these rules:
 
 | Start Events | `startEventId` provided | Behaviour |

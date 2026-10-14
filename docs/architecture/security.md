@@ -192,6 +192,8 @@ Per-plugin claim sets / per-action allow-deny are not an engine feature. Plugins
 
 ## CORS (Cross-Origin Resource Sharing)
 
+**WebSocket `Origin` check:** `BFE_WS_CHECK_ORIGIN=true` maps to Phoenix `check_origin: :conn` (the `Origin` host must equal the request host, so the reverse proxy must forward `Host`); `false` (default) disables the check; a comma-separated list is passed through as explicit origins. Mapping lives in `config/runtime.exs` and is asserted by `ws_check_origin_config_test.exs`.
+
 **Delegated to the reverse proxy.** The engine itself does not set CORS headers.
 
 Browser-based clients (e.g. Bifrost Forge World Studio) that call the engine's REST / GraphQL /
@@ -399,7 +401,7 @@ reference when commissioning a penetration test.
 | **Timeout and resource exhaustion** | Bandit `idle_timeout` + `request_timeout`; Ecto pool checkout timeout; GenServer call timeouts on engine internals |
 | **Directory traversal** | Not applicable — the engine does not serve static files from user-supplied paths; BPMN upload is parsed as XML, not stored as a file |
 | **WebSocket abuse** | Channel authentication via JWT on connect; topic-level authorization (lane filtering); idle connection timeout |
-| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: BFE_GRAPHQL_MAX_COMPLEXITY` (default **10000**, sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot which AshGraphql scores at 6500) applied at request time by `BfwEngineWeb.Graphql.PipelineModifier`; `BfwEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `BFE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `BfwEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields when `BFE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). Depth and complexity are read from `Application.get_env/3` at request time — no recompile required. |
+| **GraphQL-specific** | Implemented: `analyze_complexity: true` + `max_complexity: BFE_GRAPHQL_MAX_COMPLEXITY` (default **10000**, sized for the Studio debugger `dataObjectValues(limit: 500)` snapshot which AshGraphql scores at 6500) applied at request time by `BfwEngineWeb.Graphql.PipelineModifier`; `BfwEngineWeb.Graphql.Phases.DepthLimit` rejects queries deeper than `BFE_GRAPHQL_MAX_DEPTH` (default 16, sized for recursive `SubProcessNode.flowNodes`); `BfwEngineWeb.Graphql.Phases.BlockIntrospection` rejects `__schema`/`__type` root fields (also when reached through root inline fragments or named fragment spreads, nested and cycle-guarded) when `BFE_GRAPHQL_INTROSPECTION_DISABLED=true` (default false). Depth and complexity are read from `Application.get_env/3` at request time — no recompile required. |
 
 ---
 

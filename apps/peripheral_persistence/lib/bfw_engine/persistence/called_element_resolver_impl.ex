@@ -42,6 +42,17 @@ defmodule BfwEngine.Persistence.CalledElementResolverImpl do
     end
   end
 
+  @doc "Resolves the process model ID of the process that owns the given version."
+  @impl true
+  def resolve_process_model_id(process_version_id) do
+    with {:ok, version} <-
+           Ash.get(ProcessVersion, process_version_id, domain: @domain, authorize?: false),
+         {:ok, process} <-
+           Ash.get(ProcessResource, version.process_id, domain: @domain, authorize?: false) do
+      {:ok, process.process_model_id}
+    end
+  end
+
   defp build_resolved_version(process, version) do
     %{
       process_id: process.id,

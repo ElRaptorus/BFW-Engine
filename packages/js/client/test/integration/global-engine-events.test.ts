@@ -13,9 +13,10 @@ import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
 import {
   cleanupInstances,
   createAdminClient,
-  deployDmnFixture,
+  deployDecisionsIfSupported,
   deployFixture,
   ensureEngineReachable,
+  undeployDecisionQuietly,
   waitForState,
   waitForUserTask,
 } from '../support/test-engine.js';
@@ -35,6 +36,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await undeployDecisionQuietly(adminClient, 'definitions_discount');
   await cleanupInstances(adminClient);
   adminClient.notifications.disconnect();
 });
@@ -126,8 +128,10 @@ describe('Global Engine Events (engine:events channel)', { concurrent: false }, 
 
   // 4.3
   describe('DMN events on global channel', () => {
-    it('receives DecisionEvaluated event after ad-hoc evaluation', async () => {
-      await deployDmnFixture(adminClient, 'simple_unique.dmn');
+    it('receives DecisionEvaluated event after ad-hoc evaluation', async (context) => {
+      if (!(await deployDecisionsIfSupported(adminClient, 'simple_unique.dmn'))) {
+        context.skip();
+      }
 
       const receivedEvents: EngineEventEnvelope[] = [];
       const subscription = await adminClient.notifications.onEngineEvent((envelope: EngineEventEnvelope) => {

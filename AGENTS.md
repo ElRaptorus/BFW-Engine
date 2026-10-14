@@ -117,8 +117,8 @@ enforces required ones.
 
 #### `bfw:version` (required)
 
-The deployment version string. The validator rejects any executable process
-that does not carry a non-blank `<bfw:version>`.
+The deployment version string. The validator rejects any process, executable
+or not, that does not carry a non-blank `<bfw:version>`.
 
 ```xml
 <bpmn:process id="order-process" name="Order Process" isExecutable="true">
@@ -1097,7 +1097,7 @@ pass. It never short-circuits on the first problem.
 
 ### Process-level checks
 
-- Every executable process must have a non-blank `<bfw:version>`
+- Every process must have a non-blank `<bfw:version>`, including non-executable ones (deploy stores every process as a version); this is the only check a non-executable process gets
 - Every executable process must contain at least one StartEvent
 - Every executable process must contain at least one EndEvent
 

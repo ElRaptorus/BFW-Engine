@@ -7,10 +7,10 @@ import {
   DecisionDefinitionNotFoundError,
   DecisionServiceNotFoundError,
 } from '@elraptorus/bfw_engine_sdk';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { BfwEngineClient } from '../../src/bfw-engine-client.js';
-import { createAdminClient, deployDmnFixture, ensureEngineReachable } from '../support/test-engine.js';
+import { createAdminClient, deployDecisionsIfSupported, ensureEngineReachable } from '../support/test-engine.js';
 
 const discountDefinitionsId = 'definitions_discount';
 const serviceDefinitionsId = 'Definitions_ds_basic';
@@ -23,18 +23,19 @@ const bkmInvocationDefinitionsId = 'definitions_bkm_invoke_le';
 const boxedContextDefinitionsId = 'definitions_context';
 
 let adminClient: BfwEngineClient;
+let decisionsSupported = false;
 
 beforeAll(async () => {
   await ensureEngineReachable();
   adminClient = await createAdminClient();
-  await deployDmnFixture(adminClient, 'simple_unique.dmn');
-  await deployDmnFixture(adminClient, 'decision_service_basic.dmn');
-  await deployDmnFixture(adminClient, 'collect_with_sum.dmn');
-  await deployDmnFixture(adminClient, 'all_hit_policies.dmn');
-  await deployDmnFixture(adminClient, 'priority_hit_policy.dmn');
-  await deployDmnFixture(adminClient, 'drg_linear_chain.dmn');
-  await deployDmnFixture(adminClient, 'bkm_invocation_literal.dmn');
-  await deployDmnFixture(adminClient, 'boxed_context_basic.dmn');
+  decisionsSupported = await deployDecisionsIfSupported(adminClient, 'simple_unique.dmn');
+  await deployDecisionsIfSupported(adminClient, 'decision_service_basic.dmn');
+  await deployDecisionsIfSupported(adminClient, 'collect_with_sum.dmn');
+  await deployDecisionsIfSupported(adminClient, 'all_hit_policies.dmn');
+  await deployDecisionsIfSupported(adminClient, 'priority_hit_policy.dmn');
+  await deployDecisionsIfSupported(adminClient, 'drg_linear_chain.dmn');
+  await deployDecisionsIfSupported(adminClient, 'bkm_invocation_literal.dmn');
+  await deployDecisionsIfSupported(adminClient, 'boxed_context_basic.dmn');
 });
 
 afterAll(async () => {
@@ -60,6 +61,12 @@ afterAll(async () => {
 });
 
 describe('Decision evaluation (integration)', { concurrent: false }, () => {
+  beforeEach((context) => {
+    if (!decisionsSupported) {
+      context.skip();
+    }
+  });
+
   it('deploys DMN and evaluates', async () => {
     const result = await adminClient.decisions.evaluate(discountDefinitionsId, { age: 25 });
     expect(result.hitPolicy).toBe('unique');

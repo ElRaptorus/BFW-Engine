@@ -34,6 +34,17 @@ defmodule BfwEngine.Execution.CalledElementResolver do
   @callback resolve_latest_version_for_process_id(process_id :: String.t()) ::
               {:ok, resolved :: map()} | {:error, reason :: term()}
 
+  @doc """
+  Resolve the BPMN process model ID (the `<process id>`) a process version
+  belongs to.
+
+  Every process of a multi-process file gets its own version that shares the
+  file's definitions; this answer tells the runtime which process of those
+  definitions the version runs.
+  """
+  @callback resolve_process_model_id(process_version_id :: String.t()) ::
+              {:ok, process_model_id :: String.t()} | {:error, reason :: term()}
+
   @doc "Returns the configured called-element resolver module."
   @spec adapter() :: module()
   def adapter do
@@ -70,6 +81,9 @@ defmodule BfwEngine.Execution.CalledElementResolver.NoOp do
        process_model_hash: @default_model_hash
      }}
   end
+
+  @impl true
+  def resolve_process_model_id(_process_version_id), do: {:error, :not_found}
 
   defp resolved(process_model_id, version) do
     %{

@@ -3,6 +3,10 @@ defmodule BfwEngine.Auth.JwksCache do
   Periodically fetches and caches the JWKS (JSON Web Key Set) from the
   configured `BFE_JWT_JWKS_URL`.
 
+  The cache holds a list of `JOSE.JWK` structs: one per entry of the
+  document's `"keys"` array, or a one-element list when the document is a
+  single bare key.
+
   Refresh interval: `BFE_JWKS_REFRESH_SECONDS` (default 3600).
   On failure the stale keyset is retained until the next successful
   fetch; a warning is logged on every failed attempt.
@@ -13,13 +17,14 @@ defmodule BfwEngine.Auth.JwksCache do
   require Logger
 
   @default_refresh_ms 3_600_000
+  @fetch_timeout_ms 10_000
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @doc "Returns the cached JOSE.JWK set, or `nil` if no JWKS is configured."
-  @spec get_keys() :: JOSE.JWK.t() | nil
+  @doc "Returns the cached list of `JOSE.JWK` keys, or `nil` if none has been fetched."
+  @spec get_keys() :: [JOSE.JWK.t()] | nil
   def get_keys do
     GenServer.call(__MODULE__, :get_keys)
   end
@@ -62,12 +67,12 @@ defmodule BfwEngine.Auth.JwksCache do
 
   defp do_fetch(%{url: url} = state) do
     case fetch_jwks(url) do
-      {:ok, jwk} ->
+      {:ok, keys} ->
         Logger.info("JWKS refreshed from #{url}")
 
         %{
           state
-          | keys: jwk,
+          | keys: keys,
             last_fetched_at: DateTime.utc_now(),
             consecutive_failures: 0
         }
@@ -82,15 +87,12 @@ defmodule BfwEngine.Auth.JwksCache do
   end
 
   defp fetch_jwks(url) do
-    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, 10_000}], []) do
+    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @fetch_timeout_ms}], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
-        jwk =
-          body
-          |> IO.iodata_to_binary()
-          |> Jason.decode!()
-          |> JOSE.JWK.from_map()
-
-        {:ok, jwk}
+        body
+        |> IO.iodata_to_binary()
+        |> Jason.decode!()
+        |> build_keys()
 
       {:ok, {{_, status, _}, _, _}} ->
         {:error, {:http_status, status}}
@@ -99,10 +101,18 @@ defmodule BfwEngine.Auth.JwksCache do
         {:error, reason}
     end
   rescue
-    e -> {:error, e}
+    exception -> {:error, exception}
   end
 
-  defp schedule_refresh(ms) do
-    Process.send_after(self(), :fetch, ms)
+  defp build_keys(%{"keys" => [_ | _] = key_maps}) do
+    {:ok, Enum.map(key_maps, &JOSE.JWK.from_map/1)}
+  end
+
+  defp build_keys(%{"keys" => _}), do: {:error, :empty_key_set}
+  defp build_keys(%{} = key_map), do: {:ok, [JOSE.JWK.from_map(key_map)]}
+  defp build_keys(_other), do: {:error, :invalid_jwks_document}
+
+  defp schedule_refresh(milliseconds) do
+    Process.send_after(self(), :fetch, milliseconds)
   end
 end

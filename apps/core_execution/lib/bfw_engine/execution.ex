@@ -11,6 +11,7 @@ defmodule BfwEngine.Execution do
 
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Execution.CalledElementResolver
   alias BfwEngine.Execution.Persistence
   alias BfwEngine.Execution.PersistenceRetry
   alias BfwEngine.Execution.ProcessInstance
@@ -960,15 +961,18 @@ defmodule BfwEngine.Execution do
   end
 
   defp resolve_process_model_id(process_version_id) do
-    case ModelCache.fetch(process_version_id) do
-      {:ok, definitions} ->
-        case Enum.find(definitions.processes, & &1.is_executable) do
-          %{id: process_id} -> process_id
-          nil -> process_version_id
-        end
+    with {:ok, definitions} <- ModelCache.fetch(process_version_id),
+         [%{id: process_id}] <- Enum.filter(definitions.processes, & &1.is_executable) do
+      process_id
+    else
+      _not_single -> resolve_versioned_process_model_id(process_version_id)
+    end
+  end
 
-      _error ->
-        process_version_id
+  defp resolve_versioned_process_model_id(process_version_id) do
+    case CalledElementResolver.adapter().resolve_process_model_id(process_version_id) do
+      {:ok, process_model_id} -> process_model_id
+      {:error, _reason} -> process_version_id
     end
   end
 

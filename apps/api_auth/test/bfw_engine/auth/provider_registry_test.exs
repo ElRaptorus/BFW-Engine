@@ -20,6 +20,15 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
       {:ok, %Identity{id: user_id, roles: ["custom"], groups: [], claims: %{"sub" => user_id}}}
     end
 
+    def verify_and_resolve("blank-id"),
+      do: {:ok, %Identity{id: "  ", roles: [], groups: [], claims: %{}}}
+
+    def verify_and_resolve("nil-id"),
+      do: {:ok, %Identity{id: nil, roles: [], groups: [], claims: %{}}}
+
+    def verify_and_resolve("integer-id"),
+      do: {:ok, %Identity{id: 42, roles: [], groups: [], claims: %{}}}
+
     def verify_and_resolve(_token), do: {:error, :invalid_token}
   end
 
@@ -55,6 +64,14 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
       ProviderRegistry.register_provider(FakeProvider)
 
       assert {:error, :invalid_token} = ProviderRegistry.verify_and_resolve("bad-token")
+    end
+
+    test "rejects a plugin identity whose id is blank or not a string" do
+      ProviderRegistry.register_provider(FakeProvider)
+
+      for token <- ["blank-id", "nil-id", "integer-id"] do
+        assert {:error, :missing_subject} = ProviderRegistry.verify_and_resolve(token)
+      end
     end
 
     test "dispatches to default JWT provider when no plugin registered" do

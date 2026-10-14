@@ -70,9 +70,9 @@
             "formFields": [
               {
                 "id": "approved",
-                "type": "toggle",
                 "label": "approved",
-                "required": false
+                "required": false,
+                "type": "toggle"
               }
             ],
             "inMappings": [],

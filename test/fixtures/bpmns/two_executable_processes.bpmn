@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_TwoExecutable"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Alpha" name="Alpha" processRef="Process_Alpha" />
+    <bpmn:participant id="Participant_Beta" name="Beta" processRef="Process_Beta" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Alpha" name="Alpha" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_Alpha">
+      <bpmn:lane id="Lane_Alpha" name="default">
+        <bpmn:flowNodeRef>Start_Alpha</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Alpha</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Alpha" name="Start" />
+    <bpmn:endEvent id="End_Alpha" name="End" />
+    <bpmn:sequenceFlow id="Flow_Alpha" sourceRef="Start_Alpha" targetRef="End_Alpha" />
+  </bpmn:process>
+  <bpmn:process id="Process_Beta" name="Beta" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_Beta">
+      <bpmn:lane id="Lane_Beta" name="default">
+        <bpmn:flowNodeRef>Start_Beta</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Beta</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Beta" name="Start" />
+    <bpmn:endEvent id="End_Beta" name="End" />
+    <bpmn:sequenceFlow id="Flow_Beta" sourceRef="Start_Beta" targetRef="End_Beta" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Alpha">
+    <bpmndi:BPMNPlane id="BPMNPlane_Alpha" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Alpha" bpmnElement="Participant_Alpha" isHorizontal="true">
+        <dc:Bounds x="82" y="52" width="326" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Alpha" bpmnElement="Lane_Alpha" isHorizontal="true">
+        <dc:Bounds x="112" y="52" width="296" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Alpha" bpmnElement="Start_Alpha">
+        <dc:Bounds x="162" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Alpha" bpmnElement="End_Alpha">
+        <dc:Bounds x="322" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Alpha" bpmnElement="Flow_Alpha">
+        <di:waypoint x="198" y="100" />
+        <di:waypoint x="322" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Beta" bpmnElement="Participant_Beta" isHorizontal="true">
+        <dc:Bounds x="82" y="252" width="326" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Beta" bpmnElement="Lane_Beta" isHorizontal="true">
+        <dc:Bounds x="112" y="252" width="296" height="96" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Beta" bpmnElement="Start_Beta">
+        <dc:Bounds x="162" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Beta" bpmnElement="End_Beta">
+        <dc:Bounds x="322" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Beta" bpmnElement="Flow_Beta">
+        <di:waypoint x="198" y="300" />
+        <di:waypoint x="322" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

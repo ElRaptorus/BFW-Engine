@@ -106,12 +106,12 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert {:ok, _} = Validator.validate(definitions)
     end
 
-    test "broken non-executable process does not cause validation failure" do
-      broken_non_exec = %BpmnProcess{
+    test "a non-executable process is checked only for bfw:version" do
+      broken_non_executable = %BpmnProcess{
         id: "BrokenHelper",
         name: "Broken",
         is_executable: false,
-        version: nil,
+        version: "1.0.0",
         flow_nodes: [],
         sequence_flows: [],
         lanes: [],
@@ -124,10 +124,33 @@ defmodule BfwEngine.BPMN.ValidatorTest do
 
       definitions = %{
         valid_definitions
-        | processes: valid_definitions.processes ++ [broken_non_exec]
+        | processes: valid_definitions.processes ++ [broken_non_executable]
       }
 
       assert {:ok, _} = Validator.validate(definitions)
+    end
+
+    test "a non-executable process without bfw:version is rejected" do
+      valid_definitions = minimal_valid_definitions([])
+      [executable | _] = valid_definitions.processes
+
+      missing = %{executable | id: "Helper_missing", is_executable: false, version: nil}
+      blank = %{executable | id: "Helper_blank", is_executable: false, version: ""}
+
+      definitions = %{
+        valid_definitions
+        | processes: valid_definitions.processes ++ [missing, blank]
+      }
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      assert {:missing_version,
+              "Process 'Helper_missing' is missing required property: version (bfw:version)"} in violations
+
+      assert {:blank_version,
+              "Process 'Helper_blank' has a blank value for required property: version (bfw:version)"} in violations
+
+      assert length(violations) == 2
     end
   end
 
@@ -3154,9 +3177,8 @@ defmodule BfwEngine.BPMN.ValidatorTest do
 
       assert {:error, violations} = Validator.validate(definitions)
 
-      assert Enum.any?(violations, fn {code, message} ->
-               code == :duplicate_flow_node_id and message =~ "'S1'"
-             end)
+      assert {:duplicate_flow_node_id,
+              "Flow node id 'S1' is declared 2 times across the process and its subprocess scopes. Flow node ids must be unique within a process tree so that start-event resolution and subprocess scoping remain unambiguous."} in violations
     end
 
     test "all-unique ids across scopes produce no duplicate violation" do
@@ -3209,9 +3231,8 @@ defmodule BfwEngine.BPMN.ValidatorTest do
 
       assert {:error, violations} = Validator.validate(definitions)
 
-      assert Enum.any?(violations, fn {code, message} ->
-               code == :duplicate_flow_node_id and message =~ "'E1'"
-             end)
+      assert {:duplicate_flow_node_id,
+              "Flow node id 'E1' is declared 2 times across the process and its subprocess scopes. Flow node ids must be unique within a process tree so that start-event resolution and subprocess scoping remain unambiguous."} in violations
     end
 
     test "duplicate id within the same top-level scope is caught" do
@@ -3224,9 +3245,8 @@ defmodule BfwEngine.BPMN.ValidatorTest do
 
       assert {:error, violations} = Validator.validate(definitions)
 
-      assert Enum.any?(violations, fn {code, _message} ->
-               code == :duplicate_flow_node_id
-             end)
+      assert {:duplicate_flow_node_id,
+              "Flow node id 'S1' is declared 2 times across the process and its subprocess scopes. Flow node ids must be unique within a process tree so that start-event resolution and subprocess scoping remain unambiguous."} in violations
     end
   end
 

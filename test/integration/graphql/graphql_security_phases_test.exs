@@ -46,6 +46,34 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
   }
   """
 
+  @fragment_schema_introspection_query """
+  query HiddenIntrospection {
+    ...SchemaFragment
+  }
+
+  fragment SchemaFragment on RootQueryType {
+    ... on RootQueryType {
+      __schema {
+        queryType {
+          name
+        }
+      }
+    }
+  }
+  """
+
+  @named_fragment_type_introspection_query """
+  query HiddenTypeIntrospection {
+    ...TypeFragment
+  }
+
+  fragment TypeFragment on RootQueryType {
+    __type(name: "Process") {
+      name
+    }
+  }
+  """
+
   # Mirrors the Studio debugger's parallel `queryDataObjectValues` call
   # (`limit: 500`, six result fields, offset page metadata).
   @debugger_data_object_values_query """
@@ -151,6 +179,26 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSecurityPhasesTest do
       assert is_list(body["errors"])
       assert length(body["errors"]) >= 1
       assert hd(body["errors"])["message"] =~ "disabled"
+    end
+
+    test "rejects __schema hidden inside nested fragments when introspection is disabled" do
+      Application.put_env(:api_web, :graphql_introspection_disabled, true)
+
+      {200, body} = http_graphql(@fragment_schema_introspection_query)
+
+      assert [%{"message" => message} | _] = body["errors"]
+      assert message =~ "disabled"
+      assert body["data"] in [nil, %{}]
+    end
+
+    test "rejects __type behind a named fragment spread when introspection is disabled" do
+      Application.put_env(:api_web, :graphql_introspection_disabled, true)
+
+      {200, body} = http_graphql(@named_fragment_type_introspection_query)
+
+      assert [%{"message" => message} | _] = body["errors"]
+      assert message =~ "disabled"
+      assert body["data"] in [nil, %{}]
     end
 
     test "allows regular query when introspection is disabled" do

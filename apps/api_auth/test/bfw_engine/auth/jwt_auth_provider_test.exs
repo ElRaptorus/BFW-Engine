@@ -49,9 +49,24 @@ defmodule BfwEngine.Auth.JwtAuthProviderTest do
       assert identity.id == "svc-1"
     end
 
-    test "falls back to unknown when neither sub nor client_id present" do
-      identity = identity_from(%{"custom" => "data"})
-      assert identity.id == "unknown"
+    test "rejects a verified token without sub and client_id" do
+      assert {:error, :missing_subject} = resolve(%{"custom" => "data"})
+    end
+
+    test "rejects blank and non-string sub and client_id values" do
+      for claims <- [
+            %{"sub" => ""},
+            %{"sub" => "   ", "client_id" => ""},
+            %{"sub" => 42},
+            %{"sub" => nil, "client_id" => ["a"]}
+          ] do
+        assert {:error, :missing_subject} = resolve(claims)
+      end
+    end
+
+    test "falls back to client_id when sub is blank" do
+      identity = identity_from(%{"sub" => " ", "client_id" => "svc-2"})
+      assert identity.id == "svc-2"
     end
 
     test "extracts roles and groups as lists" do
@@ -111,11 +126,14 @@ defmodule BfwEngine.Auth.JwtAuthProviderTest do
     end
   end
 
-  defp identity_from(claims) do
+  defp resolve(claims) do
     AuthHelper.with_auth_enabled(fn ->
-      token = AuthHelper.sign_jwt(claims)
-      assert {:ok, identity} = JwtAuthProvider.verify_and_resolve(token)
-      identity
+      claims |> AuthHelper.sign_jwt() |> JwtAuthProvider.verify_and_resolve()
     end)
+  end
+
+  defp identity_from(claims) do
+    assert {:ok, identity} = resolve(claims)
+    identity
   end
 end

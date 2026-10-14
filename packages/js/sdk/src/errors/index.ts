@@ -20,6 +20,7 @@ export { ProcessInstanceNotTerminalError } from './process-instance-not-terminal
 export { FniNotWaitingError } from './fni-not-waiting-error.js';
 export { ParseError } from './parse-error.js';
 export { DeployValidationFailedError } from './deploy-validation-failed-error.js';
+export type { DeployFailure } from './deploy-validation-failed-error.js';
 export { LinterGateFailedError } from './linter-gate-failed-error.js';
 export { VersionExistsError } from './version-exists-error.js';
 export { InternalEngineError } from './internal-engine-error.js';

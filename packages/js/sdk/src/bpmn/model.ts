@@ -9,6 +9,8 @@ export interface BpmnDefinitions {
   signals: SignalDefinition[];
   errors: ErrorDefinition[];
   escalations: EscalationDefinition[];
+  /** `definitions/extensionElements/bfw:properties/bfw:linterRulesetScore` entries. */
+  linterScores: LinterRulesetScore[];
   /** The original BPMN XML string that was parsed. */
   rawXml: string;
 }
@@ -55,7 +57,6 @@ export interface BpmnProcess {
   /** `<bpmn:association>` elements, primarily compensation boundary → handler links. */
   associations: Association[];
   extensions: Extension[];
-  linterScores: LinterRulesetScore[];
 }
 
 export interface FlowNode {
@@ -154,10 +155,17 @@ export interface Extension {
   children: Extension[];
 }
 
+/** Numeric attributes are parsed from bare strings (e.g. `"92.5"`); absent or unparseable values are `null`. */
 export interface LinterRulesetScore {
   rulesetId: string;
-  score: number;
-  checks: Record<string, unknown>;
+  scorePercent: number | null;
+  complianceStatus: string | null;
+  computedAtIso: string | null;
+  schemaVersion: string | null;
+  maxPoints: number | null;
+  penaltyPoints: number | null;
+  rawErrorFindings: number | null;
+  rawWarningFindings: number | null;
 }
 
 /**

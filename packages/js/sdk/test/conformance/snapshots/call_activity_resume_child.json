@@ -55,9 +55,9 @@
             "formFields": [
               {
                 "id": "result",
-                "type": "text",
                 "label": "result",
-                "required": false
+                "required": false,
+                "type": "text"
               }
             ],
             "inMappings": [],

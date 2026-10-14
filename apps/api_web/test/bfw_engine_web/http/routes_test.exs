@@ -89,6 +89,40 @@ defmodule BfwEngineWeb.Http.RoutesTest do
     end
   end
 
+  describe "GET /stats with identity claims" do
+    setup do
+      previous = Application.get_env(:api_auth, :auth_disabled)
+      Application.put_env(:api_auth, :auth_disabled, false)
+      on_exit(fn -> Application.put_env(:api_auth, :auth_disabled, previous) end)
+      :ok
+    end
+
+    test "returns 200 for a token with only client_id" do
+      token = HttpAuthHelper.sign_jwt(%{"sub" => nil, "client_id" => "service-account-1"})
+
+      conn =
+        conn(:get, "/stats")
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> call()
+
+      assert conn.status == 200
+    end
+
+    test "returns 401 with the generic body for a token without sub and client_id" do
+      token = HttpAuthHelper.sign_jwt(%{"sub" => nil})
+
+      conn =
+        conn(:get, "/stats")
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> call()
+
+      assert conn.status == 401
+
+      assert Jason.decode!(conn.resp_body) ==
+               %{"error" => "unauthorized", "message" => "Authentication required"}
+    end
+  end
+
   describe "GET /stats with auth disabled" do
     setup do
       previous = Application.get_env(:api_auth, :auth_disabled)

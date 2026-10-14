@@ -39,6 +39,7 @@ Thumbs.db
 # Node / TypeScript packages
 node_modules/
 packages/js/*/dist/
+.pnpm-store
 
 # Test coverage exports
 **/cover/

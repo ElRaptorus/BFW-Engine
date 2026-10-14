@@ -247,7 +247,7 @@ Package unit tests use `Req.Test`, `Slipstream.SocketTest`, and `Igniter.Test` â
 
 ## CI/CD
 
-`.github/workflows/packages-ci.yml` publishes `@elraptorus/bfw_engine_sdk` and `@elraptorus/bfw_engine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch` (auto-increments the patch version from the registry). All jobs pin `actions/setup-node` to Node.js 26. First-party packages declare `engines.node` `>=24.20.0`.
+`.github/workflows/packages-ci.yml` publishes `@elraptorus/bfw_engine_sdk` and `@elraptorus/bfw_engine_client` to GitHub Packages. Triggers: GitHub Release `published`, or `workflow_dispatch`. Each package publishes the version in its own `package.json`; the workflow never changes versions, so bump them in the commit before publishing. All jobs pin `actions/setup-node` to Node.js 26. First-party packages declare `engines.node` `>=24.20.0`.
 
 Jobs, in order:
 

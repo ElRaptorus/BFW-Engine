@@ -92,9 +92,9 @@
             "formFields": [
               {
                 "id": "status",
-                "type": "text",
                 "label": "status",
-                "required": false
+                "required": false,
+                "type": "text"
               }
             ],
             "inMappings": [],

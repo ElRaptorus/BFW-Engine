@@ -24,6 +24,9 @@ defmodule BfwEngineWeb.Ws.UserSocketTest do
       {:ok, %Identity{id: id, roles: ["ws-custom"], groups: [], claims: %{"sub" => id}}}
     end
 
+    def verify_and_resolve("blank-socket"),
+      do: {:ok, %Identity{id: "", roles: [], groups: [], claims: %{}}}
+
     def verify_and_resolve(_token), do: {:error, :invalid_token}
   end
 
@@ -37,6 +40,25 @@ defmodule BfwEngineWeb.Ws.UserSocketTest do
         assert %Identity{} = socket.assigns.identity
         assert socket.assigns.identity.id == "ws-user-1"
         assert socket.assigns.identity.roles == ["viewer"]
+      end)
+    end
+
+    test "valid JWT with only client_id connects with that id" do
+      with_auth_enabled(fn ->
+        token = sign_jwt(%{"client_id" => "ws-service-1"})
+        socket = %Phoenix.Socket{endpoint: BfwEngineWeb.Http.Endpoint}
+
+        assert {:ok, socket} = UserSocket.connect(%{"token" => token}, socket, %{})
+        assert socket.assigns.identity.id == "ws-service-1"
+      end)
+    end
+
+    test "valid JWT without sub and client_id is refused" do
+      with_auth_enabled(fn ->
+        token = sign_jwt(%{"roles" => ["viewer"]})
+        socket = %Phoenix.Socket{endpoint: BfwEngineWeb.Http.Endpoint}
+
+        assert :error = UserSocket.connect(%{"token" => token}, socket, %{})
       end)
     end
 
@@ -84,6 +106,15 @@ defmodule BfwEngineWeb.Ws.UserSocketTest do
                  UserSocket.connect(%{"token" => "custom-socket-42"}, socket, %{})
 
         assert %Identity{id: "42", roles: ["ws-custom"]} = socket.assigns.identity
+      end)
+    end
+
+    test "rejects a provider identity with a blank id" do
+      with_auth_enabled(fn ->
+        ProviderRegistry.register_provider(FakeSocketProvider)
+
+        socket = %Phoenix.Socket{endpoint: BfwEngineWeb.Http.Endpoint}
+        assert :error = UserSocket.connect(%{"token" => "blank-socket"}, socket, %{})
       end)
     end
 

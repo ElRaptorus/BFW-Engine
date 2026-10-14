@@ -77,6 +77,27 @@ defmodule BfwEngine.Integration.Graphql.GraphqlErrorHandlingTest do
     end
   end
 
+  describe "resolver error shape" do
+    test "reports the domain code under extensions and not at the top level of the error" do
+      query = """
+      {
+        processes(limit: -1) {
+          results {
+            id
+          }
+        }
+      }
+      """
+
+      {200, body} = http_graphql(query)
+
+      assert [error | _] = body["errors"]
+      assert error["extensions"]["code"] == "invalid_query"
+      refute Map.has_key?(error, "code")
+      refute Map.has_key?(error, "short_message")
+    end
+  end
+
   describe "invalid filter field" do
     test "returns error for unknown filter attribute" do
       query = """

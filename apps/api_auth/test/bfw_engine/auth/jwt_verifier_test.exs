@@ -210,12 +210,19 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
   describe "verify/1 with RS256 via JWKS cache" do
     setup do
       private_jwk = JOSE.JWK.generate_key({:rsa, 2048})
-      public_jwk = JOSE.JWK.to_public(private_jwk)
-      {_key_type, public_fields} = JOSE.JWK.to_map(public_jwk)
-      body = Jason.encode!(public_fields)
-      {server, port} = start_jwks_server(body)
+      other_jwk = JOSE.JWK.generate_key({:rsa, 2048})
 
-      restart_jwks_cache("http://127.0.0.1:#{port}/jwks")
+      key_set = %{
+        "keys" => [
+          public_key_map(other_jwk, "other-key"),
+          public_key_map(private_jwk, "signing-key")
+        ]
+      }
+
+      {:ok, body_agent} = Agent.start_link(fn -> %{body: Jason.encode!(key_set), requests: 0} end)
+      {server, port} = start_jwks_server(body_agent)
+
+      restart_jwks_cache("http://127.0.0.1:#{port}/jwks", refresh_ms: 50)
 
       assert wait_for_jwks_keys()
 
@@ -224,7 +231,67 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
         restart_jwks_cache(nil)
       end)
 
-      {:ok, private_jwk: private_jwk}
+      {:ok, private_jwk: private_jwk, body_agent: body_agent}
+    end
+
+    test "accepts a token whose kid selects the second key of a real key set", %{
+      private_jwk: private_jwk
+    } do
+      token = sign_rs256(private_jwk, %{"alg" => "RS256", "kid" => "signing-key"})
+
+      assert {:ok, decoded} = JwtVerifier.verify(token)
+      assert decoded["sub"] == "rs256-user"
+    end
+
+    test "accepts a kid-less token by trying every key in the set", %{private_jwk: private_jwk} do
+      token = sign_rs256(private_jwk, %{"alg" => "RS256"})
+
+      assert {:ok, decoded} = JwtVerifier.verify(token)
+      assert decoded["sub"] == "rs256-user"
+    end
+
+    test "rejects a token with a kid that is not in the key set", %{private_jwk: private_jwk} do
+      token = sign_rs256(private_jwk, %{"alg" => "RS256", "kid" => "unknown-key"})
+
+      assert {:error, :invalid_signature} = JwtVerifier.verify(token)
+    end
+
+    test "rejects a token that names the wrong key by kid", %{private_jwk: private_jwk} do
+      token = sign_rs256(private_jwk, %{"alg" => "RS256", "kid" => "other-key"})
+
+      assert {:error, :invalid_signature} = JwtVerifier.verify(token)
+    end
+
+    test "keeps the previously cached keys when a refresh returns a non-JSON body", %{
+      private_jwk: private_jwk,
+      body_agent: body_agent
+    } do
+      %{requests: requests_before} =
+        Agent.get_and_update(body_agent, &{&1, %{&1 | body: "this is not json"}})
+
+      wait_for_requests(body_agent, requests_before + 2)
+      token = sign_rs256(private_jwk, %{"alg" => "RS256", "kid" => "signing-key"})
+
+      assert {:ok, _claims} = JwtVerifier.verify(token)
+    end
+
+    test "a bare key document without kid verifies kid-less tokens only", %{
+      private_jwk: private_jwk,
+      body_agent: body_agent
+    } do
+      {_key_type, bare_key} = private_jwk |> JOSE.JWK.to_public() |> JOSE.JWK.to_map()
+
+      %{requests: requests_before} =
+        Agent.get_and_update(body_agent, &{&1, %{&1 | body: Jason.encode!(bare_key)}})
+
+      wait_for_requests(body_agent, requests_before + 2)
+
+      assert {:ok, _claims} = JwtVerifier.verify(sign_rs256(private_jwk, %{"alg" => "RS256"}))
+
+      assert {:error, :invalid_signature} =
+               JwtVerifier.verify(
+                 sign_rs256(private_jwk, %{"alg" => "RS256", "kid" => "signing-key"})
+               )
     end
 
     test "accepts a valid RS256 token when JWKS keys are cached", %{private_jwk: private_jwk} do
@@ -255,13 +322,39 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
     end
   end
 
-  defp restart_jwks_cache(jwks_url) do
+  defp public_key_map(private_jwk, key_id) do
+    {_key_type, fields} = private_jwk |> JOSE.JWK.to_public() |> JOSE.JWK.to_map()
+    Map.put(fields, "kid", key_id)
+  end
+
+  defp sign_rs256(private_jwk, protected_header) do
+    claims = %{
+      "sub" => "rs256-user",
+      "exp" => DateTime.utc_now() |> DateTime.add(3600) |> DateTime.to_unix()
+    }
+
+    {_, token} = private_jwk |> JOSE.JWT.sign(protected_header, claims) |> JOSE.JWS.compact()
+    token
+  end
+
+  defp wait_for_requests(body_agent, minimum_requests) do
+    Enum.reduce_while(1..100, false, fn _attempt, _seen ->
+      if Agent.get(body_agent, & &1.requests) >= minimum_requests do
+        {:halt, true}
+      else
+        Process.sleep(20)
+        {:cont, false}
+      end
+    end)
+  end
+
+  defp restart_jwks_cache(jwks_url, options \\ []) do
     supervisor = BfwEngine.Auth.Supervisor
     _ = Supervisor.terminate_child(supervisor, JwksCache)
     _ = Supervisor.delete_child(supervisor, JwksCache)
 
     {:ok, _pid} =
-      Supervisor.start_child(supervisor, {JwksCache, jwks_url: jwks_url})
+      Supervisor.start_child(supervisor, {JwksCache, [jwks_url: jwks_url] ++ options})
   end
 
   defp wait_for_jwks_keys do
@@ -275,19 +368,20 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
     end)
   end
 
-  defp start_jwks_server(body) do
+  defp start_jwks_server(body_agent) do
     {:ok, listen} =
       :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
 
     {:ok, port} = :inet.port(listen)
-    server = spawn_link(fn -> accept_jwks(listen, body) end)
+    server = spawn_link(fn -> accept_jwks(listen, body_agent) end)
     {server, port}
   end
 
-  defp accept_jwks(listen, body) do
+  defp accept_jwks(listen, body_agent) do
     case :gen_tcp.accept(listen, 5_000) do
       {:ok, socket} ->
         _ = :gen_tcp.recv(socket, 0, 2_000)
+        body = Agent.get_and_update(body_agent, &{&1.body, %{&1 | requests: &1.requests + 1}})
 
         response =
           "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: #{byte_size(body)}\r\nconnection: close\r\n\r\n" <>
@@ -295,10 +389,10 @@ defmodule BfwEngine.Auth.JwtVerifierTest do
 
         :gen_tcp.send(socket, response)
         :gen_tcp.close(socket)
-        accept_jwks(listen, body)
+        accept_jwks(listen, body_agent)
 
       {:error, :timeout} ->
-        accept_jwks(listen, body)
+        accept_jwks(listen, body_agent)
 
       {:error, :closed} ->
         :ok

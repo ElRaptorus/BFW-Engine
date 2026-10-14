@@ -1,0 +1,160 @@
+{
+  "definitionsId": "Definitions_TwoExecutable",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Alpha",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Alpha",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_Alpha",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_Alpha", "End_Alpha"],
+          "id": "Lane_Alpha",
+          "name": "default"
+        }
+      ],
+      "name": "Alpha",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Alpha",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Alpha",
+          "targetRef": "End_Alpha"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_Beta",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataContracts": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Beta",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "Process_Beta",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_Beta", "End_Beta"],
+          "id": "Lane_Beta",
+          "name": "default"
+        }
+      ],
+      "name": "Beta",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Beta",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_Beta",
+          "targetRef": "End_Beta"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

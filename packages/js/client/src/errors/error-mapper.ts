@@ -189,7 +189,11 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
         body,
       );
     case 'validation_failed':
-      return new DeployValidationFailedError(message, body);
+      return new DeployValidationFailedError(
+        message,
+        Array.isArray(body['failures']) ? (body['failures'] as DeployValidationFailedError['failures']) : [],
+        body,
+      );
     case 'linter_gate_failed':
       return new LinterGateFailedError(message, body);
     case 'version_exists':

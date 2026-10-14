@@ -1,0 +1,11 @@
+name: "C274: Starting the first model of a two-process file runs that process"
+fixture: "two_executable_processes.bpmn"
+process_model_id: "Process_Alpha"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 2
+  final_tokens:
+    - endEventId: "End_Alpha"

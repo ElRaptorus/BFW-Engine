@@ -38,7 +38,12 @@ defmodule BfwEngineWeb.Graphql.PipelineModifier do
     pipeline_opts = Keyword.put(pipeline_opts, :max_complexity, max_complexity())
     options = Pipeline.options(pipeline_opts)
 
+    # Absinthe's default pipeline runs the result phase without options, so
+    # `spec_compliant_errors` (error details under `extensions`) is set here.
+    result_options = Keyword.put(options, :spec_compliant_errors, true)
+
     Absinthe.Plug.default_pipeline(config, pipeline_opts)
+    |> Pipeline.replace(Phase.Document.Result, {Phase.Document.Result, result_options})
     |> Pipeline.insert_after(Phase.Document.Validation.Result, {DepthLimit, options})
     |> Pipeline.insert_after(Phase.Document.Validation.Result, {BlockIntrospection, options})
     |> Pipeline.insert_after(Phase.Document.Result, {ErrorLogger, options})

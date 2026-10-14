@@ -140,8 +140,6 @@ const ELIXIR_ONLY_FIELDS = new Set([
  *    TypeScript discriminated unions; Elixir uses struct names instead
  * 3. `dataStores` — TS model includes the ignored `<bpmn:dataStore>` element;
  *    the Elixir model does not. Empty `dataStoreReferences` arrays are compared.
- * 4. `linterScores` — Elixir places these at definitions level, TS at process
- *    level. Both are stripped.
  *
  * A previous revision also reshaped the Elixir snapshot's typed ServiceTask
  * HTTP fields into the TS parser's `serviceTaskTypeConfig` bag. That tolerance
@@ -159,9 +157,6 @@ function normalizeForConformance(value: unknown, isSnapshot = false): unknown {
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(record)) {
       if (key === 'rawXml') {
-        continue;
-      }
-      if (key === 'linterScores') {
         continue;
       }
       if (ELIXIR_ONLY_FIELDS.has(key)) {

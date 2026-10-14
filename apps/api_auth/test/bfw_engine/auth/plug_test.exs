@@ -2,6 +2,7 @@ defmodule BfwEngine.Auth.PlugTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.Auth.Plug, as: AuthPlug
+  alias BfwEngine.Auth.ProviderRegistry
   alias BfwEngine.Auth.ServiceReset
   alias BfwEngine.Test.AuthHelper
   alias BfwEngine.Types.Identity
@@ -9,6 +10,14 @@ defmodule BfwEngine.Auth.PlugTest do
   setup do
     ServiceReset.provider_registry()
     :ok
+  end
+
+  defmodule BlankIdentityProvider do
+    @behaviour BfwEngine.Plugin.AuthProvider
+
+    @impl true
+    def verify_and_resolve(_token),
+      do: {:ok, %Identity{id: "", roles: [], groups: [], claims: %{}}}
   end
 
   defp call_plug(conn) do
@@ -109,14 +118,23 @@ defmodule BfwEngine.Auth.PlugTest do
       end)
     end
 
-    test "uses 'unknown' when neither sub nor client_id present" do
+    test "returns 401 with the generic body when neither sub nor client_id present" do
       AuthHelper.with_auth_enabled(fn ->
-        conn =
-          AuthHelper.conn_with_auth(:get, "/stats", %{})
-          |> call_plug()
+        log =
+          ExUnit.CaptureLog.capture_log(fn ->
+            conn = AuthHelper.conn_with_auth(:get, "/stats", %{}) |> call_plug()
 
-        refute conn.halted
-        assert conn.assigns.identity.id == "unknown"
+            assert conn.halted
+            assert conn.status == 401
+
+            assert Jason.decode!(conn.resp_body) ==
+                     %{"error" => "unauthorized", "message" => "Authentication required"}
+
+            refute conn.resp_body =~ "subject"
+            refute Map.has_key?(conn.assigns, :identity)
+          end)
+
+        assert log =~ "missing_subject"
       end)
     end
   end
@@ -205,6 +223,23 @@ defmodule BfwEngine.Auth.PlugTest do
       after
         Application.put_env(:api_auth, :hs256_secret, previous)
       end
+    end
+  end
+
+  describe "auth enabled - plugin provider identity" do
+    test "returns 401 when the plugin provider yields a blank identity id" do
+      AuthHelper.with_auth_enabled(fn ->
+        :ok = ProviderRegistry.register_provider(BlankIdentityProvider)
+
+        conn =
+          Plug.Test.conn(:get, "/stats")
+          |> Plug.Conn.put_req_header("authorization", "Bearer anything")
+          |> call_plug()
+
+        assert conn.halted
+        assert conn.status == 401
+        assert Jason.decode!(conn.resp_body)["error"] == "unauthorized"
+      end)
     end
   end
 end

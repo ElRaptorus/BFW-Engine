@@ -1123,7 +1123,7 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
              ]
     end
 
-    test "non-retriable states are still rejected" do
+    test "a retried error PI settles in error again and stays retriable" do
       {201, _} = http_deploy("error_end_event_standalone.bpmn")
       {201, body} = http_start("ErrorEndStandalone", %{"payload" => %{"data" => "test"}})
       process_instance_id = body["processInstanceId"]
@@ -1134,8 +1134,14 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
       {204, nil} = http_retry_process_instance(process_instance_id)
       assert {:ok, _pid} = poll_pi_alive(process_instance_id, 5_000)
 
-      {422, error_body} = http_retry_process_instance(process_instance_id)
-      assert error_body["error"] == "process_instance_not_retriable"
+      wait_for_process_instance(process_instance_id, 10_000)
+      assert_pi_state!(process_instance_id, "error")
+
+      {204, nil} = http_retry_process_instance(process_instance_id)
+      assert {:ok, _pid} = poll_pi_alive(process_instance_id, 5_000)
+
+      wait_for_process_instance(process_instance_id, 10_000)
+      assert_pi_state!(process_instance_id, "error")
     end
   end
 

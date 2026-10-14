@@ -22,7 +22,8 @@ defmodule BfwEngine.Persistence.Resources.DataObject do
     domain: BfwEngine.Persistence.Api,
     data_layer: AshPostgres.DataLayer,
     extensions: [AshGraphql.Resource],
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   alias BfwEngine.Persistence.RepoRouter
 
@@ -69,6 +70,7 @@ defmodule BfwEngine.Persistence.Resources.DataObject do
 
     read :read do
       primary? true
+      filter expr(exists(process_instance, deleted == false))
 
       pagination do
         required? false

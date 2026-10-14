@@ -134,7 +134,7 @@ if config_env() == :prod do
   check_origin =
     case Env.get("BFE_WS_CHECK_ORIGIN", "false") do
       v when v in ["false", "off", "0"] -> false
-      v when v in ["true", "on", "1"] -> true
+      v when v in ["true", "on", "1"] -> :conn
       urls -> String.split(urls, ",", trim: true)
     end
 

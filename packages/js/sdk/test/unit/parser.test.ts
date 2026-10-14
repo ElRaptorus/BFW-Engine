@@ -1482,4 +1482,78 @@ describe('parseBpmn', () => {
       expect(() => parseBpmn('<!-- <!DOCTYPE x> --><definitions/>')).not.toThrow();
     });
   });
+
+  describe('definitions-level linter scores', () => {
+    function withScores(propertiesBody: string): string {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bfw="https://bifrostforge.world/schema/bpmn" id="Definitions_1">
+  <bpmn:extensionElements><bfw:properties>${propertiesBody}</bfw:properties></bpmn:extensionElements>
+  <bpmn:process id="p" isExecutable="true"/>
+</bpmn:definitions>`;
+    }
+
+    it('parses all nine attributes with numeric strings as numbers', () => {
+      const definitions = parseBpmn(
+        withScores(`<bfw:linterRulesetScore rulesetId="bfw-default" scorePercent="92.5" complianceStatus="compliant"
+          computedAtIso="2026-07-03T12:00:00Z" schemaVersion="1" maxPoints="100" penaltyPoints="7.5"
+          rawErrorFindings="0" rawWarningFindings="2"/>`),
+      );
+
+      expect(definitions.linterScores).toEqual([
+        {
+          rulesetId: 'bfw-default',
+          scorePercent: 92.5,
+          complianceStatus: 'compliant',
+          computedAtIso: '2026-07-03T12:00:00Z',
+          schemaVersion: '1',
+          maxPoints: 100,
+          penaltyPoints: 7.5,
+          rawErrorFindings: 0,
+          rawWarningFindings: 2,
+        },
+      ]);
+      expect(definitions.processes[0]).not.toHaveProperty('linterScores');
+    });
+
+    it('uses null for absent or unparseable attributes', () => {
+      const definitions = parseBpmn(
+        withScores(`<bfw:linterRulesetScore rulesetId="r" scorePercent="n/a" rawErrorFindings="x" maxPoints=".5"/>`),
+      );
+
+      expect(definitions.linterScores).toEqual([
+        {
+          rulesetId: 'r',
+          scorePercent: null,
+          complianceStatus: null,
+          computedAtIso: null,
+          schemaVersion: null,
+          maxPoints: null,
+          penaltyPoints: null,
+          rawErrorFindings: null,
+          rawWarningFindings: null,
+        },
+      ]);
+    });
+
+    it('skips entries without a rulesetId and keeps document order', () => {
+      const definitions = parseBpmn(
+        withScores(`<bfw:linterRulesetScore scorePercent="1"/>
+          <bfw:linterRulesetScore rulesetId="" scorePercent="2"/>
+          <bfw:linterRulesetScore rulesetId="b" scorePercent="3"/>
+          <bfw:linterRulesetScore rulesetId="a" scorePercent="4"/>`),
+      );
+
+      expect(definitions.linterScores.map((score) => score.rulesetId)).toEqual(['b', 'a']);
+    });
+
+    it('ignores a score element inside a process', () => {
+      const definitions = parseBpmn(
+        `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bfw="https://bifrostforge.world/schema/bpmn">
+          <bpmn:process id="p"><bpmn:extensionElements><bfw:linterRulesetScore rulesetId="x"/></bpmn:extensionElements></bpmn:process>
+        </bpmn:definitions>`,
+      );
+
+      expect(definitions.linterScores).toEqual([]);
+    });
+  });
 });

@@ -137,6 +137,7 @@ export {
   NoDecisionsError,
   ServiceUnavailableError,
 } from './errors/index.js';
+export type { DeployFailure } from './errors/index.js';
 
 // --- WebSocket event types ---
 export type {

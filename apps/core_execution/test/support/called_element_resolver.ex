@@ -43,6 +43,9 @@ defmodule BfwEngine.Execution.TestSupport.CalledElementResolver do
      }}
   end
 
+  @impl true
+  def resolve_process_model_id(_process_version_id), do: {:error, :not_found}
+
   def set_version(process_model_id, version_id) do
     :persistent_term.put({__MODULE__, process_model_id}, version_id)
   end

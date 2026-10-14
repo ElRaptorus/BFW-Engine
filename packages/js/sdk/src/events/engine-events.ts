@@ -421,7 +421,7 @@ export interface ProcessDefinitionDeployed {
 }
 
 /**
- * Emitted when a BPMN process definition version is undeployed (soft-deleted).
+ * Emitted when a BPMN process definition version is undeployed.
  *
  * The `source` field indicates who initiated the undeploy:
  * - `"user:<identity_id>"` for REST-initiated deletes
@@ -468,7 +468,7 @@ export interface DecisionDefinitionDeployed {
 }
 
 /**
- * Emitted when a DMN decision definition is undeployed (soft-deleted).
+ * Emitted when a DMN decision definition is undeployed.
  *
  * The `source` field indicates who initiated the undeploy:
  * - `"user:<identity_id>"` for REST-initiated deletes

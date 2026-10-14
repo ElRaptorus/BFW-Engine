@@ -61,9 +61,9 @@
             "formFields": [
               {
                 "id": "confirmed",
-                "type": "toggle",
                 "label": "confirmed",
-                "required": false
+                "required": false,
+                "type": "toggle"
               }
             ],
             "inMappings": [],

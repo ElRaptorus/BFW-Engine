@@ -70,9 +70,9 @@
             "formFields": [
               {
                 "id": "decision",
-                "type": "text",
                 "label": "decision",
-                "required": false
+                "required": false,
+                "type": "text"
               }
             ],
             "inMappings": [],

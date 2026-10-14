@@ -16,15 +16,17 @@ import {
   createAdminClient,
   createLaneClient,
   createOwnPiClient,
-  deployDmnFixture,
+  deployDecisionsIfSupported,
   deployFixture,
   ensureEngineReachable,
   readFixture,
   waitForState,
   waitForUserTask,
+  undeployDecisionQuietly,
 } from '../support/test-engine.js';
 
 let adminClient: BfwEngineClient;
+let decisionsSupported = false;
 
 beforeAll(async () => {
   await ensureEngineReachable();
@@ -33,10 +35,11 @@ beforeAll(async () => {
   await deployFixture(adminClient, 'integration-passthrough.bpmn');
   await deployFixture(adminClient, 'integration-user-task.bpmn');
   await deployFixture(adminClient, 'integration-user-task-lane.bpmn');
-  await deployDmnFixture(adminClient, 'simple_unique.dmn');
+  decisionsSupported = await deployDecisionsIfSupported(adminClient, 'simple_unique.dmn');
 });
 
 afterAll(async () => {
+  await undeployDecisionQuietly(adminClient, 'definitions_discount');
   await cleanupInstances(adminClient);
   adminClient.notifications.disconnect();
 });
@@ -97,7 +100,10 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
 
   // 5.3
   describe('soft-deleted DecisionVersion invisible', () => {
-    it('admin cannot see deleted decision version via REST', async () => {
+    it('admin cannot see deleted decision version via REST', async (context) => {
+      if (!decisionsSupported) {
+        context.skip();
+      }
       const versionsBefore = await adminClient.decisions.getVersions('definitions_discount');
       expect(versionsBefore.length).toBeGreaterThanOrEqual(1);
 
@@ -111,7 +117,7 @@ describe('Soft-Delete Invisibility', { concurrent: false }, () => {
       expect(stillHas).toBe(false);
 
       // Re-deploy so other tests still have a valid decision
-      await deployDmnFixture(adminClient, 'simple_unique.dmn');
+      await deployDecisionsIfSupported(adminClient, 'simple_unique.dmn');
     });
   });
 

@@ -105,6 +105,79 @@ defmodule BfwEngine.Integration.Graphql.GraphqlSoftDeleteTest do
     end
   end
 
+  describe "data objects of a deleted ProcessInstance" do
+    test "are invisible to an admin in dataObjectValues, getDataObjectValue and dataObjectHistory" do
+      process_instance_id =
+        http_deploy_and_start("data_object_simple_write.bpmn", "DataObjectSimpleWrite", %{
+          "payload" => %{"amount" => 42}
+        })
+
+      wait_for_process_instance(process_instance_id)
+
+      values_query = """
+      query Values($processInstanceId: ID!) {
+        dataObjectValues(filter: {processInstanceId: {eq: $processInstanceId}}) { results { id } }
+      }
+      """
+
+      history_query = """
+      query History($processInstanceId: ID!) {
+        dataObjectHistory(filter: {processInstanceId: {eq: $processInstanceId}}) { results { id } }
+      }
+      """
+
+      get_query = """
+      query GetValue($id: ID!) { getDataObjectValue(id: $id) { id } }
+      """
+
+      variables = %{"processInstanceId" => process_instance_id}
+
+      {200, values_before} = http_graphql(values_query, variables, @admin_claims)
+      assert [%{"id" => value_id}] = values_before["data"]["dataObjectValues"]["results"]
+
+      {200, history_before} = http_graphql(history_query, variables, @admin_claims)
+      assert [_ | _] = history_before["data"]["dataObjectHistory"]["results"]
+
+      soft_delete_record(Resources.ProcessInstance, process_instance_id)
+
+      {200, values_after} = http_graphql(values_query, variables, @admin_claims)
+      assert values_after["data"]["dataObjectValues"]["results"] == []
+
+      {200, history_after} = http_graphql(history_query, variables, @admin_claims)
+      assert history_after["data"]["dataObjectHistory"]["results"] == []
+
+      {200, get_after} = http_graphql(get_query, %{"id" => value_id}, @admin_claims)
+      assert get_after["data"]["getDataObjectValue"] == nil
+      refute Map.has_key?(get_after, "errors")
+    end
+
+    test "are invisible to an observe_all identity" do
+      process_instance_id =
+        http_deploy_and_start("data_object_simple_write.bpmn", "DataObjectSimpleWrite", %{
+          "payload" => %{"amount" => 7}
+        })
+
+      wait_for_process_instance(process_instance_id)
+
+      values_query = """
+      query Values($processInstanceId: ID!) {
+        dataObjectValues(filter: {processInstanceId: {eq: $processInstanceId}}) { results { id } }
+      }
+      """
+
+      variables = %{"processInstanceId" => process_instance_id}
+      observer_claims = %{"sub" => "observer", "observe_all" => true}
+
+      {200, before_delete} = http_graphql(values_query, variables, observer_claims)
+      assert [_] = before_delete["data"]["dataObjectValues"]["results"]
+
+      soft_delete_record(Resources.ProcessInstance, process_instance_id)
+
+      {200, after_delete} = http_graphql(values_query, variables, observer_claims)
+      assert after_delete["data"]["dataObjectValues"]["results"] == []
+    end
+  end
+
   describe "soft-deleted DecisionVersion" do
     test "invisible in decisionVersions list and getDecisionVersion" do
       {201, deploy_body} = http_deploy_dmn("simple_unique.dmn")

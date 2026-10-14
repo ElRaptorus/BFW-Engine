@@ -104,31 +104,28 @@ defmodule BfwEngine.Api.Processes do
   @doc """
   Find or create a Process record by `process_model_id`. If found and
   `is_executable` differs from the current `enabled` flag, sync it.
+
+  Creation is an upsert on `process_model_id`, so two concurrent first
+  deploys of the same model converge on one row instead of failing with a
+  unique violation. `opts[:source]` is attached to the `enabled` sync event.
   """
-  @spec create_or_sync_process!(String.t(), map()) :: struct()
-  def create_or_sync_process!(process_model_id, definitions) do
+  @spec create_or_sync_process!(String.t(), map(), keyword()) :: struct()
+  def create_or_sync_process!(process_model_id, definitions, opts \\ []) do
     bpmn_process = Enum.find(definitions.processes, fn p -> p.id == process_model_id end)
     is_executable = if bpmn_process, do: bpmn_process.is_executable, else: true
+    name = if bpmn_process, do: bpmn_process.name
 
-    case get_process_by_model_id(process_model_id) do
-      {:ok, process} ->
-        sync_enabled(process, is_executable)
+    {:ok, process} =
+      Resources.Process
+      |> Ash.Changeset.for_create(:create_if_absent, %{
+        process_model_id: process_model_id,
+        name: name,
+        enabled: is_executable,
+        created_at: DateTime.utc_now()
+      })
+      |> AshWrite.ash_create()
 
-      :not_found ->
-        name = if bpmn_process, do: bpmn_process.name
-
-        {:ok, process} =
-          Resources.Process
-          |> Ash.Changeset.for_create(:create, %{
-            process_model_id: process_model_id,
-            name: name,
-            enabled: is_executable,
-            created_at: DateTime.utc_now()
-          })
-          |> AshWrite.ash_create()
-
-        process
-    end
+    sync_enabled(process, is_executable, opts)
   end
 
   @doc """
@@ -304,7 +301,7 @@ defmodule BfwEngine.Api.Processes do
     tx_result =
       Repo.transaction(fn ->
         process_versions
-        |> Enum.reduce_while([], &persist_single_version(&1, deployer, &2))
+        |> Enum.reduce_while([], &persist_single_version(&1, deployer, source, &2))
         |> Enum.reverse()
       end)
 
@@ -312,9 +309,13 @@ defmodule BfwEngine.Api.Processes do
     unwrap_deploy_result(tx_result, source)
   end
 
-  defp persist_single_version(process_version, deployer, accumulated) do
+  defp persist_single_version(process_version, deployer, source, accumulated) do
     process =
-      create_or_sync_process!(process_version.process_model_id, process_version.definitions)
+      create_or_sync_process!(
+        process_version.process_model_id,
+        process_version.definitions,
+        source: source
+      )
 
     version_attrs = %{
       process_id: process.id,
@@ -380,25 +381,34 @@ defmodule BfwEngine.Api.Processes do
   defp parse_all_bpmn(entries) do
     results =
       Enum.map(entries, fn entry ->
-        case BPMN.parse_and_validate(entry.xml) do
+        case parse_then_validate_bpmn(entry.xml) do
           {:ok, definitions} -> {:ok, Map.put(entry, :definitions, definitions)}
-          {:error, reason} -> {:error, entry.filename, reason}
+          {:error, error_type, reason} -> {:error, error_type, entry.filename, reason}
         end
       end)
 
-    failures =
-      results
-      |> Enum.filter(&match?({:error, _, _}, &1))
-      |> Enum.map(fn {:error, filename, reason} ->
-        %{file: filename, details: format_bpmn_parse_error(reason)}
-      end)
+    failed = Enum.filter(results, &match?({:error, _, _, _}, &1))
 
-    if failures == [] do
+    if failed == [] do
       successes = Enum.map(results, fn {:ok, entry} -> entry end)
       {:ok, successes}
     else
-      error_type = categorize_bpmn_parse_failures(failures)
-      {:error, error_type, failures}
+      failures =
+        Enum.map(failed, fn {:error, _error_type, filename, reason} ->
+          %{file: filename, details: format_bpmn_parse_error(reason)}
+        end)
+
+      {:error, categorize_bpmn_failures(failed), failures}
+    end
+  end
+
+  defp parse_then_validate_bpmn(xml) do
+    with {:parse, {:ok, definitions}} <- {:parse, BPMN.parse(xml)},
+         {:validate, {:ok, definitions}} <- {:validate, BPMN.validate(definitions)} do
+      {:ok, BPMN.precompile(definitions)}
+    else
+      {:parse, {:error, reason}} -> {:error, :parse_error, reason}
+      {:validate, {:error, violations}} -> {:error, :validation_failed, violations}
     end
   end
 
@@ -451,13 +461,10 @@ defmodule BfwEngine.Api.Processes do
     "Validation issue detected. Server logs contain the technical details."
   end
 
-  defp categorize_bpmn_parse_failures(failures) do
-    has_validation =
-      Enum.any?(failures, fn failure ->
-        Enum.any?(failure.details, &String.contains?(&1, "is missing required"))
-      end)
-
-    if has_validation, do: :validation_failed, else: :parse_error
+  defp categorize_bpmn_failures(failed) do
+    if Enum.any?(failed, &match?({:error, :parse_error, _, _}, &1)),
+      do: :parse_error,
+      else: :validation_failed
   end
 
   defp linter_gate_all(entries) do
@@ -722,9 +729,11 @@ defmodule BfwEngine.Api.Processes do
   defp derive_source(%{type: "anonymous"}), do: "user:anonymous"
   defp derive_source(_), do: "user:unknown"
 
-  defp sync_enabled(process, is_executable) do
+  defp sync_enabled(process, is_executable, opts) do
     if process.enabled != is_executable do
-      {:ok, updated} = update_process_enabled(process, is_executable)
+      {:ok, updated} =
+        update_process_enabled(process, is_executable, Keyword.take(opts, [:source]))
+
       updated
     else
       process

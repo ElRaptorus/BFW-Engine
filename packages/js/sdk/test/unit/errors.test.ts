@@ -277,6 +277,11 @@ describe('domain-specific errors', () => {
     expect(error.statusCode).toBe(422);
     expect(error.errorCode).toBe('validation_failed');
     expect(error.name).toBe('DeployValidationFailedError');
+    expect(error.failures).toEqual([]);
+    const withFailures = new DeployValidationFailedError('validation failed', [
+      { file: 'source_1.bpmn', details: ['x'] },
+    ]);
+    expect(withFailures.failures).toEqual([{ file: 'source_1.bpmn', details: ['x'] }]);
   });
 
   it('LinterGateFailedError', () => {

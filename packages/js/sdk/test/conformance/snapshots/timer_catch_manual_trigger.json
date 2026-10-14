@@ -162,9 +162,9 @@
             "formFields": [
               {
                 "id": "done",
-                "type": "toggle",
                 "label": "done",
-                "required": false
+                "required": false,
+                "type": "toggle"
               }
             ],
             "inMappings": [],

@@ -7,10 +7,11 @@ import {
   createAdminClient,
   createExpiredTokenClient,
   createUnauthenticatedClient,
-  deployDmnFixture,
+  deployDecisionsIfSupported,
   deployFixture,
   ensureEngineReachable,
   waitForState,
+  undeployDecisionQuietly,
 } from '../support/test-engine.js';
 
 let adminClient: BfwEngineClient;
@@ -26,6 +27,7 @@ const PROCESS_NAME = 'Integration Passthrough';
 const FATAL_PROCESS_ID = 'integration-fatal-script';
 const USER_TASK_PROCESS_ID = 'integration-user-task';
 const DECISION_DEFINITION_ID = 'definitions_discount';
+let decisionsSupported = false;
 
 beforeAll(async () => {
   await ensureEngineReachable();
@@ -36,7 +38,7 @@ beforeAll(async () => {
   await deployFixture(adminClient, 'integration-passthrough.bpmn');
   await deployFixture(adminClient, 'integration-fatal-script.bpmn');
   await deployFixture(adminClient, 'integration-user-task.bpmn');
-  await deployDmnFixture(adminClient, 'simple_unique.dmn');
+  decisionsSupported = await deployDecisionsIfSupported(adminClient, 'simple_unique.dmn');
 
   const startResult = await adminClient.processes.start(PROCESS_ID);
   processInstanceId = startResult.processInstanceId;
@@ -53,6 +55,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await undeployDecisionQuietly(adminClient, DECISION_DEFINITION_ID);
   await cleanupInstances(adminClient);
 });
 
@@ -226,7 +229,10 @@ describe('GraphQL Queries', () => {
       expect(version!.deployedAt).toBeDefined();
     });
 
-    it('queries decision definitions after DMN deploy', async () => {
+    it('queries decision definitions after DMN deploy', async (context) => {
+      if (!decisionsSupported) {
+        context.skip();
+      }
       const result = await adminClient.graphql.queryDecisionDefinitions({
         fields: ['id', 'decisionDefinitionId', 'name', 'enabled'],
         filter: { decisionDefinitionId: { eq: DECISION_DEFINITION_ID } },
@@ -240,7 +246,10 @@ describe('GraphQL Queries', () => {
       expect(definition!.enabled).toBe(true);
     });
 
-    it('queries decision versions after DMN deploy', async () => {
+    it('queries decision versions after DMN deploy', async (context) => {
+      if (!decisionsSupported) {
+        context.skip();
+      }
       const result = await adminClient.graphql.queryDecisionVersions({
         fields: ['id', 'version', 'decisionDefinitionId', 'deployedAt'],
         pagination: { mode: 'offset', limit: 50, offset: 0 },

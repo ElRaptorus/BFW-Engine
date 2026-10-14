@@ -244,6 +244,30 @@ defmodule BfwEngineWeb.Http.ProcessControllerTest do
       assert inspect(body) =~ "DOCTYPE declarations are not allowed"
     end
 
+    test "returns 422 validation_failed for a duplicate flow node id" do
+      conn =
+        deploy_conn(%{"sources" => [read_bpmn_fixture("invalid_duplicate_flow_node_id.bpmn")]})
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert_error_body(body, "validation_failed")
+      assert [%{"file" => "source_1.bpmn", "details" => details}] = body["failures"]
+      assert Enum.any?(details, &(&1 =~ "End_1"))
+    end
+
+    test "returns 422 validation_failed for a dangling sequence flow sourceRef" do
+      conn =
+        deploy_conn(%{
+          "sources" => [read_bpmn_fixture("invalid_dangling_sequence_flow_source.bpmn")]
+        })
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert_error_body(body, "validation_failed")
+      assert [%{"details" => details}] = body["failures"]
+      assert Enum.any?(details, &(&1 =~ "Task_does_not_exist"))
+    end
+
     test "returns 403 without deploy_bpmn claim" do
       conn = deploy_conn(%{"sources" => ["<xml/>"]}, %{})
 

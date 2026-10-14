@@ -409,3 +409,31 @@ export async function deployDmnFixture(client: BfwEngineClient, fixtureName: str
     }
   }
 }
+
+/**
+ * Deploys DMN fixtures when the engine supports decisions. Returns `false` when the engine answers
+ * `feature_not_supported` (an engine without DMN); every other failure is rethrown.
+ */
+export async function deployDecisionsIfSupported(
+  client: BfwEngineClient,
+  fixtureName: string | string[],
+): Promise<boolean> {
+  try {
+    await deployDmnFixture(client, fixtureName);
+    return true;
+  } catch (error: unknown) {
+    if (error instanceof BfwEngineError && error.errorCode === 'feature_not_supported') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/** Best-effort undeploy so a test file leaves no shared decision behind for the next file. */
+export async function undeployDecisionQuietly(client: BfwEngineClient, decisionDefinitionId: string): Promise<void> {
+  try {
+    await client.decisions.undeploy(decisionDefinitionId);
+  } catch {
+    // best-effort cleanup
+  }
+}

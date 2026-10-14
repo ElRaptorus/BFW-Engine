@@ -3,7 +3,7 @@ defmodule BfwEngineWeb.Http.Plugs.RateLimitPlug do
   ETS-based fixed-window rate limiter for `POST /processes/:model_id/start`.
 
   Applies a global (not per-client) rate limit on process instance start
-  requests. The algorithm tracks request count within a sliding window
+  requests. The algorithm tracks request count within a fixed window
   that resets after `BFE_PI_START_RATE_WINDOW_MS` milliseconds from the
   first request in that window. When the count reaches the limit, returns
   429 with a `Retry-After` header.

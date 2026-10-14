@@ -60,7 +60,7 @@ Standard claims:
 
 | Claim | Purpose |
 |-------|---------|
-| `sub` | Subject identifier (user ID). Falls back to `client_id` or `"unknown"` if absent. |
+| `sub` | Subject identifier (user ID). Falls back to `client_id` if absent; a token with neither is rejected with `401`. |
 | `exp` | Expiration time |
 | `aud` | Audience (validated if `BFE_JWT_AUDIENCE` is set) |
 | `iss` | Issuer (validated if `BFE_JWT_ISSUER` is set) |

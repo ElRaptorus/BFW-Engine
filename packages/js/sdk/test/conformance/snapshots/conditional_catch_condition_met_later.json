@@ -92,9 +92,9 @@
             "formFields": [
               {
                 "id": "amount",
-                "type": "number",
                 "label": "amount",
-                "required": false
+                "required": false,
+                "type": "number"
               }
             ],
             "inMappings": [],

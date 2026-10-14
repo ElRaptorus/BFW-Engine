@@ -80,6 +80,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.BoundaryAwareHandler
+  alias BfwEngine.Execution.CalledElementResolver
   alias BfwEngine.Execution.CompensationResolver
   alias BfwEngine.Execution.ComplexJoinEvaluator
   alias BfwEngine.Execution.FlowNodeResult
@@ -5310,7 +5311,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp fetch_process_model(process_version_id, nil) do
     case ModelCache.fetch(process_version_id) do
       {:ok, definitions} ->
-        case Enum.find(definitions.processes, & &1.is_executable) do
+        case select_executable_process(definitions, process_version_id) do
           nil ->
             {:error, :no_executable_process}
 
@@ -5340,6 +5341,24 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
       error ->
         error
+    end
+  end
+
+  # A file with several processes yields one version per process, all sharing the
+  # same definitions; the version's process model id picks the process to run.
+  defp select_executable_process(definitions, process_version_id) do
+    case Enum.filter(definitions.processes, & &1.is_executable) do
+      [] ->
+        nil
+
+      [single_process] ->
+        single_process
+
+      executable_processes ->
+        case CalledElementResolver.adapter().resolve_process_model_id(process_version_id) do
+          {:ok, process_model_id} -> Enum.find(executable_processes, &(&1.id == process_model_id))
+          {:error, _reason} -> nil
+        end
     end
   end
 

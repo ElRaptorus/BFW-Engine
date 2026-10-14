@@ -53,7 +53,7 @@ mapping is fixed (not configurable in v1):
 
 | Identity field | JWT claim | Required? | Notes |
 |---|---|---|---|
-| `id` | `sub` | **YES** — engine refuses tokens without `sub` | Unique caller identifier. Recorded on every auditable action, including `process_instances.started_by` |
+| `id` | `sub`, else `client_id` | **YES** — a verified token whose `sub` and `client_id` are both missing, blank, or not strings is rejected (`JwtAuthProvider` returns `{:error, :missing_subject}`): REST answers `401` with the generic `{"error":"unauthorized","message":"Authentication required"}` body (reason logged only), WebSocket `connect/3` returns `:error`. There is no shared fallback id, so `own`-scoped claims and starter-based visibility never cross callers. Auth-disabled mode keeps the fixed `anonymous` identity | Unique caller identifier. Recorded on every auditable action, including `process_instances.started_by` |
 | `name` | `name` | No | Display name; informational only |
 | `email` | `email` | No | Informational only |
 | `roles` | `roles` | No | Array of strings; matched against `<bfw:assignees>` |
@@ -433,8 +433,8 @@ GraphQL FNI reads stay PI-scoped (§5.2: if you see the PI, you see all FNIs). W
 
 | HTTP status | When | Body |
 |---|---|---|
-| `401 Unauthorized` | Missing, expired, or structurally invalid JWT | `{"error": "unauthorized", "reason": "token_expired\|token_invalid\|token_missing"}` |
-| `403 Forbidden` | Valid JWT, but the caller lacks the required claim | `{"error": "forbidden", "required_claim": "<claim_key>", "required_value": "<value>", "resource": "<resource_type>"}` |
+| `401 Unauthorized` | Missing, expired, or structurally invalid JWT | `{"error": "unauthorized", "message": "Authentication required"}` (a missing `Authorization` header answers `"Missing Authorization header"`; there is no `reason` field and all other rejection causes share the generic message) |
+| `403 Forbidden` | Valid JWT, but the caller lacks the required claim | `{"error": "forbidden", "requiredClaim": "<claim_key>", "requiredValue": "<value>", "resource": "<resource_type>"}` |
 
 For GraphQL, the equivalent is:
 - `401` → connection-level rejection (no GraphQL response)

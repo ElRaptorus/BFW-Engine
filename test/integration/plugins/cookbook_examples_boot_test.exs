@@ -66,7 +66,7 @@ defmodule BfwEngine.Integration.CookbookExamplesBootTest do
 
     stream_task =
       Task.async(fn ->
-        conn_with_auth(:get, "/events/stream?maxEvents=1")
+        conn_with_auth(:get, "/events/stream?maxEvents=1", %{"sub" => "cookbook-sse-reader"})
         |> route()
       end)
 

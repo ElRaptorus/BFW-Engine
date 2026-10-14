@@ -83,7 +83,9 @@ defmodule BfwEngine.BPMN.Validator do
     end
   end
 
-  defp validate_process(%BpmnProcess{is_executable: false}, _definitions), do: []
+  # Deploy stores every process as a version, so a non-executable process still needs bfw:version.
+  defp validate_process(%BpmnProcess{is_executable: false} = process, _definitions),
+    do: check_version(process)
 
   defp validate_process(%BpmnProcess{} = process, definitions) do
     List.flatten([

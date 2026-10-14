@@ -33,10 +33,26 @@ defmodule BfwEngine.Auth.ProviderRegistry do
   def register_provider(module) when is_atom(module),
     do: GenServer.call(__MODULE__, {:register_provider, module})
 
-  @doc "Verify a token using the active provider."
+  @doc """
+  Verify a token using the active provider.
+
+  An identity whose `id` is not a non-blank string is rejected with
+  `{:error, :missing_subject}` regardless of which provider produced it, so
+  REST and WebSocket callers never see an anonymous-looking identity.
+  """
   @spec verify_and_resolve(String.t()) :: {:ok, Identity.t()} | {:error, term()}
-  def verify_and_resolve(token),
-    do: active_provider().verify_and_resolve(token)
+  def verify_and_resolve(token) do
+    case active_provider().verify_and_resolve(token) do
+      {:ok, %Identity{id: identifier} = identity} when is_binary(identifier) ->
+        if String.trim(identifier) == "", do: {:error, :missing_subject}, else: {:ok, identity}
+
+      {:ok, _identity} ->
+        {:error, :missing_subject}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
 
   # --- Server callbacks ---------------------------------------------------
 

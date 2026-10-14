@@ -71,8 +71,8 @@ When capacity is reached, the API returns:
 
 ## Layer 2 — Start Rate Limiting
 
-ETS-based token bucket that limits the rate of `POST /processes/:model_id/start`
-requests within a sliding window. When the bucket is empty, the API returns
+ETS-based fixed-window counter that limits the rate of `POST /processes/:model_id/start`
+requests within a window that starts at the first request and resets when it elapses. When the window's limit is reached, the API returns
 **429 Too Many Requests** with a `Retry-After` header.
 
 ### Configuration

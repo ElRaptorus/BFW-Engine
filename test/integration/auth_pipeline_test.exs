@@ -23,13 +23,16 @@ defmodule BfwEngine.Integration.AuthPipelineTest do
       end)
     end
 
-    test "missing both 'sub' and 'client_id' yields unknown identity but still authenticates" do
+    test "missing both 'sub' and 'client_id' is rejected as unauthenticated" do
       with_config(:api_auth, :auth_disabled, false, fn ->
         conn =
           conn_with_auth(:get, "/stats", %{"custom" => "data"})
           |> route()
 
-        assert conn.status == 200
+        assert conn.status == 401
+
+        assert Jason.decode!(conn.resp_body) ==
+                 %{"error" => "unauthorized", "message" => "Authentication required"}
       end)
     end
   end

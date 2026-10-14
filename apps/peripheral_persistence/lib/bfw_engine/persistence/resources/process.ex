@@ -63,6 +63,13 @@ defmodule BfwEngine.Persistence.Resources.Process do
       accept [:id, :process_model_id, :name, :enabled, :created_at]
     end
 
+    create :create_if_absent do
+      accept [:id, :process_model_id, :name, :enabled, :created_at]
+      upsert? true
+      upsert_identity :unique_process_model_id
+      upsert_fields [:process_model_id]
+    end
+
     update :update_enabled do
       accept [:enabled]
     end

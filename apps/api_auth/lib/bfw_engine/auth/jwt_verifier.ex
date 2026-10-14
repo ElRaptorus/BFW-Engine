@@ -55,17 +55,38 @@ defmodule BfwEngine.Auth.JwtVerifier do
       nil ->
         {:error, :no_jwks}
 
-      jwk ->
-        case JOSE.JWT.verify_strict(jwk, ["RS256", "ES256"], token) do
-          {true, %JOSE.JWT{fields: claims}, _jws} ->
-            validate_claims(claims)
-
-          _ ->
-            {:error, :jwks_signature_mismatch}
-        end
+      keys ->
+        keys
+        |> candidate_keys(token_key_id(token))
+        |> verify_with_any_key(token)
     end
   rescue
     _ -> {:error, :jwks_verification_error}
+  end
+
+  defp token_key_id(token) do
+    %{"kid" => key_id} = token |> JOSE.JWS.peek_protected() |> Jason.decode!()
+    key_id
+  rescue
+    _ -> nil
+  end
+
+  defp candidate_keys(keys, nil), do: keys
+
+  defp candidate_keys(keys, key_id) do
+    Enum.filter(keys, fn key ->
+      {_modules, fields} = JOSE.JWK.to_map(key)
+      Map.get(fields, "kid") == key_id
+    end)
+  end
+
+  defp verify_with_any_key(candidates, token) do
+    Enum.reduce_while(candidates, {:error, :jwks_signature_mismatch}, fn key, failure ->
+      case JOSE.JWT.verify_strict(key, ["RS256", "ES256"], token) do
+        {true, %JOSE.JWT{fields: claims}, _jws} -> {:halt, validate_claims(claims)}
+        _ -> {:cont, failure}
+      end
+    end)
   end
 
   defp try_hs256(token) do

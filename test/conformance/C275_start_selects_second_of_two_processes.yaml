@@ -1,0 +1,11 @@
+name: "C275: Starting the second model of a two-process file runs the second process"
+fixture: "two_executable_processes.bpmn"
+process_model_id: "Process_Beta"
+tier: auto
+start:
+  payload: null
+expected:
+  final_state: "finished"
+  fni_count: 2
+  final_tokens:
+    - endEventId: "End_Beta"
