@@ -130,7 +130,7 @@ Uses Elixir 1.18 `Duration.from_iso8601/1` for durations and `DateTime.from_iso8
 
 **Path:** `apps/core_timers/lib/bfw_engine/timers/start_event_manager.ex`
 
-Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted timer specs from the deploy path — does **not** scan BPMN models or evaluate FEEL.
+Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted timer specs from the deploy path — does **not** scan BPMN models or evaluate FEEL. Which version is scheduled is decided by the deploy and version-delete hooks in `BfwEngine.Api.Processes`: only the latest live version of each process has schedules ([execution.md](./execution.md) §Superseded Versions).
 
 ### Public API
 

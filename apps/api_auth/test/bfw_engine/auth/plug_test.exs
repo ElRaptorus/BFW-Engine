@@ -9,6 +9,7 @@ defmodule BfwEngine.Auth.PlugTest do
 
   setup do
     ServiceReset.provider_registry()
+    on_exit(fn -> ServiceReset.provider_registry() end)
     :ok
   end
 

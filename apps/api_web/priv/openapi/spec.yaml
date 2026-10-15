@@ -2861,8 +2861,11 @@ components:
         process with a `timeCycle` start event is deployed. Only cycle starts
         are scheduled; date and duration start events never appear as
         schedules, because they block inside a manually started process
-        instance. A fire only starts an instance when the schedule's version
-        is the latest live version of an enabled process.
+        instance. Only the latest live version of a process has schedules:
+        deploying a new version removes the previous version's schedules, and
+        deleting the latest version recreates its predecessor's schedules
+        (full repetition count, enabled, new ids). A fire only starts an
+        instance when the process is enabled.
       required:
         - id
         - processModelId

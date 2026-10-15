@@ -167,6 +167,8 @@ Disabling a schedule stops the timer from firing. Re-enabling re-arms it with th
 
 On engine restart, all enabled cycle schedules are automatically reloaded and re-armed.
 
+Only the latest version of a process is scheduled. Deploying a new version removes the previous version's schedules, so their ids stop resolving. Deleting the latest version restores schedules for the version before it: they start again with the full repetition count and enabled, under new ids.
+
 ### Date Timer Start Events (manual start, blocking gate)
 
 A date timer start is **not** auto-scheduled. When a process instance is started manually (via the API with `start_event_id`), the start event acts as a blocking gate: the PI starts, but the Start Event FNI does not complete until the specified date/time is reached.

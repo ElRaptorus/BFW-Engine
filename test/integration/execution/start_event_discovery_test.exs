@@ -2,11 +2,11 @@ defmodule BfwEngine.Integration.Execution.StartEventDiscoveryTest do
   @moduledoc """
   A message start, signal start, or cycle timer fire creates at most one
   instance per enabled process, on its latest live version, and only when
-  that version has the matching start event.
+  that version has the matching start event. Cycle schedules exist only for
+  that latest live version.
   """
   use BfwEngine.ExecutionCase, async: false
 
-  alias BfwEngine.Execution.TimerStartListener
   alias BfwEngine.Persistence.Application, as: PersistenceApplication
   alias BfwEngine.Test.ServiceReset
   alias BfwEngine.Timers.StartEventManager
@@ -76,17 +76,51 @@ defmodule BfwEngine.Integration.Execution.StartEventDiscoveryTest do
   end
 
   describe "cycle timer start" do
-    test "a schedule of a superseded version skips its fire" do
+    test "deploying a new version removes the superseded version's schedules" do
       {201, _} = http_deploy_xml(hourly_cycle("1.0.0"))
       {201, _} = http_deploy_xml(hourly_cycle("2.0.0"))
-      superseded_version_id = version_id("TimerStartCycle", "1.0.0")
-      latest_version_id = version_id("TimerStartCycle", "2.0.0")
 
-      superseded = fire_schedule_of(superseded_version_id)
-      latest = fire_schedule_of(latest_version_id)
+      assert schedules_of("1.0.0") == []
+      assert [%{enabled: true}] = schedules_of("2.0.0")
+    end
 
-      assert superseded.last_triggered_at == nil
-      assert latest.last_triggered_at != nil
+    test "deleting the latest version gives its predecessor fresh schedules" do
+      {201, _} = http_deploy_xml(hourly_cycle("1.0.0"))
+      [original_schedule] = schedules_of("1.0.0")
+      {201, _} = http_deploy_xml(hourly_cycle("2.0.0"))
+
+      {204, _} = http_delete_version("TimerStartCycle", "2.0.0")
+
+      assert [restored_schedule] = schedules_of("1.0.0")
+      assert restored_schedule.id != original_schedule.id
+      assert restored_schedule.enabled == true
+      assert restored_schedule.cycle_remaining == restored_schedule.cycle_total
+    end
+
+    test "deleting a superseded version leaves the latest version's schedules untouched" do
+      {201, _} = http_deploy_xml(hourly_cycle("1.0.0"))
+      {201, _} = http_deploy_xml(hourly_cycle("2.0.0"))
+      [latest_schedule] = schedules_of("2.0.0")
+
+      {204, _} = http_delete_version("TimerStartCycle", "1.0.0")
+
+      assert [%{id: latest_schedule_id}] = schedules_of("2.0.0")
+      assert latest_schedule_id == latest_schedule.id
+    end
+
+    test "a new version without a cycle start removes the old schedules and adds none" do
+      {201, _} = http_deploy_xml(hourly_cycle("1.0.0"))
+
+      without_cycle =
+        Regex.replace(
+          ~r{<bpmn:timerEventDefinition>.*</bpmn:timerEventDefinition>}s,
+          hourly_cycle("2.0.0"),
+          ""
+        )
+
+      {201, _} = http_deploy_xml(without_cycle)
+
+      assert {:ok, []} = StartEventManager.list_schedules(process_model_id: "TimerStartCycle")
     end
 
     test "a multi-process file schedules the cycle only for the process that owns it" do
@@ -116,23 +150,11 @@ defmodule BfwEngine.Integration.Execution.StartEventDiscoveryTest do
     end
   end
 
-  defp fire_schedule_of(process_version_id) do
-    {:ok, [schedule]} = StartEventManager.list_schedules(process_version_id: process_version_id)
+  defp schedules_of(version) do
+    {:ok, schedules} =
+      StartEventManager.list_schedules(process_version_id: version_id("TimerStartCycle", version))
 
-    send(
-      TimerStartListener,
-      {:timer_fired, "manual-#{schedule.id}",
-       %{
-         schedule_id: schedule.id,
-         process_version_id: process_version_id,
-         process_model_id: "TimerStartCycle",
-         flow_node_id: schedule.flow_node_id
-       }}
-    )
-
-    _state = :sys.get_state(TimerStartListener)
-    {:ok, fired} = StartEventManager.get_schedule(schedule.id)
-    fired
+    schedules
   end
 
   defp fixture_with_version(fixture_name, version) do

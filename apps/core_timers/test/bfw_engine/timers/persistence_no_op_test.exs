@@ -117,6 +117,15 @@ defmodule BfwEngine.Timers.Persistence.NoOpTest do
       assert Enum.all?(filtered, &(&1.process_version_id == "pv-1"))
     end
 
+    test "filters by process_model_id when provided" do
+      NoOp.create_schedule(%{id: "s1", process_version_id: "pv-1", process_model_id: "order"})
+      NoOp.create_schedule(%{id: "s2", process_version_id: "pv-2", process_model_id: "order"})
+      NoOp.create_schedule(%{id: "s3", process_version_id: "pv-3", process_model_id: "invoice"})
+
+      {:ok, filtered} = NoOp.list_all_schedules(process_model_id: "order")
+      assert filtered |> Enum.map(& &1.id) |> Enum.sort() == ["s1", "s2"]
+    end
+
     test "returns all when no filter is given" do
       NoOp.create_schedule(%{id: "s1", process_version_id: "pv-1"})
       NoOp.create_schedule(%{id: "s2", process_version_id: "pv-2"})

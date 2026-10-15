@@ -1960,11 +1960,13 @@ When a process version is deployed via `Api.persist_deploy_batch/2`, the `unwrap
 
 ### Superseded Versions
 
-A newer deploy does not unregister an older version's cycle schedules. Instead `TimerStartListener` applies the start discovery rule ([routing.md](./routing.md) §3.5.3) on every fire: when the schedule's version is not the latest live version of an enabled process (`StartEventDiscovery.latest_live_version?/2`), the fire is skipped with an info log. The Scheduler has already advanced the cycle, so a skipped fire still consumes one repetition.
+Cycle schedules exist only for the latest live version of each process. Before registering the new version's cycle starts, the deploy hook lists the process's schedules (`StartEventManager.list_schedules(process_model_id: ...)`) and calls `unregister_timer_starts/1` for every other version. A new deploy is always the latest version of its process.
+
+`TimerStartListener` still applies the start discovery rule ([routing.md](./routing.md) §3.5.3) on every fire. When the schedule's version is not the latest live version of an enabled process (`StartEventDiscovery.latest_live_version?/2`), the fire is skipped with an info log. This covers a disabled process and two concurrent deploys of the same process, which can both keep schedules until the next deploy or delete. The Scheduler has already advanced the cycle, so a skipped fire still consumes one repetition.
 
 ### Undeploy Hook
 
-When a process version is soft-deleted via `Api.soft_delete_process_version/2`, `StartEventManager.unregister_timer_starts/1` is called to cancel the Scheduler entries and remove persistence records for cycle schedules.
+When a process version is soft-deleted via `Api.soft_delete_process_version/2`, `StartEventManager.unregister_timer_starts/1` is called to cancel the Scheduler entries and remove persistence records for cycle schedules. The hook then loads the process's new latest live version into `ModelCache` and, when that version has no schedules, registers its cycle starts from its BPMN: fresh `cycle_remaining`, enabled, new schedule ids. Deleting a version that was not the latest therefore leaves the latest version's schedules untouched.
 
 ### Boot Resume
 

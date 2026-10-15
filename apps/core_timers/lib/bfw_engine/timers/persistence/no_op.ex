@@ -93,6 +93,9 @@ defmodule BfwEngine.Timers.Persistence.NoOp do
       {:process_version_id, version_id}, acc ->
         Enum.filter(acc, &(&1.process_version_id == version_id))
 
+      {:process_model_id, process_model_id}, acc ->
+        Enum.filter(acc, &(&1.process_model_id == process_model_id))
+
       _other, acc ->
         acc
     end)

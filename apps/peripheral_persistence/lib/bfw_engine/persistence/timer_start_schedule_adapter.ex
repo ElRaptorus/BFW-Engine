@@ -147,6 +147,9 @@ defmodule BfwEngine.Persistence.TimerStartScheduleAdapter do
       {:process_version_id, version_id}, query ->
         Ash.Query.filter(query, process_version_id == ^version_id)
 
+      {:process_model_id, process_model_id}, query ->
+        Ash.Query.filter(query, process_model_id == ^process_model_id)
+
       _other, query ->
         query
     end)

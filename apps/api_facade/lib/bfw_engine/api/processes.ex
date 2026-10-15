@@ -241,7 +241,7 @@ defmodule BfwEngine.Api.Processes do
     case result do
       {:ok, _deleted} = success ->
         StartEventManager.unregister_timer_starts(process_version.id)
-        index_latest_version(process_version.process_id)
+        activate_latest_version(process_version.process_id)
         emit_process_undeployed(process_version, source)
         success
 
@@ -250,18 +250,21 @@ defmodule BfwEngine.Api.Processes do
     end
   end
 
-  # Message and signal starts resolve to the latest live version; when the
-  # deleted version was the latest, its predecessor may not be cached (and
-  # so not in the start-event index) yet.
-  defp index_latest_version(process_id) do
-    case get_latest_process_version(process_id) do
-      {:ok, version} ->
-        _fetch_result = ModelCache.fetch(version.id)
-        :ok
+  # A superseded version is neither in the start-event index nor scheduled;
+  # when the deleted version was the latest, its predecessor becomes live here.
+  defp activate_latest_version(process_id) do
+    _activation_result =
+      with {:ok, version} <- get_latest_process_version(process_id),
+           {:ok, definitions} <- ModelCache.fetch(version.id),
+           {:ok, []} <- StartEventManager.list_schedules(process_version_id: version.id) do
+        register_timer_starts_for_version(
+          version.id,
+          resolve_process_model_id(version),
+          definitions
+        )
+      end
 
-      _no_live_version ->
-        :ok
-    end
+    :ok
   end
 
   @doc """
@@ -369,6 +372,7 @@ defmodule BfwEngine.Api.Processes do
   defp unwrap_deploy_result({:ok, results}, source) do
     Enum.each(results, fn result ->
       ModelCache.put_new(result.version_id, result.definitions)
+      unregister_superseded_timer_starts(result.process_model_id, result.version_id)
 
       register_timer_starts_for_version(
         result.version_id,
@@ -588,6 +592,16 @@ defmodule BfwEngine.Api.Processes do
     case Map.get(process_id_by_key, process_version.process_model_id) do
       nil -> false
       process_id -> Map.has_key?(existing_version_set, {process_id, process_version.version})
+    end
+  end
+
+  defp unregister_superseded_timer_starts(process_model_id, version_id) do
+    with {:ok, schedules} <- StartEventManager.list_schedules(process_model_id: process_model_id) do
+      schedules
+      |> Enum.map(& &1.process_version_id)
+      |> Enum.uniq()
+      |> Enum.reject(&(&1 == version_id))
+      |> Enum.each(&StartEventManager.unregister_timer_starts/1)
     end
   end
 
