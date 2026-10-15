@@ -690,7 +690,9 @@ defmodule BfwEngine.Execution.FniLifecycle do
   # message instead of killing the process before the write commits; `:kill`
   # is unaffected and still terminates immediately. The previous trap_exit
   # flag is restored, and at most one queued `{:EXIT, _, :shutdown}` is
-  # drained so it does not linger in the caller's mailbox.
+  # drained so it does not linger in the caller's mailbox. A caller that
+  # already traps exits (the process instance) keeps its EXIT messages: one
+  # of them may be the supervisor's shutdown request.
   defp with_retry_protected_from_shutdown(retry_function, description) do
     previous_trap_exit = Process.flag(:trap_exit, true)
 
@@ -698,12 +700,17 @@ defmodule BfwEngine.Execution.FniLifecycle do
       PersistenceRetry.with_retry(retry_function, description)
     after
       Process.flag(:trap_exit, previous_trap_exit)
+      drain_deferred_shutdown(previous_trap_exit)
+    end
+  end
 
-      receive do
-        {:EXIT, _pid, :shutdown} -> :ok
-      after
-        0 -> :ok
-      end
+  defp drain_deferred_shutdown(true), do: :ok
+
+  defp drain_deferred_shutdown(false) do
+    receive do
+      {:EXIT, _pid, :shutdown} -> :ok
+    after
+      0 -> :ok
     end
   end
 

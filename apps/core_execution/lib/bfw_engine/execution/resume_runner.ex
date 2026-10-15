@@ -20,7 +20,10 @@ defmodule BfwEngine.Execution.ResumeRunner do
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.Persistence
   alias BfwEngine.Execution.PersistenceRetry
+  alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Types.Event
+
+  @resume_settle_timeout_ms 30_000
 
   @doc """
   Resume all running process instances from the persistence layer.
@@ -45,6 +48,7 @@ defmodule BfwEngine.Execution.ResumeRunner do
     batch_size = batch_size()
 
     count = resume_batches(adapter, batch_size, nil, 0, 0)
+    await_resume_settled([])
     MessageSubscriptions.mark_ready()
     SignalSubscriptions.mark_ready()
     emit_engine_started()
@@ -87,6 +91,40 @@ defmodule BfwEngine.Execution.ResumeRunner do
     Application.get_env(:core_execution, :resume_batch_size, 1000)
   end
 
+  # Child PIs are resumed by their parent's handler Task, which reports the
+  # parent settled only after the child is running; sweeping until no new PI
+  # shows up therefore covers whole trees.
+  defp await_resume_settled(settled_pids) do
+    unsettled_pids =
+      BfwEngine.Execution.Supervisor
+      |> DynamicSupervisor.which_children()
+      |> Enum.flat_map(fn
+        {_id, pid, _type, _modules} when is_pid(pid) -> [pid]
+        _restarting -> []
+      end)
+      |> Enum.reject(&(&1 in settled_pids))
+
+    if unsettled_pids == [] do
+      :ok
+    else
+      Enum.each(unsettled_pids, &await_process_instance_settled/1)
+      await_resume_settled(settled_pids ++ unsettled_pids)
+    end
+  end
+
+  defp await_process_instance_settled(process_instance_pid) do
+    case ProcessInstance.await_resume_settled(process_instance_pid, @resume_settle_timeout_ms) do
+      :ok ->
+        :ok
+
+      {:error, :timeout} ->
+        Logger.warning(
+          "ResumeRunner: PI #{inspect(process_instance_pid)} did not report its subscriptions " <>
+            "re-registered within #{@resume_settle_timeout_ms} ms"
+        )
+    end
+  end
+
   defp resume_batches(adapter, batch_size, cursor, resumed_acc, total_acc) do
     case PersistenceRetry.with_retry(
            fn -> adapter.list_running_process_instances(limit: batch_size, after: cursor) end,
@@ -94,7 +132,7 @@ defmodule BfwEngine.Execution.ResumeRunner do
            max_attempts: 3
          ) do
       {:ok, %{records: records, next_cursor: next_cursor}} ->
-        resumed_in_batch = Enum.count(records, &(resume_one(adapter, &1) == :ok))
+        resumed_in_batch = Enum.count(records, &(resume_one_isolated(adapter, &1) == :ok))
         new_resumed = resumed_acc + resumed_in_batch
         new_total = total_acc + length(records)
 
@@ -117,10 +155,22 @@ defmodule BfwEngine.Execution.ResumeRunner do
     end
   end
 
+  # One PI that raises must not abort the batch and hide the PIs already resumed.
+  defp resume_one_isolated(adapter, process_instance) do
+    resume_one(adapter, process_instance)
+  rescue
+    error ->
+      Logger.error(
+        "ResumeRunner: resuming PI #{process_instance.id} raised: #{Exception.message(error)}"
+      )
+
+      :error
+  end
+
   defp resume_one(adapter, process_instance) do
     with {:ok, flow_node_instances} <-
            PersistenceRetry.with_retry(
-             fn -> adapter.list_flow_node_instances(process_instance.id) end,
+             fn -> adapter.list_all_flow_node_instances(process_instance.id) end,
              "Resume: list FNIs for PI #{process_instance.id}",
              max_attempts: 3
            ),

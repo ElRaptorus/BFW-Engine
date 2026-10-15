@@ -25,6 +25,9 @@ defmodule BfwEngine.Events.SignalPublisher do
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Types.Event
 
+  # Upper bound for a publish during resume; afterwards it proceeds unready.
+  @resume_readiness_timeout_ms 30_000
+
   require Logger
 
   defmodule PublishResult do
@@ -66,6 +69,7 @@ defmodule BfwEngine.Events.SignalPublisher do
   """
   @spec publish_signal(map()) :: {:ok, PublishResult.t()}
   def publish_signal(params) do
+    _readiness = SignalSubscriptions.await_ready(@resume_readiness_timeout_ms)
     signal_id = generate_signal_id()
     signal_name = params.name
     origin = params[:origin] || %{source: "unknown"}

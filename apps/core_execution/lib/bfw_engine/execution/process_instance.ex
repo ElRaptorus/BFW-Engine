@@ -257,6 +257,20 @@ defmodule BfwEngine.Execution.ProcessInstance do
     :gen_statem.call(process_instance_pid, {:force_fatal, reason})
   end
 
+  @doc """
+  Wait until a resumed PI has re-registered every message and signal
+  subscription and re-attached every child PI. Returns `:ok` right away for
+  a PI that was not resumed or has already stopped, and `{:error, :timeout}`
+  when `timeout` milliseconds pass first.
+  """
+  @spec await_resume_settled(pid(), timeout()) :: :ok | {:error, :timeout}
+  def await_resume_settled(process_instance_pid, timeout) do
+    :gen_statem.call(process_instance_pid, :await_resume_settled, timeout)
+  catch
+    :exit, {:timeout, _call} -> {:error, :timeout}
+    :exit, _stopped -> :ok
+  end
+
   @doc "Update the notify_pid for a running PI (used by Call Activity resume)."
   @spec update_notify_pid(pid(), pid()) :: :ok
   def update_notify_pid(process_instance_pid, new_pid) do
@@ -289,6 +303,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   @impl true
   def init(%{resume: true} = opts) do
+    Process.flag(:trap_exit, true)
     mode = opts[:mode] || StandardMode
 
     data = %State{
@@ -302,7 +317,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
       triggerer_flow_node_instance_id: opts[:triggerer_flow_node_instance_id],
       started_at: opts[:started_at],
       started_with_context: opts[:started_with_context],
-      notify_pid: opts[:notify_pid]
+      notify_pid: opts[:notify_pid],
+      adhoc_completion_condition: opts[:adhoc_completion_condition],
+      adhoc_completion_condition_compiled: opts[:adhoc_completion_condition_compiled],
+      adhoc_cancel_remaining_instances: Map.get(opts, :adhoc_cancel_remaining_instances, true),
+      adhoc_ordering: opts[:adhoc_ordering] || :parallel,
+      adhoc_natural_drain_enabled:
+        Map.get(opts, :adhoc_natural_drain_enabled, false) and (opts[:fni_data] || []) != []
     }
 
     with {:ok, process_model, definitions} <-
@@ -323,21 +344,24 @@ defmodule BfwEngine.Execution.ProcessInstance do
       flow_node_instance_data = opts[:fni_data] || []
       pending_arrivals = opts[:pending_arrivals] || []
       data = Resumption.resume(data, flow_node_instance_data, pending_arrivals, self())
+      data = resume_stalled_compensation_runs(data)
 
       data = EspScope.register_triggers(data)
       data = evaluate_parked_inclusive_joins(data)
       data = evaluate_parked_complex_joins(data)
+      data = redispatch_lost_successors(data)
 
-      emit_pi_state_changed(data, nil, :running)
-      {:ok, :running, data}
+      {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
     else
       {:error, reason} ->
         Logger.error("PI #{data.process_instance_id} failed to resume: #{inspect(reason)}")
+        _persist_result = persist_pi_resume_failed(data, reason)
         {:stop, {reason, data}}
     end
   end
 
   def init(opts) do
+    Process.flag(:trap_exit, true)
     mode = opts[:mode] || StandardMode
 
     data = %State{
@@ -402,6 +426,54 @@ defmodule BfwEngine.Execution.ProcessInstance do
         Logger.error("PI #{data.process_instance_id} failed to start: #{message}")
         {:stop, {{reason, message}, data}}
     end
+  end
+
+  defp settle_resumed_fni(data, flow_node_instance_id) do
+    reply_resume_waiters(%{
+      data
+      | resume_pending: MapSet.delete(data.resume_pending, flow_node_instance_id)
+    })
+  end
+
+  defp reply_resume_waiters(%{resume_waiters: []} = data), do: data
+
+  defp reply_resume_waiters(data) do
+    still_pending =
+      Enum.any?(data.resume_pending, fn flow_node_instance_id ->
+        match?(
+          %{state: state} when state in [:active, :waiting],
+          Map.get(data.flow_node_instance_states, flow_node_instance_id)
+        )
+      end)
+
+    if still_pending do
+      data
+    else
+      Enum.each(data.resume_waiters, &:gen_statem.reply(&1, :ok))
+      %{data | resume_pending: MapSet.new(), resume_waiters: []}
+    end
+  end
+
+  defp resume_stalled_compensation_runs(data) do
+    data
+    |> Resumption.stalled_compensation_runs()
+    |> Enum.reduce(data, fn throw_fni_id, accumulator ->
+      CompensationOrchestrator.resume_run(accumulator, throw_fni_id, compensation_runtime())
+    end)
+  end
+
+  defp redispatch_lost_successors(data) do
+    data
+    |> Resumption.lost_successor_dispatches(self())
+    |> Enum.reduce(data, fn {flow_node_instance_id, output_payload, next_flow_node_ids},
+                            accumulator ->
+      dispatch_successor_targets(
+        accumulator,
+        flow_node_instance_id,
+        output_payload,
+        next_flow_node_ids
+      )
+    end)
   end
 
   defp init_after_persist(data, nil, _opts, _now) do
@@ -764,7 +836,18 @@ defmodule BfwEngine.Execution.ProcessInstance do
     {shell_task_pid, _from_tag} = from
     {data, snapshot} = reattach_iteration_shell(data, shell_fni_id, shell_task_pid)
     :gen_statem.reply(from, {:ok, snapshot})
-    {:keep_state, data}
+    {:keep_state, settle_resumed_fni(data, shell_fni_id)}
+  end
+
+  # Readiness: answered once every resume Task has re-registered its
+  # subscriptions or re-attached its child process instance.
+  def running({:call, from}, :await_resume_settled, data) do
+    data = %{data | resume_waiters: [from | data.resume_waiters]}
+    {:keep_state, reply_resume_waiters(data)}
+  end
+
+  def running(:info, {:resume_settled, flow_node_instance_id}, data) do
+    {:keep_state, settle_resumed_fni(data, flow_node_instance_id)}
   end
 
   # MI shell requests to interrupt all remaining iterations (completion condition met, error, etc.)
@@ -1098,6 +1181,20 @@ defmodule BfwEngine.Execution.ProcessInstance do
     {:keep_state, %{data | notify_pid: new_pid}, [{:reply, from, :ok}]}
   end
 
+  def running(:info, {:EXIT, task_supervisor, reason}, %{task_supervisor: task_supervisor} = data) do
+    {:stop, reason, data}
+  end
+
+  def running(:info, {:EXIT, _pid, :normal}, data), do: {:keep_state, data}
+
+  def running(:info, message, data) do
+    Logger.warning(
+      "PI #{data.process_instance_id} ignored an unexpected message: #{inspect(message, limit: 10)}"
+    )
+
+    {:keep_state, data}
+  end
+
   # Terminal PI states (:finished, :fatal, :aborted). The PI stops
   # via :stop_and_reply when it reaches any of these. These clauses
   # exist as safety nets for messages that arrive during shutdown.
@@ -1124,15 +1221,25 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # Terminate callback — clean up linked Task.Supervisor
   # -------------------------------------------------------------------
 
+  # Rows are left as they are so that resume can pick the instance up again.
+  # Handler Tasks are killed rather than shut down: iteration Tasks trap exits
+  # and would otherwise hold the supervisor shutdown past @shutdown_timeout.
   @impl :gen_statem
   def terminate(_reason, _state, %{task_supervisor: task_supervisor})
       when is_pid(task_supervisor) do
     if Process.alive?(task_supervisor) do
       Process.unlink(task_supervisor)
+
+      task_supervisor
+      |> Task.Supervisor.children()
+      |> Enum.each(&Process.exit(&1, :kill))
+
       Supervisor.stop(task_supervisor, :shutdown, @shutdown_timeout)
     end
 
     :ok
+  catch
+    :exit, _reason -> :ok
   end
 
   def terminate(_reason, _state, _data), do: :ok
@@ -2594,19 +2701,24 @@ defmodule BfwEngine.Execution.ProcessInstance do
        ) do
     output_payload = result.output_payload || entry.token.payload
 
+    type_properties = %{
+      compensation_run: true,
+      throw_type: Atom.to_string(run_spec.throw_type),
+      target_count: 0,
+      cursor: 0,
+      delegated_to_esp: true
+    }
+
+    _persist_result =
+      FniLifecycle.transition_to_waiting_by_id(flow_node_instance_id, type_properties)
+
     data =
       put_in(data.flow_node_instance_states[flow_node_instance_id], %{
         entry
         | state: :waiting,
           pid: nil,
           token: %{entry.token | payload: output_payload},
-          type_properties: %{
-            compensation_run: true,
-            throw_type: Atom.to_string(run_spec.throw_type),
-            target_count: 0,
-            cursor: 0,
-            delegated_to_esp: true
-          }
+          type_properties: type_properties
       })
 
     data =
@@ -3811,6 +3923,35 @@ defmodule BfwEngine.Execution.ProcessInstance do
     )
   end
 
+  defp persist_pi_resume_failed(data, reason) do
+    adapter = PersistenceAdapter.adapter()
+
+    PersistenceRetry.with_retry(
+      fn ->
+        adapter.update_process_instance(data.process_instance_id, %{
+          state: @pi_state_fatal,
+          finished_at: DateTime.utc_now(),
+          error_info: %{
+            "error_code" => "resume_failed",
+            "message" =>
+              "Process instance '#{data.process_instance_id}' could not be resumed after an " <>
+                "engine restart because #{resume_failure_cause(reason)}.",
+            "detail" => JsonSafe.convert(reason)
+          }
+        })
+      end,
+      "PI resume failed #{data.process_instance_id}"
+    )
+  end
+
+  defp resume_failure_cause(:not_found), do: "its process version no longer exists"
+
+  defp resume_failure_cause(:no_executable_process),
+    do: "its process version contains no executable process"
+
+  defp resume_failure_cause(_reason),
+    do: "its process model or its data objects could not be loaded"
+
   defp persist_pi_aborted(data, abort_reason) do
     adapter = PersistenceAdapter.adapter()
 
@@ -4378,9 +4519,16 @@ defmodule BfwEngine.Execution.ProcessInstance do
         if queued_ok_iteration_result?(iteration_fni_id) do
           data
         else
-          notify_shell_of_persisted_iteration_finish(shell_task, iteration_fni_id)
+          persisted_state =
+            notify_shell_of_persisted_iteration_finish(shell_task, iteration_fni_id)
 
-          %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+          data = %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+
+          put_in(data.flow_node_instance_states[iteration_fni_id], %{
+            entry
+            | state: persisted_state,
+              pid: nil
+          })
         end
 
       _other ->
@@ -4394,32 +4542,48 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  defp notify_shell_of_persisted_iteration_finish(nil, _iteration_fni_id), do: :ok
-
-  defp notify_shell_of_persisted_iteration_finish(
-         {_shell_fni_id, shell_task_pid},
-         iteration_fni_id
-       ) do
+  # Returns the iteration's persisted terminal state so the in-memory entry
+  # leaves `:active`/`:waiting`; a dead pid there would keep the PI alive.
+  defp notify_shell_of_persisted_iteration_finish(shell_task, iteration_fni_id) do
     adapter = PersistenceAdapter.adapter()
 
     case adapter.get_flow_node_instance_by_id(iteration_fni_id) do
       {:ok, %{state: state, output_token: output_token}}
       when state in [:finished, "finished"] ->
-        send(
-          shell_task_pid,
-          {:mi_iteration_completed, iteration_fni_id,
-           {:ok,
-            %FlowNodeResult{
-              output_payload: output_token || %{},
-              next_flow_node_ids: [],
-              metadata: %{persisted: true}
-            }}}
-        )
+        notify_shell_of_finished_iteration(shell_task, iteration_fni_id, output_token)
+        :finished
+
+      {:ok, %{state: state}} when is_binary(state) ->
+        persisted_terminal_state(state)
 
       _other ->
-        :ok
+        :interrupted
     end
   end
+
+  defp notify_shell_of_finished_iteration(nil, _iteration_fni_id, _output_token), do: :ok
+
+  defp notify_shell_of_finished_iteration(
+         {_shell_fni_id, shell_task_pid},
+         iteration_fni_id,
+         output_token
+       ) do
+    send(
+      shell_task_pid,
+      {:mi_iteration_completed, iteration_fni_id,
+       {:ok,
+        %FlowNodeResult{
+          output_payload: output_token || %{},
+          next_flow_node_ids: [],
+          metadata: %{persisted: true}
+        }}}
+    )
+  end
+
+  defp persisted_terminal_state("fatal"), do: :fatal
+  defp persisted_terminal_state("aborted"), do: :aborted
+  defp persisted_terminal_state("error"), do: :error
+  defp persisted_terminal_state(_state), do: :interrupted
 
   defp resolve_incoming_sequence_flow_id(data, flow_node, [source_fni_id | _])
        when is_binary(source_fni_id) do

@@ -341,8 +341,8 @@ defmodule BfwEngine.Execution.ResumeTest do
   # U5: Resume emits ProcessInstanceStateChanged
   # -------------------------------------------------------------------
 
-  describe "U5: Resume emits ProcessInstanceStateChanged" do
-    test "ProcessInstanceStateChanged{old_state: nil, new_state: :running} is emitted" do
+  describe "U5: Resume does not re-announce the start" do
+    test "no ProcessInstanceStateChanged{old_state: nil, new_state: :running} is emitted" do
       definitions = BpmnFactory.user_task_process()
       ModelCache.put_new(@version_id, definitions)
 
@@ -378,10 +378,11 @@ defmodule BfwEngine.Execution.ResumeTest do
         }
       ]
 
-      assert {:ok, _process_instance_pid} =
+      assert {:ok, process_instance_pid} =
                resume_pi(process_instance_id, @version_id, flow_node_instance_data)
 
-      assert_receive {:state_changed, ^ref, %{old_state: nil, new_state: :running}}, 500
+      _state = :sys.get_state(process_instance_pid)
+      refute_received {:state_changed, ^ref, %{old_state: nil, new_state: :running}}
     end
   end
 
@@ -535,9 +536,7 @@ defmodule BfwEngine.Execution.ResumeTest do
     end
 
     @impl true
-    def list_flow_node_instances(_process_instance_id) do
-      Map.get(fixture(), :list_flow_node_instances, {:ok, []})
-    end
+    def list_flow_node_instances(_process_instance_id), do: {:ok, []}
 
     @impl true
     def create_process_instance(attributes), do: {:ok, attributes}
@@ -564,7 +563,9 @@ defmodule BfwEngine.Execution.ResumeTest do
     @impl true
     def get_process_instance_for_retry(_id), do: {:error, :not_found}
     @impl true
-    def list_all_flow_node_instances(_id), do: {:ok, []}
+    def list_all_flow_node_instances(_id) do
+      Map.get(fixture(), :list_all_flow_node_instances, {:ok, []})
+    end
 
     @impl true
     def count_all_flow_node_instances(_id), do: {:ok, 0}
@@ -700,7 +701,7 @@ defmodule BfwEngine.Execution.ResumeTest do
       :ok
     end
 
-    test "resumes a process instance whose persisted flow node instances are already finished" do
+    test "finishes a resumed process instance whose End Event already finished" do
       process_instance_id = random_id()
       definitions = BpmnFactory.linear_three_node()
       ModelCache.put_new(@resume_version_id, definitions)
@@ -718,7 +719,7 @@ defmodule BfwEngine.Execution.ResumeTest do
             started_with_context: %{"input" => "data"}
           }
         ],
-        list_flow_node_instances:
+        list_all_flow_node_instances:
           {:ok,
            [
              %{
@@ -758,11 +759,7 @@ defmodule BfwEngine.Execution.ResumeTest do
       })
 
       assert {:ok, 1} = ResumeRunner.resume_all()
-
-      assert {:ok, process_instance_pid} = Execution.lookup_process_instance(process_instance_id)
-      assert Process.alive?(process_instance_pid)
-
-      DynamicSupervisor.terminate_child(BfwEngine.Execution.Supervisor, process_instance_pid)
+      assert {:error, :not_found} = Execution.lookup_process_instance(process_instance_id)
     end
 
     test "publishes EngineOverloaded when resume exceeds a finite cap" do
@@ -778,7 +775,7 @@ defmodule BfwEngine.Execution.ResumeTest do
       end)
 
       process_instance_id = random_id()
-      definitions = BpmnFactory.linear_three_node()
+      definitions = BpmnFactory.user_task_process()
       ModelCache.put_new(@resume_version_id, definitions)
 
       Application.put_env(:core_execution, :resume_test_fixture, %{
@@ -794,14 +791,14 @@ defmodule BfwEngine.Execution.ResumeTest do
             started_with_context: %{"input" => "data"}
           }
         ],
-        list_flow_node_instances:
+        list_all_flow_node_instances:
           {:ok,
            [
              %{
-               id: "fni-start",
-               flow_node_id: "Start_1",
-               flow_node_type: "start_event",
-               state: "finished",
+               id: random_id(),
+               flow_node_id: "UserTask_1",
+               flow_node_type: "user_task",
+               state: "waiting",
                input_token: %{"input" => "data"},
                type_properties: %{},
                previous_flow_node_instance_ids: [],
@@ -839,7 +836,7 @@ defmodule BfwEngine.Execution.ResumeTest do
             started_with_context: %{}
           }
         ],
-        list_flow_node_instances: {:error, :not_found}
+        list_all_flow_node_instances: {:error, :not_found}
       })
 
       assert {:ok, 0} = ResumeRunner.resume_all()
@@ -879,7 +876,7 @@ defmodule BfwEngine.Execution.ResumeTest do
             started_with_context: %{"input" => "data"}
           }
         ],
-        list_flow_node_instances:
+        list_all_flow_node_instances:
           {:ok,
            [
              %{

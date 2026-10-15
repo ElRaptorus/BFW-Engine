@@ -138,7 +138,7 @@ defmodule BfwEngine.Execution.MiInterruptRaceTest do
         iteration_data(iteration_pid, shell_pid, :waiting)
       )
 
-    assert data.flow_node_instance_states[@iteration_id].state == :waiting
+    assert %{state: :finished, pid: nil} = data.flow_node_instance_states[@iteration_id]
 
     assert_receive {:shell_received,
                     {:mi_iteration_completed, @iteration_id,
@@ -146,6 +146,26 @@ defmodule BfwEngine.Execution.MiInterruptRaceTest do
 
     assert payload == %{"kept" => 1}
     refute_receive {:captured, %Event.UserTaskFinished{}}, 100
+  end
+
+  test "an interrupt that loses the terminal write to a non-finish takes the persisted state" do
+    Process.put(:bfw_persistence_terminal_write_result, {:error, :already_terminal})
+
+    Process.put(:bfw_persisted_flow_node_instances, %{
+      @iteration_id => %{state: "aborted", output_token: nil}
+    })
+
+    iteration_pid = spawn(fn -> Process.sleep(:infinity) end)
+
+    {:keep_state, data} =
+      ProcessInstance.running(
+        :cast,
+        {:mi_interrupt_remaining, @shell_id},
+        iteration_data(iteration_pid, self(), :waiting)
+      )
+
+    assert %{state: :aborted, pid: nil} = data.flow_node_instance_states[@iteration_id]
+    refute_receive {:mi_iteration_completed, @iteration_id, _result}, 100
   end
 
   defp iteration_data(iteration_pid, shell_pid, state \\ :waiting) do

@@ -16,12 +16,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.BoundaryAwareHandler
+  alias BfwEngine.Execution.CompensationResolver
   alias BfwEngine.Execution.FlowNodes
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerDispatch
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
   alias BfwEngine.Execution.PersistenceRetry
   alias BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator
+  alias BfwEngine.Execution.ProcessInstance.CompensationOrchestrator
+  alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
   alias BfwEngine.Types.Token
@@ -37,8 +40,153 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     data
     |> rebuild_flow_node_instance_states(persisted_flow_node_instances)
     |> rebuild_compensation_registry()
+    |> rebuild_compensation_run_state()
     |> rebuild_join_routing(pending_arrivals)
     |> reactivate_fnis(process_instance_pid, grouped_arrivals)
+  end
+
+  @doc """
+  Successor dispatches that were lost between a handler's `finished` write
+  and the creation of its successor rows.
+
+  Computed only when no FNI is `:active` or `:waiting`: such an instance
+  would otherwise idle forever. A candidate is a `:finished` FNI that is not
+  an End Event, not a Multi-Instance iteration, and that no other FNI names
+  as a predecessor. Nothing is re-dispatched when the scope already ended
+  through a Terminate, Error, Escalation, or Cancel End Event.
+
+  Successors are resolved like the original handler did: Exclusive,
+  Inclusive, and Complex splits and Link Throw Events re-run their handler
+  (the guarded finish write makes that side-effect free), every other node
+  follows its outgoing sequence flows.
+
+  Returns `[{flow_node_instance_id, output_payload, next_flow_node_ids}]`.
+  """
+  @spec lost_successor_dispatches(struct(), pid()) :: [{String.t(), term(), [String.t()]}]
+  def lost_successor_dispatches(data, process_instance_pid) do
+    states = data.flow_node_instance_states
+
+    if Enum.any?(states, fn {_id, entry} -> entry.state in [:active, :waiting] end) or
+         scope_ended_by_end_event?(data) do
+      []
+    else
+      referenced_ids =
+        states
+        |> Enum.filter(fn {_id, entry} -> sequence_flow_successor?(entry) end)
+        |> Enum.flat_map(fn {_id, entry} -> entry.previous_flow_node_instance_ids end)
+        |> MapSet.new()
+
+      states
+      |> Enum.filter(fn {flow_node_instance_id, entry} ->
+        lost_successor_candidate?(entry) and
+          not MapSet.member?(referenced_ids, flow_node_instance_id)
+      end)
+      |> Enum.sort_by(fn {_id, entry} -> entry.token.created_at end, DateTime)
+      |> Enum.flat_map(&resolve_lost_successors(data, &1, process_instance_pid))
+    end
+  end
+
+  # Boundary FNIs name their host, iterations their shell, and compensation
+  # handlers their throw event as predecessor; none of them is the token's
+  # sequence-flow successor.
+  defp sequence_flow_successor?(entry) do
+    entry.flow_node_type != :boundary_event and is_nil(Map.get(entry, :multi_instance_id)) and
+      is_nil(type_property(entry, :compensation_throw_fni_id))
+  end
+
+  defp type_property(entry, key) do
+    type_properties = entry.type_properties || %{}
+    Map.get(type_properties, key) || Map.get(type_properties, Atom.to_string(key))
+  end
+
+  defp lost_successor_candidate?(entry) do
+    entry.state == :finished and entry.flow_node_type != :end_event and
+      is_nil(Map.get(entry, :multi_instance_id))
+  end
+
+  defp scope_ended_by_end_event?(data) do
+    Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+      entry.flow_node_type == :end_event and entry.state in [:finished, :error] and
+        scope_ending_end_event?(FlowNodeLookup.find_flow_node(data, entry.flow_node_id))
+    end)
+  end
+
+  defp scope_ending_end_event?(%FlowNode{type_data: %{event_definition: event_definition}}) do
+    match?(%EventDefinition.Terminate{}, event_definition) or
+      match?(%EventDefinition.Error{}, event_definition) or
+      match?(%EventDefinition.Escalation{}, event_definition) or
+      match?(%EventDefinition.Cancel{}, event_definition)
+  end
+
+  defp scope_ending_end_event?(_flow_node), do: false
+
+  defp resolve_lost_successors(data, {flow_node_instance_id, entry}, process_instance_pid) do
+    case FlowNodeLookup.find_flow_node(data, entry.flow_node_id) do
+      nil ->
+        []
+
+      flow_node ->
+        case lost_successor_ids(
+               data,
+               flow_node_instance_id,
+               entry,
+               flow_node,
+               process_instance_pid
+             ) do
+          [] ->
+            []
+
+          next_flow_node_ids ->
+            Logger.warning(
+              "Resume: re-dispatching successors #{inspect(next_flow_node_ids)} of finished FNI " <>
+                "#{flow_node_instance_id} (#{flow_node.id}); their creation was lost"
+            )
+
+            [{flow_node_instance_id, entry.token.payload, next_flow_node_ids}]
+        end
+    end
+  end
+
+  defp lost_successor_ids(data, flow_node_instance_id, entry, flow_node, process_instance_pid) do
+    if routes_through_handler?(data, flow_node) do
+      rerun_routing_handler(data, flow_node_instance_id, entry, flow_node, process_instance_pid)
+    else
+      case SequenceFlowResolver.resolve(flow_node, data.process_model) do
+        {:ok, targets} -> Enum.map(targets, & &1.id)
+        {:error, _reason, _metadata} -> []
+      end
+    end
+  end
+
+  defp routes_through_handler?(data, %FlowNode{type: type} = flow_node)
+       when type in [:exclusive_gateway, :inclusive_gateway, :complex_gateway] do
+    count_incoming_flows(data.process_model, flow_node.id) <= 1
+  end
+
+  defp routes_through_handler?(_data, %FlowNode{
+         type: :intermediate_throw_event,
+         type_data: %{event_definition: %EventDefinition.Link{}}
+       }),
+       do: true
+
+  defp routes_through_handler?(_data, _flow_node), do: false
+
+  defp rerun_routing_handler(data, flow_node_instance_id, entry, flow_node, process_instance_pid) do
+    handler_context =
+      InstanceHandlerDispatch.build_handler_context(
+        data,
+        flow_node_instance_id,
+        flow_node,
+        process_instance_pid
+      )
+
+    with {:ok, handler_module} <- HandlerDispatch.handler_for(flow_node),
+         {:ok, %{next_flow_node_ids: next_flow_node_ids}} <-
+           handler_module.handle_enter(flow_node, entry.token, handler_context) do
+      next_flow_node_ids
+    else
+      _other -> []
+    end
   end
 
   @doc "Reconstructs identity from persisted `started_by` data."
@@ -60,10 +208,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   def rebuild_flow_node_instance_states(data, flow_node_instance_data) do
     flow_node_instance_states =
       Map.new(flow_node_instance_data, fn flow_node_instance ->
+        state = parse_fni_state(flow_node_instance.state)
+
         token = %Token{
           id: UuidV7.generate(),
           process_instance_id: data.process_instance_id,
-          payload: flow_node_instance.input_token,
+          payload: resumed_token_payload(state, flow_node_instance),
           originating_flow_node_instance_id: nil,
           created_at: flow_node_instance.started_at || DateTime.utc_now()
         }
@@ -73,7 +223,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           flow_node_id: flow_node_instance.flow_node_id,
           flow_node_type: parse_flow_node_type(flow_node_instance.flow_node_type),
           event_type: Map.get(flow_node_instance, :event_type),
-          state: parse_fni_state(flow_node_instance.state),
+          state: state,
           token: token,
           previous_flow_node_instance_ids:
             flow_node_instance.previous_flow_node_instance_ids || [],
@@ -88,6 +238,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
     %{data | flow_node_instance_states: flow_node_instance_states}
   end
+
+  defp resumed_token_payload(:finished, %{output_token: output_token})
+       when not is_nil(output_token),
+       do: output_token
+
+  defp resumed_token_payload(_state, flow_node_instance), do: flow_node_instance.input_token
 
   @doc """
   Re-derives the compensation registry from persisted FNI state.
@@ -147,6 +303,199 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         _ ->
           nil
       end
+    end)
+  end
+
+  @doc """
+  Re-derives the in-memory compensation and cancel run state.
+
+  A Compensate Throw or End Event parked as `:waiting` with
+  `compensation_run` gets its run back: the targets the compensation
+  registry resolves for its event definition, minus those whose handler
+  FNI already finished, with the in-flight handler's target first. A
+  finished Cancel End Event gets its LIFO cancel run the same way, and a
+  run delegated to a Compensation Event Subprocess is mapped back to its
+  ESP shell. A finished Compensate End Event sets `compensation_end_reached`.
+  Runs whose next handler was never dispatched are listed by
+  `stalled_compensation_runs/1`.
+  """
+  @spec rebuild_compensation_run_state(struct()) :: struct()
+  def rebuild_compensation_run_state(data) do
+    data
+    |> rebuild_compensation_throw_runs()
+    |> rebuild_cancel_run()
+    |> Map.put(:compensation_end_reached, finished_end_event?(data, EventDefinition.Compensation))
+  end
+
+  @doc """
+  Throw FNI ids of rebuilt compensation runs that have no live handler FNI
+  and no live Event Subprocess shell; the caller dispatches their next
+  handler or completes them.
+  """
+  @spec stalled_compensation_runs(struct()) :: [String.t()]
+  def stalled_compensation_runs(data) do
+    live_esp_node_ids =
+      data.flow_node_instance_states
+      |> Enum.filter(fn {_id, entry} -> entry.state in [:active, :waiting] end)
+      |> MapSet.new(fn {_id, entry} -> entry.flow_node_id end)
+
+    data.compensation_runs
+    |> Map.keys()
+    |> Enum.reject(fn throw_fni_id ->
+      live_handler_target(data, throw_fni_id) != nil or
+        Enum.any?(data.compensation_esp_throw_map, fn {esp_node_id, mapped_throw_fni_id} ->
+          mapped_throw_fni_id == throw_fni_id and MapSet.member?(live_esp_node_ids, esp_node_id)
+        end)
+    end)
+  end
+
+  defp rebuild_compensation_throw_runs(data) do
+    data.flow_node_instance_states
+    |> Enum.filter(fn {_id, entry} ->
+      entry.state == :waiting and type_property(entry, :compensation_run) == true
+    end)
+    |> Enum.reduce(data, fn {throw_fni_id, entry}, accumulator ->
+      rebuild_compensation_throw_run(accumulator, throw_fni_id, entry)
+    end)
+  end
+
+  defp rebuild_compensation_throw_run(data, throw_fni_id, entry) do
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+    throw_type = parse_throw_type(type_property(entry, :throw_type))
+    outgoing_flow_node_ids = compensation_outgoing_ids(data, flow_node, throw_type)
+
+    if type_property(entry, :delegated_to_esp) == true do
+      run = %{
+        queue: [],
+        cursor: 0,
+        mode: :esp,
+        throw_type: throw_type,
+        outgoing_flow_node_ids: outgoing_flow_node_ids,
+        token_payload: entry.token.payload
+      }
+
+      data = put_in(data.compensation_runs[throw_fni_id], run)
+      map_compensation_esp(data, throw_fni_id)
+    else
+      targets =
+        CompensationResolver.resolve(
+          data.compensation_registry,
+          flow_node.type_data.event_definition
+        )
+
+      put_rebuilt_run(
+        data,
+        throw_fni_id,
+        targets,
+        throw_type,
+        outgoing_flow_node_ids,
+        entry.token.payload
+      )
+    end
+  end
+
+  defp rebuild_cancel_run(data) do
+    case Enum.find(data.flow_node_instance_states, fn {_id, entry} ->
+           entry.state == :finished and entry.flow_node_type == :end_event and
+             match?(
+               %FlowNode{type_data: %{event_definition: %EventDefinition.Cancel{}}},
+               FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+             )
+         end) do
+      nil ->
+        data
+
+      {cancel_fni_id, entry} ->
+        targets = Enum.sort_by(data.compensation_registry, & &1.completion_order, :desc)
+        put_rebuilt_run(data, cancel_fni_id, targets, :cancel, [], entry.token.payload)
+    end
+  end
+
+  defp put_rebuilt_run(
+         data,
+         throw_fni_id,
+         targets,
+         throw_type,
+         outgoing_flow_node_ids,
+         token_payload
+       ) do
+    finished_target_ids =
+      data.flow_node_instance_states
+      |> Enum.filter(fn {_id, entry} ->
+        entry.state == :finished and
+          type_property(entry, :compensation_throw_fni_id) == throw_fni_id
+      end)
+      |> MapSet.new(fn {_id, entry} -> type_property(entry, :compensation_for) end)
+
+    in_flight_target_id = live_handler_target(data, throw_fni_id)
+
+    {in_flight, remaining} =
+      targets
+      |> Enum.reject(&MapSet.member?(finished_target_ids, &1.completed_fni_id))
+      |> Enum.split_with(&(&1.completed_fni_id == in_flight_target_id))
+
+    run =
+      CompensationOrchestrator.build_run(
+        in_flight ++ remaining,
+        throw_type,
+        outgoing_flow_node_ids,
+        token_payload
+      )
+
+    put_in(data.compensation_runs[throw_fni_id], run)
+  end
+
+  defp live_handler_target(data, throw_fni_id) do
+    Enum.find_value(data.flow_node_instance_states, fn {_id, entry} ->
+      if entry.state in [:active, :waiting] and
+           type_property(entry, :compensation_throw_fni_id) == throw_fni_id do
+        type_property(entry, :compensation_for)
+      end
+    end)
+  end
+
+  defp map_compensation_esp(data, throw_fni_id) do
+    case Enum.find(data.process_model.flow_nodes, &compensation_event_subprocess?/1) do
+      nil ->
+        data
+
+      esp_node ->
+        put_in(data.compensation_esp_throw_map[esp_node.id], throw_fni_id)
+    end
+  end
+
+  defp compensation_event_subprocess?(%FlowNode{
+         type: :sub_process,
+         type_data: %FlowNodeData.SubProcess{triggered_by_event: true, flow_nodes: inner_nodes}
+       }) do
+    Enum.any?(inner_nodes || [], fn inner_node ->
+      inner_node.type == :start_event and
+        match?(%EventDefinition.Compensation{}, inner_node.type_data.event_definition)
+    end)
+  end
+
+  defp compensation_event_subprocess?(_flow_node), do: false
+
+  defp compensation_outgoing_ids(data, %FlowNode{} = flow_node, :throw) do
+    case SequenceFlowResolver.resolve(flow_node, data.process_model) do
+      {:ok, targets} -> Enum.map(targets, & &1.id)
+      {:error, _reason, _metadata} -> []
+    end
+  end
+
+  defp compensation_outgoing_ids(_data, _flow_node, _throw_type), do: []
+
+  defp parse_throw_type("end"), do: :end
+  defp parse_throw_type(:end), do: :end
+  defp parse_throw_type(_throw_type), do: :throw
+
+  defp finished_end_event?(data, event_definition_module) do
+    Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+      entry.state == :finished and entry.flow_node_type == :end_event and
+        match?(
+          %FlowNode{type_data: %{event_definition: %{__struct__: ^event_definition_module}}},
+          FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+        )
     end)
   end
 
@@ -415,14 +764,17 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           _other -> FlowNodes.MultiInstanceBody
         end
 
-      spawn_resume_task(
-        data,
-        flow_node_instance_id,
-        entry,
-        process_instance_pid,
-        fn -> handler_module.handle_resume(flow_node, entry.token, handler_context) end,
-        "MI/loop shell"
-      )
+      data =
+        spawn_resume_task(
+          data,
+          flow_node_instance_id,
+          entry,
+          process_instance_pid,
+          fn -> handler_module.handle_resume(flow_node, entry.token, handler_context) end,
+          "MI/loop shell"
+        )
+
+      %{data | resume_pending: MapSet.put(data.resume_pending, flow_node_instance_id)}
     end
   end
 
@@ -574,14 +926,10 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   defp persist_waiting_state(flow_node_instance_id, entry) do
     type_properties = entry.type_properties || %{}
 
-    child_process_instance_id =
-      Map.get(type_properties, "child_process_instance_id") ||
-        Map.get(type_properties, :child_process_instance_id)
-
-    waiting_properties = %{
-      async: true,
-      child_process_instance_id: child_process_instance_id
-    }
+    waiting_properties =
+      type_properties
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.put("async", true)
 
     case FniLifecycle.transition_to_waiting_by_id(flow_node_instance_id, waiting_properties) do
       :ok -> :ok
@@ -742,8 +1090,10 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           process_instance_pid
         )
 
-      _ ->
-        reactivate_async_fni(data, flow_node_instance_id, entry)
+      # Error, escalation, cancel, and compensation boundaries are passive:
+      # the process instance resolves them from its in-memory entries.
+      _passive_boundary ->
+        data
     end
   end
 
@@ -1115,6 +1465,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
        ) do
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result = resume_function.()
+           send(process_instance_pid, {:resume_settled, flow_node_instance_id})
 
            InstanceHandlerDispatch.dispatch_handler_result(
              process_instance_pid,
@@ -1124,6 +1475,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          end) do
       {:ok, task_pid} ->
         Process.monitor(task_pid)
+        data = track_resume_settle(data, flow_node_instance_id, entry)
         put_in(data.flow_node_instance_states[flow_node_instance_id], %{entry | pid: task_pid})
 
       {:error, reason} ->
@@ -1134,6 +1486,27 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         data
     end
   end
+
+  # Readiness waits for the resume Tasks that re-register a message or signal
+  # subscription or re-attach a child process instance (MI shells are added
+  # by `reactivate_mi_shell_fni`). They report `{:resume_settled, id}`.
+  defp track_resume_settle(data, flow_node_instance_id, entry) do
+    if resume_registers_subscription_or_child?(entry) do
+      %{data | resume_pending: MapSet.put(data.resume_pending, flow_node_instance_id)}
+    else
+      data
+    end
+  end
+
+  defp resume_registers_subscription_or_child?(%{flow_node_type: type})
+       when type in [:call_activity, :sub_process, :receive_task],
+       do: true
+
+  defp resume_registers_subscription_or_child?(%{flow_node_type: type, event_type: event_type})
+       when type in [:intermediate_catch_event, :boundary_event],
+       do: event_type in ["message", "signal"]
+
+  defp resume_registers_subscription_or_child?(_entry), do: false
 
   defp maybe_inject_boundary_host(context, %{
          flow_node_type: :boundary_event,

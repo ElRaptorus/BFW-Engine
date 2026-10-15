@@ -19,6 +19,9 @@ defmodule BfwEngine.Events.MessagePublisher do
   alias BfwEngine.Events.PendingTtl
   alias BfwEngine.Types.Event
 
+  # Upper bound for a publish during resume; afterwards it proceeds unready.
+  @resume_readiness_timeout_ms 30_000
+
   require Logger
 
   defmodule PublishResult do
@@ -64,6 +67,7 @@ defmodule BfwEngine.Events.MessagePublisher do
   """
   @spec publish_message(map()) :: {:ok, PublishResult.t()}
   def publish_message(params) do
+    _readiness = MessageSubscriptions.await_ready(@resume_readiness_timeout_ms)
     message_id = generate_message_id()
     message_name = params.name
     correlation_value = params[:correlation_value]

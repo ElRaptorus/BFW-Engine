@@ -38,7 +38,13 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
 
     if target_state != "running" do
       update_changes = %{state: target_state, finished_at: finished_at || DateTime.utc_now()}
-      {:ok, _} = Ash.update(record, update_changes, domain: @domain, action: :update_state, authorize?: false)
+
+      {:ok, _} =
+        Ash.update(record, update_changes,
+          domain: @domain,
+          action: :update_state,
+          authorize?: false
+        )
     end
 
     id
@@ -81,7 +87,8 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
 
   describe "cleanup_orphaned_flow_node_instances/0" do
     test "aborts active FNIs on a fatal PI" do
-      process_instance_id = insert_process_instance(%{state: "fatal", finished_at: DateTime.utc_now()})
+      process_instance_id =
+        insert_process_instance(%{state: "fatal", finished_at: DateTime.utc_now()})
 
       fni_id =
         insert_flow_node_instance(%{
@@ -100,7 +107,8 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
     end
 
     test "aborts waiting FNIs on an aborted PI" do
-      process_instance_id = insert_process_instance(%{state: "aborted", finished_at: DateTime.utc_now()})
+      process_instance_id =
+        insert_process_instance(%{state: "aborted", finished_at: DateTime.utc_now()})
 
       fni_id =
         insert_flow_node_instance(%{
@@ -118,7 +126,8 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
     end
 
     test "aborts FNIs on a finished PI" do
-      process_instance_id = insert_process_instance(%{state: "finished", finished_at: DateTime.utc_now()})
+      process_instance_id =
+        insert_process_instance(%{state: "finished", finished_at: DateTime.utc_now()})
 
       fni_id =
         insert_flow_node_instance(%{
@@ -156,7 +165,8 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
     end
 
     test "does not touch already-terminal FNIs" do
-      process_instance_id = insert_process_instance(%{state: "fatal", finished_at: DateTime.utc_now()})
+      process_instance_id =
+        insert_process_instance(%{state: "fatal", finished_at: DateTime.utc_now()})
 
       insert_flow_node_instance(%{
         process_instance_id: process_instance_id,
@@ -174,12 +184,41 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
       assert count == 0
     end
 
+    test "aborts FNIs left open on a compensated or cancelled PI" do
+      compensated_id =
+        insert_process_instance(%{state: "compensated", finished_at: DateTime.utc_now()})
+
+      cancelled_id =
+        insert_process_instance(%{state: "cancelled", finished_at: DateTime.utc_now()})
+
+      insert_flow_node_instance(%{process_instance_id: compensated_id, state: "active"})
+
+      insert_flow_node_instance(%{
+        process_instance_id: cancelled_id,
+        state: "waiting",
+        flow_node_type: "user_task"
+      })
+
+      {:ok, count} = ExecutionAdapter.cleanup_orphaned_flow_node_instances()
+      assert count == 2
+
+      for process_instance_id <- [compensated_id, cancelled_id] do
+        assert [%{state: "aborted"}] = fetch_flow_node_instances(process_instance_id)
+      end
+    end
+
     test "handles multiple orphaned FNIs across multiple PIs" do
       pi1 = insert_process_instance(%{state: "fatal", finished_at: DateTime.utc_now()})
       pi2 = insert_process_instance(%{state: "aborted", finished_at: DateTime.utc_now()})
 
       insert_flow_node_instance(%{process_instance_id: pi1, state: "active"})
-      insert_flow_node_instance(%{process_instance_id: pi1, state: "waiting", flow_node_type: "user_task"})
+
+      insert_flow_node_instance(%{
+        process_instance_id: pi1,
+        state: "waiting",
+        flow_node_type: "user_task"
+      })
+
       insert_flow_node_instance(%{process_instance_id: pi2, state: "active"})
 
       {:ok, count} = ExecutionAdapter.cleanup_orphaned_flow_node_instances()
@@ -222,8 +261,26 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
       assert child_fni.error_info["message"] =~ "engine startup"
     end
 
+    test "aborts running children of a compensated or cancelled parent" do
+      child_ids =
+        for parent_state <- ["compensated", "cancelled"] do
+          parent_id =
+            insert_process_instance(%{state: parent_state, finished_at: DateTime.utc_now()})
+
+          insert_process_instance(%{state: "running", parent_process_instance_id: parent_id})
+        end
+
+      {:ok, count} = ExecutionAdapter.cleanup_orphaned_process_instances()
+      assert count == 2
+
+      for child_id <- child_ids do
+        assert fetch_process_instance!(child_id).state == "aborted"
+      end
+    end
+
     test "aborts nested orphans (2 levels: grandparent terminal → parent running → child running)" do
-      grandparent_id = insert_process_instance(%{state: "aborted", finished_at: DateTime.utc_now()})
+      grandparent_id =
+        insert_process_instance(%{state: "aborted", finished_at: DateTime.utc_now()})
 
       parent_id =
         insert_process_instance(%{
@@ -238,7 +295,12 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
         })
 
       insert_flow_node_instance(%{process_instance_id: parent_id, state: "active"})
-      insert_flow_node_instance(%{process_instance_id: child_id, state: "waiting", flow_node_type: "user_task"})
+
+      insert_flow_node_instance(%{
+        process_instance_id: child_id,
+        state: "waiting",
+        flow_node_type: "user_task"
+      })
 
       {:ok, count} = ExecutionAdapter.cleanup_orphaned_process_instances()
       assert count == 2
@@ -332,7 +394,9 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
       {:ok, fni_count} = ExecutionAdapter.cleanup_orphaned_flow_node_instances()
       assert fni_count == 1
 
-      parent_fni = fetch_flow_node_instances(parent_id) |> Enum.find(&(&1.id == orphaned_fni_on_parent))
+      parent_fni =
+        fetch_flow_node_instances(parent_id) |> Enum.find(&(&1.id == orphaned_fni_on_parent))
+
       assert parent_fni.state == "aborted"
 
       {:ok, pi_count} = ExecutionAdapter.cleanup_orphaned_process_instances()
@@ -342,7 +406,9 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
       assert child_pi.state == "aborted"
       assert child_pi.error_info["error_code"] == "orphaned_pi_cleanup"
 
-      child_fni = fetch_flow_node_instances(child_id) |> Enum.find(&(&1.id == orphaned_fni_on_child))
+      child_fni =
+        fetch_flow_node_instances(child_id) |> Enum.find(&(&1.id == orphaned_fni_on_child))
+
       assert child_fni.state == "aborted"
       assert child_fni.error_info["error_code"] == "orphaned_fni_cleanup"
     end

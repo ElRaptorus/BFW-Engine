@@ -161,7 +161,7 @@ defmodule BfwEngine.Integration.SoftDeleteSecurityTest do
   # ---------------------------------------------------------------------------
 
   describe "resume with deleted version (data anomaly)" do
-    test "ResumeRunner logs error but does not crash when version is deleted" do
+    test "ResumeRunner persists the process instance as fatal when its version is deleted" do
       {201, _deploy_body} = http_deploy("user_task_simple.bpmn")
       process_model_id = "UserTaskSimple"
       version_id = extract_version_id(process_model_id)
@@ -183,6 +183,15 @@ defmodule BfwEngine.Integration.SoftDeleteSecurityTest do
 
       assert {:error, :not_found} =
                BfwEngine.Execution.lookup_process_instance(process_instance_id)
+
+      process_instance =
+        assert_pi_state!(process_instance_id, "fatal", verify_execution_chain: false)
+
+      assert process_instance.error_info["error_code"] == "resume_failed"
+      assert process_instance.error_info["message"] =~ "process version no longer exists"
+
+      assert {:ok, resumed_count} = BfwEngine.Execution.ResumeRunner.resume_all()
+      assert resumed_count == 0
     end
   end
 end

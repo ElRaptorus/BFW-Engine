@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CallActivityMiParallelErrorBoundary">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Parent" name="Parent" processRef="CallActivityMiParallelErrorBoundary" />
+    <bpmn:participant id="Participant_Child" name="Child" processRef="CallActivityMiParallelErrorChild" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CallActivityMiParallelErrorBoundary" name="Call Activity MI Parallel Error Boundary" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Parent">
+      <bpmn:lane id="Lane_default_Parent" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Child</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Error</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Error_Path</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:callActivity id="Call_Child" name="Call Child per Item" calledElement="CallActivityMiParallelErrorChild">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="false">
+        <bpmn:extensionElements>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:outputCollection>results</bfw:outputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
+        </bpmn:extensionElements>
+      </bpmn:multiInstanceLoopCharacteristics>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="Boundary_Error" name="Any Error" attachedToRef="Call_Child">
+      <bpmn:outgoing>Flow_Error</bpmn:outgoing>
+      <bpmn:errorEventDefinition />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Success" name="All Items Done">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Error_Path" name="Error Caught">
+      <bpmn:incoming>Flow_Error</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Call_Child" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Call_Child" targetRef="End_Success" />
+    <bpmn:sequenceFlow id="Flow_Error" sourceRef="Boundary_Error" targetRef="End_Error_Path" />
+  </bpmn:process>
+
+  <bpmn:process id="CallActivityMiParallelErrorChild" name="Call Activity MI Parallel Error Child" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Child">
+      <bpmn:lane id="Lane_default_Child" name="default">
+        <bpmn:flowNodeRef>Child_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Child_End_Error</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Child_Start" name="Child Start">
+      <bpmn:outgoing>Child_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="Child_End_Error" name="Throw Error">
+      <bpmn:incoming>Child_Flow_1</bpmn:incoming>
+      <bpmn:errorEventDefinition>
+        <bpmn:extensionElements>
+          <bfw:errorCode>ITEM_FAILED</bfw:errorCode>
+        </bpmn:extensionElements>
+      </bpmn:errorEventDefinition>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Child_Flow_1" sourceRef="Child_Start" targetRef="Child_End_Error" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Parent" bpmnElement="Participant_Parent" isHorizontal="true">
+        <dc:Bounds x="100" y="80" width="500" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Parent" bpmnElement="Lane_default_Parent" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="470" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Child" bpmnElement="Call_Child">
+        <dc:Bounds x="270" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Error" bpmnElement="Boundary_Error">
+        <dc:Bounds x="302" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Success" bpmnElement="End_Success">
+        <dc:Bounds x="472" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Error_Path" bpmnElement="End_Error_Path">
+        <dc:Bounds x="302" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="160" />
+        <di:waypoint x="270" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="370" y="160" />
+        <di:waypoint x="472" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Error" bpmnElement="Flow_Error">
+        <di:waypoint x="320" y="218" />
+        <di:waypoint x="320" y="272" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Child" bpmnElement="Participant_Child" isHorizontal="true">
+        <dc:Bounds x="100" y="380" width="500" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Child" bpmnElement="Lane_default_Child" isHorizontal="true">
+        <dc:Bounds x="130" y="380" width="470" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Child_Start" bpmnElement="Child_Start">
+        <dc:Bounds x="162" y="432" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Child_End_Error" bpmnElement="Child_End_Error">
+        <dc:Bounds x="322" y="432" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Child_Flow_1" bpmnElement="Child_Flow_1">
+        <di:waypoint x="198" y="450" />
+        <di:waypoint x="322" y="450" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

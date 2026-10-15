@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_TimerCatchFeelTemporalValue">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Duration" name="FEEL Duration" processRef="TimerCatchFeelDuration" />
+    <bpmn:participant id="Participant_DateTime" name="FEEL Date and Time" processRef="TimerCatchFeelDateTime" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="TimerCatchFeelDuration" name="Timer Catch FEEL Duration" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Duration">
+      <bpmn:lane id="Lane_default_Duration" name="default">
+        <bpmn:flowNodeRef>Duration_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Duration_Timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Duration_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Duration_Start" name="Start">
+      <bpmn:outgoing>Duration_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="Duration_Timer" name="FEEL Duration Timer">
+      <bpmn:incoming>Duration_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Duration_Flow_2</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>duration("PT1S")</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="Duration_End" name="Done">
+      <bpmn:incoming>Duration_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Duration_Flow_1" sourceRef="Duration_Start" targetRef="Duration_Timer" />
+    <bpmn:sequenceFlow id="Duration_Flow_2" sourceRef="Duration_Timer" targetRef="Duration_End" />
+  </bpmn:process>
+
+  <bpmn:process id="TimerCatchFeelDateTime" name="Timer Catch FEEL Date and Time" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_DateTime">
+      <bpmn:lane id="Lane_default_DateTime" name="default">
+        <bpmn:flowNodeRef>DateTime_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DateTime_Timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DateTime_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="DateTime_Start" name="Start">
+      <bpmn:outgoing>DateTime_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="DateTime_Timer" name="FEEL Date and Time Timer">
+      <bpmn:incoming>DateTime_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>DateTime_Flow_2</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDate>date and time(token.fireAt)</bpmn:timeDate>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="DateTime_End" name="Done">
+      <bpmn:incoming>DateTime_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="DateTime_Flow_1" sourceRef="DateTime_Start" targetRef="DateTime_Timer" />
+    <bpmn:sequenceFlow id="DateTime_Flow_2" sourceRef="DateTime_Timer" targetRef="DateTime_End" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Duration" bpmnElement="Participant_Duration" isHorizontal="true">
+        <dc:Bounds x="100" y="80" width="460" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Duration" bpmnElement="Lane_default_Duration" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="430" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Duration_Start" bpmnElement="Duration_Start">
+        <dc:Bounds x="162" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Duration_Timer" bpmnElement="Duration_Timer">
+        <dc:Bounds x="322" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Duration_End" bpmnElement="Duration_End">
+        <dc:Bounds x="482" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Duration_Flow_1" bpmnElement="Duration_Flow_1">
+        <di:waypoint x="198" y="150" />
+        <di:waypoint x="322" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Duration_Flow_2" bpmnElement="Duration_Flow_2">
+        <di:waypoint x="358" y="150" />
+        <di:waypoint x="482" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_DateTime" bpmnElement="Participant_DateTime" isHorizontal="true">
+        <dc:Bounds x="100" y="260" width="460" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_DateTime" bpmnElement="Lane_default_DateTime" isHorizontal="true">
+        <dc:Bounds x="130" y="260" width="430" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DateTime_Start" bpmnElement="DateTime_Start">
+        <dc:Bounds x="162" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DateTime_Timer" bpmnElement="DateTime_Timer">
+        <dc:Bounds x="322" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DateTime_End" bpmnElement="DateTime_End">
+        <dc:Bounds x="482" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_DateTime_Flow_1" bpmnElement="DateTime_Flow_1">
+        <di:waypoint x="198" y="330" />
+        <di:waypoint x="322" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DateTime_Flow_2" bpmnElement="DateTime_Flow_2">
+        <di:waypoint x="358" y="330" />
+        <di:waypoint x="482" y="330" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

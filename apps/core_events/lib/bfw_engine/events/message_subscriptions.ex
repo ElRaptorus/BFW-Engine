@@ -220,6 +220,20 @@ defmodule BfwEngine.Events.MessageSubscriptions do
     GenServer.call(__MODULE__, :mark_ready)
   end
 
+  @doc """
+  Block until `mark_ready/0` has been called, at most `timeout` milliseconds.
+
+  In-engine publishers call this so a message thrown while the engine is still
+  resuming waits for the re-registered subscriptions instead of falling
+  through to a start event. Returns `:ok` or `{:error, :timeout}`.
+  """
+  @spec await_ready(timeout()) :: :ok | {:error, :timeout}
+  def await_ready(timeout) do
+    GenServer.call(__MODULE__, :await_ready, timeout)
+  catch
+    :exit, {:timeout, _call} -> {:error, :timeout}
+  end
+
   # -------------------------------------------------------------------
   # GenServer callbacks
   # -------------------------------------------------------------------
@@ -244,7 +258,7 @@ defmodule BfwEngine.Events.MessageSubscriptions do
         write_concurrency: true
       ])
 
-    {:ok, %{table: table, index_table: index_table, ready: false}}
+    {:ok, %{table: table, index_table: index_table, ready: false, ready_waiters: []}}
   end
 
   @impl true
@@ -255,7 +269,14 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   @impl true
   def handle_call(:mark_ready, _from, state) do
     Logger.info("MessageSubscriptions: marked as ready — accepting message triggers")
-    {:reply, :ok, %{state | ready: true}}
+    Enum.each(state.ready_waiters, &GenServer.reply(&1, :ok))
+    {:reply, :ok, %{state | ready: true, ready_waiters: []}}
+  end
+
+  def handle_call(:await_ready, _from, %{ready: true} = state), do: {:reply, :ok, state}
+
+  def handle_call(:await_ready, from, state) do
+    {:noreply, %{state | ready_waiters: [from | state.ready_waiters]}}
   end
 
   # -------------------------------------------------------------------

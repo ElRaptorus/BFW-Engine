@@ -33,6 +33,12 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   @state_waiting "waiting"
   @state_finished "finished"
   @flow_node_type_end_event "end_event"
+  @structural_shell_type_property_keys [
+    "child_process_instance_id",
+    "is_transaction",
+    "is_ad_hoc",
+    "is_event_subprocess"
+  ]
 
   @doc "Persist a new process instance row."
   @impl true
@@ -66,20 +72,25 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   @impl true
   # The park runs in the PI while the handler Task may be finishing the same
   # row, so the state check and the write must be one UPDATE statement.
+  # Parking merges into the stored type_properties: markers written when the
+  # row was created (compensation handler links, shell flags) must survive the
+  # handler's own park.
   def update_flow_node_instance(id, :update_waiting, changes) do
-    FlowNodeInstance
-    |> Ash.Query.filter(id == ^id and state in [@state_active, @state_waiting])
-    |> Ash.bulk_update(:update_waiting, changes,
-      domain: @domain,
-      authorize?: false,
-      strategy: [:atomic],
-      return_records?: true,
-      return_errors?: true
-    )
-    |> case do
-      %Ash.BulkResult{status: :success, records: [_record]} -> :ok
-      %Ash.BulkResult{status: :success, records: []} -> {:error, :already_terminal}
-      %Ash.BulkResult{errors: errors} -> {:error, errors}
+    park_sql = """
+    UPDATE flow_node_instances
+    SET state = $2,
+        type_properties = COALESCE(type_properties, '{}'::jsonb) || $3::jsonb
+    WHERE id = $1 AND state IN ('active', 'waiting')
+    """
+
+    case EctoSQL.query(Repo, park_sql, [
+           dump_uuid!(id),
+           Map.get(changes, :state, @state_waiting),
+           Map.get(changes, :type_properties) || %{}
+         ]) do
+      {:ok, %{num_rows: 1}} -> :ok
+      {:ok, %{num_rows: 0}} -> {:error, :already_terminal}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -342,7 +353,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
       AND deleted = false
       AND process_instance_id IN (
         SELECT id FROM process_instances
-        WHERE state IN ('finished', 'fatal', 'aborted', 'error', 'escalated')
+        WHERE state IN ('finished', 'fatal', 'aborted', 'error', 'escalated', 'compensated', 'cancelled')
           AND deleted = false
       )
     """
@@ -378,7 +389,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
       AND parent_process_instance_id IS NOT NULL
       AND parent_process_instance_id IN (
         SELECT id FROM process_instances
-        WHERE state IN ('finished', 'fatal', 'aborted', 'error', 'escalated')
+        WHERE state IN ('finished', 'fatal', 'aborted', 'error', 'escalated', 'compensated', 'cancelled')
           AND deleted = false
       )
     """
@@ -801,11 +812,10 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
 
   defp structural_type_properties(%{flow_node_type: flow_node_type, type_properties: props})
        when flow_node_type in ["call_activity", "sub_process"] and is_map(props) do
-    child_id =
-      Map.get(props, "child_process_instance_id") ||
-        Map.get(props, :child_process_instance_id)
-
-    if child_id, do: %{"child_process_instance_id" => child_id}, else: %{}
+    props
+    |> Map.new(fn {key, value} -> {to_string(key), value} end)
+    |> Map.take(@structural_shell_type_property_keys)
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
 
   defp structural_type_properties(_record), do: %{}
@@ -883,7 +893,9 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
       type_properties: record.type_properties || %{},
       previous_flow_node_instance_ids: record.previous_flow_node_instance_ids || [],
       lane_name: record.lane_name,
-      error_info: record.error_info
+      error_info: record.error_info,
+      multi_instance_id: record.multi_instance_id,
+      iteration_index: record.iteration_index
     }
   end
 

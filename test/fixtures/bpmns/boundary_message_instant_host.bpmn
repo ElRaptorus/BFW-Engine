@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_BoundaryMessageInstantHost">
+
+  <bpmn:message id="Message_InstantHost" name="instant-host-message" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="BoundaryMessageInstantHost" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="BoundaryMessageInstantHost" name="Boundary Message Instant Host" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Script_Instant</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_After</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Boundary</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="Script_Instant" name="Instant Host" scriptFormat="feel">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:script>{ instant: true }</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:boundaryEvent id="Boundary_Message" name="Message Arrived" attachedToRef="Script_Instant" cancelActivity="true">
+      <bpmn:outgoing>Flow_Boundary</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_InstantHost" />
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="UserTask_After" name="After Host">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Boundary" name="Boundary Path">
+      <bpmn:incoming>Flow_Boundary</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Script_Instant" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Script_Instant" targetRef="UserTask_After" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="UserTask_After" targetRef="End_1" />
+    <bpmn:sequenceFlow id="Flow_Boundary" sourceRef="Boundary_Message" targetRef="End_Boundary" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="100" y="120" width="560" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="130" y="120" width="530" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Script_Instant" bpmnElement="Script_Instant">
+        <dc:Bounds x="250" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Message" bpmnElement="Boundary_Message">
+        <dc:Bounds x="282" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_After" bpmnElement="UserTask_After">
+        <dc:Bounds x="410" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="572" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Boundary" bpmnElement="End_Boundary">
+        <dc:Bounds x="282" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="250" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="350" y="200" />
+        <di:waypoint x="410" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="510" y="200" />
+        <di:waypoint x="572" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Boundary" bpmnElement="Flow_Boundary">
+        <di:waypoint x="300" y="258" />
+        <di:waypoint x="300" y="312" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

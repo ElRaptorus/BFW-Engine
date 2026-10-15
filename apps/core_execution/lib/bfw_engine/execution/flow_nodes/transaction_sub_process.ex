@@ -103,6 +103,7 @@ defmodule BfwEngine.Execution.FlowNodes.TransactionSubProcess do
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t(), String.t() | nil) ::
           {:ok, term()} | {:boundary, String.t(), term()} | {:error, term()}
   def handle_resume(flow_node, entry, context, nil) do
+    send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
     run_fresh_lifecycle(flow_node, entry, context, context.process_instance_pid)
   end
 
@@ -405,6 +406,7 @@ defmodule BfwEngine.Execution.FlowNodes.TransactionSubProcess do
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     type_data = flow_node.type_data
     child_process_instance_id = UuidV7.generate()
+    :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, start_event_id} <- validate_subprocess_contents(flow_node.id, type_data),

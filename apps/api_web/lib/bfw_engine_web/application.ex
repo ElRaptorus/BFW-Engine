@@ -15,6 +15,14 @@ defmodule BfwEngineWeb.Application do
     Supervisor.start_link(children, opts)
   end
 
+  # Applications stop in reverse start order, so this runs before the endpoint,
+  # the persistence repo, and core_execution itself go down.
+  @impl true
+  def prep_stop(state) do
+    BfwEngine.Execution.shutdown_process_instances()
+    state
+  end
+
   @impl true
   def config_change(changed, _new, removed) do
     Endpoint.config_change(changed, removed)

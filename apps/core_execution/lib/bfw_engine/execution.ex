@@ -337,6 +337,25 @@ defmodule BfwEngine.Execution do
   defp worker_pid({_id, pid, :worker, _modules}) when is_pid(pid), do: [pid]
   defp worker_pid(_other), do: []
 
+  @doc """
+  Stop every running process instance before the application tree shuts down.
+
+  Each PI receives a `:shutdown` exit, kills its handler Tasks, and leaves
+  its persisted rows untouched so the next boot resumes it. Called from the
+  web application's `prep_stop/1`, which runs before the HTTP endpoint and
+  the persistence repo stop. Returns `:ok`.
+  """
+  @spec shutdown_process_instances() :: :ok
+  def shutdown_process_instances do
+    case Supervisor.terminate_child(
+           BfwEngine.Execution.ApplicationSupervisor,
+           BfwEngine.Execution.Supervisor
+         ) do
+      :ok -> :ok
+      {:error, :not_found} -> :ok
+    end
+  end
+
   @doc "Look up a PI process by its process_instance_id."
   @spec lookup_process_instance(String.t()) :: {:ok, pid()} | {:error, :not_found}
   def lookup_process_instance(process_instance_id) do

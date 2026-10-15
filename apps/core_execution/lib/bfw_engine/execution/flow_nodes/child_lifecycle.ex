@@ -112,6 +112,9 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
       {:DOWN, ^ref, :process, ^child_pid, :normal} ->
         {:finished, aggregate_from_persistence(child_process_instance_id)}
 
+      {:DOWN, ^ref, :process, ^child_pid, :noproc} ->
+        noproc_outcome(child_pid, child_process_instance_id, extra_message_handler)
+
       {:DOWN, ^ref, :process, ^child_pid, reason} ->
         {:crashed, reason}
 
@@ -134,6 +137,68 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
         end
     end
   end
+
+  # A cancelled child is a terminal message only the extra message handler
+  # (the transaction shell) understands, so it is replayed to that handler.
+  defp noproc_outcome(child_pid, child_process_instance_id, extra_message_handler)
+       when is_function(extra_message_handler, 1) do
+    with {:ok, %{state: "cancelled"}} <-
+           PersistenceAdapter.adapter().get_process_instance_for_retry(child_process_instance_id),
+         {:handled, result} <-
+           extra_message_handler.(
+             {:child_pi_cancelled, child_pid,
+              aggregate_from_persistence(child_process_instance_id)}
+           ) do
+      result
+    else
+      _not_cancelled -> persisted_child_outcome(child_process_instance_id)
+    end
+  end
+
+  defp noproc_outcome(_child_pid, child_process_instance_id, _extra_message_handler),
+    do: persisted_child_outcome(child_process_instance_id)
+
+  @doc """
+  Maps a child PI's persisted terminal state to the tagged outcome
+  `await_child_completion/7` returns. Used when the child is no longer
+  alive to send its terminal message (it finished before it was
+  monitored). A child whose row is still `running`, or that ended
+  `cancelled`, yields `{:crashed, :noproc}`; `await_child_completion/7`
+  replays a `cancelled` child to its extra message handler first.
+  """
+  @spec persisted_child_outcome(String.t()) :: term()
+  def persisted_child_outcome(child_process_instance_id) do
+    case PersistenceAdapter.adapter().get_process_instance_for_retry(child_process_instance_id) do
+      {:ok, child_pi_data} -> child_outcome(child_pi_data, child_process_instance_id)
+      {:error, _reason} -> {:crashed, :noproc}
+    end
+  end
+
+  defp child_outcome(%{state: "finished"}, child_process_instance_id),
+    do: {:finished, aggregate_from_persistence(child_process_instance_id)}
+
+  defp child_outcome(%{state: "compensated"}, child_process_instance_id),
+    do: {:compensated, aggregate_from_persistence(child_process_instance_id)}
+
+  defp child_outcome(%{state: "fatal", error_info: error_info}, _child_process_instance_id),
+    do: {:fatal, error_info || "CHILD_FATAL"}
+
+  defp child_outcome(%{state: "error", error_info: error_info}, _child_process_instance_id),
+    do: {:bpmn_error, error_info || %{error_code: nil, error_message: nil}}
+
+  defp child_outcome(%{state: "escalated", error_info: error_info}, child_process_instance_id) do
+    {:escalation, persisted_escalation_info(error_info),
+     aggregate_from_persistence(child_process_instance_id)}
+  end
+
+  defp child_outcome(%{state: "aborted"}, _child_process_instance_id), do: :aborted
+  defp child_outcome(_child_pi_data, _child_process_instance_id), do: {:crashed, :noproc}
+
+  defp persisted_escalation_info(%{} = error_info) do
+    %{escalation_code: error_info["error_code"], escalation_name: error_info["message"]}
+  end
+
+  defp persisted_escalation_info(_error_info), do: %{escalation_code: nil, escalation_name: nil}
 
   # ===================================================================
   # §B — Result processing
@@ -395,17 +460,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
          process_instance_pid
        ) do
     {:ok, next_ids} = resolve_outgoing(flow_node, context)
-
-    escalation_info =
-      if escalation_error_info do
-        %{
-          escalation_code: escalation_error_info["error_code"],
-          escalation_name: escalation_error_info["message"]
-        }
-      else
-        %{escalation_code: nil, escalation_name: nil}
-      end
-
+    escalation_info = persisted_escalation_info(escalation_error_info)
     final_tokens = aggregate_from_persistence(child_process_instance_id)
 
     handle_child_escalation_end(
@@ -530,6 +585,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
       ) do
     set_child_notify_pid(child_pid, self())
     ref = Process.monitor(child_pid)
+    send(process_instance_pid, {:resume_settled, context.flow_node_instance_id})
 
     result =
       await_child_completion(
@@ -854,6 +910,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
 
   defp handle_child_not_found(flow_node, entry, context, child_process_instance_id, opts) do
     fresh_lifecycle_fn = Keyword.get(opts, :fresh_lifecycle_fn)
+    send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
 
     if fresh_lifecycle_fn do
       fresh_lifecycle_fn.(flow_node, entry, context, context.process_instance_pid)
@@ -894,12 +951,51 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
          adapter,
          opts
        ) do
-    handler_pid = self()
-    process_instance_pid = context.process_instance_pid
     child_label = Keyword.get(opts, :child_label, "Child process")
     extra_resume_opts = Keyword.get(opts, :extra_resume_opts, %{})
-    extra_message_handler = Keyword.get(opts, :extra_message_handler)
 
+    case start_persisted_child(
+           context,
+           child_process_instance_id,
+           child_pi_data,
+           adapter,
+           extra_resume_opts
+         ) do
+      {:ok, child_pid} ->
+        monitor_and_wait(
+          flow_node,
+          entry,
+          context,
+          child_pid,
+          child_process_instance_id,
+          context.process_instance_pid,
+          child_label,
+          Keyword.get(opts, :extra_message_handler)
+        )
+
+      {:error, _error_info} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Starts a child PI from its persisted rows (resume) with the calling
+  handler Task as its `notify_pid`. The child inherits the parent scope's
+  `root_process_instance_id`, which is not persisted. `extra_resume_opts`
+  is merged into the resume options (e.g. `subprocess_node_id`, `mode`).
+
+  Returns `{:ok, child_pid}` (also when the child is already running) or
+  `{:error, error_info}`.
+  """
+  @spec start_persisted_child(HandlerContext.t(), String.t(), map(), module(), map()) ::
+          {:ok, pid()} | {:error, map()}
+  def start_persisted_child(
+        context,
+        child_process_instance_id,
+        child_pi_data,
+        adapter,
+        extra_resume_opts
+      ) do
     with {:ok, child_fnis} <- adapter.list_all_flow_node_instances(child_process_instance_id),
          {:ok, pending_arrivals} <-
            adapter.list_gateway_pending_arrivals(child_process_instance_id) do
@@ -910,11 +1006,12 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           process_version_id: child_pi_data.process_version_id,
           business_key: child_pi_data.business_key,
           parent_process_instance_id: child_pi_data.parent_process_instance_id,
+          root_process_instance_id: context.root_process_instance_id,
           triggerer_flow_node_instance_id: child_pi_data.triggerer_flow_node_instance_id,
           started_at: child_pi_data.started_at,
           started_by: child_pi_data.started_by,
           started_with_context: child_pi_data.started_with_context,
-          notify_pid: handler_pid,
+          notify_pid: self(),
           fni_data: child_fnis,
           pending_arrivals: pending_arrivals
         }
@@ -925,28 +1022,10 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
              {ProcessInstance, child_resume_opts}
            ) do
         {:ok, child_pid} ->
-          monitor_and_wait(
-            flow_node,
-            entry,
-            context,
-            child_pid,
-            child_process_instance_id,
-            process_instance_pid,
-            child_label,
-            extra_message_handler
-          )
+          {:ok, child_pid}
 
         {:error, {:already_started, existing_pid}} ->
-          monitor_and_wait(
-            flow_node,
-            entry,
-            context,
-            existing_pid,
-            child_process_instance_id,
-            process_instance_pid,
-            child_label,
-            extra_message_handler
-          )
+          {:ok, existing_pid}
 
         {:error, reason} ->
           {:error,
@@ -963,6 +1042,32 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
            message: "Failed to load child PI data: #{inspect(reason)}"
          }}
     end
+  end
+
+  @doc """
+  Records the id of a child PI that a resumed shell spawns afresh: patches
+  the shell FNI's persisted `type_properties` and the process instance's
+  in-memory entry, so later fatal, abort, and terminate cascades reach the
+  new child instead of the id the shell carried before.
+  """
+  @spec record_fresh_child(HandlerContext.t(), String.t()) :: :ok
+  def record_fresh_child(context, child_process_instance_id) do
+    _patch_result =
+      PersistenceAdapter.adapter().patch_fni_type_properties(
+        context.flow_node_instance_id,
+        %{"child_process_instance_id" => child_process_instance_id}
+      )
+
+    send(
+      context.process_instance_pid,
+      {:fni_merge_type_properties, context.flow_node_instance_id,
+       %{
+         :child_process_instance_id => child_process_instance_id,
+         "child_process_instance_id" => child_process_instance_id
+       }}
+    )
+
+    :ok
   end
 
   @spec aggregate_from_persistence(String.t()) :: [map()]

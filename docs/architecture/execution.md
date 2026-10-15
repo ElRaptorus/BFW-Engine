@@ -693,7 +693,7 @@ Interrupted EBG-sibling FNIs (identified by `type_properties.reason == "event_ba
 
 #### Resume after engine restart
 
-Waiting catch FNIs (timer, message, signal, conditional) following an EBG are rehydrated by `ProcessInstance.Resumption` using the standard handler-specific resume logic (timer re-registration, subscription re-registration, condition re-evaluation). The EBG FNI itself is `:finished` and not re-dispatched. The first-wins semantics apply identically after resume.
+Waiting catch FNIs (timer, message, signal, conditional) following an EBG are rehydrated by `ProcessInstance.Resumption` using the standard handler-specific resume logic (timer re-registration, subscription re-registration, condition re-evaluation). The EBG FNI itself is `:finished`; it is loaded with all other rows but not re-dispatched, so `cancel_sibling_catch_flow_node_instances/2` still finds the gateway and the first-wins semantics apply identically after resume.
 
 ### Conditional Events
 
@@ -973,10 +973,11 @@ On engine restart the scope PI calls `EspScope.register_triggers/1` to re-regist
 | Child state | Resume behaviour |
 |-------------|------------------|
 | Running (found in Registry) | Re-attaches notify PID, re-monitors, completes with the child's result when it finishes |
-| Terminal (`finished`/`fatal`/`error`) | Re-derives the result / error from the child's persisted terminal state |
-| Not found | Re-runs the full lifecycle (`run_fresh_lifecycle/4`) — spawns a new child PI |
+| Persisted `running` (not in Registry) | Resumes the child from persistence (`ChildLifecycle.start_persisted_child/5`) and monitors it |
+| Terminal (`finished`/`compensated`/`fatal`/`error`/`escalated`/`aborted`) | Re-derives the result / error / escalation / abort cascade from the child's persisted terminal state (`ChildLifecycle.persisted_child_outcome/1`) |
+| Not found | Re-runs the full lifecycle (`run_fresh_lifecycle/4`) — spawns a new child PI and records its id on the shell |
 
-Already-`interrupted` siblings are not reloaded (existing resume filter). Abort/fatal/retry cascade to ESP child PIs falls out of the shared shell-FNI machinery.
+Abort/fatal/retry cascade to ESP child PIs falls out of the shared shell-FNI machinery. Which ESP triggers are re-armed on resume is described in §Resume on Startup.
 
 #### Events
 
@@ -1041,7 +1042,7 @@ The runtime calls persistence through `BfwEngine.Execution.Persistence.adapter()
 | `finish_fni_with_data_objects/3` | Atomically transition an FNI to `:finished` and persist all Data Object write intents in a single `Repo.transaction`. Called for every FNI completion (including those with zero DOAs). Returns `{:ok, %{writes: [...]}}`. |
 | `list_data_objects/1` | List current Data Object snapshots for a PI (used for resume rehydration of `data_object_cache`). |
 | `list_running_process_instances/1` | Read root-level running PIs for resume (excludes child PIs), **one page at a time**. Takes `:limit` (page size) and `:after` (opaque cursor) opts; returns `%{records: [...], next_cursor: term() \| nil}`. The cursor is opaque to the caller; for the Ash adapter it is the last row's `id` (UUID v7 monotonic, sorted ascending — natural keyset). Caller drives the pagination loop until `next_cursor: nil`. Page size defaults to `BFE_RESUME_BATCH_SIZE` (default `1000`). |
-| `list_flow_node_instances/1` | Read FNIs needed for resume of a PI: all `:active`/`:waiting` FNIs (re-dispatched / re-attached) plus `:finished` End-Event FNIs (for final-token aggregation across restarts). Other terminal FNIs are skipped — the live PI never reads their history. The finished-End-Event clause is forward-compat with non-interrupting fan-out features; it loads zero extra rows under the current feature set because no PI can produce multiple finished End-Event FNIs in a single execution today. |
+| `list_flow_node_instances/1` | Read the `:active`/`:waiting` FNIs and the `:finished` End-Event FNIs of a PI. Used to aggregate a terminal child's final tokens (`aggregate_from_persistence/1`). Resume uses `list_all_flow_node_instances/1`. |
 
 A `NoOp` adapter ships with `core_execution` for unit tests. In production, `persistence_adapter: BfwEngine.Persistence.ExecutionAdapter` is set in `config/config.exs`.
 
@@ -1089,7 +1090,7 @@ Beyond the PI/FNI lifecycle table above, `PersistenceRetry` also wraps:
 | Module | Wrapped calls | Attempts |
 |--------|---------------|----------|
 | `BoundaryOrchestrator` | `update_flow_node_instance` (boundary FNI finish) | 5 (default) |
-| `ResumeRunner` | `cleanup_orphaned_*`, `list_running_process_instances`, `list_flow_node_instances` | 3 |
+| `ResumeRunner` | `cleanup_orphaned_*`, `list_running_process_instances`, `list_all_flow_node_instances` | 3 |
 | `Execution` (retry orchestration) | `get_process_instance_for_retry`, `list_all_flow_node_instances`, `execute_retry_reset`, `revert_retry` | 3 |
 | `MessagePersistenceAdapter` | All functions (insert, find, mark, expire, update, append) | 3 |
 | `SignalPersistenceAdapter` | All functions (insert, find, mark, expire, update, append) | 3 |
@@ -1157,9 +1158,9 @@ BfwEngine.Execution.ApplicationSupervisor (one_for_one)
 └── Task (ResumeRunner.resume_all/0, one-shot)
 ```
 
-PI children use `restart: :temporary` — they are not restarted by the DynamicSupervisor on crash. Crash isolation is handled by monitoring FNI Tasks: if an FNI Task crashes, the PI catches the `:DOWN` message and transitions to `:fatal`.
+PI children use `restart: :temporary` — they are not restarted by the DynamicSupervisor on crash. Crash isolation is handled by monitoring FNI Tasks: if an FNI Task crashes, the PI catches the `:DOWN` message and transitions to `:fatal`. PIs trap exits so a supervisor shutdown runs `terminate/3`, which kills the handler Tasks and leaves the rows for resume.
 
-The `ResumeRunner` is started as a one-shot `Task` child. It pages through all PIs with `state == "running"` via `list_running_process_instances(limit: BFE_RESUME_BATCH_SIZE, after: cursor)`, loads each PI's resume-relevant FNIs, and starts each PI under the DynamicSupervisor with `resume: true`. After all batches are processed, it emits `Event.EngineStarted` and exits normally. On graceful shutdown, <code>Application.prep_stop/1</code> emits `Event.EngineShutdown`.
+The `ResumeRunner` is started as a one-shot `Task` child (see §Resume on Startup). On graceful shutdown, <code>BfwEngineWeb.Application.prep_stop/1</code> stops all PIs through `Execution.shutdown_process_instances/0`, and `core_execution`'s <code>Application.prep_stop/1</code> emits `Event.EngineShutdown`.
 
 ---
 
@@ -1204,7 +1205,7 @@ For parallel paths, the array contains one entry per End Event that completed. C
 
 When the engine crashes mid-cascade (between persisting a parent PI's terminal state and completing `fatal_all_fnis`/`abort_all_fnis`), two kinds of stale DB rows can survive:
 
-1. **Orphaned FNIs** — FNIs stuck in `active` or `waiting` state on a PI that is already terminal (`finished`, `fatal`, `aborted`)
+1. **Orphaned FNIs** — FNIs stuck in `active` or `waiting` state on a PI that is already terminal (`finished`, `fatal`, `aborted`, `error`, `escalated`, `compensated`, `cancelled`)
 2. **Orphaned child PIs** — Child PIs (with `parent_process_instance_id`) still in `running` state whose parent PI is already terminal
 
 `ResumeRunner.resume_all/0` calls `cleanup_orphans/1` **before** the paginated resume loop. This ensures a clean slate for all resumed PIs.
@@ -1237,47 +1238,75 @@ Both callbacks are implemented in `ExecutionAdapter` using raw SQL (Ash doesn't 
 
 ## Resume on Startup
 
-**Path:** `apps/core_execution/lib/bfw_engine/execution/resume_runner.ex`
+**Paths:** `apps/core_execution/lib/bfw_engine/execution/resume_runner.ex` (orchestration), `apps/core_execution/lib/bfw_engine/execution/process_instance/resumption.ex` (state rebuild and reactivation)
 
-On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the `core_execution` Application supervisor. It reads all **root-level** `running` PIs from the persistence layer (those without a `parent_process_instance_id`) and starts each under the `DynamicSupervisor` with `resume: true`. Child PIs spawned by Call Activities or Embedded SubProcesses are **not** resumed directly — their parent's Call Activity or SubProcess handler re-attaches to or re-spawns them during its own resume path. This prevents duplicate execution of child process instances.
+On engine restart, `ResumeRunner.resume_all/0` runs as a one-shot `Task` in the `peripheral_persistence` supervisor. It resumes every **root-level** `running` PI (no `parent_process_instance_id`) under the `DynamicSupervisor` with `resume: true`. Child PIs of Call Activities, embedded / transaction / ad-hoc / event subprocesses are never resumed directly: the parent's shell FNI re-attaches to them or resumes them from persistence (`ChildLifecycle.start_persisted_child/5`), which prevents duplicate child execution.
+
+### Shutdown
+
+The PI `:gen_statem` traps exits. On a `:shutdown` from its supervisor, `terminate/3` kills the handler Tasks and leaves every persisted row as it is, so the next boot resumes the instance. <code>BfwEngineWeb.Application.prep_stop/1</code> calls `Execution.shutdown_process_instances/0`, which terminates the PI `DynamicSupervisor` before the HTTP endpoint, the repo, and `core_execution` stop (applications stop in reverse start order). Unexpected `:info` messages in `:running` are logged and ignored; an `EXIT` from the PI's own `Task.Supervisor` stops the PI.
 
 ### Resume flow
 
-1. `ResumeRunner` drives a tail-recursive batch loop: calls `Persistence.adapter().list_running_process_instances(limit: batch_size, after: cursor)` repeatedly, processing one page at a time until `next_cursor: nil`. Page size is configured via `BFE_RESUME_BATCH_SIZE` (default `1000`); peak memory during resume is bounded by `batch_size × per-PI row size`. A mid-stream DB error logs the cursor and reports how many PIs were resumed before the failure.
-2. For each PI in the batch: loads FNIs via `list_flow_node_instances/1` (PF-2 scope: `:active`/`:waiting` + `:finished` End-Events only), builds resume opts map, starts PI via `DynamicSupervisor.start_child/2`.
-3. `ProcessInstance.init(%{resume: true})` rebuilds the `%State{}` from persisted data
-4. FNI rehydration per state:
+1. `cleanup_orphans/1` (see §Startup Orphan Cleanup).
+2. Batch loop over `list_running_process_instances(limit: BFE_RESUME_BATCH_SIZE, after: cursor)` until `next_cursor: nil`. A PI whose resume raises is logged and skipped; the batch continues.
+3. Per PI: `list_all_flow_node_instances/1` (every FNI, all states — the same call child resume and retry use) and `list_gateway_pending_arrivals/1`, then `DynamicSupervisor.start_child/2`.
+4. `ProcessInstance.init(%{resume: true})`:
+   - Rebuilds `flow_node_instance_states` from all rows. A `:finished` entry carries its `output_token` as token payload, every other entry its `input_token`.
+   - Rebuilds the compensation registry, compensation/cancel run state, and join routing (below), then reactivates `:active`/`:waiting` FNIs.
+   - Continues stalled compensation runs, registers ESP triggers, re-evaluates parked inclusive/complex joins, and repairs lost successor dispatches.
+   - Returns `{:next_event, :internal, :check_initial_dispatch}`, so `maybe_finish_or_continue/1` runs: a PI with nothing left to do finishes instead of idling.
+   - Emits no `ProcessInstanceStateChanged` (`nil → running` is a start event only).
+   - On a load failure (version soft-deleted or gone, model parse failure, Data Object load error, missing subprocess node) the PI row is persisted `fatal` with `error_info.error_code` `resume_failed` and a diagnostic message, so it shows up and can be retried instead of failing silently on every boot.
+5. Readiness: `ResumeRunner` calls `ProcessInstance.await_resume_settled/2` on every PI under the supervisor, repeating until no new PI appears, and only then calls `MessageSubscriptions.mark_ready/0` / `SignalSubscriptions.mark_ready/0` and emits `Event.EngineStarted`.
 
 | FNI state | Resume behaviour |
 |-----------|-----------------|
-| `:active` | Re-dispatched — handler runs from scratch with persisted `input_token`. Boundary events attached to the flow node are automatically re-spawned if they don't already have an active/waiting FNI (see `Resumption.spawn_missing_boundary_fnis/5`). |
-| `:waiting` (service task) | All Service Task FNIs are async. Registry entry `{:fni, flow_node_instance_id}` re-registered, `PluginAsyncFlowNodeRehydrated` event emitted. `handle_enter/3` is NOT re-dispatched (A7 contract). Park stores `type_properties["implementation"]` and the mapped payload in `type_properties["mapped_input"]`. `input_token` stays the token that entered the node, so a retry maps it once. Recovery is the plugin calling `facade.service_tasks.list_waiting` from `on_ready`, which returns `mapped_input` (falling back to `input_token` for rows parked before that field existed) |
-| `:waiting` (call activity) | Handler-owned resume via `CallActivity.handle_resume/4`: checks child PI state in Registry, re-monitors running children, or re-executes full lifecycle if no child exists |
-| `:waiting` (sub process) | Handler-owned resume via `SubProcess.handle_resume/4`: checks child PI state in Registry, re-monitors running children, or re-executes full lifecycle if no child exists |
-| `:waiting` (timer catch event) | Handler-owned resume via `TimerCatchEvent.handle_resume/3`: re-schedules timer if `fire_at` is in the future, or immediately completes if in the past |
-| `:waiting` (timer boundary event) | Handler-owned resume via `TimerBoundaryEvent.handle_resume/3`: re-schedules timer if `fire_at` is in the future, or immediately fires boundary result if in the past |
-| `:waiting` (user/manual) | Stays in `:waiting` — no re-dispatch, pending tasks remain available |
-| `:finished` (End Event) | Loaded into `flow_node_instance_states` so `build_final_tokens/1` can aggregate the `[FinalToken]` array correctly across restarts |
-| `:finished` (non-End-Event), `:fatal`, `:aborted`, `:interrupted` | Not loaded — see `list_flow_node_instances/1` callback contract above |
+| `:active` | Re-dispatched — handler runs from scratch with the persisted `input_token`. Missing subscription boundaries are re-spawned (`spawn_missing_boundary_fnis/5`). |
+| `:waiting` (service task) | Registry entry `{:fni, id}` re-registered, `PluginAsyncFlowNodeRehydrated` emitted; `handle_enter/3` is not re-run. The plugin recovers through `facade.service_tasks.list_waiting` (returns `type_properties["mapped_input"]`, falling back to `input_token`). |
+| `:waiting` (CA / subprocess / ESP shell) | `handle_resume/4` of the shell's handler: re-attach a live child, resume a persisted `running` child, re-derive the outcome of a terminal child, or run a fresh lifecycle when no child row exists. A child spawned afresh is recorded on the shell (`ChildLifecycle.record_fresh_child/2`). An `:active` shell with a child is first parked `:waiting`, merging into its stored `type_properties`. |
+| `:waiting` (timer catch / boundary / start) | `handle_resume/3` re-arms with the persisted `fire_at`, or fires at once when it is past. |
+| `:waiting` (message / signal catch, boundary, receive task) | `handle_resume/3` re-registers the subscription and reports `{:resume_settled, id}`. |
+| `:waiting` (error / escalation / cancel / compensation boundary) | Kept in memory only; the PI resolves these passive boundaries itself (no Registry entry, no rehydration event). |
+| `:waiting` (user / manual task) | Unchanged; the inbox task stays available. |
+| `:waiting` (MI / Standard Loop shell) | `handle_resume/3` re-attaches live iterations through `{:mi_reattach_iterations, shell_id}`; finished iterations (loaded with their output) are counted, not re-run. |
+| terminal | Loaded, not reactivated. Feeds the compensation registry, EBG first-wins, MI snapshots, join previous-ids, and the lost-successor repair. |
 
-**Cap is intentionally bypassed at resume.** `BFE_MAX_CONCURRENT_PIS` enforces a soft client-side pre-check inside `Execution.start_process_instance/1` (the public-API entry point), NOT on the underlying `DynamicSupervisor` (which runs with `max_children: :infinity`). `ResumeRunner` calls `DynamicSupervisor.start_child/2` directly, so resume always brings every `:running` PI back online — regardless of how many slots the cap permits. Once resume completes, the cap immediately starts rejecting new starts via REST and the plugin facade until enough PIs terminate to bring the active count back below the limit. If a finite cap is configured and `count_active() > limit` after `resume_all/0`, `ResumeRunner` publishes `%Event.EngineOverloaded{}` (same shape as the telemetry poller) so operators see the oversubscription; remaining resumes are never refused. This is a deliberate v1 design choice: a PI tree (parent Call Activity / SubProcess / Transaction / Ad-hoc shells plus children) must come back as a whole; applying the cap mid-resume would leave a parent running and a child unresumed (or the reverse). Predictable resume is more valuable than strict cap enforcement during the transient boot window. See [`Execution.start_process_instance/1`](../../apps/core_execution/lib/bfw_engine/execution.ex) and the `I_cap` integration test in [test/integration/execution/resume_test.exs](../../test/integration/execution/resume_test.exs).
+**Rebuilt run state.**
 
-5. Emits `ProcessInstanceStateChanged{old_state: nil, new_state: :running}`
-6. After all PIs resume, emits `Event.EngineStarted`
+| State | Rebuilt from |
+|-------|--------------|
+| `compensation_registry` | `:finished` FNIs whose node has a compensation boundary; `token_snapshot` is the output token, order by `started_at`. |
+| `compensation_runs` (throw / end) | A `:waiting` throw or end FNI with `compensation_run`: targets = `CompensationResolver.resolve/2` for its event definition, minus targets whose handler FNI (`compensation_throw_fni_id`, `compensation_for`) finished, in-flight target first. Delegated runs (`delegated_to_esp`) map back to the Compensation ESP (`compensation_esp_throw_map`). |
+| cancel run | A `:finished` Cancel End Event: the LIFO registry minus finished handlers; completing it sets `cancel_reached`. |
+| `compensation_end_reached` | A `:finished` Compensate End Event. |
+| stalled runs | `Resumption.stalled_compensation_runs/1` lists runs with no live handler and no live ESP shell; `CompensationOrchestrator.resume_run/3` dispatches the next handler or completes the run. |
+| ESP triggers | `EspScope.register_triggers/1` anchors timers at scope activation (`started_at`). An existing interrupting ESP shell disarms every trigger; a fired non-interrupting date/duration timer stays disarmed; a fired cycle re-arms one interval after its latest fire; a fired conditional start waits for the next `false → true` edge. |
+| ad-hoc options | The shell passes `adhoc_completion_condition`, `cancel_remaining_instances`, `ordering`, and natural drain (engine-managed, no completion condition — the same rule as first entry) in the resume opts. |
+| `root_process_instance_id` | Not persisted; a resumed child inherits the parent context's root through `start_persisted_child/5`. |
+
+**Lost successor repair (decision D-1 = A).** A handler persists its FNI `finished` before the PI creates the successor rows. When a resumed PI has no `:active`/`:waiting` FNI, `Resumption.lost_successor_dispatches/2` re-dispatches from the output token of every `:finished` FNI that is not an End Event, not an MI iteration, and that no sequence-flow successor names in `previous_flow_node_instance_ids` (boundary, iteration, and compensation-handler rows do not count as successors). Exclusive, Inclusive, and Complex splits and Link Throw Events re-run their handler to recompute the route; the guarded finish write turns that into a read. Other nodes follow `SequenceFlowResolver`. Nothing is re-dispatched after a Terminate, Error, Escalation, or Cancel End Event. Limits: only a PI with zero live FNIs is repaired (a lost token beside a live branch, or a host whose boundary FNIs are still waiting, is not); a token a fired join absorbed as straggler or duplicate is indistinguishable from a lost one and is re-dispatched into a new join FNI.
+
+**Readiness.** `MessageSubscriptions.ready?/0` gates REST and plugin triggers. Resume tasks that register a message/signal subscription or re-attach a child (CA / subprocess shells, receive tasks, message/signal catch and boundary events, MI shells) are tracked in `resume_pending` and report `{:resume_settled, fni_id}`; `await_resume_settled/2` answers when none is left (30 s timeout per PI, logged). In-engine publishers (`MessagePublisher.publish_message/1`, `SignalPublisher.publish_signal/1`) call `await_ready/1` (30 s), so a throw during resume waits for the re-registered catchers instead of falling through to a start event. Re-entered `:active` FNIs are not tracked, so a re-run throw cannot deadlock readiness.
+
+**Cap is intentionally bypassed at resume.** `BFE_MAX_CONCURRENT_PIS` is a soft pre-check inside `Execution.start_process_instance/1`, not a `DynamicSupervisor` limit. `ResumeRunner` calls `DynamicSupervisor.start_child/2` directly, so every `running` PI tree comes back whole; afterwards the cap rejects new starts until the count drops. If `count_active() > limit` after `resume_all/0`, `ResumeRunner` publishes `%Event.EngineOverloaded{}`. See the `I_cap` test in [test/integration/execution/resume_test.exs](../../test/integration/execution/resume_test.exs).
 
 ### Key constraints
 
-- No `persist_pi_create` call (PI already exists in DB)
-- No `resolve_start_event` (resume does not re-enter from start)
-- The `identity` field uses `started_by` from persistence (converted back to `%Identity{}`)
-- `type_properties` may have string keys (from DB), so all async detection checks both `:async` and `"async"` keys
+- No `persist_pi_create` and no `resolve_start_event` on resume.
+- `identity` is rebuilt from `started_by`.
+- `type_properties` from the DB have string keys; checks read both `:key` and `"key"`.
+- Parking (`update_waiting`) merges into the stored `type_properties` (jsonb `||`), so markers written at creation (compensation handler links, shell flags such as `is_transaction` / `is_ad_hoc`) survive the handler's own park and later resumes.
+- Re-running `:active` FNIs can repeat side effects of handlers that act before their finish write (throw-side publishes, named scripts, service-task plugin calls).
 
 ### Persistence callbacks for resume
 
 | Callback | Purpose |
 |----------|---------|
-| `list_running_process_instances/0` | Returns root-level PIs with `state = "running"` (excludes child PIs) |
-| `list_flow_node_instances/1` | Returns all FNIs for a given PI |
+| `list_running_process_instances/1` | Root-level PIs with `state = "running"`, paginated |
+| `list_all_flow_node_instances/1` | Every FNI of a PI (all states), including `multi_instance_id` / `iteration_index` |
+| `list_gateway_pending_arrivals/1` | Join arrivals for `rebuild_join_routing/2` |
+| `patch_fni_type_properties/2` | Merge a patch into one FNI's `type_properties` (fresh child id on resume, retry reconciliation) |
 
 ### Persistence callbacks for retry
 
@@ -1425,7 +1454,7 @@ Descendant reset is depth-first: for each reset PI, all Call Activity FNIs with 
 | Event | When |
 |-------|------|
 | `Event.ProcessInstanceRetried` | After resume from root succeeds (gen_statem started). Fields: `processInstanceId` (root), `targetProcessInstanceId` (user-targeted), `processModelId`, `version`, `previousState`, `previousVersion`, `newVersion`, `resetToFlowNodeInstanceId`, `retriedBy` |
-| `Event.ProcessInstanceStateChanged` | Emitted by the gen_statem itself during resume (old_state → new_state transitions) |
+| `Event.ProcessInstanceStateChanged` | Emitted by the gen_statem for the state transitions it makes after the retry resume (resume itself publishes no `nil → running`) |
 | `[:bfw_engine, :process_instance, :retried]` | Telemetry event for metrics/counters |
 
 ### Engine lifecycle events
@@ -2178,12 +2207,7 @@ Existing FNI events (`FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `Flo
 
 ### Resumption
 
-On engine restart, MI shell FNIs are reactivated specially by `Resumption.reactivate_mi_shell_fni/4`:
-
-1. Any previously active/waiting iteration FNIs are marked as `:interrupted` (their in-memory tasks are gone).
-2. The shell FNI itself is reactivated, re-evaluating its collection and re-dispatching iterations from scratch.
-
-This effectively retries the MI as a whole upon resume, which is the simplest correct strategy.
+On engine restart, iteration rows are loaded with their `multi_instance_id` / `iteration_index`. Waiting iterations are reactivated like any waiting FNI, active iterations re-run their handler. The shell is reactivated by `Resumption.reactivate_mi_shell_fni/4`, whose `handle_resume/3` calls `{:mi_reattach_iterations, shell_id}`: the PI routes live iterations back to the shell Task and returns a snapshot (`live_count`, the output payloads of finished iterations, occupied indices). Finished iterations are not re-run. A sequential shell continues with the indices that have no row; a parallel shell waits for its live iterations and finishes with the collected outputs (it does not dispatch indices whose rows were never created). A shell with no iteration row starts over through `handle_enter/3`.
 
 ### Retry
 

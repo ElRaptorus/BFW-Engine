@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_ResumeEventBasedGateway">
+
+  <bpmn:message id="Msg_A" name="resume-ebg-a" />
+  <bpmn:message id="Msg_B" name="resume-ebg-b" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="ResumeEventBasedGateway" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ResumeEventBasedGateway" name="Resume Event-Based Gateway" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_EBG</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Catch_B</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_B</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:eventBasedGateway id="Gateway_EBG" name="Which message?">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A</bpmn:outgoing>
+      <bpmn:outgoing>Flow_B</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:intermediateCatchEvent id="Catch_A" name="Message A">
+      <bpmn:incoming>Flow_A</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_End</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_A" />
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:intermediateCatchEvent id="Catch_B" name="Message B">
+      <bpmn:incoming>Flow_B</bpmn:incoming>
+      <bpmn:outgoing>Flow_B_End</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_B" />
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:endEvent id="End_A" name="A Received">
+      <bpmn:incoming>Flow_A_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_B" name="B Received">
+      <bpmn:incoming>Flow_B_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Gateway_EBG" />
+    <bpmn:sequenceFlow id="Flow_A" sourceRef="Gateway_EBG" targetRef="Catch_A" />
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="Gateway_EBG" targetRef="Catch_B" />
+    <bpmn:sequenceFlow id="Flow_A_End" sourceRef="Catch_A" targetRef="End_A" />
+    <bpmn:sequenceFlow id="Flow_B_End" sourceRef="Catch_B" targetRef="End_B" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="600" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="570" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="182" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_EBG" bpmnElement="Gateway_EBG">
+        <dc:Bounds x="285" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_A" bpmnElement="Catch_A">
+        <dc:Bounds x="432" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Catch_B" bpmnElement="Catch_B">
+        <dc:Bounds x="432" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_A" bpmnElement="End_A">
+        <dc:Bounds x="592" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_B" bpmnElement="End_B">
+        <dc:Bounds x="592" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="218" y="200" />
+        <di:waypoint x="285" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A" bpmnElement="Flow_A">
+        <di:waypoint x="310" y="175" />
+        <di:waypoint x="310" y="150" />
+        <di:waypoint x="432" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B" bpmnElement="Flow_B">
+        <di:waypoint x="310" y="225" />
+        <di:waypoint x="310" y="270" />
+        <di:waypoint x="432" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A_End" bpmnElement="Flow_A_End">
+        <di:waypoint x="468" y="150" />
+        <di:waypoint x="592" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B_End" bpmnElement="Flow_B_End">
+        <di:waypoint x="468" y="270" />
+        <di:waypoint x="592" y="270" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

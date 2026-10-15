@@ -91,6 +91,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
   """
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t(), String.t() | nil) :: term()
   def handle_resume(flow_node, entry, context, nil) do
+    send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
     run_fresh_lifecycle_from_entry(flow_node, entry, context, context.process_instance_pid)
   end
 
@@ -114,13 +115,23 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
           context,
           child_process_instance_id,
           child_label: @child_label,
-          extra_resume_opts: %{
-            subprocess_node_id: flow_node.id,
-            mode: AdHocMode
-          },
+          extra_resume_opts: adhoc_resume_opts(flow_node),
           fresh_lifecycle_fn: &run_fresh_lifecycle_from_entry/4
         )
     end
+  end
+
+  defp adhoc_resume_opts(%FlowNode{id: subprocess_node_id, type_data: type_data}) do
+    %{
+      subprocess_node_id: subprocess_node_id,
+      mode: AdHocMode,
+      adhoc_completion_condition: type_data.adhoc_completion_condition,
+      adhoc_completion_condition_compiled: type_data.adhoc_completion_condition_compiled,
+      adhoc_cancel_remaining_instances: type_data.cancel_remaining_instances,
+      adhoc_ordering: type_data.adhoc_ordering,
+      adhoc_natural_drain_enabled:
+        type_data.implementation == nil and type_data.adhoc_completion_condition == nil
+    }
   end
 
   @impl BfwEngine.Execution.FlowNodeHandler
@@ -461,6 +472,7 @@ defmodule BfwEngine.Execution.FlowNodes.AdHocSubProcess do
   defp run_fresh_lifecycle_from_entry(flow_node, entry, context, _process_instance_pid) do
     type_data = flow_node.type_data
     child_process_instance_id = UuidV7.generate()
+    :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          :ok <- validate_adhoc_contents(flow_node.id, type_data),

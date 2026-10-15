@@ -105,7 +105,9 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
           task_supervisor: pid() | nil,
           bpmn_error_info: map() | nil,
           escalation_info: escalation_info() | nil,
-          event_based_gateway_deferred_dispatch: map() | nil
+          event_based_gateway_deferred_dispatch: map() | nil,
+          resume_pending: MapSet.t(String.t()),
+          resume_waiters: [:gen_statem.from()]
         }
 
   @enforce_keys [:process_instance_id, :process_version_id]
@@ -145,6 +147,8 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
     task_supervisor: nil,
     bpmn_error_info: nil,
     escalation_info: nil,
-    event_based_gateway_deferred_dispatch: nil
+    event_based_gateway_deferred_dispatch: nil,
+    resume_pending: MapSet.new(),
+    resume_waiters: []
   ]
 end

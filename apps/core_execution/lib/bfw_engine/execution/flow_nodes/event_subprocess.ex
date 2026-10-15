@@ -56,6 +56,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   alias BfwEngine.Execution.EventSubprocessResolver
   alias BfwEngine.Execution.EventSubprocessTrigger
   alias BfwEngine.Execution.FlowNodeResult
+  alias BfwEngine.Execution.FlowNodes.ChildLifecycle
   alias BfwEngine.Execution.FlowNodes.MessageEventHelper
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
@@ -132,6 +133,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
           | :abort_cascade
           | {:error, term()}
   def handle_resume(flow_node, entry, context, nil) do
+    send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
     run_fresh_lifecycle(flow_node, entry, context, context.process_instance_pid)
   end
 
@@ -334,6 +336,9 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
       {:DOWN, ^ref, :process, ^child_pid, :normal} ->
         {:finished, aggregate_from_persistence(child_process_instance_id)}
+
+      {:DOWN, ^ref, :process, ^child_pid, :noproc} ->
+        ChildLifecycle.persisted_child_outcome(child_process_instance_id)
 
       {:DOWN, ^ref, :process, ^child_pid, reason} ->
         {:crashed, reason}
@@ -544,6 +549,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
        ) do
     set_child_notify_pid(child_pid, self())
     ref = Process.monitor(child_pid)
+    send(process_instance_pid, {:resume_settled, context.flow_node_instance_id})
 
     result =
       await_child_completion(
@@ -562,16 +568,14 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
     adapter = PersistenceAdapter.adapter()
 
     case adapter.get_process_instance_for_retry(child_process_instance_id) do
-      {:ok, %{state: "finished"}} ->
-        final_tokens = aggregate_from_persistence(child_process_instance_id)
-        finish_shell(flow_node, context, final_tokens, child_process_instance_id)
-
-      {:ok, %{state: "compensated"}} ->
-        final_tokens = aggregate_from_persistence(child_process_instance_id)
-        finish_shell(flow_node, context, final_tokens, child_process_instance_id)
-
-      {:ok, %{state: "fatal", error_info: error_info}} ->
-        handle_child_error(flow_node, context, normalize_error(error_info || "CHILD_FATAL"))
+      {:ok, %{state: "running"} = child_pi_data} ->
+        resume_persisted_child(
+          flow_node,
+          context,
+          child_process_instance_id,
+          child_pi_data,
+          adapter
+        )
 
       {:ok, %{state: "error", error_info: error_info}} ->
         handle_child_bpmn_error(
@@ -581,8 +585,41 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
           child_process_instance_id
         )
 
-      _ ->
+      {:ok, _terminal_child} ->
+        outcome = ChildLifecycle.persisted_child_outcome(child_process_instance_id)
+        handle_resume_result(flow_node, context, outcome, child_process_instance_id)
+
+      {:error, :not_found} ->
+        send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
         run_fresh_lifecycle(flow_node, entry, context, context.process_instance_pid)
+    end
+  end
+
+  defp resume_persisted_child(
+         flow_node,
+         context,
+         child_process_instance_id,
+         child_pi_data,
+         adapter
+       ) do
+    case ChildLifecycle.start_persisted_child(
+           context,
+           child_process_instance_id,
+           child_pi_data,
+           adapter,
+           %{subprocess_node_id: flow_node.id}
+         ) do
+      {:ok, child_pid} ->
+        monitor_and_wait(
+          flow_node,
+          context,
+          child_pid,
+          child_process_instance_id,
+          context.process_instance_pid
+        )
+
+      {:error, error_info} ->
+        {:error, error_info}
     end
   end
 
@@ -617,6 +654,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   defp run_fresh_lifecycle(flow_node, entry, context, process_instance_pid) do
     with {:ok, start_event_id} <- resolve_esp_start_event(flow_node.type_data) do
       child_process_instance_id = UuidV7.generate()
+      :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
       run_child_lifecycle(
         flow_node,
@@ -720,26 +758,68 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   @doc """
   Register dormant triggers for all ESP shells declared in the scope
-  model. Called from fresh `init` and from `Resumption.resume`.
+  model. Called from fresh `init` and from resume `init`.
+
+  Timers are anchored at scope activation (`started_at`), so a resumed
+  scope keeps the original deadline. On resume, the ESP shell FNIs already
+  in the scope decide what is re-armed: after an interrupting ESP fired,
+  nothing is; a non-interrupting date/duration timer that fired stays
+  disarmed; a fired cycle re-arms one interval after its latest fire; a
+  fired conditional start waits for the next `false → true` edge.
   """
   @spec register_triggers(State.t()) :: State.t()
   def register_triggers(data) do
-    (data.process_model.flow_nodes || [])
-    |> Enum.filter(&event_subprocess_shell?/1)
-    |> Enum.reduce(data, fn esp_node, accumulator ->
-      case build_trigger(accumulator, esp_node) do
+    esp_nodes = Enum.filter(data.process_model.flow_nodes || [], &event_subprocess_shell?/1)
+    fired_shell_times = fired_shell_times(data)
+
+    scope_interrupted? =
+      Enum.any?(esp_nodes, fn esp_node ->
+        Map.has_key?(fired_shell_times, esp_node.id) and interrupting_event_subprocess?(esp_node)
+      end)
+
+    Enum.reduce(esp_nodes, data, fn esp_node, accumulator ->
+      fired_times = Map.get(fired_shell_times, esp_node.id, [])
+
+      case build_trigger(accumulator, esp_node, fired_times, scope_interrupted?) do
         {:ok, trigger} ->
           accumulator = put_in(accumulator.event_subprocess_triggers[esp_node.id], trigger)
 
-          put_in(
-            accumulator.event_subprocess_kinds[esp_node.id],
-            {trigger.trigger_kind, trigger.is_interrupting}
+          put_trigger_kind(
+            accumulator,
+            esp_node.id,
+            trigger.trigger_kind,
+            trigger.is_interrupting
           )
+
+        {:dormant, trigger_kind, is_interrupting} ->
+          put_trigger_kind(accumulator, esp_node.id, trigger_kind, is_interrupting)
 
         :skip ->
           accumulator
       end
     end)
+  end
+
+  defp put_trigger_kind(data, subprocess_node_id, trigger_kind, is_interrupting) do
+    put_in(data.event_subprocess_kinds[subprocess_node_id], {trigger_kind, is_interrupting})
+  end
+
+  defp fired_shell_times(data) do
+    data.flow_node_instance_states
+    |> Map.values()
+    |> Enum.filter(&(&1.flow_node_type == :sub_process))
+    |> Enum.group_by(& &1.flow_node_id, & &1.token.created_at)
+  end
+
+  defp interrupting_event_subprocess?(esp_node) do
+    case esp_start_event_node(esp_node) do
+      {:ok, start_event} ->
+        esp_start_interrupting?(start_event) or
+          match?(%EventDefinition.Compensation{}, start_event.type_data.event_definition)
+
+      :error ->
+        false
+    end
   end
 
   @doc """
@@ -960,12 +1040,49 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   defp event_subprocess_shell?(_flow_node), do: false
 
-  defp build_trigger(data, esp_node) do
-    case esp_start_event_node(esp_node) do
-      {:ok, start_event} -> register_trigger_source(data, esp_node, start_event)
-      :error -> :skip
+  defp build_trigger(data, esp_node, fired_times, scope_interrupted?) do
+    with {:ok, start_event} <- esp_start_event_node(esp_node),
+         trigger_kind when trigger_kind != nil <-
+           start_trigger_kind(start_event.type_data.event_definition) do
+      is_interrupting = interrupting_event_subprocess?(esp_node)
+
+      if scope_interrupted? or one_shot_timer_fired?(start_event, fired_times) do
+        {:dormant, trigger_kind, is_interrupting}
+      else
+        data
+        |> register_trigger_source(esp_node, start_event, fired_times)
+        |> resume_condition_edge(fired_times)
+      end
+    else
+      _not_buildable -> :skip
     end
   end
+
+  defp start_trigger_kind(%EventDefinition.Message{}), do: :message
+  defp start_trigger_kind(%EventDefinition.Signal{}), do: :signal
+  defp start_trigger_kind(%EventDefinition.Timer{}), do: :timer
+  defp start_trigger_kind(%EventDefinition.Error{}), do: :error
+  defp start_trigger_kind(%EventDefinition.Escalation{}), do: :escalation
+  defp start_trigger_kind(%EventDefinition.Conditional{}), do: :conditional
+  defp start_trigger_kind(%EventDefinition.Compensation{}), do: :compensation
+  defp start_trigger_kind(_event_definition), do: nil
+
+  defp one_shot_timer_fired?(_start_event, []), do: false
+
+  defp one_shot_timer_fired?(%FlowNode{type_data: %{event_definition: definition}}, _fired_times) do
+    match?(%EventDefinition.Timer{}, definition) and definition.time_cycle in [nil, ""]
+  end
+
+  defp resume_condition_edge(
+         {:ok, %EventSubprocessTrigger{trigger_kind: :conditional} = trigger},
+         [
+           _fired | _
+         ]
+       ) do
+    {:ok, %{trigger | last_condition_value: true}}
+  end
+
+  defp resume_condition_edge(result, _fired_times), do: result
 
   defp esp_start_event_node(%FlowNode{type_data: %FlowNodeData.SubProcess{flow_nodes: nodes}}) do
     case Enum.filter(nodes || [], &(&1.type == :start_event)) do
@@ -976,7 +1093,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   defp esp_start_event_node(_esp_node), do: :error
 
-  defp register_trigger_source(data, esp_node, start_event) do
+  defp register_trigger_source(data, esp_node, start_event, fired_times) do
     base = %EventSubprocessTrigger{
       subprocess_node_id: esp_node.id,
       start_event_id: start_event.id,
@@ -994,7 +1111,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
         register_signal_trigger(data, base, signal_definition)
 
       %EventDefinition.Timer{} = timer_definition ->
-        register_timer_trigger(base, timer_definition)
+        register_timer_trigger(base, timer_definition, timer_reference_time(data, fired_times))
 
       %EventDefinition.Error{} = error_definition ->
         {:ok,
@@ -1109,8 +1226,14 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   defp resolve_signal_name(_data, _signal_definition), do: :error
 
-  defp register_timer_trigger(base, timer_definition) do
-    case timer_fire_at(timer_definition, DateTime.utc_now()) do
+  defp timer_reference_time(data, []),
+    do: {:scope_activation, data.started_at || DateTime.utc_now()}
+
+  defp timer_reference_time(_data, fired_times),
+    do: {:last_cycle_fire, Enum.max(fired_times, DateTime)}
+
+  defp register_timer_trigger(base, timer_definition, reference_time) do
+    case timer_fire_at(timer_definition, reference_time) do
       {:ok, fire_at} ->
         {:ok, timer_ref} =
           Scheduler.schedule(%{
@@ -1133,7 +1256,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   # §B private: timer helpers
   # -------------------------------------------------------------------
 
-  defp timer_fire_at(%EventDefinition.Timer{time_date: date}, reference_time)
+  defp timer_fire_at(%EventDefinition.Timer{time_date: date}, {_anchor, reference_time})
        when is_binary(date) and date != "" do
     case ISO8601.resolve_fire_at(:date, date, reference_time) do
       {:ok, %DateTime{} = fire_at} -> {:ok, fire_at}
@@ -1141,7 +1264,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
     end
   end
 
-  defp timer_fire_at(%EventDefinition.Timer{time_duration: duration}, reference_time)
+  defp timer_fire_at(%EventDefinition.Timer{time_duration: duration}, {_anchor, reference_time})
        when is_binary(duration) and duration != "" do
     case ISO8601.resolve_fire_at(:duration, duration, reference_time) do
       {:ok, %DateTime{} = fire_at} -> {:ok, fire_at}
@@ -1149,15 +1272,21 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
     end
   end
 
-  defp timer_fire_at(%EventDefinition.Timer{time_cycle: cycle}, reference_time)
+  defp timer_fire_at(%EventDefinition.Timer{time_cycle: cycle}, {anchor, reference_time})
        when is_binary(cycle) and cycle != "" do
     case ISO8601.resolve_fire_at(:cycle, cycle, reference_time) do
-      {:ok, {:cycle, cycle_spec}} -> {:ok, ISO8601.first_fire_at(cycle_spec, reference_time)}
+      {:ok, {:cycle, cycle_spec}} -> {:ok, next_cycle_fire_at(anchor, cycle_spec, reference_time)}
       _ -> :error
     end
   end
 
   defp timer_fire_at(_timer_definition, _reference_time), do: :error
+
+  defp next_cycle_fire_at(:scope_activation, cycle_spec, reference_time),
+    do: ISO8601.first_fire_at(cycle_spec, reference_time)
+
+  defp next_cycle_fire_at(:last_cycle_fire, cycle_spec, reference_time),
+    do: DateTime.shift(reference_time, cycle_spec.interval_duration)
 
   defp do_rearm_cycle_timer(data, subprocess_node_id, trigger, cycle) do
     now = DateTime.utc_now()

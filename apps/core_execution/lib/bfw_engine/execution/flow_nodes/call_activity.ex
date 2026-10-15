@@ -74,6 +74,7 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t(), String.t() | nil) ::
           {:ok, term()} | {:boundary, String.t(), term()} | {:error, term()}
   def handle_resume(flow_node, entry, context, nil) do
+    send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
     run_fresh_lifecycle(flow_node, entry, context, context.process_instance_pid)
   end
 
@@ -216,6 +217,7 @@ defmodule BfwEngine.Execution.FlowNodes.CallActivity do
   defp run_fresh_lifecycle(flow_node, entry, context, _process_instance_pid) do
     process_instance_pid = context.process_instance_pid
     child_process_instance_id = UuidV7.generate()
+    :ok = ChildLifecycle.record_fresh_child(context, child_process_instance_id)
 
     with {:ok, next_ids} <- ChildLifecycle.resolve_outgoing(flow_node, context),
          {:ok, resolved} <- resolve_called_version(flow_node),

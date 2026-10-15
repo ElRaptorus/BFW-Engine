@@ -108,6 +108,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageCatchEvent do
           lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
+      send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
       wait_for_message(flow_node, context, event_definition, subscription_id)
     end
   end

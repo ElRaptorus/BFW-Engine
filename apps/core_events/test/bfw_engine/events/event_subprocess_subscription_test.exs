@@ -30,6 +30,8 @@ defmodule BfwEngine.Events.EventSubprocessSubscriptionTest do
 
     ServiceReset.message_subscriptions()
     ServiceReset.signal_subscriptions()
+    MessageSubscriptions.mark_ready()
+    SignalSubscriptions.mark_ready()
     :ok
   end
 

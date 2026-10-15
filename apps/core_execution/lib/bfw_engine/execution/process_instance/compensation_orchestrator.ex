@@ -199,6 +199,15 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
     end
   end
 
+  @doc """
+  Continue a run rebuilt on resume that has no live handler: dispatch the
+  handler at the cursor, or complete the run when no target is left.
+  """
+  @spec resume_run(map(), String.t(), runtime()) :: map()
+  def resume_run(data, throw_fni_id, runtime) do
+    dispatch_next_handler(data, throw_fni_id, runtime)
+  end
+
   @spec dispatch_next_handler(map(), String.t(), runtime()) :: map()
   defp dispatch_next_handler(data, throw_fni_id, runtime) do
     run = Map.fetch!(data.compensation_runs, throw_fni_id)

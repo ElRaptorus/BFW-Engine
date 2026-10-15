@@ -89,6 +89,8 @@ defmodule BfwEngine.Execution.FlowNodes.SignalBoundaryEvent do
           lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
+      send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
+
       if cancel_activity do
         wait_for_signal_once(flow_node, context, subscription_id, resume_payload)
       else
