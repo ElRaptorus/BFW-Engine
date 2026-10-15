@@ -9,7 +9,7 @@ Messages are named payloads declared at the BPMN definitions level and reference
 1. Writes an audit row to the `messages` table
 2. Looks up active subscriptions registered for that `(name, correlation_value)`
 3. Delivers the payload to each matching catch-side waiter
-4. If no subscription matched, checks for deployed Message Start Events with the same name
+4. If no subscription matched, starts one process instance per enabled process whose latest version has a Message Start Event with the same name (older versions never start instances)
 5. If still unmatched, holds the message in `pending_messages` until TTL expires or a late subscriber registers
 
 This model supports order-tracking workflows, payment confirmations, hand-offs between processes, and external system integration without tight coupling.

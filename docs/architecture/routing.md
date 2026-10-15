@@ -34,8 +34,10 @@ A published message `(name, payload, correlation_value)` flows through
 2. Look up the subscription registry with `(name, correlation_value)`. Collect **every** matching subscription (broadcast-within-key — serial-letter semantics).
 3. For each matching subscription, send a typed `%Event.MessageArrived{}` to the owning PI's `:gen_statem` via its registered pid; the PI dispatches to the target FNI through its internal catch registry (see [execution.md](./execution.md)).
 4. Record the delivery on `messages.correlations` as `[{process_instance_id, flow_node_instance_id}]` — one entry per delivery.
-5. **Catch-wins-over-Start rule**: if step 2 yielded **zero** matching subscriptions **and** any deployed non-deleted process version (i.e. `process_versions.deleted=false`) has a Message Start Event with matching `name`, start one new PI per such process (each seeding its own correlation value via §3.5.2). If step 2 yielded at least one match, Message Start Events are **not** triggered for this publish — the message is considered consumed by the subscription(s).
-6. If step 2 yielded zero matching subscriptions **and** no deployed process has a Message Start Event with matching `name`, move to §3.5.4.
+5. **Catch-wins-over-Start rule**: if step 2 yielded **zero** matching subscriptions, start new PIs from matching Message Start Events under the start discovery rule below (each seeding its own correlation value via §3.5.2). If step 2 yielded at least one match, Message Start Events are **not** triggered for this publish — the message is considered consumed by the subscription(s).
+6. If step 2 yielded zero matching subscriptions **and** start discovery started no PI, move to §3.5.4.
+
+**Start discovery rule.** A message start, a signal start (§3.5.6), and a cycle timer start fire (see [timers.md](./timers.md)) create **at most one PI per enabled process**, on that process's **latest live version** (newest `deployed_at` among enabled, non-deleted versions, resolved by `CalledElementResolver.resolve_latest_version/1`), and only if that version itself has the matching start event. An older version that still has the start event never starts a PI; a process whose latest live version dropped the start event starts nothing. The filter lives in `BfwEngine.Execution.StartEventDiscovery` (`latest_live_starts/1` for message and signal candidates from the `ModelCache` start-event index, `latest_live_version?/2` for cycle fires). The index is warmed at boot from the latest version of every process (`BfwEngine.Persistence.Application.warm_start_event_index/0`, before `ResumeRunner` opens the subscription registries), and soft-deleting a version fetches the new latest version into `ModelCache`. Stale index entries for older versions are harmless because the filter drops them.
 
 **Event Subprocess Message Start interaction.** An ESP Message Start registers with the informational `:event_subprocess_start` kind but is **excluded from the delivery set** in step 2 — it is a gated Start Event, not a fan-out delivery. The full precedence ladder for a message `(name, correlation)` is: **(1)** inline Message Catch / Message Boundary (the broadcast-within-key fan-out of step 2), **(2)** ESP Message Start of a running scope (fires only when step 2 delivered to zero catch/boundary subscriptions, correlated at scope activation), **(3)** standalone Message Start Event (new PI). A Catch/Boundary therefore **always** beats an ESP Message Start, and an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). See §3.5.8.
 
@@ -51,8 +53,6 @@ shortly after publish still catches the message.
 - `pending_messages` never holds Signals or Escalations — those are not TTL'd.
 - **Delete-on-transition**: the post-transition row lifetime is governed by `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` (default `true`). With the default, rows in `delivered`/`expired`/`cancelled` state persist until operator SQL ages them out (delivery-attempt audit). With the flag set to `false`, the engine physically deletes the row on deliver/expire/cancel (`destroy_if_pending` still requires `state == 'pending'`), so the table holds only rows still in flight.
 - **Orphan pending cleanup**: when a publish delivers to at least one live subscriber or triggers a Message Start Event, the publisher cancels all existing `pending_messages` rows for that `(message_name, correlation_value)` via `cancel_pending_for_message/2`. This prevents stale pending rows from earlier zero-match publishes from being drained by the next subscriber that registers after a live delivery.
-- **`skip_pending` flag**: REST API message triggers (`POST /messages/:name/trigger`) pass `skip_pending: true` through `Api.publish_message/5` to the publisher. When set, the publisher never inserts a `pending_messages` row even on zero-match. BPMN throws and plugin facade calls follow the standard pending-with-TTL behavior.
-
 #### 3.5.5 Resume / restart behavior
 
 1. Engine boots; `MessageSubscriptions` GenServer is empty.
@@ -114,8 +114,8 @@ until `SignalSubscriptions.mark_ready/0` is called by the resume pipeline
    `send(via_pid, ...)`. Emit `%Event.SignalArrived{}` per delivery via
    `EngineEventBus`.
 5. Simultaneously call `SignalStartHandler.start_processes_for_signal/1` —
-   start new PIs from every deployed Signal Start Event matching the name
-   (empty payload, `system:signal_trigger` identity).
+   start new PIs from Signal Start Events matching the name under the start
+   discovery rule (§3.5.3) (empty payload, `system:signal_trigger` identity).
 6. If zero deliveries **and** zero start events fired → insert
    `pending_signals` with TTL.
 7. Persist delivery list on the audit row (`signals.deliveries` jsonb).
@@ -143,15 +143,6 @@ cancels all existing `pending_signals` rows for that `signal_name` via
 `cancel_pending_for_signal_name/1`. This prevents stale pending rows from
 earlier zero-match publishes from being drained by the next subscriber that
 registers after the live delivery has already occurred.
-
-**`skip_pending` flag.** REST API signal triggers (`POST /signals/:name/trigger`)
-pass `skip_pending: true` through `Api.publish_signal/3` to the publisher.
-When set, the publisher never inserts a `pending_signals` row even on
-zero-match — REST triggers are a debugging tool, not a standard procedure,
-and should not leave pending rows that would be drained by future process
-instances. BPMN throws and plugin facade calls do not set this flag — they
-follow the standard pending-with-TTL behavior for publish-before-subscribe
-races.
 
 **TTL sweeper.** `BfwEngine.Events.PendingSweeper` scans `pending_messages`
 and `pending_signals` on one tick (every 10 s by

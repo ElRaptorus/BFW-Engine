@@ -37,6 +37,7 @@ defmodule PeripheralPersistence.MixProject do
 
   defp deps do
     [
+      {:core_bpmn, in_umbrella: true},
       {:core_execution, in_umbrella: true},
       {:core_timers, in_umbrella: true},
       {:core_types, in_umbrella: true},

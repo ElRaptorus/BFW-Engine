@@ -241,11 +241,26 @@ defmodule BfwEngine.Api.Processes do
     case result do
       {:ok, _deleted} = success ->
         StartEventManager.unregister_timer_starts(process_version.id)
+        index_latest_version(process_version.process_id)
         emit_process_undeployed(process_version, source)
         success
 
       error ->
         error
+    end
+  end
+
+  # Message and signal starts resolve to the latest live version; when the
+  # deleted version was the latest, its predecessor may not be cached (and
+  # so not in the start-event index) yet.
+  defp index_latest_version(process_id) do
+    case get_latest_process_version(process_id) do
+      {:ok, version} ->
+        _fetch_result = ModelCache.fetch(version.id)
+        :ok
+
+      _no_live_version ->
+        :ok
     end
   end
 
@@ -579,7 +594,7 @@ defmodule BfwEngine.Api.Processes do
   defp register_timer_starts_for_version(version_id, process_model_id, definitions) do
     cycle_specs =
       definitions.processes
-      |> Enum.filter(& &1.is_executable)
+      |> Enum.filter(&(&1.is_executable and &1.id == process_model_id))
       |> Enum.flat_map(& &1.flow_nodes)
       |> Enum.filter(&timer_start_event?/1)
       |> Enum.map(&extract_timer_start_spec/1)

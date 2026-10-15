@@ -325,6 +325,30 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       StartEventManager.enable_schedule(schedule.id, reference_time: future_reference_time())
       assert Scheduler.armed_count() == 1
     end
+
+    test "enable_schedule keeps an exhausted finite cycle exhausted" do
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
+
+      PersistenceNoOp.create_schedule(%{
+        id: "exhausted-cycle",
+        process_version_id: "pv-exhausted",
+        process_model_id: "exhausted-model",
+        flow_node_id: "Timer_exhausted",
+        kind: "cycle",
+        iso_spec: "R2/PT1H",
+        enabled: false,
+        next_fire_at: nil,
+        cycle_total: 2,
+        cycle_remaining: 0
+      })
+
+      {:ok, updated} = StartEventManager.enable_schedule("exhausted-cycle")
+
+      assert updated.enabled == true
+      assert updated.next_fire_at == nil
+      assert Scheduler.armed_count() == 0
+    end
   end
 
   # -------------------------------------------------------------------------
@@ -332,10 +356,10 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
   # -------------------------------------------------------------------------
 
   describe "record_fire/1" do
-    test "updates last_triggered_at and clears next_fire_at for one-shot" do
-      specs = [%{flow_node_id: "Timer_oneshot", kind: :duration, iso_spec: "PT1H"}]
+    test "sets last_triggered_at and leaves the cycle state to the scheduler callback" do
+      specs = [%{flow_node_id: "Timer_cycle_fire", kind: :cycle, iso_spec: "R3/PT30M"}]
 
-      StartEventManager.register_timer_starts("pv-fire", "fire-process", specs,
+      StartEventManager.register_timer_starts("pv-cycle-fire", "cycle-fire", specs,
         reference_time: future_reference_time()
       )
 
@@ -345,41 +369,8 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
 
       {:ok, updated} = PersistenceNoOp.get_schedule(schedule.id)
       assert updated.last_triggered_at != nil
-      assert updated.next_fire_at == nil
-    end
-
-    test "decrements cycle_remaining for cycle schedules" do
-      specs = [%{flow_node_id: "Timer_cycle_fire", kind: :cycle, iso_spec: "R3/PT30M"}]
-
-      StartEventManager.register_timer_starts("pv-cycle-fire", "cycle-fire", specs,
-        reference_time: future_reference_time()
-      )
-
-      {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
-      assert schedule.cycle_remaining == 3
-
-      StartEventManager.record_fire(schedule.id)
-
-      {:ok, updated} = PersistenceNoOp.get_schedule(schedule.id)
-      assert updated.cycle_remaining == 2
-      assert updated.last_triggered_at != nil
-    end
-
-    test "exhausts cycle when remaining reaches 0" do
-      specs = [%{flow_node_id: "Timer_exhaust", kind: :cycle, iso_spec: "R1/PT30M"}]
-
-      StartEventManager.register_timer_starts("pv-exhaust", "exhaust", specs,
-        reference_time: future_reference_time()
-      )
-
-      {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
-      assert schedule.cycle_remaining == 1
-
-      StartEventManager.record_fire(schedule.id)
-
-      {:ok, updated} = PersistenceNoOp.get_schedule(schedule.id)
-      assert updated.cycle_remaining == 0
-      assert updated.next_fire_at == nil
+      assert updated.cycle_remaining == 3
+      assert updated.next_fire_at == schedule.next_fire_at
     end
 
     test "returns error for nonexistent schedule" do
@@ -578,9 +569,50 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       assert Scheduler.armed_count() == 1
     end
 
+    test "re-arms a finite cycle with its persisted cycle_remaining" do
+      PersistenceNoOp.create_schedule(%{
+        id: "reload-last-repetition",
+        process_version_id: "pv-last",
+        process_model_id: "last-model",
+        flow_node_id: "Timer_last",
+        kind: "cycle",
+        iso_spec: "R5/PT1H",
+        enabled: true,
+        next_fire_at: DateTime.add(DateTime.utc_now(), -1, :second),
+        cycle_total: 5,
+        cycle_remaining: 1
+      })
+
+      assert :ok = StartEventManager.reload_start_schedules()
+
+      assert :ok =
+               wait_until(fn ->
+                 {:ok, schedule} = PersistenceNoOp.get_schedule("reload-last-repetition")
+                 schedule.next_fire_at == nil
+               end)
+
+      {:ok, schedule} = PersistenceNoOp.get_schedule("reload-last-repetition")
+      assert schedule.cycle_remaining == 0
+      assert Scheduler.armed_count() == 0
+    end
+
     test "is a no-op when no armed schedules exist" do
       assert :ok = StartEventManager.reload_start_schedules()
       assert Scheduler.armed_count() == 0
+    end
+  end
+
+  defp wait_until(condition, attempts_left \\ 100) do
+    cond do
+      condition.() ->
+        :ok
+
+      attempts_left == 0 ->
+        :timeout
+
+      true ->
+        Process.sleep(20)
+        wait_until(condition, attempts_left - 1)
     end
   end
 end

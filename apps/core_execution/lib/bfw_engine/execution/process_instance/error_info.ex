@@ -15,7 +15,9 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   Accepts the wide range of error shapes produced by handlers:
   - `%{error_code: c, error_message: m}` (fail_async_service_task)
   - `{:crash, reason}` (FNI process crash)
-  - `%{reason: r}` (generic handler errors)
+  - `%{reason: atom}` (handler errors): the atom is the error_code; the message is the
+    map's `:message`, else a `humanize_error/1` clause
+  - `%{reason: r}` with a non-atom reason (generic handler errors)
   - atoms, tuples, strings, maps
   """
   @spec build(term()) :: %{String.t() => term()}
@@ -68,6 +70,20 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     %{
       "error_code" => "error",
       "message" => reason
+    }
+  end
+
+  def build(%{reason: reason} = map) when is_atom(reason) and not is_nil(reason) do
+    message =
+      case Map.get(map, :message) do
+        message when is_binary(message) -> message
+        _ -> humanize_error({reason, map})
+      end
+
+    %{
+      "error_code" => Atom.to_string(reason),
+      "message" => message,
+      "detail" => JsonSafe.convert(map)
     }
   end
 
@@ -387,6 +403,73 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
 
   defp humanize_error(:dispatch_failed) do
     "Failed to dispatch ad-hoc activity flow node instance"
+  end
+
+  defp humanize_error({:no_matching_link_catch, %{flow_node_id: id, link_name: link_name}}) do
+    "Link throw event '#{id}' has no matching link catch event named '#{link_name}' in this process."
+  end
+
+  defp humanize_error(
+         {:ambiguous_link_catch, %{flow_node_id: id, link_name: link_name, catch_count: count}}
+       ) do
+    "Link throw event '#{id}' matches #{count} link catch events named '#{link_name}'; " <>
+      "a link name must identify exactly one catch event."
+  end
+
+  defp humanize_error({:message_name_blank, %{detail: detail}}) do
+    "Cannot route the message: #{detail}. Every bpmn:message needs a non-blank name."
+  end
+
+  defp humanize_error({:message_definition_not_found, %{detail: detail}}) do
+    "The flow node's messageRef does not resolve to a global bpmn:message: #{detail}."
+  end
+
+  defp humanize_error({:no_message_ref, _detail}) do
+    "The message flow node has no messageRef, so the engine cannot tell which message to send or wait for."
+  end
+
+  defp humanize_error({:signal_name_blank, %{detail: detail}}) do
+    "Cannot route the signal: #{detail}. Every bpmn:signal needs a non-blank name."
+  end
+
+  defp humanize_error({:signal_definition_not_found, %{detail: detail}}) do
+    "The flow node's signalRef does not resolve to a global bpmn:signal: #{detail}."
+  end
+
+  defp humanize_error({:no_signal_ref, _detail}) do
+    "The signal flow node has no signalRef, so the engine cannot tell which signal to send or wait for."
+  end
+
+  defp humanize_error({:unsupported_timer_type, _detail}) do
+    "A timeCycle is not supported on an intermediate catch event; use timeDate or timeDuration."
+  end
+
+  defp humanize_error({:missing_timer_spec, _detail}) do
+    "The timer event definition has no timeDate, timeDuration, or timeCycle, so the engine cannot schedule it."
+  end
+
+  defp humanize_error({:timer_resolution_failed, %{detail: detail}}) do
+    "The timer definition could not be resolved to a fire time: #{format_detail(detail)}."
+  end
+
+  defp humanize_error({:resume_timer_failed, %{detail: detail}}) do
+    "The timer could not be re-armed after the process instance resumed: #{format_detail(detail)}."
+  end
+
+  defp humanize_error({:invalid_subprocess, %{detail: detail}}) do
+    "#{detail}."
+  end
+
+  defp humanize_error({:invalid_transaction, %{detail: detail}}) do
+    "#{detail}."
+  end
+
+  defp humanize_error({:invalid_event_subprocess, %{detail: detail}}) do
+    "The event subprocess is invalid: #{detail}."
+  end
+
+  defp humanize_error({:correlation_expression_failed, reason}) do
+    "The message correlation expression could not be evaluated: #{format_detail(reason)}."
   end
 
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do

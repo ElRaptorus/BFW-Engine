@@ -16,6 +16,7 @@ defmodule BfwEngine.Events.MessagePublisher do
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.MessagePersistence
   alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Events.PendingTtl
   alias BfwEngine.Types.Event
 
   require Logger
@@ -56,8 +57,6 @@ defmodule BfwEngine.Events.MessagePublisher do
   - `params.payload` — message payload (map)
   - `params.correlation_value` — resolved correlation value (string or nil)
   - `params.origin` — `%{source: "pi" | "api" | "plugin", ...}` identifying the publisher
-  - `params.skip_pending` — when `true`, never insert a pending message row
-    (used for REST/API debug triggers that should not be buffered)
 
   ## Returns
 
@@ -70,7 +69,6 @@ defmodule BfwEngine.Events.MessagePublisher do
     correlation_value = params[:correlation_value]
     payload = params[:payload] || %{}
     origin = params[:origin] || %{source: "unknown"}
-    skip_pending = params[:skip_pending] || false
     now = DateTime.utc_now()
     triggerer_fni_id = origin[:flow_node_instance_id]
 
@@ -123,8 +121,7 @@ defmodule BfwEngine.Events.MessagePublisher do
         payload,
         now,
         combined_deliveries,
-        started_process_instance_ids,
-        skip_pending
+        started_process_instance_ids
       )
 
     emit_message_published(
@@ -224,9 +221,7 @@ defmodule BfwEngine.Events.MessagePublisher do
         :ok
 
       adapter ->
-        ttl_iso = Application.get_env(:core_events, :message_pending_ttl, "PT60S")
-        ttl_seconds = parse_iso_duration_to_seconds(ttl_iso)
-        expires_at = DateTime.add(now, ttl_seconds, :second)
+        expires_at = DateTime.add(now, PendingTtl.seconds(:message_pending_ttl), :second)
 
         adapter.insert_pending_message(%{
           message_id: message_id,
@@ -271,24 +266,17 @@ defmodule BfwEngine.Events.MessagePublisher do
          payload,
          now,
          deliveries,
-         started_process_instance_ids,
-         skip_pending
+         started_process_instance_ids
        ) do
     has_recipients = deliveries != [] or started_process_instance_ids != []
 
     if has_recipients do
       cancel_orphan_pending_messages(message_name, correlation_value)
+    else
+      insert_pending_message(message_id, message_name, correlation_value, payload, now)
     end
 
-    pending =
-      if not skip_pending and not has_recipients do
-        insert_pending_message(message_id, message_name, correlation_value, payload, now)
-        true
-      else
-        false
-      end
-
-    {pending, started_process_instance_ids}
+    {not has_recipients, started_process_instance_ids}
   end
 
   defp cancel_orphan_pending_messages(message_name, correlation_value) do
@@ -458,24 +446,4 @@ defmodule BfwEngine.Events.MessagePublisher do
       "#{a}-#{b}-#{c}-#{d}-#{e}"
     end)
   end
-
-  defp parse_iso_duration_to_seconds("PT" <> rest) do
-    cond do
-      String.ends_with?(rest, "S") ->
-        rest |> String.trim_trailing("S") |> String.to_integer()
-
-      String.ends_with?(rest, "M") ->
-        minutes = rest |> String.trim_trailing("M") |> String.to_integer()
-        minutes * 60
-
-      String.ends_with?(rest, "H") ->
-        hours = rest |> String.trim_trailing("H") |> String.to_integer()
-        hours * 3600
-
-      true ->
-        60
-    end
-  end
-
-  defp parse_iso_duration_to_seconds(_), do: 60
 end

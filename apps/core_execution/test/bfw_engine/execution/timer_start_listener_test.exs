@@ -12,11 +12,20 @@ defmodule BfwEngine.Execution.TimerStartListenerTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
+  alias BfwEngine.Execution.TestSupport.CalledElementResolver
   alias BfwEngine.Execution.TimerStartListener
   alias BfwEngine.Timers.StartEventManager
 
   setup do
     ServiceReset.scheduler()
+    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver)
+    CalledElementResolver.reset()
+
+    on_exit(fn ->
+      Application.delete_env(:core_execution, :called_element_resolver)
+      CalledElementResolver.reset()
+    end)
+
     :ok
   end
 
@@ -62,8 +71,30 @@ defmodule BfwEngine.Execution.TimerStartListenerTest do
       assert schedule.last_triggered_at == nil
     end
 
+    test "skips fire when the schedule's version is no longer the latest live version" do
+      {version_id, schedule_id} = setup_cycle_schedule()
+      CalledElementResolver.set_version("test-process", "newer-version")
+
+      send(
+        TimerStartListener,
+        {:timer_fired, "ref-superseded",
+         %{
+           schedule_id: schedule_id,
+           process_version_id: version_id,
+           process_model_id: "test-process",
+           flow_node_id: "TimerStart_1"
+         }}
+      )
+
+      _ = :sys.get_state(TimerStartListener)
+
+      {:ok, schedule} = StartEventManager.get_schedule(schedule_id)
+      assert schedule.last_triggered_at == nil
+    end
+
     test "skips fire when version is not cached" do
       {_version_id, schedule_id} = setup_cycle_schedule()
+      CalledElementResolver.set_version("test-process", "nonexistent-version")
 
       send(
         TimerStartListener,
@@ -226,6 +257,7 @@ defmodule BfwEngine.Execution.TimerStartListenerTest do
     definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1H")
     version_id = "version-#{System.unique_integer([:positive])}"
     ModelCache.put_new(version_id, definitions)
+    CalledElementResolver.set_version("test-process", version_id)
 
     StartEventManager.register_timer_starts(
       version_id,

@@ -138,12 +138,13 @@ Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted tim
 |----------|-------------|
 | `register_timer_starts/4` | Persist + schedule cycle timer starts for a deployed version |
 | `unregister_timer_starts/1` | Cancel ETS entries + delete persistence records for a version |
-| `enable_schedule/1` | Re-enable a disabled cycle schedule, re-arm in Scheduler |
+| `enable_schedule/1` | Re-enable a disabled cycle schedule and re-arm it in the Scheduler with its persisted `cycle_remaining`. An exhausted schedule (`cycle_remaining == 0`) is only marked enabled; it is not armed and never fires again |
 | `disable_schedule/1` | Cancel Scheduler entry, set `enabled=false` in persistence |
-| `record_fire/1` | Update `last_triggered_at`, decrement `cycle_remaining`, compute `next_fire_at` |
+| `handle_cycle_advance/3` | Scheduler callback after each cycle fire: persists the new `next_fire_at` and `cycle_remaining` (`next_fire_at = nil` once the cycle is exhausted). The **only** writer of cycle state |
+| `record_fire/1` | Set `last_triggered_at` after the listener started a PI. Does not touch `cycle_remaining` or `next_fire_at` |
 | `list_schedules/1` | Query schedules with optional filters |
 | `get_schedule/1` | Get single schedule by ID |
-| `reload_start_schedules/0` | Boot-time reload of armed cycle schedules from persistence |
+| `reload_start_schedules/0` | Boot-time reload of armed cycle schedules from persistence. Each schedule is re-armed with its persisted `cycle_remaining` (not the spec's full repetition count), so a restart never adds fires to a finite cycle |
 
 ### Schedule Record Fields
 
@@ -153,7 +154,7 @@ Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted tim
 | `process_version_id` | String | Owning process version |
 | `process_model_id` | String | Owning process model |
 | `flow_node_id` | String | BPMN flow node ID of the Timer Start Event |
-| `kind` | `"cycle" \| "date" \| "duration"` | Timer type |
+| `kind` | `"cycle"` | Timer type; a check constraint (`timer_start_schedules_kind_cycle`) admits only cycles |
 | `iso_spec` | String | Raw ISO 8601 spec |
 | `enabled` | Boolean | Whether the schedule is active |
 | `next_fire_at` | DateTime? | Next scheduled fire time (nil = exhausted) |

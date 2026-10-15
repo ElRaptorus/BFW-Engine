@@ -9,7 +9,7 @@ Signals are named broadcasts declared at the BPMN definitions level and referenc
 1. Writes an audit row to the `signals` table
 2. Looks up all active subscriptions registered for that `signal_name`
 3. Delivers `{:signal_arrived, signal_id}` to every matching catch-side waiter
-4. Simultaneously starts new process instances from every deployed Signal Start Event matching the name
+4. Simultaneously starts one new process instance per enabled process whose latest version has a Signal Start Event matching the name (older versions never start instances)
 5. If no subscription matched **and** no start events fired, holds the signal in `pending_signals` until TTL expires or a late subscriber registers
 
 This model supports cross-process synchronisation, event-driven architecture patterns, and external system triggers without tight coupling.

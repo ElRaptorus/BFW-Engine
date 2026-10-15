@@ -92,6 +92,8 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   Only meaningful for cycle schedules. Returns `{:error, :not_a_cycle}`
   for date/duration schedules (those are PI-scoped, not deploy-scoped).
+  A finite cycle keeps its persisted `cycle_remaining`; an exhausted one
+  (`cycle_remaining` 0) is enabled but not re-armed.
   """
   @spec enable_schedule(schedule_id :: String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def enable_schedule(schedule_id, opts \\ []) do
@@ -99,22 +101,22 @@ defmodule BfwEngine.Timers.StartEventManager do
     now = opts[:reference_time] || DateTime.utc_now()
 
     with {:ok, schedule} <- persistence().get_schedule(schedule_id),
-         :ok <- require_cycle(schedule),
-         {:ok, next_fire_at, cycle_info} <- resolve_next_fire(:cycle, schedule.iso_spec, now) do
-      changes = build_enable_changes(next_fire_at, cycle_info, schedule)
-      {:ok, updated} = persistence().update_schedule(schedule_id, changes)
-      store_scheduler_ref(schedule_id, schedule_in_scheduler(updated, scheduler, cycle_info))
-      {:ok, updated}
+         :ok <- require_cycle(schedule) do
+      if schedule.cycle_remaining == 0 do
+        persistence().update_schedule(schedule_id, %{enabled: true})
+      else
+        arm_enabled_schedule(schedule, scheduler, now)
+      end
     end
   end
 
-  defp build_enable_changes(next_fire_at, cycle_info, schedule) do
-    base = %{enabled: true, next_fire_at: next_fire_at}
+  defp arm_enabled_schedule(schedule, scheduler, now) do
+    with {:ok, next_fire_at, cycle_info} <- resolve_next_fire(:cycle, schedule.iso_spec, now) do
+      {:ok, updated} =
+        persistence().update_schedule(schedule.id, %{enabled: true, next_fire_at: next_fire_at})
 
-    if cycle_info do
-      Map.put(base, :cycle_remaining, cycle_remaining_from_info(cycle_info, schedule))
-    else
-      base
+      store_scheduler_ref(schedule.id, schedule_in_scheduler(updated, scheduler, cycle_info))
+      {:ok, updated}
     end
   end
 
@@ -156,24 +158,17 @@ defmodule BfwEngine.Timers.StartEventManager do
   end
 
   @doc """
-  Records a successful Timer Start fire. Updates `last_triggered_at`
-  and manages cycle state.
+  Records a successful Timer Start fire by updating `last_triggered_at`.
 
   Called by `TimerStartListener` in `core_execution` after creating a PI.
+  Cycle state (`next_fire_at`, `cycle_remaining`) is owned by
+  `handle_cycle_advance/3`, which the Scheduler calls on every fire,
+  including fires the listener skips.
   """
   @spec record_fire(schedule_id :: String.t()) :: :ok | {:error, term()}
   def record_fire(schedule_id) do
-    with {:ok, schedule} <- persistence().get_schedule(schedule_id) do
-      now = DateTime.utc_now()
-      changes = %{last_triggered_at: now}
-
-      changes =
-        case schedule.kind do
-          "cycle" -> update_cycle_state(changes, schedule)
-          _ -> Map.put(changes, :next_fire_at, nil)
-        end
-
-      persistence().update_schedule(schedule_id, changes)
+    with {:ok, _schedule} <- persistence().get_schedule(schedule_id) do
+      persistence().update_schedule(schedule_id, %{last_triggered_at: DateTime.utc_now()})
       :ok
     end
   end
@@ -209,7 +204,9 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   Only cycle schedules are re-armed. Date/duration timer starts are
   PI-scoped (their blocking behavior lives inside the PI handler) and
-  are never auto-scheduled.
+  are never auto-scheduled. A finite cycle resumes with its persisted
+  `cycle_remaining`, not the repetition count of its spec; an exhausted
+  schedule has no `next_fire_at` and is not listed as armed.
   """
   @spec reload_start_schedules(keyword()) :: :ok
   def reload_start_schedules(opts \\ []) do
@@ -341,7 +338,7 @@ defmodule BfwEngine.Timers.StartEventManager do
       if cycle_info do
         Map.merge(request, %{
           cycle_interval: cycle_info.interval_duration,
-          cycle_remaining: cycle_info.repetitions
+          cycle_remaining: schedule_record.cycle_remaining || :infinite
         })
       else
         request
@@ -356,27 +353,6 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   defp extract_cycle_counts(%{repetitions: count}) when is_integer(count) do
     {count, count}
-  end
-
-  defp cycle_remaining_from_info(%{repetitions: :infinite}, _schedule), do: nil
-
-  defp cycle_remaining_from_info(_cycle_info, schedule) do
-    schedule.cycle_remaining
-  end
-
-  defp update_cycle_state(changes, schedule) do
-    case schedule.cycle_remaining do
-      nil ->
-        changes
-
-      remaining when remaining > 1 ->
-        Map.put(changes, :cycle_remaining, remaining - 1)
-
-      _exhausted ->
-        changes
-        |> Map.put(:next_fire_at, nil)
-        |> Map.put(:cycle_remaining, 0)
-    end
   end
 
   defp timer_start_target do

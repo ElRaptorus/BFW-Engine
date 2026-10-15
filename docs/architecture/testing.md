@@ -484,6 +484,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `assert_pi_state!` verifies the persisted execution chain unless `verify_execution_chain: false`.
 - Load tests: set `BFE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Finishers retry `:fni_not_waiting`. Do not run `test/load` under the Ecto sandbox.
 - Packages JS: Vitest 5 uses `{ concurrent: false }`, not `describe.sequential`.
+- `core_events` unit tests that publish a message or signal without a recipient: set `:message_persistence_adapter` / `:signal_persistence_adapter` to `nil` in `setup` and restore them in `on_exit`. In the umbrella run the default is the real Ash adapter outside any sandbox, so the pending row survives and breaks later count assertions in `MessagePersistenceAdapterTest`.
 
 ## CI enforcement
 

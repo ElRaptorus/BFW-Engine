@@ -25,6 +25,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
+  alias BfwEngine.Execution.TestSupport.CalledElementResolver
   alias BfwEngine.Execution.TestSupport.SchedulerWait
   alias BfwEngine.Execution.TimerStartListener
   alias BfwEngine.Timers.Scheduler
@@ -32,6 +33,14 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
 
   setup do
     ServiceReset.scheduler()
+    Application.put_env(:core_execution, :called_element_resolver, CalledElementResolver)
+    CalledElementResolver.reset()
+
+    on_exit(fn ->
+      Application.delete_env(:core_execution, :called_element_resolver)
+      CalledElementResolver.reset()
+    end)
+
     :ok
   end
 
@@ -40,6 +49,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT0S")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
+      CalledElementResolver.set_version("test-process", version_id)
 
       StartEventManager.register_timer_starts(
         version_id,
@@ -67,6 +77,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1H")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
+      CalledElementResolver.set_version("test-process", version_id)
 
       StartEventManager.register_timer_starts(
         version_id,
@@ -90,6 +101,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1H")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
+      CalledElementResolver.set_version("test-process", version_id)
 
       StartEventManager.register_timer_starts(
         version_id,
@@ -117,6 +129,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1H")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
+      CalledElementResolver.set_version("test-process", version_id)
 
       StartEventManager.register_timer_starts(
         version_id,
@@ -138,6 +151,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT0S")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
+      CalledElementResolver.set_version("test-process", version_id)
 
       StartEventManager.register_timer_starts(
         version_id,
@@ -254,6 +268,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1H")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
+      CalledElementResolver.set_version("test-process", version_id)
 
       StartEventManager.register_timer_starts(
         version_id,

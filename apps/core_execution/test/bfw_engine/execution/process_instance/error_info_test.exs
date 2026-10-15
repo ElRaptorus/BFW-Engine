@@ -112,6 +112,65 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
       assert result["error_code"] == "error"
     end
 
+    test "map with an atom reason uses the reason as error_code and keeps its message" do
+      result =
+        ErrorInfo.build(%{
+          reason: :no_matching_condition,
+          flow_node_id: "XOR_1",
+          message: "No outgoing sequence flow with a fulfilled condition"
+        })
+
+      assert result["error_code"] == "no_matching_condition"
+      assert result["message"] == "No outgoing sequence flow with a fulfilled condition"
+      assert result["detail"]["flow_node_id"] == "XOR_1"
+    end
+
+    test "map with an atom reason and no message is humanized" do
+      result =
+        ErrorInfo.build(%{
+          reason: :no_matching_link_catch,
+          flow_node_id: "Throw_1",
+          link_name: "A"
+        })
+
+      assert result["error_code"] == "no_matching_link_catch"
+      assert result["message"] =~ "Link throw event 'Throw_1'"
+      assert result["message"] =~ "named 'A'"
+    end
+
+    test "every map-shaped handler failure gets a specific sentence" do
+      failures = [
+        %{reason: :ambiguous_link_catch, flow_node_id: "Throw_1", link_name: "A", catch_count: 2},
+        %{reason: :message_name_blank, detail: "MessageDefinition Msg_1 has no name"},
+        %{reason: :message_definition_not_found, detail: "No MessageDefinition with id=Msg_1"},
+        %{reason: :no_message_ref, detail: "Flow node has no message_ref"},
+        %{reason: :signal_name_blank, detail: "SignalDefinition Sig_1 has no name"},
+        %{reason: :signal_definition_not_found, detail: "No SignalDefinition with id=Sig_1"},
+        %{reason: :no_signal_ref, detail: "Flow node has no signal_ref"},
+        %{reason: :unsupported_timer_type, detail: "time_cycle is not supported"},
+        %{reason: :missing_timer_spec, detail: "no spec"},
+        %{reason: :timer_resolution_failed, detail: :invalid_duration},
+        %{reason: :resume_timer_failed, detail: :not_found},
+        %{reason: :invalid_subprocess, detail: "Subprocess 'Sub_1' has no End Event"},
+        %{reason: :invalid_transaction, detail: "Transaction 'Tx_1' has no End Event"},
+        %{reason: :invalid_event_subprocess, detail: "expected exactly one start event"}
+      ]
+
+      for failure <- failures do
+        result = ErrorInfo.build(failure)
+        assert result["error_code"] == Atom.to_string(failure.reason)
+        assert String.ends_with?(result["message"], "."), inspect(result)
+        refute result["message"] == "An unexpected error occurred"
+      end
+    end
+
+    test "correlation_expression_failed names the correlation expression" do
+      result = ErrorInfo.build({:correlation_expression_failed, "unknown variable 'orderId'"})
+      assert result["error_code"] == "correlation_expression_failed"
+      assert result["message"] =~ "correlation expression"
+      assert result["message"] =~ "unknown variable 'orderId'"
+    end
+
     test "generic map with \"message\" key" do
       result = ErrorInfo.build(%{"message" => "human message"})
       assert result["message"] == "human message"

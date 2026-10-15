@@ -2857,9 +2857,12 @@ components:
     TimerSchedule:
       type: object
       description: >-
-        A Timer Start Event schedule. Created automatically when a process
-        with a `timeCycle` start event is deployed. Date and duration start
-        events also appear as schedules but are not auto-scheduled.
+        A cycle Timer Start Event schedule. Created automatically when a
+        process with a `timeCycle` start event is deployed. Only cycle starts
+        are scheduled; date and duration start events never appear as
+        schedules, because they block inside a manually started process
+        instance. A fire only starts an instance when the schedule's version
+        is the latest live version of an enabled process.
       required:
         - id
         - processModelId
@@ -2883,21 +2886,21 @@ components:
           description: BPMN flow node ID of the Timer Start Event.
         kind:
           type: string
-          enum: [cycle, date, duration]
-          description: Timer type.
+          enum: [cycle]
+          description: Timer type. Only cycle Timer Starts are scheduled.
         isoSpec:
           type: string
-          description: Original ISO 8601 spec string (e.g. `R/PT1H`, `2027-01-01T00:00:00Z`).
+          description: Original ISO 8601 cycle spec string (e.g. `R/PT1H`, `R3/PT30M`).
         enabled:
           type: boolean
-          description: Whether the schedule is active. Only meaningful for `cycle` schedules.
+          description: Whether the schedule is active.
         nextFireAt:
           type: string
           format: date-time
           nullable: true
           description: >-
-            Next scheduled fire time. `null` when the schedule is exhausted
-            (one-shot already fired, or cycle repetitions depleted).
+            Next scheduled fire time. `null` when the cycle repetitions are
+            depleted.
         lastTriggeredAt:
           type: string
           format: date-time

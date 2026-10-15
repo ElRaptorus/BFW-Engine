@@ -27,8 +27,7 @@ defmodule BfwEngine.Api.Triggers do
         name: message_name,
         payload: payload,
         correlation_value: correlation,
-        origin: derive_origin(identity),
-        skip_pending: Keyword.get(opts, :skip_pending, false)
+        origin: derive_origin(identity)
       })
     end
   end
@@ -46,8 +45,7 @@ defmodule BfwEngine.Api.Triggers do
          :ok <- Validation.check_required_claim(identity, "trigger_signal", "all", opts) do
       SignalPublisher.publish_signal(%{
         name: signal_name,
-        origin: derive_origin(identity),
-        skip_pending: Keyword.get(opts, :skip_pending, false)
+        origin: derive_origin(identity)
       })
     end
   end

@@ -20,6 +20,7 @@ defmodule BfwEngine.Events.SignalPublisher do
   """
 
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Events.PendingTtl
   alias BfwEngine.Events.SignalPersistence
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Types.Event
@@ -58,8 +59,6 @@ defmodule BfwEngine.Events.SignalPublisher do
 
   - `params.name` — BPMN signal name (from `SignalDefinition.name`)
   - `params.origin` — `%{source: "pi" | "api" | "plugin", ...}` identifying the publisher
-  - `params.skip_pending` — when `true`, never insert a pending signal row
-    (used for REST/API debug triggers that should not be buffered)
 
   ## Returns
 
@@ -70,7 +69,6 @@ defmodule BfwEngine.Events.SignalPublisher do
     signal_id = generate_signal_id()
     signal_name = params.name
     origin = params[:origin] || %{source: "unknown"}
-    skip_pending = params[:skip_pending] || false
     now = DateTime.utc_now()
     triggerer_fni_id = origin[:flow_node_instance_id]
 
@@ -88,15 +86,11 @@ defmodule BfwEngine.Events.SignalPublisher do
 
     if has_recipients do
       cancel_orphan_pending_signals(signal_name)
+    else
+      insert_pending_signal(signal_id, signal_name, now)
     end
 
-    pending =
-      if not skip_pending and not has_recipients do
-        insert_pending_signal(signal_id, signal_name, now)
-        true
-      else
-        false
-      end
+    pending = not has_recipients
 
     emit_signal_published(
       signal_id,
@@ -195,9 +189,7 @@ defmodule BfwEngine.Events.SignalPublisher do
         :ok
 
       adapter ->
-        ttl_iso = Application.get_env(:core_events, :signal_pending_ttl, "PT60S")
-        ttl_seconds = parse_iso_duration_to_seconds(ttl_iso)
-        expires_at = DateTime.add(now, ttl_seconds, :second)
+        expires_at = DateTime.add(now, PendingTtl.seconds(:signal_pending_ttl), :second)
 
         adapter.insert_pending_signal(%{
           signal_id: signal_id,
@@ -347,24 +339,4 @@ defmodule BfwEngine.Events.SignalPublisher do
       "#{a}-#{b}-#{c}-#{d}-#{e}"
     end)
   end
-
-  defp parse_iso_duration_to_seconds("PT" <> rest) do
-    cond do
-      String.ends_with?(rest, "S") ->
-        rest |> String.trim_trailing("S") |> String.to_integer()
-
-      String.ends_with?(rest, "M") ->
-        minutes = rest |> String.trim_trailing("M") |> String.to_integer()
-        minutes * 60
-
-      String.ends_with?(rest, "H") ->
-        hours = rest |> String.trim_trailing("H") |> String.to_integer()
-        hours * 3600
-
-      true ->
-        60
-    end
-  end
-
-  defp parse_iso_duration_to_seconds(_), do: 60
 end

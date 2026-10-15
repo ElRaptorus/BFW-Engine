@@ -20,13 +20,15 @@ defmodule BfwEngine.Execution.SignalStartHandler do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Types.Identity
 
+  alias BfwEngine.Execution.StartEventDiscovery
   alias BfwEngine.Execution.UuidV7
 
   require Logger
 
   @doc """
-  Find all deployed Signal Start Events matching `signal_name` and
-  start one PI per match with empty payload.
+  Find the deployed Signal Start Events matching `signal_name` and start
+  at most one PI per enabled process, on its latest live version (see
+  `StartEventDiscovery`), with empty payload.
 
   `triggerer_fni_id` is the FNI ID of the throwing event (Signal Throw or
   Signal End Event) that published the signal, or `nil` when published from
@@ -36,7 +38,10 @@ defmodule BfwEngine.Execution.SignalStartHandler do
   """
   @spec start_processes_for_signal(String.t(), String.t() | nil) :: {:ok, [String.t()]}
   def start_processes_for_signal(signal_name, triggerer_fni_id \\ nil) do
-    matching_starts = ModelCache.find_signal_start_events(signal_name)
+    matching_starts =
+      signal_name
+      |> ModelCache.find_signal_start_events()
+      |> StartEventDiscovery.latest_live_starts()
 
     started_ids =
       Enum.flat_map(matching_starts, fn {process_id, process_version_id, start_event_id} ->

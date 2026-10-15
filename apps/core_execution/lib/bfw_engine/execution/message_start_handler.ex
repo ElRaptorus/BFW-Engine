@@ -16,13 +16,15 @@ defmodule BfwEngine.Execution.MessageStartHandler do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Types.Identity
 
+  alias BfwEngine.Execution.StartEventDiscovery
   alias BfwEngine.Execution.UuidV7
 
   require Logger
 
   @doc """
-  Find all deployed Message Start Events matching `message_name` and
-  start one PI per match.
+  Find the deployed Message Start Events matching `message_name` and start
+  at most one PI per enabled process, on its latest live version (see
+  `StartEventDiscovery`).
 
   `triggerer_fni_id` is the FNI ID of the throwing event (Send Task,
   Message End Event, Message Intermediate Throw Event) that published the
@@ -32,7 +34,10 @@ defmodule BfwEngine.Execution.MessageStartHandler do
   """
   @spec start_processes_for_message(String.t(), map(), String.t() | nil) :: {:ok, [String.t()]}
   def start_processes_for_message(message_name, payload, triggerer_fni_id \\ nil) do
-    matching_starts = ModelCache.find_message_start_events(message_name)
+    matching_starts =
+      message_name
+      |> ModelCache.find_message_start_events()
+      |> StartEventDiscovery.latest_live_starts()
 
     started_ids =
       Enum.flat_map(matching_starts, fn {process_id, process_version_id, start_event_id} ->

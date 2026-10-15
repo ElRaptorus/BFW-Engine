@@ -12,10 +12,16 @@ defmodule BfwEngine.Execution.TimerStartListener do
 
   1. Reads `schedule_id` and `process_version_id` from metadata
   2. Verifies the schedule is still enabled (race guard)
-  3. Verifies the process version is still cached and active
-  4. Creates a new PI via `Execution.start_process_instance/1`
-  5. Notifies `StartEventManager.record_fire/1` to update persistence
-  6. Emits `Event.TimerFired` on the EngineEventBus
+  3. Verifies the version is the latest live version of an enabled
+     process (`StartEventDiscovery`); a superseded version skips its fire
+  4. Verifies the process version is cached
+  5. Creates a new PI via `Execution.start_process_instance/1`
+  6. Notifies `StartEventManager.record_fire/1` to update persistence
+  7. Emits `Event.TimerFired` on the EngineEventBus
+
+  A skipped fire (any failed check or engine capacity) only logs. The
+  Scheduler has already re-armed the cycle and advanced `next_fire_at` and
+  `cycle_remaining`, so the skipped fire still counts.
   """
 
   use GenServer
@@ -25,6 +31,7 @@ defmodule BfwEngine.Execution.TimerStartListener do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution
+  alias BfwEngine.Execution.StartEventDiscovery
   alias BfwEngine.Timers.StartEventManager
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
@@ -62,10 +69,17 @@ defmodule BfwEngine.Execution.TimerStartListener do
     flow_node_id = metadata[:flow_node_id]
 
     with :ok <- verify_schedule_enabled(schedule_id),
+         :ok <- verify_latest_live_version(metadata[:process_model_id], process_version_id),
          :ok <- verify_version_cached(process_version_id),
          {:ok, _pid} <- start_process_instance(process_version_id, flow_node_id) do
       record_fire_and_emit(schedule_id, timer_ref, flow_node_id)
     else
+      {:error, :not_latest_live_version} ->
+        Logger.info(
+          "TimerStartListener: skipping fire for schedule #{schedule_id}: " <>
+            "version #{process_version_id} is not the latest live version"
+        )
+
       {:error, reason} ->
         Logger.warning(
           "TimerStartListener: skipping fire for schedule #{schedule_id}: #{inspect(reason)}"
@@ -85,6 +99,12 @@ defmodule BfwEngine.Execution.TimerStartListener do
       {:ok, %{enabled: false}} -> {:error, :schedule_disabled}
       {:error, :not_found} -> {:error, :schedule_not_found}
     end
+  end
+
+  defp verify_latest_live_version(process_model_id, process_version_id) do
+    if StartEventDiscovery.latest_live_version?(process_model_id, process_version_id),
+      do: :ok,
+      else: {:error, :not_latest_live_version}
   end
 
   defp verify_version_cached(process_version_id) do

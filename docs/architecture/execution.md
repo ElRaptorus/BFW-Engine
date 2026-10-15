@@ -1469,6 +1469,8 @@ All `error_info` maps persisted on FNIs and PIs follow a standardized schema. Th
 
 `ErrorInfo.build/1` accepts arbitrary error reasons (atoms, tuples, maps, binaries) and normalizes them into this schema. Callers in `ProcessInstance` and `FniLifecycle` use it to ensure every persisted `error_info` is uniform.
 
+A handler failure shaped `%{reason: atom, ...}` (gateways, link throw, message/signal helpers, timers, subprocess structure checks) takes the reason atom as `error_code` (e.g. `"no_matching_condition"`, `"no_matching_link_catch"`). The `message` is the map's `:message` when present, otherwise a `humanize_error/1` clause for that reason; the whole map is the `detail`. Only maps without an atom `:reason` fall back to `error_code: "error"`.
+
 The `FlowNodeInstanceFinished` engine event also carries `error_info` (as `errorInfo` on the wire) for fatal FNIs, so real-time consumers can display error details without re-querying the API.
 
 **Data pipeline error codes.** Each pipeline step tags its own error where it fails, so the three failure classes never share a code: `MappingHelper.apply_in_mappings/3` / `apply_out_mappings/3` return `in_mapping_failed` / `out_mapping_failed` (detail `{:feel_eval_failed, expression, reason}`), `MappingHelper.validate_contract/3` returns the contract code its caller passes in, and `DataObjectWriter` returns the Data Object write codes below. Handlers propagate these errors unchanged; they never re-wrap them in an `else` clause. Every code has an explicit `humanize_error/1` clause. Violations are ExJsonSchema `{message, path}` tuples and print as `path: message`; a schema that cannot be resolved is `{:invalid_contract_schema, message}`.
@@ -1917,7 +1919,7 @@ StartEventManager.register_timer_starts(version_id, model_id, cycle_specs)
 Scheduler fires {:timer_fired, ref, metadata}
     ↓ to registered atom target
 TimerStartListener GenServer
-    ↓ verify schedule + version, start PI
+    ↓ verify schedule enabled + version is the process's latest live version, start PI
 Execution.start_process_instance(opts with start_event_id)
     ↓ resolve_start_event accepts %EventDefinition.Timer{}
     ↓ TimerStartEvent handler: cycle = pass-through
@@ -1954,7 +1956,11 @@ PI continues with next flow nodes
 
 ### Deploy Hook
 
-When a process version is deployed via `Api.persist_deploy_batch/2`, the `unwrap_deploy_result` callback scans each version's BPMN model for executable processes with Timer Start Events. **Only cycle timer starts** are extracted and passed to `StartEventManager.register_timer_starts/4`. Date and duration timer starts are not registered — their behavior is handled inside the PI by the `TimerStartEvent` handler.
+When a process version is deployed via `Api.persist_deploy_batch/2`, the `unwrap_deploy_result` callback scans each version's BPMN model for executable processes with Timer Start Events. **Only cycle timer starts** are extracted and passed to `StartEventManager.register_timer_starts/4`, and only those of the process the version belongs to (a multi-process file registers each process's cycle starts under its own version). Date and duration timer starts are not registered — their behavior is handled inside the PI by the `TimerStartEvent` handler.
+
+### Superseded Versions
+
+A newer deploy does not unregister an older version's cycle schedules. Instead `TimerStartListener` applies the start discovery rule ([routing.md](./routing.md) §3.5.3) on every fire: when the schedule's version is not the latest live version of an enabled process (`StartEventDiscovery.latest_live_version?/2`), the fire is skipped with an info log. The Scheduler has already advanced the cycle, so a skipped fire still consumes one repetition.
 
 ### Undeploy Hook
 

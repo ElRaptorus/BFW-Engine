@@ -18,6 +18,16 @@ defmodule BfwEngine.Events.EventSubprocessSubscriptionTest do
   alias BfwEngine.Events.SignalSubscriptions
 
   setup do
+    message_adapter = Application.get_env(:core_events, :message_persistence_adapter)
+    signal_adapter = Application.get_env(:core_events, :signal_persistence_adapter)
+    Application.put_env(:core_events, :message_persistence_adapter, nil)
+    Application.put_env(:core_events, :signal_persistence_adapter, nil)
+
+    on_exit(fn ->
+      Application.put_env(:core_events, :message_persistence_adapter, message_adapter)
+      Application.put_env(:core_events, :signal_persistence_adapter, signal_adapter)
+    end)
+
     ServiceReset.message_subscriptions()
     ServiceReset.signal_subscriptions()
     :ok
@@ -53,8 +63,7 @@ defmodule BfwEngine.Events.EventSubprocessSubscriptionTest do
       register_message(:intermediate_catch, "order", "Catch_1")
       register_message(:event_subprocess_start, "order", "ESP_Start_1")
 
-      {:ok, result} =
-        MessagePublisher.publish_message(%{name: "order", payload: %{}, skip_pending: true})
+      {:ok, result} = MessagePublisher.publish_message(%{name: "order", payload: %{}})
 
       assert_receive {:message_arrived, _message_id, _payload, _triggerer}
       refute_receive {:event_subprocess_message, "ESP_Start_1", _}
@@ -64,12 +73,7 @@ defmodule BfwEngine.Events.EventSubprocessSubscriptionTest do
     test "an ESP message start fires as a delivery when no tier-1 subscription exists" do
       register_message(:event_subprocess_start, "order", "ESP_Start_1")
 
-      {:ok, result} =
-        MessagePublisher.publish_message(%{
-          name: "order",
-          payload: %{amount: 5},
-          skip_pending: true
-        })
+      {:ok, result} = MessagePublisher.publish_message(%{name: "order", payload: %{amount: 5}})
 
       assert_receive {:event_subprocess_message, "ESP_Start_1", %{amount: 5}}
       # Counts as a delivery → suppresses a standalone message start (tier 3).
@@ -84,12 +88,12 @@ defmodule BfwEngine.Events.EventSubprocessSubscriptionTest do
         MessagePublisher.publish_message(%{
           name: "order",
           payload: %{},
-          correlation_value: "B",
-          skip_pending: true
+          correlation_value: "B"
         })
 
       refute_receive {:event_subprocess_message, "ESP_Start_1", _}
       assert result.deliveries == []
+      assert result.pending == true
     end
   end
 
