@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_TimerBoundaryForwardsHostToken">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="TimerBoundaryForwardsHostToken" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="TimerBoundaryForwardsHostToken" name="Timer Boundary Forwards Host Token" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_Host</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Timer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Timer</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="UserTask_Host" name="Host">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="Boundary_Timer" name="Deadline" attachedToRef="UserTask_Host" cancelActivity="true">
+      <bpmn:outgoing>Flow_Timer</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT1H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Timer" name="Deadline End">
+      <bpmn:incoming>Flow_Timer</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="UserTask_Host" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_Host" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Timer" sourceRef="Boundary_Timer" targetRef="End_Timer" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="100" y="120" width="500" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="130" y="120" width="470" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_Host" bpmnElement="UserTask_Host">
+        <dc:Bounds x="270" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Timer" bpmnElement="Boundary_Timer">
+        <dc:Bounds x="302" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="472" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Timer" bpmnElement="End_Timer">
+        <dc:Bounds x="302" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="270" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="370" y="200" />
+        <di:waypoint x="472" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Timer" bpmnElement="Flow_Timer">
+        <di:waypoint x="320" y="258" />
+        <di:waypoint x="320" y="312" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

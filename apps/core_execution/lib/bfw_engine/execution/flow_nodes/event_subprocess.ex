@@ -766,8 +766,12 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   nothing is; a non-interrupting date/duration timer that fired stays
   disarmed; a fired cycle re-arms one interval after its latest fire; a
   fired conditional start waits for the next `false → true` edge.
+
+  Returns `{:error, reason, data}` when a message start's correlation key
+  cannot be evaluated; the process instance then goes fatal with that
+  reason.
   """
-  @spec register_triggers(State.t()) :: State.t()
+  @spec register_triggers(State.t()) :: {:ok, State.t()} | {:error, term(), State.t()}
   def register_triggers(data) do
     esp_nodes = Enum.filter(data.process_model.flow_nodes || [], &event_subprocess_shell?/1)
     fired_shell_times = fired_shell_times(data)
@@ -777,27 +781,29 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
         Map.has_key?(fired_shell_times, esp_node.id) and interrupting_event_subprocess?(esp_node)
       end)
 
-    Enum.reduce(esp_nodes, data, fn esp_node, accumulator ->
+    Enum.reduce_while(esp_nodes, {:ok, data}, fn esp_node, {:ok, accumulator} ->
       fired_times = Map.get(fired_shell_times, esp_node.id, [])
 
       case build_trigger(accumulator, esp_node, fired_times, scope_interrupted?) do
         {:ok, trigger} ->
-          accumulator = put_in(accumulator.event_subprocess_triggers[esp_node.id], trigger)
-
-          put_trigger_kind(
-            accumulator,
-            esp_node.id,
-            trigger.trigger_kind,
-            trigger.is_interrupting
-          )
+          {:cont, {:ok, put_trigger(accumulator, esp_node.id, trigger)}}
 
         {:dormant, trigger_kind, is_interrupting} ->
-          put_trigger_kind(accumulator, esp_node.id, trigger_kind, is_interrupting)
+          {:cont,
+           {:ok, put_trigger_kind(accumulator, esp_node.id, trigger_kind, is_interrupting)}}
 
         :skip ->
-          accumulator
+          {:cont, {:ok, accumulator}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason, accumulator}}
       end
     end)
+  end
+
+  defp put_trigger(data, subprocess_node_id, trigger) do
+    data = put_in(data.event_subprocess_triggers[subprocess_node_id], trigger)
+    put_trigger_kind(data, subprocess_node_id, trigger.trigger_kind, trigger.is_interrupting)
   end
 
   defp put_trigger_kind(data, subprocess_node_id, trigger_kind, is_interrupting) do
@@ -1144,37 +1150,38 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   defp register_message_trigger(data, base, start_event) do
     case MessageEventHelper.resolve_message_name(start_event, data.definitions) do
-      {:ok, message_name} ->
-        correlation = evaluate_correlation_value(data, start_event)
-
-        {:ok, subscription_id} =
-          MessageSubscriptions.register(%{
-            process_instance_id: data.process_instance_id,
-            root_process_instance_id: data.root_process_instance_id,
-            flow_node_instance_id: base.start_event_id,
-            flow_node_id: base.subprocess_node_id,
-            message_name: message_name,
-            expected_correlation_value: correlation,
-            kind: :event_subprocess_start,
-            via_pid: self(),
-            lane_name: resolve_esp_lane_name(data, base.subprocess_node_id)
-          })
-
-        {:ok,
-         %{
-           base
-           | trigger_kind: :message,
-             message_name: message_name,
-             correlation_value: correlation,
-             subscription_id: subscription_id
-         }}
-
-      {:error, _reason} ->
-        :skip
+      {:ok, message_name} -> register_message_subscription(data, base, start_event, message_name)
+      {:error, _reason} -> :skip
     end
   end
 
-  defp evaluate_correlation_value(data, start_event) do
+  defp register_message_subscription(data, base, start_event, message_name) do
+    with {:ok, correlation} <- evaluate_correlation_value(data, base, start_event) do
+      {:ok, subscription_id} =
+        MessageSubscriptions.register(%{
+          process_instance_id: data.process_instance_id,
+          root_process_instance_id: data.root_process_instance_id,
+          flow_node_instance_id: base.start_event_id,
+          flow_node_id: base.subprocess_node_id,
+          message_name: message_name,
+          expected_correlation_value: correlation,
+          kind: :event_subprocess_start,
+          via_pid: self(),
+          lane_name: resolve_esp_lane_name(data, base.subprocess_node_id)
+        })
+
+      {:ok,
+       %{
+         base
+         | trigger_kind: :message,
+           message_name: message_name,
+           correlation_value: correlation,
+           subscription_id: subscription_id
+       }}
+    end
+  end
+
+  defp evaluate_correlation_value(data, base, start_event) do
     context =
       InstanceHandlerDispatch.build_handler_context(data, start_event.id, start_event, self())
 
@@ -1183,8 +1190,13 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
            context,
            data.started_with_context || %{}
          ) do
-      {:ok, :none} -> :none
-      {:ok, value} -> value
+      {:ok, correlation} ->
+        {:ok, correlation}
+
+      {:error, {:correlation_expression_failed, reason}} ->
+        {:error,
+         {:event_subprocess_correlation_failed, base.subprocess_node_id,
+          %{expression: data.process_model.correlation_key, reason: reason}}}
     end
   end
 

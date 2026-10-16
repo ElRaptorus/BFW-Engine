@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_ThrowSideTokenMerge">
+
+  <bpmn:message id="Msg_order" name="order-placed-merge" />
+  <bpmn:message id="Msg_notice" name="order-notice-merge" />
+  <bpmn:signal id="Sig_stamp" name="order-stamped-merge" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="ThrowSideTokenMerge" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ThrowSideTokenMerge" name="Throw Side Token Merge" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Send_Order</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Notice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Stamp</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_Inspect</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sendTask id="Send_Order" name="Send Order" messageRef="Msg_order">
+      <bpmn:extensionElements>
+        <bfw:inputMapping source="token.orderId" target="orderId" />
+        <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:intermediateThrowEvent id="Throw_Notice" name="Publish Notice">
+      <bpmn:extensionElements>
+        <bfw:inputMapping source="token.note" target="notice" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Msg_notice" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="Throw_Stamp" name="Broadcast Stamp">
+      <bpmn:extensionElements>
+        <bfw:inputMapping source="true" target="stamped" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Sig_stamp" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:userTask id="UserTask_Inspect" name="Inspect Token">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Send_Order" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Send_Order" targetRef="Throw_Notice" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Throw_Notice" targetRef="Throw_Stamp" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Throw_Stamp" targetRef="UserTask_Inspect" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="UserTask_Inspect" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="100" y="120" width="860" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="130" y="120" width="830" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Send_Order" bpmnElement="Send_Order">
+        <dc:Bounds x="270" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Notice" bpmnElement="Throw_Notice">
+        <dc:Bounds x="442" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Throw_Stamp" bpmnElement="Throw_Stamp">
+        <dc:Bounds x="562" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_Inspect" bpmnElement="UserTask_Inspect">
+        <dc:Bounds x="670" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="862" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="270" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="370" y="200" />
+        <di:waypoint x="442" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="478" y="200" />
+        <di:waypoint x="562" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="598" y="200" />
+        <di:waypoint x="670" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="770" y="200" />
+        <di:waypoint x="862" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

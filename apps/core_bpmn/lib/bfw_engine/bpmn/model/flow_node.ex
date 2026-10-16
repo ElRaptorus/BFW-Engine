@@ -237,7 +237,9 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.SendTask do
   @moduledoc """
   `<bpmn:sendTask>` — a simpler Service Task with built-in message
   throw. Uses the same message routing infrastructure as Message
-  Throw events.
+  Throw events. `correlation_retrieval_expression` comes from
+  `<bfw:correlationRetrievalExpression>` in the task's own
+  `<extensionElements>`.
   """
 
   alias BfwEngine.BPMN.Model.Mapping
@@ -245,10 +247,17 @@ defmodule BfwEngine.BPMN.Model.FlowNodeData.SendTask do
   @type t :: %__MODULE__{
           message_ref: String.t() | nil,
           payload_contract: map() | nil,
+          correlation_retrieval_expression: String.t() | nil,
           in_mappings: [Mapping.t()],
           out_mappings: [Mapping.t()]
         }
-  defstruct [:message_ref, :payload_contract, in_mappings: [], out_mappings: []]
+  defstruct [
+    :message_ref,
+    :payload_contract,
+    :correlation_retrieval_expression,
+    in_mappings: [],
+    out_mappings: []
+  ]
 end
 
 defmodule BfwEngine.BPMN.Model.FlowNodeData.ReceiveTask do

@@ -409,6 +409,7 @@ defmodule BfwEngineWeb.Graphql.ModelTypes do
     mapping_fields()
     field(:message_ref, :string)
     field(:payload_contract, :json)
+    field(:correlation_retrieval_expression, :string)
   end
 
   object :receive_task_node do

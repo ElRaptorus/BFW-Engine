@@ -63,18 +63,6 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
     end
   end
 
-  @impl true
-  def handle_fatal(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
-  @impl true
-  def handle_aborted(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
   # -------------------------------------------------------------------
   # Resume (called by PI during reactivation)
   # -------------------------------------------------------------------
@@ -108,6 +96,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
           lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
+      FniLifecycle.record_resumed_subscription(context, subscription_id)
       send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
 
       if cancel_activity do
@@ -176,6 +165,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
          Map.put(type_properties, :persisted, true)}
 
       {:error, :persistence_failed} ->
+        MessageSubscriptions.unregister(subscription_id)
         {:error, :persistence_failed}
     end
   end
@@ -339,17 +329,6 @@ defmodule BfwEngine.Execution.FlowNodes.MessageBoundaryEvent do
         context.process_instance_pid,
         {:fni_merge_type_properties, context.flow_node_instance_id, type_properties}
       )
-    end
-  end
-
-  defp unregister_subscription(entry) do
-    type_props = entry.type_properties || %{}
-
-    subscription_id =
-      Map.get(type_props, :subscription_id) || Map.get(type_props, "subscription_id")
-
-    if subscription_id do
-      MessageSubscriptions.unregister(subscription_id)
     end
   end
 

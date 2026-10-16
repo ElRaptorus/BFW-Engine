@@ -79,7 +79,7 @@ Signals are deliberately minimal. They carry **no data** and use **no correlatio
 
 ### Token manipulation via mappings
 
-Although signals carry no payload, you may still use `bfw:inputMapping` and `bfw:outputMapping` on signal events. These map the **process token**, not a signal payload — they transform the token before it continues downstream, the same way mappings work on any other BPMN element.
+Although signals carry no payload, you may still use `bfw:inputMapping` and `bfw:outputMapping` on signal events. These map the **process token**, not a signal payload — they transform the token before it continues downstream. On a Signal Throw or Signal End Event the `inputMapping` result is merged over the token, so unmapped fields stay.
 
 ```xml
 <bpmn:intermediateCatchEvent id="Catch_1">

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  targetNamespace="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_Esc_IT_SP_Parent_ESP">
+  <bpmn:escalation id="Esc_Review" name="Review Required" escalationCode="ESC_REVIEW" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Escalation Throw Caught By Parent ESP" processRef="EscalationITSPParentEsp" />
+  </bpmn:collaboration>
+  <bpmn:process id="EscalationITSPParentEsp" name="Escalation IT SP Parent ESP" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ESP_Escalation</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:subProcess id="SubProcess_1" name="Sub Process">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:intermediateThrowEvent id="Sub_Throw" name="Escalation Throw">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
+        <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
+      </bpmn:intermediateThrowEvent>
+      <bpmn:userTask id="Sub_Park" name="Park after throw">
+        <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_3</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_3</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Sub_Throw" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Sub_Throw" targetRef="Sub_Park" />
+      <bpmn:sequenceFlow id="Sub_Flow_3" sourceRef="Sub_Park" targetRef="Sub_End" />
+    </bpmn:subProcess>
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_1" targetRef="End_1" />
+    <bpmn:subProcess id="ESP_Escalation" name="Escalation Event Subprocess" triggeredByEvent="true">
+      <bpmn:startEvent id="ESP_Start" name="Escalation Caught" isInterrupting="false">
+        <bpmn:outgoing>ESP_Flow_1</bpmn:outgoing>
+        <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
+      </bpmn:startEvent>
+      <bpmn:endEvent id="ESP_End" name="ESP Done">
+        <bpmn:incoming>ESP_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="ESP_Flow_1" sourceRef="ESP_Start" targetRef="ESP_End" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="826" height="420" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="796" height="420" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SubProcess_1" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="250" y="100" width="480" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Start" bpmnElement="Sub_Start">
+        <dc:Bounds x="282" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Throw" bpmnElement="Sub_Throw">
+        <dc:Bounds x="382" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Park" bpmnElement="Sub_Park">
+        <dc:Bounds x="480" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_End" bpmnElement="Sub_End">
+        <dc:Bounds x="652" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="802" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Escalation" bpmnElement="ESP_Escalation" isExpanded="true">
+        <dc:Bounds x="250" y="330" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_Start" bpmnElement="ESP_Start">
+        <dc:Bounds x="292" y="372" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ESP_End" bpmnElement="ESP_End">
+        <dc:Bounds x="452" y="372" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="250" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="730" y="200" />
+        <di:waypoint x="802" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_1" bpmnElement="Sub_Flow_1">
+        <di:waypoint x="318" y="200" />
+        <di:waypoint x="382" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_2" bpmnElement="Sub_Flow_2">
+        <di:waypoint x="418" y="200" />
+        <di:waypoint x="480" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Sub_Flow_3" bpmnElement="Sub_Flow_3">
+        <di:waypoint x="580" y="200" />
+        <di:waypoint x="652" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ESP_Flow_1" bpmnElement="ESP_Flow_1">
+        <di:waypoint x="328" y="390" />
+        <di:waypoint x="452" y="390" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

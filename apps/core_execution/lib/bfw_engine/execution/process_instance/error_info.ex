@@ -479,6 +479,15 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "The message correlation expression could not be evaluated: #{format_detail(reason)}."
   end
 
+  defp humanize_error(
+         {:event_subprocess_correlation_failed, subprocess_node_id,
+          %{expression: expression, reason: reason}}
+       ) do
+    "The correlation key '#{expression}' for the message start event of Event Subprocess " <>
+      "'#{subprocess_node_id}' could not be evaluated when its scope started: " <>
+      "#{format_detail(reason)}."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end

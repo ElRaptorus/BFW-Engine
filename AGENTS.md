@@ -424,10 +424,13 @@ inside the event definition. They use `<bfw:payloadContract>` (throw-side) or
 #### `bfw:correlationRetrievalExpression`
 
 FEEL expression evaluated on **throw-side** events (Intermediate Throw,
-Message End Event, Send Task) against the outgoing token / handler context.
-The result is stamped onto the published message as `correlation_value`
-before delivery. Catch-side events do not use this extension — they rely on
-the process-level `bfw:correlationKey` instead.
+Message End Event, Send Task) with `token` bound to the published message
+body (the `bfw:inputMapping` result). The result is stamped onto the
+published message as `correlation_value` before delivery; FEEL `null` means
+no correlation value. Without it, the process-level `bfw:correlationKey` is
+evaluated against the same body. A Send Task has no event definition and
+carries it in its own `<extensionElements>`. Catch-side events do not use
+this extension — they rely on the process-level `bfw:correlationKey` instead.
 
 ```xml
 <bpmn:intermediateThrowEvent id="Throw_payment" name="Notify Payment">
@@ -449,7 +452,10 @@ event definition). Catch-side shaping uses `bfw:outputMapping`. There is no
 consume `bfw:inputMapping` + `bfw:payloadContract` only (`outputMapping` in
 XML is ignored). Receive Task and catch-side message events consume
 `bfw:resultContract` + `bfw:outputMapping` only (`inputMapping` in XML is
-ignored). Do not apply the unused side at runtime.
+ignored). Do not apply the unused side at runtime. On the throw side the
+published body is the mapping result and the outgoing token is that result
+merged over the input token (unmapped fields stay); Signal Throw and Signal
+End Events build their outgoing token the same way.
 
 ### Signal Event Extensions
 
@@ -492,7 +498,8 @@ specificity tiebreak. `fail_async` `error_code` uses this same matcher.
 
 #### `bfw:errorMessage`
 
-Human-readable error message attached to the error event.
+Human-readable error message attached to the error event. On an Error
+Boundary it is descriptive only and never filters matching.
 
 ```xml
 <bfw:errorMessage>Input validation failed</bfw:errorMessage>

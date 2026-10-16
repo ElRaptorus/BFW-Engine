@@ -352,12 +352,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
       data = Resumption.resume(data, flow_node_instance_data, pending_arrivals, self())
       data = resume_stalled_compensation_runs(data)
 
-      data = EspScope.register_triggers(data)
+      {data, trigger_actions} = register_event_subprocess_triggers(data)
       data = evaluate_parked_inclusive_joins(data)
       data = evaluate_parked_complex_joins(data)
       data = redispatch_lost_successors(data)
 
-      {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
+      {:ok, :running, data,
+       trigger_actions ++ [{:next_event, :internal, :check_initial_dispatch}]}
     else
       {:error, reason} ->
         Logger.error("PI #{data.process_instance_id} failed to resume: #{inspect(reason)}")
@@ -483,8 +484,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp init_after_persist(data, nil, _opts, _now) do
-    data = EspScope.register_triggers(data)
-    {:ok, :running, data}
+    {data, trigger_actions} = register_event_subprocess_triggers(data)
+    {:ok, :running, data, trigger_actions}
   end
 
   defp init_after_persist(data, start_event, opts, now) do
@@ -500,8 +501,19 @@ defmodule BfwEngine.Execution.ProcessInstance do
       EspScope.passthrough_start_event(start_event, opts[:esp_start_passthrough])
 
     data = dispatch_flow_node_instance(data, dispatch_start_event, initial_token, [])
-    data = EspScope.register_triggers(data)
-    {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
+    {data, trigger_actions} = register_event_subprocess_triggers(data)
+
+    {:ok, :running, data, trigger_actions ++ [{:next_event, :internal, :check_initial_dispatch}]}
+  end
+
+  defp register_event_subprocess_triggers(data) do
+    case EspScope.register_triggers(data) do
+      {:ok, data} ->
+        {data, []}
+
+      {:error, reason, data} ->
+        {data, [{:next_event, :internal, {:event_subprocess_registration_failed, reason}}]}
+    end
   end
 
   # -------------------------------------------------------------------
@@ -513,6 +525,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # was spawned, so no {:fni_result, ...} message will arrive.
   def running(:internal, :check_initial_dispatch, data) do
     maybe_finish_or_continue(data)
+  end
+
+  def running(:internal, {:event_subprocess_registration_failed, reason}, data) do
+    transition_to_fatal(data, reason)
   end
 
   # FNI completed synchronously (stale result guard is inside handle_fni_ok)
@@ -617,20 +633,19 @@ defmodule BfwEngine.Execution.ProcessInstance do
     maybe_finish_or_continue(data)
   end
 
-  # CA/SP handler Task: child escalation (intermediate throw) was not caught.
-  # Forward the escalation passthrough to the grandparent scope.
+  # CA/SP handler Task: no boundary on the shell caught a child escalation
+  # (intermediate throw). This scope's escalation Event Subprocess starts get
+  # it next; otherwise it is forwarded to the grandparent scope.
   def running(:info, {:escalation_passthrough, escalation_info}, data) do
-    if data.notify_pid do
-      send(data.notify_pid, {:child_pi_escalation_passthrough, self(), escalation_info})
-    else
-      :telemetry.execute(
-        [:bfw_engine, :escalation, :uncaught],
-        %{system_time: System.system_time()},
-        %{process_instance_id: data.process_instance_id, escalation_info: escalation_info}
-      )
-    end
+    case EspScope.resolve_escalation_catch(data, escalation_info) do
+      {:ok, action} ->
+        data = execute_esp_action(data, action)
+        maybe_finish_or_continue(data)
 
-    {:keep_state, data}
+      :none ->
+        forward_escalation_passthrough(data, escalation_info)
+        {:keep_state, data}
+    end
   end
 
   def running(
@@ -1906,8 +1921,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         if is_boundary do
           %{
             position: :boundary,
-            cancel_activity: Map.get(extra_type_properties, :cancel_activity),
-            host_fni_id: Map.get(extra_type_properties, :host_flow_node_instance_id)
+            cancel_activity: Map.get(extra_type_properties, :cancel_activity)
           }
         else
           %{position: :intermediate_catch}
@@ -2458,7 +2472,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
         was_waiting: entry.state == :waiting
       )
 
-    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+    InstanceHandlerDispatch.release_handler(
+      flow_node,
+      flow_node_instance_id,
+      :handle_aborted,
+      entry
+    )
 
     data = unregister_conditional_waiter(data, flow_node_instance_id)
 
@@ -2913,7 +2932,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
         if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
         flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
-        InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+        InstanceHandlerDispatch.release_handler(
+          flow_node,
+          flow_node_instance_id,
+          :handle_aborted,
+          entry
+        )
 
         _persist_result =
           FniLifecycle.transition_to_interrupted(
@@ -2979,7 +3004,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
     if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
     flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
-    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+    InstanceHandlerDispatch.release_handler(
+      flow_node,
+      flow_node_instance_id,
+      :handle_aborted,
+      entry
+    )
 
     _persist_result =
       FniLifecycle.transition_to_interrupted(
@@ -3683,13 +3714,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     opts =
       if is_boundary do
-        type_data = flow_node.type_data
-        host_fni_id = find_host_fni_id(data, flow_node)
-
         %{
           position: :boundary,
-          cancel_activity: Map.get(type_data, :cancel_activity, true),
-          host_fni_id: host_fni_id
+          cancel_activity: Map.get(flow_node.type_data, :cancel_activity, true)
         }
       else
         %{position: :intermediate_catch}
@@ -3702,16 +3729,6 @@ defmodule BfwEngine.Execution.ProcessInstance do
     evaluate_single_conditional_waiter(data, fni_id, waiter)
   end
 
-  defp find_host_fni_id(data, boundary_flow_node) do
-    attached_to_ref = boundary_flow_node.type_data.attached_to_ref
-
-    Enum.find_value(data.flow_node_instance_states, fn {fni_id, entry} ->
-      if entry.flow_node_id == attached_to_ref and entry.state in [:active, :waiting] do
-        fni_id
-      end
-    end)
-  end
-
   defp register_conditional_waiter(data, fni_id, flow_node, handler_module, token_payload, opts) do
     waiter = %{
       flow_node_id: flow_node.id,
@@ -3719,7 +3736,6 @@ defmodule BfwEngine.Execution.ProcessInstance do
       handler_module: handler_module,
       position: opts[:position] || :intermediate_catch,
       cancel_activity: opts[:cancel_activity],
-      host_fni_id: opts[:host_fni_id],
       token_payload: token_payload,
       fired: false
     }
@@ -3877,7 +3893,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
           was_waiting: entry.state == :waiting
         )
 
-      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_fatal, [entry])
+      InstanceHandlerDispatch.release_handler(
+        flow_node,
+        flow_node_instance_id,
+        :handle_fatal,
+        entry
+      )
     end)
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
@@ -3906,7 +3927,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
           was_waiting: entry.state == :waiting
         )
 
-      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+      InstanceHandlerDispatch.release_handler(
+        flow_node,
+        flow_node_instance_id,
+        :handle_aborted,
+        entry
+      )
     end)
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
@@ -3928,7 +3954,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
         if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
         flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
-        InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+        InstanceHandlerDispatch.release_handler(
+          flow_node,
+          flow_node_instance_id,
+          :handle_aborted,
+          entry
+        )
 
         _persist_result =
           FniLifecycle.transition_to_error(
@@ -4003,15 +4035,22 @@ defmodule BfwEngine.Execution.ProcessInstance do
         adapter.update_process_instance(data.process_instance_id, %{
           state: @pi_state_fatal,
           finished_at: DateTime.utc_now(),
-          error_info: %{
-            "error_code" => "process_fatal",
-            "message" => "Process instance went fatal",
-            "detail" => JsonSafe.convert(fatal_reason)
-          }
+          error_info: process_instance_fatal_error_info(fatal_reason)
         })
       end,
       "PI fatal #{data.process_instance_id}"
     )
+  end
+
+  defp process_instance_fatal_error_info({:event_subprocess_correlation_failed, _, _} = reason),
+    do: ErrorInfo.build(reason)
+
+  defp process_instance_fatal_error_info(fatal_reason) do
+    %{
+      "error_code" => "process_fatal",
+      "message" => "Process instance went fatal",
+      "detail" => JsonSafe.convert(fatal_reason)
+    }
   end
 
   defp persist_pi_resume_failed(data, reason) do
@@ -4643,7 +4682,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
        ) do
     shell_task = Map.get(data.mi_shell_tasks, iteration_fni_id)
     flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
-    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+    InstanceHandlerDispatch.release_handler(
+      flow_node,
+      iteration_fni_id,
+      :handle_aborted,
+      entry
+    )
 
     persist_result =
       FniLifecycle.transition_to_interrupted(
@@ -4912,6 +4957,18 @@ defmodule BfwEngine.Execution.ProcessInstance do
         process_instance_pid = self()
         send(pid, {:child_pi_escalation_passthrough, process_instance_pid, escalation_info})
     end
+  end
+
+  defp forward_escalation_passthrough(%{notify_pid: nil} = data, escalation_info) do
+    :telemetry.execute(
+      [:bfw_engine, :escalation, :uncaught],
+      %{system_time: System.system_time()},
+      %{process_instance_id: data.process_instance_id, escalation_info: escalation_info}
+    )
+  end
+
+  defp forward_escalation_passthrough(data, escalation_info) do
+    send(data.notify_pid, {:child_pi_escalation_passthrough, self(), escalation_info})
   end
 
   defp emit_fni_started(

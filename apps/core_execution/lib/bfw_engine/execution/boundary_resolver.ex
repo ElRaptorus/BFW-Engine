@@ -11,17 +11,10 @@ defmodule BfwEngine.Execution.BoundaryResolver do
   Ranking among error boundaries on the same host (document order is
   not used as a specificity tiebreak):
   1. First boundary whose resolved code equals the raised `error_code`
-     (and the message AND-filter still holds)
-  2. Else first catch-all (resolved code `nil`, message filter ok)
+  2. Else first catch-all (resolved code `nil`)
 
-  Matching semantics follow SS7 AND logic:
-  - If the boundary specifies `error_code` only, the runtime error must
-    carry the same code.
-  - If the boundary specifies `error_message` only, the runtime error
-    must carry the same message.
-  - If the boundary specifies both, **both** must match.
-  - A catch-all boundary (no resolved code, no `error_message`) matches
-    any error.
+  Matching is by code only. A boundary's `bfw:errorMessage` is descriptive
+  and never filters a match.
   """
 
   alias BfwEngine.BPMN.Model.Definitions
@@ -63,17 +56,12 @@ defmodule BfwEngine.Execution.BoundaryResolver do
     specific_match =
       Enum.find(error_boundaries, fn node ->
         resolved_code = resolve_catch_code(node, definitions)
-
-        not is_nil(resolved_code) and resolved_code == to_string_or_nil(raised_code) and
-          message_matches?(error_message_on(node), error_info)
+        not is_nil(resolved_code) and resolved_code == to_string_or_nil(raised_code)
       end)
 
     result =
       specific_match ||
-        Enum.find(error_boundaries, fn node ->
-          is_nil(resolve_catch_code(node, definitions)) and
-            message_matches?(error_message_on(node), error_info)
-        end)
+        Enum.find(error_boundaries, &is_nil(resolve_catch_code(&1, definitions)))
 
     case result do
       nil -> :none
@@ -115,11 +103,6 @@ defmodule BfwEngine.Execution.BoundaryResolver do
 
   defp error_boundary?(_), do: false
 
-  defp error_message_on(%FlowNode{type_data: type_data}) do
-    %EventDefinition.Error{error_message: error_message} = type_data.event_definition
-    error_message
-  end
-
   defp resolve_catch_code(%FlowNode{type_data: type_data}, definitions) do
     %EventDefinition.Error{} = error_definition = type_data.event_definition
     inline_code = error_definition.error_code
@@ -147,7 +130,4 @@ defmodule BfwEngine.Execution.BoundaryResolver do
 
   defp to_string_or_nil(nil), do: nil
   defp to_string_or_nil(value), do: to_string(value)
-
-  defp message_matches?(nil, _error_info), do: true
-  defp message_matches?(expected, error_info), do: Map.get(error_info, :error_message) == expected
 end

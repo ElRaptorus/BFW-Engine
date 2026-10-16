@@ -7,16 +7,20 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
   use ExUnit.Case, async: false
 
   alias BfwEngine.BPMN.Model.Definitions
+  alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.BPMN.Model.MessageDefinition
   alias BfwEngine.BPMN.Model.Process, as: BpmnProcess
   alias BfwEngine.BPMN.Model.SequenceFlow
+  alias BfwEngine.BPMN.Model.SignalDefinition
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.MessagePublisher
   alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution
   alias BfwEngine.Execution.FlowNodes
+  alias BfwEngine.Execution.FlowNodes.MessageEventHelper
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Execution.ServiceReset
@@ -228,6 +232,97 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
     assert subscriptions_for_process_instance("pi-1") == []
   end
 
+  describe "catch and boundary handlers leave no subscription when park_async fails" do
+    setup do
+      Application.put_env(:core_execution, :persistence_adapter, FailingWaitingAdapter)
+      Application.put_env(:core_execution, :persistence_retry_max_attempts, 1)
+      Application.put_env(:core_execution, :persistence_retry_initial_backoff_ms, 1)
+      ServiceReset.signal_subscriptions()
+      MessageSubscriptions.mark_ready()
+      SignalSubscriptions.mark_ready()
+      :ok
+    end
+
+    test "MessageCatchEvent" do
+      type_data = %FlowNodeData.IntermediateCatchEvent{event_definition: message_definition()}
+      {flow_node, context} = park_failure_context(:intermediate_catch_event, type_data)
+
+      assert {:error, :persistence_failed} =
+               FlowNodes.MessageCatchEvent.handle_enter(flow_node, empty_token(), context)
+
+      assert subscriptions_for_process_instance("pi-park") == []
+    end
+
+    test "MessageBoundaryEvent" do
+      type_data = %FlowNodeData.BoundaryEvent{event_definition: message_definition()}
+      {flow_node, context} = park_failure_context(:boundary_event, type_data)
+
+      assert {:error, :persistence_failed} =
+               FlowNodes.MessageBoundaryEvent.handle_enter(flow_node, empty_token(), context)
+
+      assert subscriptions_for_process_instance("pi-park") == []
+    end
+
+    test "SignalCatchEvent" do
+      type_data = %FlowNodeData.IntermediateCatchEvent{event_definition: signal_definition()}
+      {flow_node, context} = park_failure_context(:intermediate_catch_event, type_data)
+
+      assert {:error, :persistence_failed} =
+               FlowNodes.SignalCatchEvent.handle_enter(flow_node, empty_token(), context)
+
+      assert SignalSubscriptions.lookup("park-fail-signal") == []
+    end
+
+    test "SignalBoundaryEvent" do
+      type_data = %FlowNodeData.BoundaryEvent{event_definition: signal_definition()}
+      {flow_node, context} = park_failure_context(:boundary_event, type_data)
+
+      assert {:error, :persistence_failed} =
+               FlowNodes.SignalBoundaryEvent.handle_enter(flow_node, empty_token(), context)
+
+      assert SignalSubscriptions.lookup("park-fail-signal") == []
+    end
+  end
+
+  describe "throw-side correlation (MessageEventHelper.resolve_throw_correlation/3)" do
+    test "a retrieval expression yielding FEEL null means no correlation value" do
+      context = throw_context("token.orderId")
+      source = %EventDefinition.Message{correlation_retrieval_expression: "token.missing"}
+
+      assert {:ok, :none} =
+               MessageEventHelper.resolve_throw_correlation(source, %{"orderId" => "A"}, context)
+    end
+
+    test "without a retrieval expression the correlation key is evaluated on the payload" do
+      context = throw_context("token.orderId")
+      source = %FlowNodeData.SendTask{}
+
+      assert {:ok, "A"} =
+               MessageEventHelper.resolve_throw_correlation(source, %{"orderId" => "A"}, context)
+
+      assert {:ok, :none} = MessageEventHelper.resolve_throw_correlation(source, %{}, context)
+    end
+
+    test "a Send Task retrieval expression wins over the correlation key" do
+      context = throw_context("token.orderId")
+      source = %FlowNodeData.SendTask{correlation_retrieval_expression: "token.customerId"}
+      payload = %{"orderId" => "A", "customerId" => "C"}
+
+      assert {:ok, "C"} = MessageEventHelper.resolve_throw_correlation(source, payload, context)
+    end
+
+    test "a FEEL syntax error is a correlation_expression_failed error" do
+      context = throw_context(nil)
+
+      source = %FlowNodeData.SendTask{
+        correlation_retrieval_expression: "for x in [1] return if x then"
+      }
+
+      assert {:error, {:correlation_expression_failed, _reason}} =
+               MessageEventHelper.resolve_throw_correlation(source, %{}, context)
+    end
+  end
+
   test "ServiceTask park failure never invokes the plugin handler" do
     Application.put_env(:core_execution, :persistence_adapter, FailingWaitingAdapter)
     Application.put_env(:core_execution, :persistence_retry_max_attempts, 1)
@@ -354,6 +449,49 @@ defmodule BfwEngine.Execution.SubscriptionParkCorrelationTest do
     }
 
     {flow_node, context}
+  end
+
+  defp message_definition, do: %EventDefinition.Message{message_ref: "Message_park"}
+
+  defp signal_definition, do: %EventDefinition.Signal{signal_ref: "Signal_park"}
+
+  defp empty_token do
+    %Token{
+      id: "token-park",
+      process_instance_id: "pi-park",
+      payload: %{},
+      created_at: DateTime.utc_now()
+    }
+  end
+
+  defp park_failure_context(type, type_data) do
+    flow_node = %FlowNode{id: "Catch_park", type: type, type_data: type_data, outgoing: []}
+    process_model = %BpmnProcess{id: "proc-park", flow_nodes: [flow_node], sequence_flows: []}
+
+    definitions = %Definitions{
+      processes: [process_model],
+      messages: [%MessageDefinition{id: "Message_park", name: "park-fail-message"}],
+      signals: [%SignalDefinition{id: "Signal_park", name: "park-fail-signal"}],
+      raw_xml: ""
+    }
+
+    context = %HandlerContext{
+      flow_node_instance_id: "fni-park",
+      process_instance_id: "pi-park",
+      process_model: process_model,
+      definitions: definitions,
+      host_flow_node_instance_id: "fni-host"
+    }
+
+    {flow_node, context}
+  end
+
+  defp throw_context(correlation_key) do
+    %HandlerContext{
+      flow_node_instance_id: "fni-throw",
+      process_instance_id: "pi-throw",
+      process_model: %BpmnProcess{id: "proc-throw", correlation_key: correlation_key}
+    }
   end
 
   defp start_process_instance(version_id, process_instance_id) do

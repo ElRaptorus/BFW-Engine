@@ -6,7 +6,8 @@ defmodule BfwEngine.Events.SignalPublisher do
 
   1. Generate UUID signal ID
   2. Insert `signals` audit row (no payload, no correlation)
-  3. ETS lookup for matching subscriptions (by signal_name only)
+  3. ETS lookup for matching subscriptions (by signal_name only); subscriptions
+     whose `via_pid` is dead are pruned and never counted as deliveries
   4. Deliver `{:signal_arrived, signal_id}` to each subscription via `send(via_pid, ...)`
   5. Simultaneously call `SignalStartHandler` callback — start new PIs from Signal Start Events
   6. If zero deliveries AND zero start events fired → insert `pending_signals` with TTL
@@ -78,7 +79,12 @@ defmodule BfwEngine.Events.SignalPublisher do
 
     persist_signal_audit(signal_id, signal_name, origin, now)
 
-    subscriptions = SignalSubscriptions.lookup(signal_name)
+    {subscriptions, dead_subscriptions} =
+      signal_name
+      |> SignalSubscriptions.lookup()
+      |> Enum.split_with(&Process.alive?(&1.via_pid))
+
+    SignalSubscriptions.prune(dead_subscriptions)
     deliveries = deliver_to_subscriptions(subscriptions, signal_id, triggerer_fni_id)
 
     started_process_instance_ids = invoke_start_event_handler(signal_name, triggerer_fni_id)

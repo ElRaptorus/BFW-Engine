@@ -19,19 +19,21 @@ Catch-side Error Boundary matching **resolves** the boundary's error code the sa
 
 A 3-arity lookup that never receives the process `Definitions` cannot resolve `errorRef` — specific boundaries then look like catch-alls. Production matching always passes `Definitions`.
 
-AND filters still apply on the **resolved** code and optional `error_message`:
+Matching uses the **resolved** code only:
 
-| Boundary Specifies | Matching Rule |
+| Boundary resolves to | Matching Rule |
 |-------------------|---------------|
-| Resolved `errorCode` only | Runtime error must carry the same `error_code` |
-| `errorMessage` only | Runtime error must carry the same `error_message` |
-| Both resolved `errorCode` and `errorMessage` | **Both** must match |
-| Neither (catch-all) | Matches any error |
+| An error code | Runtime error must carry the same `error_code` |
+| No code (catch-all) | Matches any error |
+
+A `bfw:errorMessage` on the boundary is a description. It never filters a match: a boundary with a code and a message catches every error with that code, and a boundary with only a message is a catch-all.
 
 When multiple boundary events are attached, the engine **ranks** them (document order is not a specificity tiebreak):
 
-1. First boundary whose **resolved** code equals the raised `error_code` (and the message AND-filter still holds)
-2. Else first catch-all (resolved code `nil`, message filter ok)
+1. First boundary whose **resolved** code equals the raised `error_code`
+2. Else first catch-all (resolved code `nil`)
+
+With several running instances of the same activity (for example two tokens in parallel branches), an error on one instance fires that instance's boundary only; the other instance and its boundary keep waiting.
 
 `fail_async` on a Service Task uses this same matcher — the plugin's `error_code` string is not a special channel.
 

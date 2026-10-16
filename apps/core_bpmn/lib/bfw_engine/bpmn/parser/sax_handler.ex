@@ -1430,16 +1430,18 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
        ) do
     text = String.trim(state.text_buffer)
 
-    event_def =
-      case state.current_event_def do
-        %EventDefinition.Message{} = ed ->
-          %EventDefinition.Message{ed | correlation_retrieval_expression: text}
+    case {state.current_event_def, state.current_node_data} do
+      {%EventDefinition.Message{} = event_definition, _node_data} ->
+        event_definition = %{event_definition | correlation_retrieval_expression: text}
+        {:ok, %{state | current_event_def: event_definition, text_buffer: "", stack: rest}}
 
-        other ->
-          other
-      end
+      {nil, %FlowNodeData.SendTask{} = node_data} ->
+        node_data = %{node_data | correlation_retrieval_expression: text}
+        {:ok, %{state | current_node_data: node_data, text_buffer: "", stack: rest}}
 
-    {:ok, %{state | current_event_def: event_def, text_buffer: "", stack: rest}}
+      _other ->
+        {:ok, %{state | text_buffer: "", stack: rest}}
+    end
   end
 
   defp handle_end("errorCode", %{stack: [:evil_error_code | rest]} = state) do

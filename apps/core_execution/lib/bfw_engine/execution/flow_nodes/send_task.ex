@@ -9,7 +9,10 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
   - Wrapped by `BoundaryAwareHandler` (it's an activity, so error
     boundaries apply)
   - Data pipeline: `inputMapping` → `payloadContract` → **publish** →
-    proceed (token = message payload flows through)
+    proceed. The published body is the mapping result; the outgoing token
+    is that result merged over the input token.
+  - `bfw:correlationRetrievalExpression` sits on the task's own
+    `<extensionElements>` (there is no event definition)
   """
 
   @behaviour BfwEngine.Execution.FlowNodeHandler
@@ -31,7 +34,8 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
 
   @doc """
   Applies input mappings, enforces PayloadCap, resolves the message name,
-  evaluates process-level correlation key, publishes the message, and resolves
+  evaluates correlation (retrieval expression with fallback to the
+  process-level correlation key), publishes the message, and resolves
   outgoing sequence flows.
   """
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
@@ -54,12 +58,9 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
          {:ok, message_name} <-
            MessageEventHelper.resolve_message_name(flow_node, context.definitions),
          {:ok, correlation_value} <-
-           MessageEventHelper.evaluate_correlation_key(
-             context.process_model,
-             context,
-             mapped_payload
-           ) do
-      publish_and_proceed(flow_node, context, message_name, mapped_payload, correlation_value)
+           MessageEventHelper.resolve_throw_correlation(type_data, mapped_payload, context) do
+      publish_message(context, message_name, mapped_payload, correlation_value)
+      proceed(flow_node, context, Map.merge(raw_payload, mapped_payload))
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}
@@ -73,7 +74,7 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
   # Private
   # -------------------------------------------------------------------
 
-  defp publish_and_proceed(flow_node, context, message_name, payload, correlation_value) do
+  defp publish_message(context, message_name, payload, correlation_value) do
     ets_correlation =
       case correlation_value do
         :none -> nil
@@ -92,13 +93,17 @@ defmodule BfwEngine.Execution.FlowNodes.SendTask do
         }
       })
 
+    :ok
+  end
+
+  defp proceed(flow_node, context, outgoing_payload) do
     case resolve_outgoing(flow_node, context) do
       {:ok, next_ids} ->
-        case FniLifecycle.finish(context, flow_node, payload, %{}) do
+        case FniLifecycle.finish(context, flow_node, outgoing_payload, %{}) do
           {:ok, lifecycle_result} ->
             {:ok,
              %FlowNodeResult{
-               output_payload: payload,
+               output_payload: outgoing_payload,
                next_flow_node_ids: next_ids,
                metadata: %{persisted: true, lifecycle: lifecycle_result}
              }}

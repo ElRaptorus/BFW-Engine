@@ -140,6 +140,29 @@ defmodule BfwEngine.Execution.FniLifecycle do
     persist_fni_waiting(flow_node_instance_id, type_properties)
   end
 
+  @doc """
+  Record the subscription a resumed message or signal handler registered:
+  patches `subscription_id` into the persisted `type_properties` and merges
+  it into the process instance's entry, replacing the id from before the
+  restart. Call before `{:resume_settled, id}`.
+  """
+  @spec record_resumed_subscription(HandlerContext.t(), String.t()) :: :ok
+  def record_resumed_subscription(context, subscription_id) do
+    _patch_result =
+      PersistenceAdapter.adapter().patch_fni_type_properties(
+        context.flow_node_instance_id,
+        %{"subscription_id" => subscription_id}
+      )
+
+    send(
+      context.process_instance_pid,
+      {:fni_merge_type_properties, context.flow_node_instance_id,
+       %{:subscription_id => subscription_id, "subscription_id" => subscription_id}}
+    )
+
+    :ok
+  end
+
   # -------------------------------------------------------------------
   # PI-called (exceptional paths)
   # -------------------------------------------------------------------

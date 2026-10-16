@@ -139,6 +139,33 @@ defmodule BfwEngine.Events.SignalSubscriptions do
   end
 
   @doc """
+  Remove every subscription registered for a flow node instance.
+
+  The process instance calls this whenever it cancels, interrupts, or
+  aborts a flow node instance, so a handler cancelled before it reported
+  its `subscription_id` leaves no subscription behind. Event Subprocess
+  start subscriptions carry a start event id, never a flow node instance
+  id, and are not affected.
+  """
+  @spec unregister_all_for_flow_node_instance(String.t()) :: :ok
+  def unregister_all_for_flow_node_instance(flow_node_instance_id)
+      when is_binary(flow_node_instance_id) do
+    @table_name
+    |> :ets.match_object({:_, %{flow_node_instance_id: flow_node_instance_id}})
+    |> Enum.each(&delete_subscription_entry/1)
+  end
+
+  @doc """
+  Remove the given subscriptions. The publisher calls this for subscriptions
+  whose `via_pid` is no longer alive, so a dead waiter is never counted as
+  a delivery.
+  """
+  @spec prune([Subscription.t()]) :: :ok
+  def prune(subscriptions) do
+    Enum.each(subscriptions, &delete_subscription_entry({&1.signal_name, &1}))
+  end
+
+  @doc """
   Bulk-remove all subscriptions for a process instance.
   """
   @spec unregister_all_for_process_instance(String.t()) :: :ok
@@ -255,6 +282,15 @@ defmodule BfwEngine.Events.SignalSubscriptions do
   # Private helpers
   # -------------------------------------------------------------------
 
+  defp delete_subscription_entry({signal_name, subscription} = entry) do
+    :ets.delete_object(@table_name, entry)
+
+    :ets.delete_object(
+      @process_instance_index_table,
+      {subscription.process_instance_id, signal_name, subscription.subscription_id}
+    )
+  end
+
   defp delete_matching_subscription(signal_name, subscription_id) do
     @table_name
     |> :ets.lookup(signal_name)
@@ -304,7 +340,7 @@ defmodule BfwEngine.Events.SignalSubscriptions do
     Enum.each(rows, fn row ->
       case adapter.mark_pending_delivered(row.id) do
         :ok ->
-          send(subscription.via_pid, {:signal_arrived, row.signal_id, nil})
+          send(subscription.via_pid, pending_delivery_message(subscription, row))
 
           EngineEventBus.publish(%Event.SignalArrived{
             signal_id: row.signal_id,
@@ -334,4 +370,12 @@ defmodule BfwEngine.Events.SignalSubscriptions do
       end
     end)
   end
+
+  defp pending_delivery_message(
+         %Subscription{kind: :event_subprocess_start} = subscription,
+         _row
+       ),
+       do: {:event_subprocess_signal, subscription.flow_node_id}
+
+  defp pending_delivery_message(_subscription, row), do: {:signal_arrived, row.signal_id, nil}
 end

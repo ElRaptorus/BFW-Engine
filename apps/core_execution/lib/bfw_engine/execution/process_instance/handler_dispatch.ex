@@ -4,9 +4,30 @@ defmodule BfwEngine.Execution.ProcessInstance.HandlerDispatch do
   """
 
   alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.HandlerDispatch, as: FlowNodeHandlerDispatch
   alias BfwEngine.Expressions.Context, as: FeelContext
+
+  @doc """
+  Ends the handler of a flow node instance the process instance cancels,
+  interrupts, aborts, or fatals from outside: removes every message and
+  signal subscription registered for `flow_node_instance_id`, then calls
+  `callback_name` (`:handle_aborted` or `:handle_fatal`) through
+  `invoke_optional_callback/3`.
+
+  The removal goes by flow node instance id because a handler cancelled
+  before its `{:async, …}` result reached the process instance has not
+  reported its subscription id yet.
+  """
+  @spec release_handler(FlowNode.t() | nil, String.t(), :handle_aborted | :handle_fatal, map()) ::
+          :ok
+  def release_handler(flow_node, flow_node_instance_id, callback_name, entry) do
+    MessageSubscriptions.unregister_all_for_flow_node_instance(flow_node_instance_id)
+    SignalSubscriptions.unregister_all_for_flow_node_instance(flow_node_instance_id)
+    invoke_optional_callback(flow_node, callback_name, [entry])
+  end
 
   @doc """
   Calls `callback_name` on the flow node's handler when the handler exports

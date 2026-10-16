@@ -46,7 +46,6 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
           handler_module: module(),
           position: :intermediate_catch | :boundary,
           cancel_activity: boolean() | nil,
-          host_fni_id: String.t() | nil,
           token_payload: map(),
           fired: boolean()
         }

@@ -75,19 +75,20 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
                })
     end
 
-    test "matches by error_message only" do
+    test "a boundary with only error_message is a catch-all" do
       boundary = error_boundary("BE_1", error_message: "timeout")
       {host, model} = build_host_and_model([boundary])
 
       assert {:ok, matched} =
                BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
-                 error_message: "timeout"
+                 error_code: "ANY_CODE",
+                 error_message: "something else"
                })
 
       assert matched.id == "BE_1"
     end
 
-    test "matches with AND semantics (both code and message)" do
+    test "error_message never filters a code match" do
       boundary = error_boundary("BE_1", error_code: "ERR_01", error_message: "bad input")
       {host, model} = build_host_and_model([boundary])
 
@@ -96,15 +97,7 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
                  host,
                  model,
                  nil,
-                 %{error_code: "ERR_01", error_message: "bad input"}
-               )
-
-      assert :none ==
-               BoundaryResolver.find_matching_error_boundary(
-                 host,
-                 model,
-                 nil,
-                 %{error_code: "ERR_01", error_message: "wrong message"}
+                 %{error_code: "ERR_01", error_message: "a different message"}
                )
 
       assert :none ==
@@ -114,6 +107,20 @@ defmodule BfwEngine.Execution.BoundaryResolverTest do
                  nil,
                  %{error_code: "WRONG", error_message: "bad input"}
                )
+    end
+
+    test "a specific boundary with a descriptive message beats a catch-all" do
+      described = error_boundary("BE_specific", error_code: "ERR_01", error_message: "Described")
+      catch_all = error_boundary("BE_catch_all")
+      {host, model} = build_host_and_model([catch_all, described])
+
+      assert {:ok, matched} =
+               BoundaryResolver.find_matching_error_boundary(host, model, nil, %{
+                 error_code: "ERR_01",
+                 error_message: "runtime message"
+               })
+
+      assert matched.id == "BE_specific"
     end
 
     test "catch-all boundary (no code, no message) matches any error" do

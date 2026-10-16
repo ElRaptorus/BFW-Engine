@@ -10,8 +10,10 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
   3. On arrival: passes the token through unchanged (signals carry no
      payload), applies `out_mappings` if present (these map the existing
      token, not a signal payload), resolves outgoing flows
-  4. `handle_fatal/1` / `handle_aborted/1`: unregister the subscription
-  5. `handle_resume/3`: re-register and block again
+  4. Cancellation: the process instance removes the subscription by flow
+     node instance id (`HandlerDispatch.release_handler/4`)
+  5. `handle_resume/3`: re-register, report the new subscription id, and
+     block again
   """
 
   @behaviour BfwEngine.Execution.FlowNodeHandler
@@ -37,18 +39,6 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
     end
   end
 
-  @impl true
-  def handle_fatal(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
-  @impl true
-  def handle_aborted(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
   def handle_resume(flow_node, entry, context) do
@@ -68,6 +58,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
           lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
+      FniLifecycle.record_resumed_subscription(context, subscription_id)
       send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
       wait_for_signal(flow_node, context, subscription_id, resume_payload)
     end
@@ -105,6 +96,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
          Map.put(type_properties, :persisted, true)}
 
       {:error, :persistence_failed} ->
+        SignalSubscriptions.unregister(subscription_id)
         {:error, :persistence_failed}
     end
   end
@@ -130,21 +122,6 @@ defmodule BfwEngine.Execution.FlowNodes.SignalCatchEvent do
              metadata: %{persisted: true, lifecycle: lifecycle_result}
            }}
         end
-    end
-  end
-
-  # -------------------------------------------------------------------
-  # Private: cleanup
-  # -------------------------------------------------------------------
-
-  defp unregister_subscription(entry) do
-    type_props = entry.type_properties || %{}
-
-    subscription_id =
-      Map.get(type_props, :subscription_id) || Map.get(type_props, "subscription_id")
-
-    if subscription_id do
-      SignalSubscriptions.unregister(subscription_id)
     end
   end
 

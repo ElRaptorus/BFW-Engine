@@ -10,22 +10,30 @@ parent — repeating until caught or until the root of the root PI is reached. E
 
 - A single `GenServer` per engine node (`BfwEngine.Events.MessageSubscriptions`) owns the registry. It is backed by ETS for O(1) lookup on `(message_name, correlation_value)`.
 - A subscription row: `%Subscription{process_instance_id, flow_node_instance_id, flow_node_id, message_name, expected_correlation_value, kind :: :intermediate_catch | :boundary | :event_subprocess_start, registered_at, :via_pid}`.
-- Intermediate Catch, Boundary Event (Message), and Event Subprocess Start Events share this registry — matching is identical across all three (the `kind` field is informational only, used for audit + debugging).
+- Intermediate Catch, Boundary Event (Message), and Event Subprocess Start Events share this registry — matching is identical across all three (the `kind` field is informational only, used for audit + debugging). The publisher and the pending drain use `kind` for one thing: an `:event_subprocess_start` row is told `{:event_subprocess_message, subprocess_node_id, payload}` instead of `{:message_arrived, …}` (§3.5.8).
 - The registry is **in-memory only**. On engine restart it is empty until PIs resume; each PI re-evaluates `<bfw:correlationKey>` against its restored state and re-registers its active subscriptions before the Subscription GenServer declares itself "ready".
+- **Lifecycle.** `via_pid` is the handler Task of a catch, boundary, or Receive Task, and the scope PI for an Event Subprocess start (whose `flow_node_instance_id` field holds the start event id). Rows are removed:
+  - by the handler with `unregister/1` when its message arrives, or when its `park_async` write fails;
+  - by the PI with `unregister_all_for_flow_node_instance/1` whenever it interrupts, aborts, or fatals a flow node instance from outside (host finished, sibling boundary fired, region cancel, Event-Based Gateway loser, PI abort/fatal, MI iteration cancel) through `ProcessInstance.HandlerDispatch.release_handler/4` — by flow node instance id, because a handler cancelled before its `{:async, …}` result reached the PI has not reported its `subscription_id` yet;
+  - by the PI with `unregister_all_for_process_instance/1` on PI abort, fatal, and interrupting scope events;
+  - by the publisher with `prune/1`: `publish_message/1` skips and prunes every matched row whose `via_pid` is no longer alive, so a dead waiter never counts as a delivery and never suppresses a start event or the pending hold. An Event Subprocess row of a live scope is never pruned.
+- A resumed handler re-registers with a new `subscription_id` and reports it before `{:resume_settled, id}` through `FniLifecycle.record_resumed_subscription/2` (patched into the persisted `type_properties` and merged into the PI entry).
+- `SignalSubscriptions` (§3.5.6) follows the same lifecycle with the same function names.
 
 #### 3.5.2 Correlation value derivation
 
 `<bfw:correlationKey>` is FEEL over PI state/context (catch-side subscribe).
-`<bfw:correlationRetrievalExpression>` is FEEL over the outgoing token /
-handler context (throw-side publish). Both results become a string in
+`<bfw:correlationRetrievalExpression>` is FEEL over the published message
+body / handler context (throw-side publish). Both results become a string in
 `MessageEventHelper`: a string is used as is, a FEEL date, time, date-time or
 duration becomes its ISO 8601 text (`date("2026-01-01")` correlates as
-`"2026-01-01"`), and anything else goes through `to_string/1`; a value that
-cannot be converted fails with `correlation_expression_failed`. Where each one runs:
+`"2026-01-01"`), FEEL `null` means no correlation value (`:none`), and
+anything else goes through `to_string/1`; a value that cannot be converted
+fails with `correlation_expression_failed`. Where each one runs:
 
 - **Catch / Boundary / Event-Subprocess-Start subscribe**: PI's `<bfw:correlationKey>` evaluated against current PI state (token + Data Objects + `Identity`, see [expressions.md](./expressions.md) §8 context). Result cached on the `%Subscription{}` row as `expected_correlation_value`.
   - If the process declares no `<bfw:correlationKey>`, the subscription's `expected_correlation_value` is `:none` — it matches any message whose `correlation_value` is `:none`.
-- **Throw (Intermediate Throw / Message End Event)**: throw's `<bfw:correlationRetrievalExpression>` evaluated against the outgoing token payload. Result is stamped onto `messages.correlation_value` at publish time.
+- **Throw (Intermediate Throw / Message End Event / Send Task)**: `MessageEventHelper.resolve_throw_correlation/3` evaluates the `<bfw:correlationRetrievalExpression>` with `token` bound to the published message body (the `bfw:inputMapping` result). Throw events carry it inside `<bpmn:messageEventDefinition>`; a Send Task, which has no event definition, carries it in its own `<extensionElements>` (`FlowNodeData.SendTask.correlation_retrieval_expression`). Without the expression, `<bfw:correlationKey>` is evaluated against the same body. The result is stamped onto `messages.correlation_value` at publish time.
 - **API `POST /messages/{message_name}/trigger`**: caller supplies `correlation` in the request body. If absent, `correlation_value = :none`.
 - **Message Start Event**: at the moment of starting a new PI from a message, `<bfw:correlationKey>` is evaluated against **the incoming payload** (there is no PI state yet), and the resulting value is seeded as the new PI's first correlation value. Subsequent subscriptions inside that PI re-evaluate `<bfw:correlationKey>` against the now-populated PI state.
 
@@ -52,11 +60,13 @@ Pending messages are held in the durable `pending_messages` table ([data-model.m
 shortly after publish still catches the message.
 
 - On publish with zero matches (§3.5.3 step 6): insert a `pending_messages` row with `state='pending'`, `expires_at = published_at + BFE_MESSAGE_PENDING_TTL`.
-- On every subscription register (`MessageSubscriptions.register/1`): drain pending messages for that `(name, expected_correlation_value)` — any pending rows still inside TTL are delivered immediately via §3.5.3 step 3 and their `state` set to `'delivered'`.
+- On every subscription register (`MessageSubscriptions.register/1`): drain pending messages for that `(name, expected_correlation_value)` — any pending rows still inside TTL are delivered immediately via §3.5.3 step 3 and their `state` set to `'delivered'`. An Event Subprocess start that registers at scope activation drains the same way and fires its Event Subprocess as on a live publish.
 - A periodic sweeper (every 10 s by default) transitions expired `pending` rows to `state='expired'` and emits a `warn` JSON log carrying the `message_id`, `name`, and `correlation_value`.
 - `pending_messages` never holds Signals or Escalations — those are not TTL'd.
 - **Delete-on-transition**: the post-transition row lifetime is governed by `BFE_PENDING_MESSAGES_KEEP_AFTER_TRANSITION` (default `true`). With the default, rows in `delivered`/`expired`/`cancelled` state persist until operator SQL ages them out (delivery-attempt audit). With the flag set to `false`, the engine physically deletes the row on deliver/expire/cancel (`destroy_if_pending` still requires `state == 'pending'`), so the table holds only rows still in flight.
 - **Orphan pending cleanup**: when a publish delivers to at least one live subscriber or triggers a Message Start Event, the publisher cancels all existing `pending_messages` rows for that `(message_name, correlation_value)` via `cancel_pending_for_message/2`. This prevents stale pending rows from earlier zero-match publishes from being drained by the next subscriber that registers after a live delivery.
+- **Known window — pending insert.** The publisher looks the registry up, then inserts the pending row. A subscription that registers between the two drains nothing, and the row waits for the next registration of that key within TTL (an interrupting catch never registers again). Not closed: closing it needs the lookup and the insert under one lock.
+- **Known window — non-interrupting boundary re-register.** A non-interrupting message or signal boundary unregisters on each fire and registers again after notifying the PI. A publish in that gap sees no boundary subscription and falls through to an Event Subprocess start, a standalone start event, or the pending hold; a start it triggers cannot be undone.
 #### 3.5.5 Resume / restart behavior
 
 1. Engine boots; `MessageSubscriptions` GenServer is empty.
@@ -138,8 +148,9 @@ registers and claims a pending row consumes it (FIFO drain per
 `signal_name`) — subsequent subscribers do not receive that pending signal.
 `SignalSubscriptions.register/1` queries in-TTL `pending_signals` rows for
 the subscription's `signal_name`, delivers `{:signal_arrived, signal_id}` to
-the registering `via_pid`, appends to `signals.deliveries`, and transitions
-the pending row to `state='delivered'`.
+the registering `via_pid` (an Event Subprocess start is told
+`{:event_subprocess_signal, subprocess_node_id}` and fires), appends to
+`signals.deliveries`, and transitions the pending row to `state='delivered'`.
 
 **Orphan pending cleanup.** When a publish delivers to at least one live
 subscriber or triggers at least one Signal Start Event, the publisher
@@ -201,7 +212,7 @@ Throw (child PI)
 **PI-level messages:**
 - `{:fni_result, id, {:escalation_end, info, result}}` — Escalation End Event FNI finished; PI interrupts siblings, sets `escalation_info`, maybe transitions to `:escalated`
 - `{:fni_result, id, {:escalation_throw, info, result}}` — Escalation Intermediate Throw; PI dispatches outgoing token (PI keeps running), propagates to parent
-- `{:escalation_passthrough, info}` — CA/SP no-matched passthrough; PI propagates further up
+- `{:escalation_passthrough, info}` — CA/SP no-matched passthrough; the PI first tries its own escalation Event Subprocess starts (`EspScope.resolve_escalation_catch/2`, same as an Escalation Throw raised in that scope), then propagates further up
 - `{:fni_result, id, {:escalation_end_propagate, info, result}}` — CA/SP host received uncaught End escalation from child; PI interrupts siblings, transitions to `:escalated`
 
 **Uncaught at the root of the root PI:** Propagation stops. The affected PIs' terminal states are determined by the **throw element**:
@@ -251,4 +262,4 @@ A Catch/Boundary always beats an ESP Message Start (correlate-to-existing-catch)
 
 **Error / Escalation ESP starts.** Not subscription-based — resolved **reactively** at raise time by `BfwEngine.Execution.EventSubprocessResolver` (`find_matching_error_start/2` / `find_matching_escalation_start/2`). A scope-level ESP catches an error/escalation raised in its scope **before** it propagates to the parent (proximity), and a specific code beats a catch-all ESP start within the same scope (specificity). A boundary on the throwing activity is always tested before the scope ESP (boundary and ESP occupy different proximity levels), so boundary-vs-ESP is decided by proximity, never specificity.
 
-**Correlation at scope activation.** A message ESP start's `expected_correlation_value` is evaluated from `<bfw:correlationKey>` against the scope's state at registration time (scope activation), exactly like a Catch/Boundary subscription (§3.5.2). If the scope declares no `<bfw:correlationKey>`, the ESP start matches only messages whose `correlation_value` is `:none`.
+**Correlation at scope activation.** A message ESP start's `expected_correlation_value` is evaluated from `<bfw:correlationKey>` at registration time (scope activation), with the same context bindings as a Catch/Boundary subscription (§3.5.2) except that `token` is bound to the scope's start context (`started_with_context`, the `context` of the start request), not to a token payload. If the scope declares no `<bfw:correlationKey>`, the ESP start matches only messages whose `correlation_value` is `:none`. If the expression fails, `register_triggers/1` returns `{:error, {:event_subprocess_correlation_failed, subprocess_node_id, %{expression, reason}}, data}` and the scope PI goes fatal with that error as its `error_info` (`ErrorInfo` names the Event Subprocess and the expression).

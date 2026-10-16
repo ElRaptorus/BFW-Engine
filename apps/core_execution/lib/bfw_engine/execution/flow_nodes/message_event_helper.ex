@@ -11,6 +11,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
   alias BfwEngine.BPMN.Model.Definitions
   alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
@@ -73,25 +74,34 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
   end
 
   @doc """
-  Evaluate the `<bfw:correlationRetrievalExpression>` from an event definition
-  against a payload. Used by throw-side handlers to extract the correlation
-  value from the outgoing message payload.
+  Resolve the correlation value a throw-side handler (Intermediate Throw,
+  Message End Event, Send Task) stamps onto the published message.
 
-  Returns `{:ok, value}` or `{:ok, :none}` if no expression is defined.
-  FEEL evaluation failures return `{:error, {:correlation_expression_failed, reason}}`.
+  `source` carries the `<bfw:correlationRetrievalExpression>`: the
+  `EventDefinition.Message` of a throw event, or the
+  `FlowNodeData.SendTask` of a Send Task. The expression is evaluated with
+  `token` bound to `payload`, the published message body. Without an
+  expression, the process-level `<bfw:correlationKey>` is evaluated against
+  the same payload. FEEL `null` from either means no correlation value.
+
+  Returns `{:ok, value}`, `{:ok, :none}`, or
+  `{:error, {:correlation_expression_failed, reason}}`.
   """
-  @spec evaluate_correlation_retrieval_expression(EventDefinition.Message.t(), map(), map()) ::
-          {:ok, String.t() | :none} | {:error, term()}
-  def evaluate_correlation_retrieval_expression(event_definition, _payload, feel_context) do
-    expression = event_definition.correlation_retrieval_expression
+  @spec resolve_throw_correlation(
+          EventDefinition.Message.t() | FlowNodeData.SendTask.t(),
+          map(),
+          HandlerContext.t()
+        ) :: {:ok, String.t() | :none} | {:error, term()}
+  def resolve_throw_correlation(%{correlation_retrieval_expression: expression}, payload, context)
+      when expression in [nil, ""],
+      do: evaluate_correlation_key(context.process_model, context, payload)
 
-    if is_nil(expression) || expression == "" do
-      {:ok, :none}
-    else
-      case Expressions.eval(expression, feel_context) do
-        {:ok, value} -> correlation_text(value)
-        {:error, reason} -> {:error, {:correlation_expression_failed, reason}}
-      end
+  def resolve_throw_correlation(%{correlation_retrieval_expression: expression}, payload, context) do
+    feel_context = FeelContext.from_handler_context(context, payload)
+
+    case Expressions.eval(expression, feel_context) do
+      {:ok, value} -> correlation_text(value)
+      {:error, reason} -> {:error, {:correlation_expression_failed, reason}}
     end
   rescue
     exception -> {:error, {:correlation_expression_failed, exception}}
@@ -109,7 +119,10 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
     :feel_duration_ym
   ]
 
-  # A FEEL date, time, or duration correlates as its ISO 8601 text.
+  # A FEEL date, time, or duration correlates as its ISO 8601 text; FEEL null
+  # means no correlation value.
+  defp correlation_text(nil), do: {:ok, :none}
+
   defp correlation_text({kind, text}) when kind in @feel_temporal_kinds and is_binary(text),
     do: {:ok, text}
 

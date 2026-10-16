@@ -4,7 +4,8 @@ defmodule BfwEngine.Execution.FlowNodes.SignalThrowEvent do
 
   Pipeline: resolve signal name → publish signal (broadcast, no payload) →
   resolve outgoing flows. Apply `in_mappings` if present (these transform
-  the token, not a signal payload — signals carry no payload).
+  the token, not a signal payload — signals carry no payload); the outgoing
+  token is the mapping result merged over the input token.
 
   No waiting, no subscription — throw is synchronous.
   """
@@ -32,7 +33,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalThrowEvent do
            MappingHelper.apply_in_mappings(in_mappings, raw_payload, context),
          {:ok, signal_name} <-
            SignalEventHelper.resolve_signal_name(flow_node, context.definitions) do
-      publish_and_proceed(flow_node, context, signal_name, mapped_payload)
+      publish_and_proceed(flow_node, context, signal_name, Map.merge(raw_payload, mapped_payload))
     end
   end
 

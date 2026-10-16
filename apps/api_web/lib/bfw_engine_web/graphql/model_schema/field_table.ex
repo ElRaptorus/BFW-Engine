@@ -143,7 +143,14 @@ defmodule BfwEngineWeb.Graphql.ModelSchema.FieldTable do
      ],
      excluded: []},
     {Model.FlowNodeData.SendTask,
-     exposed: [:message_ref, :payload_contract, :in_mappings, :out_mappings], excluded: []},
+     exposed: [
+       :message_ref,
+       :payload_contract,
+       :correlation_retrieval_expression,
+       :in_mappings,
+       :out_mappings
+     ],
+     excluded: []},
     {Model.FlowNodeData.ReceiveTask,
      exposed: [:message_ref, :result_contract, :in_mappings, :out_mappings], excluded: []},
     {Model.FlowNodeData.CallActivity,

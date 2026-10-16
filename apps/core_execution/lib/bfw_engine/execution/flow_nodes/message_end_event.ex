@@ -2,7 +2,8 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
   @moduledoc """
   Handler for `<bpmn:endEvent>` with a Message event definition.
 
-  Same message construction and publishing as `MessageThrowEvent`, but
+  Same message construction and publishing as `MessageThrowEvent` (the
+  outgoing token is the mapping result merged over the input token), but
   returns empty `next_flow_node_ids` (end events have no outgoing flows)
   and populates `type_properties` with `end_event_id` and `end_event_name`
   for `FinalToken` decoration — same as the untyped End Event.
@@ -18,7 +19,6 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
   alias BfwEngine.Execution.PayloadCap
-  alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Types.Token
 
   # -------------------------------------------------------------------
@@ -51,8 +51,9 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
              :payload_contract_violation
            ),
          {:ok, correlation_value} <-
-           resolve_throw_correlation(event_definition, mapped_payload, context) do
-      publish_and_finish(flow_node, context, message_name, mapped_payload, correlation_value)
+           MessageEventHelper.resolve_throw_correlation(event_definition, mapped_payload, context) do
+      publish_message(context, message_name, mapped_payload, correlation_value)
+      finish(flow_node, context, Map.merge(raw_payload, mapped_payload))
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}
@@ -66,23 +67,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
   # Private
   # -------------------------------------------------------------------
 
-  defp resolve_throw_correlation(event_definition, payload, context) do
-    feel_context = FeelContext.from_handler_context(context, payload)
-
-    case MessageEventHelper.evaluate_correlation_retrieval_expression(
-           event_definition,
-           payload,
-           feel_context
-         ) do
-      {:ok, :none} ->
-        MessageEventHelper.evaluate_correlation_key(context.process_model, context, payload)
-
-      result ->
-        result
-    end
-  end
-
-  defp publish_and_finish(flow_node, context, message_name, payload, correlation_value) do
+  defp publish_message(context, message_name, payload, correlation_value) do
     ets_correlation =
       case correlation_value do
         :none -> nil
@@ -101,16 +86,20 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEndEvent do
         }
       })
 
+    :ok
+  end
+
+  defp finish(flow_node, context, outgoing_payload) do
     type_properties = %{
       end_event_id: flow_node.id,
       end_event_name: flow_node.name
     }
 
-    case FniLifecycle.finish(context, flow_node, payload, type_properties) do
+    case FniLifecycle.finish(context, flow_node, outgoing_payload, type_properties) do
       {:ok, lifecycle_result} ->
         {:ok,
          %FlowNodeResult{
-           output_payload: payload,
+           output_payload: outgoing_payload,
            next_flow_node_ids: [],
            type_properties: type_properties,
            metadata: %{persisted: true, lifecycle: lifecycle_result}

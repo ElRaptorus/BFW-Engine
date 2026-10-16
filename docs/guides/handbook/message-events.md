@@ -78,7 +78,7 @@ For Message Start Events, `bfw:correlationKey` is evaluated against the **incomi
 
 ### `bfw:correlationRetrievalExpression` (throw-side)
 
-Declared inside a `<bpmn:messageEventDefinition>` on throw-side elements (Intermediate Throw, Message End Event, Send Task). Evaluated against the outgoing token before publish; the result is stamped onto the message as `correlation_value`.
+Declared inside the `<bpmn:messageEventDefinition>` of an Intermediate Throw or Message End Event. A Send Task has no event definition, so it declares the expression in its own `<bpmn:extensionElements>`. The expression is evaluated against the message body that is about to be published (`token` is the `inputMapping` result, or the whole token without mappings); the result is stamped onto the message as `correlation_value`. Without the expression, the process-level `bfw:correlationKey` is evaluated against the same body. A result of `null` publishes the message without a correlation value.
 
 ```xml
 <bpmn:messageEventDefinition messageRef="Message_payment">
@@ -86,9 +86,15 @@ Declared inside a `<bpmn:messageEventDefinition>` on throw-side elements (Interm
     <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
   </bpmn:extensionElements>
 </bpmn:messageEventDefinition>
+
+<bpmn:sendTask id="Send_order" messageRef="Message_order">
+  <bpmn:extensionElements>
+    <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
+  </bpmn:extensionElements>
+</bpmn:sendTask>
 ```
 
-Catch-side events do **not** use this extension.
+Catch-side events do **not** use this extension. A catch-side `bfw:correlationKey` that evaluates to `null` subscribes without a correlation value, so it matches messages published without one.
 
 ### Matching rule
 
@@ -101,7 +107,7 @@ When a message is published but no subscription or Message Start Event matches, 
 | Event | Behaviour |
 |-------|-----------|
 | Publish with no match | Row inserted with `state='pending'`, `expires_at = now + TTL` |
-| Late subscription register | Pending rows for the same `(name, correlation_value)` inside TTL are delivered immediately |
+| Late subscription register | Pending rows for the same `(name, correlation_value)` inside TTL are delivered immediately. This includes a message Event Subprocess start, which fires when its scope starts |
 | TTL expires | Sweeper transitions row to `state='expired'` |
 
 This closes the race where a message arrives milliseconds before a catch event enters its waiting state, or during engine resume before subscriptions are re-registered.
@@ -170,7 +176,7 @@ The live pipeline is one-sided:
 
 | Element | Live pipeline | Ignored in XML |
 |---------|---------------|----------------|
-| Send / throw message | `inputMapping` → `payloadContract` → publish; outgoing token = published body | `outputMapping` |
+| Send / throw message | `inputMapping` → `payloadContract` → publish the mapping result; outgoing token = input token with the mapping result merged over it (unmapped fields stay) | `outputMapping` |
 | Receive / catch message | wait → `resultContract` → `outputMapping`; outgoing token = mapped message | `inputMapping` |
 
 Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. **Contracts and mappings are placed at the flow-node's `<extensionElements>` level**, never inside `<messageEventDefinition>`. Only `bfw:correlationRetrievalExpression` lives on the event definition. Leftover `<bfw:payload>` / `<bfw:eventMapping>` tags are silently ignored.

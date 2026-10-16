@@ -51,18 +51,6 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
     end
   end
 
-  @impl true
-  def handle_fatal(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
-  @impl true
-  def handle_aborted(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
   # -------------------------------------------------------------------
   # Resume (called by PI during reactivation)
   # -------------------------------------------------------------------
@@ -93,6 +81,7 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
           lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
+      FniLifecycle.record_resumed_subscription(context, subscription_id)
       send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
       wait_for_message(flow_node, context, subscription_id)
     end
@@ -163,21 +152,6 @@ defmodule BfwEngine.Execution.FlowNodes.ReceiveTask do
              metadata: %{persisted: true, lifecycle: lifecycle_result}
            }}
         end
-    end
-  end
-
-  # -------------------------------------------------------------------
-  # Private: cleanup
-  # -------------------------------------------------------------------
-
-  defp unregister_subscription(entry) do
-    type_props = entry.type_properties || %{}
-
-    subscription_id =
-      Map.get(type_props, :subscription_id) || Map.get(type_props, "subscription_id")
-
-    if subscription_id do
-      MessageSubscriptions.unregister(subscription_id)
     end
   end
 

@@ -5,7 +5,8 @@ defmodule BfwEngine.Events.MessagePublisher do
   Full pipeline:
 
   1. Insert `messages` audit row (via persistence adapter)
-  2. ETS lookup for matching subscriptions
+  2. ETS lookup for matching subscriptions; subscriptions whose `via_pid` is
+     dead are pruned and never counted as deliveries
   3. Deliver `MessageArrived` to each matching PI via `send(via_pid, {:message_arrived, ...})`
   4. Catch-wins-over-Start gating (Phase D — if no subscriptions, check for Message Start Events)
   5. Pending on zero-match (insert `pending_messages` row with TTL)
@@ -79,7 +80,13 @@ defmodule BfwEngine.Events.MessagePublisher do
     persist_message_audit(message_id, message_name, correlation_value, payload, origin, now)
 
     ets_correlation = correlation_value || :none
-    all_subscriptions = MessageSubscriptions.lookup(message_name, ets_correlation)
+
+    {all_subscriptions, dead_subscriptions} =
+      message_name
+      |> MessageSubscriptions.lookup(ets_correlation)
+      |> Enum.split_with(&Process.alive?(&1.via_pid))
+
+    MessageSubscriptions.prune(dead_subscriptions)
 
     # ESP-D13: an Event Subprocess message start is a *gated* Start Event, not a
     # tier-1 delivery. Inline catch / boundary / receive-task subscriptions

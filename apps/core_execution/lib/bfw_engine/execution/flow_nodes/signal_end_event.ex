@@ -2,7 +2,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalEndEvent do
   @moduledoc """
   Handler for `<bpmn:endEvent>` with a Signal event definition.
 
-  Same signal publishing as `SignalThrowEvent`, but returns empty
+  Same signal publishing and outgoing token as `SignalThrowEvent`, but returns empty
   `next_flow_node_ids` (end events have no outgoing flows) and
   populates `type_properties` with `end_event_id` and `end_event_name`
   for `FinalToken` decoration.
@@ -30,7 +30,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalEndEvent do
            MappingHelper.apply_in_mappings(in_mappings, raw_payload, context),
          {:ok, signal_name} <-
            SignalEventHelper.resolve_signal_name(flow_node, context.definitions) do
-      publish_and_finish(flow_node, context, signal_name, mapped_payload)
+      publish_and_finish(flow_node, context, signal_name, Map.merge(raw_payload, mapped_payload))
     end
   end
 

@@ -155,7 +155,13 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
     graceful_kill_handler(entry.pid)
 
     flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
-    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+    InstanceHandlerDispatch.release_handler(
+      flow_node,
+      flow_node_instance_id,
+      :handle_aborted,
+      entry
+    )
 
     _persist_result =
       FniLifecycle.transition_to_interrupted(

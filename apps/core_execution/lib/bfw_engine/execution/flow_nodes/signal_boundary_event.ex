@@ -55,18 +55,6 @@ defmodule BfwEngine.Execution.FlowNodes.SignalBoundaryEvent do
     end
   end
 
-  @impl true
-  def handle_fatal(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
-  @impl true
-  def handle_aborted(entry) do
-    unregister_subscription(entry)
-    :ok
-  end
-
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t()) ::
           {:boundary, String.t(), term(), boolean()} | {:error, term()}
   def handle_resume(flow_node, entry, context) do
@@ -89,6 +77,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalBoundaryEvent do
           lane_name: LaneResolution.resolve_lane_name_from_context(context, flow_node)
         })
 
+      FniLifecycle.record_resumed_subscription(context, subscription_id)
       send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
 
       if cancel_activity do
@@ -154,6 +143,7 @@ defmodule BfwEngine.Execution.FlowNodes.SignalBoundaryEvent do
          Map.put(type_properties, :persisted, true)}
 
       {:error, :persistence_failed} ->
+        SignalSubscriptions.unregister(subscription_id)
         {:error, :persistence_failed}
     end
   end
@@ -311,17 +301,6 @@ defmodule BfwEngine.Execution.FlowNodes.SignalBoundaryEvent do
         context.process_instance_pid,
         {:fni_merge_type_properties, context.flow_node_instance_id, type_properties}
       )
-    end
-  end
-
-  defp unregister_subscription(entry) do
-    type_props = entry.type_properties || %{}
-
-    subscription_id =
-      Map.get(type_props, :subscription_id) || Map.get(type_props, "subscription_id")
-
-    if subscription_id do
-      SignalSubscriptions.unregister(subscription_id)
     end
   end
 

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_ErrorBoundaryConcurrentHostInstances">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="ErrorBoundaryConcurrentHostInstances" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ErrorBoundaryConcurrentHostInstances" name="Error Boundary Concurrent Host Instances" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Park</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Error</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Normal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Caught</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Fork_1" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_A</bpmn:outgoing>
+      <bpmn:outgoing>Flow_B</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="ServiceTask_Park" name="Park" implementation="async_park">
+      <bpmn:incoming>Flow_A</bpmn:incoming>
+      <bpmn:incoming>Flow_B</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Boundary_Error" name="Parking Failed" attachedToRef="ServiceTask_Park" cancelActivity="true">
+      <bpmn:outgoing>Flow_Caught</bpmn:outgoing>
+      <bpmn:errorEventDefinition>
+        <bpmn:extensionElements>
+          <bfw:errorCode>PARK_FAILED</bfw:errorCode>
+          <bfw:errorMessage>The parking service rejected the request</bfw:errorMessage>
+        </bpmn:extensionElements>
+      </bpmn:errorEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Normal" name="Normal End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Caught" name="Caught End">
+      <bpmn:incoming>Flow_Caught</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork_1" />
+    <bpmn:sequenceFlow id="Flow_A" sourceRef="Fork_1" targetRef="ServiceTask_Park" />
+    <bpmn:sequenceFlow id="Flow_B" sourceRef="Fork_1" targetRef="ServiceTask_Park" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ServiceTask_Park" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Caught" sourceRef="Boundary_Error" targetRef="End_Caught" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_1" bpmnElement="Participant_1" isHorizontal="true">
+        <dc:Bounds x="100" y="80" width="620" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="590" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fork_1" bpmnElement="Fork_1">
+        <dc:Bounds x="255" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Park" bpmnElement="ServiceTask_Park">
+        <dc:Bounds x="400" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Error" bpmnElement="Boundary_Error">
+        <dc:Bounds x="432" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Normal" bpmnElement="End_Normal">
+        <dc:Bounds x="602" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Caught" bpmnElement="End_Caught">
+        <dc:Bounds x="432" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="200" />
+        <di:waypoint x="255" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A" bpmnElement="Flow_A">
+        <di:waypoint x="280" y="175" />
+        <di:waypoint x="280" y="130" />
+        <di:waypoint x="450" y="130" />
+        <di:waypoint x="450" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_B" bpmnElement="Flow_B">
+        <di:waypoint x="305" y="200" />
+        <di:waypoint x="400" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="500" y="200" />
+        <di:waypoint x="602" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Caught" bpmnElement="Flow_Caught">
+        <di:waypoint x="450" y="258" />
+        <di:waypoint x="450" y="312" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

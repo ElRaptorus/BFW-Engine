@@ -64,7 +64,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         {finish_boundary_fni(data, flow_node_instance_id, triggerer_fni_id),
          flow_node_instance_id}
       else
-        case find_prespawned_boundary_fni_id(data, boundary_node_id) do
+        case find_prespawned_boundary_fni_id(data, boundary_node_id, host_fni_id) do
           nil ->
             Logger.warning(
               "No pre-spawned boundary FNI found for #{boundary_node_id}; " <>
@@ -86,7 +86,8 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       end
 
     boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
-    new_token = build_boundary_token(data, boundary_fni_id, payload)
+    token_payload = boundary_token_payload(data, boundary_node, boundary_fni_id, payload)
+    new_token = build_boundary_token(data, boundary_fni_id, token_payload)
 
     dispatch_targets =
       build_dispatch_targets(data, boundary_node, new_token, boundary_fni_id)
@@ -125,7 +126,8 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       end
 
     boundary_node = FlowNodeLookup.find_flow_node(data, boundary_node_id)
-    new_token = build_boundary_token(data, flow_node_instance_id, payload)
+    token_payload = boundary_token_payload(data, boundary_node, flow_node_instance_id, payload)
+    new_token = build_boundary_token(data, flow_node_instance_id, token_payload)
 
     dispatch_targets =
       build_dispatch_targets(data, boundary_node, new_token, flow_node_instance_id)
@@ -185,7 +187,13 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
-      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+      InstanceHandlerDispatch.release_handler(
+        flow_node,
+        boundary_fni_id,
+        :handle_aborted,
+        entry
+      )
 
       _persist_result =
         FniLifecycle.transition_to_interrupted(
@@ -228,7 +236,13 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
-      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
+
+      InstanceHandlerDispatch.release_handler(
+        flow_node,
+        sibling_fni_id,
+        :handle_aborted,
+        entry
+      )
 
       _persist_result =
         FniLifecycle.transition_to_interrupted(
@@ -485,6 +499,23 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     persist_result
   end
 
+  # Timer and Conditional triggers carry no data; such a boundary forwards its
+  # own input token, which is the host's input token.
+  defp boundary_token_payload(
+         data,
+         %FlowNode{type_data: %FlowNodeData.BoundaryEvent{event_definition: %definition_type{}}},
+         boundary_fni_id,
+         _payload
+       )
+       when definition_type in [EventDefinition.Timer, EventDefinition.Conditional] do
+    case Map.get(data.flow_node_instance_states, boundary_fni_id) do
+      %{token: %Token{payload: payload}} when is_map(payload) -> payload
+      _no_token -> %{}
+    end
+  end
+
+  defp boundary_token_payload(_data, _boundary_node, _boundary_fni_id, payload), do: payload
+
   defp build_boundary_token(data, flow_node_instance_id, payload) do
     %Token{
       id: UuidV7.generate(),
@@ -519,9 +550,10 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     end
   end
 
-  defp find_prespawned_boundary_fni_id(data, boundary_node_id) do
+  defp find_prespawned_boundary_fni_id(data, boundary_node_id, host_fni_id) do
     Enum.find_value(data.flow_node_instance_states, fn {fni_id, entry} ->
-      if entry.flow_node_id == boundary_node_id and entry.state in [:active, :waiting] do
+      if entry.flow_node_id == boundary_node_id and entry.state in [:active, :waiting] and
+           boundary_fni_for_host?(entry, host_fni_id) do
         fni_id
       end
     end)

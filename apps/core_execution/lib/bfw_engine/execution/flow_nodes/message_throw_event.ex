@@ -4,6 +4,8 @@ defmodule BfwEngine.Execution.FlowNodes.MessageThrowEvent do
 
   Pipeline: apply `inputMapping` → validate `payloadContract` →
   evaluate `correlationRetrievalExpression` → publish → resolve outgoing flows.
+  The published body is the mapping result; the outgoing token is that
+  result merged over the input token.
 
   No waiting, no subscription — throw is synchronous.
   """
@@ -19,7 +21,6 @@ defmodule BfwEngine.Execution.FlowNodes.MessageThrowEvent do
   alias BfwEngine.Execution.MappingHelper
   alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Execution.SequenceFlowResolver
-  alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Types.Token
 
   # -------------------------------------------------------------------
@@ -52,8 +53,9 @@ defmodule BfwEngine.Execution.FlowNodes.MessageThrowEvent do
              :payload_contract_violation
            ),
          {:ok, correlation_value} <-
-           resolve_throw_correlation(event_definition, mapped_payload, context) do
-      publish_and_proceed(flow_node, context, message_name, mapped_payload, correlation_value)
+           MessageEventHelper.resolve_throw_correlation(event_definition, mapped_payload, context) do
+      publish_message(context, message_name, mapped_payload, correlation_value)
+      proceed(flow_node, context, Map.merge(raw_payload, mapped_payload))
     else
       {:error, :payload_too_large, details} ->
         {:error, Map.put(details, :reason, :payload_too_large)}
@@ -67,23 +69,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageThrowEvent do
   # Private
   # -------------------------------------------------------------------
 
-  defp resolve_throw_correlation(event_definition, payload, context) do
-    feel_context = FeelContext.from_handler_context(context, payload)
-
-    case MessageEventHelper.evaluate_correlation_retrieval_expression(
-           event_definition,
-           payload,
-           feel_context
-         ) do
-      {:ok, :none} ->
-        MessageEventHelper.evaluate_correlation_key(context.process_model, context, payload)
-
-      result ->
-        result
-    end
-  end
-
-  defp publish_and_proceed(flow_node, context, message_name, payload, correlation_value) do
+  defp publish_message(context, message_name, payload, correlation_value) do
     ets_correlation =
       case correlation_value do
         :none -> nil
@@ -102,13 +88,17 @@ defmodule BfwEngine.Execution.FlowNodes.MessageThrowEvent do
         }
       })
 
+    :ok
+  end
+
+  defp proceed(flow_node, context, outgoing_payload) do
     case resolve_outgoing(flow_node, context) do
       {:ok, next_ids} ->
-        case FniLifecycle.finish(context, flow_node, payload, %{}) do
+        case FniLifecycle.finish(context, flow_node, outgoing_payload, %{}) do
           {:ok, lifecycle_result} ->
             {:ok,
              %FlowNodeResult{
-               output_payload: payload,
+               output_payload: outgoing_payload,
                next_flow_node_ids: next_ids,
                metadata: %{persisted: true, lifecycle: lifecycle_result}
              }}

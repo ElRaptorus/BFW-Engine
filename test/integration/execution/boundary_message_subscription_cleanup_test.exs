@@ -7,7 +7,6 @@ defmodule BfwEngine.Integration.Execution.BoundaryMessageSubscriptionCleanupTest
   @message_name "instant-host-message"
 
   describe "C1: message boundary on an instant host" do
-    @tag skip: "Fixed in Batch 3 (C1)"
     test "no subscription with a dead via_pid remains and a later publish is pending" do
       process_instance_id =
         http_deploy_and_start("boundary_message_instant_host.bpmn", "BoundaryMessageInstantHost")
