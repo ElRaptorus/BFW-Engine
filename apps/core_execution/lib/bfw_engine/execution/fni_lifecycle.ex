@@ -148,16 +148,14 @@ defmodule BfwEngine.Execution.FniLifecycle do
   """
   @spec record_resumed_subscription(HandlerContext.t(), String.t()) :: :ok
   def record_resumed_subscription(context, subscription_id) do
+    patch = %{"subscription_id" => subscription_id}
+
     _patch_result =
-      PersistenceAdapter.adapter().patch_fni_type_properties(
-        context.flow_node_instance_id,
-        %{"subscription_id" => subscription_id}
-      )
+      PersistenceAdapter.adapter().patch_fni_type_properties(context.flow_node_instance_id, patch)
 
     send(
       context.process_instance_pid,
-      {:fni_merge_type_properties, context.flow_node_instance_id,
-       %{:subscription_id => subscription_id, "subscription_id" => subscription_id}}
+      {:fni_merge_type_properties, context.flow_node_instance_id, patch}
     )
 
     :ok

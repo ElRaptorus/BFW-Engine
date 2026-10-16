@@ -7,10 +7,12 @@ defmodule BfwEngine.Events.ServiceReset do
   end
 
   def message_subscriptions do
+    :persistent_term.erase({BfwEngine.Events.MessageSubscriptions, :ready})
     restart(BfwEngine.Events.Supervisor, BfwEngine.Events.MessageSubscriptions)
   end
 
   def signal_subscriptions do
+    :persistent_term.erase({BfwEngine.Events.SignalSubscriptions, :ready})
     restart(BfwEngine.Events.Supervisor, BfwEngine.Events.SignalSubscriptions)
   end
 

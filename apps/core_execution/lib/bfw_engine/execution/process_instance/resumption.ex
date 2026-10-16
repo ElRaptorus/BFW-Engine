@@ -32,6 +32,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   @doc """
   Rebuilds persisted FNI rows into in-memory state, reconstructs join routing
   from `gateway_pending_arrivals`, and reactivates waiting/active FNIs.
+
+  Boundary FNIs still `:active` or `:waiting` whose host is no longer
+  `:active` or `:waiting` (the host's finish was persisted, the boundary
+  cancel was lost) are interrupted before reactivation, so they neither
+  stall the instance nor fire, and `lost_successor_dispatches/2` continues
+  from the host's output.
   """
   @spec resume(struct(), [map()], [map()], pid()) :: struct()
   def resume(data, persisted_flow_node_instances, pending_arrivals, process_instance_pid) do
@@ -39,11 +45,39 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
     data
     |> rebuild_flow_node_instance_states(persisted_flow_node_instances)
+    |> interrupt_boundaries_of_ended_hosts()
     |> rebuild_compensation_registry()
     |> rebuild_compensation_run_state()
     |> rebuild_join_routing(pending_arrivals)
     |> reactivate_fnis(process_instance_pid, grouped_arrivals)
   end
+
+  defp interrupt_boundaries_of_ended_hosts(data) do
+    states = data.flow_node_instance_states
+
+    states
+    |> Enum.flat_map(fn {_id, entry} -> ended_host_of_live_boundary(states, entry) end)
+    |> Enum.uniq()
+    |> Enum.reduce(data, &BoundaryOrchestrator.cancel_boundary_fnis_for_host(&2, &1))
+  end
+
+  defp ended_host_of_live_boundary(
+         states,
+         %{flow_node_type: :boundary_event, state: state} = entry
+       )
+       when state in [:active, :waiting] do
+    host_flow_node_instance_id = type_property(entry, :host_flow_node_instance_id)
+
+    case Map.get(states, host_flow_node_instance_id) do
+      %{state: host_state} when host_state not in [:active, :waiting] ->
+        [host_flow_node_instance_id]
+
+      _live_or_missing_host ->
+        []
+    end
+  end
+
+  defp ended_host_of_live_boundary(_states, _entry), do: []
 
   @doc """
   Successor dispatches that were lost between a handler's `finished` write
@@ -60,9 +94,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   (the guarded finish write makes that side-effect free), every other node
   follows its outgoing sequence flows.
 
-  Returns `[{flow_node_instance_id, output_payload, next_flow_node_ids}]`.
+  Returns `[{flow_node_instance_id, output_payload, next_flow_node_ids}]`,
+  plus `{:error, {:lost_successor_repair_failed, flow_node_id, reason}}` for
+  each FNI whose successors could not be resolved again.
   """
-  @spec lost_successor_dispatches(struct(), pid()) :: [{String.t(), term(), [String.t()]}]
+  @spec lost_successor_dispatches(struct(), pid()) ::
+          [{String.t(), term(), [String.t()]} | {:error, term()}]
   def lost_successor_dispatches(data, process_instance_pid) do
     states = data.flow_node_instance_states
 
@@ -133,6 +170,14 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
                flow_node,
                process_instance_pid
              ) do
+          {:error, reason} ->
+            Logger.error(
+              "Resume: successors of finished FNI #{flow_node_instance_id} (#{flow_node.id}) " <>
+                "were lost and could not be resolved again: #{inspect(reason)}"
+            )
+
+            [{:error, {:lost_successor_repair_failed, flow_node.id, reason}}]
+
           [] ->
             []
 
@@ -151,6 +196,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     if routes_through_handler?(data, flow_node) do
       rerun_routing_handler(data, flow_node_instance_id, entry, flow_node, process_instance_pid)
     else
+      # Resolution depends only on the model: a node that finished without
+      # routing through its flows (an Event Subprocess shell) has none.
       case SequenceFlowResolver.resolve(flow_node, data.process_model) do
         {:ok, targets} -> Enum.map(targets, & &1.id)
         {:error, _reason, _metadata} -> []
@@ -185,7 +232,30 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
            handler_module.handle_enter(flow_node, entry.token, handler_context) do
       next_flow_node_ids
     else
-      _other -> []
+      {:error, reason} -> {:error, reason}
+      other -> {:error, {:invalid_handler_return, other}}
+    end
+  end
+
+  @doc """
+  Recovers the payload the scope instance was started with: the input token
+  of its Start Event FNI. A scope without a Start Event (an ad-hoc
+  subprocess child) falls back to the input token of its earliest FNI.
+  Returns `nil` when no FNI was persisted.
+  """
+  @spec start_payload([map()]) :: map() | nil
+  def start_payload(persisted_flow_node_instances) do
+    dated_rows =
+      Enum.filter(persisted_flow_node_instances, &match?(%DateTime{}, Map.get(&1, :started_at)))
+
+    start_event_rows =
+      Enum.filter(dated_rows, &(to_string(Map.get(&1, :flow_node_type)) == "start_event"))
+
+    candidates = if start_event_rows == [], do: dated_rows, else: start_event_rows
+
+    case Enum.min_by(candidates, & &1.started_at, DateTime, fn -> nil end) do
+      nil -> nil
+      row -> Map.get(row, :input_token)
     end
   end
 
@@ -340,7 +410,10 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   FNI already finished, with the in-flight handler's target first. A
   finished Cancel End Event gets its LIFO cancel run the same way, and a
   run delegated to a Compensation Event Subprocess is mapped back to its
-  ESP shell. A finished Compensate End Event sets `compensation_end_reached`.
+  ESP shell. A finished Compensate End Event sets `compensation_end_reached`;
+  an Error or Escalation End Event that no Event Subprocess of the scope
+  caught sets `bpmn_error_info` or `escalation_info`, so the scope still ends
+  `:error` or `:escalated` when its terminal write was lost.
   Runs whose next handler was never dispatched are listed by
   `stalled_compensation_runs/1`.
   """
@@ -350,6 +423,62 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
     |> rebuild_compensation_throw_runs()
     |> rebuild_cancel_run()
     |> Map.put(:compensation_end_reached, finished_end_event?(data, EventDefinition.Compensation))
+    |> Map.put(:bpmn_error_info, uncaught_end_event_info(data, EventDefinition.Error))
+    |> Map.put(:escalation_info, uncaught_end_event_info(data, EventDefinition.Escalation))
+  end
+
+  defp uncaught_end_event_info(data, event_definition_module) do
+    with {flow_node_instance_id, entry} <- find_ended_end_event(data, event_definition_module),
+         false <- event_subprocess_started?(data, event_definition_module) do
+      end_event_info(event_definition_module, flow_node_instance_id, entry)
+    else
+      _not_uncaught -> nil
+    end
+  end
+
+  defp find_ended_end_event(data, event_definition_module) do
+    Enum.find(data.flow_node_instance_states, fn {_id, entry} ->
+      entry.state in [:finished, :error] and entry.flow_node_type == :end_event and
+        match?(
+          %FlowNode{type_data: %{event_definition: %{__struct__: ^event_definition_module}}},
+          FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+        )
+    end)
+  end
+
+  defp event_subprocess_started?(data, start_definition_module) do
+    Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+      case FlowNodeLookup.find_flow_node(data, entry.flow_node_id) do
+        %FlowNode{
+          type: :sub_process,
+          type_data: %FlowNodeData.SubProcess{triggered_by_event: true, flow_nodes: inner_nodes}
+        } ->
+          Enum.any?(inner_nodes || [], &start_event_with_definition?(&1, start_definition_module))
+
+        _other ->
+          false
+      end
+    end)
+  end
+
+  defp start_event_with_definition?(%FlowNode{type: :start_event} = flow_node, definition_module),
+    do: match?(%{__struct__: ^definition_module}, flow_node.type_data.event_definition)
+
+  defp start_event_with_definition?(_flow_node, _definition_module), do: false
+
+  defp end_event_info(EventDefinition.Error, _flow_node_instance_id, entry) do
+    %{
+      error_code: type_property(entry, :error_code),
+      error_message: type_property(entry, :error_message)
+    }
+  end
+
+  defp end_event_info(EventDefinition.Escalation, flow_node_instance_id, entry) do
+    %{
+      escalation_code: type_property(entry, :escalation_code),
+      escalation_name: type_property(entry, :escalation_name),
+      triggerer_flow_node_instance_id: flow_node_instance_id
+    }
   end
 
   @doc """
@@ -1449,8 +1578,6 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       Map.get(type_properties, "child_process_instance_id") ||
         Map.get(type_properties, :child_process_instance_id)
 
-    # An Event Subprocess shell FNI (`triggered_by_event: true`) uses the ESP
-    # handler for reattach (ESP-D10); an embedded subprocess uses SubProcess.
     resume_module = subprocess_resume_module(flow_node)
 
     spawn_resume_task(

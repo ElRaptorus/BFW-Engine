@@ -1,0 +1,298 @@
+{
+  "definitionsId": "Definitions_ResumeCompensationTwoHandlers",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Flight",
+          "sourceRef": "BE_Comp_Flight",
+          "targetRef": "UT_Undo_Flight"
+        },
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Hotel",
+          "sourceRef": "BE_Comp_Hotel",
+          "targetRef": "UT_Undo_Hotel"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_Flight"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Book_Flight",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Book Flight",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ flight: true }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_Flight",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Flight",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_Book_Flight",
+            "cancelActivity": false,
+            "compensationHandlerId": "UT_Undo_Flight",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Undo_Flight",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Undo Flight",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_Hotel"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Book_Hotel",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Book Hotel",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ hotel: true }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_Hotel",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Hotel",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_Book_Hotel",
+            "cancelActivity": false,
+            "compensationHandlerId": "UT_Undo_Hotel",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Undo_Hotel",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Undo Hotel",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Comp",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate",
+          "outgoing": ["Flow_4"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumeCompensationTwoHandlers",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_Book_Flight",
+            "BE_Comp_Flight",
+            "UT_Undo_Flight",
+            "Task_Book_Hotel",
+            "BE_Comp_Hotel",
+            "UT_Undo_Hotel",
+            "Throw_Comp",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Resume Compensation Two Handlers",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_Book_Flight"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Book_Flight",
+          "targetRef": "Task_Book_Hotel"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Book_Hotel",
+          "targetRef": "Throw_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Comp",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

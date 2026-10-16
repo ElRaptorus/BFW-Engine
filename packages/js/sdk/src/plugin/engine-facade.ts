@@ -308,6 +308,13 @@ export interface FacadeDecisions {
  * mirrors `BfwEngine.EngineFacade.Timers`.
  */
 export interface FacadeTimers {
+  /**
+   * Manually fires a waiting timer flow node instance. Resolves to
+   * `{ triggered: true }` when a timer fired and `{ triggered: false }` when
+   * the handler held no armed timer (not armed yet, already fired, or an
+   * exhausted cycle). Not found, forbidden, not a timer event, and not
+   * waiting reject.
+   */
   triggerEvent(flowNodeInstanceId: string): Promise<TimerTriggerResult>;
   listSchedules(filters?: FacadeTimerScheduleFilters): Promise<TimerSchedule[]>;
   getSchedule(scheduleId: string): Promise<TimerSchedule>;

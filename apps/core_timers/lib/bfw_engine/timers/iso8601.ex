@@ -87,19 +87,82 @@ defmodule BfwEngine.Timers.ISO8601 do
   end
 
   @doc """
+  Computes the first occurrence after `now` that follows the fired
+  occurrence `last_fire_at`, skipping every occurrence missed in between
+  (see `skip_missed_occurrences/3`). Returns `nil` when the cycle is used up.
+  """
+  @spec next_future_cycle_fire(cycle_spec(), DateTime.t(), DateTime.t()) ::
+          {DateTime.t(), cycle_spec()} | nil
+  def next_future_cycle_fire(cycle_spec, last_fire_at, now) do
+    with {next_fire, next_spec} <- next_cycle_fire(cycle_spec, last_fire_at) do
+      skip_missed_occurrences(next_spec, next_fire, now)
+    end
+  end
+
+  @doc """
+  Skips the occurrences of a cycle that are due at or before `now`.
+
+  `fire_at` is a pending occurrence; a finite `repetitions` counts the
+  occurrences left including it. Every skipped occurrence uses up one
+  repetition. Returns the first occurrence after `now` with the cycle spec
+  counted from it, or `nil` when no occurrence is left after `now`.
+  """
+  @spec skip_missed_occurrences(cycle_spec(), DateTime.t(), DateTime.t()) ::
+          {DateTime.t(), cycle_spec()} | nil
+  def skip_missed_occurrences(cycle_spec, fire_at, now) do
+    cond do
+      DateTime.after?(fire_at, now) ->
+        {fire_at, cycle_spec}
+
+      calendar_interval?(cycle_spec.interval_duration) ->
+        with {next_fire, next_spec} <- next_cycle_fire(cycle_spec, fire_at) do
+          skip_missed_occurrences(next_spec, next_fire, now)
+        end
+
+      true ->
+        skip_missed_fixed_occurrences(cycle_spec, fire_at, now)
+    end
+  end
+
+  defp skip_missed_fixed_occurrences(cycle_spec, fire_at, now) do
+    interval_microseconds = fixed_interval_microseconds(cycle_spec.interval_duration)
+
+    with true <- interval_microseconds > 0,
+         missed = div(DateTime.diff(now, fire_at, :microsecond), interval_microseconds) + 1,
+         {:ok, remaining} <- repetitions_after(cycle_spec.repetitions, missed) do
+      next_fire = DateTime.add(fire_at, missed * interval_microseconds, :microsecond)
+      {next_fire, %{cycle_spec | repetitions: remaining}}
+    else
+      _exhausted -> nil
+    end
+  end
+
+  defp repetitions_after(:infinite, _missed), do: {:ok, :infinite}
+  defp repetitions_after(remaining, missed) when remaining > missed, do: {:ok, remaining - missed}
+  defp repetitions_after(_remaining, _missed), do: :exhausted
+
+  defp calendar_interval?(%Duration{year: year, month: month}), do: year != 0 or month != 0
+
+  defp fixed_interval_microseconds(%Duration{} = duration) do
+    {microsecond, _precision} = duration.microsecond
+    days = duration.week * 7 + duration.day
+    seconds = days * 86_400 + duration.hour * 3_600 + duration.minute * 60 + duration.second
+    seconds * 1_000_000 + microsecond
+  end
+
+  @doc """
   Computes the first fire time for a cycle spec.
 
-  If `start_at` is set, the first fire is `start_at + interval_duration`.
-  Otherwise, the first fire is `reference_time + interval_duration`.
+  A start-anchored cycle (`R<n>/<start>/<duration>`) fires its first
+  occurrence at `start_at`, as ISO 8601 defines the repeating interval.
+  A cycle without a start fires first at `reference_time + interval_duration`.
   """
   @spec first_fire_at(cycle_spec(), DateTime.t()) :: DateTime.t()
   def first_fire_at(%{start_at: nil} = cycle_spec, reference_time) do
     DateTime.shift(reference_time, cycle_spec.interval_duration)
   end
 
-  def first_fire_at(%{start_at: start_at} = cycle_spec, _reference_time) do
-    DateTime.shift(start_at, cycle_spec.interval_duration)
-  end
+  def first_fire_at(%{start_at: start_at}, _reference_time), do: start_at
 
   @doc """
   Parses the `R[n]/[start]/P...` cycle format into a structured spec.
@@ -146,12 +209,33 @@ defmodule BfwEngine.Timers.ISO8601 do
 
   defp parse_duration("P" <> _rest = duration_string) do
     case Duration.from_iso8601(duration_string) do
-      {:ok, duration} -> {:ok, duration}
+      {:ok, duration} -> require_positive_interval(duration, duration_string)
       {:error, reason} -> {:error, {:invalid_duration, reason}}
     end
   end
 
   defp parse_duration(other), do: {:error, {:invalid_duration_format, other}}
+
+  defp require_positive_interval(duration, duration_string) do
+    {microsecond, _precision} = duration.microsecond
+
+    components = [
+      duration.year,
+      duration.month,
+      duration.week,
+      duration.day,
+      duration.hour,
+      duration.minute,
+      duration.second,
+      microsecond
+    ]
+
+    if Enum.all?(components, &(&1 >= 0)) and Enum.any?(components, &(&1 > 0)) do
+      {:ok, duration}
+    else
+      {:error, {:non_positive_cycle_interval, duration_string}}
+    end
+  end
 
   defp parse_start_datetime(datetime_string) do
     case DateTime.from_iso8601(datetime_string) do

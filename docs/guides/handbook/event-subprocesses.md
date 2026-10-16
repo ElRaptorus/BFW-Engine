@@ -111,7 +111,7 @@ Fires on a broadcast signal matching the signal name (see [Signal Events](signal
 
 ### Timer
 
-Fires relative to **scope activation** (not deploy). `timeDate` / `timeDuration` fire once; `timeCycle` (e.g. `R/PT1H`) re-arms per tick and is only valid on a **non-interrupting** timer ESP start (see [Timer Events](timer-events.md)).
+Fires relative to **scope activation** (not deploy). `timeDate` / `timeDuration` fire once; `timeCycle` (e.g. `R/PT1H`) re-arms per tick and is only valid on a **non-interrupting** timer ESP start (see [Timer Events](timer-events.md)). A timer whose expression cannot be turned into a fire time (for example a FEEL number where a duration is expected) fails the whole scope instance with `event_subprocess_timer_resolution_failed`; the message names the Event Subprocess and the timer expression.
 
 ```xml
 <bpmn:subProcess id="ESP_Deadline" triggeredByEvent="true">
@@ -127,7 +127,7 @@ Fires relative to **scope activation** (not deploy). `timeDate` / `timeDuration`
 
 ### Conditional
 
-**Edge-triggered** — fires on a `false → true` transition of the FEEL condition, re-evaluated on every scope state change (see [Conditional Events](conditional-events.md)). It does **not** fire while the condition merely stays true.
+**Edge-triggered** — fires on a `false → true` transition of the FEEL condition, re-evaluated on every scope state change (see [Conditional Events](conditional-events.md)). It does **not** fire while the condition merely stays true. In the condition, `token` is the payload the scope instance was started with (the start request `payload`, or the token handed to a subprocess or Call Activity child), also after an engine restart; the start request `context` is the `context` binding.
 
 ```xml
 <bpmn:subProcess id="ESP_Cond" triggeredByEvent="true">
@@ -203,7 +203,7 @@ A None (untyped) start is **not** allowed on an ESP — the start must be typed.
 
 ## Cyclic Timer Note
 
-A `timeCycle` (e.g. `R/PT1H`) on a **non-interrupting** timer ESP start recurs: the **scope** re-arms the cycle after each tick, and each tick spawns a fresh, independent ESP child PI. Date/duration timers are one-shot.
+A `timeCycle` (e.g. `R/PT1H`) on a **non-interrupting** timer ESP start recurs: the engine's timer Scheduler re-arms the cycle after each tick and counts its `R<n>` repetitions, and each tick spawns a fresh, independent ESP child PI. Date/duration timers are one-shot.
 
 ## Conflict and Precedence Rules
 
@@ -215,7 +215,7 @@ An ESP Message Start is a **gated Start Event**, not a fan-out delivery. Precede
 2. **ESP Message Start** of a running scope — fires only if no catch/boundary consumed it.
 3. **Standalone Message Start** — creates a new PI, only if tiers 1 and 2 are empty.
 
-So a Catch/Boundary always beats an ESP Message Start, and an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). **Signals are different** — an ESP Signal Start fires *alongside* catches, boundaries, and standalone signal starts (broadcast-all, no catch-wins gate).
+So on a live publish a waiting Catch/Boundary always beats an ESP Message Start, and an ESP Message Start beats a standalone Message Start (a running instance consumes the message before a new PI is created). A message that matched nothing when it was published is held pending; it goes to the first subscription of its key that registers, which can be an ESP start registering when its scope starts. No catch can lose it that way: had one been waiting, the message would not be pending. **Signals are different** — an ESP Signal Start fires *alongside* catches, boundaries, and standalone signal starts (broadcast-all, no catch-wins gate).
 
 ### Errors and escalations (proximity, then specificity)
 

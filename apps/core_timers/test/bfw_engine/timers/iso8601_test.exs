@@ -268,7 +268,7 @@ defmodule BfwEngine.Timers.ISO8601Test do
       assert ISO8601.first_fire_at(cycle_spec, reference) == ~U[2026-06-01 10:00:00Z]
     end
 
-    test "with start_at: fires relative to start_at, ignoring reference_time" do
+    test "with start_at: the first occurrence is the start itself, ignoring reference_time" do
       cycle_spec = %{
         repetitions: 5,
         interval_duration: Duration.new!(hour: 1),
@@ -277,7 +277,89 @@ defmodule BfwEngine.Timers.ISO8601Test do
 
       reference = ~U[2026-01-01 00:00:00Z]
 
-      assert ISO8601.first_fire_at(cycle_spec, reference) == ~U[2026-06-01 13:00:00Z]
+      assert ISO8601.first_fire_at(cycle_spec, reference) == ~U[2026-06-01 12:00:00Z]
+    end
+  end
+
+  describe "skip_missed_occurrences/3" do
+    test "keeps an occurrence that is still in the future" do
+      cycle_spec = %{repetitions: 3, interval_duration: Duration.new!(hour: 1), start_at: nil}
+
+      assert {~U[2026-06-01 12:00:00Z], ^cycle_spec} =
+               ISO8601.skip_missed_occurrences(
+                 cycle_spec,
+                 ~U[2026-06-01 12:00:00Z],
+                 ~U[2026-06-01 11:00:00Z]
+               )
+    end
+
+    test "skips every due occurrence of a fixed interval and uses up one repetition each" do
+      cycle_spec = %{repetitions: 10, interval_duration: Duration.new!(hour: 1), start_at: nil}
+
+      assert {next_fire, %{repetitions: 7}} =
+               ISO8601.skip_missed_occurrences(
+                 cycle_spec,
+                 ~U[2026-06-01 08:00:00Z],
+                 ~U[2026-06-01 10:30:00Z]
+               )
+
+      assert DateTime.compare(next_fire, ~U[2026-06-01 11:00:00Z]) == :eq
+    end
+
+    test "skips calendar intervals month by month" do
+      cycle_spec = %{
+        repetitions: :infinite,
+        interval_duration: Duration.new!(month: 1),
+        start_at: nil
+      }
+
+      assert {~U[2026-04-01 00:00:00Z], %{repetitions: :infinite}} =
+               ISO8601.skip_missed_occurrences(
+                 cycle_spec,
+                 ~U[2026-01-01 00:00:00Z],
+                 ~U[2026-03-15 00:00:00Z]
+               )
+    end
+
+    test "returns nil when no occurrence is left after now" do
+      fixed_spec = %{repetitions: 2, interval_duration: Duration.new!(hour: 1), start_at: nil}
+      calendar_spec = %{repetitions: 2, interval_duration: Duration.new!(month: 1), start_at: nil}
+
+      assert nil ==
+               ISO8601.skip_missed_occurrences(
+                 fixed_spec,
+                 ~U[2026-06-01 08:00:00Z],
+                 ~U[2026-06-01 10:00:00Z]
+               )
+
+      assert nil ==
+               ISO8601.skip_missed_occurrences(
+                 calendar_spec,
+                 ~U[2026-01-01 00:00:00Z],
+                 ~U[2026-03-01 00:00:00Z]
+               )
+    end
+  end
+
+  describe "next_future_cycle_fire/3" do
+    test "returns the next occurrence after the fired one when it is in the future" do
+      cycle_spec = %{repetitions: 3, interval_duration: Duration.new!(hour: 1), start_at: nil}
+
+      assert {next_fire, %{repetitions: 2}} =
+               ISO8601.next_future_cycle_fire(
+                 cycle_spec,
+                 ~U[2026-06-01 10:00:00Z],
+                 ~U[2026-06-01 10:00:01Z]
+               )
+
+      assert DateTime.compare(next_fire, ~U[2026-06-01 11:00:00Z]) == :eq
+    end
+  end
+
+  describe "parse_cycle/1 interval validation" do
+    test "rejects a zero or negative interval" do
+      assert {:error, {:non_positive_cycle_interval, "PT0S"}} = ISO8601.parse_cycle("R3/PT0S")
+      assert {:error, {:non_positive_cycle_interval, "P-1D"}} = ISO8601.parse_cycle("R/P-1D")
     end
   end
 end

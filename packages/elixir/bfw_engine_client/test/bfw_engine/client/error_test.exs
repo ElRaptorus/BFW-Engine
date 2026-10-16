@@ -13,6 +13,14 @@ defmodule BfwEngine.Client.ErrorTest do
       assert error.message == "gone"
     end
 
+    test "maps engine_shutting_down to :service_unavailable, not :engine_at_capacity" do
+      error =
+        Error.from_response(503, %{"error" => "engine_shutting_down", "message" => "stopping"})
+
+      assert error.code == "engine_shutting_down"
+      assert error.reason == :service_unavailable
+    end
+
     test "falls back to the HTTP status code when the wire code is unknown" do
       error = Error.from_response(404, %{"error" => "totally_unknown_code"})
 
@@ -25,6 +33,17 @@ defmodule BfwEngine.Client.ErrorTest do
       error = Error.from_response(599, %{"error" => "totally_unknown_code"})
 
       assert error.reason == :engine_error
+    end
+
+    test "maps fni_is_multi_instance_shell like the other not-waiting codes" do
+      error =
+        Error.from_response(422, %{
+          "error" => "fni_is_multi_instance_shell",
+          "message" => "The flow node instance is a Multi-Instance or Standard Loop shell"
+        })
+
+      assert error.code == "fni_is_multi_instance_shell"
+      assert error.reason == :fni_not_waiting
     end
 
     test "defaults the message to the status code when the body is not a map" do

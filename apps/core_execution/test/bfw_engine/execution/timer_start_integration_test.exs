@@ -46,7 +46,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
 
   describe "cycle timer start — auto-fire via Scheduler" do
     test "Scheduler fires cycle timer start, listener creates PI" do
-      definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT0S")
+      definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1S")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
       CalledElementResolver.set_version("test-process", version_id)
@@ -54,7 +54,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       StartEventManager.register_timer_starts(
         version_id,
         "test-process",
-        [%{flow_node_id: "TimerStart_1", kind: :cycle, iso_spec: "R3/PT0S"}]
+        [%{flow_node_id: "TimerStart_1", kind: :cycle, iso_spec: "R3/PT1S"}]
       )
 
       {:ok, schedules} = StartEventManager.list_schedules(process_version_id: version_id)
@@ -148,7 +148,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
     end
 
     test "cycle timer start fires multiple times" do
-      definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT0S")
+      definitions = BpmnFactory.timer_start_event_process(time_cycle: "R3/PT1S")
       version_id = "version-#{System.unique_integer([:positive])}"
       ModelCache.put_new(version_id, definitions)
       CalledElementResolver.set_version("test-process", version_id)
@@ -156,7 +156,7 @@ defmodule BfwEngine.Execution.TimerStartIntegrationTest do
       StartEventManager.register_timer_starts(
         version_id,
         "test-process",
-        [%{flow_node_id: "TimerStart_1", kind: :cycle, iso_spec: "R3/PT0S"}]
+        [%{flow_node_id: "TimerStart_1", kind: :cycle, iso_spec: "R3/PT1S"}]
       )
 
       {:ok, schedules} = StartEventManager.list_schedules(process_version_id: version_id)

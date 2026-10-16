@@ -20,7 +20,7 @@
     <bpmn:boundaryEvent id="TimerBE_1" attachedToRef="UserTask_1" cancelActivity="false">
       <bpmn:outgoing>Flow_BE</bpmn:outgoing>
       <bpmn:timerEventDefinition>
-        <bpmn:timeCycle>R3/PT0S</bpmn:timeCycle>
+        <bpmn:timeCycle>R3/PT1S</bpmn:timeCycle>
       </bpmn:timerEventDefinition>
     </bpmn:boundaryEvent>
     <bpmn:endEvent id="End_Normal" name="Normal End">

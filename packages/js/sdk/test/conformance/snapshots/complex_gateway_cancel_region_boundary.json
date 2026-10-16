@@ -1,0 +1,259 @@
+{
+  "definitionsId": "Definitions_ComplexGatewayCancelRegionBoundary",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ComplexSplit",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Split",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A",
+          "incoming": ["Flow_A"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Task A",
+          "outgoing": ["Flow_A_Out"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["Timer_B"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_B",
+          "incoming": ["Flow_B"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "User Task B",
+          "outgoing": ["Flow_B_Out"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Timer_B",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "One Hour",
+          "outgoing": ["Flow_Timeout"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UserTask_B",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "PT1H"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ComplexJoin",
+          "incoming": ["Flow_B_Out", "Flow_A_Out"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Flow_Join"],
+          "standardLoop": null,
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": "activatedCount >= 1"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Join"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Timeout",
+          "incoming": ["Flow_Timeout"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Timed Out",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ComplexGatewayCancelRegionBoundary",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "ComplexSplit",
+            "Task_A",
+            "UserTask_B",
+            "Timer_B",
+            "ComplexJoin",
+            "End_1",
+            "End_Timeout"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Complex Gateway Cancel Region Boundary",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "ComplexSplit"
+        },
+        {
+          "conditionExpression": "true",
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ComplexSplit",
+          "targetRef": "Task_A"
+        },
+        {
+          "conditionExpression": "true",
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ComplexSplit",
+          "targetRef": "UserTask_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A",
+          "targetRef": "ComplexJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_B",
+          "targetRef": "ComplexJoin"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ComplexJoin",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Timeout",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Timer_B",
+          "targetRef": "End_Timeout"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

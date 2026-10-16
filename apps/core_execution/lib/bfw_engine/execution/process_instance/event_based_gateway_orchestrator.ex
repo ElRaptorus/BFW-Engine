@@ -14,6 +14,8 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
   `:interrupted`.
   """
 
+  alias BfwEngine.Events.MessageSubscriptions
+  alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.ProcessInstance.FlowNodeLookup
   alias BfwEngine.Execution.ProcessInstance.HandlerDispatch, as: InstanceHandlerDispatch
@@ -141,7 +143,12 @@ defmodule BfwEngine.Execution.ProcessInstance.EventBasedGatewayOrchestrator do
     end)
   end
 
+  # A loser that already subscribed must not take a message or signal while
+  # its handler is still entering.
   defp stamp_pending_cancel(data, flow_node_instance_id, entry) do
+    MessageSubscriptions.unregister_all_for_flow_node_instance(flow_node_instance_id)
+    SignalSubscriptions.unregister_all_for_flow_node_instance(flow_node_instance_id)
+
     type_properties =
       Map.put(entry.type_properties || %{}, :ebg_pending_cancel, true)
 

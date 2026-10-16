@@ -89,6 +89,71 @@ defmodule BfwEngine.Expressions do
     Nif.eval_unary_test(expression, input, context)
   end
 
+  @doc """
+  Converts an evaluation result into a `DateTime`.
+
+  Accepts a FEEL date-time value (`{:feel_datetime, text}`), an ISO 8601
+  string with an offset, or a `DateTime`. A FEEL date-time without an offset
+  (for example `date and time("2026-06-01T10:00:00")`) is read as UTC; FEEL
+  `now()` yields the host's local wall-clock time without an offset, so it
+  matches UTC only on a host running in UTC. FEEL date-times with a zone id
+  (`@Europe/Berlin`) are not supported.
+
+  Returns `{:ok, datetime}` or `{:error, reason}`.
+  """
+  @spec to_datetime(term()) :: {:ok, DateTime.t()} | {:error, term()}
+  def to_datetime(%DateTime{} = datetime), do: {:ok, datetime}
+
+  def to_datetime({:feel_datetime, text}) when is_binary(text) do
+    if String.contains?(text, "@") do
+      {:error, {:unsupported_time_zone, text}}
+    else
+      parse_datetime(text, :utc_when_offset_missing)
+    end
+  end
+
+  def to_datetime(text) when is_binary(text), do: parse_datetime(text, :offset_required)
+
+  def to_datetime(value), do: {:error, {:not_a_date_time, value}}
+
+  @doc """
+  Converts an evaluation result into a `Duration`.
+
+  Accepts a FEEL days-and-time or years-and-months duration
+  (`{:feel_duration_dt, text}`, `{:feel_duration_ym, text}`), an ISO 8601
+  duration string, or a `Duration`.
+
+  Returns `{:ok, duration}` or `{:error, reason}`.
+  """
+  @spec to_duration(term()) :: {:ok, Duration.t()} | {:error, term()}
+  def to_duration(%Duration{} = duration), do: {:ok, duration}
+
+  def to_duration({feel_duration_type, text})
+      when feel_duration_type in [:feel_duration_dt, :feel_duration_ym] and is_binary(text),
+      do: to_duration(text)
+
+  def to_duration(text) when is_binary(text) do
+    case Duration.from_iso8601(text) do
+      {:ok, duration} -> {:ok, duration}
+      {:error, reason} -> {:error, {:invalid_duration, text, reason}}
+    end
+  end
+
+  def to_duration(value), do: {:error, {:not_a_duration, value}}
+
+  defp parse_datetime(text, offset_policy) do
+    case {DateTime.from_iso8601(text), offset_policy} do
+      {{:ok, datetime, _offset}, _offset_policy} ->
+        {:ok, datetime}
+
+      {{:error, :missing_offset}, :utc_when_offset_missing} ->
+        {:ok, DateTime.from_naive!(NaiveDateTime.from_iso8601!(text), "Etc/UTC")}
+
+      {{:error, reason}, _offset_policy} ->
+        {:error, {:invalid_date_time, text, reason}}
+    end
+  end
+
   defp stringify_map_keys(map) when is_map(map) do
     Map.new(map, fn
       {key, value} when is_atom(key) -> {Atom.to_string(key), value}

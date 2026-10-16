@@ -85,6 +85,7 @@
           "standardLoop": null,
           "type": "send_task",
           "typeData": {
+            "correlationRetrievalExpression": null,
             "inMappings": [],
             "messageRef": "Msg_Send",
             "outMappings": [],

@@ -220,7 +220,7 @@ defmodule BfwEngine.Execution.EventSubprocessIntegrationTest do
     end
 
     test "cyclic non-interrupting timer ESP fires on each tick (scope re-arms)", %{ref: ref} do
-      # A cyclic timer's recurrence is owned by the scope (rearm_cycle_timer/4),
+      # A cyclic timer's recurrence is owned by the Scheduler cycle armed by the scope,
       # not the child; each scheduler tick spawns a fresh child whose timer start
       # passes through. Two ticks → two independent child instances.
       event_def = %EventDefinition.Timer{time_cycle: "R/PT1H"}

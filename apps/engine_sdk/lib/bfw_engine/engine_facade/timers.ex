@@ -4,10 +4,15 @@ defmodule BfwEngine.EngineFacade.Timers do
 
   Closures are wired by the Loader to `BfwEngine.Api` with the plugin's
   synthetic identity pre-injected (`skip_claims: true`).
+
+  `trigger_event` answers `{:ok, %{triggered: true}}` when a timer fired and
+  `{:ok, %{triggered: false}}` when nothing was armed, like REST
+  `POST /timer-events/{id}/trigger`; not found, forbidden, not a timer
+  event, and not waiting are `{:error, reason}`.
   """
 
   @type t :: %__MODULE__{
-          trigger_event: (String.t() -> :ok | {:error, term()}),
+          trigger_event: (String.t() -> {:ok, %{triggered: boolean()}} | {:error, term()}),
           list_schedules: (keyword() -> {:ok, list()} | {:error, term()}),
           get_schedule: (String.t() -> {:ok, map()} | {:error, term()}),
           enable_schedule: (String.t() -> {:ok, map()} | {:error, term()}),

@@ -3,7 +3,8 @@ defmodule BfwEngine.Execution.DataObjectWriter do
   Pure evaluation phase for DOA-driven writes to Data Objects.
 
   Resolves the DOA target chain, evaluates optional FEEL expressions,
-  validates value contracts, and enforces PayloadCap. Returns a list
+  rejects a `null` value (`data_object_value_null`: a Data Object always
+  holds a value), validates value contracts, and enforces PayloadCap. Returns a list
   of `DataObjectWriteIntent` structs — no DB calls happen here.
 
   Called from `handle_fni_ok_proceed` in `ProcessInstance`. The
@@ -67,6 +68,7 @@ defmodule BfwEngine.Execution.DataObjectWriter do
 
     evaluate_object_associations(
       object_associations,
+      flow_node.id,
       flow_node_instance_id,
       output_payload,
       data_object_cache,
@@ -81,6 +83,7 @@ defmodule BfwEngine.Execution.DataObjectWriter do
 
   defp evaluate_object_associations(
          [],
+         _flow_node_id,
          _flow_node_instance_id,
          _output_payload,
          data_object_cache,
@@ -92,6 +95,7 @@ defmodule BfwEngine.Execution.DataObjectWriter do
 
   defp evaluate_object_associations(
          object_associations,
+         flow_node_id,
          flow_node_instance_id,
          output_payload,
          data_object_cache,
@@ -107,6 +111,7 @@ defmodule BfwEngine.Execution.DataObjectWriter do
       fn association, {:ok, cache, intents} ->
         case evaluate_single_doa(
                association,
+               flow_node_id,
                flow_node_instance_id,
                output_payload,
                cache,
@@ -127,6 +132,7 @@ defmodule BfwEngine.Execution.DataObjectWriter do
 
   defp evaluate_single_doa(
          association,
+         flow_node_id,
          flow_node_instance_id,
          output_payload,
          cache,
@@ -143,6 +149,8 @@ defmodule BfwEngine.Execution.DataObjectWriter do
              output_payload,
              handler_context
            ),
+         :ok <-
+           require_value(new_value, flow_node_id, data_object_id, association.value_expression),
          :ok <- validate_value_contract(data_object_id, new_value, data_object_index),
          :ok <- check_payload_cap(new_value) do
       previous_value = Map.get(cache, data_object_id)
@@ -188,6 +196,14 @@ defmodule BfwEngine.Execution.DataObjectWriter do
           {:feel_eval_failed, expression, reason}}}
     end
   end
+
+  defp require_value(nil, flow_node_id, data_object_id, expression) do
+    {:error,
+     {:data_object_value_null,
+      %{flow_node_id: flow_node_id, data_object_id: data_object_id, expression: expression}}}
+  end
+
+  defp require_value(_value, _flow_node_id, _data_object_id, _expression), do: :ok
 
   defp validate_value_contract(data_object_id, value, data_object_index) do
     case Map.get(data_object_index, data_object_id) do

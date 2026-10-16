@@ -164,6 +164,39 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
       end
     end
 
+    test "timer resolution failures name the timer construct and the offending value" do
+      expectations = [
+        {{:not_a_date_time, 42}, ["timeDate", "42"]},
+        {{:not_a_duration, %{"days" => 1}}, ["timeDuration", "a context"]},
+        {{:not_a_cycle, 7}, ["timeCycle", "7"]},
+        {{:unsupported_time_zone, "2026-06-01T10:00:00@Europe/Berlin"},
+         ["2026-06-01T10:00:00@Europe/Berlin", "UTC offset"]},
+        {{:invalid_date_time, "tomorrow", :invalid_format}, ["'tomorrow'", "invalid_format"]},
+        {{:non_positive_cycle_interval, "PT0S"}, ["timeCycle", "'PT0S'"]}
+      ]
+
+      for {detail, fragments} <- expectations do
+        message =
+          ErrorInfo.build(%{reason: :timer_resolution_failed, detail: detail})["message"]
+
+        for fragment <- fragments, do: assert(message =~ fragment, message)
+        refute message =~ "see error details"
+      end
+    end
+
+    test "data_object_value_null without a transformation names the flow node and the Data Object" do
+      result =
+        ErrorInfo.build(
+          {:data_object_value_null,
+           %{flow_node_id: "Task_Produce", data_object_id: "DO_Order", expression: nil}}
+        )
+
+      assert result["error_code"] == "data_object_value_null"
+      assert result["message"] =~ "'Task_Produce'"
+      assert result["message"] =~ "'DO_Order'"
+      assert result["message"] =~ "has no transformation"
+    end
+
     test "correlation_expression_failed names the correlation expression" do
       result = ErrorInfo.build({:correlation_expression_failed, "unknown variable 'orderId'"})
       assert result["error_code"] == "correlation_expression_failed"

@@ -184,7 +184,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         boundary_fni_for_host?(entry, host_flow_node_instance_id)
     end)
     |> Enum.reduce(data, fn {boundary_fni_id, entry}, accumulator ->
-      if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+      InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
@@ -233,7 +233,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         boundary_fni_for_host?(entry, host_fni_id)
     end)
     |> Enum.reduce(data, fn {sibling_fni_id, entry}, accumulator ->
-      if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+      InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 

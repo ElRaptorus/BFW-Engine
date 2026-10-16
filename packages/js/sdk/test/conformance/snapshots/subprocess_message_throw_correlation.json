@@ -1,0 +1,210 @@
+{
+  "definitionsId": "Definitions_SubprocessMessageThrowCorrelation",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Msg_Shipped",
+      "name": "subprocess-throw-shipped"
+    }
+  ],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": "token.orderId",
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "SubProcess_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Ship",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub Start",
+                "outgoing": ["Sub_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_Throw",
+                "incoming": ["Sub_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Notify Shipped",
+                "outgoing": ["Sub_Flow_2"],
+                "standardLoop": null,
+                "type": "intermediate_throw_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "correlationRetrievalExpression": null,
+                    "messageRef": "Msg_Shipped"
+                  },
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Sub_End",
+                "incoming": ["Sub_Flow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Sub End",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Start",
+                "targetRef": "Sub_Throw"
+              },
+              {
+                "conditionExpression": null,
+                "id": "Sub_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Sub_Throw",
+                "targetRef": "Sub_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "SubprocessMessageThrowCorrelation",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "SubProcess_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Subprocess Message Throw Correlation",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "SubProcess_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "SubProcess_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -1,0 +1,218 @@
+{
+  "definitionsId": "Definitions_TimerCatchFeelTemporalValue",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Duration_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Duration_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Duration_Timer",
+          "incoming": ["Duration_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "FEEL Duration Timer",
+          "outgoing": ["Duration_Flow_2"],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": null,
+              "timeDuration": "duration(\"PT1S\")"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Duration_End",
+          "incoming": ["Duration_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TimerCatchFeelDuration",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Duration_Start", "Duration_Timer", "Duration_End"],
+          "id": "Lane_default_Duration",
+          "name": "default"
+        }
+      ],
+      "name": "Timer Catch FEEL Duration",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Duration_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Duration_Start",
+          "targetRef": "Duration_Timer"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Duration_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Duration_Timer",
+          "targetRef": "Duration_End"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "DateTime_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["DateTime_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "DateTime_Timer",
+          "incoming": ["DateTime_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "FEEL Date and Time Timer",
+          "outgoing": ["DateTime_Flow_2"],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "timeCycle": null,
+              "timeDate": "date and time(token.fireAt)",
+              "timeDuration": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "DateTime_End",
+          "incoming": ["DateTime_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "TimerCatchFeelDateTime",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["DateTime_Start", "DateTime_Timer", "DateTime_End"],
+          "id": "Lane_default_DateTime",
+          "name": "default"
+        }
+      ],
+      "name": "Timer Catch FEEL Date and Time",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "DateTime_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "DateTime_Start",
+          "targetRef": "DateTime_Timer"
+        },
+        {
+          "conditionExpression": null,
+          "id": "DateTime_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "DateTime_Timer",
+          "targetRef": "DateTime_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

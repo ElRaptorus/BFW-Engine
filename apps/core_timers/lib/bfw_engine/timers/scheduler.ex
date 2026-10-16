@@ -33,11 +33,23 @@ defmodule BfwEngine.Timers.Scheduler do
   ## Cycle Timers
 
   For timers with `cycle_interval` set, the Scheduler computes the next
-  fire time via `ISO8601.next_cycle_fire/2` and re-inserts into ETS under
-  the same timer ref, so the ref returned by `schedule/2` cancels the
-  whole cycle.
-  An optional `on_cycle_advance` callback (MFA) is invoked so the
-  `StartEventManager` can persist updated `next_fire_at`.
+  fire time via `ISO8601.next_future_cycle_fire/3` and re-inserts into ETS
+  under the same timer ref, so the ref returned by `schedule/2` cancels the
+  whole cycle. Occurrences already due when the cycle re-arms are skipped
+  (each uses up one repetition), so a late tick never fires a burst.
+  An optional `on_cycle_advance` callback (MFA) receives
+  `(metadata, next_fire_at | nil, remaining)` so the `StartEventManager`
+  can persist the cycle state. It runs in a linked worker process, in fire
+  order, so a slow callback never delays a tick.
+
+  ## Restart
+
+  The ETS tables are owned by the Scheduler and die with it. When the
+  Scheduler restarts after a crash (any exit other than `:normal` or
+  `:shutdown`), the optional `on_restart` callback (MFA) runs in a separate
+  process so the owner of persisted schedules can re-arm them. A callback
+  that raises, exits, throws, or returns `{:error, reason}` is retried with
+  backoff (three attempts in total) before the failure is logged.
   """
 
   use GenServer
@@ -64,6 +76,8 @@ defmodule BfwEngine.Timers.Scheduler do
 
   @default_primary_table :bfw_engine_timers_primary
   @default_target_index_table :bfw_engine_timers_target_index
+  @restore_attempts 3
+  @restore_initial_backoff_ms 500
 
   # --- Client API ---
 
@@ -131,6 +145,8 @@ defmodule BfwEngine.Timers.Scheduler do
 
   @impl true
   def init(opts) do
+    Process.flag(:trap_exit, true)
+
     primary_name = opts[:primary_table] || @default_primary_table
     target_index_name = opts[:target_index_table] || @default_target_index_table
 
@@ -140,7 +156,9 @@ defmodule BfwEngine.Timers.Scheduler do
     tick_interval_ms =
       opts[:tick_interval_ms] || Application.get_env(:core_timers, :tick_interval_ms, 1000)
 
-    on_cycle_advance = opts[:on_cycle_advance]
+    running_marker = {__MODULE__, :running, opts[:name] || __MODULE__}
+    maybe_restore_after_crash(running_marker, opts[:on_restart])
+    :persistent_term.put(running_marker, true)
 
     schedule_tick(tick_interval_ms)
 
@@ -149,9 +167,67 @@ defmodule BfwEngine.Timers.Scheduler do
        primary: primary,
        target_index: target_index,
        tick_interval_ms: tick_interval_ms,
-       on_cycle_advance: on_cycle_advance,
+       on_cycle_advance: opts[:on_cycle_advance],
+       cycle_advance_worker: start_cycle_advance_worker(opts[:on_cycle_advance]),
+       running_marker: running_marker,
        monitored_pids: %{}
      }}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    if clean_shutdown?(reason), do: :persistent_term.erase(state.running_marker)
+    :ok
+  end
+
+  defp clean_shutdown?(reason),
+    do: reason in [:normal, :shutdown] or match?({:shutdown, _}, reason)
+
+  # The ETS tables died with the previous Scheduler; schedules owned elsewhere are re-armed.
+  defp maybe_restore_after_crash(running_marker, on_restart) do
+    case {:persistent_term.get(running_marker, false), on_restart} do
+      {true, {module, function, arguments}} ->
+        Logger.warning("Scheduler: restarted after a crash; restoring persisted schedules")
+
+        {:ok, _restore_pid} =
+          Task.start(fn -> restore_schedules(module, function, arguments, 1) end)
+
+        :ok
+
+      _no_restore ->
+        :ok
+    end
+  end
+
+  defp restore_schedules(module, function, arguments, attempt) do
+    case attempt_restore(module, function, arguments) do
+      :ok ->
+        :ok
+
+      {:failed, description} when attempt < @restore_attempts ->
+        Logger.warning(
+          "Scheduler: restoring persisted schedules failed (attempt #{attempt}/#{@restore_attempts}), " <>
+            "retrying: #{description}"
+        )
+
+        Process.sleep(@restore_initial_backoff_ms * Integer.pow(2, attempt - 1))
+        restore_schedules(module, function, arguments, attempt + 1)
+
+      {:failed, description} ->
+        Logger.error(
+          "Scheduler: restoring persisted schedules after a crash failed #{attempt} times; cycle " <>
+            "start schedules stay unarmed until the next engine boot: #{description}"
+        )
+    end
+  end
+
+  defp attempt_restore(module, function, arguments) do
+    case apply(module, function, arguments) do
+      {:error, reason} -> {:failed, inspect(reason)}
+      _restored -> :ok
+    end
+  catch
+    kind, reason -> {:failed, Exception.format(kind, reason, __STACKTRACE__)}
   end
 
   @impl true
@@ -189,7 +265,7 @@ defmodule BfwEngine.Timers.Scheduler do
   @impl true
   def handle_call({:cancel_all_for_target, target}, _from, state) do
     count = do_cancel_all_for_target(state, target)
-    {:reply, count, state}
+    {:reply, count, demonitor_target(state, target)}
   end
 
   @impl true
@@ -222,6 +298,17 @@ defmodule BfwEngine.Timers.Scheduler do
 
     updated_pids = Map.delete(state.monitored_pids, pid)
     {:noreply, %{state | monitored_pids: updated_pids}}
+  end
+
+  @impl true
+  def handle_info({:EXIT, worker, reason}, %{cycle_advance_worker: worker} = state) do
+    Logger.error(
+      "Scheduler: cycle advance worker exited (#{inspect(reason)}); starting a new one. " <>
+        "Cycle advances queued in the old worker were not persisted."
+    )
+
+    {:noreply,
+     %{state | cycle_advance_worker: start_cycle_advance_worker(state.on_cycle_advance)}}
   end
 
   @impl true
@@ -290,7 +377,7 @@ defmodule BfwEngine.Timers.Scheduler do
       start_at: nil
     }
 
-    case ISO8601.next_cycle_fire(cycle_spec, fire_at) do
+    case ISO8601.next_future_cycle_fire(cycle_spec, fire_at, DateTime.utc_now()) do
       {next_fire, updated_cycle_spec} ->
         next_fire_ms = DateTime.to_unix(next_fire, :millisecond)
 
@@ -313,19 +400,44 @@ defmodule BfwEngine.Timers.Scheduler do
 
   defp maybe_rearm_cycle(_state, _target, _metadata, nil, _fire_at_ms), do: :ok
 
-  defp invoke_cycle_advance_callback(%{on_cycle_advance: nil}, _metadata, _next_fire, _remaining),
-    do: :ok
-
   defp invoke_cycle_advance_callback(
-         %{on_cycle_advance: {module, function, extra_args}},
-         metadata,
-         next_fire,
-         remaining
-       ) do
-    apply(module, function, [metadata, next_fire, remaining | extra_args])
-  rescue
-    exception ->
-      Logger.error("Scheduler: on_cycle_advance callback failed: #{Exception.message(exception)}")
+         %{cycle_advance_worker: nil},
+         _metadata,
+         _next_fire,
+         _remaining
+       ),
+       do: :ok
+
+  defp invoke_cycle_advance_callback(state, metadata, next_fire, remaining) do
+    send(state.cycle_advance_worker, {:cycle_advance, metadata, next_fire, remaining})
+  end
+
+  defp start_cycle_advance_worker(nil), do: nil
+
+  defp start_cycle_advance_worker(on_cycle_advance) do
+    spawn_link(fn -> run_cycle_advance_worker(on_cycle_advance) end)
+  end
+
+  defp run_cycle_advance_worker({module, function, extra_args} = on_cycle_advance) do
+    receive do
+      {:cycle_advance, metadata, next_fire, remaining} ->
+        apply_cycle_advance_callback(module, function, [
+          metadata,
+          next_fire,
+          remaining | extra_args
+        ])
+
+        run_cycle_advance_worker(on_cycle_advance)
+    end
+  end
+
+  defp apply_cycle_advance_callback(module, function, arguments) do
+    apply(module, function, arguments)
+  catch
+    kind, reason ->
+      Logger.error(
+        "Scheduler: on_cycle_advance callback failed: #{Exception.format(kind, reason, __STACKTRACE__)}"
+      )
   end
 
   defp find_by_ref(primary_table, timer_ref) do
@@ -348,20 +460,19 @@ defmodule BfwEngine.Timers.Scheduler do
   defp do_fire_now_for_target(state, target) do
     target_entries = :ets.lookup(state.target_index, target_key(target))
 
-    Enum.each(target_entries, fn {_target_key, timer_ref, fire_at_ms} ->
+    Enum.count(target_entries, fn {_target_key, timer_ref, fire_at_ms} ->
       case :ets.lookup(state.primary, {fire_at_ms, timer_ref}) do
         [{key, ^target, metadata, cycle_info}] ->
           deliver_fire_message(target, timer_ref, metadata)
           delete_timer(state, key, timer_ref)
           emit_telemetry(:fired, timer_ref, %{}, metadata)
           maybe_rearm_cycle(state, {target, timer_ref}, metadata, cycle_info, fire_at_ms)
+          true
 
         [] ->
-          :ok
+          false
       end
     end)
-
-    length(target_entries)
   end
 
   defp do_cancel_all_for_target(state, target) do
@@ -386,6 +497,17 @@ defmodule BfwEngine.Timers.Scheduler do
   end
 
   defp maybe_monitor_pid(state, _atom_target), do: state
+
+  defp demonitor_target(state, target) do
+    case Map.pop(state.monitored_pids, target) do
+      {nil, _monitored_pids} ->
+        state
+
+      {monitor_ref, monitored_pids} ->
+        Process.demonitor(monitor_ref, [:flush])
+        %{state | monitored_pids: monitored_pids}
+    end
+  end
 
   defp target_key(target) when is_pid(target), do: target
   defp target_key(target) when is_atom(target), do: target

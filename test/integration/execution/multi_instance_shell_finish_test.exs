@@ -32,6 +32,29 @@ defmodule BfwEngine.Integration.Execution.MultiInstanceShellFinishTest do
       assert {:ok, _process_instance} =
                await_process_instance_state(process_instance_id, "finished")
     end
+
+    test "confirming a Multi-Instance manual-task shell names the shell in the 422 message" do
+      {201, _} = http_deploy("mi_parallel_manual_task.bpmn")
+
+      {201, start_body} =
+        http_start("MiParallelManualTask", %{"payload" => %{"items" => ["a", "b"]}})
+
+      process_instance_id = start_body["processInstanceId"]
+      shell = await_waiting_shell(process_instance_id, "Task_Pack")
+
+      {status, response_body} = http_confirm_manual_task(shell.id)
+
+      assert status == 422
+      assert response_body["error"] == "fni_is_multi_instance_shell"
+      assert response_body["message"] =~ "Multi-Instance or Standard Loop shell"
+
+      for iteration <- await_waiting_iterations(process_instance_id, "Task_Pack", 2) do
+        {204, _} = http_confirm_manual_task(iteration.id)
+      end
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+    end
   end
 
   defp await_waiting_shell(process_instance_id, flow_node_id) do
@@ -55,6 +78,33 @@ defmodule BfwEngine.Integration.Execution.MultiInstanceShellFinishTest do
       true ->
         Process.sleep(@shell_poll_interval_ms)
         poll_waiting_shell(process_instance_id, flow_node_id, deadline)
+    end
+  end
+
+  defp await_waiting_iterations(process_instance_id, flow_node_id, count) do
+    deadline = System.monotonic_time(:millisecond) + @shell_poll_timeout_ms
+    poll_waiting_iterations(process_instance_id, flow_node_id, count, deadline)
+  end
+
+  defp poll_waiting_iterations(process_instance_id, flow_node_id, count, deadline) do
+    iterations =
+      process_instance_id
+      |> fetch_flow_node_instances()
+      |> Enum.filter(fn flow_node_instance ->
+        flow_node_instance.flow_node_id == flow_node_id and
+          is_integer(flow_node_instance.iteration_index) and flow_node_instance.state == "waiting"
+      end)
+
+    cond do
+      length(iterations) == count ->
+        iterations
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        flunk("expected #{count} waiting iterations of #{flow_node_id}")
+
+      true ->
+        Process.sleep(@shell_poll_interval_ms)
+        poll_waiting_iterations(process_instance_id, flow_node_id, count, deadline)
     end
   end
 

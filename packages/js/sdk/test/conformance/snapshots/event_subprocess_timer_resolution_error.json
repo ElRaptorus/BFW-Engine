@@ -1,0 +1,227 @@
+{
+  "definitionsId": "Definitions_EspTimerResolutionError",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Main_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Main_UserTask",
+          "incoming": ["Main_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Main Work",
+          "outgoing": ["Main_Flow_2"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Main_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ESP_Timer",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Timer Event Subprocess",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Timer Elapsed",
+                "outgoing": ["ESP_Flow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {
+                    "timeCycle": null,
+                    "timeDate": null,
+                    "timeDuration": "1 + 1"
+                  },
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_Task",
+                "incoming": ["ESP_Flow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Handle Timeout",
+                "outgoing": ["ESP_Flow_2"],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "ESP_End",
+                "incoming": ["ESP_Flow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "ESP Done",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": false,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Start",
+                "targetRef": "ESP_Task"
+              },
+              {
+                "conditionExpression": null,
+                "id": "ESP_Flow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "ESP_Task",
+                "targetRef": "ESP_End"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": true
+          }
+        }
+      ],
+      "id": "EventSubprocessTimerResolutionError",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Main_UserTask", "End_1", "ESP_Timer"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Event Subprocess Timer Resolution Error",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Main_UserTask"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Main_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Main_UserTask",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

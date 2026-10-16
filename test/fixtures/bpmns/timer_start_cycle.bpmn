@@ -13,7 +13,7 @@
     <bpmn:startEvent id="TimerStart_1" name="Cycle Timer Start">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
       <bpmn:timerEventDefinition>
-        <bpmn:timeCycle>R3/PT0S</bpmn:timeCycle>
+        <bpmn:timeCycle>R3/PT1S</bpmn:timeCycle>
       </bpmn:timerEventDefinition>
     </bpmn:startEvent>
     <bpmn:endEvent id="End_1" name="Done">

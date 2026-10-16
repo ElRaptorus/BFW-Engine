@@ -134,7 +134,15 @@ Optional process-level FEEL expression evaluated on **catch-side** subscribe
 Data Objects, identity). The result becomes the subscription's
 `expected_correlation_value` so only messages with a matching correlation
 stamp are delivered. Also evaluated against the incoming payload when a
-Message Start Event creates a new PI (there is no PI state yet).
+Message Start Event creates a new PI (there is no PI state yet). A message
+Event Subprocess start evaluates it at scope activation with `token` bound
+to the scope instance's start payload (the start request `payload`, or the
+token passed to a subprocess / Call Activity child after `bfw:inputMapping`),
+with the same result after a resume. Embedded, transaction, and ad-hoc
+subprocess scopes inherit the enclosing process's `bfw:correlationKey`: catch
+and throw events inside them evaluate it against their own token (a throw
+without `bfw:correlationRetrievalExpression` stamps it on the published
+message).
 
 ```xml
 <bfw:correlationKey>token.orderId</bfw:correlationKey>
@@ -742,18 +750,20 @@ override.
 #### Cyclic timer ESP starts
 
 A `timeCycle` (e.g. `R/PT1H`) is supported on a **non-interrupting** timer
-ESP start. The recurrence is owned by the **scope** (the scope re-arms the
-cycle timer after each tick); each tick spawns a fresh, independent ESP child
-PI. The child's own timer start passes through as a None start event on its
+ESP start. The recurrence is one Scheduler cycle (the Scheduler re-arms it
+after each tick and counts `R<n>`); each tick spawns a fresh, independent ESP
+child PI. The child's own timer start passes through as a None start event on its
 initial dispatch, so the child does not re-schedule the cycle.
 
 #### Message / escalation precedence
 
-- An Intermediate Catch or Boundary event **always** beats an ESP
-  Message Start for the same message — the ESP message start is a gated start
-  event, not a fan-out delivery. An ESP Message Start beats a
+- On a live publish, a waiting Intermediate Catch or Boundary event **always**
+  beats an ESP Message Start for the same message — the ESP message start is a
+  gated start event, not a fan-out delivery. An ESP Message Start beats a
   standalone Message Start Event (a running instance handles the message; no
-  new top-level PI is created).
+  new top-level PI is created). A message held pending (no subscription
+  matched at publish time) goes to the first subscription of its key that
+  registers, which can be an ESP start.
 - **Escalation proximity:** a scope-level escalation ESP start catches an
   escalation raised in that scope (interrupting or non-interrupting) **before**
   it propagates to the parent, resolved via
@@ -1133,6 +1143,15 @@ pass. It never short-circuits on the first problem.
 | LinkEventDefinition | `name` |
 | Error, Escalation, Compensation, Terminate, Cancel | No mandatory fields |
 
+Timer-specific checks (any event position):
+
+| Atom | Rejected condition |
+|------|--------------------|
+| `:incomplete_event_definition` | None of `timeDate`, `timeDuration`, `timeCycle` is set |
+| `:timer_multiple_specs` | More than one of `timeDate`, `timeDuration`, `timeCycle` is set |
+| `:timer_cycle_on_intermediate_catch` | A timer Intermediate Catch Event has a `timeCycle` |
+| `:timer_date_missing_offset` | A static `timeDate` date-time has no UTC offset (`Z` or `±hh:mm`); FEEL expressions are resolved at runtime and not checked |
+
 ### Reference integrity
 
 - SequenceFlow `sourceRef` / `targetRef` must point to existing FlowNode IDs
@@ -1412,7 +1431,7 @@ Selected `BfwEngine.Types.Event.*` structs fan out through `EngineEventBus`. Ful
 | `SubProcessChildStarted` | `subprocessFlowNodeInstanceId`, `parentProcessInstanceId`, `childProcessInstanceId`, `subprocessNodeId`, `childProcessModelId`, `childVersion`, `isEventSubprocess`, `isAdHocSubprocess`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when an Embedded SubProcess, Event Subprocess, or Ad-hoc SubProcess handler spawns a child PI. `subprocessNodeId` is the BPMN element ID of the `<bpmn:subProcess>` shell; `childProcessModelId` is the synthetic `parentProcessId__subprocess__subprocessNodeId` string. `isEventSubprocess` is `true` when the child is an Event Subprocess spawn, `false` otherwise. `isAdHocSubprocess` is `true` when the child is an Ad-hoc SubProcess spawn, `false` otherwise. `rootProcessInstanceId` is the emitting parent PI's root. Paired with `[:bfw_engine, :subprocess, :child_started]` telemetry. |
 | `EventSubprocessTriggered` | `scopeProcessInstanceId`, `rootProcessInstanceId`, `subprocessNodeId`, `childProcessInstanceId`, `triggerKind`, `isInterrupting`, `laneName`, `occurredAt` | Emitted by the scope PI when an Event Subprocess trigger fires and spawns an ESP child PI. `triggerKind` is one of `message`, `signal`, `timer`, `error`, `escalation`, `conditional`. `isInterrupting` reflects the ESP start event's `isInterrupting` attribute. The Studio debugger primarily consumes `SubProcessChildStarted` (with `isEventSubprocess`); this event additionally exposes the trigger kind |
 | `DataObjectWritten` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `dataObjectId`, `writeId`, `previousValue`, `value`, `createdAt`, `laneName` | Emitted after each successful DOA write. `previousValue` is computed from the in-memory cache (not stored in DB). `laneName` is the causing FNI's lane. |
-| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is `null` when there is no FNI (cycle start-event fire). Cycle Timer Start fires leave `processInstanceId` and `rootProcessInstanceId` null. Scheduler telemetry `[:bfw_engine, :timer, :armed|:fired|:cancelled]` covers arm/cancel; there are no typed `TimerArmed` / `TimerCancelled` events. |
+| `TimerFired` | `timerRef`, `processInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `kind`, `rootProcessInstanceId`, `laneName`, `occurredAt` | Emitted when a catch, boundary, or start timer fires. `laneName` is the Event Subprocess's lane for an ESP cycle tick (no FNI) and `null` only for cycle Timer Start fires. Cycle Timer Start fires leave `processInstanceId` and `rootProcessInstanceId` null. Scheduler telemetry `[:bfw_engine, :timer, :armed|:fired|:cancelled]` covers arm/cancel; there are no typed `TimerArmed` / `TimerCancelled` events. |
 | `ProcessDefinitionDeployed` | `processModelId`, `version`, `source` | Emitted per deployed version from `persist_deploy_batch/3` |
 | `ProcessDefinitionUndeployed` | `processModelId`, `version`, `source` | `version` is `null` for bulk undeploy |
 | `ProcessDefinitionEnabled` | `processModelId`, `source` | Emitted when a process is re-enabled via REST or plugin |
@@ -1594,7 +1613,7 @@ The `BfwEngine.EngineFacade` behaviour (in `apps/engine_sdk/lib/bfw_engine/engin
 - Client: `EventClient.triggerTimer(flowNodeInstanceId)` → `TimerTriggerResult` (`{ triggered: boolean }`)
 - Api: `BfwEngine.Api.trigger_timer_event/3` — lane access + type/state validation, then `Execution.trigger_timer_event/2`
 - No dedicated JWT trigger claim; gated by `lane:<name>` (same model as User Task finish)
-- Facade: `facade.timers.trigger_event.(flow_node_instance_id)` plus schedule `list_schedules` / `get_schedule` / `enable_schedule` / `disable_schedule` (wired through `BfwEngine.Api`, skip_claims)
+- Facade: `facade.timers.trigger_event.(flow_node_instance_id)` → `{:ok, %{triggered: boolean}}` (same contract as REST; not found / forbidden / not a timer / not waiting stay `{:error, reason}`) plus schedule `list_schedules` / `get_schedule` / `enable_schedule` / `disable_schedule` (wired through `BfwEngine.Api`, skip_claims)
 
 ### Process catalog facade
 
@@ -1795,7 +1814,7 @@ handlers translate BPMN semantics into Scheduler registrations.
 | Position | timeCycle | timeDate | timeDuration |
 |----------|-----------|----------|--------------|
 | StartEvent | Auto-scheduled by `StartEventManager`. Scheduler fires → `TimerStartListener` creates PI. | PI-scoped blocking gate. Blocks Start FNI until configured datetime. | PI-scoped delay. Blocks Start FNI for configured duration. |
-| IntermediateCatchEvent | **Not supported** (rejected by handler). | Blocks FNI until datetime. Past date = immediate complete. | Blocks FNI for duration. |
+| IntermediateCatchEvent | **Not supported** (rejected at deploy: `:timer_cycle_on_intermediate_catch`). | Blocks FNI until datetime. Past date = immediate complete. | Blocks FNI for duration. |
 | BoundaryEvent (interrupting) | Fires once (first cycle iteration), interrupts host, siblings cancelled. | Fires at datetime, interrupts host. Past date = immediate fire. | Fires after duration, interrupts host. |
 | BoundaryEvent (non-interrupting) | Loops: each fire spawns a parallel branch via `{:boundary_cycle_fire, ...}`. Final fire finishes the boundary FNI. | Fires at datetime, spawns parallel branch. Host continues. | Fires after duration, spawns parallel branch. Host continues. |
 
@@ -2208,7 +2227,7 @@ exposes manual timer trigger via REST. JWT authentication required.
 |--------|------|---------|-----------------|
 | `POST` | `/timer-events/{flow_node_instance_id}/trigger` | Manually fire a waiting timer FNI | `lane:<laneName>="write"` for the FNI's lane, or laneless FNI, or `zeeky_boogie_doog`. `"read"` / `observe_all` → 403; invisible → 404 |
 
-Body: empty or `{}`. Response `200`: `TimerTriggerResult` — `{ "triggered": true }` (camelCase on wire). Errors: `404` (not found / lane-invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
+Body: empty or `{}`. Response `200`: `TimerTriggerResult` — `{ "triggered": true }`, or `{ "triggered": false }` when the handler held no armed timer (camelCase on wire). Errors: `404` (not found / lane-invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
 
 TypeScript SDK type: `TimerTriggerResult` in `packages/js/sdk/src/types/trigger.ts` (union member of `TriggerResult` alongside `MessageTriggerResult` and `SignalTriggerResult`). Client method: `EventClient.triggerTimer(flowNodeInstanceId)` in `@elraptorus/bfw_engine_client`.
 

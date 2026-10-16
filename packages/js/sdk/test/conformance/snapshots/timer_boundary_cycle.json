@@ -76,7 +76,7 @@
             "cancelActivity": false,
             "compensationHandlerId": null,
             "eventDefinition": {
-              "timeCycle": "R3/PT0S",
+              "timeCycle": "R3/PT1S",
               "timeDate": null,
               "timeDuration": null
             },

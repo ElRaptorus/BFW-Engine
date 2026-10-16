@@ -1636,10 +1636,7 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert {:ok, _} = Validator.validate(definitions)
     end
 
-    @tag :known_spec_gap
-    test "passes when multiple timer fields are provided (validator only requires at least one)" do
-      # BPMN spec: exactly one of timeDate, timeDuration, or timeCycle must be set.
-      # Validator message claims "exactly one" but implementation only checks "at least one".
+    test "rejects a timer with more than one of timeDate, timeDuration, and timeCycle" do
       xml = """
       <?xml version="1.0" encoding="UTF-8"?>
       <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -1661,8 +1658,68 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       """
 
       definitions = parse_fixture_from_xml(xml)
-      assert {:ok, _} = Validator.validate(definitions)
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} = Enum.find(violations, fn {code, _} -> code == :timer_multiple_specs end)
+      assert message =~ "StartEvent 'Start_1'"
     end
+
+    test "rejects timeCycle on an intermediate catch event" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [timer_catch_node("ICE1", %EventDefinition.Timer{time_cycle: "R3/PT1H"})],
+          extra_flows: timer_catch_flows("ICE1")
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} =
+        Enum.find(violations, fn {code, _} -> code == :timer_cycle_on_intermediate_catch end)
+
+      assert message =~ "Intermediate Catch Event 'ICE1' has a timeCycle"
+    end
+
+    test "rejects a static timeDate without a UTC offset" do
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [
+            timer_catch_node("ICE1", %EventDefinition.Timer{time_date: "2026-06-17T10:00:00"})
+          ],
+          extra_flows: timer_catch_flows("ICE1")
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      {_, message} = Enum.find(violations, fn {code, _} -> code == :timer_date_missing_offset end)
+      assert message =~ "'2026-06-17T10:00:00' without a UTC offset"
+    end
+
+    test "accepts a timeDate with an offset and a FEEL timeDate expression" do
+      for time_date <- ["2026-06-17T10:00:00+02:00", "date and time(token.fireAt)"] do
+        definitions =
+          minimal_valid_definitions(
+            extra_nodes: [timer_catch_node("ICE1", %EventDefinition.Timer{time_date: time_date})],
+            extra_flows: timer_catch_flows("ICE1")
+          )
+
+        assert {:ok, _} = Validator.validate(definitions)
+      end
+    end
+  end
+
+  defp timer_catch_node(id, timer_definition) do
+    %FlowNode{
+      id: id,
+      type: :intermediate_catch_event,
+      type_data: %FlowNodeData.IntermediateCatchEvent{event_definition: timer_definition}
+    }
+  end
+
+  defp timer_catch_flows(id) do
+    [
+      %SequenceFlow{id: "F2", source_ref: "S1", target_ref: id},
+      %SequenceFlow{id: "F3", source_ref: id, target_ref: "E1"}
+    ]
   end
 
   describe "validate/1 — ConditionalEventDefinition completeness" do

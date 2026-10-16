@@ -1,0 +1,202 @@
+{
+  "definitionsId": "Definitions_ResumeEventBasedGateway",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Msg_A",
+      "name": "resume-ebg-a"
+    },
+    {
+      "id": "Msg_B",
+      "name": "resume-ebg-b"
+    }
+  ],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_EBG",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Which message?",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
+          "type": "event_based_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_A",
+          "incoming": ["Flow_A"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Message A",
+          "outgoing": ["Flow_A_End"],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "messageRef": "Msg_A"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Catch_B",
+          "incoming": ["Flow_B"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Message B",
+          "outgoing": ["Flow_B_End"],
+          "standardLoop": null,
+          "type": "intermediate_catch_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "messageRef": "Msg_B"
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_A",
+          "incoming": ["Flow_A_End"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "A Received",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_B",
+          "incoming": ["Flow_B_End"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "B Received",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumeEventBasedGateway",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Gateway_EBG", "Catch_A", "Catch_B", "End_A", "End_B"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Resume Event-Based Gateway",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Gateway_EBG"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_EBG",
+          "targetRef": "Catch_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_EBG",
+          "targetRef": "Catch_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_A",
+          "targetRef": "End_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Catch_B",
+          "targetRef": "End_B"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

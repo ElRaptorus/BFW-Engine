@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_ThrowSideEndTokenMerge">
+
+  <bpmn:message id="Msg_end_notice" name="order-end-notice-merge" />
+  <bpmn:signal id="Sig_end_stamp" name="order-end-stamped-merge" />
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="ThrowSideEndTokenMerge" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ThrowSideEndTokenMerge" name="Throw Side End Token Merge" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Fork</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Signal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Fork" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Message</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Signal</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="End_Message" name="Notify and End">
+      <bpmn:extensionElements>
+        <bfw:inputMapping source="token.note" target="notice" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Message</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Msg_end_notice" />
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Signal" name="Stamp and End">
+      <bpmn:extensionElements>
+        <bfw:inputMapping source="true" target="stamped" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Signal</bpmn:incoming>
+      <bpmn:signalEventDefinition signalRef="Sig_end_stamp" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork" />
+    <bpmn:sequenceFlow id="Flow_Message" sourceRef="Fork" targetRef="End_Message" />
+    <bpmn:sequenceFlow id="Flow_Signal" sourceRef="Fork" targetRef="End_Signal" />
+  </bpmn:process>
+</bpmn:definitions>

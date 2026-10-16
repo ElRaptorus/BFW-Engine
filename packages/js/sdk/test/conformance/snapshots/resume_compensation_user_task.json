@@ -1,0 +1,297 @@
+{
+  "definitionsId": "Definitions_ResumeCompensationUserTask",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_Book",
+          "sourceRef": "BE_Comp_Book",
+          "targetRef": "UT_Undo"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_Book"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Book",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Book",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ booked: true }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_Book",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate Book",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Task_Book",
+            "cancelActivity": false,
+            "compensationHandlerId": "UT_Undo",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Undo",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Undo Booking",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["BE_Error_Confirm"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Confirm",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Confirm",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Error_Confirm",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Confirm Failed",
+          "outgoing": ["Flow_Error"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UT_Confirm",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": null,
+              "errorMessage": null,
+              "errorRef": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Error",
+          "incoming": ["Flow_Error"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Failed",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Comp",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate",
+          "outgoing": ["Flow_4"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ResumeCompensationUserTask",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Task_Book",
+            "BE_Comp_Book",
+            "UT_Undo",
+            "UT_Confirm",
+            "BE_Error_Confirm",
+            "End_Error",
+            "Throw_Comp",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Resume Compensation User Task",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_Book"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Book",
+          "targetRef": "UT_Confirm"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_Confirm",
+          "targetRef": "Throw_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Comp",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Error",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "BE_Error_Confirm",
+          "targetRef": "End_Error"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

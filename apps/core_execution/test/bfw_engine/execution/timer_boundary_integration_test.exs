@@ -144,18 +144,18 @@ defmodule BfwEngine.Execution.TimerBoundaryIntegrationTest do
       states = StateChangeWait.attach()
 
       %{process_instance_id: process_instance_id} =
-        start_pi_with_boundary(time_cycle: "R3/PT0S", cancel_activity: true)
+        start_pi_with_boundary(time_cycle: "R3/PT0.5S", cancel_activity: true)
 
       StateChangeWait.assert_process_instance_state(states, process_instance_id, :finished)
     end
   end
 
-  describe "non-interrupting cycle boundary — PT0S (immediate multi-fire)" do
+  describe "non-interrupting cycle boundary — short interval" do
     test "cycle fires multiple times while host continues, PI waits for user task" do
       fired_reference = attach_timer_fired_telemetry()
 
       %{pid: pid} =
-        start_pi_with_boundary(time_cycle: "R3/PT0S", cancel_activity: false)
+        start_pi_with_boundary(time_cycle: "R3/PT0.5S", cancel_activity: false)
 
       assert_receive {:timer_fired, ^fired_reference}, 5_000
       assert_receive {:timer_fired, ^fired_reference}, 5_000

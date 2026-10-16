@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_ResumeCompensationTwoHandlers">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="ResumeCompensationTwoHandlers" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="ResumeCompensationTwoHandlers" name="Resume Compensation Two Handlers" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Book_Flight</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Comp_Flight</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UT_Undo_Flight</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Book_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Comp_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UT_Undo_Hotel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Throw_Comp</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:scriptTask id="Task_Book_Flight" name="Book Flight" scriptFormat="feel">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:script>{ flight: true }</bpmn:script>
+    </bpmn:scriptTask>
+
+    <bpmn:boundaryEvent id="BE_Comp_Flight" name="Compensate Flight" attachedToRef="Task_Book_Flight" cancelActivity="false">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="UT_Undo_Flight" name="Undo Flight" isForCompensation="true" />
+
+    <bpmn:scriptTask id="Task_Book_Hotel" name="Book Hotel" scriptFormat="feel">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:script>{ hotel: true }</bpmn:script>
+    </bpmn:scriptTask>
+
+    <bpmn:boundaryEvent id="BE_Comp_Hotel" name="Compensate Hotel" attachedToRef="Task_Book_Hotel" cancelActivity="false">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="UT_Undo_Hotel" name="Undo Hotel" isForCompensation="true" />
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_Book_Flight" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Book_Flight" targetRef="Task_Book_Hotel" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_Book_Hotel" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Throw_Comp" targetRef="End_1" />
+
+    <bpmn:association id="Assoc_Comp_Flight" sourceRef="BE_Comp_Flight" targetRef="UT_Undo_Flight" associationDirection="One" />
+    <bpmn:association id="Assoc_Comp_Hotel" sourceRef="BE_Comp_Hotel" targetRef="UT_Undo_Hotel" associationDirection="One" />
+  </bpmn:process>
+</bpmn:definitions>

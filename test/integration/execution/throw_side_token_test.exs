@@ -2,7 +2,9 @@ defmodule BfwEngine.Integration.Execution.ThrowSideTokenTest do
   @moduledoc """
   Throw-side message and signal handlers publish the mapping result and keep
   every unmapped token field downstream (C6). A Send Task stamps its own
-  `bfw:correlationRetrievalExpression` onto the published message (C12).
+  `bfw:correlationRetrievalExpression` onto the published message (C12). A
+  throw inside an embedded subprocess falls back to the inherited process
+  `bfw:correlationKey` (D-10.2).
   """
   use BfwEngine.ExecutionCase, async: false
 
@@ -30,6 +32,46 @@ defmodule BfwEngine.Integration.Execution.ThrowSideTokenTest do
     assert [notice_message] = pending_messages("order-notice-merge")
     assert notice_message.payload == %{"notice" => "fragile"}
     assert notice_message.correlation_value == nil
+  end
+
+  test "Message End and Signal End merge their mapping over the token they end with" do
+    process_instance_id =
+      http_deploy_and_start("throw_side_end_token_merge.bpmn", "ThrowSideEndTokenMerge", %{
+        "payload" => %{"orderId" => "ORD-8", "note" => "urgent"}
+      })
+
+    assert {:ok, _process_instance} =
+             await_process_instance_state(process_instance_id, "finished")
+
+    assert find_fni_by_flow_node_id(process_instance_id, "End_Message").output_token == %{
+             "orderId" => "ORD-8",
+             "note" => "urgent",
+             "notice" => "urgent"
+           }
+
+    assert find_fni_by_flow_node_id(process_instance_id, "End_Signal").output_token == %{
+             "orderId" => "ORD-8",
+             "note" => "urgent",
+             "stamped" => true
+           }
+
+    assert [notice_message] = pending_messages("order-end-notice-merge")
+    assert notice_message.payload == %{"notice" => "urgent"}
+  end
+
+  test "a message throw inside an embedded subprocess stamps the inherited process correlation key" do
+    process_instance_id =
+      http_deploy_and_start(
+        "subprocess_message_throw_correlation.bpmn",
+        "SubprocessMessageThrowCorrelation",
+        %{"payload" => %{"orderId" => "SUB-3"}}
+      )
+
+    assert {:ok, _process_instance} =
+             await_process_instance_state(process_instance_id, "finished")
+
+    assert [shipped_message] = pending_messages("subprocess-throw-shipped")
+    assert shipped_message.correlation_value == "SUB-3"
   end
 
   defp pending_messages(message_name) do

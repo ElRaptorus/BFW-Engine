@@ -116,6 +116,16 @@ describe('mapResponseError — domain error code mapping', () => {
     expect(error.message).toBe('Engine is resuming — message subscriptions not ready yet');
   });
 
+  it('maps engine_shutting_down to ServiceUnavailableError and keeps the wire code', () => {
+    const error = mapResponseError(503, {
+      error: 'engine_shutting_down',
+      message: 'The engine is shutting down and starts no process instances',
+    });
+    expect(error).toBeInstanceOf(ServiceUnavailableError);
+    expect(error).not.toBeInstanceOf(EngineAtCapacityError);
+    expect(error.errorCode).toBe('engine_shutting_down');
+  });
+
   it('maps not_found and metrics_disabled to NotFoundError', () => {
     expect(mapResponseError(404, { error: 'not_found', message: 'Not found' })).toBeInstanceOf(NotFoundError);
     expect(
@@ -262,6 +272,15 @@ describe('mapResponseError — domain error code mapping', () => {
     expect(error).toBeInstanceOf(FniNotWaitingError);
     const typed = error as FniNotWaitingError;
     expect(typed.currentState).toBe('running');
+  });
+
+  it('maps fni_is_multi_instance_shell to FniNotWaitingError and keeps the wire code', () => {
+    const error = mapResponseError(422, {
+      error: 'fni_is_multi_instance_shell',
+      message: 'The flow node instance is a Multi-Instance or Standard Loop shell',
+    });
+    expect(error).toBeInstanceOf(FniNotWaitingError);
+    expect((error as FniNotWaitingError).errorCode).toBe('fni_is_multi_instance_shell');
   });
 
   it('maps parse_error to ParseError with failures', () => {

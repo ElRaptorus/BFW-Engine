@@ -16,13 +16,13 @@ defmodule BfwEngine.Timers.Application do
   def start(_type, _args) do
     tick_interval_ms = Application.get_env(:core_timers, :tick_interval_ms, 1000)
 
-    on_cycle_advance =
-      {StartEventManager, :handle_cycle_advance, []}
-
     children =
       persistence_child() ++
         [
-          {Scheduler, tick_interval_ms: tick_interval_ms, on_cycle_advance: on_cycle_advance}
+          {Scheduler,
+           tick_interval_ms: tick_interval_ms,
+           on_cycle_advance: {StartEventManager, :handle_cycle_advance, []},
+           on_restart: {StartEventManager, :reload_start_schedules, []}}
         ]
 
     opts = [strategy: :one_for_one, name: BfwEngine.Timers.Supervisor]

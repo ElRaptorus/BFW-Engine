@@ -172,7 +172,7 @@ The process instance ID is the **child** PI spawned by the ad-hoc subprocess han
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `trigger_event` | `(flow_node_instance_id) -> :ok \| {:error, term()}` | Manually fire a waiting timer FNI |
+| `trigger_event` | `(flow_node_instance_id) -> {:ok, %{triggered: boolean()}} \| {:error, term()}` | Manually fire a waiting timer FNI; `triggered: false` when nothing was armed |
 | `list_schedules` | `(keyword()) -> {:ok, list()} \| {:error, term()}` | List Timer Start Event cycle schedules |
 | `get_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Get one schedule by id |
 | `enable_schedule` | `(String.t()) -> {:ok, map()} \| {:error, term()}` | Re-enable a disabled cycle schedule |

@@ -1,0 +1,258 @@
+{
+  "definitionsId": "Definitions_ParallelGatewayDuplicateArrival",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Fork",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_Wait", "Flow_Task_2", "Flow_Task_1"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_1",
+          "incoming": ["Flow_Task_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Task 1",
+          "outgoing": ["Flow_Task_1_Out"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_2",
+          "incoming": ["Flow_Task_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Task 2",
+          "outgoing": ["Flow_Task_2_Out"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_Wait",
+          "incoming": ["Flow_Wait"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait",
+          "outgoing": ["Flow_Wait_Out"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Merge",
+          "incoming": ["Flow_Task_2_Out", "Flow_Task_1_Out"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Merge",
+          "outgoing": ["Flow_Merged"],
+          "standardLoop": null,
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Join",
+          "incoming": ["Flow_Wait_Out", "Flow_Merged"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ParallelGatewayDuplicateArrival",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Gateway_Fork",
+            "Task_1",
+            "Task_2",
+            "UserTask_Wait",
+            "Gateway_Merge",
+            "Gateway_Join",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Parallel Gateway Duplicate Arrival",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Gateway_Fork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Task_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Fork",
+          "targetRef": "Task_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Task_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Fork",
+          "targetRef": "Task_2"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Wait",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Fork",
+          "targetRef": "UserTask_Wait"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Task_1_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_1",
+          "targetRef": "Gateway_Merge"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Task_2_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_2",
+          "targetRef": "Gateway_Merge"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Merged",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Merge",
+          "targetRef": "Gateway_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Wait_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_Wait",
+          "targetRef": "Gateway_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Join",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -53,10 +53,10 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.Events.EngineEventBus
+  alias BfwEngine.Execution.FlowNodes.TimerSpecResolver
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.ProcessInstance.LaneResolution
-  alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Timers.ISO8601
   alias BfwEngine.Timers.Scheduler
@@ -129,6 +129,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
 
   Non-interrupting cycles (`is_cycle: true`) restore the cycle receive
   loop, including remaining repetitions persisted after each re-arm.
+  Occurrences missed while the engine was down are skipped (each uses up
+  one repetition) and the next future occurrence is persisted before the
+  loop resumes; a cycle with no occurrence left never fires again.
   """
   @spec handle_resume(FlowNode.t(), map(), HandlerContext.t()) ::
           {:boundary, String.t(), term(), boolean()} | {:error, term()}
@@ -156,9 +159,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
          cancel_activity,
          host_fni_id
        ) do
-    reference_time = DateTime.utc_now()
+    feel_context = FeelContext.from_handler_context(context, token.payload)
 
-    case resolve_timer_spec(kind, spec_string, token.payload, context, reference_time) do
+    case TimerSpecResolver.resolve_fire_at(kind, spec_string, feel_context, DateTime.utc_now()) do
       {:ok, fire_at} ->
         do_schedule_and_wait(flow_node, context, fire_at, cancel_activity, host_fni_id)
 
@@ -200,36 +203,54 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   # -------------------------------------------------------------------
 
   defp handle_cycle_boundary(flow_node, token, context, spec_string, cancel_activity, host_fni_id) do
-    reference_time = DateTime.utc_now()
+    now = DateTime.utc_now()
     feel_context = FeelContext.from_handler_context(context, token.payload)
 
-    resolved_spec =
-      case try_feel_evaluation(spec_string, feel_context) do
-        {:ok, resolved} when is_binary(resolved) -> resolved
-        _ -> spec_string
+    with {:ok, cycle_spec} <- TimerSpecResolver.resolve_cycle(spec_string, feel_context),
+         {first_fire, remaining_spec} <-
+           ISO8601.skip_missed_occurrences(
+             cycle_spec,
+             ISO8601.first_fire_at(cycle_spec, now),
+             now
+           ) do
+      if cancel_activity do
+        do_schedule_and_wait(flow_node, context, first_fire, cancel_activity, host_fni_id)
+      else
+        do_schedule_cycle_loop(
+          flow_node,
+          context,
+          first_fire,
+          remaining_spec,
+          cancel_activity,
+          host_fni_id
+        )
       end
-
-    case ISO8601.resolve_fire_at(:cycle, resolved_spec, reference_time) do
-      {:ok, {:cycle, cycle_spec}} ->
-        first_fire = ISO8601.first_fire_at(cycle_spec, reference_time)
-
-        if cancel_activity do
-          do_schedule_and_wait(flow_node, context, first_fire, cancel_activity, host_fni_id)
-        else
-          do_schedule_cycle_loop(
-            flow_node,
-            context,
-            first_fire,
-            cycle_spec,
-            cancel_activity,
-            host_fni_id
-          )
-        end
-
-      {:error, reason} ->
-        {:error, %{reason: :timer_resolution_failed, detail: reason}}
+    else
+      nil -> park_exhausted_cycle(context, cancel_activity)
+      {:error, reason} -> {:error, %{reason: :timer_resolution_failed, detail: reason}}
     end
   end
+
+  defp park_exhausted_cycle(context, cancel_activity) do
+    exhausted_type_properties = %{
+      host_flow_node_instance_id: context.host_flow_node_instance_id,
+      cancel_activity: cancel_activity,
+      is_cycle: true,
+      cycle_exhausted: true
+    }
+
+    case FniLifecycle.park_async(context, exhausted_type_properties) do
+      :ok ->
+        {:async, context.flow_node_instance_id, &wait_for_host_completion/0,
+         Map.put(exhausted_type_properties, :persisted, true)}
+
+      {:error, :persistence_failed} ->
+        {:error, :persistence_failed}
+    end
+  end
+
+  # A cycle with no occurrence left never fires; the Task is killed when its host ends.
+  defp wait_for_host_completion, do: Process.sleep(:infinity)
 
   defp do_schedule_cycle_loop(
          flow_node,
@@ -283,7 +304,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
       {:timer_fired, ^timer_ref, _metadata} ->
         emit_timer_fired_event(context, flow_node, timer_ref)
 
-        case ISO8601.next_cycle_fire(cycle_spec, current_fire) do
+        case ISO8601.next_future_cycle_fire(cycle_spec, current_fire, DateTime.utc_now()) do
           {next_fire, updated_spec} ->
             send(
               process_instance_pid,
@@ -351,17 +372,66 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   defp resume_cycle_boundary(flow_node, context, type_props, cancel_activity) do
     fire_at_string = Map.get(type_props, :fire_at) || Map.get(type_props, "fire_at")
 
-    with {:ok, fire_at} <- parse_persisted_fire_at(fire_at_string),
+    with false <- cycle_exhausted?(type_props),
+         {:ok, fire_at} <- parse_persisted_fire_at(fire_at_string),
          {:ok, cycle_spec} <- parse_persisted_cycle_spec(type_props) do
-      if DateTime.compare(fire_at, DateTime.utc_now()) == :gt do
-        resume_cycle_schedule_and_wait(flow_node, context, fire_at, cycle_spec, cancel_activity)
-      else
-        deliver_due_cycle_tick(flow_node, context, fire_at, cycle_spec, cancel_activity)
-      end
+      resume_next_occurrence(
+        flow_node,
+        context,
+        ISO8601.skip_missed_occurrences(cycle_spec, fire_at, DateTime.utc_now()),
+        fire_at,
+        cancel_activity
+      )
     else
+      true ->
+        wait_for_host_completion()
+
       {:error, reason} ->
         {:error, %{reason: :resume_timer_failed, detail: reason}}
     end
+  end
+
+  defp resume_next_occurrence(flow_node, context, {fire_at, cycle_spec}, fire_at, cancel_activity) do
+    resume_cycle_schedule_and_wait(flow_node, context, fire_at, cycle_spec, cancel_activity)
+  end
+
+  defp resume_next_occurrence(_flow_node, context, nil, _persisted_fire_at, cancel_activity) do
+    exhausted_type_properties = %{
+      host_flow_node_instance_id: context.host_flow_node_instance_id,
+      cancel_activity: cancel_activity,
+      is_cycle: true,
+      cycle_exhausted: true
+    }
+
+    with :ok <- persist_cycle_type_properties(context, exhausted_type_properties) do
+      wait_for_host_completion()
+    end
+  end
+
+  defp resume_next_occurrence(
+         flow_node,
+         context,
+         {next_fire, cycle_spec},
+         _missed,
+         cancel_activity
+       ) do
+    rearm_type_properties =
+      cycle_type_properties(
+        context.host_flow_node_instance_id,
+        next_fire,
+        cancel_activity,
+        nil,
+        cycle_spec
+      )
+
+    with :ok <- persist_cycle_type_properties(context, rearm_type_properties) do
+      resume_cycle_schedule_and_wait(flow_node, context, next_fire, cycle_spec, cancel_activity)
+    end
+  end
+
+  defp cycle_exhausted?(type_props) do
+    value = Map.get(type_props, :cycle_exhausted) || Map.get(type_props, "cycle_exhausted")
+    value == true or value == "true"
   end
 
   defp resume_cycle_schedule_and_wait(flow_node, context, fire_at, cycle_spec, cancel_activity) do
@@ -377,30 +447,6 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
       fire_at,
       cycle_spec
     )
-  end
-
-  defp deliver_due_cycle_tick(flow_node, context, fire_at, cycle_spec, cancel_activity) do
-    emit_timer_fired_event(context, flow_node, nil)
-
-    case ISO8601.next_cycle_fire(cycle_spec, fire_at) do
-      {next_fire, updated_spec} ->
-        send(
-          context.process_instance_pid,
-          {:fni_result, context.flow_node_instance_id,
-           {:boundary_cycle_fire, flow_node.id, %{}, cancel_activity}}
-        )
-
-        resume_cycle_schedule_and_wait(
-          flow_node,
-          context,
-          next_fire,
-          updated_spec,
-          cancel_activity
-        )
-
-      nil ->
-        {:boundary, flow_node.id, %{}, cancel_activity}
-    end
   end
 
   defp resume_schedule_and_wait(flow_node, context, fire_at, cancel_activity) do
@@ -495,40 +541,8 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEvent do
   end
 
   # -------------------------------------------------------------------
-  # Private: timer spec resolution
-  # -------------------------------------------------------------------
-
-  @spec resolve_timer_spec(
-          :date | :duration | :cycle,
-          String.t(),
-          map(),
-          HandlerContext.t(),
-          DateTime.t()
-        ) :: {:ok, DateTime.t()} | {:ok, {:cycle, ISO8601.cycle_spec()}} | {:error, term()}
-  defp resolve_timer_spec(kind, spec_string, token_payload, context, reference_time) do
-    feel_context = FeelContext.from_handler_context(context, token_payload)
-
-    case try_feel_evaluation(spec_string, feel_context) do
-      {:ok, %DateTime{} = datetime} ->
-        {:ok, datetime}
-
-      {:ok, resolved_string} when is_binary(resolved_string) ->
-        ISO8601.resolve_fire_at(kind, resolved_string, reference_time)
-
-      _feel_failed ->
-        ISO8601.resolve_fire_at(kind, spec_string, reference_time)
-    end
-  end
-
-  # -------------------------------------------------------------------
   # Private: helpers
   # -------------------------------------------------------------------
-
-  defp try_feel_evaluation(spec_string, feel_context) do
-    Expressions.eval(spec_string, feel_context)
-  rescue
-    _exception -> {:error, :feel_not_applicable}
-  end
 
   defp parse_persisted_fire_at(nil), do: {:error, :no_fire_at}
 

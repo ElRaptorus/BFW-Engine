@@ -166,6 +166,16 @@ defmodule BfwEngineWeb.Http.ProcessController do
     )
   end
 
+  defp render_start_error(conn, {:error, :engine_shutting_down}) do
+    conn
+    |> put_resp_header("retry-after", "5")
+    |> render_error(
+      503,
+      "engine_shutting_down",
+      "The engine is shutting down and starts no process instances"
+    )
+  end
+
   defp render_start_error(conn, {:error, :payload_too_large, message}) do
     render_error(conn, 422, "payload_too_large", message)
   end

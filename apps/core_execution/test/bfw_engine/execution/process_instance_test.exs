@@ -4,8 +4,10 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Execution
   alias BfwEngine.Execution.ProcessInstance
+  alias BfwEngine.Execution.ProcessInstance.State
   alias BfwEngine.Execution.ServiceReset
   alias BfwEngine.Execution.TestSupport.BpmnFactory
+  alias BfwEngine.Execution.UuidV7
   alias BfwEngine.Types.Identity
 
   @version_id "00000000-0000-0000-0000-000000000001"
@@ -113,6 +115,43 @@ defmodule BfwEngine.Execution.ProcessInstanceTest do
   # -------------------------------------------------------------------
   # Integration: Start → End (minimal linear)
   # -------------------------------------------------------------------
+
+  describe "terminate/3" do
+    setup do
+      {:ok, task_supervisor} = Task.Supervisor.start_link()
+      test_process = self()
+
+      {:ok, _task} =
+        Task.Supervisor.start_child(task_supervisor, fn ->
+          Process.flag(:trap_exit, true)
+          send(test_process, :handler_running)
+
+          receive do
+            {:EXIT, _supervisor, :shutdown} -> send(test_process, :handler_shut_down)
+          end
+        end)
+
+      assert_receive :handler_running
+
+      %{
+        data: %State{
+          process_instance_id: UuidV7.generate(),
+          process_version_id: @version_id,
+          task_supervisor: task_supervisor
+        }
+      }
+    end
+
+    test "a regular stop lets handler Tasks finish their shutdown", %{data: data} do
+      assert :ok == ProcessInstance.terminate(:normal, :running, data)
+      assert_receive :handler_shut_down
+    end
+
+    test "an engine shutdown kills handler Tasks", %{data: data} do
+      assert :ok == ProcessInstance.terminate(:shutdown, :running, data)
+      refute_receive :handler_shut_down, 100
+    end
+  end
 
   describe "Start → End (minimal linear)" do
     test "PI runs to finished" do

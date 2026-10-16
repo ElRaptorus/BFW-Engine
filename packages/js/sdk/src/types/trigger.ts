@@ -25,6 +25,7 @@ export interface SignalTriggerResult {
 
 /** Result of a timer event manual trigger. */
 export interface TimerTriggerResult {
+  /** `true` when a timer fired; `false` when the flow node instance held no armed timer. */
   triggered: boolean;
 }
 

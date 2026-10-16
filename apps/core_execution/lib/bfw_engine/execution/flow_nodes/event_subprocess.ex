@@ -58,6 +58,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FlowNodes.ChildLifecycle
   alias BfwEngine.Execution.FlowNodes.MessageEventHelper
+  alias BfwEngine.Execution.FlowNodes.TimerSpecResolver
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
@@ -565,16 +566,14 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   end
 
   defp resume_existing_child(flow_node, entry, context, child_process_instance_id) do
-    adapter = PersistenceAdapter.adapter()
-
-    case adapter.get_process_instance_for_retry(child_process_instance_id) do
+    case ChildLifecycle.fetch_persisted_child(child_process_instance_id) do
       {:ok, %{state: "running"} = child_pi_data} ->
         resume_persisted_child(
           flow_node,
           context,
           child_process_instance_id,
           child_pi_data,
-          adapter
+          PersistenceAdapter.adapter()
         )
 
       {:ok, %{state: "error", error_info: error_info}} ->
@@ -592,6 +591,9 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
       {:error, :not_found} ->
         send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
         run_fresh_lifecycle(flow_node, entry, context, context.process_instance_pid)
+
+      {:error, reason} ->
+        ChildLifecycle.child_resume_failed(context, child_process_instance_id, reason)
     end
   end
 
@@ -761,14 +763,21 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   model. Called from fresh `init` and from resume `init`.
 
   Timers are anchored at scope activation (`started_at`), so a resumed
-  scope keeps the original deadline. On resume, the ESP shell FNIs already
-  in the scope decide what is re-armed: after an interrupting ESP fired,
-  nothing is; a non-interrupting date/duration timer that fired stays
-  disarmed; a fired cycle re-arms one interval after its latest fire; a
-  fired conditional start waits for the next `false → true` edge.
+  scope keeps the original deadline; a cycle with a start date fires its
+  first occurrence at that start. A cycle is armed as a Scheduler cycle,
+  which counts its `R<n>` repetitions and skips missed occurrences. On
+  resume, the ESP shell FNIs already in the scope decide what is re-armed:
+  after an interrupting ESP fired, nothing is; a non-interrupting
+  date/duration timer that fired stays disarmed; a cycle that fired `n`
+  times re-arms on its original schedule at occurrence `n + 1` (first
+  occurrence plus `n` intervals, missed occurrences skipped); a fired
+  conditional start waits for the next `false → true` edge.
 
-  Returns `{:error, reason, data}` when a message start's correlation key
-  cannot be evaluated; the process instance then goes fatal with that
+  A message start's correlation key, a conditional start's condition, and a
+  FEEL timer expression are evaluated with `token` bound to the scope
+  instance's start payload. Returns `{:error, reason, data}` when a message
+  start's correlation key cannot be evaluated or a timer start's spec cannot
+  be resolved to a fire time; the process instance then goes fatal with that
   reason.
   """
   @spec register_triggers(State.t()) :: {:ok, State.t()} | {:error, term(), State.t()}
@@ -867,22 +876,27 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   end
 
   @doc """
-  Re-arm a non-interrupting cycle timer after fire. Date/duration timers
-  are one-shot; interrupting timers are torn down, so neither re-arms.
+  Emit `TimerFired` (`kind: :start`) for a fire of an armed ESP timer
+  start. A cycle re-arms itself in the Scheduler under the same timer ref,
+  honouring its repetition count.
   """
-  @spec rearm_timer(State.t(), String.t(), map()) :: State.t()
-  def rearm_timer(data, subprocess_node_id, _metadata) do
+  @spec emit_timer_fired(State.t(), String.t(), String.t()) :: :ok
+  def emit_timer_fired(data, subprocess_node_id, timer_ref) do
     case Map.get(data.event_subprocess_triggers, subprocess_node_id) do
-      %EventSubprocessTrigger{
-        is_interrupting: false,
-        armed?: true,
-        timer_spec: %EventDefinition.Timer{time_cycle: cycle}
-      } = trigger
-      when is_binary(cycle) and cycle != "" ->
-        do_rearm_cycle_timer(data, subprocess_node_id, trigger, cycle)
+      %EventSubprocessTrigger{trigger_kind: :timer, armed?: true} = trigger ->
+        EngineEventBus.publish(%Event.TimerFired{
+          timer_ref: timer_ref,
+          process_instance_id: data.process_instance_id,
+          flow_node_instance_id: nil,
+          flow_node_id: trigger.start_event_id,
+          kind: :start,
+          root_process_instance_id: data.root_process_instance_id,
+          lane_name: resolve_esp_lane_name(data, subprocess_node_id),
+          occurred_at: DateTime.utc_now()
+        })
 
-      _ ->
-        data
+      _not_armed ->
+        :ok
     end
   end
 
@@ -1082,7 +1096,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
   defp resume_condition_edge(
          {:ok, %EventSubprocessTrigger{trigger_kind: :conditional} = trigger},
          [
-           _fired | _
+           _fired_time | _earlier_fired_times
          ]
        ) do
     {:ok, %{trigger | last_condition_value: true}}
@@ -1117,7 +1131,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
         register_signal_trigger(data, base, signal_definition)
 
       %EventDefinition.Timer{} = timer_definition ->
-        register_timer_trigger(base, timer_definition, timer_reference_time(data, fired_times))
+        register_timer_trigger(data, base, start_event, timer_definition, fired_times)
 
       %EventDefinition.Error{} = error_definition ->
         {:ok,
@@ -1188,7 +1202,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
     case MessageEventHelper.evaluate_correlation_key(
            data.process_model,
            context,
-           data.started_with_context || %{}
+           data.start_payload || %{}
          ) do
       {:ok, correlation} ->
         {:ok, correlation}
@@ -1238,91 +1252,116 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
 
   defp resolve_signal_name(_data, _signal_definition), do: :error
 
-  defp timer_reference_time(data, []),
-    do: {:scope_activation, data.started_at || DateTime.utc_now()}
+  defp register_timer_trigger(data, base, start_event, timer_definition, fired_times) do
+    handler_context =
+      InstanceHandlerDispatch.build_handler_context(data, start_event.id, start_event, self())
 
-  defp timer_reference_time(_data, fired_times),
-    do: {:last_cycle_fire, Enum.max(fired_times, DateTime)}
+    feel_context = FeelContext.from_handler_context(handler_context, data.start_payload || %{})
+    timer_trigger = %{base | trigger_kind: :timer, timer_spec: timer_definition}
 
-  defp register_timer_trigger(base, timer_definition, reference_time) do
-    case timer_fire_at(timer_definition, reference_time) do
-      {:ok, fire_at} ->
+    case timer_schedule_request(timer_definition, feel_context, data, fired_times) do
+      {:ok, schedule_request} ->
+        metadata = %{kind: :event_subprocess_start, subprocess_node_id: base.subprocess_node_id}
+
         {:ok, timer_ref} =
-          Scheduler.schedule(%{
-            fire_at: fire_at,
-            target: self(),
-            metadata: %{
-              kind: :event_subprocess_start,
-              subprocess_node_id: base.subprocess_node_id
-            }
-          })
+          Scheduler.schedule(Map.merge(schedule_request, %{target: self(), metadata: metadata}))
 
-        {:ok, %{base | trigger_kind: :timer, timer_spec: timer_definition, timer_ref: timer_ref}}
+        {:ok, %{timer_trigger | timer_ref: timer_ref}}
 
-      :error ->
-        :skip
+      :cycle_exhausted ->
+        {:ok, %{timer_trigger | armed?: false}}
+
+      {:error, reason} ->
+        {:error,
+         {:event_subprocess_timer_resolution_failed, base.subprocess_node_id,
+          %{expression: timer_spec_text(timer_definition), reason: reason}}}
     end
+  end
+
+  defp timer_spec_text(%EventDefinition.Timer{} = timer_definition) do
+    Enum.find(
+      [timer_definition.time_date, timer_definition.time_duration, timer_definition.time_cycle],
+      &(is_binary(&1) and &1 != "")
+    )
   end
 
   # -------------------------------------------------------------------
   # §B private: timer helpers
   # -------------------------------------------------------------------
 
-  defp timer_fire_at(%EventDefinition.Timer{time_date: date}, {_anchor, reference_time})
+  defp timer_schedule_request(
+         %EventDefinition.Timer{time_date: date},
+         feel_context,
+         data,
+         _fired_times
+       )
        when is_binary(date) and date != "" do
-    case ISO8601.resolve_fire_at(:date, date, reference_time) do
-      {:ok, %DateTime{} = fire_at} -> {:ok, fire_at}
-      _ -> :error
-    end
+    one_shot_schedule_request(:date, date, feel_context, scope_activation(data))
   end
 
-  defp timer_fire_at(%EventDefinition.Timer{time_duration: duration}, {_anchor, reference_time})
+  defp timer_schedule_request(
+         %EventDefinition.Timer{time_duration: duration},
+         feel_context,
+         data,
+         _fired_times
+       )
        when is_binary(duration) and duration != "" do
-    case ISO8601.resolve_fire_at(:duration, duration, reference_time) do
-      {:ok, %DateTime{} = fire_at} -> {:ok, fire_at}
-      _ -> :error
-    end
+    one_shot_schedule_request(:duration, duration, feel_context, scope_activation(data))
   end
 
-  defp timer_fire_at(%EventDefinition.Timer{time_cycle: cycle}, {anchor, reference_time})
+  defp timer_schedule_request(
+         %EventDefinition.Timer{time_cycle: cycle},
+         feel_context,
+         data,
+         fired_times
+       )
        when is_binary(cycle) and cycle != "" do
-    case ISO8601.resolve_fire_at(:cycle, cycle, reference_time) do
-      {:ok, {:cycle, cycle_spec}} -> {:ok, next_cycle_fire_at(anchor, cycle_spec, reference_time)}
-      _ -> :error
+    with {:ok, cycle_spec} <- TimerSpecResolver.resolve_cycle(cycle, feel_context) do
+      cycle_spec
+      |> next_cycle_occurrence(scope_activation(data), fired_times, DateTime.utc_now())
+      |> cycle_schedule_request()
     end
   end
 
-  defp timer_fire_at(_timer_definition, _reference_time), do: :error
+  defp timer_schedule_request(_timer_definition, _feel_context, _data, _fired_times),
+    do: {:error, :missing_timer_spec}
 
-  defp next_cycle_fire_at(:scope_activation, cycle_spec, reference_time),
-    do: ISO8601.first_fire_at(cycle_spec, reference_time)
+  defp scope_activation(data), do: data.started_at || DateTime.utc_now()
 
-  defp next_cycle_fire_at(:last_cycle_fire, cycle_spec, reference_time),
-    do: DateTime.shift(reference_time, cycle_spec.interval_duration)
-
-  defp do_rearm_cycle_timer(data, subprocess_node_id, trigger, cycle) do
-    now = DateTime.utc_now()
-
-    case ISO8601.resolve_fire_at(:cycle, cycle, now) do
-      {:ok, {:cycle, cycle_spec}} ->
-        next_fire = DateTime.shift(now, cycle_spec.interval_duration)
-
-        {:ok, timer_ref} =
-          Scheduler.schedule(%{
-            fire_at: next_fire,
-            target: self(),
-            metadata: %{kind: :event_subprocess_start, subprocess_node_id: subprocess_node_id}
-          })
-
-        put_in(data.event_subprocess_triggers[subprocess_node_id], %{
-          trigger
-          | timer_ref: timer_ref
-        })
-
-      _ ->
-        data
+  defp one_shot_schedule_request(kind, spec_string, feel_context, reference_time) do
+    with {:ok, fire_at} <-
+           TimerSpecResolver.resolve_fire_at(kind, spec_string, feel_context, reference_time) do
+      {:ok, %{fire_at: fire_at}}
     end
   end
+
+  defp next_cycle_occurrence(cycle_spec, scope_activation, fired_times, now) do
+    first_occurrence = ISO8601.first_fire_at(cycle_spec, scope_activation)
+
+    with {fire_at, pending_spec} <-
+           occurrence_after_fires(first_occurrence, cycle_spec, length(fired_times)) do
+      ISO8601.skip_missed_occurrences(pending_spec, fire_at, now)
+    end
+  end
+
+  defp occurrence_after_fires(fire_at, cycle_spec, 0), do: {fire_at, cycle_spec}
+
+  defp occurrence_after_fires(fire_at, cycle_spec, fired_count) do
+    with {next_fire_at, next_spec} <- ISO8601.next_cycle_fire(cycle_spec, fire_at) do
+      occurrence_after_fires(next_fire_at, next_spec, fired_count - 1)
+    end
+  end
+
+  defp cycle_schedule_request({fire_at, cycle_spec}) do
+    {:ok,
+     %{
+       fire_at: fire_at,
+       cycle_interval: cycle_spec.interval_duration,
+       cycle_remaining: cycle_spec.repetitions
+     }}
+  end
+
+  defp cycle_schedule_request(nil), do: :cycle_exhausted
 
   # -------------------------------------------------------------------
   # §B private: code resolution
@@ -1468,7 +1507,7 @@ defmodule BfwEngine.Execution.FlowNodes.EventSubprocess do
       context =
         InstanceHandlerDispatch.build_handler_context(data, start_event_id, start_event, self())
 
-      feel_context = FeelContext.from_handler_context(context, data.started_with_context || %{})
+      feel_context = FeelContext.from_handler_context(context, data.start_payload || %{})
 
       case Expressions.eval(expression, feel_context) do
         {:ok, true} -> true

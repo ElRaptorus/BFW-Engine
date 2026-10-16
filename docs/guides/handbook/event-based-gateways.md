@@ -65,7 +65,7 @@ When the race completes:
 
 ## Sibling Cancellation
 
-When a winner is determined, the engine cancels the losing FNIs by calling `handle_aborted/1` on each loser's handler. This ensures clean resource release — timer subscriptions are cancelled, message and signal subscriptions are unregistered, and conditional waiters are removed.
+When a winner is determined, the engine cancels the losing FNIs: it removes each loser's message and signal subscriptions by flow node instance id, then calls `handle_aborted/1` on the loser's handler so timers are cancelled, and removes conditional waiters. A loser still entering when the winner fires has its subscriptions removed at once and is interrupted when its handler reports back.
 
 ## Resume on Restart
 

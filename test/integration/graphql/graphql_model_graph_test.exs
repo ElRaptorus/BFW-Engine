@@ -284,6 +284,49 @@ defmodule BfwEngine.Integration.Graphql.GraphqlModelGraphTest do
       assert receive_task["outMappings"] == []
     end
 
+    test "exposes SendTaskNode.correlationRetrievalExpression" do
+      {201, _deploy_body} = http_deploy("throw_side_token_merge.bpmn")
+
+      {200, list_body} =
+        http_graphql(
+          "query { processVersions { results { id bpmnXml } } }",
+          %{},
+          @admin_claims
+        )
+
+      found =
+        Enum.find(list_body["data"]["processVersions"]["results"], fn version ->
+          is_binary(version["bpmnXml"]) and
+            String.contains?(version["bpmnXml"], "ThrowSideTokenMerge")
+        end)
+
+      query = """
+      query($id: ID!) {
+        getProcessVersion(id: $id) {
+          processModel {
+            flowNodes {
+              id
+              ... on SendTaskNode {
+                correlationRetrievalExpression
+              }
+            }
+          }
+        }
+      }
+      """
+
+      {200, body} = http_graphql(query, %{"id" => found["id"]}, @admin_claims)
+      refute Map.has_key?(body, "errors"), inspect(body["errors"])
+
+      send_task =
+        Enum.find(
+          body["data"]["getProcessVersion"]["processModel"]["flowNodes"],
+          &(&1["id"] == "Send_Order")
+        )
+
+      assert send_task["correlationRetrievalExpression"] == "token.orderId"
+    end
+
     test "returns null processModel when ModelCache.fetch returns not_found" do
       previous_loader = Application.get_env(:core_bpmn, :model_cache_loader)
 

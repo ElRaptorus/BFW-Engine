@@ -167,7 +167,7 @@ defmodule BfwEngine.Integration.Execution.StartEventDiscoveryTest do
   defp hourly_cycle(version) do
     "timer_start_cycle.bpmn"
     |> fixture_with_version(version)
-    |> String.replace("R3/PT0S", "R3/PT1H")
+    |> String.replace("R3/PT1S", "R3/PT1H")
   end
 
   defp version_id(process_model_id, version) do

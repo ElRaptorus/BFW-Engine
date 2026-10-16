@@ -118,7 +118,8 @@ defmodule BfwEngine.BPMN.ModelCache do
   returns a synthetic process struct suitable for starting a child PI.
 
   The synthetic process uses a composite ID:
-  `"\#{parent_process_id}__subprocess__\#{subprocess_node_id}"`.
+  `"\#{parent_process_id}__subprocess__\#{subprocess_node_id}"`. It inherits
+  the parent process's `bfw:version` and `bfw:correlationKey`.
   """
   @spec fetch_subprocess_model(String.t(), String.t()) ::
           {:ok, BpmnProcess.t(), Definitions.t()} | {:error, :not_found | :subprocess_not_found}
@@ -438,6 +439,7 @@ defmodule BfwEngine.BPMN.ModelCache do
       id: "#{parent_process.id}__subprocess__#{subprocess_node.id}",
       name: subprocess_node.name,
       version: parent_process.version,
+      correlation_key: parent_process.correlation_key,
       is_executable: true,
       is_transaction_scope: Map.get(subprocess_node.type_data, :is_transaction, false),
       is_ad_hoc_scope: Map.get(subprocess_node.type_data, :is_ad_hoc, false),

@@ -26,6 +26,8 @@ defmodule BfwEngine.Events.MessageSubscriptions do
 
   @table_name :bfw_engine_message_subscriptions
   @process_instance_index_table :bfw_engine_message_subscriptions_by_process_instance
+  # Survives a restart of this server: the resume pipeline marks readiness once per boot.
+  @ready_key {__MODULE__, :ready}
 
   # -------------------------------------------------------------------
   # Subscription struct
@@ -160,6 +162,8 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   @spec unregister_all_for_flow_node_instance(String.t()) :: :ok
   def unregister_all_for_flow_node_instance(flow_node_instance_id)
       when is_binary(flow_node_instance_id) do
+    # ponytail: full-table scan, O(subscriptions) per call; add an index keyed by flow node
+    # instance id (like the process instance index) if cancel paths get hot.
     @table_name
     |> :ets.match_object({:_, %{flow_node_instance_id: flow_node_instance_id}})
     |> Enum.each(&delete_subscription_entry/1)
@@ -236,9 +240,7 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   have re-registered their message subscriptions.
   """
   @spec ready?() :: boolean()
-  def ready? do
-    GenServer.call(__MODULE__, :ready?)
-  end
+  def ready?, do: :persistent_term.get(@ready_key, false)
 
   @doc """
   Called by the resume pipeline after all PIs have been restored.
@@ -260,7 +262,7 @@ defmodule BfwEngine.Events.MessageSubscriptions do
   """
   @spec await_ready(timeout()) :: :ok | {:error, :timeout}
   def await_ready(timeout) do
-    GenServer.call(__MODULE__, :await_ready, timeout)
+    if ready?(), do: :ok, else: GenServer.call(__MODULE__, :await_ready, timeout)
   catch
     :exit, {:timeout, _call} -> {:error, :timeout}
   end
@@ -289,17 +291,13 @@ defmodule BfwEngine.Events.MessageSubscriptions do
         write_concurrency: true
       ])
 
-    {:ok, %{table: table, index_table: index_table, ready: false, ready_waiters: []}}
-  end
-
-  @impl true
-  def handle_call(:ready?, _from, state) do
-    {:reply, state.ready, state}
+    {:ok, %{table: table, index_table: index_table, ready: ready?(), ready_waiters: []}}
   end
 
   @impl true
   def handle_call(:mark_ready, _from, state) do
     Logger.info("MessageSubscriptions: marked as ready — accepting message triggers")
+    :persistent_term.put(@ready_key, true)
     Enum.each(state.ready_waiters, &GenServer.reply(&1, :ok))
     {:reply, :ok, %{state | ready: true, ready_waiters: []}}
   end

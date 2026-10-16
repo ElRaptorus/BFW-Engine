@@ -852,6 +852,56 @@ defmodule BfwEngine.ExpressionsTest do
     end
   end
 
+  describe "to_datetime/1" do
+    test "decodes a FEEL date-time with an offset" do
+      {:ok, value} = Expressions.eval(~S|date and time("2026-06-01T12:00:00+02:00")|, %{})
+      assert {:ok, ~U[2026-06-01 10:00:00Z]} = Expressions.to_datetime(value)
+    end
+
+    test "reads a FEEL date-time without an offset as UTC" do
+      {:ok, value} = Expressions.eval(~S|date and time("2026-06-01T12:00:00")|, %{})
+      assert {:ok, ~U[2026-06-01 12:00:00Z]} = Expressions.to_datetime(value)
+    end
+
+    test "accepts an ISO 8601 string with an offset and a DateTime" do
+      assert {:ok, ~U[2026-06-01 10:00:00Z]} = Expressions.to_datetime("2026-06-01T10:00:00Z")
+      assert {:ok, ~U[2026-06-01 10:00:00Z]} = Expressions.to_datetime(~U[2026-06-01 10:00:00Z])
+    end
+
+    test "rejects a plain string without an offset" do
+      assert {:error, {:invalid_date_time, "2026-06-01T10:00:00", :missing_offset}} =
+               Expressions.to_datetime("2026-06-01T10:00:00")
+    end
+
+    test "rejects a FEEL date-time with a zone id and values that are no date-time" do
+      {:ok, value} = Expressions.eval(~S|date and time("2026-06-01T12:00:00@Europe/Berlin")|, %{})
+      assert {:error, {:unsupported_time_zone, _text}} = Expressions.to_datetime(value)
+      assert {:error, {:not_a_date_time, 42}} = Expressions.to_datetime(42)
+    end
+  end
+
+  describe "to_duration/1" do
+    test "decodes FEEL days-and-time and years-and-months durations" do
+      {:ok, days_and_time} = Expressions.eval(~S|duration("P1DT2H")|, %{})
+      {:ok, years_and_months} = Expressions.eval(~S|duration("P1Y2M")|, %{})
+
+      assert {:ok, %Duration{day: 1, hour: 2}} = Expressions.to_duration(days_and_time)
+      assert {:ok, %Duration{year: 1, month: 2}} = Expressions.to_duration(years_and_months)
+    end
+
+    test "accepts an ISO 8601 duration string and a Duration" do
+      assert {:ok, %Duration{second: 5}} = Expressions.to_duration("PT5S")
+      assert {:ok, %Duration{minute: 1}} = Expressions.to_duration(Duration.new!(minute: 1))
+    end
+
+    test "rejects malformed strings and values that are no duration" do
+      assert {:error, {:invalid_duration, "five seconds", _reason}} =
+               Expressions.to_duration("five seconds")
+
+      assert {:error, {:not_a_duration, nil}} = Expressions.to_duration(nil)
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------

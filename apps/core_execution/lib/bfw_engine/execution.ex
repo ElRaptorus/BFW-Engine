@@ -60,11 +60,17 @@ defmodule BfwEngine.Execution do
   Therefore a `:subprocess_node_id` without a parent means an external caller
   (REST/plugin) tried to start an inner scope directly; such calls are rejected
   with `{:error, :orphan_subprocess_start}` before the PI is ever supervised.
+
+  ## Shutdown
+
+  Once `shutdown_process_instances/0` stopped the PI supervisor, every start
+  answers `{:error, :engine_shutting_down}`.
   """
   @spec start_process_instance(ProcessInstance.start_opts()) ::
           {:ok, pid()}
           | {:error, term()}
           | {:error, :orphan_subprocess_start}
+          | {:error, :engine_shutting_down}
           | {:error, :engine_at_capacity, engine_capacity_info()}
   def start_process_instance(opts) do
     with :ok <- validate_subprocess_parent(opts),
@@ -86,6 +92,8 @@ defmodule BfwEngine.Execution do
           error
       end
     end
+  catch
+    :exit, {:noproc, _call} -> {:error, :engine_shutting_down}
   end
 
   defp check_capacity do
@@ -454,7 +462,8 @@ defmodule BfwEngine.Execution do
     resolved_version_id = Keyword.fetch!(opts, :resolved_version_id)
     identity = Keyword.fetch!(opts, :identity)
 
-    with {:ok, root_pi_data, ancestor_chain} <- resolve_tree_context(pi_data, adapter),
+    with :ok <- ensure_accepting_starts(),
+         {:ok, root_pi_data, ancestor_chain} <- resolve_tree_context(pi_data, adapter),
          {:ok, all_fnis} <-
            retry_adapter_call(adapter, :list_all_flow_node_instances, [pi_data.id]),
          {:ok, surviving_fnis, deletion_set} <- maybe_apply_checkpoint(all_fnis, opts),
@@ -499,6 +508,12 @@ defmodule BfwEngine.Execution do
     end
   end
 
+  defp ensure_accepting_starts do
+    if Process.whereis(BfwEngine.Execution.Supervisor),
+      do: :ok,
+      else: {:error, :engine_shutting_down}
+  end
+
   defp resolve_tree_context(pi_data, adapter) do
     case pi_data.parent_process_instance_id do
       nil ->
@@ -522,6 +537,9 @@ defmodule BfwEngine.Execution do
 
       {:error, :not_found} ->
         {:error, :ancestor_not_found, process_instance_id}
+
+      {:error, reason} ->
+        {:error, :service_unavailable, reason}
     end
   end
 
@@ -873,6 +891,9 @@ defmodule BfwEngine.Execution do
 
       {:error, :not_found} ->
         {:ok, accumulated_resets}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

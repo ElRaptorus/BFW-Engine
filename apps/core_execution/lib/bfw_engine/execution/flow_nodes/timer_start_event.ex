@@ -34,13 +34,12 @@ defmodule BfwEngine.Execution.FlowNodes.TimerStartEvent do
   alias BfwEngine.BPMN.Model.FlowNode
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Execution.FlowNodeResult
+  alias BfwEngine.Execution.FlowNodes.TimerSpecResolver
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.ProcessInstance.LaneResolution
   alias BfwEngine.Execution.SequenceFlowResolver
-  alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
-  alias BfwEngine.Timers.ISO8601
   alias BfwEngine.Timers.Scheduler
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
@@ -122,9 +121,9 @@ defmodule BfwEngine.Execution.FlowNodes.TimerStartEvent do
   # -------------------------------------------------------------------
 
   defp schedule_and_wait(flow_node, token, context, kind, spec_string) do
-    reference_time = DateTime.utc_now()
+    feel_context = FeelContext.from_handler_context(context, token.payload)
 
-    case resolve_timer_spec(kind, spec_string, token.payload, context, reference_time) do
+    case TimerSpecResolver.resolve_fire_at(kind, spec_string, feel_context, DateTime.utc_now()) do
       {:ok, fire_at} ->
         now = DateTime.utc_now()
 
@@ -256,32 +255,6 @@ defmodule BfwEngine.Execution.FlowNodes.TimerStartEvent do
   end
 
   # -------------------------------------------------------------------
-  # Timer spec resolution
-  # -------------------------------------------------------------------
-
-  @spec resolve_timer_spec(
-          :date | :duration,
-          String.t(),
-          map(),
-          HandlerContext.t(),
-          DateTime.t()
-        ) :: {:ok, DateTime.t()} | {:error, term()}
-  defp resolve_timer_spec(kind, spec_string, token_payload, context, reference_time) do
-    feel_context = FeelContext.from_handler_context(context, token_payload)
-
-    case try_feel_evaluation(spec_string, feel_context) do
-      {:ok, %DateTime{} = datetime} ->
-        {:ok, datetime}
-
-      {:ok, resolved_string} when is_binary(resolved_string) ->
-        ISO8601.resolve_fire_at(kind, resolved_string, reference_time)
-
-      _feel_failed ->
-        ISO8601.resolve_fire_at(kind, spec_string, reference_time)
-    end
-  end
-
-  # -------------------------------------------------------------------
   # Scheduler interaction
   # -------------------------------------------------------------------
 
@@ -333,12 +306,6 @@ defmodule BfwEngine.Execution.FlowNodes.TimerStartEvent do
   # -------------------------------------------------------------------
   # Helpers
   # -------------------------------------------------------------------
-
-  defp try_feel_evaluation(spec_string, feel_context) do
-    Expressions.eval(spec_string, feel_context)
-  rescue
-    _exception -> {:error, :feel_not_applicable}
-  end
 
   defp resolve_outgoing(flow_node, context) do
     case SequenceFlowResolver.resolve(flow_node, context.process_model) do

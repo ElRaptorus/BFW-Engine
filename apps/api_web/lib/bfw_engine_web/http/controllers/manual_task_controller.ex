@@ -26,7 +26,7 @@ defmodule BfwEngineWeb.Http.ManualTaskController do
 
   @terminal_fni_reasons ~w(
     fni_already_finished fni_already_aborted fni_already_interrupted
-    fni_already_fatal fni_not_waiting fni_not_active fni_is_multi_instance_shell
+    fni_already_fatal fni_not_waiting fni_not_active
   )a
 
   # ---------------------------------------------------------------------------
@@ -89,6 +89,16 @@ defmodule BfwEngineWeb.Http.ManualTaskController do
     render_error(conn, 403, "forbidden", "Insufficient permissions",
       required_claim: details[:required_claim],
       required_value: details[:required_value]
+    )
+  end
+
+  defp render_manual_task_error(conn, :fni_is_multi_instance_shell, operation) do
+    render_error(
+      conn,
+      422,
+      "fni_is_multi_instance_shell",
+      "The flow node instance is a Multi-Instance or Standard Loop shell; " <>
+        "#{operation} its iteration flow node instances instead."
     )
   end
 

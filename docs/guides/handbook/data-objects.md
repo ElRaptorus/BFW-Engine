@@ -119,6 +119,7 @@ DOA failures are fatal to the flow node instance:
 
 - **Value contract violation**: FNI → `fatal`, no write persisted
 - **FEEL expression error**: FNI → `fatal`, no write persisted
+- **Value is `null`** (the transformation evaluates to `null`, or there is no transformation and the flow node's output is `null`): FNI → `fatal` with `data_object_value_null`, no write persisted. The message names the flow node, the Data Object, and the transformation. A Data Object cannot be set back to "unset"
 - **PayloadCap exceeded**: FNI → `fatal`, no write persisted
 - **DB write failure**: FNI → `fatal`, entire transaction rolled back
 

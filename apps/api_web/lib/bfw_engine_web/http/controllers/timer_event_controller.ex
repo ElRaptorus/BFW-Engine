@@ -24,8 +24,8 @@ defmodule BfwEngineWeb.Http.TimerEventController do
     identity = caller_identity(conn)
 
     case Api.trigger_timer_event(flow_node_instance_id, identity) do
-      :ok ->
-        conn |> put_status(200) |> json(%{triggered: true})
+      {:ok, %{triggered: triggered}} ->
+        conn |> put_status(200) |> json(%{triggered: triggered})
 
       error ->
         render_trigger_error(conn, error)

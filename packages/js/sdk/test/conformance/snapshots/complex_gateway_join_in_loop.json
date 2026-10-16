@@ -1,0 +1,318 @@
+{
+  "definitionsId": "Definitions_ComplexGatewayJoinInLoop",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Script_Init",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Reset Counter",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ counter: 0 }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Merge",
+          "incoming": ["Flow_Again", "Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Loop Entry",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Fork",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_B_In", "Flow_A_In"],
+          "standardLoop": null,
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_A",
+          "incoming": ["Flow_A_In"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Branch A",
+          "outgoing": ["Flow_A_Out"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_B",
+          "incoming": ["Flow_B_In"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Branch B",
+          "outgoing": ["Flow_B_Out"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Join",
+          "incoming": ["Flow_B_Out", "Flow_A_Out"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Flow_4"],
+          "standardLoop": null,
+          "type": "complex_gateway",
+          "typeData": {
+            "activationCondition": "activatedCount >= 2"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Script_Increment",
+          "incoming": ["Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Count Pass",
+          "outgoing": ["Flow_5"],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ counter: token.counter + 1 }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Loop",
+          "incoming": ["Flow_5"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Another Pass?",
+          "outgoing": ["Flow_Exit", "Flow_Again"],
+          "standardLoop": null,
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": "Flow_Exit"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_Exit"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ComplexGatewayJoinInLoop",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Script_Init",
+            "Gateway_Merge",
+            "Gateway_Fork",
+            "Task_A",
+            "Task_B",
+            "Gateway_Join",
+            "Script_Increment",
+            "Gateway_Loop",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Complex Gateway Join In Loop",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Script_Init"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Script_Init",
+          "targetRef": "Gateway_Merge"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Merge",
+          "targetRef": "Gateway_Fork"
+        },
+        {
+          "conditionExpression": "true",
+          "id": "Flow_A_In",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Fork",
+          "targetRef": "Task_A"
+        },
+        {
+          "conditionExpression": "true",
+          "id": "Flow_B_In",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Fork",
+          "targetRef": "Task_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_A",
+          "targetRef": "Gateway_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_Out",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_B",
+          "targetRef": "Gateway_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Join",
+          "targetRef": "Script_Increment"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Script_Increment",
+          "targetRef": "Gateway_Loop"
+        },
+        {
+          "conditionExpression": "token.counter < 2",
+          "id": "Flow_Again",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Loop",
+          "targetRef": "Gateway_Merge"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Exit",
+          "isDefault": true,
+          "name": null,
+          "sourceRef": "Gateway_Loop",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

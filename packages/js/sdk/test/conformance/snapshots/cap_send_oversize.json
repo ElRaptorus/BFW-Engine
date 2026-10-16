@@ -52,6 +52,7 @@
           "standardLoop": null,
           "type": "send_task",
           "typeData": {
+            "correlationRetrievalExpression": null,
             "inMappings": [
               {
                 "source": "token",

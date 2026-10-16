@@ -16,6 +16,10 @@ defmodule BfwEngine.Execution.PersistenceRetry do
     backoff in milliseconds; each subsequent attempt doubles it
     (default: `100`).
 
+  The `:final_reasons` option lists error reasons that are an answer, not a
+  transient failure (for example `:not_found` from a lookup); they are
+  returned on the first attempt.
+
   ## Backoff formula
 
       sleep_ms = initial_backoff_ms * 2^(attempt - 1) + :rand.uniform(51) - 1
@@ -54,10 +58,16 @@ defmodule BfwEngine.Execution.PersistenceRetry do
         Application.get_env(:core_execution, :persistence_retry_initial_backoff_ms, 100)
       end)
 
-    do_retry(fun, label, 1, max_attempts, initial_backoff_ms)
+    settings = %{
+      max_attempts: max_attempts,
+      initial_backoff_ms: initial_backoff_ms,
+      final_reasons: [:already_terminal | Keyword.get(opts, :final_reasons, [])]
+    }
+
+    do_retry(fun, label, 1, settings)
   end
 
-  defp do_retry(fun, label, attempt, max_attempts, initial_backoff_ms) do
+  defp do_retry(fun, label, attempt, settings) do
     case fun.() do
       :ok ->
         :ok
@@ -68,11 +78,11 @@ defmodule BfwEngine.Execution.PersistenceRetry do
       {:ok, _} = success ->
         success
 
-      {:error, :already_terminal} = error ->
-        error
-
       {:error, reason} = error ->
         cond do
+          reason in settings.final_reasons ->
+            error
+
           non_retryable?(reason) ->
             Logger.error(
               "[PersistenceRetry] #{label} failed with non-retryable error: #{inspect(reason)}"
@@ -80,23 +90,24 @@ defmodule BfwEngine.Execution.PersistenceRetry do
 
             error
 
-          attempt >= max_attempts ->
+          attempt >= settings.max_attempts ->
             Logger.error(
-              "[PersistenceRetry] #{label} failed after #{attempt}/#{max_attempts} attempts: #{inspect(reason)}"
+              "[PersistenceRetry] #{label} failed after #{attempt}/#{settings.max_attempts} attempts: " <>
+                inspect(reason)
             )
 
             error
 
           true ->
-            backoff_ms = compute_backoff(attempt, initial_backoff_ms)
+            backoff_ms = compute_backoff(attempt, settings.initial_backoff_ms)
 
             Logger.warning(
-              "[PersistenceRetry] #{label} failed (attempt #{attempt}/#{max_attempts}), " <>
+              "[PersistenceRetry] #{label} failed (attempt #{attempt}/#{settings.max_attempts}), " <>
                 "retrying in #{backoff_ms}ms: #{inspect(reason)}"
             )
 
             Process.sleep(backoff_ms)
-            do_retry(fun, label, attempt + 1, max_attempts, initial_backoff_ms)
+            do_retry(fun, label, attempt + 1, settings)
         end
     end
   end

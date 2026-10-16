@@ -1,0 +1,233 @@
+{
+  "definitionsId": "Definitions_ThrowSideTokenMerge",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Msg_order",
+      "name": "order-placed-merge"
+    },
+    {
+      "id": "Msg_notice",
+      "name": "order-notice-merge"
+    }
+  ],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Send_Order",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Send Order",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "send_task",
+          "typeData": {
+            "correlationRetrievalExpression": "token.orderId",
+            "inMappings": [
+              {
+                "source": "token.orderId",
+                "target": "orderId"
+              }
+            ],
+            "messageRef": "Msg_order",
+            "outMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Notice",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Publish Notice",
+          "outgoing": ["Flow_3"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "messageRef": "Msg_notice"
+            },
+            "inMappings": [
+              {
+                "source": "token.note",
+                "target": "notice"
+              }
+            ],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Stamp",
+          "incoming": ["Flow_3"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Broadcast Stamp",
+          "outgoing": ["Flow_4"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_stamp"
+            },
+            "inMappings": [
+              {
+                "source": "true",
+                "target": "stamped"
+              }
+            ],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_Inspect",
+          "incoming": ["Flow_4"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Inspect Token",
+          "outgoing": ["Flow_5"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_5"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ThrowSideTokenMerge",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Send_Order", "Throw_Notice", "Throw_Stamp", "UserTask_Inspect", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Throw Side Token Merge",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Send_Order"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Send_Order",
+          "targetRef": "Throw_Notice"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_3",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Notice",
+          "targetRef": "Throw_Stamp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_4",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Stamp",
+          "targetRef": "UserTask_Inspect"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_5",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_Inspect",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_stamp",
+      "name": "order-stamped-merge"
+    }
+  ]
+}

@@ -204,7 +204,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
     )
   end
 
-  @doc "Manually trigger a waiting timer event FNI."
+  @doc """
+  Manually trigger a waiting timer event FNI. Returns
+  `{:error, :timer_not_armed}` when the FNI's handler holds no armed timer,
+  so nothing fired.
+  """
   @spec trigger_timer_event(pid(), String.t()) :: :ok | {:error, term()}
   def trigger_timer_event(process_instance_pid, flow_node_instance_id) do
     :gen_statem.call(process_instance_pid, {:trigger_timer_event, flow_node_instance_id})
@@ -323,6 +327,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       triggerer_flow_node_instance_id: opts[:triggerer_flow_node_instance_id],
       started_at: opts[:started_at],
       started_with_context: opts[:started_with_context],
+      start_payload: Resumption.start_payload(opts[:fni_data] || []),
       notify_pid: opts[:notify_pid],
       adhoc_completion_condition: opts[:adhoc_completion_condition],
       adhoc_completion_condition_compiled: opts[:adhoc_completion_condition_compiled],
@@ -332,39 +337,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         Map.get(opts, :adhoc_natural_drain_enabled, false) and (opts[:fni_data] || []) != []
     }
 
-    with {:ok, process_model, definitions} <-
-           fetch_process_model(data.process_version_id, opts[:subprocess_node_id]),
-         {:ok, task_sup} <- Task.Supervisor.start_link(strategy: :one_for_one),
-         {:ok, do_rows} <-
-           PersistenceAdapter.adapter().list_data_objects(data.process_instance_id) do
-      data = %{
-        data
-        | process_model: process_model,
-          definitions: definitions,
-          task_supervisor: task_sup
-      }
-
-      cache = Map.new(do_rows, fn row -> {row.data_object_id, row.value} end)
-      data = %{data | data_object_cache: cache}
-
-      flow_node_instance_data = opts[:fni_data] || []
-      pending_arrivals = opts[:pending_arrivals] || []
-      data = Resumption.resume(data, flow_node_instance_data, pending_arrivals, self())
-      data = resume_stalled_compensation_runs(data)
-
-      {data, trigger_actions} = register_event_subprocess_triggers(data)
-      data = evaluate_parked_inclusive_joins(data)
-      data = evaluate_parked_complex_joins(data)
-      data = redispatch_lost_successors(data)
-
-      {:ok, :running, data,
-       trigger_actions ++ [{:next_event, :internal, :check_initial_dispatch}]}
-    else
-      {:error, reason} ->
-        Logger.error("PI #{data.process_instance_id} failed to resume: #{inspect(reason)}")
-        _persist_result = persist_pi_resume_failed(data, reason)
-        {:stop, {reason, data}}
-    end
+    resume_from_persisted_state(data, opts)
   end
 
   def init(opts) do
@@ -402,6 +375,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           definitions: definitions,
           started_at: now,
           started_with_context: opts[:context],
+          start_payload: opts[:payload],
           task_supervisor: task_sup
       }
 
@@ -435,7 +409,64 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  defp settle_resumed_fni(data, flow_node_instance_id) do
+  defp resume_from_persisted_state(data, opts) do
+    case fetch_process_model(data.process_version_id, opts[:subprocess_node_id]) do
+      {:ok, process_model, definitions} ->
+        resume_with_process_model(
+          %{data | process_model: process_model, definitions: definitions},
+          opts
+        )
+
+      {:error, reason} ->
+        fail_resume(data, reason)
+    end
+  catch
+    kind, reason ->
+      fail_resume(data, {:resume_crashed, Exception.format(kind, reason, __STACKTRACE__)})
+  end
+
+  defp resume_with_process_model(data, opts) do
+    flow_node_instance_data = opts[:fni_data] || []
+
+    with :ok <- require_recorded_start(data.mode, flow_node_instance_data),
+         {:ok, task_sup} <- Task.Supervisor.start_link(strategy: :one_for_one),
+         {:ok, do_rows} <-
+           PersistenceAdapter.adapter().list_data_objects(data.process_instance_id) do
+      cache = Map.new(do_rows, fn row -> {row.data_object_id, row.value} end)
+      data = %{data | task_supervisor: task_sup, data_object_cache: cache}
+
+      pending_arrivals = opts[:pending_arrivals] || []
+      data = Resumption.resume(data, flow_node_instance_data, pending_arrivals, self())
+      data = resume_stalled_compensation_runs(data)
+
+      {data, trigger_actions} = register_event_subprocess_triggers(data)
+      data = evaluate_parked_inclusive_joins(data)
+      data = evaluate_parked_complex_joins(data)
+      {data, repair_actions} = redispatch_lost_successors(data)
+      data = repair_resumed_adhoc_progress(data)
+
+      {:ok, :running, data,
+       trigger_actions ++ repair_actions ++ [{:next_event, :internal, :check_initial_dispatch}]}
+    else
+      {:error, reason} -> fail_resume(data, reason)
+    end
+  catch
+    kind, reason ->
+      fail_resume(data, {:resume_crashed, Exception.format(kind, reason, __STACKTRACE__)})
+  end
+
+  # An ad-hoc child has no Start Event; it legitimately resumes without rows.
+  defp require_recorded_start(StandardMode, []), do: {:error, :start_event_never_recorded}
+  defp require_recorded_start(_mode, _flow_node_instance_data), do: :ok
+
+  defp fail_resume(data, reason) do
+    Logger.error("PI #{data.process_instance_id} failed to resume: #{inspect(reason)}")
+    _persist_result = persist_pi_resume_failed(data, reason)
+    if data.process_model, do: emit_pi_state_changed(data, :running, :fatal)
+    {:stop, {reason, data}}
+  end
+
+  defp settle_resumed_flow_node_instance(data, flow_node_instance_id) do
     reply_resume_waiters(%{
       data
       | resume_pending: MapSet.delete(data.resume_pending, flow_node_instance_id)
@@ -470,17 +501,40 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp redispatch_lost_successors(data) do
+    {failures, dispatches} =
+      data
+      |> Resumption.lost_successor_dispatches(self())
+      |> Enum.split_with(&match?({:error, _reason}, &1))
+
+    data =
+      Enum.reduce(dispatches, data, fn {flow_node_instance_id, output_payload, next_flow_node_ids},
+                                       accumulator ->
+        dispatch_successor_targets(
+          accumulator,
+          flow_node_instance_id,
+          output_payload,
+          next_flow_node_ids
+        )
+      end)
+
+    case failures do
+      [] ->
+        {data, []}
+
+      [{:error, reason} | _more] ->
+        {data, [{:next_event, :internal, {:resume_repair_failed, reason}}]}
+    end
+  end
+
+  defp repair_resumed_adhoc_progress(%{flow_node_instance_states: states} = data)
+       when map_size(states) == 0,
+       do: data
+
+  defp repair_resumed_adhoc_progress(data) do
     data
-    |> Resumption.lost_successor_dispatches(self())
-    |> Enum.reduce(data, fn {flow_node_instance_id, output_payload, next_flow_node_ids},
-                            accumulator ->
-      dispatch_successor_targets(
-        accumulator,
-        flow_node_instance_id,
-        output_payload,
-        next_flow_node_ids
-      )
-    end)
+    |> maybe_evaluate_adhoc_completion_condition()
+    |> maybe_cancel_remaining_for_adhoc()
+    |> maybe_auto_chain_sequential_adhoc()
   end
 
   defp init_after_persist(data, nil, _opts, _now) do
@@ -528,6 +582,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   def running(:internal, {:event_subprocess_registration_failed, reason}, data) do
+    transition_to_fatal(data, reason)
+  end
+
+  def running(:internal, {:resume_repair_failed, reason}, data) do
     transition_to_fatal(data, reason)
   end
 
@@ -633,9 +691,6 @@ defmodule BfwEngine.Execution.ProcessInstance do
     maybe_finish_or_continue(data)
   end
 
-  # CA/SP handler Task: no boundary on the shell caught a child escalation
-  # (intermediate throw). This scope's escalation Event Subprocess starts get
-  # it next; otherwise it is forwarded to the grandparent scope.
   def running(:info, {:escalation_passthrough, escalation_info}, data) do
     case EspScope.resolve_escalation_catch(data, escalation_info) do
       {:ok, action} ->
@@ -857,18 +912,16 @@ defmodule BfwEngine.Execution.ProcessInstance do
     {shell_task_pid, _from_tag} = from
     {data, snapshot} = reattach_iteration_shell(data, shell_fni_id, shell_task_pid)
     :gen_statem.reply(from, {:ok, snapshot})
-    {:keep_state, settle_resumed_fni(data, shell_fni_id)}
+    {:keep_state, settle_resumed_flow_node_instance(data, shell_fni_id)}
   end
 
-  # Readiness: answered once every resume Task has re-registered its
-  # subscriptions or re-attached its child process instance.
   def running({:call, from}, :await_resume_settled, data) do
     data = %{data | resume_waiters: [from | data.resume_waiters]}
     {:keep_state, reply_resume_waiters(data)}
   end
 
   def running(:info, {:resume_settled, flow_node_instance_id}, data) do
-    {:keep_state, settle_resumed_fni(data, flow_node_instance_id)}
+    {:keep_state, settle_resumed_flow_node_instance(data, flow_node_instance_id)}
   end
 
   # MI shell requests to interrupt all remaining iterations (completion condition met, error, etc.)
@@ -967,11 +1020,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   def running(
         :info,
-        {:timer_fired, _timer_ref,
-         %{kind: :event_subprocess_start, subprocess_node_id: subprocess_node_id} = metadata},
+        {:timer_fired, timer_ref,
+         %{kind: :event_subprocess_start, subprocess_node_id: subprocess_node_id}},
         data
       ) do
-    data = EspScope.rearm_timer(data, subprocess_node_id, metadata)
+    :ok = EspScope.emit_timer_fired(data, subprocess_node_id, timer_ref)
     data = execute_esp_action(data, EspScope.resolve_trigger(data, subprocess_node_id, %{}))
     maybe_finish_or_continue(data)
   end
@@ -1072,11 +1125,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # FNI Task process crashed (crash isolation)
   def running(:info, {:DOWN, _ref, :process, pid, reason}, data) when reason != :normal do
     case find_fni_by_pid(data, pid) do
-      {flow_node_instance_id, _entry} ->
+      {flow_node_instance_id, %{state: state}} when state in [:active, :waiting] ->
         data = handle_fni_fatal(data, flow_node_instance_id, {:crash, reason})
         transition_to_fatal(data, {:fni_crash, flow_node_instance_id, reason})
 
-      nil ->
+      _ended_or_unknown ->
         {:keep_state, data}
     end
   end
@@ -1175,8 +1228,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
   def running({:call, from}, {:trigger_timer_event, flow_node_instance_id}, data) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: state, pid: pid} when state in [:active, :waiting] and pid != nil ->
-        Scheduler.fire_now_for_target(pid)
-        {:keep_state, data, [{:reply, from, :ok}]}
+        reply =
+          if Scheduler.fire_now_for_target(pid) > 0, do: :ok, else: {:error, :timer_not_armed}
+
+        {:keep_state, data, [{:reply, from, reply}]}
 
       _other ->
         {:keep_state, data, [{:reply, from, {:error, :fni_not_active_or_found}}]}
@@ -1242,18 +1297,21 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # Terminate callback — clean up linked Task.Supervisor
   # -------------------------------------------------------------------
 
-  # Rows are left as they are so that resume can pick the instance up again.
-  # Handler Tasks are killed rather than shut down: iteration Tasks trap exits
-  # and would otherwise hold the supervisor shutdown past @shutdown_timeout.
+  # On an engine shutdown rows are left as they are so that resume can pick the
+  # instance up again, and handler Tasks are killed rather than shut down:
+  # iteration Tasks trap exits and would otherwise hold the supervisor shutdown
+  # past @shutdown_timeout. Any other stop lets them finish their writes.
   @impl :gen_statem
-  def terminate(_reason, _state, %{task_supervisor: task_supervisor})
+  def terminate(reason, _state, %{task_supervisor: task_supervisor})
       when is_pid(task_supervisor) do
     if Process.alive?(task_supervisor) do
       Process.unlink(task_supervisor)
 
-      task_supervisor
-      |> Task.Supervisor.children()
-      |> Enum.each(&Process.exit(&1, :kill))
+      if engine_shutdown?(reason) do
+        task_supervisor
+        |> Task.Supervisor.children()
+        |> Enum.each(&Process.exit(&1, :kill))
+      end
 
       Supervisor.stop(task_supervisor, :shutdown, @shutdown_timeout)
     end
@@ -1264,6 +1322,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   def terminate(_reason, _state, _data), do: :ok
+
+  defp engine_shutdown?(:shutdown), do: true
+  defp engine_shutdown?({:shutdown, _detail}), do: true
+  defp engine_shutdown?(_reason), do: false
 
   # -------------------------------------------------------------------
   # Internal: FNI dispatch cycle
@@ -1351,11 +1413,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
         |> augment_complex_join_routing(flow_node, token.payload)
 
       %{fired: true} ->
-        # Twist 2 (CG-D4): the join already fired and cancelled every active
-        # branch in its SESE region. A token arriving now can only come from a
-        # branch that completed in the same PI-message batch, just before
-        # cancellation ran — the join outcome is already decided, so this
-        # straggler is absorbed with no effect (no fatal, no re-fire).
+        # A straggler from a branch that finished just before the region was
+        # cancelled; the join outcome is already decided.
         Logger.debug(
           "ProcessInstance: dropping straggler token at already-fired complex join " <>
             "'#{flow_node.id}' (arrived via '#{incoming_flow_id}')"
@@ -2456,7 +2515,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
     flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
-    if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+    InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
     _persist_result =
       FniLifecycle.transition_to_interrupted(
@@ -2929,7 +2988,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         id != triggering_fni_id and entry.state in [:active, :waiting]
       end)
       |> Enum.reduce(data, fn {flow_node_instance_id, entry}, accumulator ->
-        if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+        InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
         flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
@@ -2968,22 +3027,22 @@ defmodule BfwEngine.Execution.ProcessInstance do
     updated_data
   end
 
-  # Twist 2 (CG-D4): when a Complex Join fires, interrupt every still-active or
-  # waiting FNI whose flow node lies inside the SESE region bounded by the
-  # paired Complex Split. Unlike `interrupt_remaining_fnis/2`, this is scoped to
-  # the region — it does NOT purge the whole PI's message/signal subscriptions.
-  # Each interrupted FNI's `handle_aborted/1` callback performs its own targeted
-  # cleanup (own subscription unregister, timer cancellation, recursive child-PI
-  # abort for Call Activities / SubProcesses).
+  # The PI's subscriptions outside the region must stay. Iterations must be shut
+  # down through their shell: killing one mid-write breaks its connection.
   defp interrupt_region_fnis(data, join_flow_node_id, join_fni_id) do
     region = complex_region_node_ids(data, join_flow_node_id)
 
-    data.flow_node_instance_states
-    |> Enum.filter(fn {id, entry} ->
-      id != join_fni_id and entry.state in [:active, :waiting] and
-        MapSet.member?(region, entry.flow_node_id)
-    end)
-    |> Enum.reduce(data, fn {flow_node_instance_id, _entry}, accumulator ->
+    region_fni_ids =
+      data.flow_node_instance_states
+      |> Enum.filter(fn {id, entry} ->
+        id != join_fni_id and entry.state in [:active, :waiting] and
+          MapSet.member?(region, entry.flow_node_id)
+      end)
+      |> Enum.map(fn {flow_node_instance_id, _entry} -> flow_node_instance_id end)
+
+    data = Enum.reduce(region_fni_ids, data, &interrupt_iterations_for_shell(&2, &1))
+
+    Enum.reduce(region_fni_ids, data, fn flow_node_instance_id, accumulator ->
       accumulator
       |> interrupt_single_region_fni(flow_node_instance_id)
       |> BoundaryOrchestrator.cancel_boundary_fnis_for_host(flow_node_instance_id)
@@ -3001,7 +3060,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp interrupt_live_region_fni(accumulator, flow_node_instance_id, entry) do
-    if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+    InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
     flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
@@ -3057,8 +3116,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
          triggerer_fni_id,
          mode
        ) do
-    case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
-      {shell_fni_id, _shell_task_pid} ->
+    case iteration_shell_fni_id(data, flow_node_instance_id) do
+      shell_fni_id when is_binary(shell_fni_id) ->
         data =
           if cancel_activity do
             entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
@@ -3084,16 +3143,44 @@ defmodule BfwEngine.Execution.ProcessInstance do
         )
 
       nil ->
-        apply_host_boundary(
-          data,
-          flow_node_instance_id,
-          boundary_node_id,
-          payload,
-          cancel_activity,
-          triggerer_fni_id,
-          mode
-        )
+        host_fni_id = BoundaryOrchestrator.resolve_host_fni_id(data, flow_node_instance_id)
+
+        if host_fni_id == flow_node_instance_id or flow_node_instance_live?(data, host_fni_id) do
+          apply_host_boundary(
+            data,
+            flow_node_instance_id,
+            boundary_node_id,
+            payload,
+            cancel_activity,
+            triggerer_fni_id,
+            mode
+          )
+        else
+          BoundaryOrchestrator.cancel_boundary_fnis_for_host(data, host_fni_id)
+        end
     end
+  end
+
+  # A resumed iteration is not in `mi_shell_tasks` until its shell reattaches.
+  defp iteration_shell_fni_id(data, flow_node_instance_id) do
+    case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
+      {shell_fni_id, _shell_task_pid} ->
+        shell_fni_id
+
+      nil ->
+        data.flow_node_instance_states
+        |> Map.get(flow_node_instance_id, %{})
+        |> Map.get(:multi_instance_id)
+    end
+  end
+
+  # After a resume a boundary FNI can outlive its host when the host-completed
+  # interrupt write was lost; it must not fire for a host that already ended.
+  defp flow_node_instance_live?(data, flow_node_instance_id) do
+    match?(
+      %{state: state} when state in [:active, :waiting],
+      Map.get(data.flow_node_instance_states, flow_node_instance_id)
+    )
   end
 
   defp apply_host_boundary_if_live(
@@ -3870,7 +3957,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     data.flow_node_instance_states
     |> Enum.filter(fn {_id, entry} -> entry.state in [:active, :waiting] end)
     |> Enum.each(fn {flow_node_instance_id, entry} ->
-      if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+      InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
       flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
@@ -3893,12 +3980,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           was_waiting: entry.state == :waiting
         )
 
-      InstanceHandlerDispatch.release_handler(
-        flow_node,
-        flow_node_instance_id,
-        :handle_fatal,
-        entry
-      )
+      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_fatal, [entry])
     end)
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
@@ -3909,7 +3991,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
     data.flow_node_instance_states
     |> Enum.filter(fn {_id, entry} -> entry.state in [:active, :waiting] end)
     |> Enum.each(fn {flow_node_instance_id, entry} ->
-      if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+      InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
       flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
@@ -3927,12 +4009,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           was_waiting: entry.state == :waiting
         )
 
-      InstanceHandlerDispatch.release_handler(
-        flow_node,
-        flow_node_instance_id,
-        :handle_aborted,
-        entry
-      )
+      InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
     end)
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
@@ -3951,7 +4028,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         id != triggering_fni_id and entry.state in [:active, :waiting]
       end)
       |> Enum.reduce(data, fn {flow_node_instance_id, entry}, accumulator ->
-        if entry.pid != nil, do: Process.exit(entry.pid, :kill)
+        InstanceHandlerDispatch.kill_handler_task(entry.pid)
 
         flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
@@ -4045,6 +4122,16 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp process_instance_fatal_error_info({:event_subprocess_correlation_failed, _, _} = reason),
     do: ErrorInfo.build(reason)
 
+  defp process_instance_fatal_error_info(
+         {:event_subprocess_timer_resolution_failed, _, _} = reason
+       ),
+       do: ErrorInfo.build(reason)
+
+  defp process_instance_fatal_error_info(
+         {:lost_successor_repair_failed, flow_node_id, _failure} = reason
+       ),
+       do: %{ErrorInfo.build(reason) | "detail" => flow_node_id}
+
   defp process_instance_fatal_error_info(fatal_reason) do
     %{
       "error_code" => "process_fatal",
@@ -4061,23 +4148,39 @@ defmodule BfwEngine.Execution.ProcessInstance do
         adapter.update_process_instance(data.process_instance_id, %{
           state: @pi_state_fatal,
           finished_at: DateTime.utc_now(),
-          error_info: %{
-            "error_code" => "resume_failed",
-            "message" =>
-              "Process instance '#{data.process_instance_id}' could not be resumed after an " <>
-                "engine restart because #{resume_failure_cause(reason)}.",
-            "detail" => JsonSafe.convert(reason)
-          }
+          error_info: resume_failed_error_info(data, reason)
         })
       end,
       "PI resume failed #{data.process_instance_id}"
     )
   end
 
+  defp resume_failed_error_info(data, reason) do
+    error_info = %{
+      "error_code" => "resume_failed",
+      "message" =>
+        "Process instance '#{data.process_instance_id}' could not be resumed after an " <>
+          "engine restart because #{resume_failure_cause(reason)}."
+    }
+
+    if is_atom(reason),
+      do: Map.put(error_info, "detail", Atom.to_string(reason)),
+      else: error_info
+  end
+
   defp resume_failure_cause(:not_found), do: "its process version no longer exists"
+
+  defp resume_failure_cause({:resume_crashed, _formatted_exception}),
+    do: "an internal error occurred while its state was rebuilt (see the engine log)"
 
   defp resume_failure_cause(:no_executable_process),
     do: "its process version contains no executable process"
+
+  defp resume_failure_cause(:start_event_never_recorded),
+    do:
+      "its Start Event was never recorded: the engine stopped after it created the process " <>
+        "instance and before it persisted the first flow node instance, so there is no state " <>
+        "to continue from"
 
   defp resume_failure_cause(_reason),
     do: "its process model or its data objects could not be loaded"
@@ -4249,10 +4352,35 @@ defmodule BfwEngine.Execution.ProcessInstance do
          loop_overlay,
          flow_node
        ) do
+    case Map.get(data.flow_node_instance_states, shell_fni_id) do
+      %{state: state, pid: shell_task_pid} when state in [:active, :waiting] ->
+        create_mi_iteration_fni(
+          data,
+          from,
+          {shell_fni_id, shell_task_pid},
+          index,
+          token,
+          loop_overlay,
+          flow_node
+        )
+
+      _ended_or_unknown ->
+        :gen_statem.reply(from, {:error, :shell_not_active})
+        data
+    end
+  end
+
+  defp create_mi_iteration_fni(
+         data,
+         from,
+         {shell_fni_id, shell_task_pid},
+         index,
+         token,
+         loop_overlay,
+         flow_node
+       ) do
     iteration_fni_id = UuidV7.generate()
     lane_name = LaneResolution.resolve_lane_name(data.process_model, flow_node)
-    shell_entry = Map.get(data.flow_node_instance_states, shell_fni_id)
-    shell_task_pid = if shell_entry, do: shell_entry.pid
 
     adapter = PersistenceAdapter.adapter()
 
@@ -4452,9 +4580,17 @@ defmodule BfwEngine.Execution.ProcessInstance do
     }
   end
 
+  # An iteration that was already interrupted or settled keeps its state; its
+  # shell was told or is gone.
   defp handle_mi_iteration_ok(data, iteration_fni_id, result, shell_task_pid) do
-    data = finish_iteration_entry(data, iteration_fni_id, result)
-    send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:ok, result}})
+    data =
+      if flow_node_instance_live?(data, iteration_fni_id) do
+        send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:ok, result}})
+        finish_iteration_entry(data, iteration_fni_id, result)
+      else
+        data
+      end
+
     %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
   end
 
@@ -4526,8 +4662,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
     finished = Enum.filter(iterations, fn {_id, entry} -> entry.state == :finished end)
 
     data =
-      Enum.reduce(live, data, fn {iteration_fni_id, _entry}, acc ->
-        put_in(acc.mi_shell_tasks[iteration_fni_id], {shell_fni_id, shell_task_pid})
+      Enum.reduce(live, data, fn {iteration_fni_id, _entry}, accumulator ->
+        put_in(accumulator.mi_shell_tasks[iteration_fni_id], {shell_fni_id, shell_task_pid})
       end)
 
     occupied_indices =
@@ -4553,16 +4689,18 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp interrupt_iterations_for_shell(data, shell_fni_id) do
     iteration_fni_ids =
       data.mi_shell_tasks
-      |> Enum.filter(fn {_iter_id, {sid, _pid}} -> sid == shell_fni_id end)
-      |> Enum.map(fn {iter_id, _} -> iter_id end)
+      |> Enum.filter(fn {_iteration_fni_id, {owner_shell_fni_id, _shell_task_pid}} ->
+        owner_shell_fni_id == shell_fni_id
+      end)
+      |> Enum.map(fn {iteration_fni_id, _shell_task} -> iteration_fni_id end)
 
     exit_reasons =
       iteration_fni_ids
       |> Enum.flat_map(&live_iteration_pid(data, &1))
       |> shutdown_and_await_iteration_tasks()
 
-    Enum.reduce(iteration_fni_ids, data, fn iter_fni_id, accumulator ->
-      interrupt_single_iteration(accumulator, iter_fni_id, exit_reasons)
+    Enum.reduce(iteration_fni_ids, data, fn iteration_fni_id, accumulator ->
+      interrupt_single_iteration(accumulator, iteration_fni_id, exit_reasons)
     end)
   end
 
@@ -4605,11 +4743,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  # `:normal`, `:shutdown`, and `:noproc` all mean the iteration task has
-  # left. A queued `{:ok, %FlowNodeResult{}}` means that task already
-  # committed a finish; leave the entry for that message. Any other exit,
-  # including the `:kill` sent after the grace period, still attempts
-  # the interrupt write, which loses if the row is already terminal.
+  # A queued `{:ok, %FlowNodeResult{}}` means the Task already committed its
+  # finish; that message decides the outcome.
   defp finish_shut_down_iteration(data, iteration_fni_id, entry, exit_reason) do
     case exit_reason do
       reason when reason in [:normal, :shutdown, :noproc] ->
@@ -4633,7 +4768,6 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end)
   end
 
-  # Returns `%{pid => exit_reason}`; Tasks still alive after the grace are killed.
   defp shutdown_and_await_iteration_tasks([]), do: %{}
 
   defp shutdown_and_await_iteration_tasks(pids) do

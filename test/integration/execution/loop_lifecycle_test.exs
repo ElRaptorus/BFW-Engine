@@ -52,6 +52,48 @@ defmodule BfwEngine.Integration.Execution.LoopLifecycleTest do
     end
   end
 
+  describe "iteration dispatch after the shell ended" do
+    test "a dispatch request for an interrupted shell is refused and creates no iteration" do
+      process_instance_id =
+        http_deploy_and_start("mi_parallel_interrupted_shell.bpmn", "MiParallelInterruptedShell", %{
+          "payload" => %{"items" => ["a", "b"]}
+        })
+
+      {:ok, boundary} = await_waiting_fni_by_node_id(process_instance_id, "BE_Timeout")
+      {200, _} = http_trigger_timer_event(boundary.id)
+      {:ok, _after} = await_waiting_fni_by_node_id(process_instance_id, "UT_After")
+
+      shell =
+        process_instance_id
+        |> fetch_flow_node_instances()
+        |> Enum.find(&(&1.flow_node_id == "Task_Review" and is_nil(&1.multi_instance_id)))
+
+      assert shell.state == "interrupted"
+      iteration_count = count_flow_node_instances(process_instance_id, "Task_Review")
+      {:ok, process_instance_pid} = poll_pi_alive(process_instance_id)
+
+      token = %BfwEngine.Types.Token{
+        id: Ash.UUIDv7.generate(),
+        process_instance_id: process_instance_id,
+        payload: %{"item" => "late"},
+        created_at: DateTime.utc_now()
+      }
+
+      assert {:error, :shell_not_active} ==
+               :gen_statem.call(
+                 process_instance_pid,
+                 {:mi_dispatch_iteration, shell.id, 2, "late", token, %{},
+                  %BfwEngine.BPMN.Model.FlowNode{
+                    id: "Task_Review",
+                    type: :user_task,
+                    type_data: %BfwEngine.BPMN.Model.FlowNodeData.UserTask{}
+                  }}
+               )
+
+      assert count_flow_node_instances(process_instance_id, "Task_Review") == iteration_count
+    end
+  end
+
   describe "F9: Data Object writes from Multi-Instance iterations" do
     test "the next sequential iteration reads the value the previous one wrote" do
       {201, _} = http_deploy("mi_sequential_data_object_write.bpmn")
@@ -134,6 +176,12 @@ defmodule BfwEngine.Integration.Execution.LoopLifecycleTest do
       assert {:ok, _process_instance} = await_process_instance_state(process_instance_id, "fatal")
       assert_loop_condition_failed(process_instance_id, "Broken_Count", "loopCondition")
     end
+  end
+
+  defp count_flow_node_instances(process_instance_id, flow_node_id) do
+    process_instance_id
+    |> fetch_flow_node_instances()
+    |> Enum.count(&(&1.flow_node_id == flow_node_id))
   end
 
   defp start_first_wins_parent(items \\ ["a", "b"]) do

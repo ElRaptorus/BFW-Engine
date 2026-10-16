@@ -17,9 +17,11 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   ## Cycle Advance Callback
 
-  The Scheduler invokes `handle_cycle_advance/3` after each cycle fire.
-  This updates the persistence record with the new `next_fire_at` and
-  decremented `cycle_remaining`.
+  The Scheduler invokes `handle_cycle_advance/3` after each cycle fire,
+  from its callback worker rather than its tick. This updates the
+  persistence record with the new `next_fire_at` and decremented
+  `cycle_remaining`; it is the only writer of that cycle state while the
+  schedule is armed.
   """
 
   require Logger
@@ -37,9 +39,12 @@ defmodule BfwEngine.Timers.StartEventManager do
   Registers Timer Start Events for a deployed process version.
 
   For each spec:
-  1. Resolves the ISO 8601 string into a concrete fire-at time
-  2. Persists the schedule record (enabled by default)
-  3. Registers the timer in the Scheduler
+  1. Resolves the ISO 8601 string into a concrete fire-at time; a cycle whose
+     start lies in the past skips its due occurrences, each using up one
+     repetition
+  2. Persists the schedule record (enabled by default; exhausted when a
+     finite cycle has no occurrence left)
+  3. Registers the timer in the Scheduler, unless the cycle is exhausted
 
   Called from the deploy path in `core_execution` or the API layer.
   """
@@ -94,7 +99,11 @@ defmodule BfwEngine.Timers.StartEventManager do
   Only meaningful for cycle schedules. Returns `{:error, :not_a_cycle}`
   for date/duration schedules (those are PI-scoped, not deploy-scoped).
   A finite cycle keeps its persisted `cycle_remaining`; an exhausted one
-  (`cycle_remaining` 0) is enabled but not re-armed.
+  (`cycle_remaining` 0) is enabled but not re-armed. A start-anchored cycle
+  continues from its persisted `next_fire_at`; a cycle without a start fires
+  one interval after the enable. Occurrences that are already due are
+  skipped, each using up one repetition; when none is left the schedule is
+  persisted exhausted.
   """
   @spec enable_schedule(schedule_id :: String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def enable_schedule(schedule_id, opts \\ []) do
@@ -112,15 +121,49 @@ defmodule BfwEngine.Timers.StartEventManager do
   end
 
   defp arm_enabled_schedule(schedule, scheduler, now) do
-    with {:ok, next_fire_at, cycle_info} <- resolve_next_fire(:cycle, schedule.iso_spec, now) do
+    with {:ok, {:cycle, cycle_spec}} <- ISO8601.resolve_fire_at(:cycle, schedule.iso_spec, now) do
       cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+      pending_spec = %{cycle_spec | repetitions: schedule.cycle_remaining || :infinite}
 
-      {:ok, updated} =
-        persistence().update_schedule(schedule.id, %{enabled: true, next_fire_at: next_fire_at})
-
-      store_scheduler_ref(schedule.id, schedule_in_scheduler(updated, scheduler, cycle_info))
-      {:ok, updated}
+      pending_spec
+      |> ISO8601.skip_missed_occurrences(
+        enabled_pending_occurrence(pending_spec, schedule, now),
+        now
+      )
+      |> arm_enabled_occurrence(schedule, scheduler)
     end
+  end
+
+  # A start-anchored cycle keeps its schedule: the persisted next occurrence is the
+  # one `cycle_remaining` counts from, so occurrences fired before the disable are
+  # not counted again. A cycle without a start is re-anchored at the enable.
+  defp enabled_pending_occurrence(
+         %{start_at: %DateTime{}},
+         %{next_fire_at: %DateTime{} = next_fire_at},
+         _now
+       ),
+       do: next_fire_at
+
+  defp enabled_pending_occurrence(cycle_spec, _schedule, now),
+    do: ISO8601.first_fire_at(cycle_spec, now)
+
+  defp arm_enabled_occurrence({next_fire_at, cycle_spec}, schedule, scheduler) do
+    changes = Map.put(cycle_state_changes(next_fire_at, cycle_spec.repetitions), :enabled, true)
+    {:ok, updated} = persistence().update_schedule(schedule.id, changes)
+    store_scheduler_ref(updated.id, schedule_in_scheduler(updated, scheduler, cycle_spec))
+    {:ok, updated}
+  end
+
+  defp arm_enabled_occurrence(nil, schedule, _scheduler) do
+    persistence().update_schedule(
+      schedule.id,
+      Map.put(cycle_state_changes(nil, 0), :enabled, true)
+    )
+  end
+
+  # Decision D-2: due occurrences are skipped, each using up one repetition.
+  defp first_future_occurrence(cycle_spec, now) do
+    ISO8601.skip_missed_occurrences(cycle_spec, ISO8601.first_fire_at(cycle_spec, now), now)
   end
 
   @doc """
@@ -187,15 +230,7 @@ defmodule BfwEngine.Timers.StartEventManager do
     schedule_id = metadata[:schedule_id]
 
     if schedule_id do
-      changes = %{next_fire_at: next_fire_at}
-
-      changes =
-        case remaining do
-          :infinite -> changes
-          count when is_integer(count) -> Map.put(changes, :cycle_remaining, count)
-        end
-
-      persistence().update_schedule(schedule_id, changes)
+      persistence().update_schedule(schedule_id, cycle_state_changes(next_fire_at, remaining))
     end
 
     :ok
@@ -203,41 +238,71 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   @doc """
   Loads all armed cycle schedules from persistence and registers them
-  in the Scheduler. Called during startup / resume.
+  in the Scheduler. Called at engine boot and by the Scheduler after it
+  restarted from a crash (its `on_restart` callback).
 
   Only cycle schedules are re-armed. Date/duration timer starts are
   PI-scoped (their blocking behavior lives inside the PI handler) and
   are never auto-scheduled. A finite cycle resumes with its persisted
   `cycle_remaining`, not the repetition count of its spec; an exhausted
-  schedule has no `next_fire_at` and is not listed as armed.
+  schedule has no `next_fire_at` and is not listed as armed. Occurrences
+  whose time passed while the schedule was not armed are skipped, each
+  using up one repetition, and the next future occurrence is persisted and
+  armed. A Scheduler entry still holding the persisted `scheduler_ref` is
+  replaced, so reloading twice arms each schedule once.
+
+  Returns `{:error, reason}` when the armed schedules cannot be listed.
   """
-  @spec reload_start_schedules(keyword()) :: :ok
+  @spec reload_start_schedules(keyword()) :: :ok | {:error, term()}
   def reload_start_schedules(opts \\ []) do
     scheduler = opts[:scheduler] || Scheduler
+    now = DateTime.utc_now()
 
     with {:ok, schedules} <- persistence().list_armed_schedules() do
       cycle_schedules = Enum.filter(schedules, &(&1.kind == "cycle"))
-      Enum.each(cycle_schedules, &reload_single_schedule(&1, scheduler))
+      Enum.each(cycle_schedules, &reload_single_schedule(&1, scheduler, now))
 
       Logger.info(
         "StartEventManager: loaded #{length(cycle_schedules)} armed cycle timer start schedule(s)"
       )
     end
-
-    :ok
   end
 
-  defp reload_single_schedule(schedule, scheduler) do
-    cycle_info = resolve_cycle_info_for_reload(schedule.iso_spec)
-    store_scheduler_ref(schedule.id, schedule_in_scheduler(schedule, scheduler, cycle_info))
-  end
+  defp reload_single_schedule(schedule, scheduler, now) do
+    case ISO8601.parse_cycle(schedule.iso_spec) do
+      {:ok, cycle_spec} ->
+        pending_spec = %{cycle_spec | repetitions: schedule.cycle_remaining || :infinite}
 
-  defp resolve_cycle_info_for_reload(iso_spec) do
-    case ISO8601.parse_cycle(iso_spec) do
-      {:ok, cycle_spec} -> cycle_spec
-      {:error, _reason} -> nil
+        pending_spec
+        |> ISO8601.skip_missed_occurrences(schedule.next_fire_at, now)
+        |> rearm_reloaded_schedule(schedule, scheduler)
+
+      {:error, reason} ->
+        Logger.error(
+          "StartEventManager: cannot reload schedule #{schedule.id} (#{schedule.iso_spec}): " <>
+            inspect(reason)
+        )
     end
   end
+
+  defp rearm_reloaded_schedule({next_fire_at, cycle_spec}, schedule, scheduler) do
+    cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+    changes = cycle_state_changes(next_fire_at, cycle_spec.repetitions)
+
+    with {:ok, updated} <- persistence().update_schedule(schedule.id, changes) do
+      store_scheduler_ref(schedule.id, schedule_in_scheduler(updated, scheduler, cycle_spec))
+    end
+  end
+
+  defp rearm_reloaded_schedule(nil, schedule, scheduler) do
+    cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+    persistence().update_schedule(schedule.id, cycle_state_changes(nil, 0))
+  end
+
+  defp cycle_state_changes(next_fire_at, :infinite), do: %{next_fire_at: next_fire_at}
+
+  defp cycle_state_changes(next_fire_at, remaining),
+    do: %{next_fire_at: next_fire_at, cycle_remaining: remaining}
 
   # --- Private ---
 
@@ -248,15 +313,11 @@ defmodule BfwEngine.Timers.StartEventManager do
     kind = spec.kind
 
     case resolve_next_fire(kind, spec.iso_spec, now) do
-      {:ok, next_fire_at, cycle_info} ->
+      {:ok, next_fire_at, cycle_info, cycle_remaining} ->
         attrs =
-          build_schedule_attrs(
-            process_version_id,
-            process_model_id,
-            spec,
-            next_fire_at,
-            cycle_info
-          )
+          process_version_id
+          |> build_schedule_attrs(process_model_id, spec, next_fire_at, cycle_info)
+          |> Map.put(:cycle_remaining, cycle_remaining)
 
         persist_and_schedule(attrs, next_fire_at, cycle_info, scheduler, spec.flow_node_id)
 
@@ -284,8 +345,13 @@ defmodule BfwEngine.Timers.StartEventManager do
     }
   end
 
-  defp persist_and_schedule(attrs, _next_fire_at, cycle_info, scheduler, flow_node_id) do
+  defp persist_and_schedule(attrs, next_fire_at, cycle_info, scheduler, flow_node_id) do
     case persistence().create_schedule(attrs) do
+      {:ok, _record} when is_nil(next_fire_at) ->
+        Logger.info(
+          "StartEventManager: cycle timer start #{flow_node_id} has no occurrence left; not armed"
+        )
+
       {:ok, record} ->
         store_scheduler_ref(record.id, schedule_in_scheduler(record, scheduler, cycle_info))
 
@@ -302,14 +368,14 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   defp resolve_next_fire(:date, iso_spec, _now) do
     case ISO8601.resolve_fire_at(:date, iso_spec, DateTime.utc_now()) do
-      {:ok, fire_at} -> {:ok, fire_at, nil}
+      {:ok, fire_at} -> {:ok, fire_at, nil, nil}
       {:error, _reason} = error -> error
     end
   end
 
   defp resolve_next_fire(:duration, iso_spec, now) do
     case ISO8601.resolve_fire_at(:duration, iso_spec, now) do
-      {:ok, fire_at} -> {:ok, fire_at, nil}
+      {:ok, fire_at} -> {:ok, fire_at, nil, nil}
       {:error, _reason} = error -> error
     end
   end
@@ -317,8 +383,11 @@ defmodule BfwEngine.Timers.StartEventManager do
   defp resolve_next_fire(:cycle, iso_spec, now) do
     case ISO8601.resolve_fire_at(:cycle, iso_spec, now) do
       {:ok, {:cycle, cycle_spec}} ->
-        first_fire = ISO8601.first_fire_at(cycle_spec, now)
-        {:ok, first_fire, cycle_spec}
+        case first_future_occurrence(cycle_spec, now) do
+          {first_fire, %{repetitions: :infinite}} -> {:ok, first_fire, cycle_spec, nil}
+          {first_fire, pending_spec} -> {:ok, first_fire, cycle_spec, pending_spec.repetitions}
+          nil -> {:ok, nil, cycle_spec, 0}
+        end
 
       {:error, _reason} = error ->
         error

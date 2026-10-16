@@ -109,26 +109,11 @@ defmodule BfwEngine.Execution.Persistence do
               {:ok, %{records: [map()], next_cursor: term() | nil}} | {:error, term()}
 
   @doc """
-  Read FNIs needed for resume of a PI.
+  Read a PI's `:active`, `:waiting`, and `:finished` End Event FNIs.
 
-  Returns:
-  - All `:active` and `:waiting` FNIs — the resume path's `reactivate_fnis/1`
-    re-dispatches active handlers and re-attaches waiting ones (async parks,
-    Call Activity children, User Tasks).
-  - All `:finished` End-Event FNIs — needed by `build_final_tokens/1` for multi-End
-    multi-End-Event aggregation across restarts.
-
-  The End-Event clause is forward-compat with Phase 2 items 13-14 (Message
-  and Signal Boundary Events with non-interrupting variants), Phase 3
-  Parallel/Inclusive Gateways, and Phase 4 Compensation. With the current
-  Phase-1/2-up-to-item-9 feature set, no PI can produce multiple finished
-  End-Event FNIs in a single execution, so this clause loads zero extra
-  rows today; it costs nothing to ship now and prevents a silent multi-End bug
-  when the fan-out features arrive.
-
-  Other terminal FNIs (`:fatal`, `:aborted`, `:interrupted`, plus
-  `:finished` non-End-Events) are not loaded — the live PI never reads
-  their history.
+  Used to aggregate the final tokens of a child process instance that has
+  already ended (multi-End-Event merge). Resume does not use it; it reads
+  `list_all_flow_node_instances/1`.
   """
   @callback list_flow_node_instances(String.t()) :: {:ok, [map()]} | {:error, term()}
 
@@ -179,9 +164,15 @@ defmodule BfwEngine.Execution.Persistence do
   # Retry/restart callbacks
   # ---------------------------------------------------------------------------
 
-  @doc "Read a PI by ID for retry validation. Returns full row data including started_by."
+  @doc """
+  Read a PI by ID for retry validation. Returns full row data including started_by.
+
+  `{:error, :not_found}` only when no row exists (or the id is invalid); a
+  database failure is `{:error, reason}` so callers never mistake it for a
+  deleted instance.
+  """
   @callback get_process_instance_for_retry(process_instance_id :: String.t()) ::
-              {:ok, retry_pi_data()} | {:error, :not_found}
+              {:ok, retry_pi_data()} | {:error, :not_found} | {:error, term()}
 
   @doc "Read ALL FNIs for a PI (all states). Used for retry preparation."
   @callback list_all_flow_node_instances(process_instance_id :: String.t()) ::

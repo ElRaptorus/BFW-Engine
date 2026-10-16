@@ -76,6 +76,8 @@ If omitted, the subscription matches messages with no correlation value (`:none`
 
 For Message Start Events, `bfw:correlationKey` is evaluated against the **incoming message payload** at PI creation time (no PI state exists yet). The result seeds the new PI's correlation context.
 
+For a message Event Subprocess start, `token` is the payload its scope instance was started with: the `payload` of the start request for a top-level instance, or the token handed to the child after the shell's `bfw:inputMapping` for an embedded subprocess or Call Activity child. The key is evaluated when the scope starts and gives the same value after an engine restart. Embedded, transaction, and ad-hoc subprocesses use the `bfw:correlationKey` of the process that contains it (the Studio models the key on the process only): catch events inside them subscribe with it, and throw events inside them without a `bfw:correlationRetrievalExpression` stamp it, each evaluated against its own token.
+
 ### `bfw:correlationRetrievalExpression` (throw-side)
 
 Declared inside the `<bpmn:messageEventDefinition>` of an Intermediate Throw or Message End Event. A Send Task has no event definition, so it declares the expression in its own `<bpmn:extensionElements>`. The expression is evaluated against the message body that is about to be published (`token` is the `inputMapping` result, or the whole token without mappings); the result is stamped onto the message as `correlation_value`. Without the expression, the process-level `bfw:correlationKey` is evaluated against the same body. A result of `null` publishes the message without a correlation value.
@@ -179,7 +181,7 @@ The live pipeline is one-sided:
 | Send / throw message | `inputMapping` → `payloadContract` → publish the mapping result; outgoing token = input token with the mapping result merged over it (unmapped fields stay) | `outputMapping` |
 | Receive / catch message | wait → `resultContract` → `outputMapping`; outgoing token = mapped message | `inputMapping` |
 
-Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. **Contracts and mappings are placed at the flow-node's `<extensionElements>` level**, never inside `<messageEventDefinition>`. Only `bfw:correlationRetrievalExpression` lives on the event definition. Leftover `<bfw:payload>` / `<bfw:eventMapping>` tags are silently ignored.
+Contracts are direction-aware: throw-side events use `payloadContract`, catch-side events use `resultContract`. **Contracts and mappings are placed at the flow-node's `<extensionElements>` level**, never inside `<messageEventDefinition>`. Only `bfw:correlationRetrievalExpression` lives on the event definition; a Send Task has no event definition and carries it in its own `<extensionElements>`. Leftover `<bfw:payload>` / `<bfw:eventMapping>` tags are silently ignored.
 
 ### Throw-side input mapping example
 

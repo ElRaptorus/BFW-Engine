@@ -5,14 +5,12 @@ defmodule BfwEngine.Integration.Execution.TimerFeelTemporalValueTest do
   @fixture "timer_catch_feel_temporal_value.bpmn"
 
   describe "D1: FEEL temporal values in timer definitions" do
-    @tag skip: "Fixed in Batch 4 (D1)"
     test "timeDuration yielding a FEEL duration fires" do
       process_instance_id = http_deploy_and_start(@fixture, "TimerCatchFeelDuration")
 
       assert_timer_fired(process_instance_id, "Duration_Timer")
     end
 
-    @tag skip: "Fixed in Batch 4 (D1)"
     test "timeDate yielding a FEEL date and time fires" do
       fire_at =
         DateTime.utc_now()

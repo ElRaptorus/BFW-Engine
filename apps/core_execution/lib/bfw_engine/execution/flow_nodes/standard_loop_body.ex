@@ -91,7 +91,7 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
          flow_node_instance_id: id
        })
        when is_pid(pid) and is_binary(id) do
-    :gen_statem.call(pid, {:mi_reattach_iterations, id})
+    :gen_statem.call(pid, {:mi_reattach_iterations, id}, :infinity)
   end
 
   defp reattach_existing_iterations(_context) do
@@ -200,7 +200,8 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
     case :gen_statem.call(
            loop.context.process_instance_pid,
            {:mi_dispatch_iteration, loop.context.flow_node_instance_id, index, nil,
-            iteration_token, loop_overlay, loop.flow_node}
+            iteration_token, loop_overlay, loop.flow_node},
+           :infinity
          ) do
       {:ok, _iteration_fni_id} ->
         record_iteration_result(loop, wait_for_iteration_result())

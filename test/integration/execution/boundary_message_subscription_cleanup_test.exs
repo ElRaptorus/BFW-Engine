@@ -27,5 +27,23 @@ defmodule BfwEngine.Integration.Execution.BoundaryMessageSubscriptionCleanupTest
       assert publish_body["pending"] == true
       assert find_fni_by_flow_node_id(process_instance_id, "End_Boundary") == nil
     end
+
+    test "the interrupted boundary leaves no subscription row, whether it was active or waiting" do
+      {201, _} = http_deploy("boundary_message_instant_host.bpmn")
+
+      for _run <- 1..10 do
+        {201, start_body} = http_start("BoundaryMessageInstantHost")
+        process_instance_id = start_body["processInstanceId"]
+
+        _ = poll_fni_state(process_instance_id, "user_task", "waiting")
+
+        case find_fni_by_flow_node_id(process_instance_id, "Boundary_Message") do
+          nil -> :ok
+          boundary -> assert boundary.state == "interrupted"
+        end
+
+        refute MessageSubscriptions.has_subscriptions_for_message?(@message_name)
+      end
+    end
   end
 end

@@ -39,6 +39,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     "is_ad_hoc",
     "is_event_subprocess"
   ]
+  @compensation_link_keys ["compensation_for", "compensation_throw_fni_id"]
 
   @doc "Persist a new process instance row."
   @impl true
@@ -80,7 +81,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     UPDATE flow_node_instances
     SET state = $2,
         type_properties = COALESCE(type_properties, '{}'::jsonb) || $3::jsonb
-    WHERE id = $1 AND state IN ('active', 'waiting')
+    WHERE id = $1 AND state IN ('active', 'waiting') AND deleted = false
     """
 
     case EctoSQL.query(Repo, park_sql, [
@@ -149,7 +150,11 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
     end
   end
 
-  @doc "List FNIs for a PI that are relevant for resume (active, waiting, or finished end events)."
+  @doc """
+  List a PI's active, waiting, and finished End Event FNIs. Used to aggregate
+  the final tokens of a child that ended; resume reads
+  `list_all_flow_node_instances/1`.
+  """
   @impl true
   def list_flow_node_instances(process_instance_id) do
     query =
@@ -206,7 +211,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
              Ash.get(FlowNodeInstance, flow_node_instance_id, domain: @domain, authorize?: false),
            :ok <- guard_first_terminal_write(record, :update_finished),
            {:ok, _updated, notifications} <-
-             Ash.update(record, fni_changes,
+             Ash.update(record, keep_compensation_links(record, fni_changes),
                domain: @domain,
                action: :update_finished,
                authorize?: false,
@@ -227,6 +232,17 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
         error
     end
   end
+
+  # A finished compensation handler must keep naming its target and throw
+  # event, or a resumed compensation run dispatches it again. Other
+  # handler-written keys (such as `mapped_input`) must not survive the finish.
+  defp keep_compensation_links(record, %{type_properties: type_properties} = fni_changes)
+       when is_map(type_properties) do
+    links = Map.take(record.type_properties || %{}, @compensation_link_keys)
+    %{fni_changes | type_properties: Map.merge(links, type_properties)}
+  end
+
+  defp keep_compensation_links(_record, fni_changes), do: fni_changes
 
   # The first terminal write wins. `active` and `waiting` may move to a
   # terminal state; a row that is already terminal is left unchanged.
@@ -437,13 +453,19 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   # Retry/restart callbacks
   # ---------------------------------------------------------------------------
 
-  @doc "Read a PI by ID for retry validation. Returns full row data."
+  @doc """
+  Read a PI by ID for retry validation. Returns full row data.
+
+  `{:error, :not_found}` for a missing (or soft-deleted) row and for an id
+  that is not a valid UUID; any other failure is returned as `{:error, reason}`.
+  """
   @impl true
   def get_process_instance_for_retry(process_instance_id) do
     case Ash.get(ProcessInstance, process_instance_id, domain: @domain, authorize?: false) do
       {:ok, record} -> {:ok, process_instance_to_retry_map(record)}
       {:error, %Ash.Error.Query.NotFound{}} -> {:error, :not_found}
-      {:error, _reason} -> {:error, :not_found}
+      {:error, %Ash.Error.Invalid{}} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 

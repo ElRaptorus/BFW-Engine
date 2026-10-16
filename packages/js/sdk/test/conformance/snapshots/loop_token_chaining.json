@@ -1,0 +1,230 @@
+{
+  "definitionsId": "Definitions_LoopTokenChaining",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Count_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Count Up",
+          "outgoing": ["Flow_2"],
+          "standardLoop": {
+            "compiledLoopCondition": null,
+            "loopCondition": "token.counter < 3",
+            "loopInterval": null,
+            "loopMaximum": 10,
+            "testBefore": true
+          },
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ counter: token.counter + 1, label: token.label }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "loop-token-chaining",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Count_1", "End_1"],
+          "id": "Lane_default_Chaining",
+          "name": "default"
+        }
+      ],
+      "name": "Loop Token Chaining",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Count_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Count_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Broken_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Broken_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Broken_Count",
+          "incoming": ["Broken_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Count Up",
+          "outgoing": ["Broken_Flow_2"],
+          "standardLoop": {
+            "compiledLoopCondition": null,
+            "loopCondition": "token.counter <",
+            "loopInterval": null,
+            "loopMaximum": 10,
+            "testBefore": false
+          },
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ counter: token.counter + 1 }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Broken_End",
+          "incoming": ["Broken_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "loop-condition-error",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Broken_Start", "Broken_Count", "Broken_End"],
+          "id": "Lane_default_Broken",
+          "name": "default"
+        }
+      ],
+      "name": "Loop Condition Error",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Broken_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Broken_Start",
+          "targetRef": "Broken_Count"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Broken_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Broken_Count",
+          "targetRef": "Broken_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

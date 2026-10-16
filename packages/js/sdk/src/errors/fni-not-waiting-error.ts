@@ -6,8 +6,10 @@ import { BfwEngineError } from './bfw-engine-error.js';
  *
  * The engine may return several error codes for this condition:
  * `fni_not_waiting`, `fni_already_finished`, `fni_already_aborted`,
- * `fni_already_interrupted`, `fni_already_fatal`. All are mapped to this class
- * with the actual wire error code preserved in `errorCode`.
+ * `fni_already_interrupted`, `fni_already_fatal`, and `fni_is_multi_instance_shell`
+ * (the FNI is the shell of a Multi-Instance or Standard Loop task; complete its
+ * iteration FNIs instead). All are mapped to this class with the actual wire
+ * error code preserved in `errorCode`.
  */
 export class FniNotWaitingError extends BfwEngineError {
   constructor(

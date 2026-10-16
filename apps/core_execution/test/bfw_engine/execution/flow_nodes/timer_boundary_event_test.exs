@@ -69,6 +69,22 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
     }
   end
 
+  defp missed_cycle_entry(remaining_repetitions) do
+    missed_fire_at = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+
+    %{
+      type_properties: %{
+        "fire_at" => missed_fire_at,
+        "cancel_activity" => false,
+        "is_cycle" => true,
+        "cycle_repetitions" => remaining_repetitions,
+        "cycle_interval" => "PT1H",
+        "host_flow_node_instance_id" => "fni-host-1"
+      },
+      token: build_token()
+    }
+  end
+
   defp build_token do
     %Token{
       id: "t1",
@@ -182,7 +198,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
     end
 
     test "interrupting cycle fires once and returns {:boundary, ...}" do
-      flow_node = build_boundary_node(time_cycle: "R3/PT0S", cancel_activity: true)
+      flow_node = build_boundary_node(time_cycle: "R3/PT0.5S", cancel_activity: true)
       context = build_context(flow_node)
       token = build_token()
 
@@ -194,7 +210,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
     end
 
     test "non-interrupting cycle with R1 returns {:boundary, ...} on single fire" do
-      flow_node = build_boundary_node(time_cycle: "R1/PT0S", cancel_activity: false)
+      flow_node = build_boundary_node(time_cycle: "R1/PT0.5S", cancel_activity: false)
       context = build_context(flow_node)
       token = build_token()
 
@@ -206,7 +222,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
     end
 
     test "non-interrupting cycle with R2 sends intermediate fire then returns final" do
-      flow_node = build_boundary_node(time_cycle: "R2/PT0S", cancel_activity: false)
+      flow_node = build_boundary_node(time_cycle: "R2/PT0.5S", cancel_activity: false)
       context = build_context(flow_node)
       token = build_token()
 
@@ -221,7 +237,7 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
     end
 
     test "non-interrupting cycle with R3 sends two intermediate fires then returns final" do
-      flow_node = build_boundary_node(time_cycle: "R3/PT0S", cancel_activity: false)
+      flow_node = build_boundary_node(time_cycle: "R3/PT0.5S", cancel_activity: false)
       context = build_context(flow_node)
       token = build_token()
 
@@ -372,50 +388,38 @@ defmodule BfwEngine.Execution.FlowNodes.TimerBoundaryEventTest do
                TimerBoundaryEvent.handle_resume(flow_node, entry, context)
     end
 
-    test "non-interrupting cycle with remaining 1 fires as a final boundary" do
+    test "non-interrupting cycle whose remaining occurrences were missed never fires again" do
       flow_node = build_boundary_node(time_cycle: "R3/PT1H", cancel_activity: false)
       context = build_context(flow_node)
+      entry = missed_cycle_entry(1)
 
-      past = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+      resume_task =
+        Task.async(fn -> TimerBoundaryEvent.handle_resume(flow_node, entry, context) end)
 
-      entry = %{
-        type_properties: %{
-          "fire_at" => past,
-          "cancel_activity" => false,
-          "is_cycle" => true,
-          "cycle_repetitions" => 1,
-          "cycle_interval" => "PT0S",
-          "host_flow_node_instance_id" => "fni-host-1"
-        },
-        token: build_token()
-      }
-
-      assert {:boundary, "TimerBE_1", %{}, false} =
-               TimerBoundaryEvent.handle_resume(flow_node, entry, context)
+      assert_receive {:fni_merge_type_properties, "fni-tbe-1", %{cycle_exhausted: true}}, 2_000
+      refute_receive {:fni_result, "fni-tbe-1", _boundary_result}, 300
+      assert Process.alive?(resume_task.pid)
+      Task.shutdown(resume_task, :brutal_kill)
     end
 
-    test "non-interrupting cycle with remaining 2 delivers a tick then continues" do
+    test "non-interrupting cycle skips a missed occurrence and persists the next one" do
       flow_node = build_boundary_node(time_cycle: "R3/PT1H", cancel_activity: false)
       context = build_context(flow_node)
+      entry = missed_cycle_entry(3)
+      {:ok, missed_fire_at, _offset} = DateTime.from_iso8601(entry.type_properties["fire_at"])
+      armed_before = Scheduler.armed_count()
 
-      past = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+      resume_task =
+        Task.async(fn -> TimerBoundaryEvent.handle_resume(flow_node, entry, context) end)
 
-      entry = %{
-        type_properties: %{
-          "fire_at" => past,
-          "cancel_activity" => false,
-          "is_cycle" => true,
-          "cycle_repetitions" => 2,
-          "cycle_interval" => "PT0S",
-          "host_flow_node_instance_id" => "fni-host-1"
-        },
-        token: build_token()
-      }
+      assert_receive {:fni_merge_type_properties, "fni-tbe-1", type_properties}, 2_000
+      assert type_properties.cycle_repetitions == 2
+      {:ok, next_fire_at, _offset} = DateTime.from_iso8601(type_properties.fire_at)
+      assert DateTime.diff(next_fire_at, missed_fire_at, :second) == 3_600
 
-      result = TimerBoundaryEvent.handle_resume(flow_node, entry, context)
-
-      assert_received {:fni_result, "fni-tbe-1", {:boundary_cycle_fire, "TimerBE_1", %{}, false}}
-      assert {:boundary, "TimerBE_1", %{}, false} = result
+      refute_receive {:fni_result, "fni-tbe-1", _boundary_result}, 300
+      assert Scheduler.armed_count() == armed_before + 1
+      Task.shutdown(resume_task, :brutal_kill)
     end
 
     test "returns error when cycle state is missing interval" do

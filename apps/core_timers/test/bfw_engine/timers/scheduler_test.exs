@@ -159,6 +159,18 @@ defmodule BfwEngine.Timers.SchedulerTest do
       assert 0 == Scheduler.cancel_all_for_target(self())
     end
 
+    test "stops monitoring the target" do
+      {:ok, _ref} = Scheduler.schedule(%{fire_at: future(5000), target: self(), metadata: %{}})
+      scheduler_pid = Process.whereis(Scheduler)
+      {:monitors, monitors_before} = Process.info(scheduler_pid, :monitors)
+      assert {:process, self()} in monitors_before
+
+      assert 1 == Scheduler.cancel_all_for_target(self())
+
+      {:monitors, monitors_after} = Process.info(scheduler_pid, :monitors)
+      refute {:process, self()} in monitors_after
+    end
+
     test "does not cancel timers for other targets" do
       other_pid = spawn(fn -> Process.sleep(60_000) end)
       on_exit(fn -> Process.exit(other_pid, :kill) end)
@@ -308,18 +320,15 @@ defmodule BfwEngine.Timers.SchedulerTest do
 
       scheduler_name = :"test_scheduler_cycle_#{unique_id}"
 
-      {:ok, scheduler} =
-        Scheduler.start_link(
-          name: scheduler_name,
-          tick_interval_ms: @tick_interval_ms,
-          on_cycle_advance: {callback_module, :advance, [test_pid]},
-          primary_table: :"test_primary_#{unique_id}",
-          target_index_table: :"test_target_idx_#{unique_id}"
+      scheduler =
+        start_supervised!(
+          {Scheduler,
+           name: scheduler_name,
+           tick_interval_ms: @tick_interval_ms,
+           on_cycle_advance: {callback_module, :advance, [test_pid]},
+           primary_table: :"test_primary_#{unique_id}",
+           target_index_table: :"test_target_idx_#{unique_id}"}
         )
-
-      on_exit(fn ->
-        if Process.alive?(scheduler), do: GenServer.stop(scheduler)
-      end)
 
       {:ok, _ref} =
         Scheduler.schedule(
@@ -339,6 +348,175 @@ defmodule BfwEngine.Timers.SchedulerTest do
 
       assert_receive {:timer_fired, _, _}, 2000
       assert_receive {:cycle_advanced, %{schedule_id: "test-123"}, nil, 0}, 2000
+    end
+
+    test "a cycle overdue by several intervals fires once and re-arms the next future occurrence" do
+      scheduler =
+        start_callback_scheduler(fn metadata, next_fire, remaining, test_pid ->
+          send(test_pid, {:cycle_advanced, metadata, next_fire, remaining})
+        end)
+
+      overdue_since =
+        DateTime.utc_now()
+        |> DateTime.truncate(:second)
+        |> DateTime.add(-(5 * 3600 + 60), :second)
+
+      {:ok, timer_ref} =
+        Scheduler.schedule(
+          %{
+            fire_at: overdue_since,
+            target: self(),
+            metadata: %{catch_up: true},
+            cycle_interval: Duration.new!(hour: 1),
+            cycle_remaining: 10
+          },
+          scheduler
+        )
+
+      assert_receive {:timer_fired, ^timer_ref, %{catch_up: true}}, 1_000
+      assert_receive {:cycle_advanced, %{catch_up: true}, next_fire, 4}, 1_000
+      assert DateTime.compare(next_fire, DateTime.add(overdue_since, 6 * 3600, :second)) == :eq
+      refute_receive {:timer_fired, ^timer_ref, _metadata}, 300
+      assert Scheduler.armed_count(scheduler) == 1
+    end
+
+    test "a finite cycle whose remaining occurrences are all overdue ends after one fire" do
+      scheduler =
+        start_callback_scheduler(fn metadata, next_fire, remaining, test_pid ->
+          send(test_pid, {:cycle_advanced, metadata, next_fire, remaining})
+        end)
+
+      {:ok, timer_ref} =
+        Scheduler.schedule(
+          %{
+            fire_at: past(5 * 3600 * 1000),
+            target: self(),
+            metadata: %{exhausted: true},
+            cycle_interval: Duration.new!(hour: 1),
+            cycle_remaining: 3
+          },
+          scheduler
+        )
+
+      assert_receive {:timer_fired, ^timer_ref, %{exhausted: true}}, 1_000
+      assert_receive {:cycle_advanced, %{exhausted: true}, nil, 0}, 1_000
+      refute_received {:timer_fired, ^timer_ref, _metadata}
+      refute_received {:cycle_advanced, %{exhausted: true}, _next_fire, _remaining}
+      assert Scheduler.armed_count(scheduler) == 0
+    end
+
+    test "a slow on_cycle_advance callback does not block the Scheduler" do
+      scheduler =
+        start_callback_scheduler(fn _metadata, _next_fire, _remaining, test_pid ->
+          send(test_pid, :slow_callback_started)
+          Process.sleep(3_000)
+        end)
+
+      {:ok, timer_ref} =
+        Scheduler.schedule(
+          %{
+            fire_at: future(20),
+            target: self(),
+            metadata: %{},
+            cycle_interval: Duration.new!(hour: 1),
+            cycle_remaining: :infinite
+          },
+          scheduler
+        )
+
+      assert_receive {:timer_fired, ^timer_ref, _metadata}, 1_000
+      assert_receive :slow_callback_started, 1_000
+
+      {elapsed_microseconds, armed_count} =
+        :timer.tc(fn -> Scheduler.armed_count(scheduler) end)
+
+      assert armed_count == 1
+      assert elapsed_microseconds < 1_000_000
+    end
+
+    test "a callback that throws does not lose the cycle advances queued behind it" do
+      scheduler =
+        start_callback_scheduler(fn metadata, _next_fire, _remaining, test_pid ->
+          send(test_pid, {:cycle_advanced, metadata})
+          if metadata.cycle == :first, do: Process.sleep(400)
+          throw(:callback_failed)
+        end)
+
+      schedule_two_cycles(scheduler, first: 20, second: 150)
+
+      assert_receive {:cycle_advanced, %{cycle: :first}}, 1_000
+      assert_receive {:cycle_advanced, %{cycle: :second}}, 1_000
+    end
+
+    test "a cycle advance worker that dies is replaced" do
+      scheduler =
+        start_callback_scheduler(fn metadata, _next_fire, _remaining, test_pid ->
+          send(test_pid, {:cycle_advanced, metadata})
+          if metadata.cycle == :first, do: Process.exit(self(), :kill)
+        end)
+
+      schedule_two_cycles(scheduler, first: 20, second: 300)
+
+      assert_receive {:cycle_advanced, %{cycle: :first}}, 1_000
+      assert_receive {:cycle_advanced, %{cycle: :second}}, 1_000
+    end
+  end
+
+  describe "restart after a crash" do
+    test "invokes on_restart only when the previous Scheduler did not shut down cleanly" do
+      test_pid = self()
+      unique_id = System.unique_integer([:positive])
+      scheduler_name = :"restart_test_scheduler_#{unique_id}"
+
+      child_spec =
+        Supervisor.child_spec(
+          {Scheduler,
+           name: scheduler_name,
+           tick_interval_ms: @tick_interval_ms,
+           primary_table: :"restart_test_primary_#{unique_id}",
+           target_index_table: :"restart_test_target_index_#{unique_id}",
+           on_restart: {Kernel, :send, [test_pid, :restore_requested]}},
+          id: scheduler_name
+        )
+
+      start_supervised!(child_spec)
+      refute_receive :restore_requested, 200
+
+      :ok = stop_supervised(scheduler_name)
+      start_supervised!(child_spec)
+      refute_receive :restore_requested, 200
+
+      Process.exit(Process.whereis(scheduler_name), :kill)
+      assert_receive :restore_requested, 2_000
+    end
+
+    test "retries a failing restore with backoff until it succeeds" do
+      unique_id = System.unique_integer([:positive])
+      scheduler_name = :"restore_retry_scheduler_#{unique_id}"
+      attempt_counter = :counters.new(1, [])
+
+      start_supervised!(
+        {Scheduler,
+         name: scheduler_name,
+         tick_interval_ms: @tick_interval_ms,
+         primary_table: :"restore_retry_primary_#{unique_id}",
+         target_index_table: :"restore_retry_target_index_#{unique_id}",
+         on_restart: {__MODULE__, :restore_succeeding_on_third_attempt, [self(), attempt_counter]}}
+      )
+
+      Process.exit(Process.whereis(scheduler_name), :kill)
+
+      assert_receive {:restored, 3}, 4_000
+    end
+  end
+
+  def restore_succeeding_on_third_attempt(test_pid, attempt_counter) do
+    :counters.add(attempt_counter, 1, 1)
+
+    case :counters.get(attempt_counter, 1) do
+      1 -> raise "database unavailable"
+      2 -> {:error, :database_unavailable}
+      attempt -> send(test_pid, {:restored, attempt})
     end
   end
 
@@ -433,6 +611,44 @@ defmodule BfwEngine.Timers.SchedulerTest do
 
       assert_receive {:telemetry_cancelled, measurements}, 500
       assert measurements.timer_ref == timer_ref
+    end
+  end
+
+  defmodule CycleAdvanceRelay do
+    @moduledoc false
+    def advance(metadata, next_fire, remaining, callback, test_pid),
+      do: callback.(metadata, next_fire, remaining, test_pid)
+  end
+
+  defp start_callback_scheduler(callback) do
+    unique_id = System.unique_integer([:positive])
+    scheduler_name = :"test_scheduler_callback_#{unique_id}"
+
+    start_supervised!(
+      {Scheduler,
+       name: scheduler_name,
+       tick_interval_ms: @tick_interval_ms,
+       on_cycle_advance: {CycleAdvanceRelay, :advance, [callback, self()]},
+       primary_table: :"test_primary_callback_#{unique_id}",
+       target_index_table: :"test_target_index_callback_#{unique_id}"}
+    )
+
+    scheduler_name
+  end
+
+  defp schedule_two_cycles(scheduler, delays_ms) do
+    for {cycle, delay_ms} <- delays_ms do
+      {:ok, _timer_ref} =
+        Scheduler.schedule(
+          %{
+            fire_at: future(delay_ms),
+            target: self(),
+            metadata: %{cycle: cycle},
+            cycle_interval: Duration.new!(hour: 1),
+            cycle_remaining: :infinite
+          },
+          scheduler
+        )
     end
   end
 

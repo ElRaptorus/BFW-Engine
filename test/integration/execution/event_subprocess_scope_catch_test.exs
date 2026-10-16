@@ -3,7 +3,8 @@ defmodule BfwEngine.Integration.Execution.EventSubprocessScopeCatchTest do
   An escalation thrown inside an embedded subprocess and not caught by a
   boundary reaches the parent scope's escalation Event Subprocess (C4). A
   message Event Subprocess whose correlation key fails turns the scope fatal
-  with a diagnostic (C5).
+  with a diagnostic (C5), and so does a timer Event Subprocess whose spec
+  cannot be resolved (D-10.7).
   """
   use BfwEngine.ExecutionCase, async: false
 
@@ -40,6 +41,25 @@ defmodule BfwEngine.Integration.Execution.EventSubprocessScopeCatchTest do
       assert process_instance.error_info["error_code"] == "event_subprocess_correlation_failed"
       assert process_instance.error_info["message"] =~ "Event Subprocess 'ESP_Message'"
       assert process_instance.error_info["message"] =~ "for x in [1] return if x then"
+    end
+  end
+
+  describe "D-10.7: Event Subprocess timer start whose spec cannot be resolved" do
+    test "the scope goes fatal with a diagnostic naming the Event Subprocess and timer" do
+      {201, start_body} =
+        http_deploy_and_start_raw(
+          "event_subprocess_timer_resolution_error.bpmn",
+          "EventSubprocessTimerResolutionError"
+        )
+
+      process_instance = poll_pi_state(start_body["processInstanceId"], "fatal")
+
+      assert process_instance.error_info["error_code"] ==
+               "event_subprocess_timer_resolution_failed"
+
+      assert process_instance.error_info["message"] =~ "Event Subprocess 'ESP_Timer'"
+      assert process_instance.error_info["message"] =~ "'1 + 1'"
+      assert process_instance.error_info["message"] =~ "not a duration"
     end
   end
 

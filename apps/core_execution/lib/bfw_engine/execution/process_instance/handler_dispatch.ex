@@ -10,6 +10,31 @@ defmodule BfwEngine.Execution.ProcessInstance.HandlerDispatch do
   alias BfwEngine.Execution.HandlerDispatch, as: FlowNodeHandlerDispatch
   alias BfwEngine.Expressions.Context, as: FeelContext
 
+  @handler_kill_wait_ms 1_000
+
+  @doc """
+  Kills a handler Task and waits (bounded) until it is down. Call it before
+  removing the Task's subscriptions: an exit signal is asynchronous, and a
+  Task still running after `Process.exit/2` returned could register a
+  subscription, and drain a pending message into it, after the removal.
+  Accepts `nil` (no Task). Returns `:ok`.
+  """
+  @spec kill_handler_task(pid() | nil) :: :ok
+  def kill_handler_task(nil), do: :ok
+
+  def kill_handler_task(pid) do
+    monitor_reference = Process.monitor(pid)
+    Process.exit(pid, :kill)
+
+    receive do
+      {:DOWN, ^monitor_reference, :process, ^pid, _reason} -> :ok
+    after
+      @handler_kill_wait_ms ->
+        Process.demonitor(monitor_reference, [:flush])
+        :ok
+    end
+  end
+
   @doc """
   Ends the handler of a flow node instance the process instance cancels,
   interrupts, aborts, or fatals from outside: removes every message and

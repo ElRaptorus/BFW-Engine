@@ -11,6 +11,7 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.FlowNodes.ChildLifecycle
+  alias BfwEngine.Execution.Persistence
   alias BfwEngine.Execution.ResumeRunner
   alias BfwEngine.Persistence.ExecutionAdapter
   alias BfwEngine.Persistence.Repo
@@ -20,6 +21,20 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
   alias BfwEngine.Types.Event
 
   @domain BfwEngine.Persistence.Api
+
+  defmodule ChildLookupFailingAdapter do
+    @moduledoc false
+
+    for {name, arity} <- Persistence.behaviour_info(:callbacks),
+        name != :get_process_instance_for_retry do
+      arguments = Macro.generate_arguments(arity, __MODULE__)
+
+      def unquote(name)(unquote_splicing(arguments)),
+        do: ExecutionAdapter.unquote(name)(unquote_splicing(arguments))
+    end
+
+    def get_process_instance_for_retry(_process_instance_id), do: {:error, :connection_lost}
+  end
 
   describe "A2: successors lost between a finished write and successor creation" do
     test "a finished user task without successor rows continues to its End Event" do
@@ -65,6 +80,68 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
       assert {:ok, _process_instance} =
                await_process_instance_state(process_instance_id, "finished")
+    end
+
+    test "a split that no longer selects a branch fatals the instance instead of finishing it" do
+      process_instance_id =
+        http_deploy_and_start(
+          "resume_lost_successor_no_default.bpmn",
+          "ResumeLostSuccessorNoDefault"
+        )
+
+      {:ok, review} = await_waiting_fni_by_node_id(process_instance_id, "UT_Review")
+      {204, _} = http_finish_user_task(review.id, %{"approved" => true})
+      {:ok, ship} = await_waiting_fni_by_node_id(process_instance_id, "UT_Ship")
+
+      stop_all_process_instances()
+      delete_flow_node_instance(ship.id)
+
+      process_instance_id
+      |> flow_node_instances_for("Gateway_Approved")
+      |> Enum.each(&mark_finished(&1.id, %{}))
+
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert {:ok, process_instance} = await_process_instance_state(process_instance_id, "fatal")
+      assert process_instance.error_info["error_code"] == "lost_successor_repair_failed"
+      assert process_instance.error_info["message"] =~ "Gateway_Approved"
+    end
+  end
+
+  describe "D-10.1: boundary rows of a host whose finish was persisted before the restart" do
+    test "a waiting error boundary is interrupted and the host's successor is created" do
+      assert_finished_host_continues(
+        "resume_finished_host_error_boundary.bpmn",
+        "ResumeFinishedHostErrorBoundary"
+      )
+    end
+
+    test "a waiting timer boundary is interrupted and the host's successor is created" do
+      assert_finished_host_continues(
+        "timer_boundary_resume_host_finished.bpmn",
+        "TimerBoundaryResumeHostFinished"
+      )
+    end
+  end
+
+  describe "D-10 9a: a process instance whose Start Event row was never persisted" do
+    test "is persisted fatal with resume_failed instead of finishing" do
+      process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
+      _user_task = poll_fni_state(process_instance_id, "user_task", "waiting")
+      stop_all_process_instances()
+
+      Repo.query!("DELETE FROM flow_node_instances WHERE process_instance_id = $1", [
+        Ecto.UUID.dump!(process_instance_id)
+      ])
+
+      {:ok, _resumed_count} = ResumeRunner.resume_all()
+
+      process_instance =
+        assert_pi_state!(process_instance_id, "fatal", verify_execution_chain: false)
+
+      assert process_instance.error_info["error_code"] == "resume_failed"
+      assert process_instance.error_info["message"] =~ "its Start Event was never recorded"
+      assert process_instance.error_info["detail"] == "start_event_never_recorded"
     end
   end
 
@@ -150,6 +227,28 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       [end_event] = flow_node_instances_for(process_instance_id, "End_1")
       assert length(end_event.input_token["reviewResults"]) == 2
     end
+
+    test "a sequential multi-instance whose break condition is met by a finished iteration stops" do
+      process_instance_id =
+        http_deploy_and_start("inbox_sequential_mi_break.bpmn", "InboxSequentialMiBreak", %{
+          "payload" => %{"items" => ["first", "second", "third"]}
+        })
+
+      {:ok, first_iteration} = await_waiting_iteration(process_instance_id, 0)
+
+      stop_all_process_instances()
+      mark_finished(first_iteration.id, %{"decision" => "first done"})
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      assert [0] ==
+               process_instance_id
+               |> flow_node_instances_for("Task_1")
+               |> Enum.reject(&is_nil(&1.iteration_index))
+               |> Enum.map(& &1.iteration_index)
+    end
   end
 
   describe "A5: resumed child process instances keep their root" do
@@ -207,6 +306,60 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       assert [%{state: "finished"}] = flow_node_instances_for(process_instance_id, "Throw_Comp")
       assert [%{state: "finished"}] = flow_node_instances_for(process_instance_id, "End_1")
     end
+
+    test "a handler that finished before the restart is not run again" do
+      process_instance_id =
+        http_deploy_and_start(
+          "resume_compensation_two_handlers.bpmn",
+          "ResumeCompensationTwoHandlers"
+        )
+
+      {:ok, undo_hotel} = await_waiting_fni_by_node_id(process_instance_id, "UT_Undo_Hotel")
+      {204, _} = http_finish_user_task(undo_hotel.id, %{})
+      {:ok, undo_flight} = await_waiting_fni_by_node_id(process_instance_id, "UT_Undo_Flight")
+
+      stop_all_process_instances()
+      {:ok, 1} = ResumeRunner.resume_all()
+      {:ok, _process_instance_pid} = poll_pi_alive(process_instance_id)
+
+      {204, _} = http_finish_user_task(undo_flight.id, %{})
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      assert [%{state: "finished"}] = flow_node_instances_for(process_instance_id, "UT_Undo_Hotel")
+
+      assert [%{state: "finished"}] =
+               flow_node_instances_for(process_instance_id, "UT_Undo_Flight")
+    end
+  end
+
+  describe "Error and Escalation End Events whose terminal write was lost" do
+    test "an uncaught Error End Event still ends the resumed instance in error" do
+      process_instance_id =
+        http_deploy_and_start("error_end_event_standalone.bpmn", "ErrorEndStandalone")
+
+      {:ok, _process_instance} = await_process_instance_state(process_instance_id, "error")
+
+      reopen_process_instance(process_instance_id)
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "error")
+    end
+
+    test "an uncaught Escalation End Event still ends the resumed instance escalated" do
+      process_instance_id =
+        http_deploy_and_start("escalation_end_event_standalone.bpmn", "EscalationEndStandalone")
+
+      {:ok, _process_instance} = await_process_instance_state(process_instance_id, "escalated")
+
+      reopen_process_instance(process_instance_id)
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "escalated")
+    end
   end
 
   describe "A7: resumed ad-hoc children keep their completion options" do
@@ -229,6 +382,26 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
       assert {:ok, _process_instance} =
                await_process_instance_state(process_instance_id, "finished")
+    end
+
+    test "a sequential ad-hoc subprocess activates its next activity when that activation was lost" do
+      process_instance_id =
+        http_deploy_and_start("adhoc_sequential_user_task.bpmn", "AdHocSequentialUserTask")
+
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+
+      {:ok, blocking} =
+        await_waiting_fni_by_node_id(child_process_instance_id, "UserTask_Blocking")
+
+      stop_all_process_instances()
+      mark_finished(blocking.id, %{"blocking" => "done"})
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      assert [%{state: "finished"}] =
+               flow_node_instances_for(child_process_instance_id, "ScriptTask_After")
     end
 
     test "a plugin-managed ad-hoc subprocess waits for its completion signal after a restart" do
@@ -335,6 +508,54 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
       assert {:ok, _process_instance} =
                await_process_instance_state(process_instance_id, "finished")
+    end
+  end
+
+  describe "A23: a child row that cannot be read on resume is not mistaken for a deleted child" do
+    setup do
+      previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
+      on_exit(fn -> Application.put_env(:core_execution, :persistence_adapter, previous_adapter) end)
+    end
+
+    test "an embedded subprocess shell fatals and spawns no second child" do
+      process_instance_id =
+        http_deploy_and_start("embedded_subprocess_user_task.bpmn", "EmbeddedSubprocessUserTask")
+
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+      {:ok, _task} = await_waiting_fni_by_node_id(child_process_instance_id, "Sub_UserTask")
+
+      stop_all_process_instances()
+      Application.put_env(:core_execution, :persistence_adapter, ChildLookupFailingAdapter)
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert_shell_resume_failed(process_instance_id, "SubProcess_1", child_process_instance_id)
+    end
+
+    test "an Event Subprocess shell fatals and spawns no second child" do
+      process_instance_id =
+        http_deploy_and_start("resume_event_subprocess_child.bpmn", "ResumeEventSubprocessChild")
+
+      {:ok, _main_task} = await_waiting_fni_by_node_id(process_instance_id, "Main_UserTask")
+      {200, _} = http_trigger_message("resume-esp-escalate")
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+      {:ok, _esp_task} = await_waiting_fni_by_node_id(child_process_instance_id, "ESP_UserTask")
+
+      stop_all_process_instances()
+      Application.put_env(:core_execution, :persistence_adapter, ChildLookupFailingAdapter)
+      {:ok, 1} = ResumeRunner.resume_all()
+
+      assert_shell_resume_failed(process_instance_id, "ESP_Escalate", child_process_instance_id)
+    end
+
+    test "retry of an unknown process instance still answers 404" do
+      assert {404, %{"error" => "not_found"}} = http_retry_process_instance(Ash.UUIDv7.generate())
+    end
+
+    test "retry answers 503 service_unavailable when the process instance cannot be read" do
+      Application.put_env(:core_execution, :persistence_adapter, ChildLookupFailingAdapter)
+
+      assert {503, %{"error" => "service_unavailable"}} =
+               http_retry_process_instance(Ash.UUIDv7.generate())
     end
   end
 
@@ -477,6 +698,19 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       assert {:ok, _process_instance} =
                await_process_instance_state(process_instance_id, "finished")
     end
+
+    test "starts after prep_stop answer engine_shutting_down instead of crashing" do
+      {201, _} = http_deploy("user_task_simple.bpmn")
+      {201, _} = http_deploy("message_start_event.bpmn")
+      MessageSubscriptions.mark_ready()
+
+      assert :application_state == BfwEngineWeb.Application.prep_stop(:application_state)
+
+      assert {503, %{"error" => "engine_shutting_down"}} = http_start("UserTaskSimple")
+
+      assert {200, %{"startedProcessInstanceIds" => []}} =
+               http_trigger_message("test-message", %{"data" => "during shutdown"})
+    end
   end
 
   describe "A17: readiness waits for re-registered subscriptions" do
@@ -517,6 +751,53 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
       assert :ok == MessageSubscriptions.await_ready(50)
       assert :ok == SignalSubscriptions.await_ready(50)
     end
+
+    test "a subscriptions server restarted after readiness stays ready" do
+      MessageSubscriptions.mark_ready()
+      SignalSubscriptions.mark_ready()
+
+      for subscriptions <- [MessageSubscriptions, SignalSubscriptions] do
+        :ok = Supervisor.terminate_child(BfwEngine.Events.Supervisor, subscriptions)
+        {:ok, _pid} = Supervisor.restart_child(BfwEngine.Events.Supervisor, subscriptions)
+      end
+
+      assert :ok == MessageSubscriptions.await_ready(50)
+      assert :ok == SignalSubscriptions.await_ready(50)
+      assert MessageSubscriptions.ready?()
+      assert SignalSubscriptions.ready?()
+    end
+  end
+
+  describe "A13: resume that raises" do
+    test "an exception while rebuilding state persists the instance fatal and announces it", %{
+      collector: collector
+    } do
+      process_instance_id = http_deploy_and_start("user_task_simple.bpmn", "UserTaskSimple")
+      user_task = poll_fni_state(process_instance_id, "user_task", "waiting")
+      stop_all_process_instances()
+
+      Repo.query!(
+        "UPDATE flow_node_instances SET flow_node_id = 'Missing_Node', " <>
+          "type_properties = '{\"compensation_run\": true}'::jsonb WHERE id = $1",
+        [Ecto.UUID.dump!(user_task.id)]
+      )
+
+      {:ok, _resumed_count} = ResumeRunner.resume_all()
+
+      process_instance =
+        assert_pi_state!(process_instance_id, "fatal", verify_execution_chain: false)
+
+      assert process_instance.error_info["error_code"] == "resume_failed"
+      assert process_instance.error_info["message"] =~ "internal error"
+      refute Map.has_key?(process_instance.error_info, "detail")
+
+      assert collector
+             |> EventCollector.get_events()
+             |> Enum.any?(fn event ->
+               match?(%Event.ProcessInstanceStateChanged{old_state: :running, new_state: :fatal}, event) and
+                 event.process_instance_id == process_instance_id
+             end)
+    end
   end
 
   describe "A19: resume does not re-announce the start of a process instance" do
@@ -545,6 +826,37 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
   # -------------------------------------------------------------------
   # Helpers
   # -------------------------------------------------------------------
+
+  defp assert_shell_resume_failed(process_instance_id, shell_node_id, child_process_instance_id) do
+    _process_instance = poll_pi_state(process_instance_id, "fatal")
+    shell = find_fni_by_flow_node_id(process_instance_id, shell_node_id)
+
+    assert shell.state == "fatal"
+    assert shell.error_info["error_code"] == "child_resume_failed"
+    assert shell.error_info["message"] =~ child_process_instance_id
+    assert [child_process_instance_id] == list_child_process_instance_ids(process_instance_id)
+  end
+
+  defp assert_finished_host_continues(fixture_name, process_model_id) do
+    process_instance_id = http_deploy_and_start(fixture_name, process_model_id)
+    first_task = poll_fni_state(process_instance_id, "user_task", "waiting")
+    boundary = poll_fni_state(process_instance_id, "boundary_event", "waiting")
+
+    stop_all_process_instances()
+    mark_finished(first_task.id, %{})
+
+    {:ok, 1} = ResumeRunner.resume_all()
+
+    {:ok, second_task} = await_waiting_fni_by_node_id(process_instance_id, "Task_Second")
+    assert [%{state: "interrupted"}] = flow_node_instances_for(process_instance_id, boundary.flow_node_id)
+
+    {204, _} = http_finish_user_task(second_task.id, %{})
+
+    assert {:ok, _process_instance} =
+             await_process_instance_state(process_instance_id, "finished")
+
+    assert [_single_first_task] = flow_node_instances_for(process_instance_id, "Task_First")
+  end
 
   defp stop_all_process_instances do
     BfwEngine.Execution.Supervisor
@@ -618,6 +930,12 @@ defmodule BfwEngine.Integration.Execution.ResumeRobustnessTest do
 
     reset_flow_node_instance(shell_id, "fatal", type_properties)
     shell_id
+  end
+
+  defp reopen_process_instance(process_instance_id) do
+    Repo.query!("UPDATE process_instances SET state = 'running' WHERE id = $1", [
+      Ecto.UUID.dump!(process_instance_id)
+    ])
   end
 
   defp delete_flow_node_instance(flow_node_instance_id) do

@@ -70,7 +70,15 @@ defmodule BfwEngine.Persistence.Application do
 
   defp safe_reload_timer_schedules do
     safe_boot_step("StartEventManager.reload_start_schedules", fn ->
-      StartEventManager.reload_start_schedules()
+      case StartEventManager.reload_start_schedules() do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning(
+            "StartEventManager.reload_start_schedules failed at boot: #{inspect(reason)}"
+          )
+      end
     end)
   end
 

@@ -623,6 +623,7 @@ function buildTypeData(node: OrderedNode, kids: OrderedNode[], type: FlowNodeTyp
         type: 'send_task',
         messageRef: attr(node, 'messageRef'),
         payloadContract: parseJsonText(childText(extKids, 'payloadContract')),
+        correlationRetrievalExpression: childText(extKids, 'correlationRetrievalExpression') || null,
         inMappings,
         outMappings,
       };

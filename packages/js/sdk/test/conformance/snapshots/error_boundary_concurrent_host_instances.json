@@ -1,0 +1,201 @@
+{
+  "definitionsId": "Definitions_ErrorBoundaryConcurrentHostInstances",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_B", "Flow_A"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Error"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "ServiceTask_Park",
+          "incoming": ["Flow_B", "Flow_A"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Park",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "service_task",
+          "typeData": {
+            "httpAuthHeader": null,
+            "httpBody": null,
+            "httpMethod": null,
+            "httpResponseHeaders": null,
+            "httpUrl": null,
+            "implementation": "async_park",
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Error",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Parking Failed",
+          "outgoing": ["Flow_Caught"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "ServiceTask_Park",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {
+              "errorCode": "PARK_FAILED",
+              "errorMessage": "The parking service rejected the request",
+              "errorRef": null
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Normal End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Caught",
+          "incoming": ["Flow_Caught"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Caught End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ErrorBoundaryConcurrentHostInstances",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Fork_1", "ServiceTask_Park", "Boundary_Error", "End_Normal", "End_Caught"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Error Boundary Concurrent Host Instances",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "ServiceTask_Park"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork_1",
+          "targetRef": "ServiceTask_Park"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "ServiceTask_Park",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Caught",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Error",
+          "targetRef": "End_Caught"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

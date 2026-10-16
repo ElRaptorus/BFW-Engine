@@ -164,6 +164,7 @@ export const FLOW_NODE_TYPE_FIELDS: Record<string, SelectionField[]> = {
     ...mappingFieldsAsNested('outMappings'),
     'messageRef',
     'payloadContract',
+    'correlationRetrievalExpression',
   ],
   ReceiveTaskNode: [
     { name: 'inMappings', fields: MAPPING_FIELDS },

@@ -110,7 +110,8 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
         body,
       );
     case 'service_unavailable':
-      return new ServiceUnavailableError(message, body);
+    case 'engine_shutting_down':
+      return new ServiceUnavailableError(message, body, errorCode);
     case 'not_found':
     case 'metrics_disabled':
       return new NotFoundError(message, body);
@@ -176,6 +177,7 @@ function mapByErrorCode(errorCode: string, message: string, body: Record<string,
     case 'fni_already_aborted':
     case 'fni_already_interrupted':
     case 'fni_already_fatal':
+    case 'fni_is_multi_instance_shell':
       return new FniNotWaitingError(
         message,
         (body['currentState'] as FlowNodeInstanceState) ?? 'unknown',

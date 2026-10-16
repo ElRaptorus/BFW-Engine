@@ -141,7 +141,7 @@ Full error class list:
 | `ProcessInstanceNotTerminalError` | `process_instance_not_terminal` | 422 |
 | `ProcessInstanceNotRetriableError` | `process_instance_not_retriable` | 422 |
 | `IncompatibleVersionMigrationError` | `version_migration_incompatible` | 422 |
-| `FniNotWaitingError` | `fni_not_waiting`, `fni_already_finished`, `fni_already_aborted`, `fni_already_interrupted`, `fni_already_fatal` | 422 |
+| `FniNotWaitingError` | `fni_not_waiting`, `fni_already_finished`, `fni_already_aborted`, `fni_already_interrupted`, `fni_already_fatal`, `fni_is_multi_instance_shell` | 422 |
 | `DeployValidationFailedError` | `validation_failed` | 422 (carries `failures`) |
 | `LinterGateFailedError` | `linter_gate_failed` | 422 |
 | `ContractViolationError` | `contract_violation` | 422 |

@@ -12,13 +12,24 @@ Every timer is configured via one of three ISO 8601 specs in the BPMN XML:
 | Date | `<bpmn:timeDate>` | `2026-12-01T10:00:00Z` | Fire at a specific date and time |
 | Cycle | `<bpmn:timeCycle>` | `R3/PT1H` | Fire every hour, 3 times |
 
-Cycle specs follow the pattern `R[n]/PT...` where `n` is the repetition count. Use `R/PT...` (no number) for infinite repetitions.
+Cycle specs follow the pattern `R[n]/PT...` where `n` is the repetition count. Use `R/PT...` (no number) for infinite repetitions. `R[n]/<start date>/PT...` anchors the cycle at a start date; the first occurrence is at that start date (`R3/2026-06-01T10:00:00Z/PT1H` fires at 10:00, 11:00, and 12:00). Without a start date, the first occurrence is one interval after the timer is armed. The interval must be longer than zero.
 
-Duration and date specs also accept FEEL expressions that resolve to a duration or date string at runtime:
+Exactly one of the three elements may be set; a deploy with none or several is rejected. A literal `timeDate` must carry a UTC offset (`Z` or `+02:00`): `2026-12-01T10:00:00` is rejected at deploy.
+
+Specs also accept FEEL expressions, resolved when the timer is armed:
 
 ```xml
-<bpmn:timeDuration>"PT" + string(token.delaySeconds) + "S"</bpmn:timeDuration>
+<bpmn:timeDuration>duration("PT" + string(token.delaySeconds) + "S")</bpmn:timeDuration>
+<bpmn:timeDate>date and time(token.dueAt)</bpmn:timeDate>
 ```
+
+| Spec | FEEL result accepted |
+|------|----------------------|
+| `timeDuration` | A FEEL duration (`duration("PT5M")`) or an ISO 8601 duration string |
+| `timeDate` | A FEEL date and time, or an ISO 8601 date-time string with an offset |
+| `timeCycle` | An ISO 8601 cycle string (`"R3/PT1H"`) |
+
+A FEEL date and time without an offset (`date and time("2026-12-01T10:00:00")`) is read as **UTC**. FEEL `now()` returns the server's local clock time without an offset, so expressions built on `now()` are only correct when the engine runs in UTC (the Docker image does). Date-times with a zone name (`@Europe/Berlin`) are not supported. A spec that cannot be resolved fails the element with `timer_resolution_failed`.
 
 ## Intermediate Timer Catch Events
 
@@ -30,7 +41,7 @@ An Intermediate Timer Catch Event pauses a running process instance until the ti
 |------------|-----------|-----------|
 | Duration | Yes | Waits for the specified duration, then continues |
 | Date | Yes | Waits until the specified date/time, then continues. If the date is in the past, continues immediately |
-| Cycle | No | Not supported per BPMN spec. The engine rejects cycle specs on intermediate catch events |
+| Cycle | No | Not supported per BPMN spec. A deploy with a cycle on an intermediate catch event is rejected |
 
 ### BPMN example
 
@@ -58,7 +69,7 @@ Timer specs can be FEEL expressions evaluated against the current token:
 </bpmn:intermediateCatchEvent>
 ```
 
-If the expression evaluates to a DateTime, it is used directly as the fire time. If it evaluates to a string, the engine parses it as an ISO 8601 spec.
+See the table under [Timer Types](#timer-types) for the accepted results.
 
 ### Runtime behaviour
 
@@ -120,6 +131,10 @@ If the user does not complete the review within 1 hour, the timer fires, the Use
 
 Every 15 minutes while the User Task is active, a parallel branch is spawned along `Flow_SendReminder` (e.g. to send a reminder notification). The User Task continues waiting. Use `R3/PT15M` to limit the reminders to 3 occurrences.
 
+### Missed cycle occurrences
+
+A cycle never catches up on occurrences it missed. If an occurrence passes while the engine is stopped (or before the timer could fire), it is skipped and counts against the repetitions; the next future occurrence fires. A non-interrupting cycle whose occurrences have all passed never fires again and ends with its host. The same rule applies to cycle Timer Start Events and Event Subprocess timer starts: after a weekend of downtime, an hourly schedule fires once at the next full interval, not once per missed hour. A cycle Timer Start whose start date already lies in the past when it is deployed or enabled skips the occurrences that are already due; when none is left, the schedule is stored as exhausted and never fires.
+
 ### Cleanup guarantees
 
 Timers are tightly bound to the lifecycle of the boundary event's host activity:
@@ -163,9 +178,9 @@ PUT  /timer-schedules/:id/enable   # Re-enable a disabled schedule
 PUT  /timer-schedules/:id/disable  # Disable a schedule
 ```
 
-Disabling a schedule stops the timer from firing. Re-enabling re-arms it with the next occurrence. The cycle's remaining repetition count is preserved across enable/disable toggles.
+Disabling a schedule stops the timer from firing. Re-enabling re-arms it with the next occurrence. The cycle's remaining repetition count is preserved across enable/disable toggles. A cycle with a start date keeps its schedule (occurrences that came due while it was disabled are skipped and count against the repetitions, occurrences that fired before the disable are not counted again); a cycle without a start date fires one interval after it is enabled.
 
-On engine restart, all enabled cycle schedules are automatically reloaded and re-armed.
+On engine restart, all enabled cycle schedules are automatically reloaded and re-armed with their next future occurrence (missed occurrences are skipped, see [Missed cycle occurrences](#missed-cycle-occurrences)). The same reload runs if the internal scheduler process ever crashes and restarts; a reload that fails there is attempted three times with increasing delay before the schedules stay unarmed until the next engine restart.
 
 Only the latest version of a process is scheduled. Deploying a new version removes the previous version's schedules, so their ids stop resolving. Deleting the latest version restores schedules for the version before it: they start again with the full repetition count and enabled, under new ids.
 
@@ -212,8 +227,9 @@ The PI is created immediately but the first activity after the start event is no
 Timer events are designed to survive engine restarts:
 
 - **Intermediate Catch**: The `fire_at` datetime is stored in the FNI's `type_properties`. On resume, if the fire time is in the future, the timer is re-registered with the Scheduler. If it is in the past, the FNI completes immediately.
-- **Boundary**: Same as Intermediate Catch — the `fire_at` is stored and re-evaluated on resume. If the timer should have fired during downtime, it fires immediately (interrupting the host if applicable). Non-interrupting **cycle** boundaries also persist `is_cycle`, remaining `cycle_repetitions`, and ISO 8601 `cycle_interval` on enter and after each re-arm; resume restores the cycle receive loop (not a one-shot) and delivers an overdue tick immediately.
-- **Cycle Start**: All enabled cycle schedules are reloaded from the database on engine boot and re-armed in the Scheduler.
+- **Boundary**: Same as Intermediate Catch — the `fire_at` is stored and re-evaluated on resume. If a duration or date timer should have fired during downtime, it fires immediately (interrupting the host if applicable). Non-interrupting **cycle** boundaries also persist `is_cycle`, remaining `cycle_repetitions`, and ISO 8601 `cycle_interval` on enter and after each re-arm; resume skips the occurrences missed during downtime, stores the next one, and keeps repeating. A boundary whose host already finished before the restart never fires.
+- **Cycle Start**: All enabled cycle schedules are reloaded from the database on engine boot and re-armed with their next future occurrence.
+- **Event Subprocess timer start**: Armed relative to the scope's start time, so a resumed scope keeps its original deadline. After an engine restart a cycle keeps its original schedule: the next occurrence is the first one plus one interval per fire so far, and occurrences missed while the engine was down are skipped. Each cycle tick emits a `TimerFired` event (`kind: start`).
 - **Date/Duration Start**: Not auto-scheduled, so no resume action is needed — the blocking gate is handled by the Start Event handler.
 
 ## Manual Trigger and Cycle Schedules
@@ -225,13 +241,13 @@ curl -X POST http://localhost:4000/timer-events/$FNI_ID/trigger \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Response `200`: `{ "triggered": true }`. Authorization is lane `"write"` (or laneless FNI, or `zeeky_boogie_doog`). Errors: `404` (not found / invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
+Response `200`: `{ "triggered": true }`, or `{ "triggered": false }` when the FNI had no armed timer to fire (for example, the handler has not armed it yet, or a cycle boundary has no occurrence left). Authorization is lane `"write"` (or laneless FNI, or `zeeky_boogie_doog`). Errors: `404` (not found / invisible), `403` (forbidden), `409` (FNI not active/waiting), `422` (`not_a_timer_event`).
 
 Cycle Timer Start schedules are listed and toggled via REST (`GET /timer-schedules`, `GET /timer-schedules/{id}`, `PUT /timer-schedules/{id}/enable`, `PUT /timer-schedules/{id}/disable`). Plugins use `facade.timers`:
 
 | Function | Purpose |
 |----------|---------|
-| `trigger_event.(flow_node_instance_id)` | Same as the REST trigger |
+| `trigger_event.(flow_node_instance_id)` | Same as the REST trigger: `{:ok, %{triggered: true}}` when a timer fired, `{:ok, %{triggered: false}}` when nothing was armed; not found, forbidden, not a timer, and not waiting are `{:error, reason}` |
 | `list_schedules.(opts)` / `get_schedule.(id)` | Inspect cycle schedules |
 | `enable_schedule.(id)` / `disable_schedule.(id)` | Toggle a cycle schedule |
 

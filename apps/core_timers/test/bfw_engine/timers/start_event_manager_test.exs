@@ -13,8 +13,8 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
   end
 
   # Wall-clock future so the 50ms test Scheduler tick cannot treat the armed
-  # entry as due. A stale `~U[2026-06-01 ...]` is in the past: `R3/PT1H`
-  # catch-up fires all remaining cycles in one tick and `armed_count` drops to 0.
+  # entry as due. A stale `~U[2026-06-01 ...]` is in the past: the first
+  # occurrence fires on the next tick and the cycle state changes under the test.
   defp future_reference_time do
     DateTime.utc_now()
     |> DateTime.add(30 * 24 * 3600, :second)
@@ -22,6 +22,10 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
   end
 
   defp far_future_iso, do: "2099-12-25T08:00:00Z"
+
+  defp past_cycle_spec(repetitions, start_at) do
+    "R#{repetitions}/#{DateTime.to_iso8601(DateTime.truncate(start_at, :second))}/PT1H"
+  end
 
   defp far_future_datetime, do: ~U[2099-12-25 08:00:00Z]
 
@@ -99,6 +103,56 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       assert schedule.cycle_total == 3
       assert schedule.cycle_remaining == 3
       assert schedule.next_fire_at == DateTime.add(reference_time, 1800, :second)
+    end
+
+    test "a start-anchored cycle fires its first occurrence at the start" do
+      start_at = DateTime.add(DateTime.utc_now(), 2 * 3600, :second)
+
+      specs = [
+        %{flow_node_id: "Timer_future", kind: :cycle, iso_spec: past_cycle_spec(3, start_at)}
+      ]
+
+      assert :ok = StartEventManager.register_timer_starts("pv-future", "future-process", specs)
+
+      {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
+      assert schedule.cycle_remaining == 3
+      assert DateTime.compare(schedule.next_fire_at, DateTime.truncate(start_at, :second)) == :eq
+    end
+
+    test "a cycle anchored in the past skips its due occurrences" do
+      start_at = DateTime.add(DateTime.utc_now(), -(2 * 3600 + 30 * 60), :second)
+
+      specs = [
+        %{flow_node_id: "Timer_past", kind: :cycle, iso_spec: past_cycle_spec(4, start_at)}
+      ]
+
+      assert :ok = StartEventManager.register_timer_starts("pv-past", "past-process", specs)
+
+      {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
+      assert schedule.cycle_total == 4
+      assert schedule.cycle_remaining == 1
+
+      assert DateTime.compare(
+               schedule.next_fire_at,
+               DateTime.add(DateTime.truncate(start_at, :second), 3 * 3600, :second)
+             ) == :eq
+
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "a cycle anchored in the past with no occurrence left is registered exhausted" do
+      start_at = DateTime.add(DateTime.utc_now(), -5 * 3600, :second)
+
+      specs = [
+        %{flow_node_id: "Timer_over", kind: :cycle, iso_spec: past_cycle_spec(2, start_at)}
+      ]
+
+      assert :ok = StartEventManager.register_timer_starts("pv-over", "over-process", specs)
+
+      {:ok, [schedule]} = PersistenceNoOp.list_all_schedules()
+      assert schedule.next_fire_at == nil
+      assert schedule.cycle_remaining == 0
+      assert Scheduler.armed_count() == 0
     end
 
     test "registers an infinite cycle" do
@@ -337,6 +391,98 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
 
       StartEventManager.enable_schedule(schedule.id, reference_time: future_reference_time())
       assert Scheduler.armed_count() == 1
+    end
+
+    test "enable_schedule skips occurrences that came due while disabled, from the persisted remaining" do
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
+
+      start_at =
+        DateTime.truncate(
+          DateTime.add(DateTime.utc_now(), -(2 * 3600 + 30 * 60), :second),
+          :second
+        )
+
+      PersistenceNoOp.create_schedule(%{
+        id: "past-anchored-cycle",
+        process_version_id: "pv-past-enable",
+        process_model_id: "past-enable-model",
+        flow_node_id: "Timer_past_enable",
+        kind: "cycle",
+        iso_spec: past_cycle_spec(10, start_at),
+        enabled: false,
+        next_fire_at: DateTime.add(start_at, 3600, :second),
+        cycle_total: 10,
+        cycle_remaining: 9
+      })
+
+      {:ok, updated} = StartEventManager.enable_schedule("past-anchored-cycle")
+
+      assert updated.enabled == true
+      assert updated.cycle_remaining == 7
+
+      assert DateTime.compare(updated.next_fire_at, DateTime.add(start_at, 3 * 3600, :second)) ==
+               :eq
+
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "enable_schedule does not count occurrences that fired before the disable again" do
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
+
+      start_at =
+        DateTime.truncate(
+          DateTime.add(DateTime.utc_now(), -(2 * 3600 + 30 * 60), :second),
+          :second
+        )
+
+      pending_occurrence = DateTime.add(start_at, 3 * 3600, :second)
+
+      PersistenceNoOp.create_schedule(%{
+        id: "anchored-cycle-fired-before-disable",
+        process_version_id: "pv-fired-enable",
+        process_model_id: "fired-enable-model",
+        flow_node_id: "Timer_fired_enable",
+        kind: "cycle",
+        iso_spec: past_cycle_spec(10, start_at),
+        enabled: false,
+        next_fire_at: pending_occurrence,
+        cycle_total: 10,
+        cycle_remaining: 7
+      })
+
+      {:ok, updated} = StartEventManager.enable_schedule("anchored-cycle-fired-before-disable")
+
+      assert updated.cycle_remaining == 7
+      assert DateTime.compare(updated.next_fire_at, pending_occurrence) == :eq
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "enable_schedule persists a past-anchored cycle without occurrences left as exhausted" do
+      ServiceReset.scheduler()
+      ServiceReset.timer_persistence()
+      start_at = DateTime.add(DateTime.utc_now(), -5 * 3600, :second)
+
+      PersistenceNoOp.create_schedule(%{
+        id: "past-anchored-exhausted",
+        process_version_id: "pv-past-exhausted",
+        process_model_id: "past-exhausted-model",
+        flow_node_id: "Timer_past_exhausted",
+        kind: "cycle",
+        iso_spec: past_cycle_spec(10, start_at),
+        enabled: false,
+        next_fire_at: nil,
+        cycle_total: 10,
+        cycle_remaining: 2
+      })
+
+      {:ok, updated} = StartEventManager.enable_schedule("past-anchored-exhausted")
+
+      assert updated.enabled == true
+      assert updated.next_fire_at == nil
+      assert updated.cycle_remaining == 0
+      assert Scheduler.armed_count() == 0
     end
 
     test "enable_schedule keeps an exhausted finite cycle exhausted" do
@@ -582,7 +728,7 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       assert Scheduler.armed_count() == 1
     end
 
-    test "re-arms a finite cycle with its persisted cycle_remaining" do
+    test "a finite cycle whose remaining occurrences were missed ends without firing" do
       PersistenceNoOp.create_schedule(%{
         id: "reload-last-repetition",
         process_version_id: "pv-last",
@@ -598,15 +744,92 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
 
       assert :ok = StartEventManager.reload_start_schedules()
 
-      assert :ok =
-               wait_until(fn ->
-                 {:ok, schedule} = PersistenceNoOp.get_schedule("reload-last-repetition")
-                 schedule.next_fire_at == nil
-               end)
-
       {:ok, schedule} = PersistenceNoOp.get_schedule("reload-last-repetition")
+      assert schedule.next_fire_at == nil
       assert schedule.cycle_remaining == 0
       assert Scheduler.armed_count() == 0
+    end
+
+    test "skips occurrences missed while not armed and arms the next future one" do
+      now = DateTime.truncate(DateTime.utc_now(), :second)
+      missed_since = DateTime.add(now, -5 * 3600 - 60, :second)
+
+      PersistenceNoOp.create_schedule(%{
+        id: "reload-missed",
+        process_version_id: "pv-missed",
+        process_model_id: "missed-model",
+        flow_node_id: "Timer_missed",
+        kind: "cycle",
+        iso_spec: "R10/PT1H",
+        enabled: true,
+        next_fire_at: missed_since,
+        cycle_total: 10,
+        cycle_remaining: 8
+      })
+
+      assert :ok = StartEventManager.reload_start_schedules()
+
+      {:ok, schedule} = PersistenceNoOp.get_schedule("reload-missed")
+      expected_next_fire_at = DateTime.add(missed_since, 6 * 3600, :second)
+      assert DateTime.compare(schedule.next_fire_at, expected_next_fire_at) == :eq
+      assert schedule.cycle_remaining == 2
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "reloading twice arms each schedule once" do
+      PersistenceNoOp.create_schedule(%{
+        id: "reload-twice",
+        process_version_id: "pv-twice",
+        process_model_id: "twice-model",
+        flow_node_id: "Timer_twice",
+        kind: "cycle",
+        iso_spec: "R/PT1H",
+        enabled: true,
+        next_fire_at: far_future_datetime()
+      })
+
+      assert :ok = StartEventManager.reload_start_schedules()
+      assert :ok = StartEventManager.reload_start_schedules()
+      assert Scheduler.armed_count() == 1
+    end
+
+    test "re-arms persisted schedules after the Scheduler crashed and restarted" do
+      unique_id = System.unique_integer([:positive])
+      scheduler_name = :"restart_scheduler_#{unique_id}"
+
+      start_supervised!(
+        {Scheduler,
+         name: scheduler_name,
+         tick_interval_ms: 20,
+         primary_table: :"restart_primary_#{unique_id}",
+         target_index_table: :"restart_target_index_#{unique_id}",
+         on_restart: {StartEventManager, :reload_start_schedules, [[scheduler: scheduler_name]]}}
+      )
+
+      PersistenceNoOp.create_schedule(%{
+        id: "reload-after-crash",
+        process_version_id: "pv-crash",
+        process_model_id: "crash-model",
+        flow_node_id: "Timer_crash",
+        kind: "cycle",
+        iso_spec: "R/PT1H",
+        enabled: true,
+        next_fire_at: far_future_datetime()
+      })
+
+      assert :ok = StartEventManager.reload_start_schedules(scheduler: scheduler_name)
+      assert Scheduler.armed_count(scheduler_name) == 1
+
+      crashed_pid = Process.whereis(scheduler_name)
+      Process.exit(crashed_pid, :kill)
+
+      assert :ok =
+               wait_until(fn ->
+                 restarted_pid = Process.whereis(scheduler_name)
+
+                 is_pid(restarted_pid) and restarted_pid != crashed_pid and
+                   Scheduler.armed_count(scheduler_name) == 1
+               end)
     end
 
     test "is a no-op when no armed schedules exist" do

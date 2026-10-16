@@ -113,7 +113,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
          flow_node_instance_id: id
        })
        when is_pid(pid) and is_binary(id) do
-    :gen_statem.call(pid, {:mi_reattach_iterations, id})
+    :gen_statem.call(pid, {:mi_reattach_iterations, id}, :infinity)
   end
 
   defp reattach_existing_iterations(_context), do: {:ok, empty_iteration_snapshot()}
@@ -190,15 +190,29 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
   end
 
   defp await_live_then_continue_sequential(flow_node, token, context, mi, resume_state) do
-    case collect_iteration_results(
-           resume_state.live_count,
-           mi,
-           resume_state.total,
-           context,
-           token.payload || %{},
-           Enum.reverse(resume_state.finished)
-         ) do
-      {:ok, collected} ->
+    token_payload = token.payload || %{}
+
+    with {:ok, collected} <-
+           collect_iteration_results(
+             resume_state.live_count,
+             mi,
+             resume_state.total,
+             context,
+             token_payload,
+             Enum.reverse(resume_state.finished)
+           ),
+         {:ok, break_met} <-
+           resumed_break_met(mi, collected, resume_state.total, context, token_payload) do
+      if break_met do
+        finish_parallel_shell(
+          flow_node,
+          mi,
+          resume_state.total,
+          context,
+          token_payload,
+          collected
+        )
+      else
         finish_or_continue_sequential(
           flow_node,
           token,
@@ -209,11 +223,14 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
           resume_state.occupied,
           collected
         )
-
-      {:error, reason} ->
-        {:error, reason}
+      end
     end
   end
+
+  defp resumed_break_met(_mi, [], _total, _context, _token_payload), do: {:ok, false}
+
+  defp resumed_break_met(mi, collected, total, context, token_payload),
+    do: should_break?(mi, collected, total, context, token_payload)
 
   defp finish_or_continue_sequential(
          flow_node,
@@ -366,7 +383,8 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
         case :gen_statem.call(
                context.process_instance_pid,
                {:mi_dispatch_iteration, context.flow_node_instance_id, index, item,
-                iteration_token, loop_overlay, flow_node}
+                iteration_token, loop_overlay, flow_node},
+               :infinity
              ) do
           {:ok, _iteration_fni_id} -> :ok
           {:error, reason} -> {:error, reason, index}

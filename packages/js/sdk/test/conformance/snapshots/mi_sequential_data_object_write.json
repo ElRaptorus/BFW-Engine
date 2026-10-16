@@ -1,0 +1,150 @@
+{
+  "definitionsId": "Definitions_MiSequentialDataObjectWrite",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [
+        {
+          "dataObjectRef": "LastValue",
+          "dataState": null,
+          "id": "LastValueRef",
+          "name": null
+        }
+      ],
+      "dataObjects": [
+        {
+          "id": "LastValue",
+          "itemSubjectRef": null,
+          "name": "Last Value",
+          "valueContract": null
+        }
+      ],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [
+            {
+              "id": "DOA_LastValue",
+              "sourceRef": null,
+              "targetRef": "LastValueRef",
+              "valueExpression": "if token.value = null then 0 else token.value"
+            }
+          ],
+          "documentation": null,
+          "id": "Task_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": {
+            "collectionExpression": "token.items",
+            "compiledCollection": null,
+            "compiledCompletionCondition": null,
+            "compiledLoopBreakCondition": null,
+            "compiledOutputCollection": null,
+            "completionCondition": null,
+            "elementVariable": "item",
+            "isSequential": true,
+            "loopBreakCondition": null,
+            "loopCardinality": null,
+            "loopInterval": null,
+            "maxIterations": null,
+            "outputCollection": "results",
+            "outputElementVariable": null
+          },
+          "name": "Remember Item",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "script_task",
+          "typeData": {
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "script": "{ value: token.item, seen: dataObjects.LastValue }",
+            "scriptFormat": "feel",
+            "scriptRef": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "mi-sequential-data-object-write",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Task_1", "End_1"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "MI Sequential Data Object Write",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Task_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_1",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

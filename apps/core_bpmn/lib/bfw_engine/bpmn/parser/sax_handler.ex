@@ -324,7 +324,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   end
 
   defp handle_start("valueContract", _attributes, %{current_data_object: %DataObject{}} = state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_value_contract | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_value_contract | state.stack]}}
   end
 
   defp handle_start("laneSet", _attributes, state) do
@@ -492,11 +492,11 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   # bfw:* extension elements
   defp handle_start("version", _attributes, %{stack: stack} = state)
        when hd(stack) == :process or hd(stack) == :extension_elements do
-    {:ok, %{state | text_buffer: "", stack: [:evil_version | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_version | state.stack]}}
   end
 
   defp handle_start("correlationKey", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_correlation_key | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_correlation_key | state.stack]}}
   end
 
   # Definitions-level linter score written by the Studio
@@ -528,7 +528,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   end
 
   defp handle_start("assignees", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_assignees | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_assignees | state.stack]}}
   end
 
   defp handle_start("formFields", _attributes, state) do
@@ -540,95 +540,95 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   end
 
   defp handle_start("resultContract", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_result_contract | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_result_contract | state.stack]}}
   end
 
   defp handle_start("payloadContract", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_payload_contract | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_payload_contract | state.stack]}}
   end
 
   defp handle_start("activeElements", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_active_elements | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_active_elements | state.stack]}}
   end
 
   defp handle_start("implementation", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_implementation | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_implementation | state.stack]}}
   end
 
   defp handle_start("scriptRef", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_script_ref | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_script_ref | state.stack]}}
   end
 
   defp handle_start("httpUrl", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_http_url | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_http_url | state.stack]}}
   end
 
   defp handle_start("httpMethod", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_http_method | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_http_method | state.stack]}}
   end
 
   defp handle_start("httpBody", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_http_body | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_http_body | state.stack]}}
   end
 
   defp handle_start("httpAuthHeader", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_http_auth_header | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_http_auth_header | state.stack]}}
   end
 
   defp handle_start("httpResponseHeaders", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_http_response_headers | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_http_response_headers | state.stack]}}
   end
 
   defp handle_start("dueDate", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_due_date | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_due_date | state.stack]}}
   end
 
   defp handle_start("priority", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_priority | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_priority | state.stack]}}
   end
 
   defp handle_start("requireConfirmation", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_require_confirmation | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_require_confirmation | state.stack]}}
   end
 
   defp handle_start("correlationRetrievalExpression", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_correlation_retrieval | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_correlation_retrieval | state.stack]}}
   end
 
   defp handle_start("errorCode", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_error_code | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_error_code | state.stack]}}
   end
 
   defp handle_start("errorMessage", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_error_message | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_error_message | state.stack]}}
   end
 
   defp handle_start("inputCollection", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_input_collection | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_input_collection | state.stack]}}
   end
 
   defp handle_start("outputCollection", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_output_collection | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_output_collection | state.stack]}}
   end
 
   defp handle_start("loopBreakCondition", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_loop_break_condition | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_loop_break_condition | state.stack]}}
   end
 
   defp handle_start("loopInterval", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_loop_interval | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_loop_interval | state.stack]}}
   end
 
   defp handle_start("maxIterations", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_max_iterations | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_max_iterations | state.stack]}}
   end
 
   defp handle_start("elementVariable", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_element_variable | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_element_variable | state.stack]}}
   end
 
   defp handle_start("outputElementVariable", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_output_element_variable | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_output_element_variable | state.stack]}}
   end
 
   defp handle_start("inputDataItem", attributes, %{current_mi: %MultiInstance{}} = state) do
@@ -666,27 +666,27 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   end
 
   defp handle_start("startEventId", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_start_event_id | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_start_event_id | state.stack]}}
   end
 
   defp handle_start("calledProcessVersion", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_called_process_version | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_called_process_version | state.stack]}}
   end
 
   defp handle_start("decisionRef", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_decision_ref | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_decision_ref | state.stack]}}
   end
 
   defp handle_start("decisionElementId", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_decision_element_id | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_decision_element_id | state.stack]}}
   end
 
   defp handle_start("resultVariable", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_result_variable | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_result_variable | state.stack]}}
   end
 
   defp handle_start("traceUnmatchedRules", _attributes, state) do
-    {:ok, %{state | text_buffer: "", stack: [:evil_trace_unmatched_rules | state.stack]}}
+    {:ok, %{state | text_buffer: "", stack: [:bfw_trace_unmatched_rules | state.stack]}}
   end
 
   defp handle_start("extensionElements", _attributes, state) do
@@ -1049,7 +1049,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
 
   defp handle_end(
          "valueContract",
-         %{stack: [:evil_value_contract | rest], current_data_object: %DataObject{} = obj} = state
+         %{stack: [:bfw_value_contract | rest], current_data_object: %DataObject{} = obj} = state
        ) do
     text = String.trim(state.text_buffer)
     schema = parse_json_text(text)
@@ -1115,7 +1115,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
      }}
   end
 
-  defp handle_end("version", %{stack: [:evil_version | rest]} = state) do
+  defp handle_end("version", %{stack: [:bfw_version | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     state =
@@ -1130,7 +1130,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("correlationKey", %{stack: [:evil_correlation_key | rest]} = state) do
+  defp handle_end("correlationKey", %{stack: [:bfw_correlation_key | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     state =
@@ -1145,7 +1145,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("assignees", %{stack: [:evil_assignees | rest]} = state) do
+  defp handle_end("assignees", %{stack: [:bfw_assignees | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1190,7 +1190,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   defp handle_end(
          "resultContract",
          %{
-           stack: [:evil_result_contract | rest],
+           stack: [:bfw_result_contract | rest],
            current_node_data: nil,
            subprocess_stack: [saved | rest_subprocess]
          } = state
@@ -1208,7 +1208,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
      }}
   end
 
-  defp handle_end("resultContract", %{stack: [:evil_result_contract | rest]} = state) do
+  defp handle_end("resultContract", %{stack: [:bfw_result_contract | rest]} = state) do
     text = String.trim(state.text_buffer)
     schema = parse_json_text(text)
     data = apply_result_contract(state.current_node_data, schema)
@@ -1218,7 +1218,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   defp handle_end(
          "payloadContract",
          %{
-           stack: [:evil_payload_contract | rest],
+           stack: [:bfw_payload_contract | rest],
            current_node_data: nil,
            subprocess_stack: [saved | rest_subprocess]
          } = state
@@ -1236,7 +1236,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
      }}
   end
 
-  defp handle_end("payloadContract", %{stack: [:evil_payload_contract | rest]} = state) do
+  defp handle_end("payloadContract", %{stack: [:bfw_payload_contract | rest]} = state) do
     text = String.trim(state.text_buffer)
     schema = parse_json_text(text)
     data = apply_payload_contract(state.current_node_data, schema)
@@ -1246,7 +1246,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   defp handle_end(
          "activeElements",
          %{
-           stack: [:evil_active_elements | rest],
+           stack: [:bfw_active_elements | rest],
            current_node_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data
          } = state
        ) do
@@ -1265,7 +1265,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
   defp handle_end(
          "activeElements",
          %{
-           stack: [:evil_active_elements | rest],
+           stack: [:bfw_active_elements | rest],
            current_node_data: nil,
            subprocess_stack: [
              %{subprocess_data: %FlowNodeData.SubProcess{is_ad_hoc: true} = sp_data} = saved
@@ -1291,11 +1291,11 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
      }}
   end
 
-  defp handle_end("activeElements", %{stack: [:evil_active_elements | rest]} = state) do
+  defp handle_end("activeElements", %{stack: [:bfw_active_elements | rest]} = state) do
     {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("implementation", %{stack: [:evil_implementation | rest]} = state) do
+  defp handle_end("implementation", %{stack: [:bfw_implementation | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1310,7 +1310,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("scriptRef", %{stack: [:evil_script_ref | rest]} = state) do
+  defp handle_end("scriptRef", %{stack: [:bfw_script_ref | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1325,7 +1325,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("httpUrl", %{stack: [:evil_http_url | rest]} = state) do
+  defp handle_end("httpUrl", %{stack: [:bfw_http_url | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1337,7 +1337,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("httpMethod", %{stack: [:evil_http_method | rest]} = state) do
+  defp handle_end("httpMethod", %{stack: [:bfw_http_method | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1349,7 +1349,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("httpBody", %{stack: [:evil_http_body | rest]} = state) do
+  defp handle_end("httpBody", %{stack: [:bfw_http_body | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1361,7 +1361,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("httpAuthHeader", %{stack: [:evil_http_auth_header | rest]} = state) do
+  defp handle_end("httpAuthHeader", %{stack: [:bfw_http_auth_header | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1373,7 +1373,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("httpResponseHeaders", %{stack: [:evil_http_response_headers | rest]} = state) do
+  defp handle_end("httpResponseHeaders", %{stack: [:bfw_http_response_headers | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1385,7 +1385,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("dueDate", %{stack: [:evil_due_date | rest]} = state) do
+  defp handle_end("dueDate", %{stack: [:bfw_due_date | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1397,7 +1397,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("priority", %{stack: [:evil_priority | rest]} = state) do
+  defp handle_end("priority", %{stack: [:bfw_priority | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1409,7 +1409,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("requireConfirmation", %{stack: [:evil_require_confirmation | rest]} = state) do
+  defp handle_end("requireConfirmation", %{stack: [:bfw_require_confirmation | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1426,7 +1426,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
 
   defp handle_end(
          "correlationRetrievalExpression",
-         %{stack: [:evil_correlation_retrieval | rest]} = state
+         %{stack: [:bfw_correlation_retrieval | rest]} = state
        ) do
     text = String.trim(state.text_buffer)
 
@@ -1444,7 +1444,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     end
   end
 
-  defp handle_end("errorCode", %{stack: [:evil_error_code | rest]} = state) do
+  defp handle_end("errorCode", %{stack: [:bfw_error_code | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     event_def =
@@ -1459,7 +1459,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_event_def: event_def, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("errorMessage", %{stack: [:evil_error_message | rest]} = state) do
+  defp handle_end("errorMessage", %{stack: [:bfw_error_message | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     event_def =
@@ -1474,28 +1474,28 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_event_def: event_def, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("inputCollection", %{stack: [:evil_input_collection | rest]} = state) do
+  defp handle_end("inputCollection", %{stack: [:bfw_input_collection | rest]} = state) do
     text = String.trim(state.text_buffer)
     mi = update_mi(state.current_mi, :collection_expression, text)
 
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("outputCollection", %{stack: [:evil_output_collection | rest]} = state) do
+  defp handle_end("outputCollection", %{stack: [:bfw_output_collection | rest]} = state) do
     text = String.trim(state.text_buffer)
     mi = update_mi(state.current_mi, :output_collection, text)
 
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("loopBreakCondition", %{stack: [:evil_loop_break_condition | rest]} = state) do
+  defp handle_end("loopBreakCondition", %{stack: [:bfw_loop_break_condition | rest]} = state) do
     text = String.trim(state.text_buffer)
     mi = update_mi(state.current_mi, :loop_break_condition, text)
 
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("loopInterval", %{stack: [:evil_loop_interval | rest]} = state) do
+  defp handle_end("loopInterval", %{stack: [:bfw_loop_interval | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     state =
@@ -1513,7 +1513,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("maxIterations", %{stack: [:evil_max_iterations | rest]} = state) do
+  defp handle_end("maxIterations", %{stack: [:bfw_max_iterations | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     mi =
@@ -1528,7 +1528,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("elementVariable", %{stack: [:evil_element_variable | rest]} = state) do
+  defp handle_end("elementVariable", %{stack: [:bfw_element_variable | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     mi =
@@ -1545,7 +1545,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
 
   defp handle_end(
          "outputElementVariable",
-         %{stack: [:evil_output_element_variable | rest]} = state
+         %{stack: [:bfw_output_element_variable | rest]} = state
        ) do
     text = String.trim(state.text_buffer)
 
@@ -1591,7 +1591,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_mi: mi, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("startEventId", %{stack: [:evil_start_event_id | rest]} = state) do
+  defp handle_end("startEventId", %{stack: [:bfw_start_event_id | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1606,7 +1606,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("calledProcessVersion", %{stack: [:evil_called_process_version | rest]} = state) do
+  defp handle_end("calledProcessVersion", %{stack: [:bfw_called_process_version | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1621,7 +1621,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("decisionRef", %{stack: [:evil_decision_ref | rest]} = state) do
+  defp handle_end("decisionRef", %{stack: [:bfw_decision_ref | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1636,7 +1636,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("decisionElementId", %{stack: [:evil_decision_element_id | rest]} = state) do
+  defp handle_end("decisionElementId", %{stack: [:bfw_decision_element_id | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1651,7 +1651,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("resultVariable", %{stack: [:evil_result_variable | rest]} = state) do
+  defp handle_end("resultVariable", %{stack: [:bfw_result_variable | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =
@@ -1666,7 +1666,7 @@ defmodule BfwEngine.BPMN.Parser.SaxHandler do
     {:ok, %{state | current_node_data: data, text_buffer: "", stack: rest}}
   end
 
-  defp handle_end("traceUnmatchedRules", %{stack: [:evil_trace_unmatched_rules | rest]} = state) do
+  defp handle_end("traceUnmatchedRules", %{stack: [:bfw_trace_unmatched_rules | rest]} = state) do
     text = String.trim(state.text_buffer)
 
     data =

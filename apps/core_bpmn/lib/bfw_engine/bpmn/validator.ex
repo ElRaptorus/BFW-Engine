@@ -1560,19 +1560,35 @@ defmodule BfwEngine.BPMN.Validator do
          %EventDefinition.Timer{} = event_definition,
          scope_label
        ) do
-    has_any =
-      not blank?(event_definition.time_date) or not blank?(event_definition.time_duration) or
-        not blank?(event_definition.time_cycle)
+    timer_specs =
+      Enum.reject(
+        [
+          time_date: event_definition.time_date,
+          time_duration: event_definition.time_duration,
+          time_cycle: event_definition.time_cycle
+        ],
+        fn {_field, value} -> blank?(value) end
+      )
 
-    if has_any do
-      []
-    else
-      [
-        {:incomplete_event_definition,
-         scope_label <>
-           "#{type_label(type)} '#{id}' has a TimerEventDefinition that is missing required properties: " <>
-           "timeDate, timeDuration, or timeCycle (exactly one must be provided)"}
-      ]
+    case timer_specs do
+      [] ->
+        [
+          {:incomplete_event_definition,
+           scope_label <>
+             "#{type_label(type)} '#{id}' has a TimerEventDefinition that is missing required properties: " <>
+             "timeDate, timeDuration, or timeCycle (exactly one must be provided)"}
+        ]
+
+      [timer_spec] ->
+        timer_spec_violations(id, type, timer_spec, scope_label)
+
+      _several ->
+        [
+          {:timer_multiple_specs,
+           scope_label <>
+             "#{type_label(type)} '#{id}' has a TimerEventDefinition with more than one of " <>
+             "timeDate, timeDuration, and timeCycle (exactly one must be provided)"}
+        ]
     end
   end
 
@@ -1610,6 +1626,33 @@ defmodule BfwEngine.BPMN.Validator do
 
   # Error, Escalation, Compensation, Terminate, Cancel, None — no mandatory fields
   defp validate_event_definition_completeness(_id, _type, _event_definition, _scope_label), do: []
+
+  defp timer_spec_violations(id, :intermediate_catch_event, {:time_cycle, _cycle}, scope_label) do
+    [
+      {:timer_cycle_on_intermediate_catch,
+       scope_label <>
+         "Intermediate Catch Event '#{id}' has a timeCycle; a timer Intermediate Catch Event " <>
+         "supports only timeDate or timeDuration"}
+    ]
+  end
+
+  defp timer_spec_violations(id, type, {:time_date, time_date}, scope_label) do
+    # A FEEL expression is not a date-time literal and is only resolved at runtime.
+    case DateTime.from_iso8601(String.trim(time_date)) do
+      {:error, :missing_offset} ->
+        [
+          {:timer_date_missing_offset,
+           scope_label <>
+             "#{type_label(type)} '#{id}' has a timeDate '#{time_date}' without a UTC offset; " <>
+             "append Z or an offset such as +02:00"}
+        ]
+
+      _parsed_or_expression ->
+        []
+    end
+  end
+
+  defp timer_spec_violations(_id, _type, _timer_spec, _scope_label), do: []
 
   # ---------------------------------------------------------------------------
   # Helpers

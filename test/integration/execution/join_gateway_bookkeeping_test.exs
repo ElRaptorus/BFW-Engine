@@ -67,6 +67,35 @@ defmodule BfwEngine.Integration.Execution.JoinGatewayBookkeepingTest do
       assert join.error_info["error_code"] == "duplicate_join_arrival"
       assert join.error_info["message"] =~ "Flow_Merged"
     end
+
+    test "the arrival rows survive the fatal and a retry rebuilds the join" do
+      process_instance_id =
+        http_deploy_and_start(
+          "parallel_gateway_duplicate_arrival.bpmn",
+          "ParallelGatewayDuplicateArrival"
+        )
+
+      {:ok, _process_instance} = await_process_instance_state(process_instance_id, "fatal")
+      join = find_fni_by_flow_node_id(process_instance_id, "Gateway_Join")
+
+      assert [["Flow_Merged"]] =
+               Repo.query!(
+                 "SELECT source_branch_sequence_flow_id FROM gateway_pending_arrivals " <>
+                   "WHERE gateway_flow_node_instance_id = $1",
+                 [Ecto.UUID.dump!(join.id)]
+               ).rows
+
+      {204, _} = http_retry_process_instance(process_instance_id)
+      {:ok, wait_task} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_Wait")
+      {204, _} = http_finish_user_task(wait_task.id, %{})
+
+      assert {:ok, _process_instance} =
+               await_process_instance_state(process_instance_id, "finished")
+
+      flow_node_instances = fetch_flow_node_instances(process_instance_id)
+      assert finished_count(flow_node_instances, "Gateway_Join") == 1
+      assert finished_count(flow_node_instances, "End_1") == 1
+    end
   end
 
   describe "B3: complex join region cancel" do

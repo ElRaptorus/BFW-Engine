@@ -215,14 +215,7 @@ defmodule BfwEngine.Api.ProcessInstances do
           | {:error, atom(), term(), term()}
           | BfwEngine.Api.forbidden_error()
   def retry_process_instance(process_instance_id, retry_opts, identity, opts \\ []) do
-    persistence_adapter = Persistence.adapter()
-
-    with {:ok, pi_data} <-
-           PersistenceRetry.with_retry(
-             fn -> persistence_adapter.get_process_instance_for_retry(process_instance_id) end,
-             "Api: get PI for retry #{process_instance_id}",
-             max_attempts: 3
-           ),
+    with {:ok, pi_data} <- fetch_process_instance_for_retry(process_instance_id),
          :ok <-
            Validation.check_scoped_claim(
              identity,
@@ -239,6 +232,21 @@ defmodule BfwEngine.Api.ProcessInstances do
         identity: identity,
         reset_to_flow_node_instance_id: Map.get(retry_opts, "resetToFlowNodeInstanceId")
       )
+    end
+  end
+
+  defp fetch_process_instance_for_retry(process_instance_id) do
+    persistence_adapter = Persistence.adapter()
+
+    case PersistenceRetry.with_retry(
+           fn -> persistence_adapter.get_process_instance_for_retry(process_instance_id) end,
+           "Api: get PI for retry #{process_instance_id}",
+           max_attempts: 3,
+           final_reasons: [:not_found]
+         ) do
+      {:ok, pi_data} -> {:ok, pi_data}
+      {:error, :not_found} -> {:error, :not_found}
+      {:error, reason} -> {:error, :service_unavailable, reason}
     end
   end
 

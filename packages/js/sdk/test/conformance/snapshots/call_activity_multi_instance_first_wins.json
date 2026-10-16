@@ -1,0 +1,233 @@
+{
+  "definitionsId": "Definitions_CallActivityMiFirstWins",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Call_Child",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": {
+            "collectionExpression": "token.items",
+            "compiledCollection": null,
+            "compiledCompletionCondition": null,
+            "compiledLoopBreakCondition": null,
+            "compiledOutputCollection": null,
+            "completionCondition": "loop.completed >= 1",
+            "elementVariable": "item",
+            "isSequential": false,
+            "loopBreakCondition": null,
+            "loopCardinality": null,
+            "loopInterval": null,
+            "maxIterations": null,
+            "outputCollection": "results",
+            "outputElementVariable": null
+          },
+          "name": "Call Child per Item",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "call_activity",
+          "typeData": {
+            "calledElement": "CallActivityMiFirstWinsChild",
+            "calledProcessVersion": null,
+            "inMappings": [],
+            "outMappings": [],
+            "startEventId": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CallActivityMiFirstWins",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Call_Child", "End_1"],
+          "id": "Lane_default_Parent",
+          "name": "default"
+        }
+      ],
+      "name": "Call Activity MI First Wins",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Call_Child"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Call_Child",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Child_Start",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Child Start",
+          "outgoing": ["Child_Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Child_Work",
+          "incoming": ["Child_Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Child Work",
+          "outgoing": ["Child_Flow_2"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Child_End",
+          "incoming": ["Child_Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Child Done",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CallActivityMiFirstWinsChild",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Child_Start", "Child_Work", "Child_End"],
+          "id": "Lane_default_Child",
+          "name": "default"
+        }
+      ],
+      "name": "Call Activity MI First Wins Child",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Child_Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Child_Start",
+          "targetRef": "Child_Work"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Child_Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Child_Work",
+          "targetRef": "Child_End"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

@@ -301,7 +301,7 @@
         "EndEvent",
         "SendTask"
       ],
-      "model_field": "EventDefinition.Message.correlation_retrieval_expression"
+      "model_field": "EventDefinition.Message.correlation_retrieval_expression / FlowNodeData.SendTask.correlation_retrieval_expression"
     },
     {
       "element": "errorCode",

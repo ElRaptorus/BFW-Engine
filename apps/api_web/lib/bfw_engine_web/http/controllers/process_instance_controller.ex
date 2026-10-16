@@ -268,6 +268,28 @@ defmodule BfwEngineWeb.Http.ProcessInstanceController do
     )
   end
 
+  defp render_retry_error(conn, _process_instance_id, {:error, :engine_shutting_down}) do
+    conn
+    |> put_resp_header("retry-after", "5")
+    |> render_error(
+      503,
+      "engine_shutting_down",
+      "The engine is shutting down and starts no process instances"
+    )
+  end
+
+  defp render_retry_error(conn, _process_instance_id, {:error, :service_unavailable, reason}) do
+    Logger.error("Retry could not read the process instance: #{inspect(reason)}")
+
+    conn
+    |> put_resp_header("retry-after", "5")
+    |> render_error(
+      503,
+      "service_unavailable",
+      "The process instance could not be read because the database is unavailable; retry later"
+    )
+  end
+
   defp render_retry_error(conn, _process_instance_id, {:error, :ancestor_not_found, ancestor_id}) do
     render_error(
       conn,

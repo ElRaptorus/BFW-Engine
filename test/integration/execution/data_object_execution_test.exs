@@ -228,6 +228,26 @@ defmodule BfwEngine.Integration.Execution.DataObjectExecutionTest do
     end
   end
 
+  describe "DO-I10: DOA transformation that evaluates to null" do
+    test "the causing flow node fatals with data_object_value_null, no DO written" do
+      process_instance_id =
+        http_deploy_and_start("data_object_doa_null_value.bpmn", "DataObjectDoaNullValue")
+
+      wait_for_process_instance(process_instance_id)
+      assert_pi_state!(process_instance_id, "fatal")
+
+      script_task = find_fni_by_flow_node_id(process_instance_id, "ScriptTask_1")
+      assert script_task.state == "fatal"
+      assert script_task.error_info["error_code"] == "data_object_value_null"
+      assert script_task.error_info["message"] =~ "'ScriptTask_1'"
+      assert script_task.error_info["message"] =~ "'DO_1'"
+      assert script_task.error_info["message"] =~ "'token.missing'"
+
+      assert fetch_data_objects(process_instance_id) == []
+      assert fetch_data_object_writes(process_instance_id) == []
+    end
+  end
+
   # -------------------------------------------------------------------
   # 8. Multi Object Mixed Access
   # -------------------------------------------------------------------

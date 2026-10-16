@@ -458,7 +458,9 @@ paths:
         "503":
           description: >-
             Maximum concurrent process instances reached (D49 Layer 1 —
-            `BFE_MAX_CONCURRENT_PIS`). Clients may retry after `Retry-After`.
+            `BFE_MAX_CONCURRENT_PIS`, error `engine_at_capacity`), or the
+            engine is shutting down and starts no process instances (error
+            `engine_shutting_down`). Clients may retry after `Retry-After`.
           headers:
             Retry-After:
               schema:
@@ -467,7 +469,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EngineAtCapacityError"
+                oneOf:
+                  - $ref: "#/components/schemas/EngineAtCapacityError"
+                  - $ref: "#/components/schemas/Error"
         "500":
           description: Unexpected internal error while starting the instance
           content:
@@ -671,8 +675,11 @@ paths:
                   - $ref: "#/components/schemas/Error"
         "503":
           description: >-
-            Engine at capacity (`BFE_MAX_CONCURRENT_PIS`). Client may retry
-            after `Retry-After` seconds.
+            Engine at capacity (`BFE_MAX_CONCURRENT_PIS`, error
+            `engine_at_capacity`), the engine is shutting down (error
+            `engine_shutting_down`), or the process instance could not be read
+            because the database is unavailable (error `service_unavailable`).
+            Client may retry after `Retry-After` seconds.
           headers:
             Retry-After:
               schema:
@@ -681,7 +688,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EngineAtCapacityError"
+                oneOf:
+                  - $ref: "#/components/schemas/EngineAtCapacityError"
+                  - $ref: "#/components/schemas/Error"
 
   /process-instances/{id}:
     delete:
@@ -1123,7 +1132,9 @@ paths:
         - $ref: "#/components/parameters/FlowNodeInstanceId"
       responses:
         "200":
-          description: Timer triggered
+          description: >-
+            Request accepted. `triggered` is `false` when the FNI held no armed
+            timer (for example, its handler had not armed it yet), so nothing fired.
           content:
             application/json:
               schema:

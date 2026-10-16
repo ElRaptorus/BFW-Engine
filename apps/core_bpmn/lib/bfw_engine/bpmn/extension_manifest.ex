@@ -333,7 +333,9 @@ defmodule BfwEngine.BPMN.ExtensionManifest do
       carrier: :body,
       attributes: [],
       applicable_to: ["IntermediateThrowEvent", "EndEvent", "SendTask"],
-      model_field: "EventDefinition.Message.correlation_retrieval_expression"
+      model_field:
+        "EventDefinition.Message.correlation_retrieval_expression / " <>
+          "FlowNodeData.SendTask.correlation_retrieval_expression"
     },
 
     # -------------------------------------------------------------------

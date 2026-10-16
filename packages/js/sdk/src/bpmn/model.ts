@@ -319,6 +319,8 @@ export interface SendTaskTypeData extends WithMappings {
   type: 'send_task';
   messageRef: string | null;
   payloadContract: Record<string, unknown> | null;
+  /** `bfw:correlationRetrievalExpression` — FEEL stamped onto the sent message as its correlation value. */
+  correlationRetrievalExpression: string | null;
 }
 
 export interface ReceiveTaskTypeData extends WithMappings {

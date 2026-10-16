@@ -351,7 +351,7 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
          {:loop_condition_failed,
           %{flow_node_id: id, condition: condition, expression: expression, reason: reason}}
        ) do
-    "Loop activity '#{id}' could not evaluate its #{condition} '#{expression}': #{reason}"
+    "Loop activity '#{id}' could not evaluate its #{condition} '#{expression}': #{reason}."
   end
 
   defp humanize_error({:ambiguous_start_event, _detail}) do
@@ -488,6 +488,47 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
       "#{format_detail(reason)}."
   end
 
+  defp humanize_error({:lost_successor_repair_failed, flow_node_id, failure}) do
+    "After an engine restart, flow node '#{flow_node_id}' had finished but its successors had " <>
+      "not been created, and resolving its outgoing sequence flows again failed: " <>
+      "#{format_detail(failure)}."
+  end
+
+  defp humanize_error(
+         {:child_resume_failed,
+          %{child_process_instance_id: child_process_instance_id, reason: reason}}
+       ) do
+    "After an engine restart, the row of child process instance '#{child_process_instance_id}' " <>
+      "could not be read from the database (#{format_detail(reason)}), so the shell neither " <>
+      "resumed that child nor started a second one."
+  end
+
+  defp humanize_error(
+         {:event_subprocess_timer_resolution_failed, subprocess_node_id,
+          %{expression: expression, reason: reason}}
+       ) do
+    "The timer '#{expression}' of the start event of Event Subprocess '#{subprocess_node_id}' " <>
+      "could not be resolved to a fire time when its scope started, so the Event Subprocess " <>
+      "could never fire: #{format_detail(reason)}."
+  end
+
+  defp humanize_error(
+         {:data_object_value_null,
+          %{flow_node_id: flow_node_id, data_object_id: data_object_id, expression: nil}}
+       ) do
+    "Flow node '#{flow_node_id}' cannot write data object '#{data_object_id}': its data output " <>
+      "association has no transformation and the flow node's output is null; a data object " <>
+      "needs a value."
+  end
+
+  defp humanize_error(
+         {:data_object_value_null,
+          %{flow_node_id: flow_node_id, data_object_id: data_object_id, expression: expression}}
+       ) do
+    "Flow node '#{flow_node_id}' cannot write data object '#{data_object_id}': the transformation " <>
+      "'#{expression}' of its data output association evaluated to null; a data object needs a value."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end
@@ -517,6 +558,29 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   defp format_detail({:feel_eval_failed, expression, reason}),
     do: "FEEL expression '#{expression}' — #{reason}"
 
+  defp format_detail({:not_a_date_time, value}),
+    do: "the timeDate expression yielded #{feel_value_text(value)}, which is not a date-time"
+
+  defp format_detail({:not_a_duration, value}),
+    do: "the timeDuration expression yielded #{feel_value_text(value)}, which is not a duration"
+
+  defp format_detail({:not_a_cycle, value}) do
+    "the timeCycle expression yielded #{feel_value_text(value)}, which is not an ISO 8601 " <>
+      "repeating interval string such as 'R3/PT1H'"
+  end
+
+  defp format_detail({:unsupported_time_zone, text}) do
+    "the date-time '#{text}' names a time zone; timers accept only a UTC offset " <>
+      "such as 'Z' or '+02:00'"
+  end
+
+  defp format_detail({:invalid_date_time, text, reason}),
+    do: "'#{text}' is not a valid ISO 8601 date-time (#{format_detail(reason)})"
+
+  defp format_detail({:non_positive_cycle_interval, text}),
+    do:
+      "the timeCycle interval '#{text}' is not positive; a cycle needs an interval greater than zero"
+
   defp format_detail(detail) when is_tuple(detail),
     do: detail |> Tuple.to_list() |> Enum.map_join(", ", &format_detail/1)
 
@@ -527,6 +591,13 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     do: detail["message"]
 
   defp format_detail(_detail), do: "see error details"
+
+  defp feel_value_text(nil), do: "null"
+  defp feel_value_text(value) when is_binary(value), do: "'#{value}'"
+  defp feel_value_text(value) when is_number(value) or is_boolean(value), do: to_string(value)
+  defp feel_value_text(value) when is_list(value), do: "a list"
+  defp feel_value_text(value) when is_map(value), do: "a context"
+  defp feel_value_text(_value), do: "a value of another FEEL type"
 
   defp input_violation_message(element, violations) do
     "#{element} input does not match the payload contract: #{format_violations_summary(violations)}"

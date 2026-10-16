@@ -21,6 +21,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
   alias BfwEngine.Execution.Persistence, as: PersistenceAdapter
+  alias BfwEngine.Execution.PersistenceRetry
   alias BfwEngine.Execution.ProcessInstance
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Types.Token
@@ -138,12 +139,12 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     end
   end
 
-  # A cancelled child is a terminal message only the extra message handler
-  # (the transaction shell) understands, so it is replayed to that handler.
+  # Only the transaction shell's extra message handler understands a cancelled child.
   defp noproc_outcome(child_pid, child_process_instance_id, extra_message_handler)
        when is_function(extra_message_handler, 1) do
-    with {:ok, %{state: "cancelled"}} <-
-           PersistenceAdapter.adapter().get_process_instance_for_retry(child_process_instance_id),
+    lookup_result = fetch_persisted_child(child_process_instance_id)
+
+    with {:ok, %{state: "cancelled"}} <- lookup_result,
          {:handled, result} <-
            extra_message_handler.(
              {:child_pi_cancelled, child_pid,
@@ -151,7 +152,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
            ) do
       result
     else
-      _not_cancelled -> persisted_child_outcome(child_process_instance_id)
+      _not_cancelled -> outcome_from_lookup(lookup_result, child_process_instance_id)
     end
   end
 
@@ -159,20 +160,55 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
     do: persisted_child_outcome(child_process_instance_id)
 
   @doc """
+  Reads a child PI's persisted row, retrying transient database errors.
+  Returns `{:ok, child_pi_data}`, `{:error, :not_found}` when no row exists
+  (answered on the first attempt), or `{:error, reason}` when the database
+  stays unavailable. A shell must never treat `{:error, reason}` as a missing
+  child: spawning a fresh one would run the child twice.
+  """
+  @spec fetch_persisted_child(String.t()) ::
+          {:ok, map()} | {:error, :not_found} | {:error, term()}
+  def fetch_persisted_child(child_process_instance_id) do
+    PersistenceRetry.with_retry(
+      fn ->
+        PersistenceAdapter.adapter().get_process_instance_for_retry(child_process_instance_id)
+      end,
+      "child PI lookup #{child_process_instance_id}",
+      final_reasons: [:not_found]
+    )
+  end
+
+  @doc """
   Maps a child PI's persisted terminal state to the tagged outcome
   `await_child_completion/7` returns. Used when the child is no longer
   alive to send its terminal message (it finished before it was
   monitored). A child whose row is still `running`, or that ended
   `cancelled`, yields `{:crashed, :noproc}`; `await_child_completion/7`
-  replays a `cancelled` child to its extra message handler first.
+  replays a `cancelled` child to its extra message handler first. A child
+  row that cannot be read yields `{:crashed, {:child_lookup_failed, reason}}`.
   """
-  @spec persisted_child_outcome(String.t()) :: term()
+  @spec persisted_child_outcome(String.t()) ::
+          :aborted
+          | {:bpmn_error, term()}
+          | {:compensated, [map()]}
+          | {:crashed, :noproc | {:child_lookup_failed, term()}}
+          | {:fatal, term()}
+          | {:finished, [map()]}
+          | {:escalation, %{escalation_code: term(), escalation_name: term()}, [map()]}
   def persisted_child_outcome(child_process_instance_id) do
-    case PersistenceAdapter.adapter().get_process_instance_for_retry(child_process_instance_id) do
-      {:ok, child_pi_data} -> child_outcome(child_pi_data, child_process_instance_id)
-      {:error, _reason} -> {:crashed, :noproc}
-    end
+    child_process_instance_id
+    |> fetch_persisted_child()
+    |> outcome_from_lookup(child_process_instance_id)
   end
+
+  defp outcome_from_lookup({:ok, child_pi_data}, child_process_instance_id),
+    do: child_outcome(child_pi_data, child_process_instance_id)
+
+  defp outcome_from_lookup({:error, :not_found}, _child_process_instance_id),
+    do: {:crashed, :noproc}
+
+  defp outcome_from_lookup({:error, reason}, _child_process_instance_id),
+    do: {:crashed, {:child_lookup_failed, reason}}
 
   defp child_outcome(%{state: "finished"}, child_process_instance_id),
     do: {:finished, aggregate_from_persistence(child_process_instance_id)}
@@ -775,9 +811,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
         child_process_instance_id,
         opts \\ []
       ) do
-    adapter = PersistenceAdapter.adapter()
-
-    case adapter.get_process_instance_for_retry(child_process_instance_id) do
+    case fetch_persisted_child(child_process_instance_id) do
       {:ok, child_pi_data} ->
         dispatch_persisted_child_state(
           child_pi_data,
@@ -785,13 +819,30 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           entry,
           context,
           child_process_instance_id,
-          adapter,
+          PersistenceAdapter.adapter(),
           opts
         )
 
       {:error, :not_found} ->
         handle_child_not_found(flow_node, entry, context, child_process_instance_id, opts)
+
+      {:error, reason} ->
+        child_resume_failed(context, child_process_instance_id, reason)
     end
+  end
+
+  @doc """
+  Ends a resumed shell whose child row could not be read: reports the resume
+  settled and returns `{:error, {:child_resume_failed, detail}}`, which
+  fatals the shell instead of spawning a second child.
+  """
+  @spec child_resume_failed(HandlerContext.t(), String.t(), term()) :: {:error, term()}
+  def child_resume_failed(context, child_process_instance_id, reason) do
+    send(context.process_instance_pid, {:resume_settled, context.flow_node_instance_id})
+
+    {:error,
+     {:child_resume_failed,
+      %{child_process_instance_id: child_process_instance_id, reason: reason}}}
   end
 
   defp dispatch_persisted_child_state(

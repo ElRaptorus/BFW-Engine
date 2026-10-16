@@ -1,0 +1,158 @@
+{
+  "definitionsId": "Definitions_ThrowSideEndTokenMerge",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [
+    {
+      "id": "Msg_end_notice",
+      "name": "order-end-notice-merge"
+    }
+  ],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_Signal", "Flow_Message"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Message",
+          "incoming": ["Flow_Message"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Notify and End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "correlationRetrievalExpression": null,
+              "messageRef": "Msg_end_notice"
+            },
+            "inMappings": [
+              {
+                "source": "token.note",
+                "target": "notice"
+              }
+            ],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Signal",
+          "incoming": ["Flow_Signal"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Stamp and End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {
+              "signalRef": "Sig_end_stamp"
+            },
+            "inMappings": [
+              {
+                "source": "true",
+                "target": "stamped"
+              }
+            ],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "ThrowSideEndTokenMerge",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": ["Start_1", "Fork", "End_Message", "End_Signal"],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Throw Side End Token Merge",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Message",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork",
+          "targetRef": "End_Message"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Signal",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork",
+          "targetRef": "End_Signal"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": [
+    {
+      "id": "Sig_end_stamp",
+      "name": "order-end-stamped-merge"
+    }
+  ]
+}
