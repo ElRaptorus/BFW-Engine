@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CallActivityMiFirstWins">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Parent" name="Parent" processRef="CallActivityMiFirstWins" />
+    <bpmn:participant id="Participant_Child" name="Child" processRef="CallActivityMiFirstWinsChild" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CallActivityMiFirstWins" name="Call Activity MI First Wins" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Parent">
+      <bpmn:lane id="Lane_default_Parent" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Child</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:callActivity id="Call_Child" name="Call Child per Item" calledElement="CallActivityMiFirstWinsChild">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="false">
+        <bpmn:completionCondition>loop.completed &gt;= 1</bpmn:completionCondition>
+        <bpmn:extensionElements>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:outputCollection>results</bfw:outputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
+        </bpmn:extensionElements>
+      </bpmn:multiInstanceLoopCharacteristics>
+    </bpmn:callActivity>
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Call_Child" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Call_Child" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmn:process id="CallActivityMiFirstWinsChild" name="Call Activity MI First Wins Child" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Child">
+      <bpmn:lane id="Lane_default_Child" name="default">
+        <bpmn:flowNodeRef>Child_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Child_Work</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Child_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Child_Start" name="Child Start">
+      <bpmn:outgoing>Child_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Child_Work" name="Child Work">
+      <bpmn:incoming>Child_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Child_Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="Child_End" name="Child Done">
+      <bpmn:incoming>Child_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Child_Flow_1" sourceRef="Child_Start" targetRef="Child_Work" />
+    <bpmn:sequenceFlow id="Child_Flow_2" sourceRef="Child_Work" targetRef="Child_End" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Parent" bpmnElement="Participant_Parent" isHorizontal="true">
+        <dc:Bounds x="100" y="80" width="500" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Parent" bpmnElement="Lane_default_Parent" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="470" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Call_Child" bpmnElement="Call_Child">
+        <dc:Bounds x="270" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="472" y="162" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="180" />
+        <di:waypoint x="270" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="370" y="180" />
+        <di:waypoint x="472" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Child" bpmnElement="Participant_Child" isHorizontal="true">
+        <dc:Bounds x="100" y="320" width="500" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Child" bpmnElement="Lane_default_Child" isHorizontal="true">
+        <dc:Bounds x="130" y="320" width="470" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Child_Start" bpmnElement="Child_Start">
+        <dc:Bounds x="162" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Child_Work" bpmnElement="Child_Work">
+        <dc:Bounds x="270" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Child_End" bpmnElement="Child_End">
+        <dc:Bounds x="472" y="382" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Child_Flow_1" bpmnElement="Child_Flow_1">
+        <di:waypoint x="198" y="400" />
+        <di:waypoint x="270" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Child_Flow_2" bpmnElement="Child_Flow_2">
+        <di:waypoint x="370" y="400" />
+        <di:waypoint x="472" y="400" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -112,7 +112,9 @@ Inclusive join FNIs are **invalid retry checkpoints** — retrying with an inclu
 | `no_matching_condition` | No outgoing condition evaluates to `true` and no default flow exists | `fatal` |
 | `expression_evaluation_failed` | A FEEL expression on an outgoing flow fails to evaluate | `fatal` |
 | `mixed_gateway` | Gateway has both >1 incoming and >1 outgoing flows | `fatal` |
-| `duplicate_join_arrival` | A token arrives at the join via an incoming flow that already delivered a token | `fatal` |
+| `duplicate_join_arrival` | A token arrives at the join via an incoming flow that already delivered a token in the current pass (before the join fired) | `fatal` |
+
+A join inside a loop fires once per pass; after it fires, the next token on any incoming flow starts a new join instance (see [Parallel Gateways — Joins in Loops](parallel-gateways.md#joins-in-loops)).
 
 ## Related
 

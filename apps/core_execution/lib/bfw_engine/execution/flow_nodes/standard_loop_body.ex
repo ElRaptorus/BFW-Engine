@@ -7,6 +7,12 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
   `{:mi_dispatch_iteration, ...}` call, reusing the same lightweight
   iteration infrastructure as Multi-Instance.
 
+  The token chains through the iterations: iteration 0 receives the shell's
+  input token, every later iteration receives the previous iteration's
+  output, `loopCondition` is evaluated against the latest token, and the
+  shell's output is the last iteration's output (the unchanged input token
+  when no iteration ran).
+
   The shell FNI parks as `:waiting` while its continuation orchestrates
   iterations sequentially, evaluating `loop_condition` between passes.
   """
@@ -27,42 +33,39 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
-  @iteration_timeout_ms 300_000
-
   @impl true
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()}
           | {:async, String.t(), (-> term()), map()}
           | {:error, term()}
   def handle_enter(flow_node, token, context) do
-    %FlowNode{standard_loop: %StandardLoop{} = sl} = flow_node
-
     emit_loop_started(context, flow_node)
-    park_or_run_loop(flow_node, token, context, sl)
-  end
+    loop = new_loop(flow_node, token, context, [])
 
-  defp park_or_run_loop(flow_node, token, context, sl) do
-    token_payload = token.payload || %{}
-
-    if sl.test_before and not evaluate_condition(sl, [], context, token_payload) do
-      run_while_do(flow_node, token, context, sl)
+    if loop.standard_loop.test_before do
+      case evaluate_condition(loop) do
+        {:ok, true} -> park_loop_shell(loop)
+        {:ok, false} -> finish_loop(loop, false)
+        {:error, reason} -> {:error, reason}
+      end
     else
-      park_loop_shell(flow_node, token, context, sl)
+      park_loop_shell(loop)
     end
   end
 
-  defp park_loop_shell(flow_node, token, context, sl) do
+  defp park_loop_shell(loop) do
     continuation = fn ->
-      if sl.test_before do
-        run_while_do(flow_node, token, context, sl)
+      if loop.standard_loop.test_before do
+        loop_iterations(loop)
       else
-        run_do_while(flow_node, token, context, sl)
+        run_do_while(loop)
       end
     end
 
-    case FniLifecycle.park_async(context, %{mi_shell: true}) do
+    case FniLifecycle.park_async(loop.context, %{mi_shell: true}) do
       :ok ->
-        {:async, context.flow_node_instance_id, continuation, %{persisted: true, mi_shell: true}}
+        {:async, loop.context.flow_node_instance_id, continuation,
+         %{persisted: true, mi_shell: true}}
 
       {:error, :persistence_failed} ->
         {:error, :persistence_failed}
@@ -104,9 +107,6 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
   end
 
   defp resume_attached_loop(flow_node, token, context, snapshot) do
-    %FlowNode{standard_loop: %StandardLoop{} = standard_loop} = flow_node
-    token_payload = token.payload || %{}
-
     finished =
       Enum.map(snapshot.finished_payloads, fn payload ->
         %FlowNodeResult{output_payload: payload}
@@ -114,17 +114,9 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
 
     case collect_live_iteration_results(snapshot.live_count, []) do
       {:ok, live_results} ->
-        collected = finished ++ Enum.reverse(live_results)
-
-        loop_iterations(
-          flow_node,
-          token,
-          context,
-          standard_loop,
-          length(collected),
-          collected,
-          token_payload
-        )
+        flow_node
+        |> new_loop(token, context, finished ++ Enum.reverse(live_results))
+        |> loop_iterations()
 
       {:error, reason} ->
         {:error, reason}
@@ -143,105 +135,91 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
     end
   end
 
-  # -- While-do: condition checked before each iteration ----------------------
+  defp new_loop(flow_node, token, context, collected) do
+    %FlowNode{standard_loop: %StandardLoop{} = standard_loop} = flow_node
 
-  defp run_while_do(flow_node, token, context, sl) do
-    token_payload = token.payload || %{}
-    loop_iterations(flow_node, token, context, sl, 0, [], token_payload)
+    %{
+      flow_node: flow_node,
+      token: token,
+      context: context,
+      standard_loop: standard_loop,
+      collected: collected,
+      current_payload: latest_payload(collected, token.payload || %{})
+    }
   end
+
+  defp latest_payload([], input_payload), do: input_payload
+
+  defp latest_payload(collected, input_payload),
+    do: List.last(collected).output_payload || input_payload
 
   # -- Do-while: first iteration runs unconditionally -------------------------
 
-  defp run_do_while(flow_node, token, context, sl) do
-    token_payload = token.payload || %{}
-
-    case dispatch_and_wait(flow_node, token, context, 0, []) do
-      {:ok, result, _iteration_token} ->
-        collected = [result]
-
-        cond do
-          reached_maximum?(sl, collected) ->
-            finish_loop(context, flow_node, sl, collected, true)
-
-          condition_false?(sl, collected, context, token_payload) ->
-            finish_loop(context, flow_node, sl, collected, false)
-
-          true ->
-            loop_iterations(flow_node, token, context, sl, 1, collected, token_payload)
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+  defp run_do_while(loop) do
+    with {:ok, loop} <- run_iteration(loop) do
+      loop_iterations(loop)
     end
   end
 
   # -- Core loop iteration engine ---------------------------------------------
 
-  defp loop_iterations(flow_node, token, context, sl, index, collected, token_payload) do
-    cond do
-      reached_maximum?(sl, collected) ->
-        finish_loop(context, flow_node, sl, collected, true)
-
-      not evaluate_condition(sl, collected, context, token_payload) ->
-        finish_loop(context, flow_node, sl, collected, false)
-
-      true ->
-        maybe_wait_interval(sl, index)
-        execute_next_iteration(flow_node, token, context, sl, index, collected, token_payload)
+  defp loop_iterations(loop) do
+    if reached_maximum?(loop) do
+      finish_loop(loop, true)
+    else
+      continue_while_condition_holds(loop, evaluate_condition(loop))
     end
   end
 
-  defp execute_next_iteration(flow_node, token, context, sl, index, collected, token_payload) do
-    case dispatch_and_wait(flow_node, token, context, index, collected) do
-      {:ok, result, _iteration_token} ->
-        loop_iterations(
-          flow_node,
-          token,
-          context,
-          sl,
-          index + 1,
-          collected ++ [result],
-          token_payload
-        )
+  defp continue_while_condition_holds(loop, {:ok, true}) do
+    maybe_wait_interval(loop.standard_loop, length(loop.collected))
 
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, loop} <- run_iteration(loop) do
+      loop_iterations(loop)
     end
   end
+
+  defp continue_while_condition_holds(loop, {:ok, false}), do: finish_loop(loop, false)
+  defp continue_while_condition_holds(_loop, {:error, reason}), do: {:error, reason}
 
   # -- Dispatch a single iteration and wait for result ------------------------
 
-  defp dispatch_and_wait(flow_node, token, context, index, collected) do
-    process_instance_pid = context.process_instance_pid
-    flow_node_instance_id = context.flow_node_instance_id
-
-    results = Enum.map(collected, fn r -> r.output_payload end)
+  defp run_iteration(loop) do
+    index = length(loop.collected)
 
     loop_overlay = %{
       "item" => nil,
       "index" => index,
       "total" => nil,
-      "completed" => length(collected),
-      "results" => results
+      "completed" => index,
+      "results" => Enum.map(loop.collected, fn result -> result.output_payload end)
     }
 
-    iteration_token = token
+    iteration_token = %{loop.token | payload: loop.current_payload}
 
     case :gen_statem.call(
-           process_instance_pid,
-           {:mi_dispatch_iteration, flow_node_instance_id, index, nil, iteration_token,
-            loop_overlay, flow_node}
+           loop.context.process_instance_pid,
+           {:mi_dispatch_iteration, loop.context.flow_node_instance_id, index, nil,
+            iteration_token, loop_overlay, loop.flow_node}
          ) do
       {:ok, _iteration_fni_id} ->
-        case wait_for_iteration_result() do
-          {:ok, result} -> {:ok, result, iteration_token}
-          {:error, reason} -> {:error, reason}
-        end
+        record_iteration_result(loop, wait_for_iteration_result())
 
       {:error, reason} ->
         {:error, {:loop_dispatch_failed, reason}}
     end
   end
+
+  defp record_iteration_result(loop, {:ok, result}) do
+    {:ok,
+     %{
+       loop
+       | collected: loop.collected ++ [result],
+         current_payload: result.output_payload || loop.current_payload
+     }}
+  end
+
+  defp record_iteration_result(_loop, {:error, reason}), do: {:error, reason}
 
   defp wait_for_iteration_result do
     receive do
@@ -250,31 +228,21 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
 
       {:mi_iteration_completed, _fni_id, {:error, reason}} ->
         {:error, reason}
-    after
-      @iteration_timeout_ms ->
-        {:error, :iteration_timeout}
     end
   end
 
   # -- Condition evaluation ---------------------------------------------------
 
-  defp evaluate_condition(
-         %StandardLoop{loop_condition: nil},
-         _collected,
-         _context,
-         _token_payload
-       ) do
-    true
-  end
+  defp evaluate_condition(%{standard_loop: %StandardLoop{loop_condition: nil}}), do: {:ok, true}
 
-  defp evaluate_condition(sl, collected, context, token_payload) do
-    feel_context = FeelContext.from_handler_context(context, token_payload)
-    completed_count = length(collected)
-    result_payloads = Enum.map(collected, fn r -> r.output_payload end)
+  defp evaluate_condition(loop) do
+    completed_count = length(loop.collected)
+    result_payloads = Enum.map(loop.collected, fn result -> result.output_payload end)
 
     feel_context =
-      FeelContext.put_loop_bindings(
-        feel_context,
+      loop.context
+      |> FeelContext.from_handler_context(loop.current_payload)
+      |> FeelContext.put_loop_bindings(
         max(completed_count - 1, 0),
         nil,
         completed_count,
@@ -282,27 +250,33 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
         nil
       )
 
-    case Expressions.eval(sl.loop_condition, feel_context) do
-      {:ok, true} -> true
-      _ -> false
-    end
-  end
+    case Expressions.eval(loop.standard_loop.loop_condition, feel_context) do
+      {:ok, value} ->
+        {:ok, value == true}
 
-  defp condition_false?(sl, collected, context, token_payload) do
-    not evaluate_condition(sl, collected, context, token_payload)
+      {:error, reason} ->
+        {:error,
+         {:loop_condition_failed,
+          %{
+            flow_node_id: loop.flow_node.id,
+            condition: "loopCondition",
+            expression: loop.standard_loop.loop_condition,
+            reason: to_string(reason)
+          }}}
+    end
   end
 
   # -- Maximum check ----------------------------------------------------------
 
-  defp reached_maximum?(%StandardLoop{loop_maximum: nil}, _collected), do: false
+  defp reached_maximum?(%{standard_loop: %StandardLoop{loop_maximum: nil}}), do: false
 
-  defp reached_maximum?(%StandardLoop{loop_maximum: max}, collected) do
+  defp reached_maximum?(%{standard_loop: %StandardLoop{loop_maximum: max}, collected: collected}) do
     length(collected) >= max
   end
 
   # -- Interval ---------------------------------------------------------------
 
-  defp maybe_wait_interval(_sl, 0), do: :ok
+  defp maybe_wait_interval(_standard_loop, 0), do: :ok
   defp maybe_wait_interval(%StandardLoop{loop_interval: nil}, _index), do: :ok
 
   defp maybe_wait_interval(%StandardLoop{loop_interval: interval}, _index) do
@@ -314,23 +288,23 @@ defmodule BfwEngine.Execution.FlowNodes.StandardLoopBody do
 
   # -- Finish -----------------------------------------------------------------
 
-  defp finish_loop(context, flow_node, sl, collected, early_break) do
-    results = Enum.map(collected, fn r -> r.output_payload end)
-    output = %{"results" => results}
-    completed = length(collected)
+  defp finish_loop(loop, early_break) do
+    completed = length(loop.collected)
+    output = loop.current_payload
 
-    emit_loop_completed(context, flow_node, completed, early_break)
+    emit_loop_completed(loop.context, loop.flow_node, completed, early_break)
 
     type_properties = %{
       "standard_loop" => %{
-        "test_before" => sl.test_before,
+        "test_before" => loop.standard_loop.test_before,
         "total_iterations" => completed,
-        "loop_maximum" => sl.loop_maximum
+        "loop_maximum" => loop.standard_loop.loop_maximum
       }
     }
 
-    with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
-         {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
+    with {:ok, next_ids} <- resolve_outgoing(loop.flow_node, loop.context),
+         {:ok, _lifecycle} <-
+           FniLifecycle.finish(loop.context, loop.flow_node, output, type_properties) do
       {:ok,
        %FlowNodeResult{
          output_payload: output,

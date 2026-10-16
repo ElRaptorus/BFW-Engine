@@ -236,8 +236,33 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         {flow_node_instance.id, entry}
       end)
 
+    flow_node_instance_states =
+      Map.new(flow_node_instance_states, fn {flow_node_instance_id, entry} ->
+        {flow_node_instance_id, put_loop_overlay(entry, flow_node_instance_states)}
+      end)
+
     %{data | flow_node_instance_states: flow_node_instance_states}
   end
+
+  # An iteration row persists its `loop.*` overlay without `results`; those
+  # are the outputs of the iterations that had finished when it started.
+  defp put_loop_overlay(
+         %{multi_instance_id: shell_id, type_properties: %{"loop_overlay" => overlay}} = entry,
+         flow_node_instance_states
+       )
+       when is_binary(shell_id) and is_map(overlay) do
+    results =
+      flow_node_instance_states
+      |> Map.values()
+      |> Enum.filter(&(&1.multi_instance_id == shell_id and &1.state == :finished))
+      |> Enum.sort_by(& &1.iteration_index)
+      |> Enum.take(Map.get(overlay, "completed", 0))
+      |> Enum.map(& &1.token.payload)
+
+    Map.put(entry, :loop_overlay, Map.put(overlay, "results", results))
+  end
+
+  defp put_loop_overlay(entry, _flow_node_instance_states), do: entry
 
   defp resumed_token_payload(:finished, %{output_token: output_token})
        when not is_nil(output_token),
@@ -505,8 +530,9 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   Groups arrival rows by `gateway_flow_node_instance_id`, looks up each
   gateway FNI in `flow_node_instance_states` to find the BPMN `flow_node_id`,
   then counts incoming sequence flows from the process model to determine
-  `required`. The result is stored in `data.join_routing` keyed by BPMN
-  `flow_node_id`. The handler Task will receive the full GPA rows on resume
+  `required`. Rows of a join FNI that is no longer active or waiting are
+  ignored; arrivals recorded with flow id `"unknown"` still count. The
+  result is stored in `data.join_routing` keyed by BPMN `flow_node_id`. The handler Task will receive the full GPA rows on resume
   to reconstruct its internal branch_payloads state.
   """
   @spec rebuild_join_routing(struct(), [map()]) :: struct()
@@ -525,19 +551,13 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
   defp rebuild_single_join_routing(data, accumulator, gateway_fni_id, rows) do
     case Map.get(data.flow_node_instance_states, gateway_fni_id) do
-      nil ->
-        accumulator
-
-      entry ->
+      %{state: state} = entry when state in [:active, :waiting] ->
         flow_node_id = entry.flow_node_id
         required = count_incoming_flows(data.process_model, flow_node_id)
         gateway_type = resume_gateway_type(entry.flow_node_type)
 
         arrived_via_flow_ids =
-          rows
-          |> Enum.map(& &1.source_branch_sequence_flow_id)
-          |> Enum.reject(&(&1 == "unknown"))
-          |> MapSet.new()
+          MapSet.new(rows, & &1.source_branch_sequence_flow_id)
 
         routing =
           %{
@@ -549,6 +569,9 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           |> put_complex_join_fields(gateway_type, data, flow_node_id, rows)
 
         Map.put(accumulator, flow_node_id, routing)
+
+      _missing_or_ended ->
+        accumulator
     end
   end
 
@@ -735,9 +758,13 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   end
 
   defp mi_shell_fni?(data, flow_node_instance_id) do
-    Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
-      Map.get(entry, :multi_instance_id) == flow_node_instance_id
-    end)
+    entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
+
+    case FlowNodeLookup.find_flow_node(data, entry.flow_node_id) do
+      %FlowNode{multi_instance: nil, standard_loop: nil} -> false
+      %FlowNode{} -> is_nil(Map.get(entry, :multi_instance_id))
+      nil -> false
+    end
   end
 
   defp reactivate_mi_shell_fni(data, flow_node_instance_id, entry, process_instance_pid) do
@@ -774,7 +801,15 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           "MI/loop shell"
         )
 
-      %{data | resume_pending: MapSet.put(data.resume_pending, flow_node_instance_id)}
+      data = %{data | resume_pending: MapSet.put(data.resume_pending, flow_node_instance_id)}
+
+      spawn_missing_boundary_fnis(
+        data,
+        flow_node,
+        flow_node_instance_id,
+        entry.token,
+        process_instance_pid
+      )
     end
   end
 

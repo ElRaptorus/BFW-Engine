@@ -126,6 +126,16 @@ defmodule BfwEngineWeb.Http.UserTaskController do
     )
   end
 
+  defp render_finish_error(conn, :fni_is_multi_instance_shell) do
+    render_error(
+      conn,
+      422,
+      "fni_is_multi_instance_shell",
+      "The flow node instance is a Multi-Instance or Standard Loop shell; " <>
+        "finish its iteration flow node instances instead."
+    )
+  end
+
   defp render_finish_error(conn, reason) when reason in @terminal_fni_reasons do
     render_error(conn, 422, to_string(reason), "User task completion failed")
   end

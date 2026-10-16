@@ -17,7 +17,8 @@ defmodule BfwEngine.Execution.FlowNodes.ParallelGateway do
   the PI via `{:join_token_arrived, ...}` messages. When all incoming
   branches have reported (`arrived >= required`), the handler merges
   payloads, deletes GPA rows, calls `FniLifecycle.finish/4`, and returns
-  `{:ok, %FlowNodeResult{}}`.
+  `{:ok, %FlowNodeResult{}}`. A second arrival via an incoming flow that
+  already delivered returns `{:error, {:duplicate_join_arrival, ...}}`.
 
   For the degenerate single-incoming case (`required == 1`), the handler
   completes synchronously without entering the async receive loop.
@@ -171,12 +172,11 @@ defmodule BfwEngine.Execution.FlowNodes.ParallelGateway do
       MapSet.member?(state.arrived_flow_ids, incoming_flow_id) and incoming_flow_id != "unknown"
 
     if duplicate? do
-      Logger.warning(
-        "ParallelGateway: ignoring duplicate arrival at '#{state.flow_node.id}' " <>
-          "via sequence flow '#{incoming_flow_id}'"
-      )
+      delete_gateway_pending_arrivals(state.context.flow_node_instance_id)
 
-      join_receive_loop(state)
+      {:error,
+       {:duplicate_join_arrival,
+        %{flow_node_id: state.flow_node.id, incoming_flow_id: incoming_flow_id}}}
     else
       apply_parallel_join_arrival(state, new_token, new_previous_fni_ids, incoming_flow_id)
     end

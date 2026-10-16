@@ -112,6 +112,12 @@ A [Terminate End Event](error-handling.md) inside a parallel scope interrupts al
 
 A non-interrupting [Escalation Boundary Event](escalation-events.md) can fire on an activity that is running in a parallel branch. The boundary spawns an additional path while the parallel branch continues running. All branches must still deliver tokens to the join before it fires.
 
+## Joins in Loops
+
+A join fires once per pass. When a token loops back upstream of the join (for example through an Exclusive Gateway that routes back to the fork), the next pass creates a new join instance that waits for all incoming flows again. Every pass therefore needs one token on every incoming flow.
+
+Arrivals are counted per incoming sequence flow, not per source element: two sequence flows from the same fork to the same join are two arrivals. A second token on a flow that already delivered in the current pass — before the join fired — is a modelling error and fatals the join with `duplicate_join_arrival`.
+
 ## Resume on Restart
 
 Parallel gateways resume correctly after an engine restart:
@@ -132,7 +138,7 @@ Parallel gateways resume correctly after an engine restart:
 | Error | Cause | PI State |
 |---|---|---|
 | `mixed_gateway` | Gateway has both >1 incoming and >1 outgoing flows | `fatal` |
-| `duplicate_join_arrival` | A token arrives at the join from an incoming flow that already delivered one | `fatal` |
+| `duplicate_join_arrival` | A token arrives at the join from an incoming flow that already delivered one in the current pass (before the join fired) | `fatal` |
 
 ## Related
 

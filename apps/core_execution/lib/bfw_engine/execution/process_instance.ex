@@ -115,6 +115,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
   @pi_state_cancelled "cancelled"
   @shutdown_timeout 5_000
 
+  # Iteration Tasks trap exits but no handler continuation reacts to
+  # `{:EXIT, _, :shutdown}`; the grace only lets an in-flight finish write
+  # commit. All live iterations of a shell share one grace window.
+  @iteration_shutdown_grace_ms 200
+  @iteration_kill_wait_ms 1_000
+
   @type start_opts :: %{
           required(:process_instance_id) => String.t(),
           required(:process_version_id) => String.t(),
@@ -1252,17 +1258,24 @@ defmodule BfwEngine.Execution.ProcessInstance do
          data,
          %FlowNode{} = flow_node,
          %Token{} = token,
-         previous_flow_node_instance_ids
+         previous_flow_node_instance_ids,
+         incoming_flow_id \\ nil
        ) do
     case join_gateway_check(flow_node, data.process_model) do
-      {:join, :parallel_gateway, required} ->
-        dispatch_parallel_join(data, flow_node, token, previous_flow_node_instance_ids, required)
+      {:join, gateway_type, required} ->
+        incoming_flow_id =
+          incoming_flow_id ||
+            resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
 
-      {:join, :inclusive_gateway, _incoming_count} ->
-        dispatch_inclusive_join(data, flow_node, token, previous_flow_node_instance_ids)
-
-      {:join, :complex_gateway, _incoming_count} ->
-        dispatch_complex_join(data, flow_node, token, previous_flow_node_instance_ids)
+        dispatch_join(
+          gateway_type,
+          data,
+          flow_node,
+          token,
+          previous_flow_node_instance_ids,
+          required,
+          incoming_flow_id
+        )
 
       :not_join ->
         dispatch_flow_node_instance_immediate(
@@ -1300,110 +1313,27 @@ defmodule BfwEngine.Execution.ProcessInstance do
     Enum.count(process_model.sequence_flows || [], &(&1.source_ref == node_id))
   end
 
-  defp dispatch_parallel_join(data, flow_node, token, previous_flow_node_instance_ids, required) do
-    incoming_flow_id =
-      resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
-
-    case Map.get(data.join_routing, flow_node.id) do
+  defp dispatch_join(
+         gateway_type,
+         data,
+         flow_node,
+         token,
+         previous_flow_node_instance_ids,
+         required,
+         incoming_flow_id
+       ) do
+    case live_join_routing(data, flow_node.id) do
       nil ->
-        dispatch_join_first_token(
-          data,
+        data
+        |> dispatch_join_first_token(
           flow_node,
           token,
           previous_flow_node_instance_ids,
           required,
-          :parallel_gateway,
+          gateway_type,
           incoming_flow_id
         )
-
-      %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
-        duplicate? =
-          MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
-
-        if duplicate? do
-          Logger.warning(
-            "ProcessInstance: ignoring duplicate parallel join arrival at '#{flow_node.id}' " <>
-              "via sequence flow '#{incoming_flow_id}'"
-          )
-
-          data
-        else
-          route_subsequent_parallel_token(
-            data,
-            fni_id,
-            flow_node,
-            token,
-            previous_flow_node_instance_ids,
-            incoming_flow_id
-          )
-        end
-    end
-  end
-
-  defp dispatch_inclusive_join(data, flow_node, token, previous_flow_node_instance_ids) do
-    incoming_flow_id =
-      resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
-
-    incoming_count =
-      count_flows(flow_node.incoming, flow_node.id, :incoming, data.process_model)
-
-    case Map.get(data.join_routing, flow_node.id) do
-      nil ->
-        dispatch_join_first_token(
-          data,
-          flow_node,
-          token,
-          previous_flow_node_instance_ids,
-          incoming_count,
-          :inclusive_gateway,
-          incoming_flow_id
-        )
-
-      %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
-        duplicate? =
-          MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
-
-        if duplicate? do
-          record_fni_fatal(data, fni_id, flow_node, token, previous_flow_node_instance_ids, %{
-            "error_code" => "duplicate_join_arrival",
-            "message" =>
-              "Duplicate token arrival at inclusive join '#{flow_node.id}' " <>
-                "via sequence flow '#{incoming_flow_id}'"
-          })
-        else
-          route_subsequent_inclusive_token(
-            data,
-            fni_id,
-            flow_node,
-            token,
-            previous_flow_node_instance_ids,
-            incoming_flow_id
-          )
-        end
-    end
-  end
-
-  defp dispatch_complex_join(data, flow_node, token, previous_flow_node_instance_ids) do
-    incoming_flow_id =
-      resolve_incoming_sequence_flow_id(data, flow_node, previous_flow_node_instance_ids)
-
-    incoming_count =
-      count_flows(flow_node.incoming, flow_node.id, :incoming, data.process_model)
-
-    case Map.get(data.join_routing, flow_node.id) do
-      nil ->
-        data =
-          dispatch_join_first_token(
-            data,
-            flow_node,
-            token,
-            previous_flow_node_instance_ids,
-            incoming_count,
-            :complex_gateway,
-            incoming_flow_id
-          )
-
-        augment_complex_join_routing(data, flow_node, token.payload)
+        |> augment_complex_join_routing(flow_node, token.payload)
 
       %{fired: true} ->
         # Twist 2 (CG-D4): the join already fired and cancelled every active
@@ -1418,11 +1348,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
         data
 
-      %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} ->
-        duplicate? =
-          MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown"
-
-        if duplicate? do
+      %{fni_id: fni_id, arrived_via_flow_ids: arrived_via} = routing ->
+        if MapSet.member?(arrived_via, incoming_flow_id) and incoming_flow_id != "unknown" do
           error_info =
             ErrorInfo.build(
               {:duplicate_join_arrival,
@@ -1438,9 +1365,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
             error_info
           )
         else
-          route_subsequent_complex_token(
+          route_subsequent_join_token(
             data,
-            fni_id,
+            routing,
             flow_node,
             token,
             previous_flow_node_instance_ids,
@@ -1450,7 +1377,19 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  defp augment_complex_join_routing(data, flow_node, payload) do
+  # A routing entry whose join FNI already ended belongs to an earlier pass
+  # through the join (loop re-entry); the next arrival starts a new join FNI.
+  defp live_join_routing(data, flow_node_id) do
+    with %{fni_id: fni_id} = routing <- Map.get(data.join_routing, flow_node_id),
+         %{state: state} when state in [:active, :waiting] <-
+           Map.get(data.flow_node_instance_states, fni_id) do
+      routing
+    else
+      _missing_or_ended -> nil
+    end
+  end
+
+  defp augment_complex_join_routing(data, %FlowNode{type: :complex_gateway} = flow_node, payload) do
     case Map.get(data.join_routing, flow_node.id) do
       nil ->
         data
@@ -1467,34 +1406,54 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  defp route_subsequent_complex_token(
+  defp augment_complex_join_routing(data, _flow_node, _payload), do: data
+
+  defp route_subsequent_join_token(
          data,
-         fni_id,
+         routing,
          flow_node,
          token,
          previous_flow_node_instance_ids,
          incoming_flow_id
        ) do
-    data =
-      update_in(data.join_routing[flow_node.id], fn routing ->
-        %{
-          routing
-          | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
-        }
-        |> Map.put(
-          :merged_payload,
-          Map.merge(Map.get(routing, :merged_payload) || %{}, token.payload || %{})
-        )
-      end)
+    routing = record_join_arrival(routing, incoming_flow_id, token.payload)
 
-    route_token_to_join_handler(
-      data,
-      fni_id,
+    data
+    |> store_join_routing(flow_node.id, routing)
+    |> route_token_to_join_handler(
+      routing.fni_id,
       flow_node,
       token,
       previous_flow_node_instance_ids,
       incoming_flow_id
     )
+  end
+
+  defp record_join_arrival(%{gateway_type: :complex_gateway} = routing, incoming_flow_id, payload) do
+    routing
+    |> Map.put(:arrived_via_flow_ids, MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id))
+    |> Map.put(
+      :merged_payload,
+      Map.merge(Map.get(routing, :merged_payload) || %{}, payload || %{})
+    )
+  end
+
+  defp record_join_arrival(routing, incoming_flow_id, _payload) do
+    %{routing | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)}
+  end
+
+  # The parallel join handler fires on its last arrival; dropping the entry
+  # then lets a token of the next pass start a new join FNI.
+  defp store_join_routing(data, flow_node_id, %{gateway_type: :parallel_gateway} = routing) do
+    if MapSet.size(routing.arrived_via_flow_ids) >= routing.required do
+      %{data | join_routing: Map.delete(data.join_routing, flow_node_id)}
+    else
+      put_in(data.join_routing[flow_node_id], routing)
+    end
+  end
+
+  defp store_join_routing(data, flow_node_id, routing) do
+    put_in(data.join_routing[flow_node_id], routing)
   end
 
   defp complex_activation_condition(%FlowNode{type_data: %{activation_condition: condition}}),
@@ -1645,58 +1604,6 @@ defmodule BfwEngine.Execution.ProcessInstance do
           }
         )
     end
-  end
-
-  defp route_subsequent_inclusive_token(
-         data,
-         fni_id,
-         flow_node,
-         token,
-         previous_flow_node_instance_ids,
-         incoming_flow_id
-       ) do
-    data =
-      update_in(data.join_routing[flow_node.id], fn routing ->
-        %{
-          routing
-          | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
-        }
-      end)
-
-    route_token_to_join_handler(
-      data,
-      fni_id,
-      flow_node,
-      token,
-      previous_flow_node_instance_ids,
-      incoming_flow_id
-    )
-  end
-
-  defp route_subsequent_parallel_token(
-         data,
-         fni_id,
-         flow_node,
-         token,
-         previous_flow_node_instance_ids,
-         incoming_flow_id
-       ) do
-    data =
-      update_in(data.join_routing[flow_node.id], fn routing ->
-        %{
-          routing
-          | arrived_via_flow_ids: MapSet.put(routing.arrived_via_flow_ids, incoming_flow_id)
-        }
-      end)
-
-    route_token_to_join_handler(
-      data,
-      fni_id,
-      flow_node,
-      token,
-      previous_flow_node_instance_ids,
-      incoming_flow_id
-    )
   end
 
   defp route_token_to_join_handler(
@@ -2100,6 +2007,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
         esp_throw_fni_id = compensation_esp_throw_fni_id(data, entry)
 
         cond do
+          # An iteration whose shell has not re-attached yet after a resume:
+          # the shell reads it from the snapshot as a finished iteration.
+          is_binary(Map.get(entry, :multi_instance_id)) ->
+            finish_iteration_entry(data, flow_node_instance_id, result)
+
           throw_fni_id != nil ->
             handle_compensation_handler_finished(
               data,
@@ -2279,16 +2191,51 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
 
-    targets =
+    source_flow_node_id =
+      get_in(data.flow_node_instance_states, [originating_flow_node_instance_id, :flow_node_id])
+
+    {_dispatched_counts, data} =
       next_flow_node_ids
       |> Enum.map(&Map.get(node_index, &1))
       |> Enum.reject(&is_nil/1)
+      |> Enum.reduce({%{}, data}, fn target_node, {dispatched_counts, accumulator} ->
+        occurrence = Map.get(dispatched_counts, target_node.id, 0)
 
-    Enum.reduce(targets, data, fn target_node, accumulator ->
-      dispatch_flow_node_instance(accumulator, target_node, new_token, [
-        originating_flow_node_instance_id
-      ])
-    end)
+        incoming_flow_id =
+          nth_sequence_flow_id(
+            data.process_model,
+            source_flow_node_id,
+            target_node.id,
+            occurrence
+          )
+
+        accumulator =
+          dispatch_flow_node_instance(
+            accumulator,
+            target_node,
+            new_token,
+            [originating_flow_node_instance_id],
+            incoming_flow_id
+          )
+
+        {Map.put(dispatched_counts, target_node.id, occurrence + 1), accumulator}
+      end)
+
+    data
+  end
+
+  # Two sequence flows from one source to the same target yield the target
+  # twice in `next_flow_node_ids`; each occurrence travels its own flow.
+  defp nth_sequence_flow_id(_process_model, nil, _target_node_id, _occurrence), do: nil
+
+  defp nth_sequence_flow_id(process_model, source_flow_node_id, target_node_id, occurrence) do
+    process_model.sequence_flows
+    |> Enum.filter(&(&1.source_ref == source_flow_node_id and &1.target_ref == target_node_id))
+    |> Enum.at(occurrence)
+    |> case do
+      nil -> nil
+      sequence_flow -> sequence_flow.id
+    end
   end
 
   defp handle_fni_wait(data, flow_node_instance_id, %FlowNodeResult{} = result) do
@@ -2363,6 +2310,54 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp resolve_or_fatal_flow_node_error(data, flow_node_instance_id, reason) do
+    case shell_error_boundary(data, flow_node_instance_id, reason) do
+      {:boundary, boundary_node_id, payload, cancel_activity} ->
+        data
+        |> apply_boundary_catch_or_cycle_fire(
+          flow_node_instance_id,
+          boundary_node_id,
+          payload,
+          cancel_activity,
+          nil,
+          :catch
+        )
+        |> maybe_finish_or_continue()
+
+      :none ->
+        resolve_esp_or_fatal_flow_node_error(data, flow_node_instance_id, reason)
+    end
+  end
+
+  # An MI or Standard Loop shell reports its errors from its continuation,
+  # outside `BoundaryAwareHandler.wrap_enter/4`.
+  defp shell_error_boundary(data, flow_node_instance_id, reason) do
+    entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
+    with true <- multi_instance_shell?(flow_node, entry),
+         context =
+           InstanceHandlerDispatch.build_handler_context(
+             data,
+             flow_node_instance_id,
+             flow_node,
+             self()
+           ),
+         {:boundary, _node_id, _payload, _cancel_activity} = boundary <-
+           BoundaryAwareHandler.attempt_error_boundary_catch(flow_node, context, reason) do
+      boundary
+    else
+      _not_caught -> :none
+    end
+  end
+
+  defp multi_instance_shell?(%FlowNode{} = flow_node, entry) do
+    (flow_node.multi_instance != nil or flow_node.standard_loop != nil) and
+      is_nil(Map.get(entry, :multi_instance_id))
+  end
+
+  defp multi_instance_shell?(_flow_node, _entry), do: false
+
+  defp resolve_esp_or_fatal_flow_node_error(data, flow_node_instance_id, reason) do
     case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
       {:caught, data, action} ->
         data = execute_esp_action(data, action)
@@ -2963,10 +2958,24 @@ defmodule BfwEngine.Execution.ProcessInstance do
       id != join_fni_id and entry.state in [:active, :waiting] and
         MapSet.member?(region, entry.flow_node_id)
     end)
-    |> Enum.reduce(data, &interrupt_single_region_fni/2)
+    |> Enum.reduce(data, fn {flow_node_instance_id, _entry}, accumulator ->
+      accumulator
+      |> interrupt_single_region_fni(flow_node_instance_id)
+      |> BoundaryOrchestrator.cancel_boundary_fnis_for_host(flow_node_instance_id)
+    end)
   end
 
-  defp interrupt_single_region_fni({flow_node_instance_id, entry}, accumulator) do
+  defp interrupt_single_region_fni(data, flow_node_instance_id) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{state: state} = entry when state in [:active, :waiting] ->
+        interrupt_live_region_fni(data, flow_node_instance_id, entry)
+
+      _already_ended ->
+        data
+    end
+  end
+
+  defp interrupt_live_region_fni(accumulator, flow_node_instance_id, entry) do
     if entry.pid != nil, do: Process.exit(entry.pid, :kill)
 
     flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
@@ -3006,7 +3015,83 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # Internal: Boundary event catch handling
   # -------------------------------------------------------------------
 
+  # An MI iteration runs with the MI node's boundary set, but the boundary is
+  # attached to the shell: the shell is the host, and the iteration ends here.
   defp apply_boundary_catch_or_cycle_fire(
+         data,
+         flow_node_instance_id,
+         boundary_node_id,
+         payload,
+         cancel_activity,
+         triggerer_fni_id,
+         mode
+       ) do
+    case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
+      {shell_fni_id, _shell_task_pid} ->
+        data =
+          if cancel_activity do
+            entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
+
+            finish_interrupted_iteration(
+              data,
+              flow_node_instance_id,
+              entry,
+              :interrupted_by_boundary
+            )
+          else
+            data
+          end
+
+        apply_host_boundary_if_live(
+          data,
+          shell_fni_id,
+          boundary_node_id,
+          payload,
+          cancel_activity,
+          triggerer_fni_id,
+          mode
+        )
+
+      nil ->
+        apply_host_boundary(
+          data,
+          flow_node_instance_id,
+          boundary_node_id,
+          payload,
+          cancel_activity,
+          triggerer_fni_id,
+          mode
+        )
+    end
+  end
+
+  defp apply_host_boundary_if_live(
+         data,
+         shell_fni_id,
+         boundary_node_id,
+         payload,
+         cancel_activity,
+         triggerer_fni_id,
+         mode
+       ) do
+    case Map.get(data.flow_node_instance_states, shell_fni_id) do
+      %{state: state} when state in [:active, :waiting] ->
+        apply_host_boundary(
+          data,
+          shell_fni_id,
+          boundary_node_id,
+          payload,
+          cancel_activity,
+          triggerer_fni_id,
+          mode
+        )
+
+      _ended ->
+        data
+    end
+  end
+
+  defp apply_host_boundary(
          data,
          flow_node_instance_id,
          boundary_node_id,
@@ -3228,10 +3313,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
     flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
 
     handler_lookup =
-      if Map.has_key?(data.mi_shell_tasks, flow_node_instance_id) do
-        HandlerDispatch.inner_handler_for(flow_node)
-      else
-        HandlerDispatch.handler_for(flow_node)
+      cond do
+        multi_instance_shell?(flow_node, entry) -> {:error, :fni_is_multi_instance_shell}
+        Map.get(entry, :multi_instance_id) -> HandlerDispatch.inner_handler_for(flow_node)
+        true -> HandlerDispatch.handler_for(flow_node)
       end
 
     case handler_lookup do
@@ -3261,8 +3346,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
       {:error, {:unsupported_event_definition, _unsupported_flow_node}} ->
         {:keep_state, data, [{:reply, from, {:error, :unsupported_element}}]}
 
-      {:error, :unsupported_element} ->
-        {:keep_state, data, [{:reply, from, {:error, :unsupported_element}}]}
+      {:error, reason} when reason in [:unsupported_element, :fni_is_multi_instance_shell] ->
+        {:keep_state, data, [{:reply, from, {:error, reason}}]}
     end
   end
 
@@ -3443,16 +3528,11 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp evaluate_parked_inclusive_joins(data) do
-    inclusive_joins =
-      Enum.filter(data.join_routing, fn {_id, routing} ->
-        routing.gateway_type == :inclusive_gateway
-      end)
-
-    Enum.each(inclusive_joins, fn {flow_node_id, routing} ->
-      maybe_signal_inclusive_join_fire(data, flow_node_id, routing)
-    end)
-
     data
+    |> parked_joins(:inclusive_gateway)
+    |> Enum.reduce(data, fn {flow_node_id, routing}, accumulator ->
+      maybe_signal_inclusive_join_fire(accumulator, flow_node_id, routing)
+    end)
   end
 
   defp maybe_signal_inclusive_join_fire(data, flow_node_id, routing) do
@@ -3466,24 +3546,35 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     if should_fire do
       case Map.get(data.flow_node_instance_states, routing.fni_id) do
-        %{pid: pid} when is_pid(pid) ->
-          send(pid, {:fire})
-
-        _ ->
-          :ok
+        %{pid: pid} when is_pid(pid) -> send(pid, {:fire})
+        _ -> :ok
       end
+
+      %{data | join_routing: Map.delete(data.join_routing, flow_node_id)}
+    else
+      data
     end
   end
 
   defp evaluate_parked_complex_joins(data) do
-    complex_joins =
-      Enum.filter(data.join_routing, fn {_id, routing} ->
-        routing.gateway_type == :complex_gateway and not Map.get(routing, :fired, false)
-      end)
-
-    Enum.reduce(complex_joins, data, fn {flow_node_id, routing}, accumulator ->
+    data
+    |> parked_joins(:complex_gateway)
+    |> Enum.reject(fn {_flow_node_id, routing} -> Map.get(routing, :fired, false) end)
+    |> Enum.reduce(data, fn {flow_node_id, routing}, accumulator ->
       evaluate_single_complex_join(accumulator, flow_node_id, routing)
     end)
+  end
+
+  # While an Event-Based Gateway winner's successors are deferred, its token
+  # is in no FNI, so dead-path evaluation would see its branch as dead.
+  defp parked_joins(data, gateway_type) do
+    if Map.get(data, :event_based_gateway_deferred_dispatch) == nil do
+      Enum.filter(data.join_routing, fn {flow_node_id, routing} ->
+        routing.gateway_type == gateway_type and live_join_routing(data, flow_node_id) != nil
+      end)
+    else
+      []
+    end
   end
 
   defp evaluate_single_complex_join(data, flow_node_id, routing) do
@@ -4138,7 +4229,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
       input_token: token.payload,
       previous_flow_node_instance_ids: [shell_fni_id],
       multi_instance_id: shell_fni_id,
-      iteration_index: index
+      iteration_index: index,
+      type_properties: %{"loop_overlay" => Map.delete(loop_overlay, "results")}
     }
 
     iteration_context = %{
@@ -4322,10 +4414,23 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp handle_mi_iteration_ok(data, iteration_fni_id, result, shell_task_pid) do
-    entry = Map.get(data.flow_node_instance_states, iteration_fni_id)
+    data = finish_iteration_entry(data, iteration_fni_id, result)
+    send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:ok, result}})
+    %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+  end
 
-    data =
-      if entry do
+  defp finish_iteration_entry(data, iteration_fni_id, result) do
+    data = %{
+      data
+      | data_object_cache:
+          Map.merge(data.data_object_cache, extract_cache_updates(result.metadata))
+    }
+
+    case Map.get(data.flow_node_instance_states, iteration_fni_id) do
+      nil ->
+        data
+
+      entry ->
         output_payload = result.output_payload || entry.token.payload
 
         put_in(data.flow_node_instance_states[iteration_fni_id], %{
@@ -4334,12 +4439,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
             pid: nil,
             token: %{entry.token | payload: output_payload}
         })
-      else
-        data
-      end
-
-    send(shell_task_pid, {:mi_iteration_completed, iteration_fni_id, {:ok, result}})
-    %{data | mi_shell_tasks: Map.delete(data.mi_shell_tasks, iteration_fni_id)}
+    end
   end
 
   defp handle_mi_iteration_error(data, iteration_fni_id, reason, shell_task_pid) do
@@ -4379,9 +4479,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   defp reattach_iteration_shell(data, shell_fni_id, shell_task_pid) do
     iterations =
-      Enum.filter(data.flow_node_instance_states, fn {_id, entry} ->
-        Map.get(entry, :multi_instance_id) == shell_fni_id
-      end)
+      data.flow_node_instance_states
+      |> Enum.filter(fn {_id, entry} -> Map.get(entry, :multi_instance_id) == shell_fni_id end)
+      |> Enum.sort_by(fn {_id, entry} -> Map.get(entry, :iteration_index) end)
 
     live = Enum.filter(iterations, fn {_id, entry} -> entry.state in [:active, :waiting] end)
     finished = Enum.filter(iterations, fn {_id, entry} -> entry.state == :finished end)
@@ -4417,20 +4517,40 @@ defmodule BfwEngine.Execution.ProcessInstance do
       |> Enum.filter(fn {_iter_id, {sid, _pid}} -> sid == shell_fni_id end)
       |> Enum.map(fn {iter_id, _} -> iter_id end)
 
+    exit_reasons =
+      iteration_fni_ids
+      |> Enum.flat_map(&live_iteration_pid(data, &1))
+      |> shutdown_and_await_iteration_tasks()
+
     Enum.reduce(iteration_fni_ids, data, fn iter_fni_id, accumulator ->
-      interrupt_single_iteration(accumulator, iter_fni_id)
+      interrupt_single_iteration(accumulator, iter_fni_id, exit_reasons)
     end)
   end
 
-  defp interrupt_single_iteration(data, iteration_fni_id) do
+  defp live_iteration_pid(data, iteration_fni_id) do
+    case Map.get(data.flow_node_instance_states, iteration_fni_id) do
+      %{state: state, pid: pid} when state in [:active, :waiting] and is_pid(pid) ->
+        if Process.alive?(pid), do: [pid], else: []
+
+      _not_live ->
+        []
+    end
+  end
+
+  defp interrupt_single_iteration(data, iteration_fni_id, exit_reasons) do
     entry = Map.get(data.flow_node_instance_states, iteration_fni_id)
 
     cond do
       is_nil(entry) or entry.state not in [:active, :waiting] ->
         data
 
-      entry.pid && Process.alive?(entry.pid) ->
-        shutdown_live_iteration(data, iteration_fni_id, entry)
+      Map.has_key?(exit_reasons, entry.pid) ->
+        finish_shut_down_iteration(
+          data,
+          iteration_fni_id,
+          entry,
+          Map.fetch!(exit_reasons, entry.pid)
+        )
 
       entry.state == :active ->
         # The pid is already dead but the entry is still :active: the
@@ -4449,10 +4569,10 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # `:normal`, `:shutdown`, and `:noproc` all mean the iteration task has
   # left. A queued `{:ok, %FlowNodeResult{}}` means that task already
   # committed a finish; leave the entry for that message. Any other exit,
-  # including the `:kill` sent after the five-second wait, still attempts
+  # including the `:kill` sent after the grace period, still attempts
   # the interrupt write, which loses if the row is already terminal.
-  defp shutdown_live_iteration(data, iteration_fni_id, entry) do
-    case shutdown_and_await_iteration_task(entry.pid) do
+  defp finish_shut_down_iteration(data, iteration_fni_id, entry, exit_reason) do
+    case exit_reason do
       reason when reason in [:normal, :shutdown, :noproc] ->
         if queued_ok_iteration_result?(iteration_fni_id) do
           data
@@ -4474,37 +4594,62 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end)
   end
 
-  defp shutdown_and_await_iteration_task(pid) do
-    reference = Process.monitor(pid)
-    Process.exit(pid, :shutdown)
+  # Returns `%{pid => exit_reason}`; Tasks still alive after the grace are killed.
+  defp shutdown_and_await_iteration_tasks([]), do: %{}
 
-    reason =
-      receive do
-        {:DOWN, ^reference, :process, ^pid, exit_reason} -> exit_reason
-      after
-        5_000 ->
-          Process.exit(pid, :kill)
+  defp shutdown_and_await_iteration_tasks(pids) do
+    monitored = Map.new(pids, fn pid -> {Process.monitor(pid), pid} end)
+    Enum.each(pids, &Process.exit(&1, :shutdown))
 
-          receive do
-            {:DOWN, ^reference, :process, ^pid, exit_reason} -> exit_reason
-          after
-            1_000 -> :killed
-          end
-      end
+    {exit_reasons, remaining} =
+      await_iteration_downs(monitored, %{}, deadline_after(@iteration_shutdown_grace_ms))
 
-    Process.demonitor(reference, [:flush])
-    reason
+    Enum.each(remaining, fn {_reference, pid} -> Process.exit(pid, :kill) end)
+
+    {exit_reasons, unconfirmed} =
+      await_iteration_downs(remaining, exit_reasons, deadline_after(@iteration_kill_wait_ms))
+
+    Enum.reduce(unconfirmed, exit_reasons, fn {reference, pid}, accumulator ->
+      Process.demonitor(reference, [:flush])
+      Map.put(accumulator, pid, :killed)
+    end)
   end
 
-  defp finish_interrupted_iteration(data, iteration_fni_id, entry) do
+  defp deadline_after(milliseconds), do: System.monotonic_time(:millisecond) + milliseconds
+
+  defp await_iteration_downs(monitored, exit_reasons, _deadline) when map_size(monitored) == 0,
+    do: {exit_reasons, monitored}
+
+  defp await_iteration_downs(monitored, exit_reasons, deadline) do
+    remaining_ms = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {:DOWN, reference, :process, pid, exit_reason} when is_map_key(monitored, reference) ->
+        await_iteration_downs(
+          Map.delete(monitored, reference),
+          Map.put(exit_reasons, pid, exit_reason),
+          deadline
+        )
+    after
+      remaining_ms -> {exit_reasons, monitored}
+    end
+  end
+
+  defp finish_interrupted_iteration(
+         data,
+         iteration_fni_id,
+         entry,
+         reason \\ :cancelled_by_mi_shell
+       ) do
     shell_task = Map.get(data.mi_shell_tasks, iteration_fni_id)
     flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+    InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_aborted, [entry])
 
     persist_result =
       FniLifecycle.transition_to_interrupted(
         iteration_fni_id,
         data.process_instance_id,
-        :cancelled_by_mi_shell,
+        reason,
         flow_node,
         entry.type_properties,
         LaneResolution.resolve_lane_name(data.process_model, flow_node),

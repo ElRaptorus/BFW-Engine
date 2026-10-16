@@ -133,7 +133,8 @@ flow node state change** in the process instance. Each time, it decides:
 
 1. **Fire** — the `activationCondition` is `true`. The join merges the arrived
    branch payloads (last-wins per key) and continues along its single outgoing
-   flow. This happens **exactly once**.
+   flow. This happens **exactly once** per pass: if a loop brings tokens back
+   to the join after it fired, they start a new join instance.
 2. **Wait** — the condition is `false`, but at least one branch could still
    deliver a token. The join keeps waiting.
 3. **Error** — the condition is `false` **and** every incoming branch
@@ -226,7 +227,9 @@ When the join fires:
   even entire child processes started by a Call Activity or SubProcess inside
   the region. Each cancelled activity runs its normal cleanup (subscriptions
   removed, timers stopped, child processes aborted) and is recorded as
-  `interrupted` with the reason `cancelled_by_complex_join`.
+  `interrupted` with the reason `cancelled_by_complex_join`. Boundary events
+  attached to a cancelled activity are interrupted with it, even though the
+  boundary event itself sits outside the split→join flow.
 - **Not touched:** anything **outside the region** — including parallel work
   that belongs to an *enclosing* region. The process-wide message and signal
   subscriptions are also left intact (this is a *scoped* cancellation, not a

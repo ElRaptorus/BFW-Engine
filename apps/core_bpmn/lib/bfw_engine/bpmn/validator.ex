@@ -1655,6 +1655,16 @@ defmodule BfwEngine.BPMN.Validator do
 
   defp event_based_gateway_successor_error(gateway, flow, node_index) do
     case Map.get(node_index, flow.target_ref) do
+      %FlowNode{type: :intermediate_catch_event, type_data: %{event_definition: definition}} =
+          target
+      when is_nil(definition) or is_struct(definition, EventDefinition.Link) ->
+        [
+          {:event_based_gateway_untriggered_successor,
+           "EventBasedGateway '#{gateway.id}' outgoing flow '#{flow.id}' targets Intermediate " <>
+             "Catch Event '#{target.id}', which has no message, signal, timer, or conditional " <>
+             "trigger and would win the race immediately."}
+        ]
+
       %FlowNode{type: type} when type in [:intermediate_catch_event, :receive_task] ->
         []
 

@@ -33,7 +33,9 @@ defmodule BfwEngine.Timers.Scheduler do
   ## Cycle Timers
 
   For timers with `cycle_interval` set, the Scheduler computes the next
-  fire time via `ISO8601.next_cycle_fire/2` and re-inserts into ETS.
+  fire time via `ISO8601.next_cycle_fire/2` and re-inserts into ETS under
+  the same timer ref, so the ref returned by `schedule/2` cancels the
+  whole cycle.
   An optional `on_cycle_advance` callback (MFA) is invoked so the
   `StartEventManager` can persist updated `next_fire_at`.
   """
@@ -247,7 +249,7 @@ defmodule BfwEngine.Timers.Scheduler do
 
         emit_telemetry(:fired, timer_ref, %{}, metadata)
 
-        maybe_rearm_cycle(state, target, metadata, cycle_info, fire_at_ms)
+        maybe_rearm_cycle(state, {target, timer_ref}, metadata, cycle_info, fire_at_ms)
 
         fire_expired_timers_loop(state, now_ms)
 
@@ -278,7 +280,7 @@ defmodule BfwEngine.Timers.Scheduler do
     end
   end
 
-  defp maybe_rearm_cycle(state, target, metadata, cycle_info, fire_at_ms)
+  defp maybe_rearm_cycle(state, {target, timer_ref}, metadata, cycle_info, fire_at_ms)
        when is_map(cycle_info) do
     fire_at = DateTime.from_unix!(fire_at_ms, :millisecond)
 
@@ -290,7 +292,6 @@ defmodule BfwEngine.Timers.Scheduler do
 
     case ISO8601.next_cycle_fire(cycle_spec, fire_at) do
       {next_fire, updated_cycle_spec} ->
-        new_ref = generate_timer_ref()
         next_fire_ms = DateTime.to_unix(next_fire, :millisecond)
 
         new_cycle_info = %{
@@ -298,10 +299,10 @@ defmodule BfwEngine.Timers.Scheduler do
           remaining: updated_cycle_spec.repetitions
         }
 
-        :ets.insert(state.primary, {{next_fire_ms, new_ref}, target, metadata, new_cycle_info})
-        :ets.insert(state.target_index, {target_key(target), new_ref, next_fire_ms})
+        :ets.insert(state.primary, {{next_fire_ms, timer_ref}, target, metadata, new_cycle_info})
+        :ets.insert(state.target_index, {target_key(target), timer_ref, next_fire_ms})
 
-        emit_telemetry(:armed, new_ref, %{fire_at: next_fire}, metadata)
+        emit_telemetry(:armed, timer_ref, %{fire_at: next_fire}, metadata)
 
         invoke_cycle_advance_callback(state, metadata, next_fire, updated_cycle_spec.repetitions)
 
@@ -353,7 +354,7 @@ defmodule BfwEngine.Timers.Scheduler do
           deliver_fire_message(target, timer_ref, metadata)
           delete_timer(state, key, timer_ref)
           emit_telemetry(:fired, timer_ref, %{}, metadata)
-          maybe_rearm_cycle(state, target, metadata, cycle_info, fire_at_ms)
+          maybe_rearm_cycle(state, {target, timer_ref}, metadata, cycle_info, fire_at_ms)
 
         [] ->
           :ok

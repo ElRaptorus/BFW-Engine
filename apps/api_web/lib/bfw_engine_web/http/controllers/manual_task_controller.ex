@@ -26,7 +26,7 @@ defmodule BfwEngineWeb.Http.ManualTaskController do
 
   @terminal_fni_reasons ~w(
     fni_already_finished fni_already_aborted fni_already_interrupted
-    fni_already_fatal fni_not_waiting fni_not_active
+    fni_already_fatal fni_not_waiting fni_not_active fni_is_multi_instance_shell
   )a
 
   # ---------------------------------------------------------------------------

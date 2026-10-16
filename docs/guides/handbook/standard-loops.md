@@ -36,16 +36,16 @@ The first iteration always runs. The condition is checked **after** each iterati
     <bfw:formFields>[{"id":"approved","type":"toggle","label":"approved","required":false}]</bfw:formFields>
   </bpmn:extensionElements>
   <bpmn:standardLoopCharacteristics testBefore="false" loopMaximum="5">
-    <bpmn:loopCondition>token.approved != true</bpmn:loopCondition>
+    <bpmn:loopCondition>token.values.approved != true</bpmn:loopCondition>
   </bpmn:standardLoopCharacteristics>
 </bpmn:userTask>
 ```
 
-The reviewer sees the form at least once. After each submission, the engine checks whether `token.approved` is `true`. If not, the task is presented again — up to 5 times total. This is the natural fit for "retry until accepted" workflows.
+The reviewer sees the form at least once. A finished User Task produces the token `{ actionId, values }`, so after each submission the engine checks whether `token.values.approved` is `true`. If not, the task is presented again — up to 5 times total. This is the natural fit for "retry until accepted" workflows.
 
 ## Loop Condition
 
-`<bpmn:loopCondition>` is a FEEL expression evaluated against the current process context (including `loop.*` bindings). The loop continues while the expression evaluates to `true`.
+`<bpmn:loopCondition>` is a FEEL expression evaluated against the latest token (see [Token Evolution](#token-evolution)) and the `loop.*` bindings. The loop continues while the expression evaluates to `true`; `null` or any other non-boolean value ends it. A FEEL error (for example a syntax error) fatals the loop activity with `loop_condition_failed`.
 
 A `loopCondition` is required for Standard Loops — the validator rejects loops without one.
 
@@ -59,7 +59,7 @@ The `loopMaximum` XML attribute (integer) caps the number of iterations. This is
 </bpmn:standardLoopCharacteristics>
 ```
 
-The validator warns (but does not error) when `loopMaximum` is absent — an uncapped loop with a flawed condition could run indefinitely.
+`loopMaximum` is optional and the validator does not flag its absence — an uncapped loop with a flawed condition runs indefinitely, so set one unless the condition is certain to turn `false`.
 
 ## Loop Interval
 
@@ -139,8 +139,10 @@ The key distinction: if you have a **collection** to iterate, use Multi-Instance
 Errors in a Standard Loop iteration behave like errors in any activity:
 
 - The loop stops on the first fatal iteration
-- Error boundaries on the loop activity catch the error
+- Error boundaries on the loop activity catch the error; the boundary fires once and the loop activity finishes `interrupted`
 - The process instance can be retried (the entire loop re-runs from scratch)
+
+Iterations have no time limit — a User Task or Receive Task iteration may wait as long as needed. Model a deadline with a timer boundary event on the loop activity.
 
 If your loop wraps a Service Task that may fail intermittently, consider placing an error boundary on the loop activity to handle failures gracefully rather than letting the process instance go fatal.
 

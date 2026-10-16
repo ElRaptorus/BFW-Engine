@@ -88,7 +88,8 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   @doc """
   Enables a previously disabled schedule. Re-evaluates `next_fire_at`
-  based on the current time and re-registers in the Scheduler.
+  based on the current time and re-registers in the Scheduler, replacing
+  any entry it still has, so enabling an enabled schedule arms it once.
 
   Only meaningful for cycle schedules. Returns `{:error, :not_a_cycle}`
   for date/duration schedules (those are PI-scoped, not deploy-scoped).
@@ -112,6 +113,8 @@ defmodule BfwEngine.Timers.StartEventManager do
 
   defp arm_enabled_schedule(schedule, scheduler, now) do
     with {:ok, next_fire_at, cycle_info} <- resolve_next_fire(:cycle, schedule.iso_spec, now) do
+      cancel_single_scheduler_entry(schedule.scheduler_ref, scheduler)
+
       {:ok, updated} =
         persistence().update_schedule(schedule.id, %{enabled: true, next_fire_at: next_fire_at})
 

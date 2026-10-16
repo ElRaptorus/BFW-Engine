@@ -77,7 +77,7 @@ For timers with `cycle_interval` set, the Scheduler:
 3. Re-inserts the timer into ETS with the updated fire time
 4. Invokes an optional `on_cycle_advance` callback so `StartEventManager` can persist updated state
 
-Cycle timers decrement their `remaining` counter on each fire. When `remaining` reaches 0 (or `nil` for infinite cycles), the timer is not re-armed.
+Cycle timers decrement their `remaining` counter on each fire. When `remaining` reaches 0 (or `nil` for infinite cycles), the timer is not re-armed. A re-armed cycle keeps its `timer_ref`, so the ref returned by `schedule/1` (persisted as the schedule's `scheduler_ref`) cancels the cycle at any point in its life.
 
 ### Manual timer trigger (`fire_now_for_target/2`)
 
@@ -138,7 +138,7 @@ Manages the lifecycle of Timer Start Event schedules. Receives pre-extracted tim
 |----------|-------------|
 | `register_timer_starts/4` | Persist + schedule cycle timer starts for a deployed version |
 | `unregister_timer_starts/1` | Cancel ETS entries + delete persistence records for a version |
-| `enable_schedule/1` | Re-enable a disabled cycle schedule and re-arm it in the Scheduler with its persisted `cycle_remaining`. An exhausted schedule (`cycle_remaining == 0`) is only marked enabled; it is not armed and never fires again |
+| `enable_schedule/1` | Re-enable a disabled cycle schedule and re-arm it in the Scheduler with its persisted `cycle_remaining`, cancelling any entry it still holds, so enabling an enabled schedule leaves one armed entry. An exhausted schedule (`cycle_remaining == 0`) is only marked enabled; it is not armed and never fires again |
 | `disable_schedule/1` | Cancel Scheduler entry, set `enabled=false` in persistence |
 | `handle_cycle_advance/3` | Scheduler callback after each cycle fire: persists the new `next_fire_at` and `cycle_remaining` (`next_fire_at = nil` once the cycle is exhausted). The **only** writer of cycle state |
 | `record_fire/1` | Set `last_triggered_at` after the listener started a PI. Does not touch `cycle_remaining` or `next_fire_at` |

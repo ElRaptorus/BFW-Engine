@@ -283,7 +283,7 @@ defmodule BfwEngine.Execution.FlowNodes.ParallelGatewayTest do
                ParallelGateway.handle_enter(gateway, token, context)
     end
 
-    test "duplicate arrival of the same incoming flow does not fire a two-in join" do
+    test "duplicate arrival of the same incoming flow fails the join with duplicate_join_arrival" do
       {gateway, context} = build_join_context(["Task_A", "Task_B"], "Next_1")
 
       context = %{
@@ -308,14 +308,10 @@ defmodule BfwEngine.Execution.FlowNodes.ParallelGatewayTest do
         {:join_token_arrived, make_token(%{"dup" => true}), ["fni-task-a"], "Flow_from_Task_A"}
       )
 
-      refute Task.yield(task, 80)
-
-      send(
-        task.pid,
-        {:join_token_arrived, make_token(%{"branch" => "b"}), ["fni-task-b"], "Flow_from_Task_B"}
-      )
-
-      assert {:ok, %FlowNodeResult{next_flow_node_ids: ["Next_1"]}} = Task.await(task, 1_000)
+      assert {:error,
+              {:duplicate_join_arrival,
+               %{flow_node_id: "Join_1", incoming_flow_id: "Flow_from_Task_A"}}} =
+               Task.await(task, 1_000)
     end
   end
 

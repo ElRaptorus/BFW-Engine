@@ -17,7 +17,11 @@ parent — repeating until caught or until the root of the root PI is reached. E
 
 `<bfw:correlationKey>` is FEEL over PI state/context (catch-side subscribe).
 `<bfw:correlationRetrievalExpression>` is FEEL over the outgoing token /
-handler context (throw-side publish). Where each one runs:
+handler context (throw-side publish). Both results become a string in
+`MessageEventHelper`: a string is used as is, a FEEL date, time, date-time or
+duration becomes its ISO 8601 text (`date("2026-01-01")` correlates as
+`"2026-01-01"`), and anything else goes through `to_string/1`; a value that
+cannot be converted fails with `correlation_expression_failed`. Where each one runs:
 
 - **Catch / Boundary / Event-Subprocess-Start subscribe**: PI's `<bfw:correlationKey>` evaluated against current PI state (token + Data Objects + `Identity`, see [expressions.md](./expressions.md) §8 context). Result cached on the `%Subscription{}` row as `expected_correlation_value`.
   - If the process declares no `<bfw:correlationKey>`, the subscription's `expected_correlation_value` is `:none` — it matches any message whose `correlation_value` is `:none`.

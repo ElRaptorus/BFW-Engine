@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_LoopTokenChaining">
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Chaining" name="Chaining" processRef="loop-token-chaining" />
+    <bpmn:participant id="Participant_Broken" name="Broken Condition" processRef="loop-condition-error" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="loop-token-chaining" name="Loop Token Chaining" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Chaining">
+      <bpmn:lane id="Lane_default_Chaining" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Count_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:scriptTask id="Count_1" name="Count Up" scriptFormat="feel">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:script>{ counter: token.counter + 1, label: token.label }</bpmn:script>
+      <bpmn:standardLoopCharacteristics testBefore="true" loopMaximum="10">
+        <bpmn:loopCondition>token.counter &lt; 3</bpmn:loopCondition>
+      </bpmn:standardLoopCharacteristics>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="End_1" name="Done">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Count_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Count_1" targetRef="End_1" />
+  </bpmn:process>
+
+  <bpmn:process id="loop-condition-error" name="Loop Condition Error" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:laneSet id="LaneSet_Broken">
+      <bpmn:lane id="Lane_default_Broken" name="default">
+        <bpmn:flowNodeRef>Broken_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Broken_Count</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Broken_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Broken_Start" name="Start">
+      <bpmn:outgoing>Broken_Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:scriptTask id="Broken_Count" name="Count Up" scriptFormat="feel">
+      <bpmn:incoming>Broken_Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Broken_Flow_2</bpmn:outgoing>
+      <bpmn:script>{ counter: token.counter + 1 }</bpmn:script>
+      <bpmn:standardLoopCharacteristics testBefore="false" loopMaximum="10">
+        <bpmn:loopCondition>token.counter &lt;</bpmn:loopCondition>
+      </bpmn:standardLoopCharacteristics>
+    </bpmn:scriptTask>
+
+    <bpmn:endEvent id="Broken_End" name="Done">
+      <bpmn:incoming>Broken_Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Broken_Flow_1" sourceRef="Broken_Start" targetRef="Broken_Count" />
+    <bpmn:sequenceFlow id="Broken_Flow_2" sourceRef="Broken_Count" targetRef="Broken_End" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_Chaining" bpmnElement="Participant_Chaining" isHorizontal="true">
+        <dc:Bounds x="102" y="100" width="480" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Chaining" bpmnElement="Lane_default_Chaining" isHorizontal="true">
+        <dc:Bounds x="132" y="100" width="450" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="182" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Count_1" bpmnElement="Count_1">
+        <dc:Bounds x="290" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
+        <dc:Bounds x="482" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="218" y="200" />
+        <di:waypoint x="290" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="390" y="200" />
+        <di:waypoint x="482" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Participant_Broken" bpmnElement="Participant_Broken" isHorizontal="true">
+        <dc:Bounds x="102" y="340" width="480" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default_Broken" bpmnElement="Lane_default_Broken" isHorizontal="true">
+        <dc:Bounds x="132" y="340" width="450" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Broken_Start" bpmnElement="Broken_Start">
+        <dc:Bounds x="182" y="422" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Broken_Count" bpmnElement="Broken_Count">
+        <dc:Bounds x="290" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Broken_End" bpmnElement="Broken_End">
+        <dc:Bounds x="482" y="422" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Broken_Flow_1" bpmnElement="Broken_Flow_1">
+        <di:waypoint x="218" y="440" />
+        <di:waypoint x="290" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Broken_Flow_2" bpmnElement="Broken_Flow_2">
+        <di:waypoint x="390" y="440" />
+        <di:waypoint x="482" y="440" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

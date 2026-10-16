@@ -3,7 +3,6 @@ defmodule BfwEngine.Integration.Execution.ParallelGatewayJoinInLoopTest do
   use BfwEngine.ExecutionCase, async: false
 
   describe "B1: loop back into a parallel join" do
-    @tag skip: "Fixed in Batch 2 (B1)"
     test "the join fires again on the second pass and the process instance finishes" do
       process_instance_id =
         http_deploy_and_start("parallel_gateway_join_in_loop.bpmn", "ParallelGatewayJoinInLoop")

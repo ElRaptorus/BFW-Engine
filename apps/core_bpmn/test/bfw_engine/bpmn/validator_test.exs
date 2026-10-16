@@ -3005,6 +3005,76 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert message =~ "ST_1"
     end
 
+    for {label, event_definition} <- [
+          {"None", nil},
+          {"Link", quote(do: %EventDefinition.Link{link_name: "jump"})}
+        ] do
+      test "rejects a #{label} Intermediate Catch Event successor of an Event-Based Gateway" do
+        definitions =
+          ebg_definitions(
+            [
+              %FlowNode{
+                id: "S1",
+                type: :start_event,
+                type_data: %FlowNodeData.StartEvent{},
+                outgoing: ["F1"]
+              },
+              %FlowNode{
+                id: "EBG_1",
+                type: :event_based_gateway,
+                type_data: %FlowNodeData.EventBasedGateway{},
+                incoming: ["F1"],
+                outgoing: ["F_Instant", "F_Timer"]
+              },
+              %FlowNode{
+                id: "IC_Instant",
+                type: :intermediate_catch_event,
+                type_data: %FlowNodeData.IntermediateCatchEvent{
+                  event_definition: unquote(event_definition)
+                },
+                incoming: ["F_Instant"],
+                outgoing: ["F_Instant_End"]
+              },
+              %FlowNode{
+                id: "TC_1",
+                type: :intermediate_catch_event,
+                type_data: %FlowNodeData.IntermediateCatchEvent{
+                  event_definition: %EventDefinition.Timer{time_duration: "PT10S"}
+                },
+                incoming: ["F_Timer"],
+                outgoing: ["F_TC_End"]
+              },
+              %FlowNode{
+                id: "E1",
+                type: :end_event,
+                type_data: %FlowNodeData.EndEvent{},
+                incoming: ["F_Instant_End", "F_TC_End"]
+              }
+            ],
+            [
+              %SequenceFlow{id: "F1", source_ref: "S1", target_ref: "EBG_1"},
+              %SequenceFlow{id: "F_Instant", source_ref: "EBG_1", target_ref: "IC_Instant"},
+              %SequenceFlow{id: "F_Timer", source_ref: "EBG_1", target_ref: "TC_1"},
+              %SequenceFlow{id: "F_Instant_End", source_ref: "IC_Instant", target_ref: "E1"},
+              %SequenceFlow{id: "F_TC_End", source_ref: "TC_1", target_ref: "E1"}
+            ],
+            []
+          )
+
+        assert {:error, violations} = Validator.validate(definitions)
+
+        assert [message] =
+                 for(
+                   {:event_based_gateway_untriggered_successor, message} <- violations,
+                   do: message
+                 )
+
+        assert message =~ "EventBasedGateway 'EBG_1'"
+        assert message =~ "IC_Instant"
+        refute Enum.any?(violations, &match?({:event_based_gateway_invalid_successor, _}, &1))
+      end
+    end
+
     test "V-EBG-1: rejects Receive Task with boundary event after EBG" do
       definitions =
         ebg_definitions(

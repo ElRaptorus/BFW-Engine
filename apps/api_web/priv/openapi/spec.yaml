@@ -2249,6 +2249,7 @@ components:
             - fni_already_aborted
             - fni_already_interrupted
             - fni_already_fatal
+            - fni_is_multi_instance_shell
         message:
           type: string
 

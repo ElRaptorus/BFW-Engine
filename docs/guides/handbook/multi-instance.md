@@ -54,7 +54,7 @@ One iteration at a time — each starts only after the previous completes. Use f
 | `bfw:inputCollection` | FEEL expression that evaluates to the list to iterate over |
 | `bfw:outputCollection` | Variable name for the aggregated results list |
 | `bfw:elementVariable` | Name of the per-iteration variable (accessible as `loop.item`) |
-| `bfw:outputElementVariable` | Name of the key used to collect each iteration's output into the output collection |
+| `bfw:outputElementVariable` | Key read from each iteration's output; the output collection then holds only those values |
 | `bfw:loopBreakCondition` | FEEL expression — loop stops when `true` |
 | `bfw:loopInterval` | ISO 8601 duration between sequential iterations |
 | `bfw:maxIterations` | Safety cap — sequential truncates; parallel fail-fast |
@@ -79,19 +79,29 @@ If the input collection evaluates to an empty list, the MI completes immediately
 <bfw:elementVariable>order</bfw:elementVariable>
 ```
 
-Inside the iteration, `loop.item` refers to the current `order` object.
+Inside the iteration, `loop.item` and `token.order` both refer to the current `order` object.
 
 ## Output Collection
 
-`bfw:outputCollection` names the variable that collects all iteration results. After completion, the aggregated list is available in the output token under the specified name.
+`bfw:outputCollection` is a plain variable name, not a FEEL expression. After completion, the shell's output token is its input token plus that key holding the list of iteration results. A value already stored under the same key is replaced. Without `bfw:outputCollection`, the key is `results`.
 
 ```xml
 <bfw:outputCollection>processedOrders</bfw:outputCollection>
 ```
 
-When all iterations finish, `token.processedOrders` contains a list with one entry per iteration, ordered by iteration index.
+When all iterations finish, `token.processedOrders` contains a list with one entry per completed iteration:
 
-`bfw:outputElementVariable` (or `<bpmn:outputDataItem>`) names the key used when aggregating each iteration's result into that collection. When set, the engine uses this variable name as the aggregation key.
+- **Sequential MI:** ordered by iteration index.
+- **Parallel MI:** ordered by completion — the iteration that finished first comes first. If you need index order, have each iteration return its `loop.index` (or the item) and sort downstream.
+
+By default each entry is the iteration's whole output token. `bfw:outputElementVariable` (or `<bpmn:outputDataItem>`) names a key to read from each iteration's output instead; the list then holds only that value per iteration:
+
+```xml
+<bfw:outputCollection>scores</bfw:outputCollection>
+<bfw:outputElementVariable>score</bfw:outputElementVariable>
+```
+
+An iteration returning `{ score: 7, label: "a" }` contributes `7` to `token.scores`.
 
 ## FEEL `loop.*` Context
 
@@ -153,10 +163,15 @@ Parallel MI fails fast so a misconfigured collection cannot spawn an unbounded n
 
 | Scenario | Behavior |
 |----------|----------|
-| Parallel iteration fails (fatal) | Remaining iterations continue to completion. The shell reports the failure after all iterations finish. |
+| Parallel iteration fails (fatal) | The first failure interrupts every remaining iteration (their FNIs go `:interrupted`) and the shell reports that failure. |
 | Sequential iteration fails | The loop stops immediately. The shell reports the failure. |
-| Error boundary on the MI activity | Catches errors from iteration failures, same as on any activity |
+| Error boundary on the MI activity | Catches an iteration's error and errors of the shell itself (for example `collection_exceeds_max_iterations`). The boundary fires once: every iteration is interrupted, the shell finishes `:interrupted`, and one token leaves the boundary. |
 | Timer/Message boundary on the MI activity | Attaches to the MI shell and works normally — interrupting boundaries cancel all iterations |
+| FEEL error in `completionCondition` or `bfw:loopBreakCondition` | The shell fatals with `loop_condition_failed`. A condition that evaluates to `null` or any non-boolean counts as `false`. |
+
+Interrupted iterations clean up like any interrupted activity: a Call Activity or subprocess iteration aborts its child process instance, a timer is cancelled, a subscription is removed.
+
+There is no time limit on iterations. An iteration may wait for days (user tasks, receive tasks, call activities); model a deadline with a timer boundary event on the MI activity.
 
 ## Retry
 

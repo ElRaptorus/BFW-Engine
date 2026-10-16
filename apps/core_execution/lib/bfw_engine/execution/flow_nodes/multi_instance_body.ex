@@ -27,8 +27,6 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Token
 
-  @iteration_timeout_ms 300_000
-
   @impl true
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
           {:ok, FlowNodeResult.t()}
@@ -66,7 +64,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
   defp dispatch_mi_strategy(flow_node, token, context, mi, []) do
     emit_mi_started(context, flow_node, mi, 0)
     emit_mi_completed(context, flow_node, mi, 0, 0, false)
-    output = build_output_collection(mi, [], 0, context, token.payload || %{})
+    output = build_output_collection(mi, [], token.payload)
     type_properties = mi_type_properties(mi, 0, [])
 
     with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
@@ -150,20 +148,25 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
          {:ok, collection} <- validate_collection(collection) do
       total = length(collection)
       finished = payloads_to_results(snapshot.finished_payloads)
+      occupied = MapSet.new(snapshot.occupied_indices)
 
-      case collect_iteration_results(
-             snapshot.live_count,
-             mi,
-             total,
-             context,
-             token_payload,
-             Enum.reverse(finished)
-           ) do
-        {:ok, collected} ->
-          finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
+      never_dispatched =
+        collection
+        |> Enum.with_index()
+        |> Enum.reject(fn {_item, index} -> MapSet.member?(occupied, index) end)
 
-        {:error, reason} ->
-          {:error, reason}
+      with :ok <-
+             dispatch_parallel_iterations(flow_node, token, context, mi, never_dispatched, total),
+           {:ok, collected} <-
+             collect_iteration_results(
+               snapshot.live_count + length(never_dispatched),
+               mi,
+               total,
+               context,
+               token_payload,
+               Enum.reverse(finished)
+             ) do
+        finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
       end
     end
   end
@@ -236,7 +239,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
         token_payload = token.payload || %{}
         early_break = length(all_collected) < total
         emit_mi_completed(context, flow_node, mi, total, length(all_collected), early_break)
-        output = build_output_collection(mi, all_collected, total, context, token_payload)
+        output = build_output_collection(mi, all_collected, token_payload)
         type_properties = mi_type_properties(mi, total, all_collected)
 
         with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
@@ -296,7 +299,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
   defp finish_parallel_shell(flow_node, mi, total, context, token_payload, collected) do
     early_break = length(collected) < total
     emit_mi_completed(context, flow_node, mi, total, length(collected), early_break)
-    output = build_output_collection(mi, collected, total, context, token_payload)
+    output = build_output_collection(mi, collected, token_payload)
     type_properties = mi_type_properties(mi, total, collected)
 
     with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
@@ -337,40 +340,41 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
   defp dispatch_all_parallel(flow_node, token, context, mi, collection) do
     total = length(collection)
     token_payload = token.payload || %{}
-    process_instance_pid = context.process_instance_pid
-    flow_node_instance_id = context.flow_node_instance_id
 
-    dispatched =
-      collection
-      |> Enum.with_index()
+    with :ok <-
+           dispatch_parallel_iterations(
+             flow_node,
+             token,
+             context,
+             mi,
+             Enum.with_index(collection),
+             total
+           ),
+         {:ok, collected} <-
+           collect_iteration_results(total, mi, total, context, token_payload, []) do
+      finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
+    end
+  end
+
+  defp dispatch_parallel_iterations(flow_node, token, context, mi, indexed_items, total) do
+    errors =
+      indexed_items
       |> Enum.map(fn {item, index} ->
         iteration_token = build_iteration_token(token, mi, item, index, total)
         loop_overlay = build_loop_overlay(item, index, total, [])
 
         case :gen_statem.call(
-               process_instance_pid,
-               {:mi_dispatch_iteration, flow_node_instance_id, index, item, iteration_token,
-                loop_overlay, flow_node}
+               context.process_instance_pid,
+               {:mi_dispatch_iteration, context.flow_node_instance_id, index, item,
+                iteration_token, loop_overlay, flow_node}
              ) do
-          {:ok, iteration_fni_id} -> {:ok, iteration_fni_id, index}
+          {:ok, _iteration_fni_id} -> :ok
           {:error, reason} -> {:error, reason, index}
         end
       end)
+      |> Enum.reject(&(&1 == :ok))
 
-    errors = Enum.filter(dispatched, &match?({:error, _, _}, &1))
-
-    if errors != [] do
-      {:error, {:mi_dispatch_failed, errors}}
-    else
-      collect_parallel_results(
-        flow_node,
-        mi,
-        total,
-        total,
-        context,
-        token_payload
-      )
-    end
+    if errors == [], do: :ok, else: {:error, {:mi_dispatch_failed, errors}}
   end
 
   defp validate_parallel_max_iterations(_collection, %MultiInstance{max_iterations: nil}), do: :ok
@@ -390,31 +394,6 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
 
   defp cap_at_max_iterations(collection, %MultiInstance{max_iterations: max}) do
     Enum.take(collection, max)
-  end
-
-  defp collect_parallel_results(flow_node, mi, total, dispatched_count, context, token_payload) do
-    results = collect_iteration_results(dispatched_count, mi, total, context, token_payload, [])
-
-    case results do
-      {:ok, collected} ->
-        early_break = length(collected) < total
-        emit_mi_completed(context, flow_node, mi, total, length(collected), early_break)
-        output = build_output_collection(mi, collected, total, context, token_payload)
-        type_properties = mi_type_properties(mi, total, collected)
-
-        with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
-             {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
-          {:ok,
-           %FlowNodeResult{
-             output_payload: output,
-             type_properties: type_properties,
-             next_flow_node_ids: next_ids
-           }}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
   end
 
   # -- Sequential MI strategy -------------------------------------------------
@@ -440,26 +419,9 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
         )
       end)
 
-    case result do
-      {:ok, rev_collected} ->
-        collected = Enum.reverse(rev_collected)
-        early_break = length(collected) < total
-        emit_mi_completed(context, flow_node, mi, total, length(collected), early_break)
-        output = build_output_collection(mi, collected, total, context, token_payload)
-        type_properties = mi_type_properties(mi, total, collected)
-
-        with {:ok, next_ids} <- resolve_outgoing(flow_node, context),
-             {:ok, _lifecycle} <- FniLifecycle.finish(context, flow_node, output, type_properties) do
-          {:ok,
-           %FlowNodeResult{
-             output_payload: output,
-             type_properties: type_properties,
-             next_flow_node_ids: next_ids
-           }}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, rev_collected} <- result do
+      collected = Enum.reverse(rev_collected)
+      finish_parallel_shell(flow_node, mi, total, context, token_payload, collected)
     end
   end
 
@@ -491,10 +453,10 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
         collected = [iteration_result | rev_accumulated]
         token_payload = token.payload || %{}
 
-        if should_break?(mi, Enum.reverse(collected), total, context, token_payload) do
-          {:halt, {:ok, collected}}
-        else
-          {:cont, {:ok, collected}}
+        case should_break?(mi, Enum.reverse(collected), total, context, token_payload) do
+          {:ok, true} -> {:halt, {:ok, collected}}
+          {:ok, false} -> {:cont, {:ok, collected}}
+          {:error, reason} -> {:halt, {:error, reason}}
         end
 
       {:error, reason} ->
@@ -514,7 +476,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
            context.process_instance_pid,
            {:mi_dispatch_iteration, context.flow_node_instance_id, index, item, iteration_token,
             loop_overlay, flow_node},
-           @iteration_timeout_ms
+           :infinity
          ) do
       {:ok, _iteration_fni_id} ->
         wait_for_iteration_result()
@@ -535,12 +497,18 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
       {:ok, result} ->
         collected = [result | accumulated]
 
-        if should_break?(mi, Enum.reverse(collected), total, context, token_payload) do
-          interrupt_remaining_iterations(context)
-          drain_remaining_results(remaining - 1)
-          {:ok, Enum.reverse(collected)}
-        else
-          collect_iteration_results(remaining - 1, mi, total, context, token_payload, collected)
+        case should_break?(mi, Enum.reverse(collected), total, context, token_payload) do
+          {:ok, true} ->
+            interrupt_remaining_iterations(context)
+            drain_remaining_results(remaining - 1)
+            {:ok, Enum.reverse(collected)}
+
+          {:ok, false} ->
+            collect_iteration_results(remaining - 1, mi, total, context, token_payload, collected)
+
+          {:error, reason} ->
+            interrupt_remaining_iterations(context)
+            {:error, reason}
         end
 
       {:error, reason} ->
@@ -554,7 +522,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
          flow_node_instance_id: id
        })
        when is_pid(pid) and is_binary(id) do
-    :gen_statem.call(pid, {:mi_interrupt_remaining, id})
+    :gen_statem.call(pid, {:mi_interrupt_remaining, id}, :infinity)
   end
 
   defp interrupt_remaining_iterations(_context), do: :ok
@@ -577,18 +545,46 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
 
       {:mi_iteration_completed, _fni_id, {:error, reason}} ->
         {:error, reason}
-    after
-      @iteration_timeout_ms ->
-        {:error, :iteration_timeout}
     end
   end
 
   # -- Break condition evaluation ---------------------------------------------
 
   defp should_break?(mi, collected, total, context, token_payload) do
-    check_max_iterations(mi, collected) ||
-      check_completion_condition(mi, collected, total, context, token_payload) ||
-      check_loop_break_condition(mi, collected, total, context, token_payload)
+    if check_max_iterations(mi, collected) do
+      {:ok, true}
+    else
+      [
+        {"completionCondition", mi.completion_condition},
+        {"loopBreakCondition", mi.loop_break_condition}
+      ]
+      |> Enum.reject(fn {_condition, expression} -> is_nil(expression) end)
+      |> Enum.reduce_while(
+        {:ok, false},
+        &evaluate_break_condition(&1, &2, collected, total, context, token_payload)
+      )
+    end
+  end
+
+  defp evaluate_break_condition(
+         {condition, expression},
+         _no_break_yet,
+         collected,
+         total,
+         context,
+         token_payload
+       ) do
+    case evaluate_break_expression(
+           condition,
+           expression,
+           collected,
+           total,
+           context,
+           token_payload
+         ) do
+      {:ok, false} -> {:cont, {:ok, false}}
+      met_or_failed -> {:halt, met_or_failed}
+    end
   end
 
   defp check_max_iterations(%MultiInstance{max_iterations: nil}, _collected), do: false
@@ -597,33 +593,7 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
     length(collected) >= max
   end
 
-  defp check_completion_condition(%MultiInstance{completion_condition: nil}, _, _, _, _),
-    do: false
-
-  defp check_completion_condition(mi, collected, total, context, token_payload) do
-    evaluate_break_expression(
-      mi.completion_condition,
-      collected,
-      total,
-      context,
-      token_payload
-    )
-  end
-
-  defp check_loop_break_condition(%MultiInstance{loop_break_condition: nil}, _, _, _, _),
-    do: false
-
-  defp check_loop_break_condition(mi, collected, total, context, token_payload) do
-    evaluate_break_expression(
-      mi.loop_break_condition,
-      collected,
-      total,
-      context,
-      token_payload
-    )
-  end
-
-  defp evaluate_break_expression(expression, collected, total, context, token_payload) do
+  defp evaluate_break_expression(condition, expression, collected, total, context, token_payload) do
     feel_context = FeelContext.from_handler_context(context, token_payload)
     completed_count = length(collected)
     result_payloads = Enum.map(collected, fn r -> r.output_payload end)
@@ -639,8 +609,18 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
       )
 
     case Expressions.eval(expression, feel_context) do
-      {:ok, true} -> true
-      _ -> false
+      {:ok, value} ->
+        {:ok, value == true}
+
+      {:error, reason} ->
+        {:error,
+         {:loop_condition_failed,
+          %{
+            flow_node_id: context.flow_node_this["id"],
+            condition: condition,
+            expression: expression,
+            reason: to_string(reason)
+          }}}
     end
   end
 
@@ -664,38 +644,22 @@ defmodule BfwEngine.Execution.FlowNodes.MultiInstanceBody do
 
   # -- Output collection building ---------------------------------------------
 
-  defp build_output_collection(mi, collected, total, context, token_payload) do
-    results = Enum.map(collected, fn result -> result.output_payload end)
-    incoming = token_payload || %{}
-
-    if is_binary(mi.output_collection) and mi.output_collection != "" do
-      feel_context = FeelContext.from_handler_context(context, incoming)
-      completed_count = length(collected)
-
-      feel_context =
-        FeelContext.put_loop_bindings(
-          feel_context,
-          max(completed_count - 1, 0),
-          total,
-          completed_count,
-          results,
-          nil
-        )
-
-      case Expressions.eval(mi.output_collection, feel_context) do
-        {:ok, value} when is_map(value) ->
-          value
-
-        {:ok, value} when is_list(value) ->
-          Map.put(incoming, mi.output_collection, value)
-
-        _other ->
-          Map.put(incoming, mi.output_collection, results)
-      end
-    else
-      Map.put(incoming, "results", results)
-    end
+  defp build_output_collection(mi, collected, token_payload) do
+    results = Enum.map(collected, &iteration_output_element(mi, &1.output_payload))
+    Map.put(token_payload || %{}, output_collection_key(mi), results)
   end
+
+  defp output_collection_key(%MultiInstance{output_collection: key})
+       when is_binary(key) and key != "",
+       do: key
+
+  defp output_collection_key(_mi), do: "results"
+
+  defp iteration_output_element(%MultiInstance{output_element_variable: key}, output_payload)
+       when is_binary(key) and key != "" and is_map(output_payload),
+       do: Map.get(output_payload, key)
+
+  defp iteration_output_element(_mi, output_payload), do: output_payload
 
   # -- Type properties --------------------------------------------------------
 

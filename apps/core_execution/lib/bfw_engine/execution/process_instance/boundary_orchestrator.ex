@@ -272,8 +272,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         data
 
       entry ->
-        if entry.pid != nil, do: Process.exit(entry.pid, :kill)
-
+        remaining_pid = stop_boundary_handler(entry)
         flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
         persist_result = persist_boundary_fni_finished(boundary_fni_id, triggerer_fni_id)
 
@@ -284,10 +283,22 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         put_in(data.flow_node_instance_states[boundary_fni_id], %{
           entry
           | state: :finished,
-            pid: nil
+            pid: remaining_pid
         })
     end
   end
+
+  # An `:active` boundary handler may still be inside its `park_async` write;
+  # killing it there breaks the database connection it holds. It keeps its pid
+  # so its late `{:async}` result receives the `:cancel` gate and it exits.
+  defp stop_boundary_handler(%{state: :active, pid: pid}) when is_pid(pid), do: pid
+
+  defp stop_boundary_handler(%{pid: pid}) when is_pid(pid) do
+    Process.exit(pid, :kill)
+    nil
+  end
+
+  defp stop_boundary_handler(_entry), do: nil
 
   defp publish_finished_boundary(data, boundary_fni_id, triggerer_fni_id, entry, flow_node) do
     TaskInboxEvents.publish_flow_node_instance_finished(

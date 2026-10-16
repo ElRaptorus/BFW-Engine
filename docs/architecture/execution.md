@@ -392,7 +392,7 @@ On a diverging gateway (single incoming flow, multiple outgoing flows), `handle_
 
 #### Join semantics (converging) — handler-owned state
 
-Converging parallel gateways (`incoming_count > 1`, `outgoing_count <= 1`) are dispatched as stateful async Tasks. The PI detects join topology in `dispatch_flow_node_instance/4` and routes to `dispatch_parallel_join/4`:
+Converging parallel gateways (`incoming_count > 1`, `outgoing_count <= 1`) are dispatched as stateful async Tasks. The PI detects join topology in `dispatch_flow_node_instance/5` and routes Parallel, Inclusive, and Complex joins alike through `dispatch_join/7`:
 
 1. **First arriving token** — `dispatch_join_first_token/7` creates and persists the join FNI, spawns the handler Task. `handle_enter/3` persists the first GPA row and returns `{:async, fni_id, continuation, %{join_gateway: true}}`. The continuation enters a `receive` loop waiting for more tokens.
 2. **Subsequent tokens** — The PI calls `route_token_to_join_handler/6`, sending `{:join_token_arrived, token, previous_fni_ids, incoming_flow_id}` to the handler Task's PID.
@@ -400,6 +400,10 @@ Converging parallel gateways (`incoming_count > 1`, `outgoing_count <= 1`) are d
 4. **Wait-for-all** — When `arrived >= required`, the handler calls `fire_join/4`: deletes all GPA rows, merges payloads using last-wins per key (`Enum.reduce(all_payloads, %{}, &Map.merge(&2, &1))`), resolves outgoing flows, calls `FniLifecycle.finish/4`, and returns `{:ok, %FlowNodeResult{}}`.
 
 The PI's in-memory `join_routing` map (keyed by BPMN `flow_node_id`) holds a lightweight routing entry: `%{fni_id:, gateway_type:, required:, arrived_via_flow_ids:}`. Token accumulation, payload merging, and GPA persistence are fully owned by the handler — the PI only routes messages.
+
+**Arrival keys.** An arrival is keyed by the incoming sequence-flow id. `dispatch_successor_targets/4` supplies it: when one source has several sequence flows to the same target (the target appears several times in `next_flow_node_ids`), the n-th occurrence travels the n-th such flow, so two flows from one fork into one join are two arrivals. Other dispatch paths (boundary, link, resume repair) resolve the first flow from the predecessor's node, or `"unknown"`.
+
+**One join FNI per pass.** A routing entry only counts while its join FNI is `:active`/`:waiting` (`live_join_routing/2`); an entry of an ended join belongs to an earlier pass, and the next arrival creates a new join FNI. The Parallel entry is dropped as soon as its arrivals reach `required` (the handler fires on that arrival), the Inclusive entry when the PI signals `{:fire}`; the Complex entry stays `fired: true` until its FNI ends. A second arrival via a flow that already delivered to a live, unfired join is fatal `:duplicate_join_arrival` for all three types (the Parallel handler reports the same error if a duplicate reaches it).
 
 **Parked state.** When a join handler (parallel, inclusive, or complex) returns `{:async, ..., %{join_gateway: true}}`, `do_handle_fni_async/4` persists the join FNI as `waiting` with `type_properties` `%{"async" => true, "join_gateway" => true}` via `FniLifecycle.transition_to_waiting_by_id/2`, then emits `FlowNodeInstanceStateChanged` (`active` → `waiting`). The database and the wire therefore agree. The fired join's `type_properties` is `%{}`. The join's handler Task can finish the row before the PI handles the async message; the adapter writes `:update_waiting` as one conditional `UPDATE ... WHERE state IN ('active', 'waiting')` (`{:error, :already_terminal}` when no row matches), so the late park never reopens a finished join, even while the Task's finish transaction is still in flight.
 
@@ -416,9 +420,9 @@ Persistence callbacks: `create_gateway_pending_arrival/1`, `list_gateway_pending
 `ResumeRunner` loads `gateway_pending_arrivals` alongside FNIs and passes them as `pending_arrivals` in resume opts. `ProcessInstance.Resumption.rebuild_join_routing/2`:
 
 1. Groups persisted rows by `gateway_flow_node_instance_id`
-2. Looks up each gateway FNI in `flow_node_instance_states` to resolve the BPMN `flow_node_id`
+2. Looks up each gateway FNI in `flow_node_instance_states` to resolve the BPMN `flow_node_id`; rows of a join FNI that is not `:active`/`:waiting` are ignored, so stale rows of an earlier pass cannot shadow the live join
 3. Counts incoming sequence flows from the process model to determine `required`
-4. Rebuilds the lightweight `join_routing` entry (no payloads — those are passed to the handler)
+4. Rebuilds the lightweight `join_routing` entry (no payloads — those are passed to the handler); rows recorded with flow id `"unknown"` count as arrivals, so an Inclusive join whose rows all carry `"unknown"` can still fire through dead-path elimination
 
 Join gateway FNIs (identified via `join_fni_ids/1` from `join_routing`) are reactivated via `reactivate_join_gateway_fni/5`, which calls `handle_resume/4` on the handler module with the pre-grouped persisted arrivals. The handler reconstructs its internal `branch_payloads` from persisted arrival rows, then either fires immediately (if `arrived >= required`) or re-enters the receive loop via `{:async, ...}`.
 
@@ -480,11 +484,11 @@ A runtime BFS fallback exists for models without pre-computed analysis data (for
 
 #### PI-level routing
 
-The PI detects inclusive join topology in `dispatch_flow_node_instance/4` and routes to `dispatch_inclusive_join/4`:
+The PI routes inclusive joins through `dispatch_join/7` (see §Parallel Gateway for arrival keys and the one-join-FNI-per-pass rule):
 
 1. **First arriving token** — `dispatch_join_first_token/7` creates and persists the join FNI, spawns the handler Task. The handler persists the first GPA and returns `{:async, fni_id, continuation, %{join_gateway: true}}` to enter the `inclusive_join_receive_loop`.
 2. **Subsequent tokens** — The PI updates `arrived_via_flow_ids` in `join_routing` and calls `route_token_to_join_handler/6` to send `{:join_token_arrived, ...}` to the handler Task. Duplicate arrivals (same flow ID arriving twice) are rejected as fatal (`:duplicate_join_arrival`).
-3. **Dead-path re-evaluation** — `evaluate_parked_inclusive_joins/1` is called in `maybe_finish_or_continue/1` after every FNI state change. For each inclusive join in `join_routing`, it calls `FlowNodes.InclusiveGateway.should_fire?/4`. If true, it sends `{:fire}` to the handler Task's PID.
+3. **Dead-path re-evaluation** — `evaluate_parked_inclusive_joins/1` is called in `maybe_finish_or_continue/1` after every FNI state change. For each live inclusive join in `join_routing`, it calls `FlowNodes.InclusiveGateway.should_fire?/4`. If true, it sends `{:fire}` to the handler Task's PID and drops the routing entry. Nothing is evaluated while an Event-Based Gateway successor dispatch is deferred (§Event-Based Gateway).
 4. **Handler reaction** — The handler's `inclusive_join_receive_loop` handles both `{:join_token_arrived, ...}` (accumulates) and `{:fire}` (fires the join). On `{:fire}`, it deletes GPAs, merges payloads, and returns `{:ok, %FlowNodeResult{}}`.
 
 #### `join_routing` entry shape
@@ -571,11 +575,11 @@ A blank `activationCondition` is rejected at deploy (see validator rule `:comple
 
 #### PI-level routing
 
-The PI detects complex-join topology in `join_gateway_check/2` (which now includes `:complex_gateway`) and routes to `dispatch_complex_join/4`:
+The PI detects complex-join topology in `join_gateway_check/2` and routes through `dispatch_join/7` (see §Parallel Gateway for arrival keys and the one-join-FNI-per-pass rule):
 
 1. **First arriving token** — reuses `dispatch_join_first_token/7` (parameterized by `gateway_type`). The routing entry is seeded with the join's `activation_condition` and `fired: false` via `augment_complex_join_routing/3`.
-2. **Subsequent tokens** — `route_subsequent_complex_token/6` updates `arrived_via_flow_ids` and re-evaluates. Duplicate arrivals (same flow id twice) → fatal `:duplicate_join_arrival`.
-3. **Re-evaluation** — `evaluate_parked_complex_joins/1` runs after every FNI state change; for each parked complex join it calls `ComplexJoinEvaluator.evaluate/3`. On `:fire` it sends `{:fire}` to the handler Task, sets `fired: true`, and runs `interrupt_region_fnis/3` to cancel the losing in-region branches; on `{:error, info}` it records the join FNI as fatal; on `:wait` it does nothing.
+2. **Subsequent tokens** — `route_subsequent_join_token/6` updates `arrived_via_flow_ids` and `merged_payload` and re-evaluates. Duplicate arrivals (same flow id twice) → fatal `:duplicate_join_arrival`.
+3. **Re-evaluation** — `evaluate_parked_complex_joins/1` runs after every FNI state change (not while an Event-Based Gateway dispatch is deferred); for each live, unfired complex join it calls `ComplexJoinEvaluator.evaluate/3`. On `:fire` it sends `{:fire}` to the handler Task, sets `fired: true`, and runs `interrupt_region_fnis/3` to cancel the losing in-region branches together with the boundary FNIs attached to them; on `{:error, info}` it records the join FNI as fatal; on `:wait` it does nothing. Once the join FNI has finished, the `fired` entry no longer counts and a token of the next loop pass starts a new join FNI.
 
 #### `join_routing` entry shape
 
@@ -678,14 +682,16 @@ When any successor FNI completes (returns `{:ok, ...}` to the PI), the PI's `han
 1. Identifies sibling catch FNIs by matching `previous_flow_node_instance_ids` — all FNIs that share the same EBG FNI ID as their predecessor.
 2. **Waiting siblings** are interrupted immediately: handler Task is shut down, `handle_aborted/1` runs (timer cancel / subscription deregister), the FNI is persisted as `:interrupted` with `type_properties.reason == "event_based_gateway_sibling_cancelled"`, and `FlowNodeInstanceFinished` is emitted with `terminal_state: :interrupted`.
 3. **Active siblings** (handler still in `handle_enter/3`, often mid-persist) are **not** killed. They are stamped with `type_properties.ebg_pending_cancel: true` and left `:active`. Continuation-async handlers wait for an `{:async_gate, :continue | :cancel}` from the PI after parking; a pending loser gets `:cancel` and never runs `FniLifecycle.finish`. When that FNI later reports `{:async}`, `{:wait}`, or `{:ok}`, `interrupt_pending_loser/2` persists `:interrupted`. Killing an `:active` Task races the enter-path persist and can stall the PI — Event-Based Gateway: do not kill siblings that are still `:active`).
-4. **Deferred successor dispatch:** while any sibling is still `:active` with `ebg_pending_cancel`, `dispatch_successors/5` does **not** spawn the winning catch's outgoing targets. The continuation is stored on `State.event_based_gateway_deferred_dispatch` and flushed from `interrupt_pending_loser/2`. Otherwise a `PT0S` timer winner can dispatch an Error End Event or a fatal ScriptTask while the loser is still entering; `error_all_remaining_fnis` / `fatal_all_fnis` then re-terminates that sibling as `:error`/`:fatal` instead of `:interrupted` (EventBasedGatewayTest flake).
+4. **Deferred successor dispatch:** while any sibling is still `:active` with `ebg_pending_cancel`, `dispatch_successors/5` does **not** spawn the winning catch's outgoing targets. The continuation is stored on `State.event_based_gateway_deferred_dispatch` and flushed from `interrupt_pending_loser/2`. Otherwise a `PT0S` timer winner can dispatch an Error End Event or a fatal ScriptTask while the loser is still entering; `error_all_remaining_fnis` / `fatal_all_fnis` then re-terminates that sibling as `:error`/`:fatal` instead of `:interrupted` (EventBasedGatewayTest flake). While a dispatch is deferred, parked Inclusive and Complex joins are not evaluated: the winner's token sits in no FNI, so dead-path elimination would treat its branch as dead and fire the join early.
 5. After an async/wait park (including a pending-loser interrupt and deferred-dispatch flush), the PI runs `maybe_finish_or_continue/1` so a tree whose only remaining live FNI was that loser can reach `:finished`.
 
 **Race safety:** The PI is a `gen_statem`; all FNI results arrive as messages processed sequentially. A stale result guard in `handle_fni_ok` drops results for FNIs that are no longer `:active`/`:waiting`, preventing double-completion. Pending-cancel stamps cover the window where a `PT0S` timer (or other already-due catch) completes before a sibling has left `:active`. The EBG FNI itself transitions to `:finished` before any successor is dispatched, so it never races with its own children.
 
 #### Allowed successor types
 
-The EBG can precede any catch event type (Message, Signal, Timer, Conditional) and Receive Tasks. The validator does not restrict successor types — the handler resolves all outgoing flows unconditionally. The only deploy-time validation rule is V-EBG-1: Receive Tasks following an EBG must not have boundary events (boundary events on EBG targets create ambiguous cancellation semantics).
+The EBG can precede Message, Signal, Timer, and Conditional Intermediate Catch Events and Receive Tasks. The validator rejects any other successor (`event_based_gateway_invalid_successor`), a None or Link Intermediate Catch Event (`event_based_gateway_untriggered_successor` — it would finish instantly and cancel its siblings before they arm), and a Receive Task with boundary events (V-EBG-1, ambiguous cancellation semantics).
+
+A tie (two catches finish before the PI handles either result) cannot write two terminal states: `transition_to_interrupted` goes through the guarded `finish_flow_node_instance/2`, so the loser that already persisted `finished` stays `finished` and no second `FlowNodeInstanceFinished` is emitted. Its successors are not dispatched; a message it consumed is not redelivered.
 
 #### Retry at interrupted EBG siblings
 
@@ -1409,7 +1415,7 @@ Parallel and Inclusive join gateway FNIs in a resettable terminal state are **re
 - **Full retry (no checkpoint):** The join gateway FNI is reset to `active` AND its `gateway_pending_arrivals` (GPA) records are cleared via `clear_gpa_fni_ids` in the reset spec. On resume, `ensure_active_join_gateways_routed/2` in `Resumption` detects the active join FNI with no GPAs, creates a routing entry with empty `arrived_via_flow_ids`, and the handler starts fresh via `handle_resume` with empty arrivals.
 - **Checkpoint retry:** The join gateway FNI is reset to `active` but its GPA records are **preserved**. On resume, `rebuild_join_routing/2` reconstructs the routing from existing GPAs, preserving partial-join state from already-completed branches.
 
-Duplicate FNI prevention: since the old join FNI is reset (not deleted), `rebuild_join_routing` / `ensure_active_join_gateways_routed` populates `join_routing` with the existing FNI ID. When tokens arrive, `dispatch_parallel_join`/`dispatch_inclusive_join` finds the routing entry and routes to the existing handler rather than calling `dispatch_join_first_token`.
+Duplicate FNI prevention: since the old join FNI is reset (not deleted), `rebuild_join_routing` / `ensure_active_join_gateways_routed` populates `join_routing` with the existing FNI ID. When tokens arrive, `dispatch_join/7` finds the routing entry and routes to the existing handler rather than calling `dispatch_join_first_token`.
 
 On checkpoint reset, FNIs downstream of the checkpoint (identified via forward reachability BFS through `previous_flow_node_instance_ids`) are **deleted**, regardless of state. The checkpoint FNI itself is reset to `active`.
 
@@ -2132,9 +2138,11 @@ Unlike Call Activity or Embedded SubProcess, MI and Standard Loop do **not** spa
 
 When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopCharacteristics>` is dispatched, the PI creates a **shell FNI** that orchestrates the loop. A non-empty collection (or a Standard Loop that will run at least one iteration) parks the shell via `FniLifecycle.park_async/2` and returns `{:async, fni_id, continuation, %{persisted: true, mi_shell: true}}`. The PI emits `FlowNodeInstanceStateChanged` (`active → waiting`) and skips `Execution.Registry` registration (`mi_shell` is excluded from the generic async-FNI registry). The handler Task then runs the continuation. An empty MI collection, or a while-do Standard Loop whose condition is already false, completes synchronously without parking.
 
-- **Parallel MI** — All iteration FNIs are dispatched concurrently. Each runs through `HandlerDispatch` as if it were a normal FNI. Results are collected via `Task.async_stream`.
+- **Parallel MI** — All iteration FNIs are dispatched concurrently through `{:mi_dispatch_iteration, ...}` calls; each runs the inner activity's handler (`HandlerDispatch.inner_handler_for/1`). The shell Task collects `{:mi_iteration_completed, ...}` messages in completion order.
 - **Sequential MI** — Iteration FNIs are dispatched one at a time. The shell Task awaits each result before dispatching the next.
 - **Standard Loop** — The same flow node body is executed repeatedly. In `while-do` mode (`testBefore=true`), the condition is checked before the first iteration. In `do-while` mode (`testBefore=false`), the first iteration runs unconditionally.
+
+The shell waits for iteration results without a timeout; a deadline is modelled with a timer boundary event on the activity.
 
 ### Execution Flow
 
@@ -2145,9 +2153,13 @@ When a flow node with `<multiInstanceLoopCharacteristics>` or `<standardLoopChar
 3. All iteration FNIs are dispatched concurrently via `dispatch_mi_iteration_fni`
 4. Each iteration FNI runs the underlying activity handler with a `loop.*` overlay in the FEEL context
 5. As results arrive via `{:fni_result, iteration_fni_id, result}`:
-   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload`), check `completionCondition` / `bfw:loopBreakCondition`
-   - On failure: persist iteration FNI as `:fatal`; remaining iterations continue (unless break condition)
-6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI. `bfw:outputCollection` is a **variable name** (handbook), not a FEEL expression that replaces the whole payload. The shell `output_token` is always a map: the incoming token plus `outputCollection → [iteration output payloads]`. An empty collection uses the same helper (zero-length list under that name). If the text happens to evaluate as FEEL to a map, that map is used as the full payload.
+   - On success: persist iteration FNI as `:finished` (`:update_finished` with `output_token`, not `output_payload`), merge its Data Object writes into the PI's `data_object_cache`, check `completionCondition` / `bfw:loopBreakCondition`
+   - On failure: persist iteration FNI as `:fatal`; the shell interrupts every remaining iteration (`{:mi_interrupt_remaining, shell_id}`) and returns the error
+6. When all iterations complete (or break condition met): aggregate output collection, emit `MultiInstanceCompleted`, finish shell FNI. `bfw:outputCollection` is a key, never FEEL-evaluated: the shell `output_token` is the incoming token with that key (default `results`) set to the list of iteration results (completion order for parallel MI, index order for sequential MI), replacing any existing value. Each list entry is the iteration's output token, or the value under `bfw:outputElementVariable` (fallback `<bpmn:outputDataItem>`) when set. An empty collection yields a zero-length list under that key.
+
+**Boundary events.** An iteration Task runs with the MI node's boundary set, so an error matched inside an iteration yields `{:boundary, ...}` for the iteration FNI. `apply_boundary_catch_or_cycle_fire/7` redirects it to the shell: the iteration is finished `:interrupted` (`:interrupted_by_boundary`), the shell is the host (pre-spawned boundary FNI, sibling boundaries cancelled), an interrupting boundary interrupts the shell and every remaining iteration, and a later boundary result from another iteration of an ended shell only finishes that iteration. Errors the shell continuation returns itself (`collection_exceeds_max_iterations`, `loop_condition_failed`, …) are matched against the activity's error boundaries by `shell_error_boundary/3` before Error Event Subprocesses and fatal.
+
+**Interrupted iterations clean up.** `HandlerDispatch.invoke_optional_callback/3` calls the inner activity's `handle_aborted/1` / `handle_fatal/1` for an iteration entry (the shell module has none), so a Call Activity or subprocess iteration aborts its child and a timer iteration cancels its timer — on abort, fatal, terminate, region cancel, break condition, and boundary interrupt alike. Every live iteration Task of the shell gets `:shutdown` at once; those still alive after one shared `@iteration_shutdown_grace_ms` window (200 ms) are killed, because iteration Tasks trap exits but no continuation reacts to the exit signal. Interrupting many iterations therefore takes about as long as interrupting one, and the shell's `:mi_interrupt_remaining` call waits without a timeout.
 
 #### Multi-Instance (Sequential)
 
@@ -2157,9 +2169,11 @@ Same as parallel but iterations are dispatched one at a time. After each iterati
 
 1. Shell FNI enters → evaluate `loopCondition` (if `testBefore=true`, check before first iteration)
 2. Shell parks as `:waiting` (`park_async` + `FlowNodeInstanceStateChanged`); emits `MultiInstanceStarted` (with `loopType: "standard_loop"`)
-3. Each iteration creates an iteration FNI, runs the activity handler
-4. After each iteration: evaluate `loopCondition`; if still `true` and under `loopMaximum`, dispatch next iteration
-5. When condition becomes `false` or max reached: emit `MultiInstanceCompleted`, finish shell FNI
+3. Each iteration creates an iteration FNI, runs the activity handler. Iteration 0 receives the shell's input token; every later iteration receives the previous iteration's output
+4. After each iteration: evaluate `loopCondition` against the latest token; if still `true` and under `loopMaximum`, dispatch next iteration
+5. When condition becomes `false` or max reached: emit `MultiInstanceCompleted`, finish shell FNI with the last iteration's output (the unchanged input token when no iteration ran)
+
+A FEEL error in `loopCondition`, `completionCondition`, or `bfw:loopBreakCondition` fails the shell with `{:loop_condition_failed, %{flow_node_id, condition, expression, reason}}`; a `null` or other non-boolean value counts as `false`.
 
 ### Database Columns
 
@@ -2188,7 +2202,7 @@ Iteration FNIs receive a `loop` overlay in their FEEL context via `FeelContext.p
 
 Several mechanisms can terminate a loop before all iterations complete:
 
-- **`completionCondition`** (MI) — Standard BPMN element; FEEL expression evaluated after each iteration. When true, remaining iterations are not started (parallel: in-flight iterations are awaited but no new ones dispatch).
+- **`completionCondition`** (MI) — Standard BPMN element; FEEL expression evaluated after each iteration. When true, sequential MI starts no further iteration and parallel MI interrupts its in-flight iterations.
 - **`bfw:loopBreakCondition`** (MI) — Engine extension; same semantics as `completionCondition`.
 - **`bfw:maxIterations`** (MI) — Hard cap on iteration count.
 - **`loopMaximum`** (Standard Loop) — Hard cap on loop passes.
@@ -2207,7 +2221,9 @@ Existing FNI events (`FlowNodeInstanceStarted`, `FlowNodeInstanceFinished`, `Flo
 
 ### Resumption
 
-On engine restart, iteration rows are loaded with their `multi_instance_id` / `iteration_index`. Waiting iterations are reactivated like any waiting FNI, active iterations re-run their handler. The shell is reactivated by `Resumption.reactivate_mi_shell_fni/4`, whose `handle_resume/3` calls `{:mi_reattach_iterations, shell_id}`: the PI routes live iterations back to the shell Task and returns a snapshot (`live_count`, the output payloads of finished iterations, occupied indices). Finished iterations are not re-run. A sequential shell continues with the indices that have no row; a parallel shell waits for its live iterations and finishes with the collected outputs (it does not dispatch indices whose rows were never created). A shell with no iteration row starts over through `handle_enter/3`.
+On engine restart, iteration rows are loaded with their `multi_instance_id` / `iteration_index`. Waiting iterations are reactivated like any waiting FNI, active iterations re-run their handler. An iteration row stores its `loop.*` overlay (without `results`) in `type_properties["loop_overlay"]` at creation; `rebuild_flow_node_instance_states/2` restores `entry.loop_overlay` and rebuilds `results` from the outputs of the first `completed` finished sibling iterations, so output mappings on `loop.*` work after a restart.
+
+A shell is any FNI without `multi_instance_id` whose flow node carries MI or Standard Loop characteristics, with or without iteration rows. It is reactivated by `Resumption.reactivate_mi_shell_fni/4` (which also spawns missing boundary FNIs), whose `handle_resume/3` calls `{:mi_reattach_iterations, shell_id}`: the PI routes live iterations back to the shell Task and returns a snapshot (`live_count`, the output payloads of finished iterations in index order, occupied indices). Finished iterations are not re-run. A sequential shell continues with the indices that have no row; a parallel shell dispatches the indices whose rows were never created, then waits for those and its live iterations. A shell with no iteration row starts over through `handle_enter/3`. An iteration result that arrives before the shell re-attached (no `mi_shell_tasks` entry) only marks the iteration `:finished`; the snapshot then reports it, and its successors are never dispatched by `handle_fni_ok/3`.
 
 ### Retry
 
@@ -2217,7 +2233,9 @@ On engine restart, iteration rows are loaded with their `multi_instance_id` / `i
 
 ### Abort / Fatal / Error Cascading
 
-PI-level cascading (`abort_all_fnis`, `fatal_all_fnis`, `error_all_remaining_fnis`) naturally covers iteration FNIs because they live in the same PI. The shell FNI's `handle_aborted/1` callback also kills in-flight iteration tasks.
+PI-level cascading (`abort_all_fnis`, `fatal_all_fnis`, `error_all_remaining_fnis`) covers iteration FNIs because they live in the same PI; each iteration's inner handler receives its `handle_aborted/1` / `handle_fatal/1` call (see §Execution Flow, interrupted iterations). The shell modules define neither callback.
+
+Finishing a shell FNI through the inbox API (`complete_waiting_fni/6`) is rejected with `{:error, :fni_is_multi_instance_shell}` (REST `422`); the PI keeps running.
 
 ### Handler Modules
 

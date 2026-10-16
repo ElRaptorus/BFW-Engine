@@ -118,6 +118,25 @@ defmodule BfwEngine.Integration.Execution.TimerEventTriggerTest do
       assert body["requiredClaim"] == "lane:Operations"
       assert body["requiredValue"] == "write"
     end
+
+    test "404 before the type and state checks when the caller cannot see the lane" do
+      process_instance_id = deploy_and_start_laned_timer_catch()
+
+      {:ok, _waiting_catch} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
+
+      timer = find_timer_fni!(process_instance_id)
+      {200, _} = http_trigger_timer_event(timer.id, %{"lane:Operations" => "write"})
+      wait_for_process_instance(process_instance_id)
+
+      start = Enum.find(fetch_flow_node_instances(process_instance_id), &(&1.flow_node_id == "Start_1"))
+      claims_without_lane = %{"sub" => "no-lane-user"}
+
+      assert {404, %{"error" => "not_found"}} = http_trigger_timer_event(timer.id, claims_without_lane)
+      assert {404, %{"error" => "not_found"}} = http_trigger_timer_event(start.id, claims_without_lane)
+    end
   end
 
   # ===========================================================================

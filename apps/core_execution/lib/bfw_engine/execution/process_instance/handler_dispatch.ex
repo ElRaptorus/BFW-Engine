@@ -8,15 +8,26 @@ defmodule BfwEngine.Execution.ProcessInstance.HandlerDispatch do
   alias BfwEngine.Execution.HandlerDispatch, as: FlowNodeHandlerDispatch
   alias BfwEngine.Expressions.Context, as: FeelContext
 
+  @doc """
+  Calls `callback_name` on the flow node's handler when the handler exports
+  it. When the first argument is a Multi-Instance or Standard Loop iteration
+  entry, the inner activity's handler receives the call, not the shell's.
+  """
   @spec invoke_optional_callback(FlowNode.t() | nil, atom(), list()) :: :ok
   def invoke_optional_callback(flow_node, callback_name, args) do
-    with {:ok, handler} <- FlowNodeHandlerDispatch.handler_for(flow_node),
+    with {:ok, handler} <- callback_handler(flow_node, args),
          true <- function_exported?(handler, callback_name, length(args)) do
       apply(handler, callback_name, args)
     end
 
     :ok
   end
+
+  defp callback_handler(flow_node, [%{multi_instance_id: shell_id} | _rest])
+       when is_binary(shell_id),
+       do: FlowNodeHandlerDispatch.inner_handler_for(flow_node)
+
+  defp callback_handler(flow_node, _args), do: FlowNodeHandlerDispatch.handler_for(flow_node)
 
   @spec build_handler_context(struct(), String.t(), FlowNode.t(), pid()) :: HandlerContext.t()
   def build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid) do

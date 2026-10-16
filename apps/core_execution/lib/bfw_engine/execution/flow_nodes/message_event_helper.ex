@@ -64,8 +64,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
       feel_context = FeelContext.from_handler_context(context, token_payload)
 
       case Expressions.eval(correlation_key_expression, feel_context) do
-        {:ok, value} when is_binary(value) -> {:ok, value}
-        {:ok, value} -> {:ok, to_string(value)}
+        {:ok, value} -> correlation_text(value)
         {:error, reason} -> {:error, {:correlation_expression_failed, reason}}
       end
     end
@@ -90,8 +89,7 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
       {:ok, :none}
     else
       case Expressions.eval(expression, feel_context) do
-        {:ok, value} when is_binary(value) -> {:ok, value}
-        {:ok, value} -> {:ok, to_string(value)}
+        {:ok, value} -> correlation_text(value)
         {:error, reason} -> {:error, {:correlation_expression_failed, reason}}
       end
     end
@@ -102,6 +100,21 @@ defmodule BfwEngine.Execution.FlowNodes.MessageEventHelper do
   # -------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------
+
+  @feel_temporal_kinds [
+    :feel_date,
+    :feel_time,
+    :feel_datetime,
+    :feel_duration_dt,
+    :feel_duration_ym
+  ]
+
+  # A FEEL date, time, or duration correlates as its ISO 8601 text.
+  defp correlation_text({kind, text}) when kind in @feel_temporal_kinds and is_binary(text),
+    do: {:ok, text}
+
+  defp correlation_text(value) when is_binary(value), do: {:ok, value}
+  defp correlation_text(value), do: {:ok, to_string(value)}
 
   defp extract_message_ref(%FlowNode{type: type, type_data: type_data})
        when type in [:send_task, :receive_task] do

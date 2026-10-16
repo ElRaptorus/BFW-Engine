@@ -320,6 +320,32 @@ defmodule BfwEngine.Integration.Execution.MessageEventsTest do
     end
   end
 
+  describe "F2c: Temporal correlation value" do
+    test "a correlation key yielding a FEEL date correlates as its ISO 8601 text" do
+      {201, _} = http_deploy("message_correlation_temporal_value.bpmn")
+
+      {201, body} =
+        http_start("MessageCorrelationTemporal", %{"payload" => %{"day" => "2026-01-01"}})
+
+      process_instance_id = body["processInstanceId"]
+
+      {:ok, catch_fni} =
+        await_waiting_flow_node_instance(process_instance_id, "intermediate_catch_event",
+          timeout: 10_000
+        )
+
+      assert catch_fni.type_properties["expected_correlation_value"] == "2026-01-01"
+
+      {200, trigger_result} =
+        http_trigger_message("temporal-correlation-msg", %{}, "2026-01-01")
+
+      assert [%{"processInstanceId" => ^process_instance_id}] = trigger_result["deliveries"]
+
+      wait_for_process_instance(process_instance_id)
+      assert_pi_state!(process_instance_id, "finished")
+    end
+  end
+
   # ===================================================================
   # F2b — Message throw starts a PI via Message Start Event — triggerer tracked
   # ===================================================================

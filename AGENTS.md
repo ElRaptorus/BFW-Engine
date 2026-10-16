@@ -842,8 +842,11 @@ count is exclusively determined by the input collection length (or
 
 #### `bfw:inputCollection` / `bfw:outputCollection`
 
-FEEL expressions for the input collection to iterate over and the output
-collection to aggregate results into.
+`bfw:inputCollection` is a FEEL expression that yields the list to iterate
+over. `bfw:outputCollection` is a plain key, never FEEL-evaluated: the shell's
+output token is its input token with that key (default `results`) set to the
+list of iteration results, replacing any value already stored there.
+Sequential MI lists results by iteration index, parallel MI by completion.
 
 ```xml
 <bpmn:multiInstanceLoopCharacteristics isSequential="false">
@@ -866,10 +869,11 @@ back to `<bpmn:inputDataItem>` if the extension is absent.
 
 #### `bfw:outputElementVariable`
 
-Name of the variable used to collect the output of each iteration into the
-output collection. Falls back to `<bpmn:outputDataItem>` if the extension
-is absent. When set, the engine uses this variable name as the key for
-aggregating per-iteration results.
+Key read from each iteration's output token into the output collection:
+an iteration returning `{ score: 7, label: "a" }` with
+`<bfw:outputElementVariable>score</bfw:outputElementVariable>` contributes
+`7`. Falls back to `<bpmn:outputDataItem>` if the extension is absent; with
+neither, each entry is the iteration's whole output token.
 
 ```xml
 <bfw:outputElementVariable>processedItem</bfw:outputElementVariable>
@@ -1139,6 +1143,8 @@ pass. It never short-circuits on the first problem.
 
 ### Event-Based Gateway checks
 
+- Every successor of an Event-Based Gateway must be an Intermediate Catch Event or a Receive Task (`event_based_gateway_invalid_successor`)
+- An Intermediate Catch Event successor must carry a Message, Signal, Timer, or Conditional definition; a None or Link catch would win the race immediately (`event_based_gateway_untriggered_successor`)
 - Receive Tasks that are direct successors of an Event-Based Gateway must not have boundary events attached (boundary events on EBG targets create ambiguous cancellation semantics)
 
 ### Complex Gateway checks (deploy-time)
@@ -1342,7 +1348,7 @@ to the string-keyed format required by the Rust NIF.
 - `<bpmn:timeDuration>`, `<bpmn:timeDate>`, `<bpmn:timeCycle>` (expression-based)
 - `bfw:assignees`, `bfw:dueDate`,
   `bfw:correlationRetrievalExpression`, `bfw:correlationKey`,
-  `bfw:inputCollection`, `bfw:outputCollection`, `bfw:loopBreakCondition`,
+  `bfw:inputCollection`, `bfw:loopBreakCondition`,
   `<bpmn:completionCondition>` (MI), `<bpmn:loopCondition>` (Standard Loop)
 - `bfw:httpBody`, `bfw:httpAuthHeader`, `bfw:httpResponseHeaders` on Service Tasks with `implementation` `"http"` (built-in HTTP handler)
 - `bfw:inputMapping` / `bfw:outputMapping` `source` attributes

@@ -347,6 +347,13 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "A duplicate token arrived at join '#{id}' via sequence flow '#{flow_id}'."
   end
 
+  defp humanize_error(
+         {:loop_condition_failed,
+          %{flow_node_id: id, condition: condition, expression: expression, reason: reason}}
+       ) do
+    "Loop activity '#{id}' could not evaluate its #{condition} '#{expression}': #{reason}"
+  end
+
   defp humanize_error({:ambiguous_start_event, _detail}) do
     "Called process has multiple start events but no startEventId was specified"
   end

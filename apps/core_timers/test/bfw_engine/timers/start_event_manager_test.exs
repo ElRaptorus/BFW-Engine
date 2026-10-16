@@ -248,6 +248,19 @@ defmodule BfwEngine.Timers.StartEventManagerTest do
       assert updated.next_fire_at != nil
     end
 
+    test "enabling an enabled schedule keeps a single scheduler entry", %{
+      schedule_id: schedule_id
+    } do
+      assert Scheduler.armed_count() == 1
+
+      for _attempt <- 1..2 do
+        {:ok, _enabled} =
+          StartEventManager.enable_schedule(schedule_id, reference_time: future_reference_time())
+      end
+
+      assert Scheduler.armed_count() == 1
+    end
+
     test "enable_schedule returns error for nonexistent ID" do
       assert {:error, :not_found} = StartEventManager.enable_schedule("nonexistent")
     end

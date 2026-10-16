@@ -243,8 +243,8 @@ defmodule BfwEngine.Timers.SchedulerTest do
   # -------------------------------------------------------------------------
 
   describe "cycle timers" do
-    test "finite cycle re-arms and fires multiple times" do
-      {:ok, ref_1} =
+    test "finite cycle re-arms under the same ref and fires multiple times" do
+      {:ok, timer_ref} =
         Scheduler.schedule(%{
           fire_at: future(50),
           target: self(),
@@ -253,16 +253,28 @@ defmodule BfwEngine.Timers.SchedulerTest do
           cycle_remaining: 3
         })
 
-      assert_receive {:timer_fired, ^ref_1, %{cycle_test: true}}, 2000
-
-      assert_receive {:timer_fired, ref_2, %{cycle_test: true}}, 2000
-      assert ref_2 != ref_1
-
-      assert_receive {:timer_fired, ref_3, %{cycle_test: true}}, 2000
-      assert ref_3 != ref_2
+      for _i <- 1..3 do
+        assert_receive {:timer_fired, ^timer_ref, %{cycle_test: true}}, 2000
+      end
 
       Process.sleep(1500)
       refute_received {:timer_fired, _, %{cycle_test: true}}
+    end
+
+    test "the ref returned by schedule cancels a cycle that has already fired" do
+      {:ok, timer_ref} =
+        Scheduler.schedule(%{
+          fire_at: future(50),
+          target: self(),
+          metadata: %{cancel_after_fire: true},
+          cycle_interval: Duration.new!(second: 1),
+          cycle_remaining: :infinite
+        })
+
+      assert_receive {:timer_fired, ^timer_ref, %{cancel_after_fire: true}}, 2000
+      assert :ok = Scheduler.cancel(timer_ref)
+
+      refute_receive {:timer_fired, _, %{cancel_after_fire: true}}, 1500
     end
 
     test "infinite cycle keeps firing" do

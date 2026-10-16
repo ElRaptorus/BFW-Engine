@@ -8,7 +8,6 @@ defmodule BfwEngine.Integration.Execution.MultiInstanceShellFinishTest do
   @shell_poll_interval_ms 25
 
   describe "F15: finish on a Multi-Instance user-task shell" do
-    @tag skip: "Fixed in Batch 2 (F15)"
     test "answers 422 fni_is_multi_instance_shell and the process instance stays alive" do
       {201, _} = http_deploy("mi_parallel_user_task.bpmn")
 

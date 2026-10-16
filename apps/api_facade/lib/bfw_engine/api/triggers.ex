@@ -65,17 +65,18 @@ defmodule BfwEngine.Api.Triggers do
   @doc """
   Manually trigger a waiting Timer Event FNI.
 
-  Validates FNI existence, timer event type, active/waiting state,
-  and lane access before delegating to Execution.
+  Validates FNI existence and lane access, then timer event type and
+  active/waiting state, before delegating to Execution. Lane access comes
+  first, so a caller who cannot see the lane gets 404 for every FNI.
   """
   @spec trigger_timer_event(String.t(), struct(), keyword()) ::
           :ok | {:error, term()} | BfwEngine.Api.forbidden_error()
   def trigger_timer_event(flow_node_instance_id, identity, opts \\ []) do
     with {:ok, flow_node_instance} <-
            ProcessInstances.get_flow_node_instance(flow_node_instance_id),
+         :ok <- Validation.check_lane_access(flow_node_instance, identity, opts),
          :ok <- validate_timer_event_type(flow_node_instance),
-         :ok <- validate_fni_active_or_waiting(flow_node_instance),
-         :ok <- Validation.check_lane_access(flow_node_instance, identity, opts) do
+         :ok <- validate_fni_active_or_waiting(flow_node_instance) do
       Execution.trigger_timer_event(
         flow_node_instance.process_instance_id,
         flow_node_instance_id
