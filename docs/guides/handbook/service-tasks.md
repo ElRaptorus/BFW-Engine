@@ -42,6 +42,8 @@ FEEL-enabled fields are evaluated against the standard [expression context](expr
 </bpmn:serviceTask>
 ```
 
+An HTTP request in flight when the engine stops is not re-issued after the restart: the task is failed with error code `HTTP_INTERRUPTED`, so an Error Boundary Event (for example with `<bfw:errorCode>HTTP_INTERRUPTED</bfw:errorCode>`) decides whether to retry, compensate, or give up.
+
 See [Built-in Plugins](../plugins/builtin-plugins.md) for the full HTTP handler specification.
 
 ## Input/Output Mappers
@@ -59,7 +61,7 @@ Optionally reshape data before/after the plugin handler runs. Mappers are FEEL e
 </bpmn:serviceTask>
 ```
 
-The input pipeline (`in_mappings` → `payloadContract`) runs in `handle_enter`. The output pipeline (`out_mappings` → `resultContract` → PayloadCap) runs in `handle_complete` when the async FNI is completed. All contract violations and FEEL evaluation failures transition the FNI to `fatal` (service tasks have no interactive retry path).
+The input pipeline (`in_mappings` → `payloadContract`) runs in `handle_enter`. The output pipeline (`out_mappings` → `resultContract` → PayloadCap) runs in `handle_complete` when the async FNI is completed. All contract violations and FEEL evaluation failures fail the FNI (service tasks have no interactive retry path): an Error Boundary Event on the task or an Error Event Subprocess start in its scope may catch the error, otherwise the FNI transitions to `fatal`.
 
 ## Async Completion
 
@@ -73,11 +75,13 @@ facade.service_tasks.finish_async.(flow_node_instance_id, %{"result" => "success
 facade.service_tasks.fail_async.(flow_node_instance_id, "TIMEOUT", "External service did not respond")
 ```
 
+The completion may arrive before the handler's `handle_enter` has returned; the engine holds it until the FNI is `waiting` and then applies it. A `fail_async` code is matched against Error Boundary Events first, then against Error Event Subprocess starts. A handler that raises instead of returning fails the task with error code `handler_raised`, which the same catchers can handle.
+
 There is no dedicated REST endpoint for async completion — it is plugin-side only via the engine facade. GraphQL is query-only and has no mutation equivalent.
 
 ## Payload Cap
 
-The output payload from a Service Task handler is checked against `BFE_TOKEN_MAX_BYTES`. If the output exceeds the cap, the FNI transitions to `fatal`. See [Error Handling](error-handling.md) for details.
+The output payload from a Service Task handler is checked against `BFE_TOKEN_MAX_BYTES` when the task finishes (after output mapping). If it exceeds the cap, the FNI fails: a catch-all Error Boundary Event (one without an error code) catches it and `finish_async` answers `:ok`; otherwise the FNI is `fatal` and `finish_async` answers `{:error, {:payload_too_large, details}}`. Error Event Subprocess starts do not catch this error. See [Error Handling](error-handling.md) for details.
 
 ## Custom Handlers
 

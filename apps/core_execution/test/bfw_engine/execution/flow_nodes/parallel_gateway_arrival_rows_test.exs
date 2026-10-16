@@ -40,12 +40,11 @@ defmodule BfwEngine.Execution.FlowNodes.ParallelGatewayArrivalRowsTest do
   end
 
   setup do
-    previous_adapter = Application.get_env(:core_execution, :persistence_adapter)
     Application.put_env(:core_execution, :persistence_adapter, ArrivalRecordingAdapter)
     Process.register(self(), @observer_name)
 
     on_exit(fn ->
-      Application.put_env(:core_execution, :persistence_adapter, previous_adapter)
+      Application.delete_env(:core_execution, :persistence_adapter)
     end)
   end
 

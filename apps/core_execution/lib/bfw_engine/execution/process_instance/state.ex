@@ -107,7 +107,8 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
           escalation_info: escalation_info() | nil,
           event_based_gateway_deferred_dispatch: map() | nil,
           resume_pending: MapSet.t(String.t()),
-          resume_waiters: [:gen_statem.from()]
+          resume_waiters: [:gen_statem.from()],
+          early_async_completions: %{String.t() => {:gen_statem.from(), tuple()}}
         }
 
   @enforce_keys [:process_instance_id, :process_version_id]
@@ -150,6 +151,7 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
     escalation_info: nil,
     event_based_gateway_deferred_dispatch: nil,
     resume_pending: MapSet.new(),
-    resume_waiters: []
+    resume_waiters: [],
+    early_async_completions: %{}
   ]
 end

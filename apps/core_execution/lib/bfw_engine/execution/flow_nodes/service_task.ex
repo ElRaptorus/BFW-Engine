@@ -42,6 +42,7 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Execution.ServiceTaskDispatch
   alias BfwEngine.Types.Token
@@ -139,11 +140,25 @@ defmodule BfwEngine.Execution.FlowNodes.ServiceTask do
     end
   end
 
+  # A raise in plugin code must reach error boundaries like a returned error,
+  # not crash the handler Task (which would fatal the whole instance).
   defp dispatch_to_handler(handler_module, flow_node, token, context) do
     case handler_module.handle_enter(flow_node, token, context) do
       {:async, flow_node_instance_id} -> {:async, flow_node_instance_id}
       {:error, reason} -> {:error, reason}
       other -> {:error, {:invalid_handler_return, other}}
     end
+  catch
+    kind, value ->
+      {:error,
+       ErrorInfo.handler_raised(
+         %{
+           flow_node_id: flow_node.id,
+           handler_type: "implementation",
+           handler_key: flow_node.type_data.implementation
+         },
+         kind,
+         value
+       )}
   end
 end

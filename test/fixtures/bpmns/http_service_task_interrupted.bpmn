@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_HttpServiceTaskInterrupted"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_HttpServiceTaskInterrupted" name="HTTP Service Task Interrupted" processRef="HttpServiceTaskInterrupted" />
+  </bpmn:collaboration>
+  <bpmn:process id="HttpServiceTaskInterrupted" name="HTTP Service Task Interrupted" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Http</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Error</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Interrupted</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:serviceTask id="ServiceTask_Http" name="Call Slow API" implementation="http">
+      <bpmn:extensionElements>
+        <bfw:httpUrl>http://slow.test.local/api</bfw:httpUrl>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Done" name="Done"/>
+    <bpmn:boundaryEvent id="Boundary_Error" name="Interrupted" attachedToRef="ServiceTask_Http" cancelActivity="true">
+      <bpmn:outgoing>Flow_Interrupted</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Boundary_Error_Definition">
+        <bpmn:extensionElements>
+          <bfw:errorCode>HTTP_INTERRUPTED</bfw:errorCode>
+        </bpmn:extensionElements>
+      </bpmn:errorEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Interrupted" name="Interrupted"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ServiceTask_Http"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ServiceTask_Http" targetRef="End_Done"/>
+    <bpmn:sequenceFlow id="Flow_Interrupted" sourceRef="Boundary_Error" targetRef="End_Interrupted"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_HttpServiceTaskInterrupted" bpmnElement="Participant_HttpServiceTaskInterrupted" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="632" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="602" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Http" bpmnElement="ServiceTask_Http">
+        <dc:Bounds x="260" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Done" bpmnElement="End_Done">
+        <dc:Bounds x="432" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Error" bpmnElement="Boundary_Error">
+        <dc:Bounds x="292" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Interrupted" bpmnElement="End_Interrupted">
+        <dc:Bounds x="432" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="260" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="130" />
+        <di:waypoint x="432" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Interrupted" bpmnElement="Flow_Interrupted">
+        <di:waypoint x="310" y="188" />
+        <di:waypoint x="310" y="250" />
+        <di:waypoint x="432" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

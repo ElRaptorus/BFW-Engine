@@ -191,6 +191,7 @@ export type {
   PluginCapabilitySummary,
   ServiceTaskHandler,
   ServiceTaskInput,
+  ServiceTaskResumeInput,
   ServiceTaskResult,
   NamedScriptHandler,
   NamedScriptInput,

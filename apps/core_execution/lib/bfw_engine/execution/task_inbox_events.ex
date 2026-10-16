@@ -37,10 +37,10 @@ defmodule BfwEngine.Execution.TaskInboxEvents do
   def inbox_task?(%FlowNode{}), do: false
 
   @doc """
-  Publishes `UserTaskCreated` for an inbox task entering `waiting` state.
-
-  Manual Task callers pass `assignees: []` — Manual Tasks have no
-  `bfw:assignees` extension.
+  Publishes `UserTaskCreated` for an inbox task that has entered `waiting`
+  state. The process instance calls it once the flow node instance entry is
+  `:waiting`, with the assignees the handler stored in the type properties
+  (`[]` for a Manual Task, which has no `bfw:assignees` extension).
   """
   @spec publish_created(HandlerContext.t(), FlowNode.t(), [String.t()]) :: :ok
   def publish_created(context, flow_node, assignees) do

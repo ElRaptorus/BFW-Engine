@@ -7,6 +7,39 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
 
   alias BfwEngine.Execution.ProcessInstance.JsonSafe
 
+  @raised_message_max_length 500
+
+  @doc """
+  Builds the coded error for a plugin handler (a Service Task
+  `implementation` or a Named Script `scriptRef`) whose `handle_enter/3`
+  raised, exited, or threw: `%{error_code: "handler_raised", error_message: sentence}`.
+  Error boundaries and Error Event Subprocess starts match the code like any
+  other coded error.
+
+  `handler` carries `:flow_node_id`, `:handler_type` (`"implementation"` or
+  `"scriptRef"`), and `:handler_key`. The sentence quotes an exception's
+  message, cut to #{@raised_message_max_length} characters; for an exit, a
+  throw, or a raw Erlang error it names only the shape of the value, never the
+  value.
+  """
+  @spec handler_raised(
+          %{flow_node_id: String.t(), handler_type: String.t(), handler_key: String.t()},
+          :error | :exit | :throw,
+          term()
+        ) :: %{error_code: String.t(), error_message: String.t()}
+  def handler_raised(
+        %{flow_node_id: flow_node_id, handler_type: handler_type, handler_key: handler_key},
+        kind,
+        value
+      ) do
+    %{
+      error_code: "handler_raised",
+      error_message:
+        "The plugin handler for #{handler_type} '#{handler_key}' of flow node '#{flow_node_id}' " <>
+          raise_description(kind, value)
+    }
+  end
+
   @doc """
   Build a normalized error_info map with a consistent schema:
 
@@ -214,6 +247,30 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
     "HTTP service task bfw:httpResponseHeaders expression failed: #{format_detail(detail)}"
   end
 
+  defp humanize_error({:http_body_expression_error, detail}) do
+    "HTTP service task bfw:httpBody expression failed: #{format_detail(detail)}"
+  end
+
+  defp humanize_error({:http_auth_expression_error, detail}) do
+    "HTTP service task bfw:httpAuthHeader expression failed: #{format_detail(detail)}"
+  end
+
+  defp humanize_error(
+         {:user_task_due_date_failed,
+          %{flow_node_id: flow_node_id, expression: expression, reason: {:not_a_date_time, value}}}
+       ) do
+    "User task '#{flow_node_id}' could not resolve its bfw:dueDate '#{expression}': the FEEL " <>
+      "expression yielded #{feel_value_text(value)}, which is not a date-time."
+  end
+
+  defp humanize_error(
+         {:user_task_due_date_failed,
+          %{flow_node_id: flow_node_id, expression: expression, reason: reason}}
+       ) do
+    "User task '#{flow_node_id}' could not resolve its bfw:dueDate '#{expression}' (neither an ISO 8601 " <>
+      "date-time nor a FEEL expression yielding one): #{format_detail(reason)}."
+  end
+
   defp humanize_error({:script_eval_failed, _script_text, reason}) do
     "Script evaluation failed: #{reason}"
   end
@@ -248,6 +305,10 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
 
   defp humanize_error({:dmn_evaluation_failed, type, _metadata}) do
     "DMN evaluation failed (#{type})"
+  end
+
+  defp humanize_error({:dmn_evaluation_failed, detail}) when is_binary(detail) do
+    "DMN evaluation failed: #{detail}"
   end
 
   defp humanize_error({:dmn_evaluation_timeout, %{timeout_ms: timeout_ms}}) do
@@ -570,8 +631,8 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   end
 
   defp format_detail({:unsupported_time_zone, text}) do
-    "the date-time '#{text}' names a time zone; timers accept only a UTC offset " <>
-      "such as 'Z' or '+02:00'"
+    "the date-time '#{text}' names a time zone; only a UTC offset such as 'Z' or '+02:00' " <>
+      "is accepted"
   end
 
   defp format_detail({:invalid_date_time, text, reason}),
@@ -668,6 +729,32 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   end
 
   defp looks_like_elixir_internal?(_), do: false
+
+  defp raise_description(:error, exception) when is_exception(exception) do
+    "raised an exception instead of returning a result: " <>
+      String.slice(Exception.message(exception), 0, @raised_message_max_length)
+  end
+
+  defp raise_description(:error, value),
+    do: "raised an Erlang error (#{term_shape(value)}) instead of returning a result"
+
+  defp raise_description(:exit, value),
+    do: "exited (#{term_shape(value)}) instead of returning a result"
+
+  defp raise_description(:throw, value),
+    do: "threw #{term_shape(value)} instead of returning a result"
+
+  defp term_shape(value) when is_atom(value), do: inspect(value)
+
+  defp term_shape(value) when tuple_size(value) > 0 and is_atom(elem(value, 0)),
+    do: "a #{inspect(elem(value, 0))} tuple"
+
+  defp term_shape(value) when is_tuple(value), do: "a tuple"
+  defp term_shape(value) when is_map(value), do: "a map"
+  defp term_shape(value) when is_list(value), do: "a list"
+  defp term_shape(value) when is_binary(value), do: "a string"
+  defp term_shape(value) when is_number(value), do: "a number"
+  defp term_shape(_value), do: "a value"
 
   defp maybe_put_from(target, source, target_key, source_keys) do
     value =

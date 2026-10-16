@@ -119,10 +119,11 @@ Three concerns, all decoupled from Core:
    (`BFE_METRICS_ENABLED`, default on), the telemetry EventSink (event-bus
    counters), and `StatsCollector` for JWT `GET /stats` (live Ash/ETS
    snapshot, not those counters).
-3. **`engine_plugins`** — plugin registry, in-BEAM loader, quarantine.
-   Plugins register under a supervised task tree so a crashing plugin
-   cannot take down the engine. Plugin EventSinks attach here on the way
-   back into `EngineEventBus`.
+3. **`engine_plugins`** — plugin registry, in-BEAM loader, boot-time
+   quarantine. A raising Service Task or Named Script handler fails only
+   its flow node, and a raising EventSink is rescued by its worker; see
+   [plugins.md](architecture/plugins.md) for the isolation model. Plugin
+   EventSinks attach here on the way back into `EngineEventBus`.
 
 ### 3.5 EventSink fan-out
 

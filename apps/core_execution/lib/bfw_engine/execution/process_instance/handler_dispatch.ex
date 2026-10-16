@@ -75,6 +75,41 @@ defmodule BfwEngine.Execution.ProcessInstance.HandlerDispatch do
 
   defp callback_handler(flow_node, _args), do: FlowNodeHandlerDispatch.handler_for(flow_node)
 
+  @doc """
+  Registers the calling process instance under `{:fni, flow_node_instance_id}`
+  in `BfwEngine.Execution.Registry` when `flow_node` is a Service Task, so
+  `finish_async`/`fail_async` find it. Call it before the handler runs: a
+  plugin may complete the task before its `handle_enter/3` returned.
+
+  `multi_instance_id` is the shell's flow node instance id for a
+  Multi-Instance or Standard Loop iteration, else `nil`. The shell of such a
+  loop is not registered: no plugin completes it. Other flow node types are
+  left alone. Returns `:ok`.
+  """
+  @spec register_service_task_completion_route(FlowNode.t(), String.t(), String.t() | nil) :: :ok
+  def register_service_task_completion_route(
+        %FlowNode{
+          type: :service_task,
+          multi_instance: multi_instance,
+          standard_loop: standard_loop
+        },
+        flow_node_instance_id,
+        multi_instance_id
+      )
+      when (is_nil(multi_instance) and is_nil(standard_loop)) or is_binary(multi_instance_id) do
+    _registration =
+      Registry.register(BfwEngine.Execution.Registry, {:fni, flow_node_instance_id}, :async)
+
+    :ok
+  end
+
+  def register_service_task_completion_route(
+        _flow_node,
+        _flow_node_instance_id,
+        _multi_instance_id
+      ),
+      do: :ok
+
   @spec build_handler_context(struct(), String.t(), FlowNode.t(), pid()) :: HandlerContext.t()
   def build_handler_context(data, flow_node_instance_id, flow_node, process_instance_pid) do
     identity_map =

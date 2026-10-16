@@ -358,7 +358,7 @@ Durability tests in `execution_durability_load_test.exs` are additionally tagged
 
 #### Execution load tests (`execution_load_test.exs`)
 
-Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks via EventSink, assert all PIs reach terminal state within time ceilings. Tests E1–E5 cover single fixture types (100–1,000 PIs). E6 mixes all 5 fixture types (5,000 PIs). E7 is a stress test with 10,000 linear PIs. E6 and E7 additionally capture `queue_time` telemetry and assert P99 checkout wait < 1,000ms. AutoFinisher and the echo service-task handlers retry `:fni_not_waiting` / `:process_instance_not_found` so a single early finish does not leave one PI waiting forever. E6's elapsed ceiling is 180 s on GitHub `ubuntu-latest` (2 vCPU), not 5× the Mac baseline.
+Full API-driven lifecycle: deploy via HTTP, start PIs, auto-finish user tasks via EventSink, assert all PIs reach terminal state within time ceilings. Tests E1–E5 cover single fixture types (100–1,000 PIs). E6 mixes all 5 fixture types (5,000 PIs). E7 is a stress test with 10,000 linear PIs. E6 and E7 additionally capture `queue_time` telemetry and assert P99 checkout wait < 1,000ms. AutoFinisher and the echo service-task handlers call finish once: `UserTaskCreated` is published after the task is `waiting`, and an early `finish_async` is held by the PI until the task is parked. E6's elapsed ceiling is 180 s on GitHub `ubuntu-latest` (2 vCPU), not 5× the Mac baseline.
 
 #### Resume load tests (`resume_load_test.exs`)
 
@@ -482,7 +482,7 @@ These are harness rules, not product pitfalls. Helpers in `test/support/` alread
 - `ProcessInstance.update_notify_pid/2` is a `:gen_statem.call` — the PI must still be running (park on a user task).
 - Dump UUIDs to 16-byte binaries before `Ecto.Adapters.SQL.query`. Ash `:update_finished` takes `output_token`, not `output_payload`.
 - `assert_pi_state!` verifies the persisted execution chain unless `verify_execution_chain: false`.
-- Load tests: set `BFE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Finishers retry `:fni_not_waiting`. Do not run `test/load` under the Ecto sandbox.
+- Load tests: set `BFE_LOAD_TEST_POOL=1` **before** Mix loads `config/test.exs`. Do not run `test/load` under the Ecto sandbox.
 - Packages JS: Vitest 5 uses `{ concurrent: false }`, not `describe.sequential`.
 - `core_events` unit tests that publish a message or signal without a recipient: set `:message_persistence_adapter` / `:signal_persistence_adapter` to `nil` in `setup` and restore them in `on_exit`. In the umbrella run the default is the real Ash adapter outside any sandbox, so the pending row survives and breaks later count assertions in `MessagePersistenceAdapterTest`.
 

@@ -139,6 +139,41 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandlerTest do
       assert {:error, {:http_auth_expression_error, _}} =
                HttpServiceTaskHandler.handle_enter(node, build_token(), build_handler_context())
     end
+
+    test "H-6b: auth header FEEL yielding a context returns error synchronously" do
+      node =
+        build_flow_node(
+          http_url: "http://test.local/api",
+          http_auth_header: ~s({ token: "secret" })
+        )
+
+      assert {:error,
+              {:http_auth_expression_error,
+               "the expression did not evaluate to a string or number"}} =
+               HttpServiceTaskHandler.handle_enter(node, build_token(), build_handler_context())
+    end
+  end
+
+  describe "handle_resume/2" do
+    test "H-19: reports HTTP_INTERRUPTED through fail_async and returns the call's error when no instance holds the task" do
+      node = %{build_flow_node(http_url: "http://test.local/api") | name: "Charge"}
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert {:error, :process_instance_not_found} =
+                   HttpServiceTaskHandler.handle_resume(
+                     %{
+                       implementation: "http",
+                       flow_node_id: node.id,
+                       flow_node: node,
+                       mapped_input: %{}
+                     },
+                     build_handler_context()
+                   )
+        end)
+
+      assert log =~ "could not complete flow node instance fni-1"
+    end
   end
 
   # -- H-7 to H-13: HTTP execution (async) --------------------------------------
@@ -265,6 +300,85 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandlerTest do
 
       Process.sleep(200)
     end
+  end
+
+  # -- H-20 to H-23: failure messages ---------------------------------------------
+
+  describe "failure messages" do
+    test "H-20: an authorization value with a line break is refused without quoting it" do
+      node =
+        build_flow_node(http_url: "http://test.local/api", http_auth_header: "token.apiToken")
+
+      token = build_token(%{"apiToken" => "Bearer s3cret-value\r\nX-Injected: yes"})
+
+      assert {:error, {:http_auth_expression_error, message}} =
+               HttpServiceTaskHandler.handle_enter(node, token, build_handler_context())
+
+      assert message =~ "line break"
+      refute message =~ "s3cret-value"
+    end
+
+    test "H-21: a refused connection names the failure and never the authorization value" do
+      Req.Test.stub(__MODULE__, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+
+      {error_code, message} =
+        await_failure(
+          build_flow_node(http_url: "http://test.local/api", http_auth_header: "token.apiToken"),
+          build_token(%{"apiToken" => "Bearer s3cret-value"})
+        )
+
+      assert error_code == "HTTP_CONNECTION_FAILED"
+      assert message == "HTTP request to http://test.local/api failed: the connection was refused"
+    end
+
+    test "H-22: an exit in the HTTP client fails the task instead of leaving it waiting" do
+      Req.Test.stub(__MODULE__, fn _conn -> exit({:noproc, {GenServer, :call, [:pool]}}) end)
+
+      {error_code, message} =
+        await_failure(build_flow_node(http_url: "http://test.local/api"), build_token())
+
+      assert error_code == "HTTP_REQUEST_FAILED"
+
+      assert message ==
+               "HTTP request to http://test.local/api could not be executed: the HTTP client stopped with exit"
+    end
+
+    test "H-23: an error status quotes at most the first 500 characters of the body" do
+      Req.Test.stub(__MODULE__, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("text/plain")
+        |> Plug.Conn.send_resp(503, String.duplicate("x", 2_000))
+      end)
+
+      {error_code, message} =
+        await_failure(build_flow_node(http_url: "http://test.local/api"), build_token())
+
+      assert error_code == "HTTP_503"
+      assert message =~ "answered status 503"
+      assert message =~ String.duplicate("x", 500)
+      refute message =~ String.duplicate("x", 501)
+    end
+  end
+
+  # Stands in for the process instance: registered under the task's completion
+  # route, the test process receives the handler's `fail_async` call.
+  defp await_failure(node, token) do
+    flow_node_instance_id = "fni-failure-#{System.unique_integer([:positive])}"
+
+    {:ok, _owner} =
+      Registry.register(BfwEngine.Execution.Registry, {:fni, flow_node_instance_id}, :async)
+
+    handler_context = %{build_handler_context() | flow_node_instance_id: flow_node_instance_id}
+
+    assert {:async, ^flow_node_instance_id} =
+             HttpServiceTaskHandler.handle_enter(node, token, handler_context)
+
+    assert_receive {:"$gen_call", from,
+                    {:fail_async_service_task, ^flow_node_instance_id, error_code, message}},
+                   2_000
+
+    :gen_statem.reply(from, :ok)
+    {error_code, message}
   end
 
   # -- H-14 to H-16: Response header mapping (async) ----------------------------

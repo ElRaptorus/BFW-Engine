@@ -6,13 +6,13 @@ User Tasks are wait states that pause execution until a human completes the task
 
 | Extension | Purpose |
 |-----------|---------|
-| `bfw:assignees` | FEEL expression evaluated at runtime for task assignment |
+| `bfw:assignees` | FEEL expression evaluated when the task is entered, with `token` bound to the input after `bfw:inputMapping`. A list is used as is, a string becomes a one-element list, anything else (or a FEEL error, which is logged) gives no assignees |
 | `bfw:formFields` | JSON array of form fields, passed through to clients and not interpreted by the engine |
 | `bfw:inputMapping` | FEEL-based input mapper (`source`/`target` pair). Transforms incoming token before the task is presented. Multiple supported |
 | `bfw:outputMapping` | FEEL-based output mapper (`source`/`target` pair). Transforms the `{ actionId, values }` token before result contract validation. Multiple supported |
 | `bfw:payloadContract` | JSON Schema validated on incoming data (after input mapping). Violation → fatal |
 | `bfw:resultContract` | JSON Schema enforced on completion results (after output mapping). Violation → retryable (422) |
-| `bfw:dueDate` | FEEL expression or ISO 8601 timestamp for task deadline metadata |
+| `bfw:dueDate` | Task deadline metadata. A value that parses as an ISO 8601 date-time is stored as written; anything else is evaluated as FEEL (`token` = the input after `bfw:inputMapping`) and must yield a date-time, stored as ISO 8601 UTC. FEEL `null` means no due date; any other result, or a FEEL error, fails the task with `user_task_due_date_failed` |
 | `bfw:priority` | Numeric priority value |
 
 `bfw:formFields` is a JSON array. Each field has `id`, `type`, `label`, and `required`, plus optional `placeholder`, `defaultValue` (a string; checkbox and toggle use `"true"` / `"false"`), `options`, `validationRules`, and `hint` (help text shown with the field). `type` is one of `text`, `number`, `date`, `checkbox`, `dropdown`, `radio`, `textarea`, `file`, `toggle`, `section_header`. `options` (`label` and `value`) apply to dropdown, radio, and checkbox group fields. A known validation rule is `pattern`: `value` is a regular expression the whole input must match, and `message` is shown on failure. A `bfw:formFields` value that is not a JSON array is ignored, and the task has no form.
@@ -27,6 +27,7 @@ User Tasks are wait states that pause execution until a human completes the task
     <bfw:outputMapping source="token.values.approved" target="approved"/>
     <bfw:resultContract>{"type":"object","required":["approved"],"properties":{"approved":{"type":"boolean"}}}</bfw:resultContract>
     <bfw:dueDate>2026-12-31T23:59:59Z</bfw:dueDate>
+    <!-- alternatively: <bfw:dueDate>date and time(token.submitted_at) + duration("P2D")</bfw:dueDate> -->
     <bfw:priority>5</bfw:priority>
   </bpmn:extensionElements>
 </bpmn:userTask>
@@ -36,7 +37,7 @@ User Tasks are wait states that pause execution until a human completes the task
 
 The User Task implements a full data transformation pipeline ():
 
-1. **Input**: `token` → `in_mappings` (FEEL) → `payload_contract` (JSON Schema) → FNI enters `:waiting`
+1. **Input**: `token` → `in_mappings` (FEEL) → `payload_contract` (JSON Schema) → `bfw:dueDate` and `bfw:assignees` over the mapped input → FNI enters `:waiting` → `UserTaskCreated` (published only once the task accepts a finish call)
 2. **Output** (on finish): `{ actionId, values }` → `out_mappings` (FEEL `token` is that object) → `result_contract` (JSON Schema) → `PayloadCap` → downstream token, replacing the input token
 
 Without output mappings the next token is the envelope. To flatten a field, map it out:

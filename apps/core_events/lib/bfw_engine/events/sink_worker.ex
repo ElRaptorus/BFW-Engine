@@ -6,10 +6,11 @@ defmodule BfwEngine.Events.SinkWorker do
   worker invokes `module.handle_event/2` serially in arrival order,
   preserving the documented in-order state-mutation contract.
 
-  Crash isolation is by supervision: a sink that raises crashes only its
-  own worker, which is restarted by `BfwEngine.Events.SinkSupervisor`
-  (one_for_one). A `%Event.SinkFailed{}` event is emitted before the
-  rescue swallows the exception so other sinks can observe the failure.
+  A raise in `accepts?/1` or `handle_event/2` is rescued: the worker keeps
+  its state and mailbox, and a `%Event.SinkFailed{}` event is published so
+  other sinks can observe the failure — except when the failing event is
+  itself a `SinkFailed`, which is dropped silently. A worker that dies
+  anyway is restarted by `BfwEngine.Events.SinkSupervisor` (one_for_one).
   """
 
   use GenServer
@@ -51,11 +52,7 @@ defmodule BfwEngine.Events.SinkWorker do
 
   @impl true
   def handle_cast({:event, event}, state) do
-    if state.module.accepts?(event) do
-      dispatch(event, state)
-    else
-      {:noreply, state}
-    end
+    {:noreply, deliver(event, state)}
   end
 
   @impl true
@@ -69,16 +66,28 @@ defmodule BfwEngine.Events.SinkWorker do
     {:reply, :ok, state}
   end
 
-  defp dispatch(event, state) do
-    case state.module.handle_event(event, state.sink_state) do
-      {:ok, new_sink_state} -> {:noreply, %{state | sink_state: new_sink_state}}
-      :skip -> {:noreply, state}
+  defp deliver(event, state) do
+    if state.module.accepts?(event) do
+      dispatch(event, state)
+    else
+      state
     end
   rescue
     exception ->
       emit_sink_failed(state.name, event, exception)
-      {:noreply, state}
+      state
   end
+
+  defp dispatch(event, state) do
+    case state.module.handle_event(event, state.sink_state) do
+      {:ok, new_sink_state} -> %{state | sink_state: new_sink_state}
+      :skip -> state
+    end
+  end
+
+  # Every sink receives every `SinkFailed`; reporting a failure to handle one
+  # would publish another to the same sink, without end.
+  defp emit_sink_failed(_sink_name, %Event.SinkFailed{}, _exception), do: :ok
 
   defp emit_sink_failed(sink_name, original_event, exception) do
     EngineEventBus.publish(%Event.SinkFailed{

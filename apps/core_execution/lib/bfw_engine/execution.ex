@@ -28,7 +28,8 @@ defmodule BfwEngine.Execution do
 
   On success returns `{:ok, pid}`. When `:max_concurrent_process_instances` is configured and the active PI count has reached the cap, returns
   `{:error, :engine_at_capacity, %{active: count, limit: configured_cap}}`
-  **before** the supervisor is touched.
+  **before** the supervisor is touched. Child starts (options carrying a
+  `:parent_process_instance_id`) are never refused by the cap.
 
   The cap is enforced as a soft client-side pre-check here, NOT on the
   underlying `DynamicSupervisor` (which runs with `max_children: :infinity`
@@ -74,7 +75,7 @@ defmodule BfwEngine.Execution do
           | {:error, :engine_at_capacity, engine_capacity_info()}
   def start_process_instance(opts) do
     with :ok <- validate_subprocess_parent(opts),
-         :ok <- check_capacity() do
+         :ok <- check_capacity(opts) do
       case DynamicSupervisor.start_child(
              BfwEngine.Execution.Supervisor,
              {ProcessInstance, opts}
@@ -95,6 +96,15 @@ defmodule BfwEngine.Execution do
   catch
     :exit, {:noproc, _call} -> {:error, :engine_shutting_down}
   end
+
+  # The cap limits new top-level work. A child (Call Activity, subprocess,
+  # Event Subprocess, transaction, ad-hoc) belongs to an instance that is
+  # already running; refusing it would fatal that instance.
+  defp check_capacity(%{parent_process_instance_id: parent_process_instance_id})
+       when is_binary(parent_process_instance_id),
+       do: :ok
+
+  defp check_capacity(_opts), do: check_capacity()
 
   defp check_capacity do
     case configured_limit() do
@@ -475,12 +485,12 @@ defmodule BfwEngine.Execution do
            ),
          reset_spec <-
            build_reset_spec(surviving_fnis, deletion_set, pi_data, resolved_version_id, opts),
+         :ok <- check_capacity(),
          {:ok, _reactivation_fnis} <-
            retry_adapter_call(adapter, :execute_retry_reset, [pi_data.id, reset_spec]),
          {:ok, reset_ancestors} <- reset_ancestor_chain(ancestor_chain, adapter),
          {:ok, reset_descendants_list} <-
            reset_descendants([pi_data | ancestor_chain], adapter),
-         :ok <- check_capacity(),
          {:ok, root_fnis} <-
            retry_adapter_call(adapter, :list_all_flow_node_instances, [root_pi_data.id]) do
       all_resets =

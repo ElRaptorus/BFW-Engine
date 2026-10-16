@@ -28,7 +28,7 @@ defmodule BfwEngine.Execution.FlowNodes.ScriptTask do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
-  alias BfwEngine.Execution.PayloadCap
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Execution.ScriptDispatch
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Expressions
@@ -44,7 +44,6 @@ defmodule BfwEngine.Execution.FlowNodes.ScriptTask do
     with {:ok, mapped_input} <- apply_input_pipeline(type_data, token.payload, context),
          {:ok, script_output} <- execute_script(flow_node, type_data, mapped_input, context),
          {:ok, mapped_output} <- apply_output_pipeline(type_data, script_output, context),
-         :ok <- PayloadCap.check(mapped_output, field: :script_result),
          {:ok, next_ids} <- resolve_outgoing(flow_node, context),
          {:ok, lifecycle_result} <- FniLifecycle.finish(context, flow_node, mapped_output, %{}) do
       {:ok,
@@ -56,9 +55,9 @@ defmodule BfwEngine.Execution.FlowNodes.ScriptTask do
     end
   end
 
-  defp execute_script(_flow_node, %{script_ref: script_ref} = type_data, payload, context)
+  defp execute_script(flow_node, %{script_ref: script_ref} = type_data, payload, context)
        when is_binary(script_ref) and script_ref != "" do
-    dispatch_to_named_script(script_ref, type_data, payload, context)
+    dispatch_to_named_script(flow_node, script_ref, type_data, payload, context)
   end
 
   defp execute_script(flow_node, %{script: script}, payload, context)
@@ -70,20 +69,46 @@ defmodule BfwEngine.Execution.FlowNodes.ScriptTask do
     {:error, {:missing_script, "neither script nor scriptRef is set"}}
   end
 
-  defp dispatch_to_named_script(script_ref, type_data, payload, context) do
+  defp dispatch_to_named_script(flow_node, script_ref, type_data, payload, context) do
     case ScriptDispatch.adapter().lookup_script(script_ref) do
       {:ok, handler_module} ->
-        flow_node_stub = %{type_data: type_data}
-
-        case handler_module.handle_enter(flow_node_stub, payload, context) do
-          {:ok, result} when is_map(result) -> {:ok, result}
-          {:error, reason} -> {:error, {:named_script_failed, script_ref, reason}}
-          other -> {:error, {:invalid_named_script_return, other}}
-        end
+        invoke_named_script(
+          handler_module,
+          flow_node,
+          script_ref,
+          %{type_data: type_data},
+          payload,
+          context
+        )
 
       {:error, :not_found} ->
         {:error, {:no_handler_for_script_ref, script_ref}}
     end
+  end
+
+  # A raise in plugin code must reach error boundaries like a returned error,
+  # not crash the handler Task (which would fatal the whole instance).
+  defp invoke_named_script(
+         handler_module,
+         flow_node,
+         script_ref,
+         flow_node_stub,
+         payload,
+         context
+       ) do
+    case handler_module.handle_enter(flow_node_stub, payload, context) do
+      {:ok, result} when is_map(result) -> {:ok, result}
+      {:error, reason} -> {:error, {:named_script_failed, script_ref, reason}}
+      other -> {:error, {:invalid_named_script_return, other}}
+    end
+  catch
+    kind, value ->
+      {:error,
+       ErrorInfo.handler_raised(
+         %{flow_node_id: flow_node.id, handler_type: "scriptRef", handler_key: script_ref},
+         kind,
+         value
+       )}
   end
 
   defp evaluate_feel_script(script, payload, _flow_node, context) do

@@ -99,8 +99,8 @@ Highest performance, idiomatic Elixir.
   Operators build a custom release (`mix release`) bundling the engine
   umbrella plus their plugin OTP apps as transitive deps of an
   `bfw_engine` release.
-- The plugin's own `Application.start/2` is a no-op stub (or absent). It
-  exists only so the BEAM loads the plugin's modules; it MUST NOT call
+- The plugin's own `Application.start/2` loads the plugin's modules and
+  may start the plugin's own supervision tree; it MUST NOT call
   `BfwEngine.Plugin.Registry.register/2` itself.
 - **Discovery**: at engine boot, `engine_plugins` reads
   `BFE_PLUGINS_INBEAM` (whitespace- or comma-separated list of OTP-app
@@ -116,9 +116,11 @@ Highest performance, idiomatic Elixir.
 - The engine then calls `on_load(engine_facade)` on each surviving
   plugin in the order they appear in `BFE_PLUGINS_INBEAM`. Sequential,
   not parallel.
-- **Concurrency**: each plugin's worker processes (anything spun up
-  inside `on_load`) live under a per-plugin OTP supervisor inside
-  `engine_plugins`'s supervision tree, never in Core.
+- **Concurrency**: the engine starts no supervisor per plugin. `on_load`
+  and `on_ready` run inside the `Loader` process, so a process started
+  there with `start_link` is linked to the `Loader`. Long-lived plugin
+  workers belong under a supervisor the plugin starts itself (for example
+  from its own `Application.start/2`), never in Core.
 
 Plugins are compiled into the release. Dropping uncompiled `.beam` files
 into a directory is not supported: diamond dependency conflicts, OTP
@@ -216,7 +218,7 @@ The Loader's facade closure also logs a warning when any registration error is r
 
 ## Plugin failure isolation (quarantine)
 
-- A plugin crash never crashes the engine. The per-plugin OTP supervisor restarts it (permanent / transient / temporary depending on type).
+- Quarantine happens only at boot (discovery, `on_load`, `on_ready`) and on a rejected registration. There is no runtime quarantine and no restart by the engine: a Service Task or Named Script handler that raises fails its flow node with `handler_raised` (error boundaries and Error Event Subprocess starts apply), and a raising event sink is rescued by its worker (`SinkFailed`, see [event-system.md](./event-system.md)). Other plugin processes follow whatever supervisor the plugin started them under.
 - Duplicate Service Task registration: **error + log**, not crash.
 - **`on_load` / `on_ready` failure** (raise or `{:error, _}`): the offending plugin is **quarantined** — it is *not* registered, no further callbacks fire on it, and an `Event.PluginQuarantined{plugin_name, reason, occurred_at}` is published on `EngineEventBus`. Engine boot continues with the remaining plugins. Operators inspect the `plugins` block of `/stats` to see degraded plugins. Quarantined plugins do not auto-revive; restart the engine after fixing the plugin.
 - **`on_ready` failure** also calls `BfwEngine.Plugins.Registry.unregister_plugin_capabilities/1` (unlike `on_load` failure, which never registered).
@@ -232,9 +234,13 @@ See `examples/plugins/lifecycle_and_api/quarantine_demo/` for the author-facing 
 
 The OTP release is defined only by `host/mix.exs`. `mix release` at the repository root delegates there. The host is not an umbrella, so a plugin path dependency and the umbrella apps' `in_umbrella` dependencies of `engine_sdk` both resolve as `env: :prod`.
 
-## Async Service Task recovery
+## Async Service Task completion and recovery
 
-Parking a Service Task stores `type_properties["implementation"]` and the mapped payload in `type_properties["mapped_input"]`. `input_token` stays the token that entered the node. Resume re-registers the flow node instance and does not call `handle_enter/3`. The plugin lists its own waiting rows with `facade.service_tasks.list_waiting.(implementations)` from `on_ready` and finishes or fails them. Each returned `input_token` is `mapped_input`, or the stored `input_token` when `mapped_input` is absent. The query includes a row only when `flow_node_type` is `service_task`, `state` is `waiting`, the process instance `state` is `running`, and the implementation is in the argument. Soft-deleted rows stay invisible. There is no REST route for this query.
+Before the handler Task starts, the PI registers itself under `{:fni, flow_node_instance_id}` in `BfwEngine.Execution.Registry` (`ProcessInstance.HandlerDispatch.register_service_task_completion_route/3`) at every spawn site: first dispatch, resume re-dispatch, MI/loop iterations, and compensation handlers. The shell of a Multi-Instance or Standard Loop Service Task is never registered, so a completion addressed to it finds no instance (`{:error, :process_instance_not_found}`); a shell reached any other way is refused with `{:error, :fni_is_multi_instance_shell}`. A `finish_async` / `fail_async` call that reaches the PI while the FNI is still `:active` is held unanswered in `State.early_async_completions` and replayed with its original caller (`{:next_event, {:call, from}, request}`) once the FNI has left `:active`: it then applies to the parked FNI, or is answered with the terminal-state error when the handler failed instead. When the PI stops while calls are held, `terminate/3` answers each with its FNI's terminal-state error (`fni_already_fatal`, …) or `fni_not_waiting`. A second early call for the same FNI, or one made by the handler Task itself or by a process whose `$callers` contains it (a `Task` it awaits), is answered `{:error, :fni_not_waiting}` at once. `fail_async` and `handle_complete/4` errors go through `BoundaryAwareHandler.attempt_error_boundary_catch/3`, then `EspScope.resolve_error_catch/3`, then fatal — the same order as enter-time errors.
+
+A raise, exit, or throw in a plugin `handle_enter/3` (Service Task or Named Script) becomes the coded error `%{error_code: "handler_raised", error_message: sentence}` (`ProcessInstance.ErrorInfo.handler_raised/3`), so specific-code and catch-all Error Boundaries and Error Event Subprocess starts match it like a `fail_async` code. The sentence names the handler key and flow node and quotes an exception's message (first 500 characters); for an exit, a throw, or a raw Erlang error it names only the kind and the shape of the value (`exited (a :noproc tuple)`), never the value.
+
+Parking a Service Task stores `type_properties["implementation"]` and the mapped payload in `type_properties["mapped_input"]`. `input_token` stays the token that entered the node. Resume re-registers the flow node instance, publishes `PluginAsyncFlowNodeRehydrated`, and does not call `handle_enter/3`. When the handler registered for `implementation` exports the optional `handle_resume/2` (`BfwEngine.Plugin.ServiceTaskHandler`), `Resumption.reactivate_async_fni/3` calls it in a Task under the PI's task supervisor with `%{implementation, flow_node_id, flow_node, mapped_input}` and the handler context; the return value is ignored. For a row parked before these fields were stored, `implementation` falls back to the flow node's `implementation` attribute and `mapped_input` to the stored `input_token`. The built-in HTTP handler implements it by calling `fail_async` with error code `HTTP_INTERRUPTED` (message names the task and `bfw:httpUrl`); the request is not re-issued. Without `handle_resume/2` the FNI stays `waiting`. A plugin can also list its own waiting rows with `facade.service_tasks.list_waiting.(implementations)` from `on_ready` and finish or fail them. Each returned `input_token` is `mapped_input`, or the stored `input_token` when `mapped_input` is absent. The query includes a row only when `flow_node_type` is `service_task`, `state` is `waiting`, the process instance `state` is `running`, and the implementation is in the argument. Soft-deleted rows stay invisible. There is no REST route for this query.
 
 ## Default built-in plugins
 

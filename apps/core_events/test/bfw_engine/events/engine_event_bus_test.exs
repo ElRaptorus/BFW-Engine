@@ -230,6 +230,45 @@ defmodule BfwEngine.Events.EngineEventBusTest do
 
       assert is_binary(reason) and reason != ""
     end
+
+    test "a sink that also fails on SinkFailed causes exactly one SinkFailed per original event" do
+      :ok = EngineEventBus.register_sink("crasher3", BfwEngine.Test.CrashingSink, [])
+      :ok = EngineEventBus.register_sink("observer3", BfwEngine.Test.TestSink, test_pid: self())
+
+      EngineEventBus.publish(make_event())
+
+      assert_receive {:sink_received,
+                      %Event.SinkFailed{sink_name: "crasher3", event_kind: Event.EngineStarted}},
+                     1_000
+
+      refute_receive {:sink_received, %Event.SinkFailed{}}, 300
+    end
+
+    test "a raise in accepts?/1 keeps the worker and reports SinkFailed" do
+      defmodule RaisingAcceptsSink do
+        @behaviour BfwEngine.Plugin.EventSink
+        def init(_opts), do: {:ok, %{}}
+        def accepts?(%Event.SinkFailed{}), do: false
+        def accepts?(_event), do: raise("accepts? failed")
+        def handle_event(_event, state), do: {:ok, state}
+        def handle_shutdown(_state), do: :ok
+      end
+
+      :ok = EngineEventBus.register_sink("raising-accepts", RaisingAcceptsSink, [])
+      :ok = EngineEventBus.register_sink("observer4", BfwEngine.Test.TestSink, test_pid: self())
+      [{worker_pid, _}] = Registry.lookup(BfwEngine.Events.SinkRegistry, "raising-accepts")
+
+      EngineEventBus.publish(make_event())
+
+      assert_receive {:sink_received,
+                      %Event.SinkFailed{sink_name: "raising-accepts", reason: "accepts? failed"}},
+                     1_000
+
+      assert [{^worker_pid, _}] =
+               Registry.lookup(BfwEngine.Events.SinkRegistry, "raising-accepts")
+
+      assert Process.alive?(worker_pid)
+    end
   end
 
   describe "PF-3: per-sink worker isolation" do

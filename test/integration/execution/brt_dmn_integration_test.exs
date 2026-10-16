@@ -58,6 +58,67 @@ defmodule BfwEngine.Integration.Execution.BrtDmnIntegrationTest do
     end
   end
 
+  describe "BRT + DMN — the evaluator raises (E5)" do
+    test "the Business Rule Task fatals with dmn_evaluation_failed instead of crashing its handler" do
+      {201, _} = http_deploy_dmn("simple_unique.dmn")
+      {201, _} = http_deploy("business_rule_task_dmn.bpmn")
+
+      {:ok, %{decision_version_id: decision_version_id}} =
+        BfwEngine.Execution.DecisionResolver.adapter().resolve_latest_version("definitions_discount")
+
+      :ok = BfwEngine.DMN.ModelCache.delete(decision_version_id)
+      on_exit(fn -> BfwEngine.DMN.ModelCache.delete(decision_version_id) end)
+
+      :ok =
+        BfwEngine.DMN.ModelCache.put_new(
+          decision_version_id,
+          %BfwEngine.DMN.Model.Definitions{raw_xml: "", decisions: :not_a_list}
+        )
+
+      {201, body} = http_start("BrtDmnProcess", %{"payload" => %{"age" => 25}})
+      process_instance_id = body["processInstanceId"]
+
+      poll_pi_state(process_instance_id, "fatal")
+      business_rule_task = find_fni_by_flow_node_id(process_instance_id, "BRT_dmn")
+
+      assert business_rule_task.state == "fatal"
+      assert business_rule_task.error_info["error_code"] == "dmn_evaluation_failed"
+      assert business_rule_task.error_info["message"] =~ "DMN evaluation failed: the DMN evaluator raised"
+    end
+
+    test "an exit inside the evaluator fatals with dmn_evaluation_failed and names no exit value" do
+      {201, _} = http_deploy_dmn("simple_unique.dmn")
+      {201, _} = http_deploy("business_rule_task_dmn.bpmn")
+
+      {:ok, %{decision_version_id: decision_version_id}} =
+        BfwEngine.Execution.DecisionResolver.adapter().resolve_latest_version("definitions_discount")
+
+      :ok = BfwEngine.DMN.ModelCache.delete(decision_version_id)
+      on_exit(fn -> BfwEngine.DMN.ModelCache.delete(decision_version_id) end)
+
+      exiting_decisions =
+        Stream.map([:decision], fn _decision -> exit({:simulated_evaluator_exit, %{"secret" => "s3"}}) end)
+
+      :ok =
+        BfwEngine.DMN.ModelCache.put_new(
+          decision_version_id,
+          %BfwEngine.DMN.Model.Definitions{raw_xml: "", decisions: exiting_decisions}
+        )
+
+      {201, body} = http_start("BrtDmnProcess", %{"payload" => %{"age" => 25}})
+      process_instance_id = body["processInstanceId"]
+
+      poll_pi_state(process_instance_id, "fatal")
+      business_rule_task = find_fni_by_flow_node_id(process_instance_id, "BRT_dmn")
+
+      assert business_rule_task.state == "fatal"
+      assert business_rule_task.error_info["error_code"] == "dmn_evaluation_failed"
+
+      assert business_rule_task.error_info["message"] ==
+               "DMN evaluation failed: the DMN evaluator failed with exit (a :simulated_evaluator_exit tuple)"
+    end
+  end
+
   describe "BRT + DMN — COLLECT hit policy" do
     test "PI finishes with aggregated result" do
       {201, _} = http_deploy_dmn("collect_with_sum.dmn")

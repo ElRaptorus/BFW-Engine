@@ -1,5 +1,10 @@
 export type { Plugin, PluginDescriptor, PluginCapabilitySummary } from './plugin.js';
-export type { ServiceTaskHandler, ServiceTaskInput, ServiceTaskResult } from './service-task-handler.js';
+export type {
+  ServiceTaskHandler,
+  ServiceTaskInput,
+  ServiceTaskResumeInput,
+  ServiceTaskResult,
+} from './service-task-handler.js';
 export type { NamedScriptHandler, NamedScriptInput, NamedScriptResult } from './named-script-handler.js';
 export type { EventSinkHandler, EventSinkOptions } from './event-sink.js';
 export type { RestApiExtensionHandler } from './rest-api-extension.js';

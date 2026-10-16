@@ -1038,16 +1038,18 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
       :ok
     end
 
-    test "returns 503 engine_at_capacity when a running PI occupies the cap" do
+    test "returns 503 engine_at_capacity without touching the PI; validation answers first; retry works below the cap" do
       {201, _} = http_deploy("retry_user_task.bpmn")
       {201, running_body} = http_start("RetryUserTask")
       running_process_instance_id = running_body["processInstanceId"]
 
-      {:ok, _user_task_fni} =
+      {:ok, other_process_instance_user_task} =
         await_waiting_flow_node_instance(running_process_instance_id, "user_task")
 
       fatal_process_instance_id =
         deploy_and_fatal("retry_fatal_dead_end.bpmn", "RetryFatalDeadEnd")
+
+      flow_node_instance_states_before = flow_node_instance_states(fatal_process_instance_id)
 
       Application.put_env(:core_execution, :max_concurrent_process_instances, 1)
 
@@ -1056,6 +1058,20 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
       assert error_body["error"] == "engine_at_capacity"
       assert error_body["active"] == 1
       assert error_body["limit"] == 1
+      assert_pi_state!(fatal_process_instance_id, "fatal")
+      assert flow_node_instance_states(fatal_process_instance_id) == flow_node_instance_states_before
+
+      {404, checkpoint_error_body} =
+        http_retry_process_instance(fatal_process_instance_id, %{
+          "resetToFlowNodeInstanceId" => other_process_instance_user_task.id
+        })
+
+      assert checkpoint_error_body["error"] == "flow_node_instance_not_found"
+
+      Application.delete_env(:core_execution, :max_concurrent_process_instances)
+
+      {204, nil} = http_retry_process_instance(fatal_process_instance_id)
+      wait_for_process_instance(fatal_process_instance_id, 10_000)
     end
   end
 
@@ -1511,6 +1527,13 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp flow_node_instance_states(process_instance_id) do
+    process_instance_id
+    |> fetch_flow_node_instances()
+    |> Enum.map(&{&1.id, &1.state})
+    |> Enum.sort()
+  end
 
   defp deploy_and_fatal(fixture_name, process_model_id) do
     {201, _} = http_deploy(fixture_name)

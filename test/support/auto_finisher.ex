@@ -5,13 +5,13 @@ defmodule BfwEngine.Test.AutoFinisher do
   Used by execution load tests to simulate an API consumer that immediately
   completes every waiting User Task or confirming Manual Task. Registers on
   the EngineEventBus and listens for `UserTaskCreated` events, then spawns a
-  task that retries `Execution.finish_user_task/4` or
-  `Execution.confirm_manual_task/3` until the flow node instance is waiting.
+  task that calls `Execution.finish_user_task/4` or
+  `Execution.confirm_manual_task/3`. The event is published once the flow
+  node instance is waiting, so a single call suffices.
   """
 
   @behaviour BfwEngine.Plugin.EventSink
 
-  alias BfwEngine.Test.AsyncCompletionRetry
   alias BfwEngine.Types.Event.UserTaskCreated
 
   @default_identity %BfwEngine.Types.Identity{
@@ -32,13 +32,11 @@ defmodule BfwEngine.Test.AutoFinisher do
   @impl true
   def handle_event(%UserTaskCreated{flow_node_type: :manual_task} = event, state) do
     Task.start(fn ->
-      AsyncCompletionRetry.until_ok(fn ->
-        BfwEngine.Execution.confirm_manual_task(
-          event.process_instance_id,
-          event.flow_node_instance_id,
-          @default_identity
-        )
-      end)
+      BfwEngine.Execution.confirm_manual_task(
+        event.process_instance_id,
+        event.flow_node_instance_id,
+        @default_identity
+      )
     end)
 
     {:ok, state}
@@ -46,14 +44,12 @@ defmodule BfwEngine.Test.AutoFinisher do
 
   def handle_event(%UserTaskCreated{} = event, state) do
     Task.start(fn ->
-      AsyncCompletionRetry.until_ok(fn ->
-        BfwEngine.Execution.finish_user_task(
-          event.process_instance_id,
-          event.flow_node_instance_id,
-          @default_result,
-          @default_identity
-        )
-      end)
+      BfwEngine.Execution.finish_user_task(
+        event.process_instance_id,
+        event.flow_node_instance_id,
+        @default_result,
+        @default_identity
+      )
     end)
 
     {:ok, state}

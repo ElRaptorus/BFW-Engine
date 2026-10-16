@@ -61,7 +61,7 @@ That writes `plugins/sample_plugin` and runs `mix bfw.plugin.add`, which edits `
 
 `mix bfw.plugin.add --path plugins/sample_plugin` wires an existing plugin the same way. Both tasks require `igniter`.
 
-The generated `Application.start/2` only stores `:plugin_module` and starts an empty supervisor. Registration happens exclusively through `on_load`. After a restart, `handle_enter/3` is not called again for a parked Service Task. Call `facade.service_tasks.list_waiting.(["your_implementation"])` from `on_ready` and finish or fail each row yourself.
+The generated `Application.start/2` only stores `:plugin_module` and starts an empty supervisor. Registration happens exclusively through `on_load`. After a restart, `handle_enter/3` is not called again for a parked Service Task. Implement the optional `handle_resume/2` on the handler (see [Implementing Service Task Handlers](service-task-handler.md)), or call `facade.service_tasks.list_waiting.(["your_implementation"])` from `on_ready` and finish or fail each row yourself.
 
 ### Other languages
 

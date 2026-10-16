@@ -32,8 +32,8 @@ In-BEAM plugins run in the same Erlang VM as the engine. They have unrestricted 
 
 The engine provides guardrails:
 
-- Plugin workers run under a per-plugin supervisor inside `engine_plugins`
-- `on_load` failures quarantine the plugin without crashing the engine
+- A Service Task or Named Script handler that raises fails only its flow node (error code `handler_raised`); a raising event sink is rescued by its worker. The engine does not supervise plugin processes: they run under whatever supervisor the plugin starts
+- Discovery, `on_load`, and `on_ready` failures quarantine the plugin at boot without crashing the engine
 - CI lints prevent plugins from importing Core modules directly
 
 ### Plugin isolation

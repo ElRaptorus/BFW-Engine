@@ -19,6 +19,11 @@ not on the underlying `DynamicSupervisor`. This has two practical consequences:
   bring the active count back below the limit. This is a deliberate v1 choice —
   predictable resume is more valuable than strict cap enforcement during the
   transient boot window.
+- **Engine-triggered starts are not queued.** A Message, Signal, or Timer Start
+  Event that fires while the engine is at the cap is logged and skipped; the
+  start is not retried later. A message or signal that therefore reached no one
+  is kept as pending like any undelivered one, which only waiting catch events
+  can take, never a later start.
 - **The cap is "soft" under concurrent starts.** Between the active-count check
   and the actual start, a concurrent start can push the count one slot over the
   cap. For v1 PoC scale this overshoot is acceptable.
@@ -27,7 +32,7 @@ not on the underlying `DynamicSupervisor`. This has two practical consequences:
 
 | Variable | Default | Description |
 |---|---|---|
-| `BFE_MAX_CONCURRENT_PIS` | `infinity` | Maximum number of concurrent PIs **accepted via new starts**. Set to a positive integer (≥ 1) to enable. The engine refuses to start if the value is ≤ 0. Resume is unaffected by this setting. |
+| `BFE_MAX_CONCURRENT_PIS` | `infinity` | Maximum number of concurrent PIs **accepted via new starts**. Set to a positive integer (≥ 1) to enable. The engine refuses to start if the value is ≤ 0. Resume is unaffected by this setting, and so are child instances a running instance starts (Call Activities, subprocesses, Event Subprocesses): they count towards the active total but are never refused. |
 
 ### Sizing guidance
 

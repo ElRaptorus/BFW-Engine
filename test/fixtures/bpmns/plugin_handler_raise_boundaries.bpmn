@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_PluginHandlerRaiseBoundaries"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:error id="Error_HandlerRaised" name="Handler Raised" errorCode="handler_raised" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_PluginHandlerRaiseBoundaries" name="Plugin Handler Raise Boundaries" processRef="PluginHandlerRaiseBoundaries" />
+  </bpmn:collaboration>
+  <bpmn:process id="PluginHandlerRaiseBoundaries" name="Plugin Handler Raise Boundaries" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Raise</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Script_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Script</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Raise</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Service_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Service</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Caught</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:scriptTask id="ScriptTask_Raise" name="Raising Script">
+      <bpmn:extensionElements>
+        <bfw:scriptRef>exiting_script</bfw:scriptRef>
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_Script_Done" name="Script Done"/>
+    <bpmn:boundaryEvent id="Boundary_Script" name="Any Error" attachedToRef="ScriptTask_Raise" cancelActivity="true">
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Boundary_Script_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="ServiceTask_Raise" name="Raising Service" implementation="raising"/>
+    <bpmn:endEvent id="End_Service_Done" name="Service Done"/>
+    <bpmn:boundaryEvent id="Boundary_Service" name="Handler Raised" attachedToRef="ServiceTask_Raise" cancelActivity="true">
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Boundary_Service_Definition" errorRef="Error_HandlerRaised" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Caught" name="Caught"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ScriptTask_Raise"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_Raise" targetRef="End_Script_Done"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Boundary_Script" targetRef="ServiceTask_Raise"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="ServiceTask_Raise" targetRef="End_Service_Done"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Boundary_Service" targetRef="End_Caught"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_PluginHandlerRaiseBoundaries" bpmnElement="Participant_PluginHandlerRaiseBoundaries" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="772" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="742" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Raise" bpmnElement="ScriptTask_Raise">
+        <dc:Bounds x="260" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Script_Done" bpmnElement="End_Script_Done">
+        <dc:Bounds x="432" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Script" bpmnElement="Boundary_Script">
+        <dc:Bounds x="292" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Raise" bpmnElement="ServiceTask_Raise">
+        <dc:Bounds x="400" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Service_Done" bpmnElement="End_Service_Done">
+        <dc:Bounds x="572" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Service" bpmnElement="Boundary_Service">
+        <dc:Bounds x="432" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Caught" bpmnElement="End_Caught">
+        <dc:Bounds x="572" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="260" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="130" />
+        <di:waypoint x="432" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="310" y="188" />
+        <di:waypoint x="310" y="250" />
+        <di:waypoint x="400" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="500" y="250" />
+        <di:waypoint x="572" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="450" y="308" />
+        <di:waypoint x="450" y="350" />
+        <di:waypoint x="572" y="350" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

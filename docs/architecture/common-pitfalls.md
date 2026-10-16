@@ -327,7 +327,7 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 **Why:** Resume must bring the whole tree back. A cap mid-resume orphans children.
 
-**Correct approach:** Supervisor `max_children` is `:infinity`. The env var is a soft pre-check on **new public starts** only. Resume bypasses it. See [execution.md](execution.md).
+**Correct approach:** Supervisor `max_children` is `:infinity`. The env var is a soft pre-check on **new top-level starts**; child starts skip it. Resume bypasses it. See [execution.md](execution.md).
 
 ---
 

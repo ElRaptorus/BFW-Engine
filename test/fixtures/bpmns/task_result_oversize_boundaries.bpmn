@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_TaskResultOversizeBoundaries"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_TaskResultOversizeBoundaries" name="Task Result Oversize Boundaries" processRef="TaskResultOversizeBoundaries" />
+  </bpmn:collaboration>
+  <bpmn:process id="TaskResultOversizeBoundaries" name="Task Result Oversize Boundaries" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ScriptTask_Big</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Script_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Script</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BusinessRuleTask_Big</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Rule_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Boundary_Rule</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Caught</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:scriptTask id="ScriptTask_Big" name="Oversized Script Result" scriptFormat="feel">
+      <bpmn:script>{ big: context.text + context.text }</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="End_Script_Done" name="Script Done"/>
+    <bpmn:boundaryEvent id="Boundary_Script" name="Any Error" attachedToRef="ScriptTask_Big" cancelActivity="true">
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Boundary_Script_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:businessRuleTask id="BusinessRuleTask_Big" name="Oversized Rule Result" implementation="feel">
+      <bpmn:script>{ big: context.text + context.text }</bpmn:script>
+    </bpmn:businessRuleTask>
+    <bpmn:endEvent id="End_Rule_Done" name="Rule Done"/>
+    <bpmn:boundaryEvent id="Boundary_Rule" name="Any Error" attachedToRef="BusinessRuleTask_Big" cancelActivity="true">
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Boundary_Rule_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Caught" name="Caught"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ScriptTask_Big"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_Big" targetRef="End_Script_Done"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Boundary_Script" targetRef="BusinessRuleTask_Big"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="BusinessRuleTask_Big" targetRef="End_Rule_Done"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Boundary_Rule" targetRef="End_Caught"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_TaskResultOversizeBoundaries" bpmnElement="Participant_TaskResultOversizeBoundaries" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="772" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="742" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ScriptTask_Big" bpmnElement="ScriptTask_Big">
+        <dc:Bounds x="260" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Script_Done" bpmnElement="End_Script_Done">
+        <dc:Bounds x="432" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Script" bpmnElement="Boundary_Script">
+        <dc:Bounds x="292" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BusinessRuleTask_Big" bpmnElement="BusinessRuleTask_Big">
+        <dc:Bounds x="400" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Rule_Done" bpmnElement="End_Rule_Done">
+        <dc:Bounds x="572" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Boundary_Rule" bpmnElement="Boundary_Rule">
+        <dc:Bounds x="432" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Caught" bpmnElement="End_Caught">
+        <dc:Bounds x="572" y="332" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="260" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="130" />
+        <di:waypoint x="432" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="310" y="188" />
+        <di:waypoint x="310" y="250" />
+        <di:waypoint x="400" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="500" y="250" />
+        <di:waypoint x="572" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="450" y="308" />
+        <di:waypoint x="450" y="350" />
+        <di:waypoint x="572" y="350" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

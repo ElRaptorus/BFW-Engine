@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_CallActivityResumeEscalationParent"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:escalation id="Esc_Review" name="Review Escalated" escalationCode="ESC_REVIEW" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_CallActivityResumeEscalationParent" name="Call Activity Resume Escalation Parent" processRef="CallActivityResumeEscalationParent" />
+  </bpmn:collaboration>
+  <bpmn:process id="CallActivityResumeEscalationParent" name="Call Activity Resume Escalation Parent" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>2.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CA_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_Escalation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Also_Done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Caught</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:callActivity id="CA_1" name="Call Escalating Child" calledElement="EscalationAfterUserTaskChild"/>
+    <bpmn:boundaryEvent id="BE_Escalation" name="Escalated" attachedToRef="CA_1" cancelActivity="true">
+      <bpmn:escalationEventDefinition escalationRef="Esc_Review" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="End_Done" name="Done"/>
+    <bpmn:endEvent id="End_Also_Done" name="Also Done"/>
+    <bpmn:endEvent id="End_Caught" name="Escalation Caught"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="CA_1"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="CA_1" targetRef="End_Done"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="CA_1" targetRef="End_Also_Done"/>
+    <bpmn:sequenceFlow id="Flow_Caught" sourceRef="BE_Escalation" targetRef="End_Caught"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_CallActivityResumeEscalationParent" bpmnElement="Participant_CallActivityResumeEscalationParent" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="632" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="602" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CA_1" bpmnElement="CA_1">
+        <dc:Bounds x="260" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BE_Escalation" bpmnElement="BE_Escalation">
+        <dc:Bounds x="292" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Done" bpmnElement="End_Done">
+        <dc:Bounds x="432" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Also_Done" bpmnElement="End_Also_Done">
+        <dc:Bounds x="432" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Caught" bpmnElement="End_Caught">
+        <dc:Bounds x="432" y="282" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="260" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="130" />
+        <di:waypoint x="432" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
+        <di:waypoint x="360" y="150" />
+        <di:waypoint x="396" y="150" />
+        <di:waypoint x="396" y="210" />
+        <di:waypoint x="432" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Caught" bpmnElement="Flow_Caught">
+        <di:waypoint x="310" y="188" />
+        <di:waypoint x="310" y="300" />
+        <di:waypoint x="432" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

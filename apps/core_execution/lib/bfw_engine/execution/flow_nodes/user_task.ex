@@ -7,12 +7,17 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
 
   ## Data pipeline
 
-      token -> in_mappings -> payload_contract -> wait for user ->
+      token -> in_mappings -> payload_contract -> bfw:dueDate, bfw:assignees -> wait for user ->
       %{"actionId", "values"} -> out_mappings -> result_contract -> PayloadCap -> downstream
 
+  `bfw:dueDate` (unless it is an ISO 8601 date-time literal) and
+  `bfw:assignees` are evaluated with `token` bound to the mapped input.
+
   Error semantics differ from ServiceTask:
-  - `payload_contract` violation on input -> FNI `:fatal` (upstream data broken, user cannot fix)
-  - Corrupt FEEL in input/output mapper -> FNI `:fatal`
+  - `payload_contract` violation on input, corrupt FEEL in the input mapper, or a
+    `bfw:dueDate` that yields neither a date-time nor `null`
+    (`user_task_due_date_failed`) -> the task fails: Error Boundaries and Error
+    Event Subprocess starts may catch it, otherwise the FNI is `:fatal`
   - `result_contract` violation on output -> FNI stays `:waiting` (retryable, user corrects submission)
   """
 
@@ -30,7 +35,6 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
   alias BfwEngine.Execution.MappingHelper
   alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Execution.SequenceFlowResolver
-  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
   alias BfwEngine.Types.Event
@@ -43,22 +47,21 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
     type_data = flow_node.type_data
 
     with {:ok, targets} <- resolve_outgoing(flow_node, context),
-         {:ok, mapped_input} <- apply_input_pipeline(type_data, token.payload, context) do
-      assignees = resolve_assignees(type_data.assignees_expression, token.payload, context)
+         {:ok, mapped_input} <- apply_input_pipeline(type_data, token.payload, context),
+         {:ok, due_date} <- resolve_due_date(flow_node, mapped_input, context) do
+      assignees = resolve_assignees(type_data.assignees_expression, mapped_input, context)
 
       type_properties = %{
         form_fields: type_data.form_fields,
         form_actions: type_data.form_actions,
         assignees: assignees,
         result_contract: type_data.result_contract,
-        due_date: type_data.due_date,
+        due_date: due_date,
         priority: type_data.priority
       }
 
       case FniLifecycle.transition_to_waiting(context, type_properties) do
         :ok ->
-          TaskInboxEvents.publish_created(context, flow_node, assignees)
-
           {:wait,
            %FlowNodeResult{
              output_payload: mapped_input,
@@ -167,10 +170,48 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
     end
   end
 
-  defp resolve_assignees(nil, _token_payload, _context), do: []
+  defp resolve_due_date(%FlowNode{type_data: %{due_date: due_date}}, _mapped_input, _context)
+       when due_date in [nil, ""],
+       do: {:ok, nil}
 
-  defp resolve_assignees(expression, token_payload, context) do
-    feel_context = FeelContext.from_handler_context(context, token_payload)
+  defp resolve_due_date(
+         %FlowNode{id: flow_node_id, type_data: %{due_date: due_date}},
+         mapped_input,
+         context
+       ) do
+    if iso8601_date_time?(due_date) do
+      {:ok, due_date}
+    else
+      evaluate_due_date(flow_node_id, due_date, mapped_input, context)
+    end
+  end
+
+  defp iso8601_date_time?(text) do
+    match?({:ok, _datetime, _offset}, DateTime.from_iso8601(text)) or
+      match?({:ok, _naive_datetime}, NaiveDateTime.from_iso8601(text))
+  end
+
+  defp evaluate_due_date(flow_node_id, expression, mapped_input, context) do
+    feel_context = FeelContext.from_handler_context(context, mapped_input)
+
+    with {:ok, value} when not is_nil(value) <- Expressions.eval(expression, feel_context),
+         {:ok, datetime} <- Expressions.to_datetime(value) do
+      {:ok, DateTime.to_iso8601(datetime)}
+    else
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:error, reason} ->
+        {:error,
+         {:user_task_due_date_failed,
+          %{flow_node_id: flow_node_id, expression: expression, reason: reason}}}
+    end
+  end
+
+  defp resolve_assignees(nil, _mapped_input, _context), do: []
+
+  defp resolve_assignees(expression, mapped_input, context) do
+    feel_context = FeelContext.from_handler_context(context, mapped_input)
 
     case Expressions.eval(expression, feel_context) do
       {:ok, result} when is_list(result) ->

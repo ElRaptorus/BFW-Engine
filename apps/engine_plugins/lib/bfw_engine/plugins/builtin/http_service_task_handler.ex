@@ -16,9 +16,18 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
   `BfwEngine.Execution.fail_async_service_task/3` on failure.
 
   Validation errors (missing URL, invalid method, FEEL evaluation
-  failure) are returned as `{:error, reason}` synchronously — these
-  are caught by `BoundaryAwareHandler.wrap_enter/4` and can trigger
-  error boundary events.
+  failure, an authorization header that is not a string or number) are
+  returned as `{:error, reason}` synchronously — these are caught by
+  `BoundaryAwareHandler.wrap_enter/4` and can trigger error boundary
+  events. A raise inside the spawned Task (for example a malformed URL)
+  fails the task with error code `HTTP_REQUEST_FAILED`.
+
+  ## Engine restart
+
+  An in-flight request does not survive an engine restart.
+  `handle_resume/2` fails each resumed waiting task with error code
+  `HTTP_INTERRUPTED`; the request is not re-issued, so an error boundary
+  decides how to continue.
 
   ## Extension elements
 
@@ -33,12 +42,16 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
 
   @behaviour BfwEngine.Plugin.ServiceTaskHandler
 
+  require Logger
+
+  alias BfwEngine.Execution
   alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Expressions.Context, as: FeelContext
 
   @valid_methods ~w(GET POST PUT PATCH DELETE HEAD OPTIONS)
   @default_method "GET"
   @request_timeout_ms 30_000
+  @error_body_max_characters 500
 
   @impl true
   def handle_enter(flow_node, token, handler_context) do
@@ -68,6 +81,26 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
     end
   end
 
+  @impl true
+  def handle_resume(%{flow_node: flow_node}, handler_context) do
+    message =
+      "HTTP service task '#{flow_node.id}'#{task_name_suffix(flow_node)} was interrupted by an engine " <>
+        "restart while its request to #{flow_node.type_data.http_url} was in flight; " <>
+        "the request is not re-issued"
+
+    report_completion(
+      handler_context.flow_node_instance_id,
+      Execution.fail_async_service_task(
+        handler_context.flow_node_instance_id,
+        "HTTP_INTERRUPTED",
+        message
+      )
+    )
+  end
+
+  defp task_name_suffix(%{name: name}) when is_binary(name) and name != "", do: " ('#{name}')"
+  defp task_name_suffix(_flow_node), do: ""
+
   defp execute_and_complete(
          req_opts,
          url,
@@ -77,24 +110,86 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
          handler_context,
          flow_node_instance_id
        ) do
-    case execute_request(req_opts, url, type_data, flow_node, token, handler_context) do
-      {:ok, output} ->
-        BfwEngine.Execution.finish_async_service_task(flow_node_instance_id, output)
+    completion =
+      case execute_request(req_opts, url, type_data, flow_node, token, handler_context) do
+        {:ok, output} ->
+          Execution.finish_async_service_task(flow_node_instance_id, output)
 
-      {:error, reason} ->
-        BfwEngine.Execution.fail_async_service_task(
-          flow_node_instance_id,
-          error_code(reason),
-          inspect(reason)
-        )
+        {:error, reason} ->
+          Execution.fail_async_service_task(
+            flow_node_instance_id,
+            error_code(reason),
+            error_message(reason)
+          )
+      end
+
+    report_completion(flow_node_instance_id, completion)
+  end
+
+  defp report_completion(_flow_node_instance_id, :ok), do: :ok
+
+  defp report_completion(flow_node_instance_id, error) do
+    Logger.warning(
+      "HTTP service task handler could not complete flow node instance #{flow_node_instance_id}: " <>
+        inspect(error)
+    )
+
+    error
+  end
+
+  defp error_code({:http_timeout, _url}), do: "HTTP_TIMEOUT"
+  defp error_code({:http_connection_failed, _url, _failure}), do: "HTTP_CONNECTION_FAILED"
+  defp error_code({:http_error, status, _body}), do: "HTTP_#{status}"
+  defp error_code(:payload_too_large), do: "PAYLOAD_TOO_LARGE"
+  defp error_code({:http_request_failed, _url, _message}), do: "HTTP_REQUEST_FAILED"
+  defp error_code(_reason), do: "HTTP_ERROR"
+
+  defp error_message({:http_timeout, url}),
+    do: "HTTP request to #{url} timed out after #{@request_timeout_ms} ms"
+
+  defp error_message({:http_connection_failed, url, failure}),
+    do: "HTTP request to #{url} failed: #{failure}"
+
+  defp error_message({:http_error, status, body}) do
+    "HTTP request answered status #{status}; response body (first #{@error_body_max_characters} " <>
+      "characters): #{truncate_body(body)}"
+  end
+
+  defp error_message(:payload_too_large),
+    do: "The HTTP response is larger than the engine's payload cap"
+
+  defp error_message({:http_request_failed, url, message}),
+    do: "HTTP request to #{url} could not be executed: #{message}"
+
+  defp error_message({:http_response_headers_expression_error, detail}),
+    do: "The bfw:httpResponseHeaders expression failed: #{detail}"
+
+  defp truncate_body(body) when is_binary(body) do
+    if String.valid?(body),
+      do: String.slice(body, 0, @error_body_max_characters),
+      else: "(#{byte_size(body)} bytes of binary data)"
+  end
+
+  defp truncate_body(body) do
+    case Jason.encode(body) do
+      {:ok, encoded} -> String.slice(encoded, 0, @error_body_max_characters)
+      {:error, _reason} -> "(not representable as text)"
     end
   end
 
-  defp error_code({:http_timeout, _}), do: "HTTP_TIMEOUT"
-  defp error_code({:http_connection_failed, _}), do: "HTTP_CONNECTION_FAILED"
-  defp error_code({:http_error, status, _}), do: "HTTP_#{status}"
-  defp error_code(:payload_too_large), do: "PAYLOAD_TOO_LARGE"
-  defp error_code(_), do: "HTTP_ERROR"
+  defp transport_failure(:econnrefused), do: "the connection was refused"
+  defp transport_failure(:closed), do: "the connection was closed"
+  defp transport_failure(:nxdomain), do: "the host name could not be resolved"
+  defp transport_failure(reason) when is_atom(reason), do: "the transport failed (#{reason})"
+  defp transport_failure(_reason), do: "the transport failed"
+
+  defp client_failure(%{reason: reason}) when tuple_size(reason) > 0 and is_atom(elem(reason, 0)),
+    do: "the HTTP client rejected the request (#{elem(reason, 0)})"
+
+  defp client_failure(%{reason: reason}) when is_atom(reason),
+    do: "the HTTP client rejected the request (#{reason})"
+
+  defp client_failure(%{__struct__: module}), do: "the HTTP client failed (#{inspect(module)})"
 
   # -- Validation (synchronous, runs in handle_enter) -------------------------
 
@@ -138,9 +233,32 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
         {:ok, nil}
 
       expression ->
-        evaluate_feel(expression, flow_node, token, handler_context, :http_auth_expression_error)
+        expression
+        |> evaluate_feel(flow_node, token, handler_context, :http_auth_expression_error)
+        |> require_header_text()
     end
   end
+
+  defp require_header_text({:ok, value}) when is_binary(value) do
+    if String.contains?(value, ["\r", "\n", "\0"]) do
+      {:error,
+       {:http_auth_expression_error,
+        "the expression evaluated to text containing a line break or NUL character"}}
+    else
+      {:ok, value}
+    end
+  end
+
+  defp require_header_text({:ok, value}) when is_number(value), do: {:ok, to_string(value)}
+
+  defp require_header_text({:ok, nil}), do: {:ok, nil}
+
+  defp require_header_text({:ok, _value}),
+    do:
+      {:error,
+       {:http_auth_expression_error, "the expression did not evaluate to a string or number"}}
+
+  defp require_header_text(error), do: error
 
   defp evaluate_feel(expression, flow_node, token, handler_context, error_key) do
     context = build_feel_context(flow_node, token, handler_context)
@@ -175,11 +293,15 @@ defmodule BfwEngine.Plugins.Builtin.HttpServiceTaskHandler do
         {:error, {:http_timeout, url}}
 
       {:error, %Req.TransportError{reason: reason}} ->
-        {:error, {:http_connection_failed, reason}}
+        {:error, {:http_connection_failed, url, transport_failure(reason)}}
 
       {:error, exception} ->
-        {:error, {:http_connection_failed, inspect(exception)}}
+        {:error, {:http_connection_failed, url, client_failure(exception)}}
     end
+  rescue
+    exception -> {:error, {:http_request_failed, url, Exception.message(exception)}}
+  catch
+    kind, _value -> {:error, {:http_request_failed, url, "the HTTP client stopped with #{kind}"}}
   end
 
   defp build_req_opts(url, method, body, auth_header) do

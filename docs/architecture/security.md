@@ -283,7 +283,7 @@ high request volume:
 | **Payload cap** | `BFE_TOKEN_MAX_BYTES` (default 64 KiB) — rejects oversize bodies before allocation, preventing memory exhaustion via large payloads |
 | **Bandit/Cowboy connection limits** | The HTTP server enforces configurable `max_connections` (Bandit default: 16384) and `idle_timeout` — prevents connection-pool exhaustion |
 | **Ecto pool size** | Database connection pools (`BFE_DB_POOL_SIZE`, production default 100 for writes; `BFE_DB_READ_POOL_SIZE`, production default 50 for reads) bound concurrent DB work — excess requests queue or timeout rather than overloading Postgres. Size Postgres with `max_connections >= (write + read) * engine_nodes + 20` |
-| **Plugin quarantine** | Repeatedly-failing plugins are quarantined ([plugins.md](plugins.md) §9.3), preventing a misbehaving plugin from amplifying load |
+| **Plugin quarantine** | A plugin that fails discovery, `on_load`, `on_ready`, or a registration is quarantined at boot; there is no runtime quarantine — a raising handler fails only its flow node ([plugins.md](plugins.md) §Plugin failure isolation) |
 | **JWT validation is stateless** | No database lookup on auth — a flood of invalid JWTs costs CPU (JOSE signature verification) but does not hit the database |
 
 **Why not engine-level rate limiting?** Rate limiting requires per-client state

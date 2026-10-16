@@ -26,6 +26,12 @@ defmodule BfwEngine.Plugin.ServiceTaskHandler do
   boundary and prevents confusion with Script Tasks, which are the
   correct element for local, synchronous computation.
 
+  `finish_async` / `fail_async` may be called from another process before
+  `handle_enter/3` has returned: the engine holds the call until the flow
+  node instance is parked in `waiting`, then answers it. A call made by
+  `handle_enter/3` itself, in its own process, is answered
+  `{:error, :fni_not_waiting}`.
+
   If your work is conceptually synchronous (e.g. a fast API call), spawn
   a `Task` that performs the work and calls `finish_async` on completion:
 
@@ -48,8 +54,36 @@ defmodule BfwEngine.Plugin.ServiceTaskHandler do
   If your work is truly local computation with no external calls,
   consider using a Script Task with a Named Script plugin instead.
   See `BfwEngine.Plugin.NamedScript`.
+
+  ## Engine restart
+
+  Work started by `handle_enter/3` does not survive an engine restart. When
+  a process instance resumes, each of its Service Task flow node instances
+  that is still `waiting` stays `waiting`, and the engine publishes
+  `PluginAsyncFlowNodeRehydrated`. If the handler implements the optional
+  `handle_resume/2`, the engine then calls it in a separate process with the
+  `t:resume_input/0` and the handler context. The handler decides: re-issue
+  the work, or end the task with `finish_async` / `fail_async`. Its return
+  value is ignored; a raise is logged and leaves the task `waiting`.
   """
+
+  @typedoc """
+  What a resumed Service Task was parked with: its `implementation`, its
+  flow node (`flow_node_id` and the parsed `flow_node`), and `mapped_input`,
+  the input after `bfw:inputMapping` that `handle_enter/3` received as the
+  token payload.
+  """
+  @type resume_input :: %{
+          required(:implementation) => String.t(),
+          required(:flow_node_id) => String.t(),
+          required(:flow_node) => struct(),
+          required(:mapped_input) => map()
+        }
 
   @callback handle_enter(flow_node :: struct(), token :: struct(), handler_context :: struct()) ::
               {:async, String.t()} | {:error, term()}
+
+  @callback handle_resume(resume_input(), handler_context :: struct()) :: term()
+
+  @optional_callbacks handle_resume: 2
 end

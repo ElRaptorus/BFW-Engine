@@ -514,6 +514,81 @@ defmodule BfwEngine.Integration.Execution.CallActivityResumeTest do
     end
   end
 
+  describe "CA resume: outgoing flows no longer resolve after the child finished (E14)" do
+    test "the Call Activity fatals with the resolution error instead of crashing its handler" do
+      {201, _} = http_deploy("call_activity_resume_child.bpmn")
+      {201, _} = http_deploy("call_activity_resume_parent.bpmn")
+
+      {201, body} = http_start("CallActivityResumeParent")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, child_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
+
+      terminate_process_instance(parent_process_instance_id)
+      await_process_exit(parent_process_instance_id)
+
+      {201, _} = http_deploy("call_activity_resume_parent_implicit_split.bpmn")
+      move_process_instance_to_version(parent_process_instance_id, parent_version_id("2.0.0"))
+
+      {204, _} = http_finish_user_task(child_user_task_fni.id, %{"result" => "done"})
+      wait_for_process_instance(child_user_task_fni.process_instance_id, 5_000)
+
+      {:ok, _resumed_count} = ResumeRunner.resume_all()
+
+      poll_pi_state(parent_process_instance_id, "fatal")
+      call_activity = find_fni_by_flow_node_id(parent_process_instance_id, "CA_1")
+
+      assert call_activity.state == "fatal"
+      assert call_activity.error_info["error_code"] == "implicit_split"
+    end
+  end
+
+  describe "CA resume: escalated child while the outgoing flows no longer resolve (E14)" do
+    test "the interrupting escalation boundary catches; the outgoing flows are not resolved" do
+      {201, _} = http_deploy("escalation_after_user_task_child.bpmn")
+      {201, _} = http_deploy("call_activity_resume_escalation_parent.bpmn")
+
+      {201, body} = http_start("CallActivityResumeEscalationParent")
+      parent_process_instance_id = body["processInstanceId"]
+
+      {:ok, child_user_task_fni} = poll_child_waiting_user_task(parent_process_instance_id)
+
+      terminate_process_instance(parent_process_instance_id)
+      await_process_exit(parent_process_instance_id)
+
+      {201, _} = http_deploy("call_activity_resume_escalation_parent_implicit_split.bpmn")
+
+      move_process_instance_to_version(
+        parent_process_instance_id,
+        version_id("CallActivityResumeEscalationParent", "2.0.0")
+      )
+
+      {204, _} = http_finish_user_task(child_user_task_fni.id)
+      poll_pi_state(child_user_task_fni.process_instance_id, "escalated")
+
+      {:ok, _resumed_count} = ResumeRunner.resume_all()
+
+      poll_pi_state(parent_process_instance_id, "finished")
+      assert find_fni_by_flow_node_id(parent_process_instance_id, "CA_1").state == "interrupted"
+      assert find_fni_by_flow_node_id(parent_process_instance_id, "End_Caught").state == "finished"
+      assert find_fni_by_flow_node_id(parent_process_instance_id, "End_Done") == nil
+    end
+  end
+
+  defp move_process_instance_to_version(process_instance_id, process_version_id) do
+    BfwEngine.Persistence.Repo.query!(
+      "UPDATE process_instances SET process_version_id = $1 WHERE id = $2",
+      [Ecto.UUID.dump!(process_version_id), Ecto.UUID.dump!(process_instance_id)]
+    )
+  end
+
+  defp parent_version_id(version_string), do: version_id("CallActivityResumeParent", version_string)
+
+  defp version_id(process_model_id, version_string) do
+    {200, version_entries} = http_list_versions(process_model_id)
+    Enum.find_value(version_entries, fn entry -> entry["version"] == version_string && entry["versionId"] end)
+  end
+
   describe "five-level Call Activity chain" do
     test "root finishes after the leaf user task is completed" do
       {201, _} = http_deploy("call_activity_depth_5_leaf.bpmn")

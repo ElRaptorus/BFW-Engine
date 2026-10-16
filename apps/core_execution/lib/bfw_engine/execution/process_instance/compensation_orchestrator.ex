@@ -399,6 +399,12 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestrator do
              handler_node,
              process_instance_pid
            ),
+         :ok <-
+           InstanceHandlerDispatch.register_service_task_completion_route(
+             handler_node,
+             flow_node_instance_id,
+             nil
+           ),
          {:ok, task_pid} <-
            Task.Supervisor.start_child(data.task_supervisor, fn ->
              result =

@@ -1182,10 +1182,17 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  def running({:call, from}, {:finish_async_service_task, flow_node_instance_id, result}, data) do
+  def running(
+        {:call, from},
+        {:finish_async_service_task, flow_node_instance_id, result} = request,
+        data
+      ) do
     case validate_async_fni(data, flow_node_instance_id) do
       {:ok, entry} ->
         complete_waiting_fni(data, from, flow_node_instance_id, entry, result)
+
+      {:error, :fni_not_parked_yet} ->
+        buffer_early_async_completion(data, from, flow_node_instance_id, request)
 
       {:error, reason} ->
         {:keep_state, data, [{:reply, from, {:error, reason}}]}
@@ -1194,7 +1201,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
   def running(
         {:call, from},
-        {:fail_async_service_task, flow_node_instance_id, error_code, error_message},
+        {:fail_async_service_task, flow_node_instance_id, error_code, error_message} = request,
         data
       ) do
     case validate_async_fni(data, flow_node_instance_id) do
@@ -1208,6 +1215,9 @@ defmodule BfwEngine.Execution.ProcessInstance do
           reason,
           :ok
         )
+
+      {:error, :fni_not_parked_yet} ->
+        buffer_early_async_completion(data, from, flow_node_instance_id, request)
 
       {:error, reason} ->
         {:keep_state, data, [{:reply, from, {:error, reason}}]}
@@ -1301,7 +1311,14 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # instance up again, and handler Tasks are killed rather than shut down:
   # iteration Tasks trap exits and would otherwise hold the supervisor shutdown
   # past @shutdown_timeout. Any other stop lets them finish their writes.
+  # Held early completions are answered first: their callers would otherwise
+  # exit with the instance.
   @impl :gen_statem
+  def terminate(reason, state, %{early_async_completions: held} = data) when map_size(held) > 0 do
+    reply_held_async_completions(data)
+    terminate(reason, state, %{data | early_async_completions: %{}})
+  end
+
   def terminate(reason, _state, %{task_supervisor: task_supervisor})
       when is_pid(task_supervisor) do
     if Process.alive?(task_supervisor) do
@@ -1793,6 +1810,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
         process_instance_pid
       )
 
+    :ok =
+      InstanceHandlerDispatch.register_service_task_completion_route(
+        flow_node,
+        flow_node_instance_id,
+        nil
+      )
+
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result =
              BoundaryAwareHandler.wrap_enter(handler_module, flow_node, token, handler_context)
@@ -2013,21 +2037,91 @@ defmodule BfwEngine.Execution.ProcessInstance do
       %{state: :fatal} ->
         {:error, :fni_already_fatal}
 
-      %{state: :waiting} = entry ->
-        validate_async_waiting_entry(entry)
+      %{state: state} = entry when state in [:active, :waiting] ->
+        validate_async_live_entry(data, entry)
 
       %{state: _other} ->
         {:error, :fni_not_waiting}
     end
   end
 
+  defp validate_async_live_entry(data, entry) do
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
+    cond do
+      multi_instance_shell?(flow_node, entry) -> {:error, :fni_is_multi_instance_shell}
+      entry.state == :waiting -> validate_async_waiting_entry(entry)
+      entry.flow_node_type == :service_task -> {:error, :fni_not_parked_yet}
+      true -> {:error, :fni_not_waiting}
+    end
+  end
+
+  # A plugin may complete its Service Task before `handle_enter/3` returned
+  # `{:async, …}`. The call is held, unanswered, until the flow node instance
+  # leaves `:active`, then replayed with its original caller. A call from the
+  # handler Task itself, or from a Task it awaits, cannot be held: it would
+  # wait for the handler's own return.
+  defp buffer_early_async_completion(
+         data,
+         {caller_pid, _tag} = from,
+         flow_node_instance_id,
+         request
+       ) do
+    handler_pid = data.flow_node_instance_states[flow_node_instance_id].pid
+
+    if caller_pid == handler_pid or handler_pid in task_callers(caller_pid) or
+         Map.has_key?(data.early_async_completions, flow_node_instance_id) do
+      {:keep_state, data, [{:reply, from, {:error, :fni_not_waiting}}]}
+    else
+      {:keep_state, put_in(data.early_async_completions[flow_node_instance_id], {from, request})}
+    end
+  end
+
+  defp task_callers(pid) do
+    case Process.info(pid, {:dictionary, :"$callers"}) do
+      {{:dictionary, :"$callers"}, callers} when is_list(callers) -> callers
+      _no_callers -> []
+    end
+  end
+
+  defp reply_held_async_completions(data) do
+    Enum.each(data.early_async_completions, fn {flow_node_instance_id, {from, _request}} ->
+      :gen_statem.reply(from, {:error, held_completion_error(data, flow_node_instance_id)})
+    end)
+  end
+
+  defp held_completion_error(data, flow_node_instance_id) do
+    case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
+      %{state: state} -> normalize_terminal_state_error(state)
+      nil -> :fni_not_waiting
+    end
+  end
+
+  defp release_early_async_completions(%{early_async_completions: buffered} = data)
+       when map_size(buffered) == 0,
+       do: {data, []}
+
+  defp release_early_async_completions(data) do
+    {released, held} =
+      Enum.split_with(data.early_async_completions, fn {flow_node_instance_id, _call} ->
+        not match?(
+          %{state: :active},
+          Map.get(data.flow_node_instance_states, flow_node_instance_id)
+        )
+      end)
+
+    actions =
+      Enum.map(released, fn {_id, {from, request}} -> {:next_event, {:call, from}, request} end)
+
+    {%{data | early_async_completions: Map.new(held)}, actions}
+  end
+
   # Gates plugin `finish_async_service_task` / `fail_async_service_task` only.
   # Catch events, timers, joins, Call Activity, and MI/loop shells also park
   # in `:waiting` via `{:async, id, continuation}` and stamp `async: true` —
   # that flag is the async return shape, not permission for the plugin
-  # callback API. MI/loop shells also stamp `mi_shell: true` so they are
-  # not registered in `Execution.Registry`. Only ServiceTask implements
-  # `handle_complete/4` for that path.
+  # callback API. MI/loop shells are refused before this check. Only
+  # ServiceTask implements `handle_complete/4` for that path.
   defp validate_async_waiting_entry(entry) do
     type_props = Map.get(entry, :type_properties, %{})
     is_async = Map.get(type_props, :async, false) || Map.get(type_props, "async", false)
@@ -2353,10 +2447,36 @@ defmodule BfwEngine.Execution.ProcessInstance do
           next_flow_node_ids: result.next_flow_node_ids
       })
 
+    :ok = publish_inbox_task_created(data, flow_node_instance_id, entry, merged_type_properties)
+
     if result.metadata[:awaiting_condition] do
       maybe_register_conditional_waiter_from_wait(data, flow_node_instance_id, entry)
     else
       data
+    end
+  end
+
+  # Published only after the entry is `:waiting`, so a finish call sent in
+  # reaction to the event is never answered `fni_not_waiting`.
+  defp publish_inbox_task_created(data, flow_node_instance_id, entry, type_properties) do
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
+    if TaskInboxEvents.inbox_task?(flow_node) do
+      context =
+        InstanceHandlerDispatch.build_handler_context(
+          data,
+          flow_node_instance_id,
+          flow_node,
+          self()
+        )
+
+      TaskInboxEvents.publish_created(
+        context,
+        flow_node,
+        Map.get(type_properties, :assignees, [])
+      )
+    else
+      :ok
     end
   end
 
@@ -3590,12 +3710,36 @@ defmodule BfwEngine.Execution.ProcessInstance do
        ) do
     case Map.get(data.mi_shell_tasks, flow_node_instance_id) do
       nil ->
-        data = handle_fni_fatal(data, flow_node_instance_id, reason)
-        reply_uncaught_fatal(data, from, reason, uncaught_reply)
+        resolve_esp_or_fatal_completion_error(
+          data,
+          from,
+          flow_node_instance_id,
+          reason,
+          uncaught_reply
+        )
 
       {_shell_fni_id, shell_task_pid} ->
         data = handle_mi_iteration_error(data, flow_node_instance_id, reason, shell_task_pid)
         {:keep_state, data, [{:reply, from, {:error, reason}}]}
+    end
+  end
+
+  defp resolve_esp_or_fatal_completion_error(
+         data,
+         from,
+         flow_node_instance_id,
+         reason,
+         uncaught_reply
+       ) do
+    case EspScope.resolve_error_catch(data, flow_node_instance_id, reason) do
+      {:caught, data, action} ->
+        data
+        |> execute_esp_action(action)
+        |> maybe_finish_or_continue_with_reply(from)
+
+      :not_caught ->
+        data = handle_fni_fatal(data, flow_node_instance_id, reason)
+        reply_uncaught_fatal(data, from, reason, uncaught_reply)
     end
   end
 
@@ -3620,8 +3764,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
       transition_to_fatal(data, :fni_fatal)
     else
       case maybe_finish(data) do
-        {:stop, data} -> {:stop, :normal, data}
-        {:continue, data} -> {:keep_state, data}
+        {:stop, data} ->
+          {:stop, :normal, data}
+
+        {:continue, data} ->
+          {data, release_actions} = release_early_async_completions(data)
+          {:keep_state, data, release_actions}
       end
     end
   end
@@ -3639,8 +3787,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
       do_transition_to_fatal(data, :fni_fatal, [{:reply, from, :ok}])
     else
       case maybe_finish(data) do
-        {:stop, data} -> {:stop_and_reply, :normal, [{:reply, from, :ok}], data}
-        {:continue, data} -> {:keep_state, data, [{:reply, from, :ok}]}
+        {:stop, data} ->
+          {:stop_and_reply, :normal, [{:reply, from, :ok}], data}
+
+        {:continue, data} ->
+          {data, release_actions} = release_early_async_completions(data)
+          {:keep_state, data, [{:reply, from, :ok} | release_actions]}
       end
     end
   end
@@ -4463,6 +4615,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
         multi_instance_id: context.shell_fni_id,
         iteration_index: context.index
     }
+
+    :ok =
+      InstanceHandlerDispatch.register_service_task_completion_route(
+        context.flow_node,
+        context.iteration_fni_id,
+        context.shell_fni_id
+      )
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            previous_trap_exit = Process.flag(:trap_exit, true)

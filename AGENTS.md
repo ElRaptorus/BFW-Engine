@@ -203,8 +203,10 @@ present, `minScorePercent` ← `scorePercent`, `maxErrors` ← `rawErrorFindings
 `{:async, flow_node_instance_id}` from `handle_enter/3` and complete later via
 `facade.service_tasks.finish_async.(flow_node_instance_id, result)` or
 `facade.service_tasks.fail_async.(flow_node_instance_id, code, message)`.
-The `code` matches Error Boundaries with the same ranking as enter-time errors
-(specific resolved `errorRef` / inline code before catch-all).
+The `code` matches Error Boundaries, then Error Event Subprocess starts. Early
+completions, raising handlers, and restart recovery (`handle_resume/2`) are
+described in `docs/architecture/plugins.md` §Async Service Task completion and
+recovery.
 Synchronous `{:ok, %FlowNodeResult{}}` returns are not supported. For local,
 synchronous computation, use a Script Task with a Named Script plugin instead.
 
@@ -389,7 +391,13 @@ JSON array of form fields (`id`, `type`, `label`, `required`), passed through to
 
 #### `bfw:dueDate`
 
-FEEL expression or ISO 8601 string for the task's due date.
+The task's due date. A value that parses as an ISO 8601 date-time is stored
+as written. Anything else is a FEEL expression, evaluated with `token` bound
+to the input after `bfw:inputMapping`; it must yield a date-time (stored as
+ISO 8601 UTC) or `null` (no due date). Any other result, or a FEEL error,
+fails the task with `user_task_due_date_failed` (Error Boundaries and Error
+Event Subprocess starts may catch it). `bfw:assignees` is
+evaluated against the same mapped input.
 
 ```xml
 <bfw:dueDate>2025-12-01T10:00:00Z</bfw:dueDate>

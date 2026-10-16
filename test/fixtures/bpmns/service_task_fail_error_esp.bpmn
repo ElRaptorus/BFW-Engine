@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+                  id="Definitions_ServiceTaskFailErrorEsp"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_ServiceTaskFailErrorEsp" name="Service Task Fail Error ESP" processRef="ServiceTaskFailErrorEsp" />
+  </bpmn:collaboration>
+  <bpmn:process id="ServiceTaskFailErrorEsp" name="Service Task Fail Error ESP" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_default" name="default">
+        <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Fail</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Done</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_1" name="Start"/>
+    <bpmn:serviceTask id="ServiceTask_Fail" name="Fails Async" implementation="async_fail"/>
+    <bpmn:endEvent id="End_Done" name="Done"/>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="ServiceTask_Fail"/>
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ServiceTask_Fail" targetRef="End_Done"/>
+    <bpmn:subProcess id="Esp_Error" name="Handle Any Error" triggeredByEvent="true">
+      <bpmn:startEvent id="Esp_Error_Start" name="Any Error" isInterrupting="true">
+        <bpmn:outgoing>Esp_Flow_1</bpmn:outgoing>
+        <bpmn:errorEventDefinition id="Esp_Error_Definition" />
+      </bpmn:startEvent>
+      <bpmn:endEvent id="Esp_Error_End" name="Handled">
+        <bpmn:incoming>Esp_Flow_1</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Esp_Flow_1" sourceRef="Esp_Error_Start" targetRef="Esp_Error_End"/>
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Shape_Participant_ServiceTaskFailErrorEsp" bpmnElement="Participant_ServiceTaskFailErrorEsp" isHorizontal="true">
+        <dc:Bounds x="82" y="60" width="632" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
+        <dc:Bounds x="112" y="60" width="602" height="360" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
+        <dc:Bounds x="162" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Fail" bpmnElement="ServiceTask_Fail">
+        <dc:Bounds x="260" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Done" bpmnElement="End_Done">
+        <dc:Bounds x="432" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Esp_Error" bpmnElement="Esp_Error" isExpanded="true">
+        <dc:Bounds x="162" y="200" width="300" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Esp_Error_Start" bpmnElement="Esp_Error_Start">
+        <dc:Bounds x="192" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Esp_Error_End" bpmnElement="Esp_Error_End">
+        <dc:Bounds x="392" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="198" y="130" />
+        <di:waypoint x="260" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="130" />
+        <di:waypoint x="432" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Esp_Flow_1" bpmnElement="Esp_Flow_1">
+        <di:waypoint x="228" y="260" />
+        <di:waypoint x="392" y="260" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

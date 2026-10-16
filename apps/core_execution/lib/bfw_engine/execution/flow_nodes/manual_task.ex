@@ -2,11 +2,12 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
   @moduledoc """
   Handler for `<bpmn:manualTask>`.
 
-  Pass-through by default — publishes no inbox events. When
+  Pass-through by default — no inbox events. When
   `bfw:requireConfirmation` is `true`, enters `waiting` state until a
   `confirm_manual_task` call (`PUT /manual-tasks/{id}/confirm`) advances
-  it, and publishes the same task inbox events (`UserTaskCreated`,
-  `UserTaskFinished`) as a User Task, with `flow_node_type: :manual_task`.
+  it; the process instance then publishes the same task inbox events
+  (`UserTaskCreated`, `UserTaskFinished`) as for a User Task, with
+  `flow_node_type: :manual_task`. This handler publishes no events.
   In both modes the token the task entered with continues unchanged.
   """
 
@@ -17,7 +18,6 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.SequenceFlowResolver
-  alias BfwEngine.Execution.TaskInboxEvents
   alias BfwEngine.Types.Token
 
   @spec handle_enter(FlowNode.t(), Token.t(), HandlerContext.t()) ::
@@ -30,7 +30,7 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
         next_ids = Enum.map(targets, & &1.id)
 
         if flow_node.type_data.require_confirmation do
-          enter_with_confirmation(context, flow_node, output_payload, next_ids)
+          enter_with_confirmation(context, output_payload, next_ids)
         else
           finish_pass_through(context, flow_node, output_payload, next_ids)
         end
@@ -40,13 +40,11 @@ defmodule BfwEngine.Execution.FlowNodes.ManualTask do
     end
   end
 
-  defp enter_with_confirmation(context, flow_node, output_payload, next_ids) do
+  defp enter_with_confirmation(context, output_payload, next_ids) do
     type_properties = %{require_confirmation: true}
 
     case FniLifecycle.transition_to_waiting(context, type_properties) do
       :ok ->
-        TaskInboxEvents.publish_created(context, flow_node, [])
-
         {:wait,
          %FlowNodeResult{
            output_payload: output_payload,

@@ -10,9 +10,28 @@ import type { EngineFacade } from './engine-facade.js';
  * synchronous startup failures. Returning a synchronous result is not
  * supported — use a Named Script (`NamedScriptHandler`) for local,
  * engine-internal computation that completes immediately.
+ *
+ * `finishAsync` / `failAsync` may be called before `handleEnter` has
+ * resolved: the engine holds the call until the flow node instance is
+ * parked in `waiting`, then answers it.
+ *
+ * **Engine restart:** background work does not survive a restart. When a
+ * process instance resumes, each of its Service Task flow node instances that
+ * is still `waiting` stays `waiting` and the engine publishes
+ * `PluginAsyncFlowNodeRehydrated`. If the handler implements the optional
+ * `handleResume`, the engine then calls it; the handler decides whether to
+ * re-issue the work or end the task with `finishAsync` / `failAsync`.
  */
 export interface ServiceTaskHandler {
   handleEnter(input: ServiceTaskInput, facade: EngineFacade): Promise<ServiceTaskResult>;
+
+  /**
+   * Optional. Called once for each resumed Service Task flow node instance
+   * that is still `waiting` after an engine restart. Its result is ignored; a
+   * rejection is logged and leaves the task `waiting`. Without this method the
+   * task stays `waiting` until something completes it.
+   */
+  handleResume?(input: ServiceTaskResumeInput, facade: EngineFacade): Promise<void>;
 }
 
 /** Input provided to a service task handler when the engine enters the task. */
@@ -21,6 +40,19 @@ export interface ServiceTaskInput {
   processInstanceId: string;
   flowNodeId: string;
   inputToken: Record<string, unknown>;
+  typeProperties: Record<string, unknown>;
+}
+
+/** What a resumed Service Task was parked with. */
+export interface ServiceTaskResumeInput {
+  flowNodeInstanceId: string;
+  processInstanceId: string;
+  flowNodeId: string;
+  /** The task's `implementation` attribute (the handler's dispatch key). */
+  implementation: string;
+  /** The input after `bfw:inputMapping`, as `handleEnter` received it in `inputToken`. */
+  mappedInput: Record<string, unknown>;
+  /** The flow node's type-specific properties, as in `ServiceTaskInput`. */
   typeProperties: Record<string, unknown>;
 }
 

@@ -89,17 +89,17 @@ No engine state changes on a payload cap violation — the operation is rejected
 
 ## Result Contract Violations
 
-When a [User Task](user-tasks.md) defines an `bfw:resultContract` (JSON Schema), the completion result is validated strictly. A schema mismatch causes the FNI to transition to `fatal`.
+When a [User Task](user-tasks.md) defines an `bfw:resultContract` (JSON Schema), the completion result is validated strictly. A schema mismatch is answered with HTTP 422 `contract_violation` (a `violations` list of `{message, path}`), a `UserTaskValidationFailed` event is published, and the FNI stays `waiting` so the user can correct the submission. The result contracts of other elements (Service, Script, and Business Rule Tasks, subprocesses, catch-side message events) fail the FNI instead.
 
 ## Handler Errors
 
-When a [Service Task](service-tasks.md) handler returns `{:error, reason}`, the FNI transitions to `fatal`. Retry logic is the plugin's responsibility — the engine does not retry failed handlers automatically.
+When a [Service Task](service-tasks.md) handler returns `{:error, reason}`, reports `fail_async`, or raises, the error goes to the task's Error Boundary Events and then to an Error Event Subprocess start in the enclosing scope; only when neither catches it does the FNI transition to `fatal`. A raise is reported as error code `handler_raised`; the same holds for a raising Named Script. Retry logic is the plugin's responsibility — the engine does not retry failed handlers automatically.
 
 ## SinkFailed Events
 
-When an Event Sink crashes during `handle_event/2`, the `EngineEventBus` catches the error and:
+When an Event Sink raises during `accepts?/1` or `handle_event/2`, its worker catches the error and:
 
-1. Emits a `SinkFailed` event to all surviving sinks
+1. Emits a `SinkFailed` event to all sinks — except when the failing event is itself a `SinkFailed`, which is dropped, so a sink that fails on everything cannot start an endless loop
 2. Preserves the crashing sink's previous state
 3. Continues dispatching to other sinks
 

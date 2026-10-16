@@ -36,7 +36,7 @@ The execution runtime converts a parsed BPMN model into a running process instan
 
 ### DynamicSupervisor + Registry
 
-The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `BFE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new public starts** only: when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass — Do not put `max_children` on the PI DynamicSupervisor).
+The execution Application module starts the Execution Supervisor, a `DynamicSupervisor` with `max_children: :infinity` (hardcoded in `application.ex`). `BFE_MAX_CONCURRENT_PIS` is **not** applied as a supervisor limit. It is a **soft pre-check** inside `Execution.start_process_instance/1` for **new top-level starts** only (a start carrying `:parent_process_instance_id` — Call Activity, subprocess, Event Subprocess, transaction, ad-hoc child — skips it, so a running instance never fails on a child spawn): when the active PI count is at or above the cap, that function returns `{:error, :engine_at_capacity, %{active, limit}}` (REST `POST /processes/{model_id}/start` maps this to **503**). **Resume bypasses the cap by design** so a PI tree comes back as a whole — see §Resume on Startup. Do not put `max_children` on the DynamicSupervisor and do not queue leftover PIs for a later resume pass.
 
 ### Process Instance (`:gen_statem`)
 
@@ -368,7 +368,7 @@ Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements it
 | `LinkThrowEvent` | Resolves matching Link Catch by `link_name` in the same process, routes token directly (bypasses `SequenceFlowResolver`). Errors on zero matches (`:no_matching_link_catch`) or multiple matches (`:ambiguous_link_catch`) |
 | `LinkCatchEvent` | Pass-through via `SequenceFlowResolver` — landing pad for Link Throw events |
 | `ManualTask` | Returns `{:wait, ...}` when `require_confirmation` is true, otherwise pass-through |
-| `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `{:wait, ...}`. Output pipeline on finish: `{ actionId, values }` → `out_mappings` (FEEL `token` is that envelope) → `result_contract` → `PayloadCap`. Input failures → fatal. Output contract violations → retryable (422, stays `:waiting`); an unusable result schema is reported as one violation `{"The contract is not a valid JSON Schema: <message>", "#"}`, and `UserTaskValidationFailed.violations` carries `%{message, path}` maps. Resolves assignees from `bfw:assignees` extension |
+| `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `bfw:dueDate` → `bfw:assignees` → `{:wait, ...}`. `bfw:dueDate` is kept as written when it is an ISO 8601 date-time, else evaluated as FEEL with `token` bound to the mapped input (date-time → ISO 8601 UTC, `null` → no due date, anything else or a FEEL error → `user_task_due_date_failed`); `bfw:assignees` is evaluated against the same mapped input. Output pipeline on finish: `{ actionId, values }` → `out_mappings` (FEEL `token` is that envelope) → `result_contract` → `PayloadCap`. Input and due-date failures fail the task (error boundaries and Error Event Subprocess starts apply, else fatal). Output contract violations → retryable (422, stays `:waiting`); an unusable result schema is reported as one violation `{"The contract is not a valid JSON Schema: <message>", "#"}`, and `UserTaskValidationFailed.violations` carries `%{message, path}` maps |
 | `ExclusiveGateway` | Owns routing: evaluates FEEL conditions on outgoing flows, enforces exactly-one-truthy (deliberate divergence from BPMN 2.0 "first truthy wins"). An unmarked non-default outgoing flow on a split (`outgoing > 1`) is a **runtime fatal** `:exclusive_gateway_unconditional_flow` **before** FEEL evaluation. A single unmarked outgoing is pass-through; a single outgoing that carries a condition is still evaluated (false + no default → `:no_matching_condition`). The diagram still deploys; Studio lints warning (`bpmn-development`) / error (`bpmn-production-ready`). Mixed gateways (both split and join) rejected at runtime. Join is pure pass-through |
 | `ParallelGateway` | Fork: resolves all outgoing sequence flows via `SequenceFlowResolver` (conditions ignored). Join: handler-owned async Task with PI routing (see §Parallel Gateway below). Mixed gateways rejected at runtime |
 | `InclusiveGateway` | Fork: evaluates all outgoing conditional FEEL expressions; activates every truthy path plus unconditional non-default flows (OR-split). If zero truthy: default path, or fatal `:no_matching_condition`. Join: handler-owned async Task with PI routing and **structural backward-cone** dead-path elimination (see §Inclusive Gateway below). Resume re-evaluates DPE via `evaluate_parked_inclusive_joins/1`. Mixed gateways rejected at runtime |
@@ -1025,7 +1025,7 @@ token → in_mappings (FEEL) → payload_contract (JSON Schema) → handler → 
 - **Mappers** (`in_mappings`, `out_mappings`) are lists of FEEL `source`/`target` pairs. Each evaluates the FEEL expression `source` against the current token context and writes the result to `target` in the output map. Empty list = passthrough.
 - **Contracts** (`payload_contract`, `result_contract`) are JSON Schema objects validated with `ExJsonSchema`. `nil` = no validation.
 - **Ordering**: mappers always run before their corresponding contract, allowing designers to reshape data into a valid format before validation.
-- **Error semantics**: Service Task — all failures are fatal. User Task — input failures are fatal, output `result_contract` violations are retryable (422, FNI stays `:waiting`). Call Activity — mapping failures are fatal.
+- **Error semantics**: Service Task — all failures fail the FNI (error boundaries, then Error Event Subprocess starts, then fatal). User Task — input failures are fatal, output `result_contract` violations are retryable (422, FNI stays `:waiting`). Call Activity — mapping failures are fatal.
 
 ---
 
@@ -1101,6 +1101,8 @@ Backoff formula: `initial_ms * 2^(attempt - 1) + random(0..50)`. Total worst-cas
 | `persist_pi_finished` | Log-and-continue | PI is already stopping; orphan cleanup reconciles |
 | `persist_pi_fatal` | Log-and-continue | Same |
 | `persist_pi_aborted` | Log-and-continue | Same |
+
+**Known constraints.** `PersistenceRetry` sleeps in the calling process: a retrying write in a PI blocks that PI's mailbox for up to the backoff budget (about 3.1 s with the defaults), and every call to the PI waits as long. The terminal cascades (`fatal_all_fnis/1`, `abort_all_fnis/1`) write the PI row first, then each live FNI one after another, and ignore a failed FNI write after its retries; until the next engine start such a terminal PI can show FNI rows still `active` or `waiting`. The startup FNI sweep (§Startup Orphan Cleanup) aborts them.
 
 #### Extended coverage
 
@@ -1284,7 +1286,7 @@ The PI `:gen_statem` traps exits. On a `:shutdown` from its supervisor, `termina
 | FNI state | Resume behaviour |
 |-----------|-----------------|
 | `:active` | Re-dispatched — handler runs from scratch with the persisted `input_token`. Missing subscription boundaries are re-spawned (`spawn_missing_boundary_fnis/5`). |
-| `:waiting` (service task) | Registry entry `{:fni, id}` re-registered, `PluginAsyncFlowNodeRehydrated` emitted; `handle_enter/3` is not re-run. The plugin recovers through `facade.service_tasks.list_waiting` (returns `type_properties["mapped_input"]`, falling back to `input_token`). |
+| `:waiting` (service task) | Registry entry `{:fni, id}` re-registered, `PluginAsyncFlowNodeRehydrated` emitted; `handle_enter/3` is not re-run. The handler's optional `handle_resume/2` is called in a Task (see [plugins.md](plugins.md) §Async Service Task completion and recovery); otherwise the plugin recovers through `facade.service_tasks.list_waiting` (returns `type_properties["mapped_input"]`, falling back to `input_token`). |
 | `:waiting` (CA / subprocess / ESP shell) | `handle_resume/4` of the shell's handler: re-attach a live child, resume a persisted `running` child, re-derive the outcome of a terminal child, or run a fresh lifecycle when no child row exists. The child row is read with `ChildLifecycle.fetch_persisted_child/1` (`PersistenceRetry`, `:not_found` answered at once); a database error that persists is not taken for a deleted child: the shell reports its resume settled and fatals with `child_resume_failed` instead of spawning a second child (`ChildLifecycle.child_resume_failed/3`). A child spawned afresh is recorded on the shell (`ChildLifecycle.record_fresh_child/2`). An `:active` shell with a child is first parked `:waiting`, merging into its stored `type_properties`. |
 | `:waiting` (timer catch / boundary / start) | `handle_resume/3` re-arms with the persisted `fire_at`, or fires at once when it is past. |
 | `:waiting` (message / signal catch, boundary, receive task) | `handle_resume/3` re-registers the subscription and reports `{:resume_settled, id}`. |
@@ -1366,16 +1368,16 @@ flowchart TD
     L -->|no| N[build_reset_spec]
     M -->|incompatible| FAIL2[422 version_migration_incompatible]
     M -->|ok| N
-    N --> O[execute_retry_reset — atomic transaction]
+    N --> N1{check_capacity}
+    N1 -->|at cap| FAIL3[503 engine_at_capacity — nothing written]
+    N1 -->|ok| O[execute_retry_reset — atomic transaction]
 
     O --> P[Tree Reset]
     P --> P1[reset_ancestor_chain — bottom-up]
     P1 --> P2[reset_descendants — depth-first DFS]
 
     P2 --> Q[Resume from Root]
-    Q --> Q1{check_capacity}
-    Q1 -->|at cap| FAIL3[503 engine_at_capacity]
-    Q1 -->|ok| Q2[DynamicSupervisor.start_child — root gen_statem]
+    Q --> Q2[DynamicSupervisor.start_child — root gen_statem]
     Q2 -->|ok| R[emit ProcessInstanceRetried + telemetry]
     Q2 -->|fail| S[revert_tree_retry — restore all terminal states]
 ```
@@ -1386,14 +1388,14 @@ flowchart TD
 3. `maybe_apply_checkpoint/2` — if a checkpoint FNI ID is provided, compute the **deletion set** via forward reachability BFS from the checkpoint. FNIs downstream of the checkpoint are deleted; the checkpoint FNI itself survives and is reset.
 4. `validate_fni_compatibility/3` — on version migration, verify every surviving FNI that will be active after reset (`active`, `waiting`, `fatal`, `aborted`, `error` — excluding only `finished` and `interrupted`) has a `flow_node_id` that exists in the target model (loaded from `ModelCache`).
 5. `build_reset_spec/5` — compute `reset_fni_ids` (terminal FNIs → `"active"`), `delete_fni_ids` (from checkpoint), and optional `version_id`.
-6. `adapter.execute_retry_reset/2` — atomic persistence: delete FNIs + rollback Data Objects + reset FNI states + set PI to `running`, clear `finished_at` and `error_info`, optionally update `process_version_id`.
+6. `check_capacity/0` — same cap check as `start_process_instance/1`; unlike resume, retry is user-initiated and subject to the cap. Every step before it only reads, so a refused retry (`503 engine_at_capacity`) leaves the tree untouched, and validation errors (checkpoint, version compatibility, ancestors) answer first even at the cap.
+7. `adapter.execute_retry_reset/2` — atomic persistence: delete FNIs + rollback Data Objects + reset FNI states + set PI to `running`, clear `finished_at` and `error_info`, optionally update `process_version_id`.
 
 **Tree reset:**
 - `reset_ancestor_chain/2` — iterate ancestors bottom-up. For each ancestor, loads its FNIs via `build_basic_reset_spec/2`, then resets via `execute_retry_reset/2` (reset `fatal`/`aborted`/`error` FNIs to `active`, set PI to `running`). Propagates FNI loading errors cleanly.
 - `reset_descendants/2` — depth-first walk from all reset PIs. For each Call Activity or SubProcess FNI with a `fatal`, `aborted`, or `error` child PI, reset the child and recurse into its own children. `finished` children are preserved.
 
 **Resume from root:**
-- `check_capacity/0` — same cap check as `start_process_instance/1`. Unlike resume, retry is user-initiated and subject to capacity limits.
 - `build_resume_opts/2` — build the opts map for `ProcessInstance.start_link` with `resume: true`, same format as `ResumeRunner.resume_one/2`.
 - `DynamicSupervisor.start_child` — start the root PI gen_statem. The gen_statem does not know it was triggered by a retry.
 

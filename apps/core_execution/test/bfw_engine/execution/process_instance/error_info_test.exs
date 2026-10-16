@@ -429,6 +429,101 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
 
       assert ErrorInfo.build({:http_response_headers_expression_error, "boom"})["message"] =~
                "bfw:httpResponseHeaders expression failed: boom"
+
+      assert ErrorInfo.build({:http_body_expression_error, "parse error"})["message"] ==
+               "HTTP service task bfw:httpBody expression failed: parse error"
+
+      assert ErrorInfo.build({:http_auth_expression_error, "not a string"})["message"] ==
+               "HTTP service task bfw:httpAuthHeader expression failed: not a string"
+    end
+
+    test "handler_raised is a coded error naming the plugin key, the flow node, and the exception" do
+      handler = %{
+        flow_node_id: "Task_Charge",
+        handler_type: "implementation",
+        handler_key: "payments"
+      }
+
+      raised = ErrorInfo.handler_raised(handler, :error, %RuntimeError{message: "boom"})
+
+      assert raised.error_code == "handler_raised"
+
+      assert ErrorInfo.build(raised) == %{
+               "error_code" => "handler_raised",
+               "message" =>
+                 "The plugin handler for implementation 'payments' of flow node 'Task_Charge' raised " <>
+                   "an exception instead of returning a result: boom"
+             }
+    end
+
+    test "handler_raised cuts a long exception message and never quotes an exit or throw value" do
+      handler = %{flow_node_id: "Script_1", handler_type: "scriptRef", handler_key: "audit"}
+
+      long_raise =
+        ErrorInfo.handler_raised(handler, :error, %RuntimeError{
+          message: String.duplicate("x", 2_000)
+        })
+
+      assert String.length(long_raise.error_message) < 700
+
+      exited =
+        ErrorInfo.handler_raised(
+          handler,
+          :exit,
+          {:noproc, {GenServer, :call, [%{"secret" => "s3"}]}}
+        )
+
+      assert exited.error_message =~ "exited (a :noproc tuple)"
+      refute exited.error_message =~ "s3"
+
+      assert ErrorInfo.handler_raised(handler, :throw, %{"secret" => "s3"}).error_message =~
+               "threw a map"
+
+      assert ErrorInfo.handler_raised(handler, :error, :badarg).error_message =~
+               "Erlang error (:badarg)"
+
+      assert ErrorInfo.handler_raised(handler, :exit, ["s3"]).error_message =~ "exited (a list)"
+    end
+
+    test "an unsupported time zone in a date-time is described without naming timers" do
+      message =
+        ErrorInfo.build(
+          {:user_task_due_date_failed,
+           %{
+             flow_node_id: "Task_Review",
+             expression: "x",
+             reason: {:unsupported_time_zone, "2027-01-01T00:00:00[Europe/Berlin]"}
+           }}
+        )["message"]
+
+      assert message =~ "names a time zone; only a UTC offset such as 'Z' or '+02:00' is accepted"
+      refute message =~ "timers"
+    end
+
+    test "user_task_due_date_failed names the task, the expression, and the reason" do
+      not_a_date_time =
+        ErrorInfo.build(
+          {:user_task_due_date_failed,
+           %{flow_node_id: "Task_Review", expression: "token.days", reason: {:not_a_date_time, 3}}}
+        )
+
+      assert not_a_date_time["message"] =~ "'Task_Review'"
+      assert not_a_date_time["message"] =~ "'token.days'"
+      assert not_a_date_time["message"] =~ "yielded 3, which is not a date-time"
+
+      evaluation_error =
+        ErrorInfo.build(
+          {:user_task_due_date_failed,
+           %{flow_node_id: "Task_Review", expression: "token.(", reason: "parse error"}}
+        )
+
+      assert evaluation_error["message"] =~ "bfw:dueDate 'token.('"
+      assert evaluation_error["message"] =~ "parse error"
+    end
+
+    test "dmn_evaluation_failed with a text detail" do
+      assert ErrorInfo.build({:dmn_evaluation_failed, "the evaluator raised"})["message"] ==
+               "DMN evaluation failed: the evaluator raised"
     end
 
     test "in_mapping_failed with plain string detail" do

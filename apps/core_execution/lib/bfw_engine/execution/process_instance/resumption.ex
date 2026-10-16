@@ -25,6 +25,7 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   alias BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator
   alias BfwEngine.Execution.ProcessInstance.CompensationOrchestrator
   alias BfwEngine.Execution.SequenceFlowResolver
+  alias BfwEngine.Execution.ServiceTaskDispatch
   alias BfwEngine.Types.Event
   alias BfwEngine.Types.Identity
   alias BfwEngine.Types.Token
@@ -983,6 +984,13 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           iteration_index: Map.get(entry, :iteration_index)
       }
 
+      :ok =
+        InstanceHandlerDispatch.register_service_task_completion_route(
+          flow_node,
+          flow_node_instance_id,
+          Map.get(entry, :multi_instance_id)
+        )
+
       spawn_resume_task(
         data,
         flow_node_instance_id,
@@ -1162,6 +1170,13 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         process_instance_pid
       )
       |> maybe_inject_boundary_host(entry)
+
+    :ok =
+      InstanceHandlerDispatch.register_service_task_completion_route(
+        flow_node,
+        flow_node_instance_id,
+        Map.get(entry, :multi_instance_id)
+      )
 
     case Task.Supervisor.start_child(data.task_supervisor, fn ->
            result =
@@ -1512,19 +1527,66 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
       {:ok, _} =
         Registry.register(BfwEngine.Execution.Registry, {:fni, flow_node_instance_id}, :async)
 
+      flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
       EngineEventBus.publish(%Event.PluginAsyncFlowNodeRehydrated{
         flow_node_instance_id: flow_node_instance_id,
         process_instance_id: data.process_instance_id,
-        lane_name:
-          LaneResolution.resolve_lane_name(
-            data.process_model,
-            FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
-          ),
+        lane_name: LaneResolution.resolve_lane_name(data.process_model, flow_node),
         occurred_at: DateTime.utc_now()
       })
+
+      _resume_started = start_service_task_resume(data, flow_node_instance_id, entry, flow_node)
     end
 
     data
+  end
+
+  # Rows parked before `implementation` and `mapped_input` were persisted
+  # fall back to the model and to the input token.
+  defp start_service_task_resume(
+         data,
+         flow_node_instance_id,
+         entry,
+         %FlowNode{type: :service_task} = flow_node
+       ) do
+    type_properties = entry.type_properties || %{}
+
+    implementation =
+      persisted_property(type_properties, :implementation) || flow_node.type_data.implementation
+
+    with {:ok, handler_module} <- ServiceTaskDispatch.adapter().lookup_handler(implementation),
+         true <-
+           Code.ensure_loaded?(handler_module) and
+             function_exported?(handler_module, :handle_resume, 2) do
+      resume_input = %{
+        implementation: implementation,
+        flow_node_id: flow_node.id,
+        flow_node: flow_node,
+        mapped_input: persisted_property(type_properties, :mapped_input) || input_payload(entry)
+      }
+
+      handler_context =
+        InstanceHandlerDispatch.build_handler_context(
+          data,
+          flow_node_instance_id,
+          flow_node,
+          self()
+        )
+
+      Task.Supervisor.start_child(data.task_supervisor, fn ->
+        handler_module.handle_resume(resume_input, handler_context)
+      end)
+    end
+  end
+
+  defp start_service_task_resume(_data, _flow_node_instance_id, _entry, _flow_node), do: :ok
+
+  defp input_payload(%{token: %{payload: payload}}) when is_map(payload), do: payload
+  defp input_payload(_entry), do: %{}
+
+  defp persisted_property(type_properties, key) do
+    Map.get(type_properties, Atom.to_string(key)) || Map.get(type_properties, key)
   end
 
   defp reactivate_call_activity_fni(data, flow_node_instance_id, entry, process_instance_pid) do

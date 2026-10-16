@@ -17,10 +17,10 @@ defmodule BfwEngine.Events.EngineEventBus do
     {:ok, new_state}` in-order state-mutation contract is preserved.
   - Sinks are decoupled from each other — a slow sink's mailbox fills
     independently and does not stall other sinks or the bus.
-  - Crash isolation by supervision: a sink that raises crashes only its
-    own worker; the supervisor restarts it (one_for_one). A
-    `%Event.SinkFailed{}` is emitted before the rescue swallows the
-    exception so other sinks can observe the failure.
+  - Crash isolation: the worker rescues a raising sink and publishes a
+    `%Event.SinkFailed{}` so other sinks can observe the failure (never
+    for a failing `SinkFailed`); a worker that dies anyway is restarted by
+    the supervisor (one_for_one).
   """
 
   use GenServer

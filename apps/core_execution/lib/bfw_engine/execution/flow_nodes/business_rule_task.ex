@@ -43,7 +43,6 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerContext
   alias BfwEngine.Execution.MappingHelper
-  alias BfwEngine.Execution.PayloadCap
   alias BfwEngine.Execution.SequenceFlowResolver
   alias BfwEngine.Expressions
   alias BfwEngine.Expressions.Context, as: FeelContext
@@ -59,7 +58,6 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
          {:ok, result_output, type_properties} <-
            dispatch_mode(flow_node, type_data, mapped_input, context),
          {:ok, mapped_output} <- apply_output_pipeline(type_data, result_output, context),
-         :ok <- PayloadCap.check(mapped_output, field: :business_rule_result),
          {:ok, next_ids} <- resolve_outgoing(flow_node, context),
          {:ok, lifecycle_result} <-
            FniLifecycle.finish(context, flow_node, mapped_output, type_properties) do
@@ -177,7 +175,7 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
 
     task =
       Task.async(fn ->
-        DMN.Evaluator.evaluate(definitions, decision_element_id, payload, evaluator_opts)
+        evaluate_decision(definitions, decision_element_id, payload, evaluator_opts)
       end)
 
     case Task.yield(task, timeout) || Task.shutdown(task) do
@@ -190,11 +188,33 @@ defmodule BfwEngine.Execution.FlowNodes.BusinessRuleTask do
       {:ok, {:error, reason}} ->
         {:error, {:dmn_evaluation_failed, reason}}
 
+      {:exit, reason} ->
+        {:error,
+         {:dmn_evaluation_failed, "the evaluation process exited (#{exit_reason_type(reason)})"}}
+
       nil ->
         {:error,
          {:dmn_evaluation_timeout, %{timeout_ms: timeout, decision_ref: type_data.decision_ref}}}
     end
   end
+
+  # The evaluation Task is linked to the handler Task: a raise must become an
+  # error result, or the exit would take the handler Task (and the instance) down.
+  defp evaluate_decision(definitions, decision_element_id, payload, evaluator_opts) do
+    DMN.Evaluator.evaluate(definitions, decision_element_id, payload, evaluator_opts)
+  rescue
+    exception ->
+      {:error, "the DMN evaluator raised an exception: #{Exception.message(exception)}"}
+  catch
+    kind, value -> {:error, "the DMN evaluator failed with #{kind} (#{exit_reason_type(value)})"}
+  end
+
+  defp exit_reason_type(reason) when is_atom(reason), do: inspect(reason)
+
+  defp exit_reason_type(reason) when tuple_size(reason) > 0 and is_atom(elem(reason, 0)),
+    do: "a #{inspect(elem(reason, 0))} tuple"
+
+  defp exit_reason_type(_reason), do: "a value"
 
   defp shape_result(result, nil) when is_map(result), do: result
   defp shape_result(result, nil), do: %{"result" => result}

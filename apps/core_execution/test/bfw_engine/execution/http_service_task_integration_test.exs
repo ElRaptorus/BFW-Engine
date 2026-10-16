@@ -232,6 +232,24 @@ defmodule BfwEngine.Execution.HttpServiceTaskIntegrationTest do
       assert_receive {:pi_state_change, ^process_instance_reference, :fatal, _metadata}, 2_000
     end
 
+    test "HTTP-I6: a raise inside the request Task fails the task instead of leaving it waiting" do
+      Req.Test.stub(__MODULE__, fn _connection -> raise ArgumentError, "malformed request" end)
+
+      definitions = BpmnFactory.http_service_task_process()
+      ModelCache.put_new(@version_id, definitions)
+
+      process_instance_reference = attach_pi_telemetry("http-request-raise")
+      service_task_reference = attach_fni_telemetry("http-request-raise")
+
+      assert {:ok, _process_instance_pid} = start_process_instance()
+
+      assert_receive {:fni_state_change, ^service_task_reference,
+                      %{flow_node_type: :service_task, terminal_state: :fatal}},
+                     2_000
+
+      assert_receive {:pi_state_change, ^process_instance_reference, :fatal, _metadata}, 2_000
+    end
+
     test "HTTP-I5: HTTP 422 response causes PI fatal after async park" do
       Req.Test.stub(__MODULE__, fn connection ->
         connection

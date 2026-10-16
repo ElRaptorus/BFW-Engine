@@ -29,7 +29,7 @@ Process the event. Must be **O(1) in observable cost** — buffer internally if 
 
 Return `{:ok, new_state}` to update state, or `:skip` to preserve the previous state unchanged.
 
-Raising is caught by the `EngineEventBus`, which emits `Event.SinkFailed` to all surviving sinks and continues dispatch.
+Raising (here or in `accepts?/1`) is caught by the sink's worker, which emits `Event.SinkFailed` to all sinks and continues dispatch.
 
 ### `handle_shutdown/1`
 
@@ -52,7 +52,7 @@ end
 ## Crash Isolation
 
 - Sink crashes never kill the `EngineEventBus`
-- A `SinkFailed` event is emitted to all surviving sinks with the offending sink name, event kind, and error reason
+- A `SinkFailed` event is emitted to all sinks with the offending sink name, event kind, and error reason — except when the event the sink failed on is itself a `SinkFailed`; that failure is dropped, so a sink that raises on every event cannot start an endless loop
 - The crashing sink's previous state is preserved for the next event
 
 ## Example: Simple Logging Sink

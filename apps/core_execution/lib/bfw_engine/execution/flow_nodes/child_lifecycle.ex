@@ -277,15 +277,15 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   @spec apply_result(FlowNode.t(), term(), HandlerContext.t(), term(), String.t()) ::
           {:ok, FlowNodeResult.t()} | {:error, term()}
   defp apply_result(flow_node, _entry, context, final_tokens, child_process_instance_id) do
-    {:ok, next_ids} = resolve_outgoing(flow_node, context)
-
-    apply_out_mappings_to_result(
-      flow_node,
-      context,
-      final_tokens,
-      next_ids,
-      child_process_instance_id
-    )
+    with {:ok, next_ids} <- resolve_outgoing(flow_node, context) do
+      apply_out_mappings_to_result(
+        flow_node,
+        context,
+        final_tokens,
+        next_ids,
+        child_process_instance_id
+      )
+    end
   end
 
   # ===================================================================
@@ -375,8 +375,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           map(),
           term(),
           String.t(),
-          pid(),
-          [String.t()]
+          pid()
         ) :: term()
   defp handle_child_escalation_end(
          flow_node,
@@ -384,8 +383,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
          escalation_info,
          final_tokens,
          child_process_instance_id,
-         process_instance_pid,
-         next_ids
+         process_instance_pid
        ) do
     triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
 
@@ -405,8 +403,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           escalation_info,
           final_tokens,
           child_process_instance_id,
-          process_instance_pid,
-          next_ids
+          process_instance_pid
         )
     end
   end
@@ -417,11 +414,8 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
          escalation_info,
          final_tokens,
          child_process_instance_id,
-         process_instance_pid,
-         next_ids
+         process_instance_pid
        ) do
-    triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
-
     boundaries =
       EscalationResolver.find_non_interrupting_escalation_boundaries(
         flow_node,
@@ -441,22 +435,40 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
         )
 
       non_interrupting ->
-        Enum.each(non_interrupting, fn boundary_node ->
-          send(
-            process_instance_pid,
-            {:fni_result, context.flow_node_instance_id,
-             {:boundary, boundary_node.id, escalation_info, false, triggerer_fni_id}}
+        with {:ok, next_ids} <- resolve_outgoing(flow_node, context) do
+          signal_non_interrupting_boundaries(
+            non_interrupting,
+            context,
+            escalation_info,
+            process_instance_pid
           )
-        end)
 
-        apply_out_mappings_to_result(
-          flow_node,
-          context,
-          final_tokens,
-          next_ids,
-          child_process_instance_id
-        )
+          apply_out_mappings_to_result(
+            flow_node,
+            context,
+            final_tokens,
+            next_ids,
+            child_process_instance_id
+          )
+        end
     end
+  end
+
+  defp signal_non_interrupting_boundaries(
+         boundary_nodes,
+         context,
+         escalation_info,
+         process_instance_pid
+       ) do
+    triggerer_fni_id = escalation_info[:triggerer_flow_node_instance_id]
+
+    Enum.each(boundary_nodes, fn boundary_node ->
+      send(
+        process_instance_pid,
+        {:fni_result, context.flow_node_instance_id,
+         {:boundary, boundary_node.id, escalation_info, false, triggerer_fni_id}}
+      )
+    end)
   end
 
   defp propagate_escalation_end(
@@ -495,7 +507,6 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
          escalation_error_info,
          process_instance_pid
        ) do
-    {:ok, next_ids} = resolve_outgoing(flow_node, context)
     escalation_info = persisted_escalation_info(escalation_error_info)
     final_tokens = aggregate_from_persistence(child_process_instance_id)
 
@@ -505,8 +516,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
       escalation_info,
       final_tokens,
       child_process_instance_id,
-      process_instance_pid,
-      next_ids
+      process_instance_pid
     )
   end
 
@@ -672,16 +682,13 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
         apply_result(flow_node, entry, context, final_tokens, child_process_instance_id)
 
       {:escalation, escalation_info, final_tokens} ->
-        {:ok, next_ids} = resolve_outgoing(flow_node, context)
-
         handle_child_escalation_end(
           flow_node,
           context,
           escalation_info,
           final_tokens,
           child_process_instance_id,
-          process_instance_pid,
-          next_ids
+          process_instance_pid
         )
 
       {:fatal, reason} ->
@@ -756,8 +763,7 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
           escalation_info,
           final_tokens,
           child_process_instance_id,
-          process_instance_pid,
-          next_ids
+          process_instance_pid
         )
 
       {:fatal, reason} ->
