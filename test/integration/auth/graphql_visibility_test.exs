@@ -7,7 +7,9 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
   - Starter identity match
   - Lane-based access via `lane:<name>` claims
   - Default-lane FNI visibility
-  - `zeeky_boogie_doog` admin override
+  - Row-level FNI lane filtering: a non-starter sees only laneless FNIs and
+    FNIs on lanes they can read; the starter sees every FNI of their instance
+  - `zeeky_boogie_doog` admin override and `observe_all`
   """
   use BfwEngine.ExecutionCase, async: false
 
@@ -55,6 +57,34 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
   }
   """
 
+  @list_process_instance_flow_node_instances_query """
+  query ListProcessInstanceFlowNodeInstances($processInstanceId: ID!) {
+    flowNodeInstances(filter: {processInstanceId: {eq: $processInstanceId}}) {
+      results {
+        id
+        flowNodeId
+        laneName
+      }
+    }
+  }
+  """
+
+  @get_process_instance_with_flow_node_instances_query """
+  query GetProcessInstanceWithFlowNodeInstances($id: ID!) {
+    getProcessInstance(id: $id) {
+      id
+      flowNodeInstances {
+        id
+        flowNodeId
+        laneName
+      }
+    }
+  }
+  """
+
+  @two_lane_starter_claims %{"sub" => "two-lane-starter"}
+  @lane_a_reader_claims %{"sub" => "lane-a-reader", "lane:LaneA" => "read"}
+
   # -------------------------------------------------------------------------
   # Setup: deploy + start a laned process
   # -------------------------------------------------------------------------
@@ -82,6 +112,49 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
     process_instance_id = body["processInstanceId"]
     wait_for_process_instance(process_instance_id)
     process_instance_id
+  end
+
+  defp start_two_lane_process do
+    {201, _} = http_deploy("lane_visibility_two_lanes.bpmn")
+    {201, body} = http_start("LaneVisibilityTwoLanes", %{}, @two_lane_starter_claims)
+    process_instance_id = body["processInstanceId"]
+
+    {:ok, _} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_A")
+    {:ok, lane_b_task} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_B")
+    {process_instance_id, lane_b_task}
+  end
+
+  defp list_two_lane_flow_node_ids(process_instance_id, claims) do
+    {200, body} =
+      http_graphql(
+        @list_process_instance_flow_node_instances_query,
+        %{"processInstanceId" => process_instance_id},
+        claims
+      )
+
+    body["data"]["flowNodeInstances"]["results"]
+    |> Enum.map(& &1["flowNodeId"])
+    |> MapSet.new()
+  end
+
+  defp nested_flow_node_ids(process_instance_id, claims) do
+    {200, body} =
+      http_graphql(
+        @get_process_instance_with_flow_node_instances_query,
+        %{"id" => process_instance_id},
+        claims
+      )
+
+    body["data"]["getProcessInstance"]["flowNodeInstances"]
+    |> Enum.map(& &1["flowNodeId"])
+    |> MapSet.new()
+  end
+
+  defp all_flow_node_ids(process_instance_id) do
+    process_instance_id
+    |> fetch_flow_node_instances()
+    |> Enum.map(& &1.flow_node_id)
+    |> MapSet.new()
   end
 
   # -------------------------------------------------------------------------
@@ -304,6 +377,59 @@ defmodule BfwEngine.Integration.Auth.GraphqlVisibilityTest do
 
       assert MapSet.member?(process_instance_ids, default_lane_process_instance_id)
       refute MapSet.member?(process_instance_ids, laned_process_instance_id)
+    end
+  end
+
+  describe "FNI visibility: row-level lane filtering" do
+    test "LaneA reader sees laneless and LaneA FNIs but not LaneB FNIs" do
+      {process_instance_id, _lane_b_task} = start_two_lane_process()
+
+      visible = list_two_lane_flow_node_ids(process_instance_id, @lane_a_reader_claims)
+
+      assert MapSet.equal?(visible, MapSet.new(["StartEvent_1", "Gateway_Split", "UserTask_A"]))
+      refute MapSet.member?(visible, "UserTask_B")
+    end
+
+    test "getFlowNodeInstance on a LaneB FNI returns null for a LaneA reader" do
+      {_process_instance_id, lane_b_task} = start_two_lane_process()
+
+      {200, body} =
+        http_graphql(@get_fni_query, %{"id" => lane_b_task.id}, @lane_a_reader_claims)
+
+      assert body["data"]["getFlowNodeInstance"] == nil
+    end
+
+    test "starter without lane claims sees every FNI of their instance" do
+      {process_instance_id, _lane_b_task} = start_two_lane_process()
+
+      visible = list_two_lane_flow_node_ids(process_instance_id, @two_lane_starter_claims)
+
+      assert MapSet.equal?(visible, all_flow_node_ids(process_instance_id))
+      assert MapSet.member?(visible, "UserTask_A")
+      assert MapSet.member?(visible, "UserTask_B")
+    end
+
+    test "nested processInstance { flowNodeInstances } follows the row-level rule" do
+      {process_instance_id, _lane_b_task} = start_two_lane_process()
+
+      lane_a_visible = nested_flow_node_ids(process_instance_id, @lane_a_reader_claims)
+      assert MapSet.member?(lane_a_visible, "UserTask_A")
+      refute MapSet.member?(lane_a_visible, "UserTask_B")
+
+      starter_visible = nested_flow_node_ids(process_instance_id, @two_lane_starter_claims)
+      assert MapSet.equal?(starter_visible, all_flow_node_ids(process_instance_id))
+    end
+
+    test "observe_all sees every FNI of a foreign instance" do
+      {process_instance_id, _lane_b_task} = start_two_lane_process()
+
+      visible =
+        list_two_lane_flow_node_ids(process_instance_id, %{
+          "sub" => "observer",
+          "observe_all" => true
+        })
+
+      assert MapSet.equal?(visible, all_flow_node_ids(process_instance_id))
     end
   end
 end

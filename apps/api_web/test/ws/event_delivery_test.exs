@@ -132,6 +132,36 @@ defmodule BfwEngineWeb.Ws.EventDeliveryTest do
       end
     end
 
+    test "delivers every originating type to the starter on process_instance topics" do
+      starter =
+        assigns(%{
+          topic: "process_instance:pi-1",
+          accessible_lanes: [],
+          process_instance_starter: true
+        })
+
+      for type <- EventDelivery.classified_types().flow_node_originating do
+        assert EventDelivery.should_deliver?(
+                 envelope(type, %{"laneName" => "Management"}),
+                 starter
+               ),
+               "#{type} must reach the instance starter on process_instance topics"
+      end
+    end
+
+    test "ignores the starter assign outside process_instance topics" do
+      for topic <- ["engine:events", "user_tasks:pending"] do
+        subscriber =
+          assigns(%{topic: topic, accessible_lanes: [], process_instance_starter: true})
+
+        refute EventDelivery.should_deliver?(
+                 envelope("UserTaskCreated", %{"laneName" => "Management"}),
+                 subscriber
+               ),
+               "the starter assign must not open #{topic}"
+      end
+    end
+
     test "Jason-encoded FNI structs stamp laneName and are gated" do
       subscriber = assigns(%{accessible_lanes: []})
       matching = assigns(%{accessible_lanes: ["Management"]})

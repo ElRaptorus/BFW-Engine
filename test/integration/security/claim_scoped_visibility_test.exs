@@ -7,7 +7,7 @@ defmodule BfwEngine.Integration.Security.ClaimScopedVisibilityTest do
   - Starter identity match
   - Lane-based access via `lane:<name>` claims
   - No-lane escape hatch
-  - Cross-actor FNI cascading
+  - Cross-actor FNI visibility
   - `zeeky_boogie_doog` admin override
   - Anti-enumeration (null not 403)
   """
@@ -124,8 +124,8 @@ defmodule BfwEngine.Integration.Security.ClaimScopedVisibilityTest do
   # 3.4 Cross-actor FNI cascading
   # ---------------------------------------------------------------------------
 
-  describe "3.4 cross-actor FNI cascading" do
-    test "if actor can see PI via lane, they see ALL FNIs (not just their lane)" do
+  describe "3.4 cross-actor FNI visibility" do
+    test "a non-starter with the lane claim sees every FNI on that lane" do
       process_instance_id = start_laned_process(@starter_a_claims)
 
       {200, result} = http_graphql(@list_fnis_query, %{"piId" => process_instance_id}, @lane_mgmt_claims)
@@ -135,7 +135,7 @@ defmodule BfwEngine.Integration.Security.ClaimScopedVisibilityTest do
 
       all_fnis = fetch_flow_node_instances(process_instance_id)
       assert length(fnis) == length(all_fnis),
-             "Lane-authorized user should see ALL FNIs, not just matching-lane ones"
+             "Lane-authorized user should see every FNI on the Management lane"
     end
   end
 

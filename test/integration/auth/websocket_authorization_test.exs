@@ -7,6 +7,8 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
   - `process_instance:*` join is allowed for visible process instances (starter, lane match, admin)
   - Lane-filtered event dispatch: laned FNI events dropped for
     subscribers without matching lane claim; default lane enforcement
+  - Starter exception: the instance starter receives every FNI event on
+    `process_instance:<id>`, but not on `engine:events` or `user_tasks:pending`
   """
   use BfwEngine.ExecutionCase, async: false
 
@@ -46,6 +48,14 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
 
     process_instance_id = body["processInstanceId"]
     Process.sleep(200)
+    process_instance_id
+  end
+
+  defp start_two_lane_process do
+    {201, _} = http_deploy("lane_visibility_two_lanes.bpmn")
+    {201, body} = http_start("LaneVisibilityTwoLanes", %{}, %{"sub" => "two-lane-starter"})
+    process_instance_id = body["processInstanceId"]
+    {:ok, _} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_B")
     process_instance_id
   end
 
@@ -233,10 +243,10 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
       assert_push "engine_event", %{"type" => "FlowNodeInstanceStarted"}
     end
 
-    test "laned FNI event dropped when subscriber lacks matching lane" do
-      process_instance_id = start_laned_process()
+    test "laned FNI event dropped when a non-starter subscriber lacks matching lane" do
+      process_instance_id = start_two_lane_process()
 
-      identity = make_identity(%{id: "starter-user", claims: %{}})
+      identity = make_identity(%{id: "lane-a-reader", claims: %{"lane:LaneA" => "read"}})
       socket = connect_socket(identity)
 
       {:ok, _, socket} =
@@ -247,9 +257,30 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
           %{}
         )
 
-      send(socket.channel_pid, {:engine_event, fni_started_envelope("Management")})
+      send(socket.channel_pid, {:engine_event, fni_started_envelope("LaneB")})
 
       refute_push "engine_event", %{"type" => "FlowNodeInstanceStarted"}, 300
+    end
+
+    test "starter without lane claims receives laned FNI events on process_instance:*" do
+      process_instance_id = start_two_lane_process()
+
+      identity = make_identity(%{id: "two-lane-starter", claims: %{}})
+      socket = connect_socket(identity)
+
+      {:ok, _, socket} =
+        subscribe_and_join(
+          socket,
+          BfwEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      send(socket.channel_pid, {:engine_event, fni_started_envelope("LaneB")})
+      send(socket.channel_pid, {:engine_event, user_task_created_envelope("LaneB")})
+
+      assert_push "engine_event", %{"type" => "FlowNodeInstanceStarted", "data" => %{"laneName" => "LaneB"}}
+      assert_push "engine_event", %{"type" => "UserTaskCreated", "data" => %{"laneName" => "LaneB"}}
     end
   end
 
@@ -301,26 +332,76 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
       assert management_fni_events(events) == []
     end
 
-    test "subscriber without Management never receives live Management FlowNodeInstanceStarted on process_instance:*" do
-      process_instance_id = deploy_and_start_laned()
-      {:ok, user_task} = await_waiting_flow_node_instance(process_instance_id, "user_task")
+    test "non-starter LaneA reader never receives live LaneB FNI events on process_instance:*" do
+      process_instance_id = deploy_and_start_two_lane()
+      {:ok, lane_b_task} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_B")
 
-      identity = make_identity(%{id: "starter-user", claims: %{}})
-      socket = connect_socket(identity)
+      identity = make_identity(%{id: "lane-a-reader", claims: %{"lane:LaneA" => "read"}})
 
       {:ok, _, _} =
         subscribe_and_join(
-          socket,
+          connect_socket(identity),
           BfwEngineWeb.Ws.EngineChannel,
           "process_instance:#{process_instance_id}",
           %{}
         )
 
-      {204, _} = http_finish_user_task(user_task.id, %{}, %{"lane:Management" => "write"})
-      wait_for_process_instance(process_instance_id)
+      {204, _} = http_finish_user_task(lane_b_task.id, %{}, %{"lane:LaneB" => "write"})
+      {:ok, _} = await_finished_fni_by_node_id(process_instance_id, "UserTask_B")
       events = collect_pushes(400)
 
-      assert management_fni_events(events) == []
+      assert lane_fni_events(events, "LaneB") == []
+    end
+
+    test "starter without lane claims receives live LaneB FNI events on process_instance:*" do
+      process_instance_id = deploy_and_start_two_lane()
+      {:ok, lane_b_task} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_B")
+
+      identity = make_identity(%{id: "two-lane-starter", claims: %{}})
+
+      {:ok, _, _} =
+        subscribe_and_join(
+          connect_socket(identity),
+          BfwEngineWeb.Ws.EngineChannel,
+          "process_instance:#{process_instance_id}",
+          %{}
+        )
+
+      {204, _} = http_finish_user_task(lane_b_task.id, %{}, %{"lane:LaneB" => "write"})
+      {:ok, _} = await_finished_fni_by_node_id(process_instance_id, "UserTask_B")
+      events = collect_pushes(800)
+
+      lane_b_types = events |> lane_fni_events("LaneB") |> Enum.map(& &1["type"]) |> MapSet.new()
+
+      assert MapSet.member?(lane_b_types, "FlowNodeInstanceFinished"),
+             "Expected live LaneB FlowNodeInstanceFinished for the starter. Types: #{inspect(Enum.map(events, & &1["type"]))}"
+
+      assert MapSet.member?(lane_b_types, "UserTaskFinished")
+    end
+
+    test "starter without lane claims still receives no LaneB FNI events on engine:events" do
+      identity = make_identity(%{id: "two-lane-starter", claims: %{}})
+      {:ok, _, _} = subscribe_and_join(connect_socket(identity), BfwEngineWeb.Ws.EngineChannel, "engine:events", %{})
+
+      process_instance_id = deploy_and_start_two_lane()
+      {:ok, _} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_B")
+      events = collect_pushes(400)
+
+      assert lane_fni_events(events, "LaneB") == []
+      assert lane_fni_events(events, "LaneA") == []
+    end
+
+    test "starter without lane claims still receives no LaneB UserTaskCreated on user_tasks:pending" do
+      identity = make_identity(%{id: "two-lane-starter", claims: %{}})
+
+      {:ok, _, _} =
+        subscribe_and_join(connect_socket(identity), BfwEngineWeb.Ws.EngineChannel, "user_tasks:pending", %{})
+
+      process_instance_id = deploy_and_start_two_lane()
+      {:ok, _} = await_waiting_fni_by_node_id(process_instance_id, "UserTask_B")
+      events = collect_pushes(400)
+
+      assert filter_type(events, "UserTaskCreated") == []
     end
 
     test "live laneless FlowNodeInstanceStarted is delivered on engine:events" do
@@ -370,7 +451,8 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
       assert pi_events != [],
              "Expected live ProcessInstanceStateChanged for the starter. Types: #{inspect(Enum.map(events, & &1["type"]))}"
 
-      assert management_fni_events(events) == []
+      assert management_fni_events(events) != [],
+             "Expected the starter to receive the Management FNI events of their instance"
     end
 
     test "stranger on engine:events does not receive ProcessInstanceStateChanged for LanedUserTask" do
@@ -505,6 +587,12 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
     body["processInstanceId"]
   end
 
+  defp deploy_and_start_two_lane do
+    deploy_unique("lane_visibility_two_lanes.bpmn")
+    {201, body} = http_start("LaneVisibilityTwoLanes", %{}, %{"sub" => "two-lane-starter"})
+    body["processInstanceId"]
+  end
+
   defp deploy_and_start_laneless do
     deploy_unique("laneless_start_management_task.bpmn")
 
@@ -532,6 +620,14 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
     }
   end
 
+  defp user_task_created_envelope(lane_name) do
+    %{
+      "type" => "UserTaskCreated",
+      "data" => %{"laneName" => lane_name, "flowNodeInstanceId" => "test-fni"},
+      "occurredAt" => DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
+
   defp pi_state_envelope(process_instance_id, extra) do
     %{
       "type" => "ProcessInstanceStateChanged",
@@ -547,8 +643,10 @@ defmodule BfwEngine.Integration.Auth.WebsocketAuthorizationTest do
     }
   end
 
-  defp management_fni_events(events) do
-    Enum.filter(events, fn event -> event["data"]["laneName"] == "Management" end)
+  defp management_fni_events(events), do: lane_fni_events(events, "Management")
+
+  defp lane_fni_events(events, lane_name) do
+    Enum.filter(events, fn event -> event["data"]["laneName"] == lane_name end)
   end
 
   defp filter_type(events, type), do: Enum.filter(events, &(&1["type"] == type))

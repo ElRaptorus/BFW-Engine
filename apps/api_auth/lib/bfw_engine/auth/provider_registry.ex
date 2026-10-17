@@ -39,12 +39,18 @@ defmodule BfwEngine.Auth.ProviderRegistry do
   An identity whose `id` is not a non-blank string is rejected with
   `{:error, :missing_subject}` regardless of which provider produced it, so
   REST and WebSocket callers never see an anonymous-looking identity.
+
+  An accepted identity is normalised: a `claims` value that is not a map
+  becomes `%{}`, and `roles` / `groups` values that are not lists become
+  `[]`, so every consumer can read them without guarding.
   """
   @spec verify_and_resolve(String.t()) :: {:ok, Identity.t()} | {:error, term()}
   def verify_and_resolve(token) do
     case active_provider().verify_and_resolve(token) do
       {:ok, %Identity{id: identifier} = identity} when is_binary(identifier) ->
-        if String.trim(identifier) == "", do: {:error, :missing_subject}, else: {:ok, identity}
+        if String.trim(identifier) == "",
+          do: {:error, :missing_subject},
+          else: {:ok, normalise_identity(identity)}
 
       {:ok, _identity} ->
         {:error, :missing_subject}
@@ -68,4 +74,13 @@ defmodule BfwEngine.Auth.ProviderRegistry do
 
   def handle_call({:register_provider, module}, _from, _state),
     do: {:reply, :ok, %{provider: module, source: :plugin}}
+
+  defp normalise_identity(%Identity{claims: claims, roles: roles, groups: groups} = identity) do
+    %Identity{
+      identity
+      | claims: if(is_map(claims), do: claims, else: %{}),
+        roles: if(is_list(roles), do: roles, else: []),
+        groups: if(is_list(groups), do: groups, else: [])
+    }
+  end
 end

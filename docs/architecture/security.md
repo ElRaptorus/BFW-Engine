@@ -50,6 +50,11 @@ time (first-writer wins; duplicates are rejected and the offending plugin is
 quarantined). If no plugin registers a provider, the built-in JWT verifier is
 used. The provider's `verify_and_resolve/1` callback receives the raw bearer
 token and must return `{:ok, %Identity{}}` or `{:error, reason}`.
+`ProviderRegistry.verify_and_resolve/1` rejects an identity without a
+non-blank string `id` (`:missing_subject`) and normalises an accepted one:
+a non-map `claims` becomes `%{}`, non-list `roles` / `groups` become `[]`.
+REST, GraphQL, WebSocket, and the FEEL `identity` binding therefore always
+see a well-formed identity, whichever provider produced it.
 
 ---
 
@@ -63,6 +68,7 @@ Key design choices (summary only — authorization.md is the source of truth):
 - **Lane-as-claim.** BPMN lanes map to `lane:<name>` JWT claims (`"read"` or `"write"`). Boolean `true` is not a write alias.
 - **Engine claims**: `deploy_bpmn`, `delete_bpmn`, `purge_audit_data`, `zeeky_boogie_doog` (admin read+write), `observe_all` (unbounded read, never write), `trigger_message`, `trigger_signal`, `trigger_escalation` (boolean); `abort_process_instance`, `retry_process_instance`, `delete_process_instance` (`none|own|all`); `lane:<name>` (`"read"` \| `"write"`).
 - **PI visibility**: a caller sees a PI if they started it, OR if any FNI ever on the PI sits on an accessible `"read"`/`"write"` lane (or no lane), OR `zeeky_boogie_doog=true`, OR `observe_all=true`.
+- **FNI visibility** is row-level: a caller sees an FNI if it sits on no lane, OR on an accessible `"read"`/`"write"` lane, OR the caller started its instance, OR `zeeky_boogie_doog=true`, OR `observe_all=true`. Seeing a PI does not mean seeing all its FNIs.
 - **Execution-detached.** Once a PI starts, the starting user's claims are never re-checked.
 - **Plugins bypass claim checks** with a privileged `plugin:<name>` identity; audit is preserved.
 - **Triggers claim-gated.** Message / signal / escalation publish endpoints require `trigger_message` / `trigger_signal` / `trigger_escalation` respectively.

@@ -1,0 +1,234 @@
+{
+  "definitionsId": "Definitions_1",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "StartEvent_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [
+            "Flow_Start"
+          ],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Split",
+          "incoming": [
+            "Flow_Start"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [
+            "Flow_To_B",
+            "Flow_To_A"
+          ],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_A",
+          "incoming": [
+            "Flow_To_A"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Task A",
+          "outgoing": [
+            "Flow_From_A"
+          ],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_B",
+          "incoming": [
+            "Flow_To_B"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Task B",
+          "outgoing": [
+            "Flow_From_B"
+          ],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Join",
+          "incoming": [
+            "Flow_From_B",
+            "Flow_From_A"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [
+            "Flow_End"
+          ],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "EndEvent_1",
+          "incoming": [
+            "Flow_End"
+          ],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "LaneVisibilityTwoLanes",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "UserTask_A"
+          ],
+          "id": "Lane_A",
+          "name": "LaneA"
+        },
+        {
+          "flowNodeRefs": [
+            "UserTask_B"
+          ],
+          "id": "Lane_B",
+          "name": "LaneB"
+        }
+      ],
+      "name": "Lane Visibility Two Lanes",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_Start",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "StartEvent_1",
+          "targetRef": "Gateway_Split"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_To_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Split",
+          "targetRef": "UserTask_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_To_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Split",
+          "targetRef": "UserTask_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_From_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_A",
+          "targetRef": "Gateway_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_From_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_B",
+          "targetRef": "Gateway_Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Join",
+          "targetRef": "EndEvent_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

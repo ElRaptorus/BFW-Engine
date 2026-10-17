@@ -199,6 +199,29 @@ defmodule BfwEngine.Integration.Execution.UserTaskExecutionTest do
 
       assert conn.status == 401
     end
+
+    test "returns 403 when the caller has only read access to the task lane" do
+      {201, _} = http_deploy("user_task_with_lane.bpmn")
+
+      {201, body} =
+        http_start("LanedUserTask", %{}, %{"sub" => "starter-user", "lane:Management" => "write"})
+
+      process_instance_id = body["processInstanceId"]
+
+      {:ok, user_task_flow_node_instance} =
+        await_waiting_flow_node_instance(process_instance_id, "user_task")
+
+      {403, error_body} =
+        http_finish_user_task(user_task_flow_node_instance.id, %{}, %{
+          "sub" => "management-reader",
+          "lane:Management" => "read"
+        })
+
+      assert error_body["error"] == "forbidden"
+      assert error_body["requiredClaim"] == "lane:Management"
+      assert error_body["requiredValue"] == "write"
+      assert_pi_state!(process_instance_id, "running")
+    end
   end
 
   describe "plugin facade user_tasks namespace" do

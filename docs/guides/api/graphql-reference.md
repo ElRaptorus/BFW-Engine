@@ -150,7 +150,7 @@ Nested relationship queries support their own `filter` and `sort` arguments.
 GraphQL queries enforce visibility via Ash policies. The caller's JWT identity is wired as the Ash actor:
 
 - **Process Instances** — visible if the caller started the PI, or holds a lane claim matching at least one FNI within the PI (or FNIs without a lane), or has `zeeky_boogie_doog=true`
-- **Flow Node Instances** — visibility cascades from the parent PI. If the PI is invisible, its FNIs are also invisible.
+- **Flow Node Instances** — visible if the FNI has no lane, or the caller holds `lane:<name>` as `"read"` or `"write"` for the FNI's lane, or the caller started its process instance, or has `observe_all` / `zeeky_boogie_doog=true`. A visible PI can therefore list only part of its FNIs; this also applies to `processInstance { flowNodeInstances }`.
 
 Invisible records are simply omitted from query results (no error).
 

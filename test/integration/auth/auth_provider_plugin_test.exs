@@ -42,6 +42,33 @@ defmodule BfwEngine.Integration.AuthProviderPluginTest do
       do: {:ok, %Identity{id: "second", roles: [], groups: [], claims: %{}}}
   end
 
+  defmodule MalformedIdentityProvider do
+    @behaviour BfwEngine.Plugin.AuthProvider
+    alias BfwEngine.Types.Identity
+
+    @impl true
+    def verify_and_resolve(_token),
+      do: {:ok, %Identity{id: "malformed-user", roles: nil, groups: nil, claims: nil}}
+  end
+
+  describe "malformed provider identity" do
+    test "a provider identity with nil claims answers 403 on the timer schedule endpoint instead of crashing" do
+      with_config(:api_auth, :auth_disabled, false, fn ->
+        ProviderRegistry.register_provider(MalformedIdentityProvider)
+
+        conn =
+          conn(:get, "/timer-schedules")
+          |> put_req_header("authorization", "Bearer any-token")
+          |> route()
+
+        assert conn.status == 403
+        body = Jason.decode!(conn.resp_body)
+        assert body["error"] == "forbidden"
+        assert body["requiredClaim"] == "deploy_bpmn"
+      end)
+    end
+  end
+
   describe "(i) custom auth provider end-to-end" do
     test "registered custom provider handles HTTP requests" do
       with_config(:api_auth, :auth_disabled, false, fn ->

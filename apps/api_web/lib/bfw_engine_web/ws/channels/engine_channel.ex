@@ -16,6 +16,7 @@ defmodule BfwEngineWeb.Ws.EngineChannel do
   ## Authorization
 
   - `process_instance:*` join requires process-instance visibility (starter match, `read`/`write` lane, `observe_all`, or admin override)
+  - `process_instance:*` join assigns `process_instance_starter` when the joining identity started that instance
   - Dispatch filtering is delegated to `BfwEngineWeb.Ws.EventDelivery`
   - `admin_override` is zeeky-only; `observe_all` is a separate unbounded-read assign
   """
@@ -35,8 +36,9 @@ defmodule BfwEngineWeb.Ws.EngineChannel do
     identity = socket.assigns[:identity]
 
     case check_process_instance_visibility(process_instance_id, identity) do
-      :ok ->
-        {:ok, assign_identity_filters(socket)}
+      {:ok, process_instance_starter?} ->
+        socket = assign_identity_filters(socket)
+        {:ok, assign(socket, :process_instance_starter, process_instance_starter?)}
 
       :not_visible ->
         {:error, %{reason: "not_found"}}
@@ -68,7 +70,7 @@ defmodule BfwEngineWeb.Ws.EngineChannel do
 
   defp check_process_instance_visibility(process_instance_id, identity) do
     if admin_override?(identity) do
-      :ok
+      {:ok, false}
     else
       case Api.get_process_instance(process_instance_id) do
         {:ok, process_instance} ->
@@ -84,10 +86,17 @@ defmodule BfwEngineWeb.Ws.EngineChannel do
 
   defp evaluate_process_instance_visibility(process_instance, identity) do
     cond do
-      Validation.observe_all?(identity) -> :ok
-      starter_match?(process_instance, identity) -> :ok
-      Api.check_lane_access(process_instance.id, Validation.accessible_lanes(identity)) -> :ok
-      true -> :not_visible
+      starter_match?(process_instance, identity) ->
+        {:ok, true}
+
+      Validation.observe_all?(identity) ->
+        {:ok, false}
+
+      Api.check_lane_access(process_instance.id, Validation.accessible_lanes(identity)) ->
+        {:ok, false}
+
+      true ->
+        :not_visible
     end
   end
 

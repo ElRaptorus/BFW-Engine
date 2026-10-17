@@ -5,6 +5,9 @@ defmodule BfwEngine.Persistence.Resources.FlowNodeInstance do
   Tracks each individual BPMN flow node execution within a process
   instance. Token payloads (`input_token`, `output_token`) and
   `type_properties` carry LZ4 JSONB compression.
+
+  Reads are row-level lane-scoped: a row is visible when it is laneless, on a
+  lane the actor can read, or in an instance the actor started.
   """
 
   use Ash.Resource,
@@ -36,16 +39,9 @@ defmodule BfwEngine.Persistence.Resources.FlowNodeInstance do
     end
 
     policy action_type(:read) do
-      authorize_if expr(
-                     exists(
-                       :process_instance,
-                       started_by["id"] == ^actor(:id) or
-                         exists(
-                           :flow_node_instances,
-                           is_nil(lane_name) or lane_name in ^actor(:accessible_lanes)
-                         )
-                     )
-                   )
+      authorize_if expr(is_nil(lane_name))
+      authorize_if expr(lane_name in ^actor(:accessible_lanes))
+      authorize_if expr(exists(:process_instance, started_by["id"] == ^actor(:id)))
     end
   end
 

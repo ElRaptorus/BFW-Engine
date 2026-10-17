@@ -186,19 +186,43 @@ after it terminates, even if no active FNIs remain.
 
 ### 5.2 FNI visibility
 
-Cascades from PI visibility: if a caller can see the PI, they can see **all**
-its FNIs. There is no per-FNI lane filtering on read queries — the lane
-system gates **actions** (§6), not row-level read visibility within a visible
-PI.
+Row-level, on the FNI's own `lane_name`. A caller can see an FNI if **any**
+of the following is true:
 
-**Rationale:** a user who can see a PI needs full context to understand its
-state — hiding half the FNIs in a flow would produce an incoherent picture.
-The lane system controls *who can act* on which FNI, not *who can observe*.
+1. **Laneless:** the FNI sits on no lane (`lane_name IS NULL`)
+2. **Lane match:** the caller's JWT has `lane:<lane_name>` set to `"read"` or
+   `"write"` for that FNI's lane
+3. **Starter exception:** the caller started the FNI's process instance
+   (`started_by.id == caller.sub`). Subprocess and Call Activity children
+   inherit the root's `started_by`, so the starter sees every FNI of the
+   whole instance tree
+4. **Admin override / unbounded observe:** `zeeky_boogie_doog=true` or
+   `observe_all=true`
+
+Seeing a PI therefore does **not** mean seeing all its FNIs: a non-starter
+with only `lane:LaneA` sees the laneless and LaneA FNIs of a two-lane
+instance, but not the LaneB ones. List queries and nested
+`processInstance { flowNodeInstances }` loads omit the invisible rows;
+`getFlowNodeInstance` on one returns `null`, the same as for a missing row.
+Rule 1 never widens instance visibility: an instance with a laneless FNI is
+already visible to every caller by §5.1 rule 3.
+
+**Rationale:** a lane restricts who reads that lane's work, not only who acts
+on it. The starter keeps the full picture of the instance they started.
+
+**Implementation:** the `FlowNodeInstance` `:read` policy
+(`apps/peripheral_persistence/lib/bfw_engine/persistence/resources/flow_node_instance.ex`)
+is three `authorize_if` clauses (`is_nil(lane_name)`,
+`lane_name in ^actor(:accessible_lanes)`,
+`exists(:process_instance, started_by["id"] == ^actor(:id))`) behind the
+`ZeekyBoogieDoog` / `ObserveAll` bypass. Write checks (§6.3) are unchanged.
 
 ### 5.3 DataObject visibility
 
-Same as FNI: inherits from PI visibility. If you can see the PI, you can read
-all its Data Objects.
+Instance-scoped and lane-independent: if you can see the PI (§5.1), you can
+read all its Data Objects and their write history (`DataObject`,
+`DataObjectWrite`). This holds even when a Data Object is placed on a lane in
+the diagram — the FNI row-level rule (§5.2) does not apply to Data Objects.
 
 ### 5.4 Event visibility
 
@@ -412,6 +436,7 @@ Filtering runs in the channel process after PubSub broadcast so each subscriber 
 | any topic | engine-level (`Engine*`, `PluginQuarantined`, `ProcessDefinition*`, `Decision*`, `MessagePublished`, `SignalPublished`) | always deliver |
 | `process_instance:*` | PI-level (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) | always deliver (join already proved §5.1) |
 | `engine:events` | PI-level | deliver iff `startedById` matches the subscriber **or** `hasLanelessFlowNode` **or** any `laneNames` entry is in `accessible_lanes` |
+| `process_instance:*`, instance starter (`process_instance_starter` assign) | FNI-originating | always deliver (§5.2 starter exception; children share the root's starter) |
 | any topic | FNI-originating (explicit allow-list, including `TimerFired`) | deliver if `laneName` is `nil`; else iff `laneName` is in `accessible_lanes` |
 | `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` only | same FNI lane rule; other types are dropped |
 | any topic | unknown `type` | drop (`admin_override` still delivers) |
@@ -424,7 +449,7 @@ the cached claims — the client must disconnect and rejoin to pick up new
 claims. This is acceptable because JWT claim changes are rare operational
 events, not request-to-request variability.
 
-GraphQL FNI reads stay PI-scoped (§5.2: if you see the PI, you see all FNIs). WebSocket FNI dispatch is stricter (action-style lane gate). That split is intentional.
+GraphQL and WebSocket apply the same FNI rule (§5.2). `EngineChannel.join/3` sets `process_instance_starter` when the joining identity started the instance; the starter exception applies only on `process_instance:*`. On `engine:events` and `user_tasks:pending` the starter gets FNI-originating events by the per-event lane rule like everyone else, and the event wire format carries no starter stamp on FNI events.
 
 ---
 

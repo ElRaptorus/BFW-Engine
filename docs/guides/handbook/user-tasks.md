@@ -138,7 +138,7 @@ query {
 }
 ```
 
-GraphQL queries enforce lane-based visibility — only FNIs within visible process instances are returned. See [Authentication](../api/authentication.md) for lane claim details.
+GraphQL queries enforce lane-based visibility — only FNIs without a lane, on a lane the caller holds, or in an instance the caller started are returned. See [Authentication](../api/authentication.md) for lane claim details.
 
 ## FEEL in User Tasks
 

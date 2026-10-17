@@ -29,6 +29,14 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
     def verify_and_resolve("integer-id"),
       do: {:ok, %Identity{id: 42, roles: [], groups: [], claims: %{}}}
 
+    def verify_and_resolve("malformed-fields"),
+      do: {:ok, %Identity{id: "malformed", roles: nil, groups: "admins", claims: nil}}
+
+    def verify_and_resolve("claims-as-list"),
+      do:
+        {:ok,
+         %Identity{id: "listed", roles: ["reader"], groups: ["team"], claims: [{"sub", "listed"}]}}
+
     def verify_and_resolve(_token), do: {:error, :invalid_token}
   end
 
@@ -72,6 +80,34 @@ defmodule BfwEngine.Auth.ProviderRegistryTest do
       for token <- ["blank-id", "nil-id", "integer-id"] do
         assert {:error, :missing_subject} = ProviderRegistry.verify_and_resolve(token)
       end
+    end
+
+    test "normalises nil claims to an empty map and non-list roles and groups to empty lists" do
+      ProviderRegistry.register_provider(FakeProvider)
+
+      assert {:ok, identity} = ProviderRegistry.verify_and_resolve("malformed-fields")
+      assert identity.id == "malformed"
+      assert identity.claims == %{}
+      assert identity.roles == []
+      assert identity.groups == []
+    end
+
+    test "replaces non-map claims but keeps well-formed roles and groups" do
+      ProviderRegistry.register_provider(FakeProvider)
+
+      assert {:ok, identity} = ProviderRegistry.verify_and_resolve("claims-as-list")
+      assert identity.claims == %{}
+      assert identity.roles == ["reader"]
+      assert identity.groups == ["team"]
+    end
+
+    test "keeps a well-formed provider identity unchanged" do
+      ProviderRegistry.register_provider(FakeProvider)
+
+      assert {:ok, identity} = ProviderRegistry.verify_and_resolve("valid-custom-abc")
+      assert identity.claims == %{"sub" => "abc"}
+      assert identity.roles == ["custom"]
+      assert identity.groups == []
     end
 
     test "dispatches to default JWT provider when no plugin registered" do

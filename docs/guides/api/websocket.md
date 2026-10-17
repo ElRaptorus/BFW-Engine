@@ -23,7 +23,7 @@ When `BFE_AUTH_DISABLED=true`, the token is not required and a synthetic anonymo
 | Topic | Content | Authorization |
 |-------|---------|---------------|
 | `engine:events` | Engine-level events plus PI-scoped events filtered at dispatch | Any authenticated user may join. PI-level events require §5.1 visibility (starter match, laneless FNI, or a matching lane). FNI-originating events require `laneName` to be `null` or in the subscriber's lanes. |
-| `process_instance:<id>` | Events for one process instance | Join requires §5.1 PI visibility. PI-level events always deliver after a successful join. FNI events are lane-filtered. |
+| `process_instance:<id>` | Events for one process instance | Join requires §5.1 PI visibility. PI-level events always deliver after a successful join. FNI events are lane-filtered, except for the instance starter, who receives all of them. |
 | `user_tasks:pending` | `UserTaskCreated` / `UserTaskFinished` inbox — carries both User Tasks and confirming Manual Tasks, distinguished by `flowNodeType` (`user_task` \| `manual_task`) | Any authenticated user may join. Dispatch applies the same FNI lane rule. |
 
 `process:<model_id>` is not implemented.
@@ -55,13 +55,14 @@ After join, `EventDelivery.should_deliver?/2` filters each envelope:
 
 - FNI-originating events with `laneName: null` — always delivered
 - FNI-originating events with a `laneName` — only if the subscriber holds `lane:<name>` as `"read"` or `"write"`, or `observe_all` / zeeky
+- FNI-originating events on `process_instance:*` — always delivered to the caller who started that instance (also for its subprocess and Call Activity children); this exception does not apply on `engine:events` or `user_tasks:pending`
 - Unknown envelope types — dropped (`zeeky_boogie_doog` still receives them)
 - PI-level events (`ProcessInstanceStateChanged`, `ProcessInstanceRetried`) on `process_instance:*` — always delivered (join already proved visibility)
 - PI-level events on `engine:events` — delivered when `startedById` matches, `hasLanelessFlowNode` is true, or any `laneNames` entry is accessible
 
 The subscriber's accessible lanes are cached at join time.
 
-GraphQL FNI reads stay PI-scoped: if you can see the PI, you can read every FNI. WebSocket FNI dispatch is the stricter lane gate.
+GraphQL FNI reads follow the same rule: a non-starter sees only laneless FNIs and FNIs on lanes they hold, the starter sees every FNI of their instance.
 
 ### Joining a Channel
 

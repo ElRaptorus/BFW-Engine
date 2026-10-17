@@ -7,6 +7,11 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
   envelope `type` string (explicit allow-lists) rather than field presence:
   JSON `null` and a missing `laneName` are indistinguishable via `get_in/2`.
 
+  Flow-node-originating events are filtered by their own `laneName`. The one
+  exception is the instance starter on a `process_instance:*` topic
+  (`process_instance_starter` assign), who receives every flow node event of
+  that instance tree. `engine:events` and `user_tasks:pending` never apply it.
+
   `admin_override` is zeeky-only. `observe_all` is a separate unbounded-read
   assign and never implies write bypass.
   """
@@ -69,6 +74,7 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
           optional(:accessible_lanes) => [String.t()],
           optional(:writable_lanes) => [String.t()],
           optional(:identity_id) => String.t() | nil,
+          optional(:process_instance_starter) => boolean(),
           optional(:topic) => String.t() | nil
         }
 
@@ -76,8 +82,9 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
   Return whether `payload` should be pushed to the subscriber described by `assigns`.
 
   `assigns` is expected to contain `:admin_override`, `:observe_all`,
-  `:accessible_lanes`, `:identity_id`, and `:topic`. Missing keys are
-  treated as the restrictive default.
+  `:accessible_lanes`, `:identity_id`, and `:topic`, plus
+  `:process_instance_starter` on a `process_instance:*` topic. Missing keys
+  are treated as the restrictive default.
   """
   @spec should_deliver?(map(), map()) :: boolean()
   def should_deliver?(payload, assigns) when is_map(payload) and is_map(assigns) do
@@ -98,7 +105,7 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
         deliver_process_instance_level?(payload, assigns)
 
       flow_node_originating?(payload) ->
-        flow_node_lane_accessible?(event_data(payload), assigns)
+        deliver_flow_node_originating?(payload, assigns)
 
       true ->
         false
@@ -137,6 +144,11 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
     end
   end
 
+  defp deliver_flow_node_originating?(payload, assigns) do
+    process_instance_starter_topic?(assigns) or
+      flow_node_lane_accessible?(event_data(payload), assigns)
+  end
+
   defp deliver_process_instance_level?(payload, assigns) do
     topic = assigns[:topic] || ""
 
@@ -170,6 +182,11 @@ defmodule BfwEngineWeb.Ws.EventDelivery do
   end
 
   defp any_lane_accessible?(_lane_names, _assigns), do: false
+
+  defp process_instance_starter_topic?(assigns) do
+    assigns[:process_instance_starter] == true and
+      String.starts_with?(assigns[:topic] || "", "process_instance:")
+  end
 
   defp flow_node_lane_accessible?(data, assigns) do
     case data["laneName"] do
