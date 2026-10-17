@@ -1,6 +1,6 @@
 # Process Instance Retry
 
-The engine retries process instances that have failed (`fatal`), been aborted (`aborted`), or terminated via an Error End Event (`error`). There is **one** command: `PUT /process-instances/{id}/retry`. There is no separate restart endpoint. Omitting a checkpoint retries from the Start Event on the same call.
+The engine retries process instances that have failed (`fatal`), been aborted (`aborted`), or terminated via an Error End Event (`error`). There is **one** command: `PUT /process-instances/{id}/retry`. There is no separate restart endpoint. Omitting a checkpoint resumes the instance at the flow nodes that failed or were aborted.
 
 `:compensated`, `:escalated`, and `:cancelled` are terminal-but-handled business outcomes and are **not** retryable (`process_instance_not_retriable`).
 
@@ -14,7 +14,7 @@ The engine retries process instances that have failed (`fatal`), been aborted (`
 ## REST API
 
 ```bash
-# Retry from the Start Event (same version)
+# Retry where the instance stopped (same version)
 curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
   -H "Authorization: Bearer $TOKEN"
 
@@ -40,7 +40,7 @@ curl -X PUT http://localhost:4000/process-instances/$PI_ID/retry \
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `version` | string | Target **`bfw:version`** to migrate to. Use `"latest"` to auto-resolve to the most recent enabled, non-deleted version. Omit to retry on the same version. |
-| `resetToFlowNodeInstanceId` | string | Checkpoint FNI ID. All FNIs causally downstream of this FNI are deleted, and this FNI is reset to `active`. Omit to retry from the Start Event. |
+| `resetToFlowNodeInstanceId` | string | Checkpoint FNI ID. All FNIs causally downstream of this FNI are deleted, and this FNI is reset to `active`. Omit to resume where the instance stopped. |
 
 Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
 
@@ -72,21 +72,17 @@ Plugins: `facade.process_instances.retry.(id, opts)` with `skip_claims: true`.
 
 ## Version Migration
 
-When a `version` parameter is provided, the engine attempts to migrate the PI to a different version of the same process model. The migration checks structural compatibility between the original and target versions:
+When a `version` parameter is provided, the engine attempts to migrate the PI to a different version of the same process model. The migration checks one thing: every FNI that survives the checkpoint reset and is not `finished` or `interrupted` (the flow nodes the instance will resume at) must have its flow node ID in the target version.
 
-- All FNI flow node IDs that survived the checkpoint reset must exist in the target version
-- The Start Event used by the original PI must exist in the target version
-
-If the target version is structurally incompatible, the retry is rejected with **422** and an error body:
+If the target version is incompatible, the retry is rejected with **422** and an error body listing the conflicting FNIs:
 
 ```json
 {
   "error": "version_migration_incompatible",
-  "message": "Target version is not compatible with the current PI state",
-  "missingFlowNodeIds": ["Task_renamed"],
-  "processModelId": "my-process",
-  "currentVersion": "1.0.0",
-  "targetVersion": "2.0.0"
+  "message": "FNI chain is incompatible with target version",
+  "conflicts": [
+    { "flowNodeInstanceId": "fni-uuid", "flowNodeId": "Task_renamed" }
+  ]
 }
 ```
 
@@ -101,7 +97,7 @@ When `resetToFlowNodeInstanceId` is provided, the engine performs a targeted res
 3. **Data Object rollback** — reverts any Data Object writes performed by deleted FNIs
 4. **Reset** — sets the checkpoint FNI back to `active` state
 
-Without a checkpoint, all FNIs are deleted and the PI retries from the Start Event.
+Without a checkpoint, no FNI is deleted: every FNI in the PI's terminal state (`fatal`, `aborted`, or `error`) is reset to `active`, and the PI resumes there.
 
 A checkpoint **on** a Call Activity FNI is not a “run the child again on a new version” control. The Call Activity survives; the child PI identity is preserved (reset in place if retryable-terminal). To hard-delete the child and re-resolve pin or latest, checkpoint an FNI **before** the Call Activity. See Process Instance Tree below.
 

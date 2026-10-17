@@ -246,13 +246,19 @@ defmodule BfwEngine.Plugins.FacadeBuilder do
         BfwEngine.Api.abort_process_instance(id, reason, identity, skip_claims: true)
       end,
       retry: fn id, opts ->
-        BfwEngine.Api.retry_process_instance(id, opts, identity, skip_claims: true)
+        BfwEngine.Api.retry_process_instance(id, retry_options(opts), identity, skip_claims: true)
       end,
       delete: fn id ->
         BfwEngine.Api.delete_process_instance(id, identity, skip_claims: true)
       end
     }
   end
+
+  # The TypeScript SDK names the target version `targetVersion`; the Api reads the REST body key `"version"`.
+  defp retry_options(%{"targetVersion" => version} = options),
+    do: options |> Map.delete("targetVersion") |> Map.put_new("version", version)
+
+  defp retry_options(options), do: options
 
   defp build_user_tasks_namespace do
     %EngineFacade.UserTasks{

@@ -278,6 +278,30 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
     end
   end
 
+  describe "I5c: plugin facade retry" do
+    test "accepts the SDK key targetVersion and keeps the version without one" do
+      process_instance_id = deploy_and_fatal("retry_fatal_dead_end.bpmn", "RetryFatalDeadEnd")
+      {201, _} = http_deploy_xml(retry_fatal_dead_end_version_xml("2.0.0"))
+      version_id_v2 = version_id_for("RetryFatalDeadEnd", "2.0.0")
+      facade = BfwEngine.Plugins.FacadeBuilder.build("test:retry_facade")
+
+      assert :ok =
+               facade.process_instances.retry.(process_instance_id, %{
+                 "targetVersion" => "2.0.0"
+               })
+
+      assert {:ok, _pid} = poll_pi_alive(process_instance_id, 5_000)
+      wait_for_process_instance(process_instance_id, 10_000)
+      assert assert_pi_state!(process_instance_id, "fatal").process_version_id == version_id_v2
+
+      assert :ok = facade.process_instances.retry.(process_instance_id, %{})
+
+      assert {:ok, _pid} = poll_pi_alive(process_instance_id, 5_000)
+      wait_for_process_instance(process_instance_id, 10_000)
+      assert assert_pi_state!(process_instance_id, "fatal").process_version_id == version_id_v2
+    end
+  end
+
   describe "I16: retry with checkpoint and version migration" do
     test "checkpoints at Task_A and migrates to compatible v2" do
       {201, _} = http_deploy("retry_checkpoint_linear.bpmn")
@@ -1059,7 +1083,9 @@ defmodule BfwEngine.Integration.Execution.RetryTest do
       assert error_body["active"] == 1
       assert error_body["limit"] == 1
       assert_pi_state!(fatal_process_instance_id, "fatal")
-      assert flow_node_instance_states(fatal_process_instance_id) == flow_node_instance_states_before
+
+      assert flow_node_instance_states(fatal_process_instance_id) ==
+               flow_node_instance_states_before
 
       {404, checkpoint_error_body} =
         http_retry_process_instance(fatal_process_instance_id, %{

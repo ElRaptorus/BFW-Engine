@@ -6,6 +6,11 @@ defmodule BfwEngine.EngineFacade.ProcessInstances do
   soft-deleting process instances. The `Loader` wires each closure
   to the corresponding `BfwEngine.Api` function with the plugin's
   synthetic identity pre-injected.
+
+  `retry` takes a map with the string keys of the REST retry body:
+  `"version"` (a `bfw:version` string or `"latest"`) and
+  `"resetToFlowNodeInstanceId"`. The TypeScript SDK key `"targetVersion"`
+  is accepted as `"version"`; an explicit `"version"` wins.
   """
 
   @type t :: %__MODULE__{
