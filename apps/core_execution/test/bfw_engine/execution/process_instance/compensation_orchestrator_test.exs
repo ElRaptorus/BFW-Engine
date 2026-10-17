@@ -1,6 +1,9 @@
 defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestratorTest do
   use ExUnit.Case, async: true
 
+  alias BfwEngine.BPMN.Model.EventDefinition
+  alias BfwEngine.BPMN.Model.FlowNode
+  alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.Execution.ProcessInstance.CompensationOrchestrator
 
   defp build_target(id, completion_order) do
@@ -167,6 +170,109 @@ defmodule BfwEngine.Execution.ProcessInstance.CompensationOrchestratorTest do
       run = build_run_with_targets([])
 
       assert CompensationOrchestrator.run_complete?(run)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # expand_targets/2
+  # ---------------------------------------------------------------------------
+
+  describe "expand_targets/2" do
+    defp compensation_model_data(flow_node_instance_states) do
+      flow_nodes = [
+        %FlowNode{
+          id: "Task_Book",
+          type: :task,
+          type_data: %FlowNodeData.Task{},
+          boundary_event_refs: ["BE_Comp_Book"]
+        },
+        %FlowNode{
+          id: "BE_Comp_Book",
+          type: :boundary_event,
+          type_data: %FlowNodeData.BoundaryEvent{
+            attached_to_ref: "Task_Book",
+            event_definition: %EventDefinition.Compensation{},
+            compensation_handler_id: "Task_Undo_Book"
+          }
+        },
+        %FlowNode{
+          id: "SubProcess_Booking",
+          type: :sub_process,
+          type_data: %FlowNodeData.SubProcess{triggered_by_event: false}
+        },
+        %FlowNode{
+          id: "Call_Fulfill",
+          type: :call_activity,
+          type_data: %FlowNodeData.CallActivity{called_element: "fulfill"}
+        }
+      ]
+
+      %{
+        process_instance_id: "parent",
+        process_model: %{flow_nodes: flow_nodes},
+        flow_node_instance_states: flow_node_instance_states
+      }
+    end
+
+    defp registry_entry(flow_node_id, completed_fni_id, completion_order) do
+      %{
+        completed_fni_id: completed_fni_id,
+        flow_node_id: flow_node_id,
+        handler_activity_id: nil,
+        token_snapshot: %{"from" => flow_node_id},
+        completion_order: completion_order
+      }
+    end
+
+    test "turns a handler-less embedded subprocess into a scope target naming its child instance" do
+      data =
+        compensation_model_data(%{
+          "fni_sub" => %{type_properties: %{"child_process_instance_id" => "child-1"}}
+        })
+
+      assert [target] =
+               CompensationOrchestrator.expand_targets(data, [
+                 registry_entry("SubProcess_Booking", "fni_sub", 3)
+               ])
+
+      assert target == %{
+               kind: :scope,
+               completed_fni_id: "fni_sub",
+               flow_node_id: "SubProcess_Booking",
+               child_process_instance_id: "child-1",
+               subprocess_node_id: "SubProcess_Booking",
+               handler_activity_id: nil,
+               token_snapshot: %{"from" => "SubProcess_Booking"},
+               completion_order: 3
+             }
+    end
+
+    test "keeps an activity with its own handler as a handler target, in the order given" do
+      data =
+        compensation_model_data(%{
+          "fni_sub" => %{type_properties: %{child_process_instance_id: "child-1"}}
+        })
+
+      assert [scope_target, handler_target] =
+               CompensationOrchestrator.expand_targets(data, [
+                 registry_entry("SubProcess_Booking", "fni_sub", 2),
+                 registry_entry("Task_Book", "fni_book", 1)
+               ])
+
+      assert scope_target.kind == :scope
+      assert scope_target.child_process_instance_id == "child-1"
+      refute Map.has_key?(handler_target, :kind)
+      assert handler_target.completed_fni_id == "fni_book"
+      assert handler_target.handler_activity_id == "Task_Undo_Book"
+    end
+
+    test "drops a subprocess without a child instance and a Call Activity without a handler" do
+      data = compensation_model_data(%{})
+
+      assert CompensationOrchestrator.expand_targets(data, [
+               registry_entry("SubProcess_Booking", "fni_sub", 2),
+               registry_entry("Call_Fulfill", "fni_call", 1)
+             ]) == []
     end
   end
 end

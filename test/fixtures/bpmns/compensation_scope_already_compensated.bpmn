@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationScopeAlreadyCompensated">
+
+  <!--
+    SubProcess_Booking compensates Task_Hotel itself before it finishes, so
+    the outer Throw_Comp finds nothing left to compensate inside it.
+  -->
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="CompensationScopeAlreadyCompensated" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationScopeAlreadyCompensated" name="Compensation Scope Already Compensated" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:subProcess id="SubProcess_Booking" name="Booking">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:task id="Task_Hotel" name="Book Hotel">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
+      </bpmn:task>
+
+      <bpmn:boundaryEvent id="BE_Comp_Hotel" name="Compensate Hotel" attachedToRef="Task_Hotel" cancelActivity="false">
+        <bpmn:compensateEventDefinition />
+      </bpmn:boundaryEvent>
+
+      <bpmn:task id="Task_Undo_Hotel" name="Cancel Hotel" isForCompensation="true" />
+
+      <bpmn:intermediateThrowEvent id="Throw_Inner" name="Compensate Inside">
+        <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_3</bpmn:outgoing>
+        <bpmn:compensateEventDefinition />
+      </bpmn:intermediateThrowEvent>
+
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_3</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Task_Hotel" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Task_Hotel" targetRef="Throw_Inner" />
+      <bpmn:sequenceFlow id="Sub_Flow_3" sourceRef="Throw_Inner" targetRef="Sub_End" />
+
+      <bpmn:association id="Assoc_Comp_Hotel" sourceRef="BE_Comp_Hotel" targetRef="Task_Undo_Hotel" associationDirection="One" />
+    </bpmn:subProcess>
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_Booking" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Booking" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Throw_Comp" targetRef="End_1" />
+  </bpmn:process>
+</bpmn:definitions>

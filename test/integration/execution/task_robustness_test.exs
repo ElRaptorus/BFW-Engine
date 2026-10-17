@@ -49,10 +49,11 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
   end
 
   describe "E9 / E10: User Task due date and assignees" do
-    test "a FEEL dueDate and the assignees are evaluated against the mapped input; a literal dueDate is kept" do
+    test "a FEEL dueDate and the assignees use the mapped input; literals are kept, completed to UTC when needed" do
       process_instance_id =
         http_deploy_and_start("user_task_due_date_and_assignees.bpmn", "UserTaskDueDateAndAssignees", %{
-          "payload" => %{"requester" => "alice", "deadline" => "2027-01-15T09:00:00Z"}
+          "payload" => %{"requester" => "alice", "deadline" => "2027-01-15T09:00:00Z"},
+          "context" => %{"localDeadline" => "2027-03-01T08:00:00"}
         })
 
       feel_task = poll_fni_state(process_instance_id, "user_task", "waiting")
@@ -61,23 +62,39 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       assert feel_task.type_properties["due_date"] == "2027-01-16T09:00:00Z"
       assert feel_task.type_properties["assignees"] == ["alice"]
 
-      {204, _} = http_finish_user_task(feel_task.id)
-
-      literal_task = poll_waiting_flow_node_instance(process_instance_id, "UserTask_Literal")
+      literal_task = finish_and_await_next(process_instance_id, feel_task, "UserTask_Literal")
       assert literal_task.type_properties["due_date"] == "2026-12-31T23:59:59Z"
+
+      date_only_task = finish_and_await_next(process_instance_id, literal_task, "UserTask_DateOnly")
+      assert date_only_task.type_properties["due_date"] == "2025-12-01T00:00:00Z"
+
+      offset_less_task = finish_and_await_next(process_instance_id, date_only_task, "UserTask_OffsetLess")
+      assert offset_less_task.type_properties["due_date"] == "2026-12-31T23:59:59Z"
+
+      feel_offset_less_task =
+        finish_and_await_next(process_instance_id, offset_less_task, "UserTask_FeelOffsetLess")
+
+      assert feel_offset_less_task.type_properties["due_date"] == "2027-03-01T08:00:00Z"
     end
 
     test "a dueDate that is neither an ISO 8601 date-time nor yields one fatals with a diagnostic" do
       process_instance_id =
         http_deploy_and_start("user_task_due_date_invalid.bpmn", "UserTaskDueDateInvalid")
 
-      poll_pi_state(process_instance_id, "fatal")
-      user_task = find_fni_by_flow_node_id(process_instance_id, "UserTask_BadDueDate")
+      assert_due_date_failed(process_instance_id, "UserTask_BadDueDate", ~s("next week"))
+    end
 
-      assert user_task.state == "fatal"
-      assert user_task.error_info["error_code"] == "user_task_due_date_failed"
-      assert user_task.error_info["message"] =~ "UserTask_BadDueDate"
-      assert user_task.error_info["message"] =~ "bfw:dueDate"
+    test "a FEEL dueDate yielding null, a bare duration, or a misspelled variable fails the task, never drops the date" do
+      {201, _} = http_deploy("user_task_due_date_invalid.bpmn")
+
+      for {due_date_case, flow_node_id, expression} <- [
+            {"null", "UserTask_NullDueDate", "null"},
+            {"duration", "UserTask_DurationDueDate", "PT1H"},
+            {"misspelled", "UserTask_MisspelledDueDate", "token.dedline"}
+          ] do
+        {201, body} = http_start("UserTaskDueDateInvalid", %{"payload" => %{"case" => due_date_case}})
+        assert_due_date_failed(body["processInstanceId"], flow_node_id, expression)
+      end
     end
   end
 
@@ -114,10 +131,10 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       poll_pi_state(process_instance_id, "finished")
 
       assert inspect(find_fni_by_flow_node_id(process_instance_id, "BusinessRuleTask_Big").input_token) =~
-               "payload_too_large"
+               ~r/Payload size \(\d+ bytes\) exceeds limit/
 
       assert inspect(find_fni_by_flow_node_id(process_instance_id, "End_Caught").input_token) =~
-               "payload_too_large"
+               ~r/Payload size \(\d+ bytes\) exceeds limit/
     end
   end
 
@@ -133,6 +150,21 @@ defmodule BfwEngine.Integration.Execution.TaskRobustnessTest do
       flow_node_instance ->
         flow_node_instance
     end
+  end
+
+  defp finish_and_await_next(process_instance_id, user_task, next_flow_node_id) do
+    {204, _} = http_finish_user_task(user_task.id)
+    poll_waiting_flow_node_instance(process_instance_id, next_flow_node_id)
+  end
+
+  defp assert_due_date_failed(process_instance_id, flow_node_id, expression) do
+    poll_pi_state(process_instance_id, "fatal")
+    user_task = find_fni_by_flow_node_id(process_instance_id, flow_node_id)
+
+    assert user_task.state == "fatal"
+    assert user_task.error_info["error_code"] == "user_task_due_date_failed"
+    assert user_task.error_info["message"] =~ "User task '#{flow_node_id}'"
+    assert user_task.error_info["message"] =~ "bfw:dueDate '#{expression}'"
   end
 
   defp assert_created_after_waiting(collector, flow_node_instance_id) do

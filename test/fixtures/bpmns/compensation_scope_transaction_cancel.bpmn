@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationScopeTransactionCancel">
+
+  <!--
+    The Cancel End compensates Tx_TaskB directly, SubProcess_Inner's Task_A
+    inside its own instance, and SubProcess_Plain, which has nothing
+    compensable: two handlers run.
+  -->
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="CompensationScopeTransactionCancel" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationScopeTransactionCancel" name="Compensation Scope Transaction Cancel" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:transaction id="Tx_1" name="Transaction">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:startEvent id="Tx_Start" name="TX Start">
+        <bpmn:outgoing>TxFlow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:subProcess id="SubProcess_Inner" name="Inner">
+        <bpmn:incoming>TxFlow_1</bpmn:incoming>
+        <bpmn:outgoing>TxFlow_2</bpmn:outgoing>
+
+        <bpmn:startEvent id="Inner_Start" name="Inner Start">
+          <bpmn:outgoing>Inner_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:task id="Task_A" name="Task A">
+          <bpmn:incoming>Inner_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>Inner_Flow_2</bpmn:outgoing>
+        </bpmn:task>
+
+        <bpmn:boundaryEvent id="BE_Comp_A" name="Compensate A" attachedToRef="Task_A" cancelActivity="false">
+          <bpmn:compensateEventDefinition />
+        </bpmn:boundaryEvent>
+
+        <bpmn:task id="Task_Undo_A" name="Undo A" isForCompensation="true" />
+
+        <bpmn:endEvent id="Inner_End" name="Inner End">
+          <bpmn:incoming>Inner_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="Inner_Flow_1" sourceRef="Inner_Start" targetRef="Task_A" />
+        <bpmn:sequenceFlow id="Inner_Flow_2" sourceRef="Task_A" targetRef="Inner_End" />
+
+        <bpmn:association id="Assoc_Comp_A" sourceRef="BE_Comp_A" targetRef="Task_Undo_A" associationDirection="One" />
+      </bpmn:subProcess>
+
+      <bpmn:subProcess id="SubProcess_Plain" name="Plain">
+        <bpmn:incoming>TxFlow_2</bpmn:incoming>
+        <bpmn:outgoing>TxFlow_3</bpmn:outgoing>
+
+        <bpmn:startEvent id="Plain_Start" name="Plain Start">
+          <bpmn:outgoing>Plain_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:task id="Task_Plain" name="Plain Task">
+          <bpmn:incoming>Plain_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>Plain_Flow_2</bpmn:outgoing>
+        </bpmn:task>
+
+        <bpmn:endEvent id="Plain_End" name="Plain End">
+          <bpmn:incoming>Plain_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="Plain_Flow_1" sourceRef="Plain_Start" targetRef="Task_Plain" />
+        <bpmn:sequenceFlow id="Plain_Flow_2" sourceRef="Task_Plain" targetRef="Plain_End" />
+      </bpmn:subProcess>
+
+      <bpmn:task id="Tx_TaskB" name="Task B">
+        <bpmn:incoming>TxFlow_3</bpmn:incoming>
+        <bpmn:outgoing>TxFlow_4</bpmn:outgoing>
+      </bpmn:task>
+
+      <bpmn:boundaryEvent id="BE_Comp_B" name="Compensate B" attachedToRef="Tx_TaskB" cancelActivity="false">
+        <bpmn:compensateEventDefinition />
+      </bpmn:boundaryEvent>
+
+      <bpmn:task id="Task_Undo_B" name="Undo B" isForCompensation="true" />
+
+      <bpmn:endEvent id="Tx_CancelEnd" name="Cancel">
+        <bpmn:incoming>TxFlow_4</bpmn:incoming>
+        <bpmn:cancelEventDefinition />
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="TxFlow_1" sourceRef="Tx_Start" targetRef="SubProcess_Inner" />
+      <bpmn:sequenceFlow id="TxFlow_2" sourceRef="SubProcess_Inner" targetRef="SubProcess_Plain" />
+      <bpmn:sequenceFlow id="TxFlow_3" sourceRef="SubProcess_Plain" targetRef="Tx_TaskB" />
+      <bpmn:sequenceFlow id="TxFlow_4" sourceRef="Tx_TaskB" targetRef="Tx_CancelEnd" />
+
+      <bpmn:association id="Assoc_Comp_B" sourceRef="BE_Comp_B" targetRef="Task_Undo_B" associationDirection="One" />
+    </bpmn:transaction>
+
+    <bpmn:boundaryEvent id="Boundary_Cancel" cancelActivity="true" attachedToRef="Tx_1">
+      <bpmn:outgoing>Flow_Cancel</bpmn:outgoing>
+      <bpmn:cancelEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:endEvent id="End_Cancelled" name="Cancelled">
+      <bpmn:incoming>Flow_Cancel</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="End_Normal" name="End Normal">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Tx_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Tx_1" targetRef="End_Normal" />
+    <bpmn:sequenceFlow id="Flow_Cancel" sourceRef="Boundary_Cancel" targetRef="End_Cancelled" />
+  </bpmn:process>
+</bpmn:definitions>

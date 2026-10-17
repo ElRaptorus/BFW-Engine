@@ -23,6 +23,7 @@ defmodule BfwEngine.Execution.BoundaryAwareHandler do
   alias BfwEngine.Execution.BoundaryResolver
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Types.Token
 
   @activity_types [
@@ -96,17 +97,16 @@ defmodule BfwEngine.Execution.BoundaryAwareHandler do
   `BoundaryResolver`.
 
   Already-structured maps (with `:error_code`) pass through unchanged.
-  All other shapes are wrapped with a generic `"HANDLER_ERROR"` code.
+  All other shapes are wrapped with a generic `"HANDLER_ERROR"` code; the
+  message is the same diagnostic sentence the fatal path records
+  (`ErrorInfo.build/1`).
   """
   @spec normalize_to_error_info(term()) :: BoundaryResolver.error_info()
   def normalize_to_error_info(%{error_code: _} = already_structured),
     do: already_structured
 
-  def normalize_to_error_info(reason) when is_binary(reason),
-    do: %{error_code: "HANDLER_ERROR", error_message: reason}
-
   def normalize_to_error_info(reason),
-    do: %{error_code: "HANDLER_ERROR", error_message: inspect(reason)}
+    do: %{error_code: "HANDLER_ERROR", error_message: ErrorInfo.build(reason)["message"]}
 
   defp has_error_boundaries?(%FlowNode{boundary_event_refs: refs}, process_model)
        when is_list(refs) and refs != [] do

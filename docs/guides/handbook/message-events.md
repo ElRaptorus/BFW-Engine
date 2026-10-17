@@ -189,12 +189,12 @@ Contracts are direction-aware: throw-side events use `payloadContract`, catch-si
 <bpmn:intermediateThrowEvent id="Throw_1">
   <bpmn:extensionElements>
     <bfw:payloadContract>{"type":"object","required":["orderId","amount"]}</bfw:payloadContract>
+    <bfw:inputMapping source="token.orderId" target="orderId" />
+    <bfw:inputMapping source="token.amount" target="amount" />
   </bpmn:extensionElements>
   <bpmn:messageEventDefinition messageRef="Message_payment">
     <bpmn:extensionElements>
       <bfw:correlationRetrievalExpression>token.orderId</bfw:correlationRetrievalExpression>
-      <bfw:inputMapping source="token.orderId" target="orderId" />
-      <bfw:inputMapping source="token.amount" target="amount" />
     </bpmn:extensionElements>
   </bpmn:messageEventDefinition>
 </bpmn:intermediateThrowEvent>
@@ -206,14 +206,13 @@ Contracts are direction-aware: throw-side events use `payloadContract`, catch-si
 <bpmn:intermediateCatchEvent id="Catch_1">
   <bpmn:extensionElements>
     <bfw:resultContract>{"type":"object","required":["status"]}</bfw:resultContract>
+    <bfw:outputMapping source="token.status" target="paymentStatus" />
   </bpmn:extensionElements>
-  <bpmn:messageEventDefinition messageRef="Message_payment">
-    <bpmn:extensionElements>
-      <bfw:outputMapping source="event.status" target="paymentStatus" />
-    </bpmn:extensionElements>
-  </bpmn:messageEventDefinition>
+  <bpmn:messageEventDefinition messageRef="Message_payment" />
 </bpmn:intermediateCatchEvent>
 ```
+
+In `source`, `token` is the received message payload; mapping semantics (new object, literal target keys) are described under [Call Activity mappings](call-activities.md#input-mappings).
 
 ## Best Practices
 

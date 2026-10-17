@@ -357,6 +357,16 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
   @doc """
   Boot-time sweep: abort all FNIs stuck in non-terminal state on terminal PIs.
   Uses raw SQL for a single bulk UPDATE.
+
+  Exempt is a compensation handler FNI in a `finished` subprocess instance
+  that compensates its scope: its `type_properties.compensation_throw_fni_id`
+  names the Compensate Throw or Cancel End FNI that started the compensation
+  (for nested scopes as well), and while that FNI's process instance is
+  neither terminal nor deleted, the resumed run revives the scope and the
+  handler continues. Once that instance is terminal or gone, the handler is
+  aborted like any other orphan. `ResumeRunner` runs
+  `cleanup_orphaned_process_instances/0` first, so an anchor in an orphaned
+  child instance is already aborted here.
   """
   @impl true
   def cleanup_orphaned_flow_node_instances do
@@ -371,6 +381,13 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
         SELECT id FROM process_instances
         WHERE state IN ('finished', 'fatal', 'aborted', 'error', 'escalated', 'compensated', 'cancelled')
           AND deleted = false
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM flow_node_instances anchor
+        JOIN process_instances anchor_instance ON anchor_instance.id = anchor.process_instance_id
+        WHERE anchor.id = (flow_node_instances.type_properties->>'compensation_throw_fni_id')::uuid
+          AND anchor_instance.state NOT IN ('finished', 'fatal', 'aborted', 'error', 'escalated', 'compensated', 'cancelled')
+          AND anchor_instance.deleted = false
       )
     """
 
@@ -910,6 +927,7 @@ defmodule BfwEngine.Persistence.ExecutionAdapter do
       event_type: record.event_type,
       state: record.state,
       started_at: record.started_at,
+      finished_at: record.finished_at,
       input_token: record.input_token,
       output_token: record.output_token,
       type_properties: record.type_properties || %{},

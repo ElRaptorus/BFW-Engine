@@ -3595,6 +3595,58 @@ defmodule BfwEngine.BPMN.ValidatorTest do
       assert_violation_code(definitions, :nested_transaction)
     end
 
+    test "Transaction containing a Transaction inside an embedded subprocess is rejected" do
+      {innermost_nodes, innermost_flows} =
+        minimal_inner_scope("INNER_Start", "INNER_End", "INNER_F1")
+
+      inner_tx = transaction_node("Inner_TX", innermost_nodes, innermost_flows)
+
+      subprocess_nodes = [
+        %FlowNode{id: "SP_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        inner_tx,
+        %FlowNode{id: "SP_End", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      subprocess_flows = [
+        %SequenceFlow{id: "SF1", source_ref: "SP_Start", target_ref: "Inner_TX"},
+        %SequenceFlow{id: "SF2", source_ref: "Inner_TX", target_ref: "SP_End"}
+      ]
+
+      middle_subprocess = subprocess_node("SP_Middle", subprocess_nodes, subprocess_flows)
+
+      transaction_nodes = [
+        %FlowNode{id: "TX_Start", type: :start_event, type_data: %FlowNodeData.StartEvent{}},
+        middle_subprocess,
+        %FlowNode{id: "TX_End", type: :end_event, type_data: %FlowNodeData.EndEvent{}}
+      ]
+
+      transaction_flows = [
+        %SequenceFlow{id: "TF1", source_ref: "TX_Start", target_ref: "SP_Middle"},
+        %SequenceFlow{id: "TF2", source_ref: "SP_Middle", target_ref: "TX_End"}
+      ]
+
+      outer_tx = transaction_node("Outer_TX", transaction_nodes, transaction_flows)
+
+      definitions =
+        minimal_valid_definitions(
+          extra_nodes: [outer_tx],
+          extra_flows: [
+            %SequenceFlow{id: "F2", source_ref: "S1", target_ref: "Outer_TX"},
+            %SequenceFlow{id: "F3", source_ref: "Outer_TX", target_ref: "E1"}
+          ]
+        )
+
+      assert {:error, violations} = Validator.validate(definitions)
+
+      assert Enum.any?(violations, fn
+               {:nested_transaction, message} ->
+                 message =~ "Transaction 'Outer_TX' contains nested Transaction 'Inner_TX'"
+
+               _other ->
+                 false
+             end)
+    end
+
     test "Transaction containing an embedded subprocess (non-transaction) is valid" do
       {inner_sp_nodes, inner_sp_flows} =
         minimal_inner_scope("SP_Start", "SP_End", "SP_F1")

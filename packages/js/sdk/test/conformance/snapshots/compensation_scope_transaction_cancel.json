@@ -1,0 +1,564 @@
+{
+  "definitionsId": "Definitions_CompensationScopeTransactionCancel",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_A",
+          "sourceRef": "BE_Comp_A",
+          "targetRef": "Task_Undo_A"
+        },
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_B",
+          "sourceRef": "BE_Comp_B",
+          "targetRef": "Task_Undo_B"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": ["Boundary_Cancel"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Tx_1",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Transaction",
+          "outgoing": ["Flow_2"],
+          "standardLoop": null,
+          "type": "sub_process",
+          "typeData": {
+            "activeElementsCompiled": null,
+            "activeElementsExpression": null,
+            "adhocCompletionCondition": null,
+            "adhocCompletionConditionCompiled": null,
+            "adhocOrdering": "parallel",
+            "cancelRemainingInstances": true,
+            "dataObjectReferences": [],
+            "dataObjects": [],
+            "dataStoreReferences": [],
+            "flowNodes": [
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_Start",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "TX Start",
+                "outgoing": ["TxFlow_1"],
+                "standardLoop": null,
+                "type": "start_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "isInterrupting": true,
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SubProcess_Inner",
+                "incoming": ["TxFlow_1"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Inner",
+                "outgoing": ["TxFlow_2"],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "dataStoreReferences": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Inner_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Inner Start",
+                      "outgoing": ["Inner_Flow_1"],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": ["BE_Comp_A"],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Task_A",
+                      "incoming": ["Inner_Flow_1"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Task A",
+                      "outgoing": ["Inner_Flow_2"],
+                      "standardLoop": null,
+                      "type": "task",
+                      "typeData": {}
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "BE_Comp_A",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Compensate A",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "boundary_event",
+                      "typeData": {
+                        "attachedToRef": "Task_A",
+                        "cancelActivity": false,
+                        "compensationHandlerId": "Task_Undo_A",
+                        "eventDefinition": {
+                          "activityRef": null,
+                          "waitForCompletion": true
+                        },
+                        "outMappings": [],
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Task_Undo_A",
+                      "incoming": [],
+                      "isForCompensation": true,
+                      "multiInstance": null,
+                      "name": "Undo A",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "task",
+                      "typeData": {}
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Inner_End",
+                      "incoming": ["Inner_Flow_2"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Inner End",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": false,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "Inner_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Inner_Start",
+                      "targetRef": "Task_A"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "Inner_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Task_A",
+                      "targetRef": "Inner_End"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "SubProcess_Plain",
+                "incoming": ["TxFlow_2"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Plain",
+                "outgoing": ["TxFlow_3"],
+                "standardLoop": null,
+                "type": "sub_process",
+                "typeData": {
+                  "activeElementsCompiled": null,
+                  "activeElementsExpression": null,
+                  "adhocCompletionCondition": null,
+                  "adhocCompletionConditionCompiled": null,
+                  "adhocOrdering": "parallel",
+                  "cancelRemainingInstances": true,
+                  "dataObjectReferences": [],
+                  "dataObjects": [],
+                  "dataStoreReferences": [],
+                  "flowNodes": [
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Plain_Start",
+                      "incoming": [],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Plain Start",
+                      "outgoing": ["Plain_Flow_1"],
+                      "standardLoop": null,
+                      "type": "start_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "isInterrupting": true,
+                        "resultContract": null
+                      }
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Task_Plain",
+                      "incoming": ["Plain_Flow_1"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Plain Task",
+                      "outgoing": ["Plain_Flow_2"],
+                      "standardLoop": null,
+                      "type": "task",
+                      "typeData": {}
+                    },
+                    {
+                      "boundaryEventRefs": [],
+                      "dataInputAssociations": [],
+                      "dataOutputAssociations": [],
+                      "documentation": null,
+                      "id": "Plain_End",
+                      "incoming": ["Plain_Flow_2"],
+                      "isForCompensation": false,
+                      "multiInstance": null,
+                      "name": "Plain End",
+                      "outgoing": [],
+                      "standardLoop": null,
+                      "type": "end_event",
+                      "typeData": {
+                        "eventDefinition": {},
+                        "inMappings": [],
+                        "payloadContract": null
+                      }
+                    }
+                  ],
+                  "implementation": null,
+                  "inMappings": [],
+                  "isAdHoc": false,
+                  "isTransaction": false,
+                  "outMappings": [],
+                  "payloadContract": null,
+                  "resultContract": null,
+                  "sequenceFlows": [
+                    {
+                      "conditionExpression": null,
+                      "id": "Plain_Flow_1",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Plain_Start",
+                      "targetRef": "Task_Plain"
+                    },
+                    {
+                      "conditionExpression": null,
+                      "id": "Plain_Flow_2",
+                      "isDefault": false,
+                      "name": null,
+                      "sourceRef": "Task_Plain",
+                      "targetRef": "Plain_End"
+                    }
+                  ],
+                  "transactionMethod": null,
+                  "triggeredByEvent": false
+                }
+              },
+              {
+                "boundaryEventRefs": ["BE_Comp_B"],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_TaskB",
+                "incoming": ["TxFlow_3"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Task B",
+                "outgoing": ["TxFlow_4"],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "BE_Comp_B",
+                "incoming": [],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Compensate B",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "boundary_event",
+                "typeData": {
+                  "attachedToRef": "Tx_TaskB",
+                  "cancelActivity": false,
+                  "compensationHandlerId": "Task_Undo_B",
+                  "eventDefinition": {
+                    "activityRef": null,
+                    "waitForCompletion": true
+                  },
+                  "outMappings": [],
+                  "resultContract": null
+                }
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Task_Undo_B",
+                "incoming": [],
+                "isForCompensation": true,
+                "multiInstance": null,
+                "name": "Undo B",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "task",
+                "typeData": {}
+              },
+              {
+                "boundaryEventRefs": [],
+                "dataInputAssociations": [],
+                "dataOutputAssociations": [],
+                "documentation": null,
+                "id": "Tx_CancelEnd",
+                "incoming": ["TxFlow_4"],
+                "isForCompensation": false,
+                "multiInstance": null,
+                "name": "Cancel",
+                "outgoing": [],
+                "standardLoop": null,
+                "type": "end_event",
+                "typeData": {
+                  "eventDefinition": {},
+                  "inMappings": [],
+                  "payloadContract": null
+                }
+              }
+            ],
+            "implementation": null,
+            "inMappings": [],
+            "isAdHoc": false,
+            "isTransaction": true,
+            "outMappings": [],
+            "payloadContract": null,
+            "resultContract": null,
+            "sequenceFlows": [
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_1",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_Start",
+                "targetRef": "SubProcess_Inner"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_2",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SubProcess_Inner",
+                "targetRef": "SubProcess_Plain"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_3",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "SubProcess_Plain",
+                "targetRef": "Tx_TaskB"
+              },
+              {
+                "conditionExpression": null,
+                "id": "TxFlow_4",
+                "isDefault": false,
+                "name": null,
+                "sourceRef": "Tx_TaskB",
+                "targetRef": "Tx_CancelEnd"
+              }
+            ],
+            "transactionMethod": null,
+            "triggeredByEvent": false
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Boundary_Cancel",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": null,
+          "outgoing": ["Flow_Cancel"],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "Tx_1",
+            "cancelActivity": true,
+            "compensationHandlerId": null,
+            "eventDefinition": {},
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Cancelled",
+          "incoming": ["Flow_Cancel"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Cancelled",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_Normal",
+          "incoming": ["Flow_2"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End Normal",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationScopeTransactionCancel",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [],
+      "name": "Compensation Scope Transaction Cancel",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Tx_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_2",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Tx_1",
+          "targetRef": "End_Normal"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Cancel",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Boundary_Cancel",
+          "targetRef": "End_Cancelled"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

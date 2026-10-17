@@ -142,12 +142,19 @@ When the engine reaches a Compensate Throw or Compensate End Event, it follows
 this sequence:
 
 1. **Collect targets.** The engine consults its compensation registry — the
-   list of activities that (a) have already completed in this scope and (b)
-   have a compensation boundary with an associated handler.
+   list of activities that have already completed in this scope and either
+   have a compensation boundary with an associated handler or are an
+   embedded subprocess (see [Compensating subprocesses and loops](#compensating-subprocesses-and-loops)).
+   An activity that a handler already compensated, or that another running
+   compensation has queued, is skipped: each completed activity is
+   compensated **at most once**, also when a second Compensate Throw fires
+   (a loop, a parallel branch, a Cancel End after a throw) and after an
+   engine restart.
 
 2. **Order targets.** For broadcast compensation (no `activityRef`), targets
    are ordered in **LIFO** (last-completed-first) sequence. For targeted
-   compensation, only the single specified activity is included.
+   compensation, only the single specified activity is included. The order
+   follows completion, not start, before and after a restart.
 
 3. **Execute handlers sequentially.** Handlers run one at a time, in order.
    Each handler receives the token snapshot from the moment its associated
@@ -284,31 +291,34 @@ each step in a multi-step transaction has an explicit compensating action, and
 when something goes wrong, all completed steps are rolled back.
 
 ```
-  ┌─────────────────────── Embedded SubProcess ───────────────────────┐
-  │                                                                    │
-  │  [Start] ──▶ [Book Flight] ──▶ [Book Hotel] ──▶ [Error End]       │
-  │                  │ comp              │ comp                         │
-  │                  ▼                   ▼                              │
-  │            [Cancel Flight]    [Cancel Hotel]                        │
-  │                                                                    │
-  └────────────────────────────────────┬───────────────────────────────┘
-                                       │ Error Boundary
-                                       ▼
-                        [Throw Compensation] ──▶ [End Compensated]
+  ┌──────────── Embedded SubProcess ────────────┐
+  │                                              │
+  │  [Start] ──▶ [Book Flight] ──▶ [Book Hotel] ──▶ [End]
+  │                  │ comp            │ comp    │
+  │                  ▼                 ▼         │
+  │           [Cancel Flight]   [Cancel Hotel]   │
+  └──────────────────────┬───────────────────────┘
+                         ▼
+                   [Charge Card] ──error boundary──▶ [Throw Compensation] ──▶ [End Compensated]
+                         │
+                         ▼
+                       [End]
 ```
 
 The pattern works as follows:
 
-1. The subprocess runs Task A and Task B normally. Each has compensation
-   handlers registered.
-2. The subprocess throws an error (via an Error End Event, or a handler
-   failure that triggers an error boundary).
-3. The error boundary on the subprocess catches the error and activates the
-   compensation path.
-4. The Compensate Throw Event triggers broadcast compensation for all
-   completed activities in the subprocess scope.
-5. Handlers execute in LIFO order (Cancel Hotel first, then Cancel Flight).
-6. After compensation completes, the process ends.
+1. The subprocess books the flight and the hotel and completes. Each booking
+   has a compensation handler.
+2. Charging the card fails; the error boundary on Charge Card routes the token
+   to the compensation path.
+3. The Compensate Throw Event triggers broadcast compensation. The completed
+   subprocess has no handler of its own, so compensation reaches inside it.
+4. Handlers execute in LIFO order (Cancel Hotel first, then Cancel Flight).
+5. After compensation completes, the process ends.
+
+A subprocess that did **not** complete (an error ended it) is never
+compensated from outside. To roll back inside a failing subprocess, place
+the Compensate Throw inside it, before its Error End Event.
 
 Here is the BPMN for this pattern:
 
@@ -336,9 +346,11 @@ Here is the BPMN for this pattern:
       <bpmn:lane id="Lane_default" name="default">
         <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>SubProcess_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Charge</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>BE_Error</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Throw_Comp</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>End_Compensated</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Paid</bpmn:flowNodeRef>
       </bpmn:lane>
     </bpmn:laneSet>
 
@@ -346,7 +358,9 @@ Here is the BPMN for this pattern:
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
 
-    <bpmn:subProcess id="SubProcess_1" name="Booking Saga">
+    <bpmn:subProcess id="SubProcess_1" name="Bookings">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Charge</bpmn:outgoing>
       <bpmn:startEvent id="SP_Start">
         <bpmn:outgoing>SF_1</bpmn:outgoing>
       </bpmn:startEvent>
@@ -373,14 +387,13 @@ Here is the BPMN for this pattern:
 
       <bpmn:task id="Handler_CancelHotel" name="Cancel Hotel" isForCompensation="true" />
 
-      <bpmn:endEvent id="SP_Error_End" name="Booking Failed">
+      <bpmn:endEvent id="SP_End" name="Booked">
         <bpmn:incoming>SF_3</bpmn:incoming>
-        <bpmn:errorEventDefinition />
       </bpmn:endEvent>
 
       <bpmn:sequenceFlow id="SF_1" sourceRef="SP_Start" targetRef="Task_Flight" />
       <bpmn:sequenceFlow id="SF_2" sourceRef="Task_Flight" targetRef="Task_Hotel" />
-      <bpmn:sequenceFlow id="SF_3" sourceRef="Task_Hotel" targetRef="SP_Error_End" />
+      <bpmn:sequenceFlow id="SF_3" sourceRef="Task_Hotel" targetRef="SP_End" />
 
       <bpmn:association id="Assoc_Flight" sourceRef="BE_Comp_Flight"
         targetRef="Handler_CancelFlight" associationDirection="One" />
@@ -388,13 +401,18 @@ Here is the BPMN for this pattern:
         targetRef="Handler_CancelHotel" associationDirection="One" />
     </bpmn:subProcess>
 
-    <!-- Error boundary catches the subprocess error -->
-    <bpmn:boundaryEvent id="BE_Error" attachedToRef="SubProcess_1" cancelActivity="true">
+    <bpmn:serviceTask id="Task_Charge" name="Charge Card" implementation="payment">
+      <bpmn:incoming>Flow_Charge</bpmn:incoming>
+      <bpmn:outgoing>Flow_Paid</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary catches the failed charge -->
+    <bpmn:boundaryEvent id="BE_Error" attachedToRef="Task_Charge" cancelActivity="true">
       <bpmn:outgoing>Flow_Error</bpmn:outgoing>
       <bpmn:errorEventDefinition />
     </bpmn:boundaryEvent>
 
-    <!-- Trigger compensation for all completed tasks in the subprocess -->
+    <!-- Broadcast compensation reaches inside the completed subprocess -->
     <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate Bookings">
       <bpmn:incoming>Flow_Error</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
@@ -405,16 +423,62 @@ Here is the BPMN for this pattern:
       <bpmn:incoming>Flow_2</bpmn:incoming>
     </bpmn:endEvent>
 
+    <bpmn:endEvent id="End_Paid" name="Paid">
+      <bpmn:incoming>Flow_Paid</bpmn:incoming>
+    </bpmn:endEvent>
+
     <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_1" />
+    <bpmn:sequenceFlow id="Flow_Charge" sourceRef="SubProcess_1" targetRef="Task_Charge" />
+    <bpmn:sequenceFlow id="Flow_Paid" sourceRef="Task_Charge" targetRef="End_Paid" />
     <bpmn:sequenceFlow id="Flow_Error" sourceRef="BE_Error" targetRef="Throw_Comp" />
     <bpmn:sequenceFlow id="Flow_2" sourceRef="Throw_Comp" targetRef="End_Compensated" />
   </bpmn:process>
 </bpmn:definitions>
 ```
 
-The same pattern works with **escalation boundaries** — replace the Error End
-Event inside the subprocess with an Escalation Throw, and replace the error
-boundary on the subprocess with an escalation boundary.
+The same pattern works with **escalation boundaries** — let the failing step
+raise an escalation and catch it with an escalation boundary instead of an
+error boundary.
+
+## Compensating subprocesses and loops
+
+When a Compensate Throw (broadcast, or `activityRef` naming the activity)
+reaches a completed activity of one of these kinds, compensation reaches
+inside it (BPMN 2.0 §13.5.5):
+
+| Completed activity | What is compensated |
+|--------------------|---------------------|
+| Activity with its own compensation boundary and handler (any type, including a subprocess) | Its handler, once, with the activity's output — the inside is not touched |
+| Embedded subprocess, transaction, or ad-hoc subprocess **without** a handler | Every activity that completed inside it and has a handler (recursively through nested subprocesses and loops), latest completion first. Activities a Compensate Throw inside the subprocess already compensated are skipped |
+| Multi-Instance or Standard Loop activity with a handler | The handler once per completed iteration, latest completion first, each with that iteration's output |
+| Multi-Instance subprocess without a handler | The inner activities of every completed iteration |
+| Call Activity without a handler | Nothing — the called process is not compensated |
+
+### Where inner handlers run
+
+The handlers of a compensated subprocess run in the **subprocess's own
+instance** — the child instance the subprocess ran in — not in the instance
+that threw compensation. Their flow node instances belong to that child
+instance, so an inner handler:
+
+- reads and writes only the subprocess's Data Objects (an element inside a
+  subprocess never sees the parent's Data Objects, and compensation follows
+  the same rule);
+- takes the subprocess's lane, so inbox access for an inner User Task follows
+  that lane;
+- names the compensated inner activity in `compensation_for`.
+
+The child instance stays `finished` while it compensates; it shows no new
+state change. Its handler flow node instances can be `active` or `waiting`
+while the instance itself is `finished`. The instance that threw compensation
+waits until the subprocess has been compensated, then continues.
+
+If an inner handler fails (goes `fatal`), the instance that threw
+compensation goes `fatal` with error code `compensation_scope_failed`; the
+message names the subprocess and its instance. Retrying that instance runs
+the failed inner handler again in the same subprocess instance; handlers that
+already finished do not run again. Aborting the instance that threw
+compensation also aborts the inner handlers that are still running.
 
 ## Compensation End Events Do Not Interrupt Parallel Branches
 
@@ -480,10 +544,10 @@ The current implementation operates within a well-defined scope:
   the top level compensates top-level tasks. A Compensate Throw inside a
   subprocess compensates activities within that subprocess.
 
-- **Embedded subprocesses and call activities are atomic.** When compensating a
-  parent scope, completed embedded subprocesses and call activities are treated
-  as single units — compensation does not cascade inside them to compensate
-  their internal activities.
+- **Completed embedded subprocesses and loops are compensated inside; Call
+  Activities are not.** See
+  [Compensating subprocesses and loops](#compensating-subprocesses-and-loops).
+  A Call Activity is compensated only through a handler attached to it.
 
 - **Compensation Event Subprocesses are supported.** You can define an Event
   Subprocess with a Compensation start event that activates when compensation
@@ -719,7 +783,9 @@ This clearly separates the "happy path" from the "rollback path" in your model.
 If a compensation handler itself fails (a handler crashes, a service is
 unreachable), the process instance transitions to `:fatal` — not `:compensated`.
 You can then retry the process from `:fatal` — the retry mechanism resets the
-failed handler and re-runs compensation from where it left off.
+failed handler and re-runs compensation from where it left off. A failing
+handler inside a compensated subprocess fails the instance that threw
+compensation the same way (see [Where inner handlers run](#where-inner-handlers-run)).
 
 The `:compensated` state is **not retryable**. It represents a successful business
 outcome: compensation was triggered and all handlers completed successfully. It is

@@ -62,7 +62,8 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
       flow_node_id: Map.get(attrs, :flow_node_id, "Task_1"),
       flow_node_type: Map.get(attrs, :flow_node_type, "service_task"),
       state: target_state,
-      started_at: Map.get(attrs, :started_at, DateTime.utc_now())
+      started_at: Map.get(attrs, :started_at, DateTime.utc_now()),
+      type_properties: Map.get(attrs, :type_properties)
     }
 
     {:ok, record} = Ash.create(FniResource, create_attrs, domain: @domain, authorize?: false)
@@ -223,6 +224,69 @@ defmodule BfwEngine.Integration.Execution.OrphanCleanupTest do
 
       {:ok, count} = ExecutionAdapter.cleanup_orphaned_flow_node_instances()
       assert count == 3
+    end
+
+    test "keeps a compensation handler in a finished subprocess while its anchoring instance runs" do
+      root_id = insert_process_instance(%{state: "running"})
+      throw_id = insert_flow_node_instance(%{process_instance_id: root_id, state: "waiting"})
+
+      child_id =
+        insert_process_instance(%{
+          state: "finished",
+          parent_process_instance_id: root_id,
+          finished_at: DateTime.utc_now()
+        })
+
+      handler_id =
+        insert_flow_node_instance(%{
+          process_instance_id: child_id,
+          flow_node_type: "user_task",
+          state: "waiting",
+          type_properties: %{"compensation_throw_fni_id" => throw_id}
+        })
+
+      {:ok, count} = ExecutionAdapter.cleanup_orphaned_flow_node_instances()
+      assert count == 0
+
+      assert [%{id: ^handler_id, state: "waiting", error_info: nil}] =
+               fetch_flow_node_instances(child_id)
+    end
+
+    test "aborts a compensation handler whose anchoring instance is terminal or gone" do
+      terminal_root_id =
+        insert_process_instance(%{state: "aborted", finished_at: DateTime.utc_now()})
+
+      throw_id =
+        insert_flow_node_instance(%{
+          process_instance_id: terminal_root_id,
+          state: "aborted",
+          finished_at: DateTime.utc_now()
+        })
+
+      child_id =
+        insert_process_instance(%{
+          state: "finished",
+          parent_process_instance_id: terminal_root_id,
+          finished_at: DateTime.utc_now()
+        })
+
+      insert_flow_node_instance(%{
+        process_instance_id: child_id,
+        flow_node_type: "user_task",
+        state: "waiting",
+        type_properties: %{"compensation_throw_fni_id" => throw_id}
+      })
+
+      insert_flow_node_instance(%{
+        process_instance_id: child_id,
+        state: "active",
+        type_properties: %{"compensation_throw_fni_id" => Ash.UUIDv7.generate()}
+      })
+
+      {:ok, count} = ExecutionAdapter.cleanup_orphaned_flow_node_instances()
+      assert count == 2
+
+      assert Enum.all?(fetch_flow_node_instances(child_id), &(&1.state == "aborted"))
     end
   end
 

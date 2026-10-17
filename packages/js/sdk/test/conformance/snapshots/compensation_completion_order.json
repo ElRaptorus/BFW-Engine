@@ -1,0 +1,396 @@
+{
+  "definitionsId": "Definitions_CompensationCompletionOrder",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_A",
+          "sourceRef": "BE_Comp_A",
+          "targetRef": "Task_Undo_A"
+        },
+        {
+          "associationDirection": "One",
+          "id": "Assoc_Comp_B",
+          "sourceRef": "BE_Comp_B",
+          "targetRef": "Task_Undo_B"
+        }
+      ],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": ["Flow_1"],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Fork",
+          "incoming": ["Flow_1"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Fork",
+          "outgoing": ["Flow_Prep", "Flow_A"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_A"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_A",
+          "incoming": ["Flow_A"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "A",
+          "outgoing": ["Flow_A_Join"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_A",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate A",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UT_A",
+            "cancelActivity": false,
+            "compensationHandlerId": "Task_Undo_A",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Undo_A",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Undo A",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Prep",
+          "incoming": ["Flow_Prep"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Prepare B",
+          "outgoing": ["Flow_B"],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": ["BE_Comp_B"],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_B",
+          "incoming": ["Flow_B"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "B",
+          "outgoing": ["Flow_B_Join"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "BE_Comp_B",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate B",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "boundary_event",
+          "typeData": {
+            "attachedToRef": "UT_B",
+            "cancelActivity": false,
+            "compensationHandlerId": "Task_Undo_B",
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "outMappings": [],
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Task_Undo_B",
+          "incoming": [],
+          "isForCompensation": true,
+          "multiInstance": null,
+          "name": "Undo B",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "task",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Join",
+          "incoming": ["Flow_B_Join", "Flow_A_Join"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Join",
+          "outgoing": ["Flow_Wait"],
+          "standardLoop": null,
+          "type": "parallel_gateway",
+          "typeData": {}
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UT_Wait",
+          "incoming": ["Flow_Wait"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Wait",
+          "outgoing": ["Flow_Throw"],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": null,
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Throw_Comp",
+          "incoming": ["Flow_Throw"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Compensate",
+          "outgoing": ["Flow_End"],
+          "standardLoop": null,
+          "type": "intermediate_throw_event",
+          "typeData": {
+            "eventDefinition": {
+              "activityRef": null,
+              "waitForCompletion": true
+            },
+            "inMappings": [],
+            "payloadContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": ["Flow_End"],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "CompensationCompletionOrder",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Fork",
+            "UT_A",
+            "BE_Comp_A",
+            "Task_Undo_A",
+            "Task_Prep",
+            "UT_B",
+            "BE_Comp_B",
+            "Task_Undo_B",
+            "Join",
+            "UT_Wait",
+            "Throw_Comp",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "Compensation Completion Order",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Fork"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork",
+          "targetRef": "UT_A"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Prep",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Fork",
+          "targetRef": "Task_Prep"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Task_Prep",
+          "targetRef": "UT_B"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_A_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_A",
+          "targetRef": "Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_B_Join",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_B",
+          "targetRef": "Join"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Wait",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Join",
+          "targetRef": "UT_Wait"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Throw",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UT_Wait",
+          "targetRef": "Throw_Comp"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Throw_Comp",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

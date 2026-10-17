@@ -66,6 +66,20 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
           token: map()
         }
 
+  @typedoc """
+  `compensation_scope.request` of a finished subprocess child instance
+  revived only to compensate its inner activities for the requester's run
+  `anchor_fni_id`. `compensation_scope.children` holds the scope instances
+  this instance waits for, by pid.
+  """
+  @type compensation_scope_request :: %{
+          anchor_fni_id: String.t(),
+          scope_target_id: String.t(),
+          subprocess_node_id: String.t(),
+          root_process_instance_id: String.t(),
+          reply_to: pid()
+        }
+
   @type t :: %__MODULE__{
           process_instance_id: String.t(),
           process_version_id: String.t(),
@@ -90,12 +104,15 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
           },
           event_subprocess_kinds: %{String.t() => {atom(), boolean()}},
           compensation_registry: [compensation_registry_entry()],
-          compensation_completion_counter: non_neg_integer(),
           compensation_runs: %{String.t() => compensation_run()},
           compensation_end_reached: boolean(),
           compensation_esp_throw_map: %{String.t() => String.t()},
           mi_shell_tasks: %{String.t() => {String.t(), pid()}},
           cancel_reached: boolean(),
+          compensation_scope: %{
+            request: compensation_scope_request() | nil,
+            children: %{pid() => map()}
+          },
           adhoc_completion_signaled: boolean(),
           adhoc_completion_condition: String.t() | nil,
           adhoc_completion_condition_compiled: reference() | nil,
@@ -134,12 +151,12 @@ defmodule BfwEngine.Execution.ProcessInstance.State do
     event_subprocess_triggers: %{},
     event_subprocess_kinds: %{},
     compensation_registry: [],
-    compensation_completion_counter: 0,
     compensation_runs: %{},
     compensation_end_reached: false,
     compensation_esp_throw_map: %{},
     mi_shell_tasks: %{},
     cancel_reached: false,
+    compensation_scope: %{request: nil, children: %{}},
     adhoc_completion_signaled: false,
     adhoc_completion_condition: nil,
     adhoc_completion_condition_compiled: nil,

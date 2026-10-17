@@ -260,7 +260,7 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
           %{flow_node_id: flow_node_id, expression: expression, reason: {:not_a_date_time, value}}}
        ) do
     "User task '#{flow_node_id}' could not resolve its bfw:dueDate '#{expression}': the FEEL " <>
-      "expression yielded #{feel_value_text(value)}, which is not a date-time."
+      "expression yielded #{feel_value_text(value)}, which is not a date or date-time."
   end
 
   defp humanize_error(
@@ -590,6 +590,35 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
       "'#{expression}' of its data output association evaluated to null; a data object needs a value."
   end
 
+  defp humanize_error(
+         {:compensation_scope_failed,
+          %{
+            subprocess_flow_node_id: subprocess_flow_node_id,
+            child_process_instance_id: child_process_instance_id,
+            reason: %{"message" => message}
+          }}
+       ) do
+    "Compensating the inner activities of subprocess '#{subprocess_flow_node_id}' failed in its " <>
+      "instance '#{child_process_instance_id}': #{String.trim_trailing(message, ".")}."
+  end
+
+  defp humanize_error(
+         {:compensation_scope_start_failed,
+          %{
+            subprocess_flow_node_id: subprocess_flow_node_id,
+            child_process_instance_id: child_process_instance_id,
+            reason: reason
+          }}
+       ) do
+    "Subprocess '#{subprocess_flow_node_id}' could not be compensated because its instance " <>
+      "'#{child_process_instance_id}' could not be started again: #{format_detail(reason)}."
+  end
+
+  defp humanize_error({:compensation_handler_fatal, handler_activity_id}) do
+    "Compensation handler '#{handler_activity_id}' went fatal, so the compensation of its " <>
+      "subprocess did not complete."
+  end
+
   defp humanize_error({error_code, detail}) when is_atom(error_code) and is_binary(detail) do
     "#{atom_to_words(error_code)}: #{detail}"
   end
@@ -658,6 +687,11 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfo do
   defp feel_value_text(value) when is_number(value) or is_boolean(value), do: to_string(value)
   defp feel_value_text(value) when is_list(value), do: "a list"
   defp feel_value_text(value) when is_map(value), do: "a context"
+
+  defp feel_value_text({duration_type, text})
+       when duration_type in [:feel_duration_dt, :feel_duration_ym],
+       do: "the duration #{text}"
+
   defp feel_value_text(_value), do: "a value of another FEEL type"
 
   defp input_violation_message(element, violations) do

@@ -17,6 +17,9 @@
         <bpmn:flowNodeRef>Start_1</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>UserTask_Feel</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>UserTask_Literal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_DateOnly</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_OffsetLess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>UserTask_FeelOffsetLess</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>End_1</bpmn:flowNodeRef>
       </bpmn:lane>
     </bpmn:laneSet>
@@ -34,18 +37,36 @@
         <bfw:dueDate>2026-12-31T23:59:59Z</bfw:dueDate>
       </bpmn:extensionElements>
     </bpmn:userTask>
+    <bpmn:userTask id="UserTask_DateOnly" name="Sign (date-only due date)">
+      <bpmn:extensionElements>
+        <bfw:dueDate>2025-12-01</bfw:dueDate>
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+    <bpmn:userTask id="UserTask_OffsetLess" name="Archive (offset-less due date)">
+      <bpmn:extensionElements>
+        <bfw:dueDate>2026-12-31T23:59:59</bfw:dueDate>
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+    <bpmn:userTask id="UserTask_FeelOffsetLess" name="Close (offset-less FEEL due date)">
+      <bpmn:extensionElements>
+        <bfw:dueDate>context.localDeadline</bfw:dueDate>
+      </bpmn:extensionElements>
+    </bpmn:userTask>
     <bpmn:endEvent id="End_1" name="End"/>
     <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="UserTask_Feel"/>
     <bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_Feel" targetRef="UserTask_Literal"/>
-    <bpmn:sequenceFlow id="Flow_3" sourceRef="UserTask_Literal" targetRef="End_1"/>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="UserTask_Literal" targetRef="UserTask_DateOnly"/>
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="UserTask_DateOnly" targetRef="UserTask_OffsetLess"/>
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="UserTask_OffsetLess" targetRef="UserTask_FeelOffsetLess"/>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="UserTask_FeelOffsetLess" targetRef="End_1"/>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
       <bpmndi:BPMNShape id="Shape_Participant_UserTaskDueDateAndAssignees" bpmnElement="Participant_UserTaskDueDateAndAssignees" isHorizontal="true">
-        <dc:Bounds x="82" y="60" width="782" height="300" />
+        <dc:Bounds x="82" y="60" width="1262" height="300" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Lane_default" bpmnElement="Lane_default" isHorizontal="true">
-        <dc:Bounds x="112" y="60" width="752" height="300" />
+        <dc:Bounds x="112" y="60" width="1232" height="300" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Start_1" bpmnElement="Start_1">
         <dc:Bounds x="162" y="112" width="36" height="36" />
@@ -56,8 +77,17 @@
       <bpmndi:BPMNShape id="Shape_UserTask_Literal" bpmnElement="UserTask_Literal">
         <dc:Bounds x="420" y="90" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_DateOnly" bpmnElement="UserTask_DateOnly">
+        <dc:Bounds x="580" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_OffsetLess" bpmnElement="UserTask_OffsetLess">
+        <dc:Bounds x="740" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_UserTask_FeelOffsetLess" bpmnElement="UserTask_FeelOffsetLess">
+        <dc:Bounds x="900" y="90" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_End_1" bpmnElement="End_1">
-        <dc:Bounds x="582" y="112" width="36" height="36" />
+        <dc:Bounds x="1062" y="112" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
         <di:waypoint x="198" y="130" />
@@ -69,7 +99,19 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Flow_3" bpmnElement="Flow_3">
         <di:waypoint x="520" y="130" />
-        <di:waypoint x="582" y="130" />
+        <di:waypoint x="580" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_4" bpmnElement="Flow_4">
+        <di:waypoint x="680" y="130" />
+        <di:waypoint x="740" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_5" bpmnElement="Flow_5">
+        <di:waypoint x="840" y="130" />
+        <di:waypoint x="900" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_6" bpmnElement="Flow_6">
+        <di:waypoint x="1000" y="130" />
+        <di:waypoint x="1062" y="130" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

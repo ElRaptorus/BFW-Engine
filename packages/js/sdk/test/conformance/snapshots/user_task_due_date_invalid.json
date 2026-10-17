@@ -1,0 +1,272 @@
+{
+  "definitionsId": "Definitions_UserTaskDueDateInvalid",
+  "errors": [],
+  "escalations": [],
+  "linterScores": [],
+  "messages": [],
+  "processes": [
+    {
+      "associations": [],
+      "complexRegionAnalyses": {},
+      "correlationKey": null,
+      "dataObjectReferences": [],
+      "dataObjects": [],
+      "dataStoreReferences": [],
+      "extensions": [],
+      "flowNodes": [
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Start_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Start",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "start_event",
+          "typeData": {
+            "eventDefinition": {},
+            "isInterrupting": true,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "Gateway_Case",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Which due date?",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "exclusive_gateway",
+          "typeData": {
+            "defaultFlowRef": "Flow_Bad"
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_BadDueDate",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Bad Due Date",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "\"next week\"",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_NullDueDate",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Null Due Date",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "null",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_DurationDueDate",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Duration Due Date",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "PT1H",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "UserTask_MisspelledDueDate",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "Misspelled Due Date",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "user_task",
+          "typeData": {
+            "assigneesExpression": null,
+            "dueDate": "token.dedline",
+            "formActions": null,
+            "formFields": null,
+            "inMappings": [],
+            "outMappings": [],
+            "payloadContract": null,
+            "priority": null,
+            "resultContract": null
+          }
+        },
+        {
+          "boundaryEventRefs": [],
+          "dataInputAssociations": [],
+          "dataOutputAssociations": [],
+          "documentation": null,
+          "id": "End_1",
+          "incoming": [],
+          "isForCompensation": false,
+          "multiInstance": null,
+          "name": "End",
+          "outgoing": [],
+          "standardLoop": null,
+          "type": "end_event",
+          "typeData": {
+            "eventDefinition": {},
+            "inMappings": [],
+            "payloadContract": null
+          }
+        }
+      ],
+      "id": "UserTaskDueDateInvalid",
+      "inclusiveJoinAnalyses": {},
+      "isAdHocScope": false,
+      "isExecutable": true,
+      "isTransactionScope": false,
+      "lanes": [
+        {
+          "flowNodeRefs": [
+            "Start_1",
+            "Gateway_Case",
+            "UserTask_BadDueDate",
+            "UserTask_NullDueDate",
+            "UserTask_DurationDueDate",
+            "UserTask_MisspelledDueDate",
+            "End_1"
+          ],
+          "id": "Lane_default",
+          "name": "default"
+        }
+      ],
+      "name": "User Task Due Date Invalid",
+      "sequenceFlows": [
+        {
+          "conditionExpression": null,
+          "id": "Flow_1",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Start_1",
+          "targetRef": "Gateway_Case"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Bad",
+          "isDefault": true,
+          "name": null,
+          "sourceRef": "Gateway_Case",
+          "targetRef": "UserTask_BadDueDate"
+        },
+        {
+          "conditionExpression": "token.case = \"null\"",
+          "id": "Flow_Null",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Case",
+          "targetRef": "UserTask_NullDueDate"
+        },
+        {
+          "conditionExpression": "token.case = \"duration\"",
+          "id": "Flow_Duration",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Case",
+          "targetRef": "UserTask_DurationDueDate"
+        },
+        {
+          "conditionExpression": "token.case = \"misspelled\"",
+          "id": "Flow_Misspelled",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "Gateway_Case",
+          "targetRef": "UserTask_MisspelledDueDate"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Bad_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_BadDueDate",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Null_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_NullDueDate",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Duration_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_DurationDueDate",
+          "targetRef": "End_1"
+        },
+        {
+          "conditionExpression": null,
+          "id": "Flow_Misspelled_End",
+          "isDefault": false,
+          "name": null,
+          "sourceRef": "UserTask_MisspelledDueDate",
+          "targetRef": "End_1"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "signals": []
+}

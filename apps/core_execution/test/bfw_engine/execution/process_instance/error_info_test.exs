@@ -509,7 +509,19 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
 
       assert not_a_date_time["message"] =~ "'Task_Review'"
       assert not_a_date_time["message"] =~ "'token.days'"
-      assert not_a_date_time["message"] =~ "yielded 3, which is not a date-time"
+      assert not_a_date_time["message"] =~ "yielded 3, which is not a date or date-time"
+
+      duration =
+        ErrorInfo.build(
+          {:user_task_due_date_failed,
+           %{
+             flow_node_id: "Task_Review",
+             expression: "x",
+             reason: {:not_a_date_time, {:feel_duration_dt, "PT1H"}}
+           }}
+        )
+
+      assert duration["message"] =~ "yielded the duration PT1H, which is not a date or date-time"
 
       evaluation_error =
         ErrorInfo.build(
@@ -848,6 +860,59 @@ defmodule BfwEngine.Execution.ProcessInstance.ErrorInfoTest do
       result = ErrorInfo.build(:retry_inside_adhoc_subprocess)
       assert result["error_code"] == "retry_inside_adhoc_subprocess"
       assert result["message"] =~ "ad-hoc subprocess"
+    end
+  end
+
+  describe "compensation scope error humanization" do
+    test "compensation_scope_failed names the subprocess, its instance, and the inner reason" do
+      result =
+        ErrorInfo.build(
+          {:compensation_scope_failed,
+           %{
+             subprocess_flow_node_id: "SubProcess_Booking",
+             child_process_instance_id: "child-1",
+             reason: %{
+               "error_code" => "compensation_handler_fatal",
+               "message" => "Compensation handler 'Task_Undo' went fatal."
+             }
+           }}
+        )
+
+      assert result["error_code"] == "compensation_scope_failed"
+
+      assert result["message"] ==
+               "Compensating the inner activities of subprocess 'SubProcess_Booking' failed in " <>
+                 "its instance 'child-1': Compensation handler 'Task_Undo' went fatal."
+
+      assert result["detail"]["reason"]["error_code"] == "compensation_handler_fatal"
+    end
+
+    test "compensation_scope_start_failed names the subprocess, its instance, and the start reason" do
+      result =
+        ErrorInfo.build(
+          {:compensation_scope_start_failed,
+           %{
+             subprocess_flow_node_id: "SubProcess_Booking",
+             child_process_instance_id: "child-1",
+             reason: :process_instance_not_found
+           }}
+        )
+
+      assert result["error_code"] == "compensation_scope_start_failed"
+
+      assert result["message"] ==
+               "Subprocess 'SubProcess_Booking' could not be compensated because its instance " <>
+                 "'child-1' could not be started again: process_instance_not_found."
+    end
+
+    test "compensation_handler_fatal names the handler activity" do
+      result = ErrorInfo.build({:compensation_handler_fatal, "Task_Undo_Book"})
+
+      assert result["error_code"] == "compensation_handler_fatal"
+
+      assert result["message"] ==
+               "Compensation handler 'Task_Undo_Book' went fatal, so the compensation of its " <>
+                 "subprocess did not complete."
     end
   end
 end

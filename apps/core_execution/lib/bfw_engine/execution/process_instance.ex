@@ -74,17 +74,16 @@ defmodule BfwEngine.Execution.ProcessInstance do
   alias BfwEngine.BPMN.InclusiveJoinAnalysis
   alias BfwEngine.BPMN.Model.EventDefinition
   alias BfwEngine.BPMN.Model.FlowNode
-  alias BfwEngine.BPMN.Model.FlowNodeData
   alias BfwEngine.BPMN.ModelCache
   alias BfwEngine.Events.EngineEventBus
   alias BfwEngine.Events.MessageSubscriptions
   alias BfwEngine.Events.SignalSubscriptions
   alias BfwEngine.Execution.BoundaryAwareHandler
   alias BfwEngine.Execution.CalledElementResolver
-  alias BfwEngine.Execution.CompensationResolver
   alias BfwEngine.Execution.ComplexJoinEvaluator
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.FlowNodes
+  alias BfwEngine.Execution.FlowNodes.ChildLifecycle
   alias BfwEngine.Execution.FlowNodes.EventSubprocess, as: EspScope
   alias BfwEngine.Execution.FniLifecycle
   alias BfwEngine.Execution.HandlerDispatch
@@ -120,6 +119,15 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # commit. All live iterations of a shell share one grace window.
   @iteration_shutdown_grace_ms 200
   @iteration_kill_wait_ms 1_000
+
+  # A parked compensation handler must keep naming its target and throw
+  # event, or its completion never resumes the Compensate Throw.
+  @compensation_link_keys [
+    :compensation_for,
+    :compensation_throw_fni_id,
+    "compensation_for",
+    "compensation_throw_fni_id"
+  ]
 
   @type start_opts :: %{
           required(:process_instance_id) => String.t(),
@@ -268,6 +276,50 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   @doc """
+  Revive the finished subprocess child instance `child_process_instance_id`
+  only to compensate its completed inner activities, in its own scope.
+
+  The revived instance writes no process instance state. It replies
+  `{:compensation_scope_finished, child_process_instance_id,
+  scope_target_id, handler_count}`, `{:compensation_scope_failed,
+  child_process_instance_id, scope_target_id, error_info}`, or
+  `{:compensation_scope_aborted, child_process_instance_id,
+  scope_target_id, reason}` to `request.reply_to`, then stops; it also
+  stops when `request.reply_to` goes down. Returns `{:busy, pid}` when the
+  instance is already running.
+  """
+  @spec start_compensation_scope(String.t(), State.compensation_scope_request()) ::
+          {:ok, pid()} | {:busy, pid()} | {:error, term()}
+  def start_compensation_scope(child_process_instance_id, request) do
+    adapter = PersistenceAdapter.adapter()
+
+    with {:ok, child_data} <- ChildLifecycle.fetch_persisted_child(child_process_instance_id),
+         {:ok, child_flow_node_instances} <-
+           adapter.list_all_flow_node_instances(child_process_instance_id) do
+      opts = %{
+        resume: true,
+        compensation_scope: request,
+        process_instance_id: child_process_instance_id,
+        process_version_id: child_data.process_version_id,
+        business_key: child_data.business_key,
+        parent_process_instance_id: child_data.parent_process_instance_id,
+        root_process_instance_id: request.root_process_instance_id,
+        triggerer_flow_node_instance_id: child_data.triggerer_flow_node_instance_id,
+        started_at: child_data.started_at,
+        started_by: child_data.started_by,
+        started_with_context: child_data.started_with_context,
+        fni_data: child_flow_node_instances
+      }
+
+      case DynamicSupervisor.start_child(BfwEngine.Execution.Supervisor, {__MODULE__, opts}) do
+        {:ok, pid} -> {:ok, pid}
+        {:error, {:already_started, pid}} -> {:busy, pid}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  @doc """
   Wait until a resumed PI has re-registered every message and signal
   subscription and re-attached every child PI. Returns `:ok` right away for
   a PI that was not resumed or has already stopped, and `{:error, :timeout}`
@@ -312,6 +364,54 @@ defmodule BfwEngine.Execution.ProcessInstance do
   def callback_mode, do: :state_functions
 
   @impl true
+  def init(%{resume: true, compensation_scope: request} = opts) do
+    Process.flag(:trap_exit, true)
+    Process.monitor(request.reply_to)
+
+    data = %State{
+      process_instance_id: opts.process_instance_id,
+      process_version_id: opts.process_version_id,
+      identity: Resumption.rebuild_identity(opts.started_by),
+      business_key: opts.business_key,
+      parent_process_instance_id: opts.parent_process_instance_id,
+      root_process_instance_id: opts.root_process_instance_id,
+      triggerer_flow_node_instance_id: opts.triggerer_flow_node_instance_id,
+      started_at: opts.started_at,
+      started_with_context: opts.started_with_context,
+      start_payload: Resumption.start_payload(opts.fni_data),
+      compensation_scope: %{request: request, children: %{}}
+    }
+
+    with {:ok, process_model, definitions} <-
+           fetch_process_model(data.process_version_id, request.subprocess_node_id),
+         {:ok, task_supervisor} <- Task.Supervisor.start_link(strategy: :one_for_one),
+         {:ok, data_object_rows} <-
+           PersistenceAdapter.adapter().list_data_objects(data.process_instance_id) do
+      data =
+        %{
+          data
+          | process_model: process_model,
+            definitions: definitions,
+            task_supervisor: task_supervisor,
+            data_object_cache: Map.new(data_object_rows, &{&1.data_object_id, &1.value})
+        }
+        |> Resumption.rebuild_flow_node_instance_states(opts.fni_data)
+        |> drop_fatal_flow_node_instances()
+        |> Resumption.rebuild_compensation_registry()
+        |> Resumption.reactivate_fnis(self())
+        |> CompensationOrchestrator.start_scope_run(compensation_runtime())
+
+      {:ok, :running, data, [{:next_event, :internal, :check_initial_dispatch}]}
+    else
+      {:error, reason} ->
+        Logger.error(
+          "PI #{data.process_instance_id} failed to start its compensation scope: #{inspect(reason)}"
+        )
+
+        {:stop, reason}
+    end
+  end
+
   def init(%{resume: true} = opts) do
     Process.flag(:trap_exit, true)
     mode = opts[:mode] || StandardMode
@@ -453,6 +553,17 @@ defmodule BfwEngine.Execution.ProcessInstance do
   catch
     kind, reason ->
       fail_resume(data, {:resume_crashed, Exception.format(kind, reason, __STACKTRACE__)})
+  end
+
+  # Fatal handler rows of an earlier failed scope run must not fail this one;
+  # their targets stay unclaimed, so this run compensates them again.
+  defp drop_fatal_flow_node_instances(data) do
+    states =
+      data.flow_node_instance_states
+      |> Enum.reject(fn {_id, entry} -> entry.state == :fatal end)
+      |> Map.new()
+
+    %{data | flow_node_instance_states: states}
   end
 
   # An ad-hoc child has no Start Event; it legitimately resumes without rows.
@@ -740,10 +851,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   def running(:info, {:fni_result, _flow_node_instance_id, :abort_cascade}, data) do
-    _persist_result = persist_pi_aborted(data, "child_aborted")
-    emit_pi_state_changed(data, :running, :aborted)
-    notify_parent(data, :aborted)
-    abort_all_fnis(data)
+    abort_process_instance(data, "child_aborted")
     {:stop, :normal, data}
   end
 
@@ -1122,6 +1230,133 @@ defmodule BfwEngine.Execution.ProcessInstance do
     {:keep_state, data, [{:reply, from, {:error, :not_adhoc_subprocess}}]}
   end
 
+  def running(:info, {:compensation_scope_dispatch, run_key, target}, data) do
+    data
+    |> CompensationOrchestrator.start_scope_target(run_key, target, compensation_runtime())
+    |> maybe_finish_or_continue()
+  end
+
+  def running(
+        :info,
+        {:compensation_scope_finished, _child_process_instance_id, scope_target_id,
+         handler_count},
+        data
+      ) do
+    case CompensationOrchestrator.take_scope_child(data, scope_target_id) do
+      {nil, data} ->
+        {:keep_state, data}
+
+      {scope_child, data} ->
+        data
+        |> CompensationOrchestrator.finish_scope_target(
+          scope_child,
+          handler_count,
+          compensation_runtime()
+        )
+        |> maybe_finish_or_continue()
+    end
+  end
+
+  def running(
+        :info,
+        {:compensation_scope_failed, child_process_instance_id, scope_target_id, error_info},
+        data
+      ) do
+    case CompensationOrchestrator.take_scope_child(data, scope_target_id) do
+      {nil, data} ->
+        {:keep_state, data}
+
+      {scope_child, data} ->
+        transition_to_fatal(
+          data,
+          {:compensation_scope_failed,
+           %{
+             subprocess_flow_node_id: scope_child.target.flow_node_id,
+             child_process_instance_id: child_process_instance_id,
+             reason: error_info
+           }}
+        )
+    end
+  end
+
+  def running(
+        :info,
+        {:compensation_scope_aborted, _child_process_instance_id, scope_target_id, reason},
+        data
+      ) do
+    case CompensationOrchestrator.take_scope_child(data, scope_target_id) do
+      {nil, data} ->
+        {:keep_state, data}
+
+      {_scope_child, data} ->
+        abort_process_instance(data, reason)
+        {:stop, :normal, data}
+    end
+  end
+
+  def running(:info, {:compensation_scope_start_failed, target, reason}, data) do
+    transition_to_fatal(
+      data,
+      {:compensation_scope_start_failed,
+       %{
+         subprocess_flow_node_id: target.flow_node_id,
+         child_process_instance_id: target.child_process_instance_id,
+         reason: reason
+       }}
+    )
+  end
+
+  # A busy scope instance stopped: start it again for this requester. An
+  # engine shutdown leaves the rows for resume; any other stop without a
+  # reply failed the compensation.
+  def running(
+        :info,
+        {:DOWN, _ref, :process, pid, reason},
+        %{compensation_scope: %{children: scope_children}} = data
+      )
+      when is_map_key(scope_children, pid) do
+    scope_child = Map.fetch!(scope_children, pid)
+    data = put_in(data.compensation_scope.children, Map.delete(scope_children, pid))
+
+    cond do
+      scope_child.busy ->
+        data
+        |> CompensationOrchestrator.retry_scope_target(scope_child, compensation_runtime())
+        |> maybe_finish_or_continue()
+
+      engine_shutdown?(reason) ->
+        {:stop, :shutdown, data}
+
+      true ->
+        transition_to_fatal(
+          data,
+          {:compensation_scope_failed,
+           %{
+             subprocess_flow_node_id: scope_child.target.flow_node_id,
+             child_process_instance_id: scope_child.target.child_process_instance_id,
+             reason: %{
+               "error_code" => "compensation_scope_crashed",
+               "message" =>
+                 "The instance stopped before it reported the result of its compensation.",
+               "detail" => JsonSafe.convert(reason)
+             }
+           }}
+        )
+    end
+  end
+
+  # The requester of a compensation scope instance went down: stop without
+  # touching the rows, so the requester's resume compensates again.
+  def running(
+        :info,
+        {:DOWN, _ref, :process, reply_to, _reason},
+        %{compensation_scope: %{request: %{reply_to: reply_to}}} = data
+      ) do
+    MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+    SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+    {:stop, :shutdown, data}
+  end
+
   # FNI Task process crashed (crash isolation)
   def running(:info, {:DOWN, _ref, :process, pid, reason}, data) when reason != :normal do
     case find_fni_by_pid(data, pid) do
@@ -1168,10 +1403,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         cancel_waiting_fni(data, flow_node_instance_id, entry, reason)
 
         data = handle_fni_aborted(data, flow_node_instance_id, reason)
-        persist_pi_aborted(data, reason)
-        emit_pi_state_changed(data, :running, :aborted)
-        notify_parent(data, :aborted)
-        abort_all_fnis(data)
+        abort_process_instance(data, reason)
         {:stop_and_reply, :normal, [{:reply, from, :ok}], data}
 
       %{state: state} ->
@@ -1228,11 +1460,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   # to child PIs. Mirrors the internal transition_to_fatal path but as a
   # synchronous gen_statem.call so the parent blocks until the child is dead.
   def running({:call, from}, {:force_fatal, reason}, data) do
-    _persist_result = persist_pi_fatal(data, reason)
-    emit_pi_state_changed(data, :running, :fatal)
-    notify_parent(data, {:fatal, reason})
-    fatal_all_fnis(data)
-    {:stop_and_reply, :normal, [{:reply, from, :ok}], data}
+    do_transition_to_fatal(data, reason, [{:reply, from, :ok}])
   end
 
   def running({:call, from}, {:trigger_timer_event, flow_node_instance_id}, data) do
@@ -1254,10 +1482,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   def running({:call, from}, {:abort, reason, _identity}, data) do
-    _persist_result = persist_pi_aborted(data, reason)
-    emit_pi_state_changed(data, :running, :aborted)
-    notify_parent(data, :aborted)
-    abort_all_fnis(data)
+    abort_process_instance(data, reason)
     {:stop_and_reply, :normal, [{:reply, from, :ok}], data}
   end
 
@@ -1951,8 +2176,18 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
+  defp parked_type_properties(nil, extra_type_properties),
+    do: parked_type_properties(%{}, extra_type_properties)
+
+  defp parked_type_properties(current_type_properties, extra_type_properties) do
+    current_type_properties
+    |> Map.take(@compensation_link_keys)
+    |> Map.put(:async, true)
+    |> Map.merge(Map.delete(extra_type_properties, :persisted))
+  end
+
   defp do_handle_fni_async(data, flow_node_instance_id, entry, extra_type_properties) do
-    type_properties = Map.merge(%{async: true}, Map.delete(extra_type_properties, :persisted))
+    type_properties = parked_type_properties(entry.type_properties, extra_type_properties)
 
     needs_registry =
       not is_map_key(extra_type_properties, :host_flow_node_instance_id) and
@@ -2139,11 +2374,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp transition_to_fatal_with_reply(data, reason, from) do
-    _persist_result = persist_pi_fatal(data, reason)
-    emit_pi_state_changed(data, :running, :fatal)
-    notify_parent(data, {:fatal, reason})
-    fatal_all_fnis(data)
-    {:stop_and_reply, :normal, [{:reply, from, :ok}], data}
+    do_transition_to_fatal(data, reason, [{:reply, from, :ok}])
   end
 
   # -------------------------------------------------------------------
@@ -2235,7 +2466,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
       })
 
     emit_activity_compensated(data, flow_node_instance_id, entry, throw_fni_id)
-    advance_compensation_run(data, throw_fni_id)
+
+    # A handler resumed from an earlier scope run belongs to this run now.
+    case data.compensation_scope.request do
+      %{anchor_fni_id: anchor_fni_id} -> advance_compensation_run(data, anchor_fni_id)
+      nil -> advance_compensation_run(data, throw_fni_id)
+    end
   end
 
   defp handle_compensation_esp_finished(data, flow_node_instance_id, result, throw_fni_id) do
@@ -2295,7 +2531,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
           token: %{entry.token | payload: output_payload}
       })
 
-    data = maybe_push_compensation_registry(data, flow_node_instance_id, entry, output_payload)
+    data = maybe_push_compensation_registry(data, flow_node_instance_id)
 
     data =
       if BoundaryOrchestrator.has_boundary_fnis?(data, flow_node_instance_id) do
@@ -2585,6 +2821,12 @@ defmodule BfwEngine.Execution.ProcessInstance do
             iteration_index: Map.get(entry, :iteration_index),
             was_waiting: entry.state == :waiting
           )
+
+        # `fatal_all_fnis/1` skips this entry once it is `:fatal`; a child
+        # instance spawned by its handler is cascaded here or never.
+        _cascade =
+          flow_node &&
+            InstanceHandlerDispatch.invoke_optional_callback(flow_node, :handle_fatal, [entry])
 
         data =
           put_in(data.flow_node_instance_states[flow_node_instance_id], %{
@@ -2921,7 +3163,8 @@ defmodule BfwEngine.Execution.ProcessInstance do
         mode: :esp,
         throw_type: run_spec.throw_type,
         outgoing_flow_node_ids: run_spec.outgoing_flow_node_ids,
-        token_payload: output_payload
+        token_payload: output_payload,
+        handler_count: 0
       })
 
     emit_fni_state_changed(data, flow_node_instance_id, entry, :active, :waiting)
@@ -2962,7 +3205,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
          entry,
          event_definition
        ) do
-    targets = CompensationResolver.resolve(data.compensation_registry, event_definition)
+    targets = CompensationOrchestrator.resolve_targets(data, event_definition)
 
     if targets == [] do
       handle_compensation_no_targets(
@@ -3072,7 +3315,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp advance_compensation_run(data, throw_fni_id) do
-    CompensationOrchestrator.advance_run(data, throw_fni_id, compensation_runtime())
+    CompensationOrchestrator.advance_run(data, throw_fni_id, 1, compensation_runtime())
   end
 
   # -- End Compensation orchestration -------------------------------------------
@@ -3144,7 +3387,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
 
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
     SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
-    updated_data
+    end_compensation_runs_of_ended_throws(updated_data)
   end
 
   # The PI's subscriptions outside the region must stay. Iterations must be shut
@@ -3167,6 +3410,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       |> interrupt_single_region_fni(flow_node_instance_id)
       |> BoundaryOrchestrator.cancel_boundary_fnis_for_host(flow_node_instance_id)
     end)
+    |> end_compensation_runs_of_ended_throws()
   end
 
   defp interrupt_single_region_fni(data, flow_node_instance_id) do
@@ -3993,56 +4237,45 @@ defmodule BfwEngine.Execution.ProcessInstance do
     end
   end
 
-  defp maybe_push_compensation_registry(data, fni_id, entry, output_payload) do
-    node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
-    flow_node = Map.get(node_index, entry.flow_node_id)
+  defp maybe_push_compensation_registry(data, flow_node_instance_id) do
+    order = length(data.compensation_registry)
+    entry = Map.fetch!(data.flow_node_instance_states, flow_node_instance_id)
 
-    compensation_handler_id = find_compensation_handler_id(flow_node, node_index)
-
-    if compensation_handler_id do
-      order = data.compensation_completion_counter
-
-      new_entry = %{
-        completed_fni_id: fni_id,
-        flow_node_id: entry.flow_node_id,
-        handler_activity_id: compensation_handler_id,
-        token_snapshot: output_payload,
-        completion_order: order
-      }
-
-      %{
+    case CompensationOrchestrator.registry_entry(data, flow_node_instance_id, entry, order) do
+      nil ->
         data
-        | compensation_registry: [new_entry | data.compensation_registry],
-          compensation_completion_counter: order + 1
-      }
-    else
-      data
+
+      registry_entry ->
+        %{data | compensation_registry: [registry_entry | data.compensation_registry]}
     end
   end
 
-  defp find_compensation_handler_id(nil, _node_index), do: nil
+  # A compensation scope instance writes no process instance state: it stops
+  # once its run replied and nothing it started is still running.
+  defp maybe_finish(%{compensation_scope: %{request: %{}}} = data) do
+    idle =
+      data.compensation_runs == %{} and data.compensation_scope.children == %{} and
+        not Enum.any?(data.flow_node_instance_states, fn {_id, entry} ->
+          entry.state in [:active, :waiting]
+        end)
 
-  defp find_compensation_handler_id(%FlowNode{} = flow_node, node_index) do
-    Enum.find_value(flow_node.boundary_event_refs, fn boundary_ref ->
-      case Map.get(node_index, boundary_ref) do
-        %FlowNode{
-          type: :boundary_event,
-          type_data: %FlowNodeData.BoundaryEvent{
-            event_definition: %EventDefinition.Compensation{},
-            compensation_handler_id: handler_id
-          }
-        }
-        when handler_id != nil ->
-          handler_id
-
-        _ ->
-          nil
-      end
-    end)
+    if idle do
+      MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+      SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
+      {:stop, data}
+    else
+      {:continue, data}
+    end
   end
 
+  # A cancel run waiting on a compensation scope instance has no live flow
+  # node instance, yet the scope has not ended.
   defp maybe_finish(data) do
-    if data.mode.should_complete?(data) do
+    cancel_running =
+      Enum.any?(data.compensation_runs, fn {_id, run} -> run.throw_type == :cancel end)
+
+    if data.compensation_scope.children == %{} and not cancel_running and
+         data.mode.should_complete?(data) do
       finish_quiesced_pi(data)
     else
       {:continue, data}
@@ -4050,6 +4283,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   end
 
   defp finish_quiesced_pi(data) do
+    data = abort_compensation_scope_children(data)
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
     SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
 
@@ -4093,7 +4327,28 @@ defmodule BfwEngine.Execution.ProcessInstance do
     do_transition_to_fatal(data, reason, [])
   end
 
+  defp do_transition_to_fatal(
+         %{compensation_scope: %{request: %{} = request}} = data,
+         reason,
+         extra_actions
+       ) do
+    data = abort_compensation_scope_children(data)
+    fatal_all_fnis(data)
+
+    send(
+      request.reply_to,
+      {:compensation_scope_failed, data.process_instance_id, request.scope_target_id,
+       compensation_scope_error_info(data, reason)}
+    )
+
+    case extra_actions do
+      [] -> {:stop, :normal, data}
+      actions -> {:stop_and_reply, :normal, actions, data}
+    end
+  end
+
   defp do_transition_to_fatal(data, reason, extra_actions) do
+    data = abort_compensation_scope_children(data)
     _persist_result = persist_pi_fatal(data, reason)
     emit_pi_state_changed(data, :running, :fatal)
     notify_parent(data, {:fatal, reason})
@@ -4138,6 +4393,75 @@ defmodule BfwEngine.Execution.ProcessInstance do
     MessageSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
     SignalSubscriptions.unregister_all_for_process_instance(data.process_instance_id)
   end
+
+  # A compensation scope instance writes no process instance state; its
+  # requester aborts the tree.
+  defp abort_process_instance(%{compensation_scope: %{request: %{} = request}} = data, reason) do
+    data = abort_compensation_scope_children(data)
+    abort_all_fnis(data)
+
+    send(
+      request.reply_to,
+      {:compensation_scope_aborted, data.process_instance_id, request.scope_target_id, reason}
+    )
+  end
+
+  defp abort_process_instance(data, reason) do
+    data = abort_compensation_scope_children(data)
+    _persist_result = persist_pi_aborted(data, reason)
+    emit_pi_state_changed(data, :running, :aborted)
+    notify_parent(data, :aborted)
+    abort_all_fnis(data)
+  end
+
+  # Aborts the scope children of `run_keys` (all when nil) and stops tracking
+  # them, so their `compensation_scope_aborted` reply is ignored.
+  defp abort_compensation_scope_children(data, run_keys \\ nil) do
+    {aborted_children, remaining_children} =
+      Map.split_with(data.compensation_scope.children, fn {_pid, scope_child} ->
+        run_keys == nil or scope_child.run_key in run_keys
+      end)
+
+    # A busy pid belongs to another requester; this one only waited for it.
+    Enum.each(aborted_children, fn {pid, scope_child} ->
+      Process.demonitor(scope_child.monitor_ref, [:flush])
+
+      if not scope_child.busy do
+        try do
+          abort(pid, "process_aborted", nil)
+        catch
+          :exit, _already_stopped -> :ok
+        end
+      end
+    end)
+
+    put_in(data.compensation_scope.children, remaining_children)
+  end
+
+  # A run ends with its throw FNI. A scope run's key belongs to another
+  # instance and a Cancel End's run outlives its finished FNI, so neither
+  # matches here.
+  defp end_compensation_runs_of_ended_throws(data) do
+    ended_run_keys =
+      for {run_key, _run} <- data.compensation_runs,
+          match?(
+            %{state: state} when state in [:interrupted, :error],
+            Map.get(data.flow_node_instance_states, run_key)
+          ),
+          do: run_key
+
+    %{data | compensation_runs: Map.drop(data.compensation_runs, ended_run_keys)}
+    |> abort_compensation_scope_children(ended_run_keys)
+  end
+
+  defp compensation_scope_error_info(data, :fni_fatal) do
+    case Enum.find(data.flow_node_instance_states, fn {_id, entry} -> entry.state == :fatal end) do
+      {_id, entry} -> ErrorInfo.build({:compensation_handler_fatal, entry.flow_node_id})
+      nil -> ErrorInfo.build(:fni_fatal)
+    end
+  end
+
+  defp compensation_scope_error_info(_data, reason), do: ErrorInfo.build(reason)
 
   defp abort_all_fnis(data) do
     data.flow_node_instance_states
@@ -4214,7 +4538,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
         })
       end)
 
-    updated_data
+    end_compensation_runs_of_ended_throws(updated_data)
   end
 
   # -------------------------------------------------------------------
@@ -4277,6 +4601,13 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp process_instance_fatal_error_info(
          {:event_subprocess_timer_resolution_failed, _, _} = reason
        ),
+       do: ErrorInfo.build(reason)
+
+  defp process_instance_fatal_error_info({compensation_scope_error, _detail} = reason)
+       when compensation_scope_error in [
+              :compensation_scope_failed,
+              :compensation_scope_start_failed
+            ],
        do: ErrorInfo.build(reason)
 
   defp process_instance_fatal_error_info(
@@ -4432,11 +4763,16 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp emit_transaction_cancelled(data) do
     transaction_node_id = extract_transaction_node_id(data)
 
+    compensation_handler_count =
+      Enum.find_value(data.flow_node_instance_states, 0, fn {_id, entry} ->
+        Map.get(entry.type_properties || %{}, :compensation_handler_count)
+      end)
+
     EngineEventBus.publish(%Event.TransactionCancelled{
       process_instance_id: data.process_instance_id,
       root_process_instance_id: data.root_process_instance_id,
       transaction_node_id: transaction_node_id,
-      compensation_handler_count: length(data.compensation_registry),
+      compensation_handler_count: compensation_handler_count,
       lane_name: resolve_lane_for_flow_node_id(data, transaction_node_id),
       occurred_at: DateTime.utc_now()
     })
@@ -4447,7 +4783,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
       %{
         process_instance_id: data.process_instance_id,
         transaction_node_id: transaction_node_id,
-        compensation_handler_count: length(data.compensation_registry)
+        compensation_handler_count: compensation_handler_count
       }
     )
   end

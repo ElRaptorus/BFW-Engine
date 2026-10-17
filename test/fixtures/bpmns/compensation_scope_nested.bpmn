@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationScopeNested">
+
+  <!--
+    Neither subprocess has a handler of its own, so compensating SubProcess_Outer
+    compensates SubProcess_Inner, which runs UT_Undo_Book in its own instance.
+  -->
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="CompensationScopeNested" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationScopeNested" name="Compensation Scope Nested" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:subProcess id="SubProcess_Outer" name="Outer">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:startEvent id="Outer_Start" name="Outer Start">
+        <bpmn:outgoing>Outer_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:subProcess id="SubProcess_Inner" name="Inner">
+        <bpmn:incoming>Outer_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Outer_Flow_2</bpmn:outgoing>
+
+        <bpmn:startEvent id="Inner_Start" name="Inner Start">
+          <bpmn:outgoing>Inner_Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:task id="Task_Book" name="Book">
+          <bpmn:incoming>Inner_Flow_1</bpmn:incoming>
+          <bpmn:outgoing>Inner_Flow_2</bpmn:outgoing>
+        </bpmn:task>
+
+        <bpmn:boundaryEvent id="BE_Comp_Book" name="Compensate Book" attachedToRef="Task_Book" cancelActivity="false">
+          <bpmn:compensateEventDefinition />
+        </bpmn:boundaryEvent>
+
+        <bpmn:userTask id="UT_Undo_Book" name="Undo Book" isForCompensation="true" />
+
+        <bpmn:endEvent id="Inner_End" name="Inner End">
+          <bpmn:incoming>Inner_Flow_2</bpmn:incoming>
+        </bpmn:endEvent>
+
+        <bpmn:sequenceFlow id="Inner_Flow_1" sourceRef="Inner_Start" targetRef="Task_Book" />
+        <bpmn:sequenceFlow id="Inner_Flow_2" sourceRef="Task_Book" targetRef="Inner_End" />
+
+        <bpmn:association id="Assoc_Comp_Book" sourceRef="BE_Comp_Book" targetRef="UT_Undo_Book" associationDirection="One" />
+      </bpmn:subProcess>
+
+      <bpmn:endEvent id="Outer_End" name="Outer End">
+        <bpmn:incoming>Outer_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Outer_Flow_1" sourceRef="Outer_Start" targetRef="SubProcess_Inner" />
+      <bpmn:sequenceFlow id="Outer_Flow_2" sourceRef="SubProcess_Inner" targetRef="Outer_End" />
+    </bpmn:subProcess>
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_Outer" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Outer" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Throw_Comp" targetRef="End_1" />
+  </bpmn:process>
+</bpmn:definitions>

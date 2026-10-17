@@ -262,7 +262,7 @@ boundaries fire once via `{:boundary, ...}`.
 
 **Path:** `apps/core_execution/lib/bfw_engine/execution/sequence_flow_resolver.ex`
 
-Utility called by individual handlers (not the PI) to determine outgoing flow targets. The PI dispatches from handler-provided `next_flow_node_ids` on `FlowNodeResult`. Gateway split handlers (Exclusive, and in later phases Inclusive) implement their own FEEL-based routing and do **not** use this resolver; non-gateway handlers and gateway-join handlers delegate here. Enforces encounter-time validation:
+Utility called by individual handlers (not the PI) to determine outgoing flow targets. The PI dispatches from handler-provided `next_flow_node_ids` on `FlowNodeResult`. Gateway split handlers (Exclusive, Inclusive, Complex) implement their own FEEL-based routing and do **not** use this resolver; non-gateway handlers and gateway-join handlers delegate here. Enforces encounter-time validation:
 
 - **Implicit split** (non-gateway with >1 outgoing) → `{:error, :implicit_split, meta}`
 - **Dead end** (non-End-Event with 0 outgoing) → `{:error, :dead_end, meta}`
@@ -270,7 +270,7 @@ Utility called by individual handlers (not the PI) to determine outgoing flow ta
 
 #### Conditions on non-Gateway-outgoing flows
 
-`<bpmn:conditionExpression>` is **only honored on outgoing sequence flows of Split Gateways** (Exclusive and Inclusive). For every other source element — Activities, Events, Gateway-joins — any `<conditionExpression>` on outgoing flows is **silently ignored**: the flow is treated as if no condition were present and is followed unconditionally. The implicit-split and dead-end detectors above continue to apply uniformly.
+`<bpmn:conditionExpression>` is **only honored on outgoing sequence flows of Split Gateways** (Exclusive, Inclusive, and Complex). For every other source element — Activities, Events, Gateway-joins — any `<conditionExpression>` on outgoing flows is **silently ignored**: the flow is treated as if no condition were present and is followed unconditionally. The implicit-split and dead-end detectors above continue to apply uniformly.
 
 The Studio prevents this construct at modeling time. The engine tolerates imported or hand-edited BPMN files containing it but does not honor the conditions. An Activity that needs conditional branching must place an Exclusive (or Inclusive) Gateway as its successor and put the conditions on the Gateway's outgoing flows.
 
@@ -290,7 +290,7 @@ Error boundaries use `ErrorBoundaryEvent` as their handler module. This handler 
 
 Error routing stays entirely in the handler layer:
 
-- **`BoundaryAwareHandler.wrap_enter/4`** intercepts `{:error, reason}` from activity handlers and checks for matching error boundaries via `BoundaryResolver.find_matching_error_boundary/4` (pass `Definitions` so catch-side `errorRef` resolves). On match, the error is converted to `{:boundary, boundary_node_id, error_info, cancel_activity}` before the PI sees it.
+- **`BoundaryAwareHandler.wrap_enter/4`** intercepts `{:error, reason}` from activity handlers and checks for matching error boundaries via `BoundaryResolver.find_matching_error_boundary/4` (pass `Definitions` so catch-side `errorRef` resolves). On match, the error is converted to `{:boundary, boundary_node_id, error_info, cancel_activity}` before the PI sees it. The boundary payload is `%{error_code, error_message}`: a structured reason (a `fail_async` map or a coded error such as `handler_raised`) passes through unchanged; every other reason gets `error_code: "HANDLER_ERROR"` and `error_message` = the diagnostic sentence of `ErrorInfo.build(reason)["message"]` (the same text the fatal path records), never `inspect/1` output.
 - **`SubProcess.handle_child_error/3`** resolves error boundaries for child PI errors in the async continuation.
 
 The PI processes the resulting `{:boundary, ...}` through `handle_boundary_catch/5`, which finds the pre-spawned error boundary FNI (by `boundary_node_id` **and** `host_flow_node_instance_id`, so with concurrent instances of the same activity the failing instance's own boundary fires), kills the passive handler Task, and finishes the FNI in-place. This is the same `finish_boundary_fni` path used by subscription boundaries. `BoundaryResolver` matches by resolved code only (inline `bfw:errorCode`, else the `errorRef` global code, else catch-all); `bfw:errorMessage` is descriptive and never filters a match.
@@ -368,7 +368,7 @@ Each handler calls `SequenceFlowResolver.resolve/2` internally (or implements it
 | `LinkThrowEvent` | Resolves matching Link Catch by `link_name` in the same process, routes token directly (bypasses `SequenceFlowResolver`). Errors on zero matches (`:no_matching_link_catch`) or multiple matches (`:ambiguous_link_catch`) |
 | `LinkCatchEvent` | Pass-through via `SequenceFlowResolver` — landing pad for Link Throw events |
 | `ManualTask` | Returns `{:wait, ...}` when `require_confirmation` is true, otherwise pass-through |
-| `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `bfw:dueDate` → `bfw:assignees` → `{:wait, ...}`. `bfw:dueDate` is kept as written when it is an ISO 8601 date-time, else evaluated as FEEL with `token` bound to the mapped input (date-time → ISO 8601 UTC, `null` → no due date, anything else or a FEEL error → `user_task_due_date_failed`); `bfw:assignees` is evaluated against the same mapped input. Output pipeline on finish: `{ actionId, values }` → `out_mappings` (FEEL `token` is that envelope) → `result_contract` → `PayloadCap`. Input and due-date failures fail the task (error boundaries and Error Event Subprocess starts apply, else fatal). Output contract violations → retryable (422, stays `:waiting`); an unusable result schema is reported as one violation `{"The contract is not a valid JSON Schema: <message>", "#"}`, and `UserTaskValidationFailed.violations` carries `%{message, path}` maps |
+| `UserTask` | Input pipeline: `in_mappings` → `payload_contract` → `bfw:dueDate` → `bfw:assignees` → `{:wait, ...}`. `bfw:dueDate` (`resolve_due_date/3`) is kept as written when it is an ISO 8601 date-time with an offset; an offset-less date-time literal is read as UTC and a date literal as midnight UTC; anything else is evaluated as FEEL with `token` bound to the mapped input (`evaluate_due_date/4`: a date-time, a date, or a string in a literal form → ISO 8601 UTC; `null`, a duration, any other value, or a FEEL error → `user_task_due_date_failed`); `bfw:assignees` is evaluated against the same mapped input. Output pipeline on finish: `{ actionId, values }` → `out_mappings` (FEEL `token` is that envelope) → `result_contract` → `PayloadCap`. Input and due-date failures fail the task (error boundaries and Error Event Subprocess starts apply, else fatal). Output contract violations → retryable (422, stays `:waiting`); an unusable result schema is reported as one violation `{"The contract is not a valid JSON Schema: <message>", "#"}`, and `UserTaskValidationFailed.violations` carries `%{message, path}` maps |
 | `ExclusiveGateway` | Owns routing: evaluates FEEL conditions on outgoing flows, enforces exactly-one-truthy (deliberate divergence from BPMN 2.0 "first truthy wins"). An unmarked non-default outgoing flow on a split (`outgoing > 1`) is a **runtime fatal** `:exclusive_gateway_unconditional_flow` **before** FEEL evaluation. A single unmarked outgoing is pass-through; a single outgoing that carries a condition is still evaluated (false + no default → `:no_matching_condition`). The diagram still deploys; Studio lints warning (`bpmn-development`) / error (`bpmn-production-ready`). Mixed gateways (both split and join) rejected at runtime. Join is pure pass-through |
 | `ParallelGateway` | Fork: resolves all outgoing sequence flows via `SequenceFlowResolver` (conditions ignored). Join: handler-owned async Task with PI routing (see §Parallel Gateway below). Mixed gateways rejected at runtime |
 | `InclusiveGateway` | Fork: evaluates all outgoing conditional FEEL expressions; activates every truthy path plus unconditional non-default flows (OR-split). If zero truthy: default path, or fatal `:no_matching_condition`. Join: handler-owned async Task with PI routing and **structural backward-cone** dead-path elimination (see §Inclusive Gateway below). Resume re-evaluates DPE via `evaluate_parked_inclusive_joins/1`. Mixed gateways rejected at runtime |
@@ -785,7 +785,7 @@ Conditional events inside an embedded subprocess evaluate against the **child PI
 
 **Path:** `apps/core_execution/lib/bfw_engine/execution/flow_nodes/child_lifecycle.ex`
 
-`ChildLifecycle` is a pure helper module (no behaviour, no state) that contains all shared child-PI lifecycle logic used by both `SubProcess` and `CallActivity` handlers. It was extracted to eliminate ~600 lines of duplicated code and to provide a single extension point for future subprocess-like handlers (e.g. Transaction SubProcess).
+`ChildLifecycle` is a helper module (no behaviour, no state) that contains the shared child-PI lifecycle logic used by the `SubProcess`, `CallActivity`, `TransactionSubProcess`, `AdHocSubProcess`, and `EventSubprocess` handlers.
 
 #### Responsibilities
 
@@ -807,13 +807,13 @@ Conditional events inside an embedded subprocess evaluate against the **child PI
 
 - **`child_label`** — customizes error messages (e.g. `"SubProcess"` vs `"Call Activity"`)
 - **`extra_terminal_states`** — map from a child state string to a handler function for additional terminal child states (Transaction: `%{"cancelled" => &resume_from_cancelled_child/4}`)
-- **`extra_message_handler`** — allows handlers to intercept custom messages in the `await_child_completion` receive loop (Transaction: `{:child_pi_cancelled, ...}`)
+- **`extra_message_handler`** — receives the awaited child's `{:child_pi_cancelled, child_pid, final_tokens}` in the `await_child_completion` receive loop (Transaction: resolves the Cancel Boundary). The loop matches only that message from that child pid; every other message stays in the handler Task's mailbox
 - **`fresh_lifecycle_fn`** — callback for handler-specific resume-from-scratch logic
 - **`extra_resume_opts`** — additional options merged into child resume opts
 
 #### Design constraint
 
-`ChildLifecycle` must remain a stateless helper. It never holds references to child processes, never manages OTP supervision, and never accesses persistence directly (all DB operations go through the `PersistenceAdapter` passed in by the caller). Handlers own the orchestration; `ChildLifecycle` provides the building blocks.
+`ChildLifecycle` must remain a stateless helper. It never holds references to child processes beyond one await call and never manages OTP supervision; its reads (child PI row, End Event rows) go through `PersistenceAdapter.adapter()`. Handlers own the orchestration; `ChildLifecycle` provides the building blocks.
 
 ### SubProcess Handler
 
@@ -831,7 +831,7 @@ The child PI does not reference a separately deployed process definition. At sta
 
 The synthetic process carries the inner `flow_nodes`, `sequence_flows`, `data_objects`, `data_object_references`, and `data_store_references` from `FlowNodeData.SubProcess`. **Lane inheritance:** if the parent process has a lane whose `flow_node_refs` includes the subprocess shell node, the synthetic process receives a single inherited lane covering all inner flow nodes; otherwise it has no lanes.
 
-**Data object isolation:** inner data objects belong to the synthetic process scope only. Parent-scope data objects are not visible inside the subprocess (and vice versa) — each PI maintains its own `data_object_cache`.
+**Data object isolation (subprocess scope rule):** an element inside a subprocess sees only that subprocess's Data Objects, never the parent's, and the parent never sees the subprocess's — each PI maintains its own `data_object_cache`, loaded from its own `data_objects` rows, and FEEL `dataObjects` is that cache. This is deliberately stricter than BPMN 2.0, where an inner element may read the Data Objects of enclosing scopes. Inner compensation handlers follow the same rule: they run in the subprocess's own PI (§Compensation scope run), so they read and write the subprocess's Data Objects and take its lane.
 
 #### `handle_enter/3`
 
@@ -856,9 +856,11 @@ The handler Task blocks on `await_child_completion/3`, receiving `{:child_pi_fin
 
 When the child finishes normally, `apply_out_mappings_to_result/5` aggregates End Event tokens, applies `out_mappings`, validates `result_contract`, and returns `{:ok, %FlowNodeResult{}}` to the parent PI.
 
+`aggregate_tokens/1` merges the payloads of every finished End Event with `Map.merge/2`. The list comes from the child's FNI map (`build_final_tokens/1`, map iteration order) or, after the child stopped, from `list_flow_node_instances/1` (no `ORDER BY`), so when two End Events write the same key the surviving value is unspecified, not the last completion.
+
 #### Error bubbling
 
-BPMN errors from the child PI (`{:child_pi_bpmn_error, ...}`) are routed through `handle_child_error/3` → `BoundaryResolver.find_matching_error_boundary/4` on the **subprocess shell** node. A matching error boundary on the shell returns `{:boundary, boundary_node_id, error_info, cancel_activity}`; no match propagates `{:error, error_info}` and fatals the parent.
+BPMN errors from the child PI (`{:child_pi_bpmn_error, ...}`) are routed through `handle_child_error/3` → `BoundaryResolver.find_matching_error_boundary/4` on the **subprocess shell** node. A matching error boundary on the shell returns `{:boundary, boundary_node_id, error_info, cancel_activity}`. Without a match, `propagate_bpmn_error/4` finishes the shell `:error` and returns `{:bpmn_error, error_info, result}`: the parent PI offers the error to its Error Event Subprocess starts (`EspScope.resolve_bpmn_error_catch/2`), and when none matches it errors its remaining FNIs (`error_all_remaining_fnis/2`), ends `:error`, and sends `{:child_pi_bpmn_error, ...}` to its own parent. The error bubbles scope by scope; it never turns into `:fatal`. Call Activities and transactions use the same path.
 
 `handle_enter/3`-level failures (validation, input mapping, payload contract) are additionally caught by `BoundaryAwareHandler.wrap_enter/4` when error boundaries are attached to the shell.
 
@@ -868,7 +870,7 @@ A Terminate End Event inside the subprocess child PI calls `interrupt_remaining_
 
 #### Cascade callbacks
 
-`handle_fatal/1` and `handle_aborted/1` cascade to the child PI via `ProcessInstance.force_fatal/2` / `ProcessInstance.abort/3` when the child is still running (same pattern as Call Activity).
+`handle_fatal/1` and `handle_aborted/1` cascade to the child PI via `ProcessInstance.force_fatal/2` / `ProcessInstance.abort/3` when the child is still running (same pattern as Call Activity). When the shell's own handler Task crashes, `handle_fni_fatal/3` calls `handle_fatal/1` for it before marking the entry `:fatal`; `fatal_all_fnis/1` skips entries that are already `:fatal`, so the child is cascaded exactly once.
 
 #### `handle_resume/4`
 
@@ -1233,9 +1235,11 @@ When the engine crashes mid-cascade (between persisting a parent PI's terminal s
 
 ### Cleanup order
 
-1. **FNI sweep** (`cleanup_orphaned_flow_node_instances/0`) — Single bulk UPDATE that aborts all FNIs in non-terminal state on terminal PIs. Runs first because it handles FNIs on already-terminal PIs (independent of the PI sweep).
-2. **PI sweep** (`cleanup_orphaned_process_instances/0`) — Iterative loop that finds child PIs whose parent is terminal, aborts their FNIs, then aborts the PIs themselves. Repeats until no more orphans are found (handles nested orphans: grandchild, great-grandchild, etc.). Safety cap of 10 iterations prevents infinite loops.
+1. **PI sweep** (`cleanup_orphaned_process_instances/0`) — Iterative loop that finds child PIs in `running` state whose parent is terminal, aborts their FNIs, then aborts the PIs themselves. Repeats until no more orphans are found (handles nested orphans: grandchild, great-grandchild, etc.). Safety cap of 10 iterations prevents infinite loops. A `finished` child is never touched.
+2. **FNI sweep** (`cleanup_orphaned_flow_node_instances/0`) — Single bulk UPDATE that aborts all FNIs in `active` / `waiting` state on terminal PIs, except compensation handlers whose run is still live (below). Runs after the PI sweep so that an anchor inside an orphaned child is already aborted when the exemption is decided.
 3. **Resume** — Existing paginated resume of root-level running PIs.
+
+**Compensation handler exemption.** An inner compensation handler runs in a `finished` subprocess PI (§Compensation scope run), so after a crash its `active` / `waiting` row sits on a terminal PI. The FNI sweep keeps such a row when its `type_properties->>'compensation_throw_fni_id'` (cast to `uuid`) names an FNI whose PI is neither terminal nor deleted: the resumed requester rebuilds the run, revives the scope PI, and the handler continues. The anchor is always the top Compensate Throw or Cancel End FNI, also for nested scopes. Once the anchor's PI is terminal, deleted, or the anchor row is gone, the handler row is aborted like any other orphan.
 
 ### Audit trail
 
@@ -1299,13 +1303,12 @@ The PI `:gen_statem` traps exits. On a `:shutdown` from its supervisor, `termina
 
 | State | Rebuilt from |
 |-------|--------------|
-| `compensation_registry` | `:finished` FNIs whose node has a compensation boundary; `token_snapshot` is the output token, order by `started_at`. |
-| `compensation_runs` (throw / end) | A `:waiting` throw or end FNI with `compensation_run`: targets = `CompensationResolver.resolve/2` for its event definition, minus targets whose handler FNI (`compensation_throw_fni_id`, `compensation_for`) finished, in-flight target first. The finish write (`finish_fni_with_data_objects/3`) carries those two link keys over from the stored row; the handler's other keys replace the rest. Delegated runs (`delegated_to_esp`) map back to the Compensation ESP (`compensation_esp_throw_map`). |
-| cancel run | A `:finished` Cancel End Event: the LIFO registry minus finished handlers; completing it sets `cancel_reached`. |
+| `compensation_registry` | `Resumption.rebuild_compensation_registry/1`: every `:finished` FNI that `CompensationOrchestrator.registry_entry/4` accepts (an activity linked to a handler, or an embedded / transaction / ad-hoc subprocess shell; never an iteration or a handler FNI), ordered by `finished_at`; `token_snapshot` is the output token. |
+| `compensation_runs` (throw / end) | `rebuild_compensation_run_state/1`: a `:waiting` throw or end FNI with `compensation_run` gets targets = `CompensationResolver.resolve/2` for its event definition, then `expand_targets/2`; `build_resumed_run/7` drops claimed targets (§Compensation Resolution), puts the in-flight handler's target first, and sets `handler_count` to the handlers already finished for that throw. A delegated run (`delegated_to_esp`) maps back to the Compensation ESP (`compensation_esp_throw_map`). |
+| cancel run | A `:finished` Cancel End Event: the whole registry, LIFO, expanded, through `build_resumed_run/7`; completing it sets `cancel_reached`. |
 | `compensation_end_reached` | A `:finished` Compensate End Event. |
 | `bpmn_error_info` / `escalation_info` | An `:error` Error End Event / `:finished` Escalation End Event (codes from its `type_properties`), unless an Event Subprocess with an Error / Escalation start already has a shell FNI in the scope. The PI then still ends `:error` / `:escalated` when its terminal write was lost. |
-| stalled runs | `Resumption.stalled_compensation_runs/1` lists runs with no live handler and no live ESP shell; `CompensationOrchestrator.resume_run/3` dispatches the next handler or completes the run. |
-| ESP triggers | `EspScope.register_triggers/1` anchors timers at scope activation (`started_at`). An existing interrupting ESP shell disarms every trigger; a fired non-interrupting date/duration timer stays disarmed; a fired cycle re-arms on its original schedule (§Event Subprocess Handler); a fired conditional start waits for the next `false → true` edge. |
+| stalled runs | After `reactivate_fnis`, `Resumption.stalled_compensation_runs/1` lists runs with no live handler FNI and no live ESP shell; `CompensationOrchestrator.resume_run/3` dispatches the target at the cursor (a scope target through `{:compensation_scope_dispatch, ...}`, §Compensation scope run) or completes the run. || ESP triggers | `EspScope.register_triggers/1` anchors timers at scope activation (`started_at`). An existing interrupting ESP shell disarms every trigger; a fired non-interrupting date/duration timer stays disarmed; a fired cycle re-arms on its original schedule (§Event Subprocess Handler); a fired conditional start waits for the next `false → true` edge. |
 | ad-hoc options | The shell passes `adhoc_completion_condition`, `cancel_remaining_instances`, `ordering`, and natural drain (engine-managed, no completion condition — the same rule as first entry) in the resume opts. |
 | `root_process_instance_id` | Not persisted; a resumed child inherits the parent context's root through `start_persisted_child/5`. |
 
@@ -1328,7 +1331,7 @@ The PI `:gen_statem` traps exits. On a `:shutdown` from its supervisor, `termina
 | Callback | Purpose |
 |----------|---------|
 | `list_running_process_instances/1` | Root-level PIs with `state = "running"`, paginated |
-| `list_all_flow_node_instances/1` | Every FNI of a PI (all states), including `multi_instance_id` / `iteration_index` |
+| `list_all_flow_node_instances/1` | Every FNI of a PI (all states), including `multi_instance_id` / `iteration_index` and `finished_at` (compensation registry order) |
 | `list_gateway_pending_arrivals/1` | Join arrivals for `rebuild_join_routing/2` |
 | `patch_fni_type_properties/2` | Merge a patch into one FNI's `type_properties` (fresh child id on resume, retry reconciliation) |
 
@@ -1569,22 +1572,17 @@ The PI handles `{:bpmn_error, error_info, result}` in its `:running` state:
 
 ### FNI State: `:error`
 
-The `:error` state is exclusive to Error End Events (persisted via `FniLifecycle.finish_as_error/4`). It provides clear debugger semantics:
+The `:error` state belongs to modeled BPMN errors: the Error End Event and a shell whose child ended with an uncaught one are persisted via `FniLifecycle.finish_as_error/4`. It provides clear debugger semantics:
 
 | FNI | State | Debugger visual meaning |
 |-----|-------|-------------------------|
 | Error End Event | `:error` | "This element threw the error" |
-| Active/waiting siblings | `:interrupted` | "Collateral — interrupted by the error" |
+| Active/waiting siblings | `:error` | "Collateral — stopped by the error" |
 | Previously completed FNIs | `:finished` | "Completed before the error occurred" |
 
 ### Parent Process Interaction
 
-When a child PI throws a BPMN error (via Call Activity or Embedded SubProcess):
-
-- The Call Activity or SubProcess handler receives `{:child_pi_bpmn_error, ...}` in `await_child_completion/3`
-- Routes through `BoundaryResolver.find_matching_error_boundary/4` on the Call Activity or subprocess shell node
-- **Match found** → `{:boundary, boundary_node_id, error_info, cancel_activity}` — parent catches the error
-- **No match** → `{:error, error_info}` — parent PI fatals (uncaught BPMN error is fatal)
+A child PI's uncaught BPMN error reaches the Call Activity, embedded subprocess, or transaction shell as `{:child_pi_bpmn_error, ...}` and bubbles up as described in [§SubProcess Handler — Error bubbling](#error-bubbling): an error boundary on the shell, then the parent scope's Error Event Subprocess starts, otherwise the parent ends `:error` and notifies its own parent. It never makes the parent `:fatal`.
 
 ### `build_final_tokens/1`
 
@@ -1706,31 +1704,84 @@ This is intentional BPMN semantics: Intermediate Throw = "I'm not done yet" (chi
 
 ### Compensation Registry
 
-The PI maintains a `compensation_registry` in its state — a list of `%{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}` entries. An entry is pushed in `do_handle_fni_ok` whenever a finished FNI's flow node has a resolvable compensation boundary event with a `compensation_handler_id`. The `token_snapshot` captures the output payload at the moment of completion, giving compensation handlers access to the exact data the original task produced. On resume, `Resumption.rebuild_compensation_registry/1` re-derives the registry from persisted `:finished` FNIs.
+The PI maintains a `compensation_registry` in its state — a list of `%{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}` entries, built by `CompensationOrchestrator.registry_entry/4` when `dispatch_successors/5` finishes an FNI (completion order). An activity is registered when a Compensation Boundary Event links it to a handler (`handler_activity_id`), or when it is an embedded subprocess, transaction, or ad-hoc subprocess (`handler_activity_id` `nil` unless it has its own handler). MI / Standard Loop iterations and compensation handler FNIs never get an entry; the loop shell stands for its iterations. The `token_snapshot` is the output payload at completion. A Call Activity without a handler is not registered.
 
 ### Compensation Resolution
 
-`CompensationResolver.resolve/2` takes the registry and an `EventDefinition.Compensation` (which may carry an `activity_ref`):
-- **Broadcast** (no `activity_ref`): returns all entries sorted by `completion_order` descending (LIFO)
-- **Targeted** (`activity_ref` set): returns only the matching entry
+`CompensationOrchestrator.resolve_targets/2` turns the registry into the targets of one run:
+
+1. `CompensationResolver.resolve/2` selects registry entries — **broadcast** (no `activity_ref`): all entries, `completion_order` descending (LIFO); **targeted** (`activity_ref` set): the matching entry.
+2. `expand_targets/2` replaces each entry by targets (BPMN 2.0 §13.5.5), in the order given:
+   - An activity with its own handler is one **handler target** (a subprocess with a handler is compensated as a whole).
+   - A loop shell expands into its finished iterations, latest `finished_at` first, each one target with its own output as snapshot; iterations are read with `list_all_flow_node_instances/1`, so live and resumed instances expand alike. Each iteration of a looped subprocess has its own child PI and becomes its own scope target.
+   - An embedded subprocess, transaction, or ad-hoc subprocess without a handler is one **scope target** (`kind: :scope`, `child_process_instance_id` from the shell's `type_properties`, `subprocess_node_id`). Its child PI compensates its inner activities in its own scope (§Compensation scope run). A shell without a recorded child expands into nothing.
+   - A Call Activity without a handler expands into nothing: its called process belongs to another process model.
+3. `claimed_target_ids/1` removes every handler target that is already compensated or queued: the `compensation_for` of every handler FNI that is `:finished`, `:active`, or `:waiting`, and every target in a `compensation_runs` queue. A handler that ended `:fatal`, `:aborted`, `:error`, or `:interrupted` claims nothing, so a retry runs it again. A scope target is never claimed: the scope PI itself skips what it compensated already. An activity is therefore compensated at most once per instance — a second Compensate Throw (parallel branch, loop, Cancel End after a throw) skips it. The registry itself is not pruned.
+
+The Cancel End run (`start_cancel_run/3`) expands and filters the whole registry, LIFO, the same way.
 
 ### Compensation Orchestration
 
 `CompensationOrchestrator.build_run/4` builds a `%CompensationRun{}` struct with a queue of compensation targets, a cursor, the throw type, outgoing flow node IDs, and the original token payload.
 
 The PI processes `{:compensate, run_spec, result}` from the handler by:
-1. Resolving targets via `CompensationResolver`
+1. Resolving targets via `CompensationOrchestrator.resolve_targets/2`
 2. Building a `CompensationRun` and storing it in state
 3. Emitting `CompensationTriggered`
 4. Dispatching the first handler target, or completing immediately if no targets (`persist_compensation_throw_no_targets/2` writes `output_token` and emits `FlowNodeInstanceFinished` — the throw FNI does not go through `FniLifecycle.finish/4`)
 
+A handler FNI carries `compensation_for` and `compensation_throw_fni_id` in `type_properties`. Both survive every write: the park SQL merges `type_properties`, `do_handle_fni_async/4` keeps them on the in-memory entry of an async Service Task handler, and `keep_compensation_links/2` keeps them on the finish write.
+
 After each handler finishes (`handle_compensation_handler_finished`):
 1. Emit `ActivityCompensated`
-2. Advance the cursor
+2. Advance the cursor (`advance_run/4`; `handler_count` grows by 1 for a handler target, by the reported count for a scope target)
 3. If more targets remain, dispatch the next one
-4. If complete:
-   - For throw: park as `:waiting`, then dispatch outgoing flows
+4. If complete (`finish_run/4`):
+   - For throw: finish the throw FNI, then dispatch its outgoing flows
    - For end: finish the compensation end FNI, set `compensation_end_reached`
+   - For cancel: set `cancel_reached` and keep `handler_count` on the Cancel End entry's in-memory `type_properties` as `:compensation_handler_count` (read by `TransactionCancelled`)
+   - For scope: reply to the requester (§Compensation scope run)
+
+### Compensation scope run
+
+A scope target (§Compensation Resolution) compensates the inside of a completed subprocess in the subprocess's **own** child PI, so inner handlers see that scope's Data Objects and lane (§SubProcess Handler, subprocess scope rule). The child PI row stays `finished` throughout.
+
+**Start.** `dispatch_next_handler/3` does not start the child inline: it sends `{:compensation_scope_dispatch, run_key, target}` to the requester itself, because a run can start inside `init/1` on resume, where starting a sibling under the same `DynamicSupervisor` would deadlock. `start_scope_target/4` then calls `ProcessInstance.start_compensation_scope(child_process_instance_id, request)` with `request = %{anchor_fni_id, scope_target_id, subprocess_node_id, root_process_instance_id, reply_to}`. It reads the child PI row and all its FNI rows and starts the child under the PI `DynamicSupervisor` with `resume: true, compensation_scope: request`. Result: `{:ok, pid}`, `{:busy, pid}` (the child already runs), or `{:error, reason}`. A child row that no longer exists (`:not_found`) is logged and skipped; the run advances.
+
+**Lean init.** The scope clause of `init/1` monitors `reply_to`, loads the synthetic subprocess model and the child's Data Objects, rebuilds the FNI map from the rows (dropping `:fatal` rows so a failed handler does not block the run), rebuilds the compensation registry, reactivates `:active` / `:waiting` FNIs (an inner handler that was waiting before a restart keeps running), and calls `CompensationOrchestrator.start_scope_run/2`. It writes no PI state, emits no `ProcessInstanceStateChanged`, registers no Event Subprocess triggers, and runs no lost-successor repair.
+
+**Scope run.** `start_scope_run/2` builds the child's run from its registry, LIFO, expanded and minus claimed targets, with the target of an in-flight handler first (`build_resumed_run/7`). The run is stored under `request.anchor_fni_id`, the throw or Cancel End FNI of the instance that started the compensation, not an FNI of the child. Handler FNIs the child dispatches carry `compensation_throw_fni_id` = that anchor. A nested handler-less subprocess inside the child is again a scope target; the grandchild gets the same anchor, so every handler of one compensation, at any depth, names the top throw. An empty run replies at once, so a subprocess with nothing left to compensate, or one compensated before, completes immediately.
+
+**Replies.** The child sends exactly one message to `reply_to`, then stops (`maybe_finish/1` of a scope PI stops once its run replied and no FNI or scope child is live):
+
+| Message | When | Requester reaction |
+|---------|------|--------------------|
+| `{:compensation_scope_finished, child_id, scope_target_id, handler_count}` | The scope run completed | `finish_scope_target/4` advances the run by `handler_count` |
+| `{:compensation_scope_failed, child_id, scope_target_id, error_info}` | An inner handler went fatal (`compensation_handler_fatal`) or a nested scope failed; the child's FNIs are marked `:fatal` first | The requester goes `:fatal` with `compensation_scope_failed` (a requester that is itself a scope PI passes the failure upward) |
+| `{:compensation_scope_aborted, child_id, scope_target_id, reason}` | The child was aborted (an API abort of the child, or an abort reply from a nested scope); its FNIs are aborted first | The requester aborts its whole tree |
+
+A reply whose target the run no longer waits for (`take_scope_child/2` finds no tracked child) is ignored. A child that stops without replying is detected through its monitor (`compensation_scope_crashed`, below).
+
+**Busy.** `{:busy, pid}` means another requester's scope run holds the child. The requester monitors that pid without owning it; on its `:DOWN`, `retry_scope_target/3` starts the child again for this requester, and the new scope run skips the inner activities the first one compensated. Aborting the requester never aborts a busy pid.
+
+**Tracking and cascade.** The requester tracks each started child in `compensation_scope.children` (`pid => %{run_key, target, monitor_ref, busy}`) and monitors it. `abort_compensation_scope_children/2` aborts the owned children of the given runs and stops tracking them, so their `compensation_scope_aborted` reply is ignored. The requester aborts its scope children when it:
+
+- aborts or goes `:fatal`;
+- reaches any normal terminal state (`finish_quiesced_pi/1`: finished, error, escalated, cancelled, compensated);
+- interrupts or errors the throw FNI of a run — Terminate, Error, Cancel, or Escalation End, an interrupting Event Subprocess, ad-hoc completion, or Complex Join region cancel (`end_compensation_runs_of_ended_throws/1` drops runs whose key FNI is `:interrupted` or `:error`).
+
+A crash or engine shutdown of the requester leaves them: the child stops on the requester's `:DOWN` without touching its rows, and the requester's resume rebuilds the run and starts the child again, which reactivates its waiting handler rows. While a scope child or a Cancel End run is outstanding, the general `maybe_finish/1` does not finish the requester.
+
+**Failure codes.**
+
+| Code | Where | Meaning |
+|------|-------|---------|
+| `compensation_scope_failed` | Requester PI `error_info` | The child reported failure; `detail.reason` is the child's error info |
+| `compensation_scope_start_failed` | Requester PI `error_info` | `start_compensation_scope/2` returned an error other than `:not_found` |
+| `compensation_handler_fatal` | `detail.reason` of `compensation_scope_failed` | An inner handler FNI went fatal |
+| `compensation_scope_crashed` | `detail.reason` of `compensation_scope_failed` | The child stopped without replying (not an engine shutdown) |
+
+A retry of the requester runs the failed inner handler again in the same child PI: the fatal handler row claims nothing, and the scope init drops it.
 
 ### PI Terminal State: `:compensated`
 
@@ -1749,19 +1800,19 @@ Three handler modules:
 
 ### Resume and Retry
 
-The compensation registry is an **in-memory** data structure on the PI's gen_statem state — it is not persisted as a separate table. On resume (engine restart or retry), `Resumption.rebuild_compensation_registry/1` re-derives the registry by scanning all persisted `:finished` FNIs: for each finished FNI, it checks whether the corresponding flow node in the BPMN model has a compensation boundary event with a resolved `compensation_handler_id`. If so, an entry is pushed.
+The compensation registry is an **in-memory** data structure on the PI's gen_statem state — it is not persisted as a separate table. On resume (engine restart or retry), `Resumption.rebuild_compensation_registry/1` re-derives it from the persisted `:finished` FNIs with the same `registry_entry/4`, ordered by `finished_at` (the row map of `list_all_flow_node_instances/1` carries it), so LIFO follows completion, not start. Already compensated activities stay registered and are skipped through the persisted `compensation_for` links of their handler rows. A parked run is rebuilt from the expanded targets minus the claimed ones, with the in-flight handler's target first (the resume sequence is in §Resume on Startup, rebuilt run state). A scope target in a rebuilt run starts its child PI again; the child's own rows tell it which inner activities are done and which handler is still in flight.
 
-Compensation handler FNIs are ordinary FNIs — they are persisted in `:finished` state and participate in the standard retry reset/re-derive cycle. No special retry logic is needed for compensation; the registry is rebuilt from the same `:finished` FNI set that retry preserves.
+Compensation handler FNIs are ordinary FNIs — they are persisted in `:finished` state and participate in the standard retry reset/re-derive cycle. No special retry logic is needed for compensation; the registry is rebuilt from the same `:finished` FNI set that retry preserves, and a handler row that is not `:finished`, `:active`, or `:waiting` claims nothing, so its target is compensated again.
 
 PI state fields relevant to compensation:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `compensation_registry` | `[%{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}]` | Ordered list of completed activities eligible for compensation |
-| `compensation_completion_counter` | `integer` | Monotonic counter for LIFO ordering |
-| `compensation_runs` | `%{throw_fni_id => %CompensationRun{}}` | Active compensation run state (cursor, remaining targets) |
+| `compensation_registry` | `[%{completed_fni_id, flow_node_id, handler_activity_id, token_snapshot, completion_order}]` | Completed activities eligible for compensation, in completion order (`length/1` gives the next `completion_order`) |
+| `compensation_runs` | `%{run_key => compensation_run}` | Active runs (`queue`, `cursor`, `mode`, `throw_type` `:throw` / `:end` / `:cancel` / `:scope`, `handler_count`). `run_key` is the throw or Cancel End FNI id; in a scope PI it is the requester's anchor |
 | `compensation_end_reached` | `boolean` | Set when a Compensation End Event fires; influences terminal state |
-| `compensation_esp_throw_map` | `%{scope_pi_id => throw_fni_id}` | Maps ESP scope PI to the throw FNI that triggered compensation-start ESP |
+| `compensation_esp_throw_map` | `%{esp_node_id => throw_fni_id}` | Maps a compensation-start ESP node to the throw FNI that triggered it |
+| `compensation_scope` | `%{request: request \| nil, children: %{pid => scope_child}}` | `request` is set only in a scope PI (§Compensation scope run); `children` are the scope PIs this PI started |
 
 ### Edge-Case Matrix: When Compensation Does NOT Auto-Trigger
 
@@ -1789,11 +1840,11 @@ Compensation logic is deliberately distributed across thin, focused modules to a
 |--------|---------------|
 | `CompensateThrowEvent` / `CompensateEndEvent` | Thin handlers: resolve outgoing flows, build `run_spec`, return `{:compensate, ...}` tuple. No PI mutation, no persistence. |
 | `CompensationBoundaryEvent` | Safety guard only — returns `{:error, :compensation_boundary_not_dispatched}`. Compensation boundaries are passive registration carriers, never dispatched. |
-| `CompensationResolver` | Pure resolver: given a registry and an event definition, returns the ordered list of targets (LIFO broadcast or single targeted). No state mutation, no IO. |
-| `CompensationOrchestrator` | Plan builder **and** runtime dispatcher: constructs the compensation run, persists throw/handler FNIs, spawns handler Tasks, and advances the cursor. The PI keeps thin `:gen_statem` wrappers (`start_compensation_run`, `start_cancel_compensation_run`, `advance_compensation_run`) that pass a runtime callback map for event emission and successor dispatch. |
-| `ProcessInstance` | Orchestration glue: receives `{:compensate, ...}` from handlers, resolves ESP vs boundary targets, stores runs in state, emits compensation events. Spawn/persist/advance live in `CompensationOrchestrator`. |
+| `CompensationResolver` | Pure resolver: given a registry and an event definition, returns the ordered list of registry entries (LIFO broadcast or single targeted). No state mutation, no IO. |
+| `CompensationOrchestrator` | Registry entries, target expansion into iterations and scope targets, claimed-target filtering, plan builder **and** runtime dispatcher: constructs the compensation run, persists throw/handler FNIs, spawns handler Tasks, starts and tracks scope PIs (`start_scope_target/4`, `start_scope_run/2`, `take_scope_child/2`, `finish_scope_target/4`, `retry_scope_target/3`), and advances the cursor. The PI keeps thin `:gen_statem` wrappers (`start_compensation_run`, `start_cancel_compensation_run`, `advance_compensation_run`) that pass a runtime callback map for event emission and successor dispatch. |
+| `ProcessInstance` | Orchestration glue: receives `{:compensate, ...}` from handlers, resolves ESP vs boundary targets, stores runs in state, emits compensation events, handles the scope messages and monitors, aborts scope children on the cascade paths, and owns `start_compensation_scope/2` with its lean `init/1` clause. Spawn/persist/advance live in `CompensationOrchestrator`. |
 | `BoundaryOrchestrator` | Filters out compensation boundaries from subscription resolution (they are not subscription-based). |
-| `Resumption` | Re-derives `compensation_registry` from persisted `:finished` FNIs on resume/retry. |
+| `Resumption` | Re-derives `compensation_registry` and the compensation / cancel runs from persisted FNIs on resume/retry. |
 
 ### Files
 
@@ -1817,7 +1868,7 @@ A `<bpmn:transaction>` is executed by `FlowNodes.TransactionSubProcess`, a dedic
 |---------|---------|----------------|--------------------------|
 | Success | All paths reach End Events normally | `:finished` | `{:ok, %FlowNodeResult{next_flow_node_ids: outgoing}}` |
 | Cancel | Cancel End fires + LIFO compensation | `:cancelled` | `{:boundary, cancel_boundary_id, token, true}` (or `{:error, :unhandled_cancel}`) |
-| Hazard | Uncaught error propagates out | `:fatal` | `{:error, error_info}` (or `{:boundary, error_boundary_id, ...}`) |
+| Hazard | Uncaught BPMN error or engine failure propagates out | `:error` or `:fatal` | `{:bpmn_error, ...}` / `{:error, error_info}` (or `{:boundary, error_boundary_id, ...}`), same as an embedded subprocess |
 
 ### Cancel Path — handle_fni_cancel/3
 
@@ -1825,7 +1876,7 @@ When the PI state machine receives `{:cancel, result}` from `CancelEndEvent.hand
 
 1. **Finish the Cancel End FNI** via `do_handle_fni_ok` (same as any end event).
 2. **Interrupt remaining FNIs** — `interrupt_remaining_fnis(data, fni_id, :cancelled_by_cancel_end)`. This kills all other active/waiting FNIs in the child scope, cascading to nested child PIs (Call Activities, SubProcesses) via their `handle_aborted/1` callbacks.
-3. **LIFO compensation** — if `compensation_registry` is non-empty, build a `%CompensationRun{}` via `CompensationOrchestrator.build_run/4` (broadcast mode, no `activityRef`) and dispatch handlers sequentially. If a compensation handler fatals, the PI transitions to `:fatal` instead of `:cancelled` (hazard outcome).
+3. **LIFO compensation** — `CompensationOrchestrator.start_cancel_run/3` expands the whole registry and drops claimed targets (§Compensation Resolution); when targets remain it builds a run via `build_run/4` and dispatches handlers and scope targets sequentially (a completed inner subprocess is compensated in its own child PI, §Compensation scope run). If a compensation handler fatals or a scope target fails, the PI transitions to `:fatal` instead of `:cancelled` (hazard outcome).
 4. **Transition to `:cancelled`** — `persist_pi_cancelled/1`, emit `ProcessInstanceStateChanged` and `TransactionCancelled` events.
 5. **Notify parent** — `notify_parent(data, :cancelled)` sends `{:child_pi_cancelled, pid, final_tokens}` to the parent Transaction handler Task.
 

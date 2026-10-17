@@ -102,7 +102,7 @@ Errors inside embedded subprocesses follow the same boundary resolution pattern 
 | Child fatals, matching error boundary on SubProcess | Parent routes through the boundary's outgoing flows (parent finishes normally) |
 | Child fatals, no matching boundary | Parent PI transitions to `fatal` |
 | Child hits Error End Event, matching error boundary on SubProcess | Parent routes through boundary (child ends in `error` state) |
-| Child hits Error End Event, no matching boundary | Error propagates up: child ends in `error` state, parent PI transitions to `error` |
+| Child hits Error End Event, no matching boundary | Error propagates up: child ends in `error` state; unless an Error Event Subprocess start of the parent scope catches it, the parent PI transitions to `error` and reports the error to its own parent |
 | Child crashes (OTP process death) | Treated as `CHILD_CRASH` error, checked against boundaries |
 | Subprocess contents invalid (no Start Event, etc.) | Parent PI transitions to `fatal` (no child spawned) |
 

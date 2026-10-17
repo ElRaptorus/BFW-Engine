@@ -35,7 +35,12 @@ A Cancel End Event fires inside the transaction. The engine:
    subprocesses, call activities) receive a cascade abort.
 3. Runs automatic **LIFO compensation** for all completed compensable activities
    in the transaction scope — the last activity to complete is compensated first.
-   This uses the same [Compensation](compensation.md) infrastructure.
+   This uses the same [Compensation](compensation.md) infrastructure. A
+   completed embedded subprocess inside the transaction is compensated inside,
+   in its own instance (see
+   [Where inner handlers run](compensation.md#where-inner-handlers-run)); if
+   one of its handlers fails, the transaction's instance goes `fatal` instead
+   of `cancelled`.
 4. Transitions the transaction's child process instance to **`:cancelled`**.
 5. Fires the Cancel Boundary on the transaction shell. The parent process
    continues via the Cancel Boundary's outgoing flow.
@@ -83,8 +88,11 @@ Cancel Boundaries are rejected at deploy time.
 ### No Nested Transactions
 
 A `bpmn:transaction` may contain embedded subprocesses and call activities,
-but not another `bpmn:transaction`. Nested transactions are rejected at deploy
-time (`nested_transaction` validation error). This is a v1 restriction.
+but not another `bpmn:transaction` — at any depth, so a transaction inside an
+embedded subprocess inside a transaction is rejected too. Nested transactions
+are rejected at deploy time (`nested_transaction` validation error). This is a
+v1 restriction. A Call Activity's called process is a separate deployment and
+is not checked.
 
 ### Hazard Does Not Trigger Compensation
 
@@ -181,8 +189,9 @@ compensation handlers complete and the child PI is about to transition to
 }
 ```
 
-`compensationHandlerCount` is the number of compensation handlers that ran
-(0 if no completed compensable activities were present when the cancel fired).
+`compensationHandlerCount` is the number of compensation handlers that ran,
+including the handlers inside compensated subprocesses (0 if no completed
+compensable activities were present when the cancel fired).
 
 ---
 

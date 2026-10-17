@@ -118,7 +118,7 @@ When the child's Error End Event has `error_code: "PAYMENT_DECLINED"`:
 
 ### Without Matching Boundary Event
 
-If no boundary matches the error code (or no boundary event is attached at all), the uncaught error causes the **parent PI to go `fatal`**. An uncaught BPMN error is treated as a fatal condition in the parent.
+If no boundary matches the error code (or no boundary event is attached at all), the error is offered to the parent's [Error Event Subprocess](event-subprocesses.md) starts. When none of them matches either, the Call Activity (or embedded subprocess) ends in `error`, the parent's other active and waiting flow node instances end in `error`, and the **parent PI ends in `error`** — never `fatal`. The parent then reports the same error to its own parent, so an uncaught BPMN error bubbles up scope by scope until something catches it or the root PI ends in `error`.
 
 ### Standalone Process
 

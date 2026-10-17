@@ -9,6 +9,7 @@ defmodule BfwEngine.Execution.BoundaryAwareHandlerTest do
   alias BfwEngine.Execution.BoundaryAwareHandler
   alias BfwEngine.Execution.FlowNodeResult
   alias BfwEngine.Execution.HandlerContext
+  alias BfwEngine.Execution.ProcessInstance.ErrorInfo
   alias BfwEngine.Types.Token
 
   # -- Test handler modules that return predetermined results --
@@ -545,22 +546,24 @@ defmodule BfwEngine.Execution.BoundaryAwareHandlerTest do
       assert result.error_message == "timeout exceeded"
     end
 
-    test "wraps tuple reason via inspect" do
-      result = BoundaryAwareHandler.normalize_to_error_info({:missing_implementation, nil})
+    test "wraps tuple reason with the diagnostic sentence of the fatal path" do
+      result = BoundaryAwareHandler.normalize_to_error_info({:missing_implementation, "Task_1"})
       assert result.error_code == "HANDLER_ERROR"
-      assert result.error_message == "{:missing_implementation, nil}"
+      assert result.error_message == "Service task 'Task_1' has no implementation attribute"
     end
 
-    test "wraps atom reason via inspect" do
+    test "wraps atom reason with its humanized form" do
       result = BoundaryAwareHandler.normalize_to_error_info(:not_found)
       assert result.error_code == "HANDLER_ERROR"
-      assert result.error_message == ":not_found"
+      assert result.error_message == ErrorInfo.build(:not_found)["message"]
+      refute result.error_message == ":not_found"
     end
 
-    test "wraps map without error_code via inspect" do
+    test "wraps map without error_code with a diagnostic message" do
       result = BoundaryAwareHandler.normalize_to_error_info(%{reason: :boom})
       assert result.error_code == "HANDLER_ERROR"
       assert is_binary(result.error_message)
+      refute String.starts_with?(result.error_message, "%{")
     end
   end
 

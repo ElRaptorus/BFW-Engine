@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationScopeTerminate">
+
+  <!--
+    One branch compensates SubProcess_Booking, whose handler waits in the
+    subprocess's instance; the other branch reaches a Terminate End.
+  -->
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="CompensationScopeTerminate" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationScopeTerminate" name="Compensation Scope Terminate" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:parallelGateway id="Fork" name="Fork">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Compensate</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Stop</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:subProcess id="SubProcess_Booking" name="Booking">
+      <bpmn:incoming>Flow_Compensate</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:task id="Task_Book" name="Book">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
+      </bpmn:task>
+
+      <bpmn:boundaryEvent id="BE_Comp_Book" name="Compensate Book" attachedToRef="Task_Book" cancelActivity="false">
+        <bpmn:compensateEventDefinition />
+      </bpmn:boundaryEvent>
+
+      <bpmn:userTask id="UT_Undo_Book" name="Undo Book" isForCompensation="true" />
+
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Task_Book" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Task_Book" targetRef="Sub_End" />
+
+      <bpmn:association id="Assoc_Comp_Book" sourceRef="BE_Comp_Book" targetRef="UT_Undo_Book" associationDirection="One" />
+    </bpmn:subProcess>
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_Compensated" name="Compensated">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:userTask id="UT_Stop" name="Stop">
+      <bpmn:incoming>Flow_Stop</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="End_Terminate" name="Terminate">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:terminateEventDefinition />
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Fork" />
+    <bpmn:sequenceFlow id="Flow_Compensate" sourceRef="Fork" targetRef="SubProcess_Booking" />
+    <bpmn:sequenceFlow id="Flow_Stop" sourceRef="Fork" targetRef="UT_Stop" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Booking" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Throw_Comp" targetRef="End_Compensated" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="UT_Stop" targetRef="End_Terminate" />
+  </bpmn:process>
+</bpmn:definitions>

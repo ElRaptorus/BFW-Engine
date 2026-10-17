@@ -48,12 +48,15 @@ defmodule BfwEngine.Execution.Persistence do
           event_type: String.t() | nil,
           state: String.t(),
           started_at: DateTime.t(),
+          finished_at: DateTime.t() | nil,
           input_token: map() | nil,
           output_token: map() | nil,
           type_properties: map(),
           previous_flow_node_instance_ids: [String.t()],
           lane_name: String.t() | nil,
-          error_info: map() | nil
+          error_info: map() | nil,
+          multi_instance_id: String.t() | nil,
+          iteration_index: non_neg_integer() | nil
         }
 
   @callback create_process_instance(process_instance_attributes()) ::

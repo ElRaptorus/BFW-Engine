@@ -31,7 +31,8 @@ PersistenceAdapter, MonitoringPanel, TimerSource, and DataStoreAdapter plugin ca
 defmodule BfwEngine.Plugin.EventSink do
   @moduledoc """
   Receives every `BfwEngine.Types.Event.*` the engine emits ([event-system.md](./event-system.md)).
-  Runs in its own supervised Task; crashes are isolated by EngineEventBus.
+  Each registered sink runs in its own SinkWorker GenServer under
+  BfwEngine.Events.SinkSupervisor, which calls it serially in event order.
   Sinks MUST NOT call back into core_execution or block the hot path.
   """
 
@@ -39,8 +40,8 @@ defmodule BfwEngine.Plugin.EventSink do
 
   @doc """
   Called once per published event. MUST be O(1) in observable cost — buffer
-  internally if the downstream target is slow. Raising from here is caught
-  by EngineEventBus, which emits `%Event.SinkFailed{}` and continues other sinks.
+  internally if the downstream target is slow. A raise here is rescued by the
+  sink's worker, which publishes `%Event.SinkFailed{}` and keeps going.
   """
   @callback accepts?(event :: struct()) :: boolean()
 

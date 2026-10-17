@@ -65,17 +65,10 @@ defmodule BfwEngine.Execution.ResumeRunner do
       {:ok, 0}
   end
 
+  # The PI sweep runs first: the FNI sweep keeps compensation handlers whose
+  # anchoring instance is not terminal, so orphaned anchors must be aborted
+  # before it.
   defp cleanup_orphans(adapter) do
-    case PersistenceRetry.with_retry(
-           fn -> adapter.cleanup_orphaned_flow_node_instances() end,
-           "Resume: cleanup orphaned FNIs",
-           max_attempts: 3
-         ) do
-      {:ok, 0} -> :ok
-      {:ok, count} -> Logger.warning("Startup cleanup: aborted #{count} orphaned FNIs")
-      {:error, reason} -> Logger.error("Startup cleanup: FNI sweep failed: #{inspect(reason)}")
-    end
-
     case PersistenceRetry.with_retry(
            fn -> adapter.cleanup_orphaned_process_instances() end,
            "Resume: cleanup orphaned PIs",
@@ -84,6 +77,16 @@ defmodule BfwEngine.Execution.ResumeRunner do
       {:ok, 0} -> :ok
       {:ok, count} -> Logger.warning("Startup cleanup: aborted #{count} orphaned child PIs")
       {:error, reason} -> Logger.error("Startup cleanup: PI sweep failed: #{inspect(reason)}")
+    end
+
+    case PersistenceRetry.with_retry(
+           fn -> adapter.cleanup_orphaned_flow_node_instances() end,
+           "Resume: cleanup orphaned FNIs",
+           max_attempts: 3
+         ) do
+      {:ok, 0} -> :ok
+      {:ok, count} -> Logger.warning("Startup cleanup: aborted #{count} orphaned FNIs")
+      {:error, reason} -> Logger.error("Startup cleanup: FNI sweep failed: #{inspect(reason)}")
     end
   end
 

@@ -14,6 +14,8 @@ A split gateway has one incoming and multiple outgoing sequence flows. Each outg
 | Zero conditions are `true`, default flow exists | Default flow is taken |
 | Zero conditions are `true`, no default flow | PI transitions to `fatal` (`no_matching_condition`) |
 | Multiple conditions are `true` | PI transitions to `fatal` (`ambiguous_condition`) |
+| A condition evaluates to `null` (for example a missing token field) | Counts as `false` |
+| A condition evaluates to a non-boolean value (number, string, …) | PI transitions to `fatal` (`expression_evaluation_failed`) |
 | Any expression evaluation fails | PI transitions to `fatal` (`expression_evaluation_failed`) |
 
 This is a **deliberate divergence** from the BPMN 2.0 specification's "first truthy wins" rule. Strict enforcement prevents ambiguous, non-deterministic routing.
@@ -56,7 +58,7 @@ identity.roles contains "manager"
 
 ### Default Flow
 
-A default flow is taken when no conditional flow evaluates to `true`. Mark it with the standard BPMN `default="Flow_…"` attribute on the gateway. It must not carry a `conditionExpression`. If no default flow is defined and no condition matches, the PI transitions to `fatal`.
+A default flow is taken when no conditional flow evaluates to `true`. Mark it with the standard BPMN `default="Flow_…"` attribute on the gateway. Leave it without a `conditionExpression`: a condition on the default flow is accepted but never evaluated, and the default is still taken only when no other condition is `true`. If no default flow is defined and no condition matches, the PI transitions to `fatal`.
 
 ## Join (Converging)
 
@@ -64,7 +66,7 @@ A join gateway has multiple incoming and one outgoing sequence flow. It acts as 
 
 ## Mixed Gateways
 
-Gateways with both multiple incoming and multiple outgoing flows are **rejected at runtime** with a `mixed_gateway` error. Use separate gateway nodes for splitting and joining.
+Gateways with both multiple incoming and multiple outgoing flows are **rejected at runtime** with a `mixed_gateway` error. Use separate gateway nodes for splitting and joining. The validator does not check this: the diagram deploys, and the instance fatals when a token enters the gateway. Inclusive, Parallel, and Event-Based Gateways behave the same; only the [Complex Gateway](complex-gateways.md) is also rejected at deploy time.
 
 ## Error States
 

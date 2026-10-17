@@ -10,12 +10,14 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
       token -> in_mappings -> payload_contract -> bfw:dueDate, bfw:assignees -> wait for user ->
       %{"actionId", "values"} -> out_mappings -> result_contract -> PayloadCap -> downstream
 
-  `bfw:dueDate` (unless it is an ISO 8601 date-time literal) and
-  `bfw:assignees` are evaluated with `token` bound to the mapped input.
+  `bfw:dueDate` (unless it is an ISO 8601 date-time or date literal) and
+  `bfw:assignees` are evaluated with `token` bound to the mapped input. The
+  due date is an ISO 8601 date-time string: an offset literal as written,
+  anything else in UTC (offset-less → UTC, date → midnight UTC).
 
   Error semantics differ from ServiceTask:
   - `payload_contract` violation on input, corrupt FEEL in the input mapper, or a
-    `bfw:dueDate` that yields neither a date-time nor `null`
+    `bfw:dueDate` that yields no date or date-time (including `null`)
     (`user_task_due_date_failed`) -> the task fails: Error Boundaries and Error
     Event Subprocess starts may catch it, otherwise the FNI is `:fatal`
   - `result_contract` violation on output -> FNI stays `:waiting` (retryable, user corrects submission)
@@ -174,38 +176,69 @@ defmodule BfwEngine.Execution.FlowNodes.UserTask do
        when due_date in [nil, ""],
        do: {:ok, nil}
 
+  # A literal date-time with an offset is stored as written; any other
+  # literal or FEEL result is stored as ISO 8601 UTC.
   defp resolve_due_date(
          %FlowNode{id: flow_node_id, type_data: %{due_date: due_date}},
          mapped_input,
          context
        ) do
-    if iso8601_date_time?(due_date) do
-      {:ok, due_date}
-    else
-      evaluate_due_date(flow_node_id, due_date, mapped_input, context)
+    case {DateTime.from_iso8601(due_date), utc_date_time(due_date)} do
+      {{:ok, _datetime, _offset}, _utc} -> {:ok, due_date}
+      {_with_offset, {:ok, datetime}} -> {:ok, DateTime.to_iso8601(datetime)}
+      _not_a_literal -> evaluate_due_date(flow_node_id, due_date, mapped_input, context)
     end
-  end
-
-  defp iso8601_date_time?(text) do
-    match?({:ok, _datetime, _offset}, DateTime.from_iso8601(text)) or
-      match?({:ok, _naive_datetime}, NaiveDateTime.from_iso8601(text))
   end
 
   defp evaluate_due_date(flow_node_id, expression, mapped_input, context) do
     feel_context = FeelContext.from_handler_context(context, mapped_input)
 
-    with {:ok, value} when not is_nil(value) <- Expressions.eval(expression, feel_context),
-         {:ok, datetime} <- Expressions.to_datetime(value) do
+    with {:ok, value} <- Expressions.eval(expression, feel_context),
+         {:ok, datetime} <- due_date_from_value(value) do
       {:ok, DateTime.to_iso8601(datetime)}
     else
-      {:ok, nil} ->
-        {:ok, nil}
-
       {:error, reason} ->
         {:error,
          {:user_task_due_date_failed,
           %{flow_node_id: flow_node_id, expression: expression, reason: reason}}}
     end
+  end
+
+  defp due_date_from_value({:feel_date, text} = value) when is_binary(text),
+    do: date_value_as_utc(text, value)
+
+  defp due_date_from_value(text) when is_binary(text), do: date_value_as_utc(text, text)
+  defp due_date_from_value(value), do: Expressions.to_datetime(value)
+
+  defp date_value_as_utc(text, value) do
+    case utc_date_time(text) do
+      {:ok, datetime} -> {:ok, datetime}
+      {:error, _reason} -> {:error, {:not_a_date_time, value}}
+    end
+  end
+
+  # An offset-less date-time is read as UTC, a date as midnight UTC.
+  defp utc_date_time(text) do
+    with {:error, _no_offset} <- date_time_with_offset(text),
+         {:error, _not_a_date_time} <- naive_date_time_as_utc(text) do
+      date_as_utc_midnight(text)
+    end
+  end
+
+  defp date_time_with_offset(text) do
+    case DateTime.from_iso8601(text) do
+      {:ok, datetime, _offset} -> {:ok, datetime}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp naive_date_time_as_utc(text) do
+    with {:ok, naive_date_time} <- NaiveDateTime.from_iso8601(text),
+         do: DateTime.from_naive(naive_date_time, "Etc/UTC")
+  end
+
+  defp date_as_utc_midnight(text) do
+    with {:ok, date} <- Date.from_iso8601(text), do: DateTime.new(date, ~T[00:00:00], "Etc/UTC")
   end
 
   defp resolve_assignees(nil, _mapped_input, _context), do: []

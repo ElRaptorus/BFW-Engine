@@ -1892,45 +1892,46 @@ defmodule BfwEngine.BPMN.Validator do
   defp check_cancel_scope_inner(_), do: []
 
   defp check_nested_transactions(%BpmnProcess{} = process) do
-    do_check_nested_transactions(process.flow_nodes)
+    do_check_nested_transactions(process.flow_nodes, nil)
   end
 
-  defp do_check_nested_transactions(flow_nodes) do
-    Enum.flat_map(flow_nodes, &check_nested_transactions_node/1)
+  defp do_check_nested_transactions(flow_nodes, enclosing_transaction_id) do
+    Enum.flat_map(flow_nodes, &check_nested_transactions_node(&1, enclosing_transaction_id))
   end
 
-  defp check_nested_transactions_node(%FlowNode{
-         id: id,
-         type: :sub_process,
-         type_data: %FlowNodeData.SubProcess{is_transaction: true, flow_nodes: inner_nodes}
-       }) do
-    direct_violations = Enum.flat_map(inner_nodes, &nested_transaction_violation(id, &1))
-    inner_violations = do_check_nested_transactions(inner_nodes)
-    direct_violations ++ inner_violations
+  defp check_nested_transactions_node(
+         %FlowNode{
+           id: id,
+           type: :sub_process,
+           type_data: %FlowNodeData.SubProcess{is_transaction: true, flow_nodes: inner_nodes}
+         },
+         enclosing_transaction_id
+       ) do
+    nested_transaction_violation(enclosing_transaction_id, id) ++
+      do_check_nested_transactions(inner_nodes, enclosing_transaction_id || id)
   end
 
-  defp check_nested_transactions_node(%FlowNode{
-         type: :sub_process,
-         type_data: %FlowNodeData.SubProcess{flow_nodes: inner_nodes}
-       }) do
-    do_check_nested_transactions(inner_nodes)
+  defp check_nested_transactions_node(
+         %FlowNode{
+           type: :sub_process,
+           type_data: %FlowNodeData.SubProcess{flow_nodes: inner_nodes}
+         },
+         enclosing_transaction_id
+       ) do
+    do_check_nested_transactions(inner_nodes, enclosing_transaction_id)
   end
 
-  defp check_nested_transactions_node(_), do: []
+  defp check_nested_transactions_node(_flow_node, _enclosing_transaction_id), do: []
 
-  defp nested_transaction_violation(outer_id, %FlowNode{
-         id: inner_id,
-         type: :sub_process,
-         type_data: %FlowNodeData.SubProcess{is_transaction: true}
-       }) do
+  defp nested_transaction_violation(nil, _transaction_id), do: []
+
+  defp nested_transaction_violation(outer_id, inner_id) do
     [
       {:nested_transaction,
        "Transaction '#{outer_id}' contains nested Transaction '#{inner_id}'. " <>
-         "Nested transactions are not supported in v1."}
+         "Nested transactions are not supported in v1, at any depth."}
     ]
   end
-
-  defp nested_transaction_violation(_outer_id, _node), do: []
 
   # ---------------------------------------------------------------------------
   # Ad-hoc SubProcess structural checks

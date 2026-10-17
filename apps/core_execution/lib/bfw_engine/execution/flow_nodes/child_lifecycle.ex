@@ -44,10 +44,11 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
   Escalation passthroughs (non-terminal) are handled inline and the
   receive loop re-enters.
 
-  The optional `extra_message_handler` callback receives the raw message
-  and returns either `{:handled, result}` to break the loop or `:skip`
-  to re-enter. This allows `TransactionSubProcess` to intercept
-  `{:child_pi_cancelled, ...}` without modifying this module.
+  The optional `extra_message_handler` callback receives the awaited
+  child's `{:child_pi_cancelled, child_pid, final_tokens}` message and
+  returns either `{:handled, result}` to break the loop or `:skip` to
+  re-enter. This allows `TransactionSubProcess` to resolve its Cancel
+  Boundary. Any other message stays in the mailbox.
   """
   @spec await_child_completion(
           pid(),
@@ -119,8 +120,9 @@ defmodule BfwEngine.Execution.FlowNodes.ChildLifecycle do
       {:DOWN, ^ref, :process, ^child_pid, reason} ->
         {:crashed, reason}
 
-      other_message when is_function(extra_message_handler, 1) ->
-        case extra_message_handler.(other_message) do
+      {:child_pi_cancelled, ^child_pid, _final_tokens} = cancelled_message
+      when is_function(extra_message_handler, 1) ->
+        case extra_message_handler.(cancelled_message) do
           {:handled, result} ->
             Process.demonitor(ref, [:flush])
             result

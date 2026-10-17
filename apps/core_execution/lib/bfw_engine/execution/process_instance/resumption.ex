@@ -301,7 +301,8 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
           type_properties: flow_node_instance.type_properties || %{},
           next_flow_node_ids: [],
           multi_instance_id: Map.get(flow_node_instance, :multi_instance_id),
-          iteration_index: Map.get(flow_node_instance, :iteration_index)
+          iteration_index: Map.get(flow_node_instance, :iteration_index),
+          finished_at: Map.get(flow_node_instance, :finished_at)
         }
 
         {flow_node_instance.id, entry}
@@ -344,62 +345,29 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
   @doc """
   Re-derives the compensation registry from persisted FNI state.
 
-  Scans all `:finished` FNIs, checks whether their BPMN flow node has a
-  Compensation Boundary Event with a resolved handler, and rebuilds the
-  LIFO-ordered registry. The ordering is derived from `started_at` or
-  fallback index, since persistence does not store the original counter.
+  Every `:finished` FNI that `CompensationOrchestrator.registry_entry/4`
+  accepts is registered in completion order (`finished_at`), the order the
+  live registry was built in. Activities that a handler compensated before
+  the restart stay registered; resolution skips them through the persisted
+  `compensation_for` links of their handler rows.
   """
   @spec rebuild_compensation_registry(struct()) :: struct()
   def rebuild_compensation_registry(data) do
-    node_index = Map.new(data.process_model.flow_nodes, &{&1.id, &1})
-
-    {entries, counter} =
+    {entries, _order} =
       data.flow_node_instance_states
       |> Enum.filter(fn {_fni_id, entry} -> entry.state == :finished end)
-      |> Enum.sort_by(fn {_fni_id, entry} ->
-        entry.token.created_at
-      end)
-      |> Enum.reduce({[], 0}, fn {fni_id, entry}, {accumulator, order} ->
-        flow_node = Map.get(node_index, entry.flow_node_id)
-        handler_id = find_compensation_handler_id(flow_node, node_index)
-
-        if handler_id do
-          new_entry = %{
-            completed_fni_id: fni_id,
-            flow_node_id: entry.flow_node_id,
-            handler_activity_id: handler_id,
-            token_snapshot: entry.token.payload,
-            completion_order: order
-          }
-
-          {[new_entry | accumulator], order + 1}
-        else
-          {accumulator, order}
+      |> Enum.sort_by(
+        fn {_fni_id, entry} -> Map.get(entry, :finished_at) || entry.token.created_at end,
+        DateTime
+      )
+      |> Enum.reduce({[], 0}, fn {flow_node_instance_id, entry}, {accumulator, order} ->
+        case CompensationOrchestrator.registry_entry(data, flow_node_instance_id, entry, order) do
+          nil -> {accumulator, order}
+          registry_entry -> {[registry_entry | accumulator], order + 1}
         end
       end)
 
-    %{data | compensation_registry: entries, compensation_completion_counter: counter}
-  end
-
-  defp find_compensation_handler_id(nil, _node_index), do: nil
-
-  defp find_compensation_handler_id(%FlowNode{} = flow_node, node_index) do
-    Enum.find_value(flow_node.boundary_event_refs, fn boundary_ref ->
-      case Map.get(node_index, boundary_ref) do
-        %FlowNode{
-          type: :boundary_event,
-          type_data: %FlowNodeData.BoundaryEvent{
-            event_definition: %EventDefinition.Compensation{},
-            compensation_handler_id: handler_id
-          }
-        }
-        when handler_id != nil ->
-          handler_id
-
-        _ ->
-          nil
-      end
-    end)
+    %{data | compensation_registry: entries}
   end
 
   @doc """
@@ -407,8 +375,9 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
 
   A Compensate Throw or End Event parked as `:waiting` with
   `compensation_run` gets its run back: the targets the compensation
-  registry resolves for its event definition, minus those whose handler
-  FNI already finished, with the in-flight handler's target first. A
+  registry resolves and expands for its event definition, minus those a
+  handler of any run already compensated or another rebuilt run queued,
+  with the in-flight handler's target first. A
   finished Cancel End Event gets its LIFO cancel run the same way, and a
   run delegated to a Compensation Event Subprocess is mapped back to its
   ESP shell. A finished Compensate End Event sets `compensation_end_reached`;
@@ -526,17 +495,17 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         mode: :esp,
         throw_type: throw_type,
         outgoing_flow_node_ids: outgoing_flow_node_ids,
-        token_payload: entry.token.payload
+        token_payload: entry.token.payload,
+        handler_count: 0
       }
 
       data = put_in(data.compensation_runs[throw_fni_id], run)
       map_compensation_esp(data, throw_fni_id)
     else
       targets =
-        CompensationResolver.resolve(
-          data.compensation_registry,
-          flow_node.type_data.event_definition
-        )
+        data.compensation_registry
+        |> CompensationResolver.resolve(flow_node.type_data.event_definition)
+        |> then(&CompensationOrchestrator.expand_targets(data, &1))
 
       put_rebuilt_run(
         data,
@@ -561,7 +530,11 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
         data
 
       {cancel_fni_id, entry} ->
-        targets = Enum.sort_by(data.compensation_registry, & &1.completion_order, :desc)
+        targets =
+          data.compensation_registry
+          |> Enum.sort_by(& &1.completion_order, :desc)
+          |> then(&CompensationOrchestrator.expand_targets(data, &1))
+
         put_rebuilt_run(data, cancel_fni_id, targets, :cancel, [], entry.token.payload)
     end
   end
@@ -574,24 +547,12 @@ defmodule BfwEngine.Execution.ProcessInstance.Resumption do
          outgoing_flow_node_ids,
          token_payload
        ) do
-    finished_target_ids =
-      data.flow_node_instance_states
-      |> Enum.filter(fn {_id, entry} ->
-        entry.state == :finished and
-          type_property(entry, :compensation_throw_fni_id) == throw_fni_id
-      end)
-      |> MapSet.new(fn {_id, entry} -> type_property(entry, :compensation_for) end)
-
-    in_flight_target_id = live_handler_target(data, throw_fni_id)
-
-    {in_flight, remaining} =
-      targets
-      |> Enum.reject(&MapSet.member?(finished_target_ids, &1.completed_fni_id))
-      |> Enum.split_with(&(&1.completed_fni_id == in_flight_target_id))
-
     run =
-      CompensationOrchestrator.build_run(
-        in_flight ++ remaining,
+      CompensationOrchestrator.build_resumed_run(
+        data,
+        throw_fni_id,
+        targets,
+        live_handler_target(data, throw_fni_id),
         throw_type,
         outgoing_flow_node_ids,
         token_payload

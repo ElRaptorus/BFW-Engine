@@ -157,6 +157,43 @@ defmodule BfwEngine.Plugins.Integration.ServiceTaskPluginRobustnessTest do
     end
   end
 
+  describe "an async Service Task used as a compensation handler" do
+    test "finish_async lets the Compensate Throw continue" do
+      process_instance_id =
+        http_deploy_and_start(
+          "compensation_service_task_async_handler.bpmn",
+          "CompensationServiceTaskAsyncHandler"
+        )
+
+      handler = poll_fni_state(process_instance_id, "service_task", "waiting")
+      assert :ok = Execution.finish_async_service_task(handler.id, %{"undone" => true})
+
+      poll_pi_state(process_instance_id, "finished")
+      assert find_fni_by_flow_node_id(process_instance_id, "Throw_Compensation").state == "finished"
+      assert find_fni_by_flow_node_id(process_instance_id, "End_1").state == "finished"
+    end
+
+    test "finish_async after an engine restart lets the Compensate Throw continue" do
+      process_instance_id =
+        http_deploy_and_start(
+          "compensation_service_task_async_handler.bpmn",
+          "CompensationServiceTaskAsyncHandler"
+        )
+
+      handler = poll_fni_state(process_instance_id, "service_task", "waiting")
+      assert handler.type_properties["compensation_throw_fni_id"] != nil
+
+      stop_process_instance(process_instance_id)
+      {:ok, _resumed_count} = ResumeRunner.resume_all()
+      {:ok, _process_instance_pid} = poll_pi_alive(process_instance_id)
+
+      assert :ok = Execution.finish_async_service_task(handler.id, %{"undone" => true})
+
+      poll_pi_state(process_instance_id, "finished")
+      assert find_fni_by_flow_node_id(process_instance_id, "End_1").state == "finished"
+    end
+  end
+
   describe "Multi-Instance shells take no plugin completion" do
     test "fail_async with the shell's id finds no instance; the iteration still completes the task",
          %{facade: facade} do

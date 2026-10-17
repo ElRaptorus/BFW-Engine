@@ -3,7 +3,8 @@ defmodule BfwEngine.Integration.Execution.CallActivityCascadeTest do
   Integration tests for Call Activity child PI cascade on parent termination.
 
   Verifies that when a parent PI terminates (fatal or aborted), child PIs
-  spawned by Call Activities are cascaded to the matching terminal state.
+  spawned by Call Activities and subprocesses are cascaded to the matching
+  terminal state.
   """
   use BfwEngine.ExecutionCase, async: false
 
@@ -298,8 +299,44 @@ defmodule BfwEngine.Integration.Execution.CallActivityCascadeTest do
   end
 
   # -------------------------------------------------------------------
+  # G3: the handler Task of a child-spawning flow node crashes
+  # -------------------------------------------------------------------
+
+  describe "G3: a crashed subprocess shell handler cascades to its child" do
+    test "the parent goes fatal and so does the child it spawned" do
+      process_instance_id =
+        http_deploy_and_start("embedded_subprocess_user_task.bpmn", "EmbeddedSubprocessUserTask")
+
+      [child_process_instance_id] = await_child_process_instance_ids(process_instance_id)
+      {:ok, _user_task} = await_waiting_fni_by_node_id(child_process_instance_id, "Sub_UserTask")
+      {:ok, parent_pid} = poll_pi_alive(process_instance_id)
+      {:ok, child_pid} = poll_pi_alive(child_process_instance_id)
+
+      child_pid
+      |> shell_handler_task(parent_pid)
+      |> Process.exit(:kill)
+
+      assert {:ok, _parent} = await_process_instance_state(process_instance_id, "fatal")
+      assert find_fni_by_flow_node_id(process_instance_id, "SubProcess_1").state == "fatal"
+      assert {:ok, _child} = await_process_instance_state(child_process_instance_id, "fatal")
+    end
+  end
+
+  # -------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------
+
+  # The shell's handler Task monitors the child while it awaits it.
+  defp shell_handler_task(child_pid, parent_pid) do
+    {:monitored_by, monitoring_pids} = Process.info(child_pid, :monitored_by)
+
+    Enum.find(monitoring_pids, fn monitoring_pid ->
+      case Process.info(monitoring_pid, :dictionary) do
+        {:dictionary, dictionary} -> parent_pid in Keyword.get(dictionary, :"$callers", [])
+        nil -> false
+      end
+    end)
+  end
 
   defp find_child_process_instance_ids(parent_process_instance_id) do
     list_child_process_instance_ids(parent_process_instance_id)

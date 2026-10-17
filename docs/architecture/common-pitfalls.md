@@ -261,6 +261,26 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ---
 
+## A write that replaces `type_properties` must keep the compensation links
+
+**Mistake:** Replacing an FNI's `type_properties` (in memory or in the row) on park, finish, resume, or retry with only the keys the new step produces.
+
+**Why:** A compensation handler is recognised only through `compensation_for` and `compensation_throw_fni_id`. Without them its completion is routed like an ordinary task: the Compensate Throw waits forever, or a rebuilt run dispatches the handler again.
+
+**Correct approach:** Merge instead of replace (the park SQL uses `||`), or carry the two keys over explicitly like `keep_compensation_links/2` in `ExecutionAdapter` and `@compensation_link_keys` in `ProcessInstance`.
+
+---
+
+## A `finished` subprocess instance can run again to compensate its scope
+
+**Mistake:** Treating a `finished` PI as one without live FNIs — aborting its `active` / `waiting` rows as orphans, hiding its inbox tasks, purging or retrying it independently, or expecting a `ProcessInstanceStateChanged` when it runs.
+
+**Why:** Compensating a completed subprocess without its own handler revives the subprocess's child PI in scope mode (`ProcessInstance.start_compensation_scope/2`). Its inner handler FNIs run there while the PI row stays `finished`, and it writes no PI state. The handler rows carry `compensation_throw_fni_id`, the throw or Cancel End FNI (possibly in an ancestor PI) whose run is waiting for them.
+
+**Correct approach:** Judge such rows by their anchor, not by their own PI's state: while the anchor's PI is neither terminal nor deleted they are live (the startup FNI sweep exempts them). Inbox, cleanup, and retention code must not use "PI is terminal" alone to decide that an FNI is dead. See [execution.md](execution.md) §Compensation scope run and §Startup Orphan Cleanup.
+
+---
+
 ## Ad-hoc inner activities have no Start or End events
 
 **Mistake:** Putting a Start/End inside `<bpmn:adHocSubProcess>`, or treating `cancelRemainingInstances="false"` as missing (`|| true`).

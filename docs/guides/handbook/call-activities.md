@@ -52,6 +52,13 @@ The expression is evaluated against the parent PI's full [FEEL context](expressi
 
 When no input mappings are configured, the parent's full token payload is passed to the child unchanged.
 
+How mappings build their result (input and output alike):
+
+- The result is a **new** object that holds only the mapped targets. Fields of the mapped token that no mapping names are not carried over.
+- `target` is a literal top-level key: `target="a.b"` creates the key `"a.b"`, not a nested object.
+- When two mappings write the same `target`, the later one wins.
+- Inside `source`, only the standard FEEL bindings exist. `token` is the value being mapped; there is no `result` or `event` binding, and an unknown name such as `result.status` evaluates to `null`.
+
 ## Output Mappings
 
 Output mappings transform the child PI's aggregated result before it flows back to the parent. The child's result is built by merging payloads from all End Events the child reached (FinalToken aggregation).
@@ -63,7 +70,9 @@ Output mappings transform the child PI's aggregated result before it flows back 
 
 The expression is evaluated against a FEEL context where `token` is the child's aggregated result payload. If any output mapping expression fails, the parent PI transitions to `fatal`.
 
-When no output mappings are configured, the child's aggregated result is returned to the parent unchanged.
+When no output mappings are configured, the child's aggregated result is returned to the parent unchanged. Either way, the result becomes the Call Activity's output token: parent fields that the child did not return, or that no output mapping names, are gone after the Call Activity.
+
+When the child ended at several End Events and two of them carry the same key, which value survives is **unspecified** — it is not the last End Event reached. Give each End Event's payload its own keys.
 
 ## Child PI Lifecycle
 
@@ -96,6 +105,8 @@ When a child PI transitions to `fatal`, the Call Activity checks for attached [E
 |----------|----------|
 | Child fatals, matching boundary exists | Parent routes through the boundary's outgoing flows (parent finishes normally) |
 | Child fatals, no matching boundary | Parent PI transitions to `fatal` |
+| Child ends at an uncaught Error End Event, matching error boundary | Parent routes through the boundary (child stays `error`) |
+| Child ends at an uncaught Error End Event, no matching boundary | The error is offered to the parent's Error Event Subprocess starts; otherwise the Call Activity and the parent end `error` and the error bubbles to the grandparent the same way |
 | Child crashes (OTP process death) | Treated as `CHILD_CRASH` error, checked against boundaries |
 | Called element cannot be resolved | Parent PI transitions to `fatal` (no child spawned) |
 | Input mapping FEEL expression fails | Parent PI transitions to `fatal` (no child spawned) |

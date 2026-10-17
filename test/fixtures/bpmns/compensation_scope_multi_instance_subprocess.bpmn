@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bfw="https://bifrostforge.world/schema/bpmn"
+  targetNamespace="https://bifrostforge.world/schema/bpmn"
+  id="Definitions_CompensationScopeMultiInstanceSubprocess">
+
+  <!--
+    A sequential Multi-Instance subprocess without a handler: each iteration
+    runs as its own child instance, and compensation runs Task_Undo_Item in
+    each of them, latest iteration first.
+  -->
+
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" name="Default" processRef="CompensationScopeMultiInstanceSubprocess" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="CompensationScopeMultiInstanceSubprocess" name="Compensation Scope Multi-Instance Subprocess" isExecutable="true">
+    <bpmn:extensionElements>
+      <bfw:version>1.0.0</bfw:version>
+    </bpmn:extensionElements>
+
+    <bpmn:startEvent id="Start_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:subProcess id="SubProcess_Items" name="Items">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:extensionElements>
+          <bfw:inputCollection>token.items</bfw:inputCollection>
+          <bfw:elementVariable>item</bfw:elementVariable>
+        </bpmn:extensionElements>
+      </bpmn:multiInstanceLoopCharacteristics>
+
+      <bpmn:startEvent id="Sub_Start" name="Sub Start">
+        <bpmn:outgoing>Sub_Flow_1</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:scriptTask id="Task_Item" name="Process Item" scriptFormat="feel">
+        <bpmn:incoming>Sub_Flow_1</bpmn:incoming>
+        <bpmn:outgoing>Sub_Flow_2</bpmn:outgoing>
+        <bpmn:script>{ processed: token.item }</bpmn:script>
+      </bpmn:scriptTask>
+
+      <bpmn:boundaryEvent id="BE_Comp_Item" name="Compensate Item" attachedToRef="Task_Item" cancelActivity="false">
+        <bpmn:compensateEventDefinition />
+      </bpmn:boundaryEvent>
+
+      <bpmn:task id="Task_Undo_Item" name="Undo Item" isForCompensation="true" />
+
+      <bpmn:endEvent id="Sub_End" name="Sub End">
+        <bpmn:incoming>Sub_Flow_2</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Sub_Flow_1" sourceRef="Sub_Start" targetRef="Task_Item" />
+      <bpmn:sequenceFlow id="Sub_Flow_2" sourceRef="Task_Item" targetRef="Sub_End" />
+
+      <bpmn:association id="Assoc_Comp_Item" sourceRef="BE_Comp_Item" targetRef="Task_Undo_Item" associationDirection="One" />
+    </bpmn:subProcess>
+
+    <bpmn:intermediateThrowEvent id="Throw_Comp" name="Compensate">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:compensateEventDefinition />
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:endEvent id="End_1" name="End">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="SubProcess_Items" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SubProcess_Items" targetRef="Throw_Comp" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Throw_Comp" targetRef="End_1" />
+  </bpmn:process>
+</bpmn:definitions>

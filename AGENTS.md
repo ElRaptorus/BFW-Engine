@@ -391,12 +391,16 @@ JSON array of form fields (`id`, `type`, `label`, `required`), passed through to
 
 #### `bfw:dueDate`
 
-The task's due date. A value that parses as an ISO 8601 date-time is stored
-as written. Anything else is a FEEL expression, evaluated with `token` bound
-to the input after `bfw:inputMapping`; it must yield a date-time (stored as
-ISO 8601 UTC) or `null` (no due date). Any other result, or a FEEL error,
-fails the task with `user_task_due_date_failed` (Error Boundaries and Error
-Event Subprocess starts may catch it). `bfw:assignees` is
+The task's due date, always stored as an ISO 8601 date-time string. A literal
+date-time with an offset is stored as written; an offset-less literal
+date-time is read as UTC and a date-only literal (`2025-12-01`) as midnight
+UTC (`2025-12-01T00:00:00Z`). Anything else is a FEEL expression, evaluated
+with `token` bound to the input after `bfw:inputMapping`; it must yield a
+date-time, a date, or a string in one of the literal forms, stored as ISO 8601
+UTC (offset-less → UTC, date → midnight UTC). Any other result — including
+`null`, a duration, or an unknown name such as a misspelled `token.x` — or a
+FEEL error fails the task with `user_task_due_date_failed` (Error Boundaries
+and Error Event Subprocess starts may catch it). `bfw:assignees` is
 evaluated against the same mapped input.
 
 ```xml
@@ -555,6 +559,7 @@ A `<bpmn:boundaryEvent>` with `<bpmn:compensateEventDefinition>` and `cancelActi
 
 - No `activityRef` → broadcast: all completed activities with compensation handlers are compensated in LIFO order
 - `activityRef="Task_Book"` → targeted: only the specified activity's handler fires
+- A completed embedded subprocess without its own handler is compensated inside (its completed compensable activities), a completed loop activity per iteration; a Call Activity only through its own handler. Inner handlers run in the subprocess's own (finished) instance and scope: its Data Objects, its lane. Each activity is compensated at most once. See [`docs/architecture/execution.md`](docs/architecture/execution.md) §Compensation Resolution and §Compensation scope run
 - `waitForCompletion` (standard BPMN attribute on `<bpmn:compensateEventDefinition>`): default `true`. The engine always executes compensation synchronously (handlers run to completion before the token proceeds). `waitForCompletion="false"` is parsed but treated as `true` — asynchronous fire-and-forget compensation is not supported.
 
 ```xml
@@ -624,13 +629,18 @@ the Call Activity).
 #### `bfw:inputMapping` / `bfw:outputMapping`
 
 Maps variables between the calling and called process scopes. `source` is
-a FEEL expression, `target` is a variable name.
+a FEEL expression with `token` bound to the value being mapped (the parent
+token for `inputMapping`, the child's merged End Event output for
+`outputMapping`); there is no `result` binding. `target` is a literal
+top-level key (`a.b` is one key). The mappings build a new map that holds
+only their targets (a later mapping to the same target wins); unmapped
+fields are not carried over.
 
 ```xml
 <bpmn:callActivity id="Call_fulfill" name="Fulfill Order">
   <bpmn:extensionElements>
     <bfw:inputMapping source="token.orderId" target="orderId" />
-    <bfw:outputMapping source="result.trackingNumber" target="trackingNumber" />
+    <bfw:outputMapping source="token.trackingNumber" target="trackingNumber" />
   </bpmn:extensionElements>
 </bpmn:callActivity>
 ```
@@ -647,7 +657,7 @@ Maps variables between the parent process token and the subprocess child PI scop
 <bpmn:subProcess id="SubProcess_validate" name="Validate Order">
   <bpmn:extensionElements>
     <bfw:inputMapping source="token.orderId" target="orderId" />
-    <bfw:outputMapping source="result.validated" target="validated" />
+    <bfw:outputMapping source="token.validated" target="validated" />
   </bpmn:extensionElements>
   ...
 </bpmn:subProcess>
@@ -1090,7 +1100,7 @@ validator rejects invalid combinations.
 - A **Cancel End Event** (`<bpmn:cancelEventDefinition>` on an `<bpmn:endEvent>`) is only valid inside a `<bpmn:transaction>` subprocess. Violation: `:cancel_end_outside_transaction`.
 - A **Cancel Boundary Event** (`<bpmn:cancelEventDefinition>` on a `<bpmn:boundaryEvent>`) may only be attached to a `<bpmn:transaction>` subprocess shell. Violation: `:cancel_boundary_not_on_transaction`.
 - At most one Cancel Boundary Event per transaction shell (spec constraint).
-- Nested transactions are rejected at deploy time: `:nested_transaction`.
+- Nested transactions are rejected at deploy time, at any depth (also a transaction inside an embedded subprocess inside a transaction): `:nested_transaction`.
 
 An **Event Subprocess start event** must carry a typed event definition —
 Error, Escalation, and Compensation are valid there (unlike a top-level
@@ -1453,9 +1463,9 @@ Selected `BfwEngine.Types.Event.*` structs fan out through `EngineEventBus`. Ful
 | `SignalPublished` | `signalId`, `signalName`, `origin`, `deliveries`, `startedProcessInstanceIds`, `pending`, `occurredAt` | No payload, no correlation; true broadcast. Emitted after pipeline completes |
 | `SignalArrived` | `signalId`, `signalName`, `processInstanceId`, `flowNodeInstanceId`, `rootProcessInstanceId`, `laneName`, `occurredAt` | No payload — signal identity and recipient only. `laneName` is copied from the catch-side subscription. `rootProcessInstanceId` is copied from the subscription. |
 | `EscalationRaised` | `escalationCode`, `escalationName`, `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `laneName`, `occurredAt` | Emitted on every escalation throw (both caught and uncaught) and on REST/plugin inject. `throwType`: `"end_event"`, `"intermediate_throw"`, or `"api_trigger"`. Broadcast to `process_instance:<piId>` and `process_instance:<rootPiId>`. `laneName` is the throw FNI's lane. |
-| `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `laneName`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` is 0 if no completed activities have handlers. |
-| `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `laneName`, `occurredAt` | Emitted after each compensation handler finishes. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. |
-| `TransactionCancelled` | `processInstanceId`, `rootProcessInstanceId`, `transactionNodeId`, `compensationHandlerCount`, `laneName`, `occurredAt` | Emitted after all automatic LIFO compensation completes and the transaction child PI is about to transition to `:cancelled`. `compensationHandlerCount` is the number of compensation handlers that ran (0 if no completed compensable activities). Broadcast to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`. `laneName` is the transaction shell's lane. |
+| `CompensationTriggered` | `processInstanceId`, `rootProcessInstanceId`, `flowNodeInstanceId`, `flowNodeId`, `throwType`, `activityRef`, `targetCount`, `laneName`, `occurredAt` | Emitted before handler dispatch. `throwType`: `throw` or `end`. `activityRef` may be `null` (broadcast). `targetCount` counts the targets of the throwing scope; a completed subprocess without its own handler counts as one. 0 if nothing is left to compensate. |
+| `ActivityCompensated` | `processInstanceId`, `rootProcessInstanceId`, `compensatedFniId`, `handlerFniId`, `throwFniId`, `flowNodeId`, `handlerActivityId`, `laneName`, `occurredAt` | Emitted after each compensation handler finishes, by the instance the handler ran in. `compensatedFniId` is the original completed FNI; `handlerFniId` is the handler FNI that ran. For an inner handler of a compensated subprocess, `processInstanceId` is the subprocess's child instance and `throwFniId` may belong to an ancestor instance. |
+| `TransactionCancelled` | `processInstanceId`, `rootProcessInstanceId`, `transactionNodeId`, `compensationHandlerCount`, `laneName`, `occurredAt` | Emitted after all automatic LIFO compensation completes and the transaction child PI is about to transition to `:cancelled`. `compensationHandlerCount` is the number of compensation handler FNIs that finished in the cancel run, at any depth (0 if no completed compensable activities). Broadcast to both `process_instance:<processInstanceId>` and `process_instance:<rootProcessInstanceId>`. `laneName` is the transaction shell's lane. |
 | `AdHocActivityActivated` | `processInstanceId`, `rootProcessInstanceId`, `adhocFlowNodeInstanceId`, `activatedFlowNodeInstanceId`, `activatedFlowNodeId`, `activationSource`, `laneName`, `occurredAt` | `activationSource`: `engine` or `api` or `plugin`. `laneName` is the activated activity's lane. |
 | `AdHocSubProcessCompleted` | `processInstanceId`, `rootProcessInstanceId`, `adhocFlowNodeInstanceId`, `adhocNodeId`, `completionReason`, `totalActivations`, `laneName`, `occurredAt` | `completionReason`: `completed`, `fatal`, `error`, `aborted`, `crashed`, `escalation`, `unknown`. `laneName` is the ad-hoc shell's lane. |
 | `SinkFailed` | `sinkName`, `eventType`, `error` | Does NOT reach WebSocket sink; only in-process EventSinks see it |
@@ -1947,15 +1957,18 @@ clear visual distinction in the debugger:
 
 ### Error propagation to parent
 
-When a child PI (via Call Activity) throws a BPMN error:
-- The Call Activity handler receives `{:child_pi_bpmn_error, ...}` in
-  `await_child_completion/3` and routes through
+When a child PI (via Call Activity, embedded subprocess, or transaction)
+ends with an uncaught BPMN error:
+- The shell handler receives `{:child_pi_bpmn_error, ...}` in
+  `await_child_completion/7` and routes through
   `BoundaryResolver.find_matching_error_boundary/4`
 - **Match found** → `{:boundary, boundary_node_id, error_info,
   cancel_activity}` — parent catches the error and follows the boundary
   path
-- **No match** → `{:error, error_info}` — parent PI fatals (uncaught
-  BPMN error is a fatal condition in the parent)
+- **No match** → the shell ends `:error` and returns `{:bpmn_error, ...}`:
+  the parent offers the error to its Error Event Subprocess starts, else
+  ends `:error` itself (PI reaction above) and notifies its own parent.
+  The error bubbles up; it never makes a parent `:fatal`
 
 ### Standalone process behavior
 
@@ -1998,7 +2011,7 @@ subprocess lifecycle with cancel-awareness.
 |---------|---------|----------------|---------------|
 | **Success** | All paths reach End Events normally | `:finished` | Token flows via outgoing sequence flow (same as embedded subprocess) |
 | **Cancel** | Cancel End Event fires → LIFO compensation → Cancel Boundary fires | `:cancelled` | Parent continues via Cancel Boundary outgoing flow |
-| **Hazard** | Uncaught error/fault propagates out | `:fatal` | Same as embedded subprocess fatal — error boundary or parent fatal |
+| **Hazard** | Uncaught BPMN error or engine fault propagates out | `:error` or `:fatal` | Same as an embedded subprocess — error boundary, else a BPMN error bubbles up (parent `:error`) and a fault fatals the parent |
 
 **Compensation is NOT triggered on a Hazard.** Only a Cancel End Event triggers
 automatic LIFO compensation. This is spec-correct (BPMN 2.0 §13.4.6). If
@@ -2023,9 +2036,9 @@ routing to a Compensate Throw, then a Cancel End.
 | Terminal state | `:cancelled` is distinct from `:aborted` (API kill) and `:compensated` (explicit compensation). |
 | Cancel End | Fires automatic LIFO compensation within the child PI before transitioning to `:cancelled`. |
 | Cancel Boundary | Reactive, matched via `BoundaryResolver.find_matching_cancel_boundary/2`. It is not a subscription. |
-| Nesting | The deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction`. |
+| Nesting | The deploy-time validator rejects `bpmn:transaction` inside another `bpmn:transaction` at any depth, also through embedded subprocesses. |
 | `method` | Parsed and stored as `transaction_method`. It is not executed. |
-| Hazard | An uncaught error does not trigger compensation. The error propagates to the parent the same way as any subprocess fatal. |
+| Hazard | An uncaught error does not trigger compensation. It propagates to the parent the same way as from an embedded subprocess. |
 | Retry | A checkpoint must not point inside a transaction scope, and no PI below a transaction ancestor may be retried independently. Error codes: `retry_checkpoint_inside_transaction`, `retry_inside_transaction_scope`. |
 | `:cancelled` | Not retryable. It is a handled business outcome. |
 
