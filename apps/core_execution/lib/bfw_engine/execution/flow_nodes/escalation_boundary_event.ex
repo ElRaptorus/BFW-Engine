@@ -5,7 +5,7 @@ defmodule BfwEngine.Execution.FlowNodes.EscalationBoundaryEvent do
   Mirrors `ErrorBoundaryEvent`: a pre-spawned passive handler Task that parks
   the FNI in `:waiting` state. The handler's `receive` loop is a placeholder —
   actual routing flows through `BoundaryOrchestrator.handle_boundary_catch/5`,
-  which finds the pre-spawned FNI, kills this handler Task, and finishes the
+  which finds the pre-spawned FNI, stops this handler Task, and finishes the
   FNI in-place.
 
   ## Interrupting vs Non-Interrupting
@@ -22,7 +22,7 @@ defmodule BfwEngine.Execution.FlowNodes.EscalationBoundaryEvent do
     each trigger an independent boundary path.
 
   If the host activity completes normally, `cancel_boundary_fnis_for_host`
-  kills this handler Task and transitions the FNI to `:aborted`.
+  stops this handler Task and transitions the FNI to `:interrupted`.
   """
 
   @behaviour BfwEngine.Execution.FlowNodeHandler

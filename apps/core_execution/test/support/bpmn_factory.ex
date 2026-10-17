@@ -1135,6 +1135,109 @@ defmodule BfwEngine.Execution.TestSupport.BpmnFactory do
   end
 
   @doc """
+  Build a Start → ScriptTask (FEEL) + interrupting Message boundary → UserTask
+  → End process; the Message boundary leads to its own End Event. With
+  `with_error_boundary: true` the script also carries a catch-all Error
+  boundary that leads into the same User Task, so the instance stays running
+  after a catch.
+  """
+  def script_task_with_message_boundary(opts \\ []) do
+    process_id = Keyword.get(opts, :process_id, "test-process")
+    script = Keyword.get(opts, :script, "{ instant: true }")
+    message_id = Keyword.get(opts, :message_id, "Message_1")
+    message_name = Keyword.get(opts, :message_name, "boundary-message")
+    with_error_boundary = Keyword.get(opts, :with_error_boundary, false)
+
+    message_boundary = %FlowNode{
+      id: "MessageBE_1",
+      type: :boundary_event,
+      type_data: %FlowNodeData.BoundaryEvent{
+        attached_to_ref: "ScriptTask_1",
+        cancel_activity: true,
+        event_definition: %EventDefinition.Message{message_ref: message_id}
+      },
+      outgoing: ["Flow_Message"]
+    }
+
+    error_boundary = %FlowNode{
+      id: "ErrorBE_1",
+      type: :boundary_event,
+      type_data: %FlowNodeData.BoundaryEvent{
+        attached_to_ref: "ScriptTask_1",
+        cancel_activity: true,
+        event_definition: %EventDefinition.Error{}
+      },
+      outgoing: ["Flow_Error"]
+    }
+
+    {error_nodes, error_flows, user_task_incoming} =
+      if with_error_boundary do
+        {[error_boundary],
+         [%SequenceFlow{id: "Flow_Error", source_ref: "ErrorBE_1", target_ref: "UserTask_1"}],
+         ["Flow_2", "Flow_Error"]}
+      else
+        {[], [], ["Flow_2"]}
+      end
+
+    start = %FlowNode{
+      id: "Start_1",
+      type: :start_event,
+      type_data: %FlowNodeData.StartEvent{event_definition: %EventDefinition.None{}},
+      outgoing: ["Flow_1"]
+    }
+
+    script_task = %FlowNode{
+      id: "ScriptTask_1",
+      name: "Script",
+      type: :script_task,
+      type_data: %FlowNodeData.ScriptTask{script: script, script_format: "feel"},
+      incoming: ["Flow_1"],
+      outgoing: ["Flow_2"],
+      boundary_event_refs: ["MessageBE_1" | Enum.map(error_nodes, & &1.id)]
+    }
+
+    user_task = %FlowNode{
+      id: "UserTask_1",
+      name: "After Script",
+      type: :user_task,
+      type_data: %FlowNodeData.UserTask{form_fields: nil},
+      incoming: user_task_incoming,
+      outgoing: ["Flow_3"]
+    }
+
+    end_normal = %FlowNode{
+      id: "End_Normal",
+      name: "Normal End",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_3"]
+    }
+
+    end_message = %FlowNode{
+      id: "End_Message",
+      name: "Message End",
+      type: :end_event,
+      type_data: %FlowNodeData.EndEvent{event_definition: %EventDefinition.None{}},
+      incoming: ["Flow_Message"]
+    }
+
+    flows =
+      [
+        %SequenceFlow{id: "Flow_1", source_ref: "Start_1", target_ref: "ScriptTask_1"},
+        %SequenceFlow{id: "Flow_2", source_ref: "ScriptTask_1", target_ref: "UserTask_1"},
+        %SequenceFlow{id: "Flow_3", source_ref: "UserTask_1", target_ref: "End_Normal"},
+        %SequenceFlow{id: "Flow_Message", source_ref: "MessageBE_1", target_ref: "End_Message"}
+      ] ++ error_flows
+
+    wrap_process_with_messages(
+      process_id,
+      [start, script_task, user_task, end_normal, message_boundary, end_message | error_nodes],
+      flows,
+      [%MessageDefinition{id: message_id, name: message_name}]
+    )
+  end
+
+  @doc """
   Build a Start → Message Throw → End process with an optional
   `correlation_retrieval_expression` on the throw event definition.
   """

@@ -184,7 +184,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         boundary_fni_for_host?(entry, host_flow_node_instance_id)
     end)
     |> Enum.reduce(data, fn {boundary_fni_id, entry}, accumulator ->
-      InstanceHandlerDispatch.kill_handler_task(entry.pid)
+      remaining_pid = stop_boundary_handler(entry)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
@@ -218,7 +218,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       put_in(accumulator.flow_node_instance_states[boundary_fni_id], %{
         entry
         | state: :interrupted,
-          pid: nil
+          pid: remaining_pid
       })
     end)
   end
@@ -233,7 +233,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
         boundary_fni_for_host?(entry, host_fni_id)
     end)
     |> Enum.reduce(data, fn {sibling_fni_id, entry}, accumulator ->
-      InstanceHandlerDispatch.kill_handler_task(entry.pid)
+      remaining_pid = stop_boundary_handler(entry)
 
       flow_node = FlowNodeLookup.find_flow_node(accumulator, entry.flow_node_id)
 
@@ -267,7 +267,7 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
       put_in(accumulator.flow_node_instance_states[sibling_fni_id], %{
         entry
         | state: :interrupted,
-          pid: nil
+          pid: remaining_pid
       })
     end)
   end
@@ -302,13 +302,14 @@ defmodule BfwEngine.Execution.ProcessInstance.BoundaryOrchestrator do
     end
   end
 
-  # An `:active` boundary handler may still be inside its `park_async` write;
-  # killing it there breaks the database connection it holds. It keeps its pid
-  # so its late `{:async}` result receives the `:cancel` gate and it exits.
+  # An `:active` boundary handler may still be inside a database call of its
+  # enter path (`park_async`, the pending-message drain); killing it there
+  # breaks the connection it holds. It keeps its pid so its late `{:async}`
+  # result releases what it registered and receives the `:cancel` gate.
   defp stop_boundary_handler(%{state: :active, pid: pid}) when is_pid(pid), do: pid
 
-  defp stop_boundary_handler(%{pid: pid}) when is_pid(pid) do
-    Process.exit(pid, :kill)
+  defp stop_boundary_handler(%{pid: pid}) do
+    InstanceHandlerDispatch.kill_handler_task(pid)
     nil
   end
 

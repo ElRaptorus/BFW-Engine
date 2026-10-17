@@ -11,11 +11,11 @@ defmodule BfwEngine.Execution.FlowNodes.ErrorBoundaryEvent do
   Error routing continues to happen in `BoundaryAwareHandler` (for
   `handle_enter` errors) and in `SubProcess` (for child PI errors).
   When those produce `{:boundary, ...}`, the PI's `handle_boundary_catch`
-  finds the pre-spawned FNI, kills this handler Task, and finishes the
+  finds the pre-spawned FNI, stops this handler Task, and finishes the
   FNI in-place.
 
   If the host activity completes normally, `cancel_boundary_fnis_for_host`
-  kills the handler Task and transitions the FNI to `:aborted`.
+  stops the handler Task and transitions the FNI to `:interrupted`.
   """
 
   @behaviour BfwEngine.Execution.FlowNodeHandler

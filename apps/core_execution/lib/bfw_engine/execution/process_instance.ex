@@ -2142,8 +2142,7 @@ defmodule BfwEngine.Execution.ProcessInstance do
   defp handle_fni_async(data, flow_node_instance_id, extra_type_properties) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do
       %{state: state} = entry when state in [:finished, :fatal, :aborted, :interrupted, :error] ->
-        send_async_gate(entry.pid, :cancel)
-        data
+        release_late_handler(data, flow_node_instance_id, entry)
 
       nil ->
         data
@@ -2160,6 +2159,24 @@ defmodule BfwEngine.Execution.ProcessInstance do
         end
     end
   end
+
+  # A boundary handler left alive while `:active` (BoundaryOrchestrator) may
+  # have registered a subscription or armed a timer after its FNI ended.
+  defp release_late_handler(data, flow_node_instance_id, %{pid: pid} = entry) when is_pid(pid) do
+    flow_node = FlowNodeLookup.find_flow_node(data, entry.flow_node_id)
+
+    InstanceHandlerDispatch.release_handler(
+      flow_node,
+      flow_node_instance_id,
+      :handle_aborted,
+      entry
+    )
+
+    send_async_gate(pid, :cancel)
+    put_in(data.flow_node_instance_states[flow_node_instance_id], %{entry | pid: nil})
+  end
+
+  defp release_late_handler(data, _flow_node_instance_id, _entry), do: data
 
   defp merge_fni_type_properties(data, flow_node_instance_id, extra_type_properties) do
     case Map.get(data.flow_node_instance_states, flow_node_instance_id) do

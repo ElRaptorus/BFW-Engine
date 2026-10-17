@@ -321,13 +321,13 @@ Test-harness and CI rules live in [`testing.md`](testing.md).
 
 ---
 
-## Event-Based Gateway: do not kill siblings that are still `:active`
+## Do not kill a handler Task that is still `:active`
 
-**Mistake:** Interrupting EBG losers as soon as the winner reports, while sibling handler Tasks are still entering.
+**Mistake:** Killing a handler Task while its FNI is `:active`, e.g. Event-Based Gateway losers as soon as the winner reports, or boundary handlers when their host completes or a sibling boundary fires.
 
-**Why:** The PI inserted both successors as `:active` before either parked. Killing mid-persist races the sandbox and can leave a loser finishing.
+**Why:** An `:active` handler is still in its enter path, often inside a database call (`park_async`, the pending-message drain). Killing it breaks the connection it holds; under the Ecto sandbox that rolls back the whole test transaction, so later requests in the test see a truthful 404. It can also leave a loser finishing.
 
-**Correct approach:** Interrupt `:waiting` immediately. Stamp `:active` losers `ebg_pending_cancel` and wait for `{:async}` / `{:wait}` before persist-interrupt. Do not complete `PT0S` timer catches synchronously from `handle_enter`.
+**Correct approach:** Kill `:waiting` handlers (`HandlerDispatch.kill_handler_task/1`). Leave an `:active` one running with its pid and clean up when it reports: EBG losers are stamped `ebg_pending_cancel` and interrupted on `{:async}` / `{:wait}`; ended boundaries get `release_handler/4` plus `{:async_gate, :cancel}` in `handle_fni_async/3`. Do not complete `PT0S` timer catches synchronously from `handle_enter`. See [execution.md](execution.md) §Boundary Fire Processing.
 
 ---
 

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/restore-protected-files.sh"
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": ".cursor/hooks/block-protected-file-writes.sh",
+        "matcher": "Write|StrReplace|Delete",
+        "failClosed": true
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/block-protected-file-writes.sh",
+        "failClosed": true
+      }
+    ]
+  }
+}
